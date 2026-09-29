@@ -158,7 +158,7 @@ func Sync(dstDir string, platforms []Platform) error {
 		}
 	}
 
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	dwn := downloadDecompressed(client)
 	for _, platform := range platforms {
 		defFile, err := downloadDefinitions(sources, platform, dwn)

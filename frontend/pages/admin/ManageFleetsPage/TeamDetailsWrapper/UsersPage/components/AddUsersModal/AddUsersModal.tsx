@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from "react";
 
-import { INewTeamUser, INewTeamUsersFormData, ITeam } from "interfaces/team";
-import endpoints from "utilities/endpoints";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import AutocompleteDropdown from "pages/admin/ManageFleetsPage/TeamDetailsWrapper/UsersPage/components/AutocompleteDropdown";
+import Modal from "components/Modal";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { INewTeamUser, INewTeamUsersFormData, ITeam } from "interfaces/team";
+import AutocompleteDropdown from "pages/admin/ManageFleetsPage/TeamDetailsWrapper/UsersPage/components/AutocompleteDropdown";
+import endpoints from "utilities/endpoints";
 
 const baseClass = "add-user-modal";
 

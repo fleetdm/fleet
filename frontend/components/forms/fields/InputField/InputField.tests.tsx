@@ -1,6 +1,7 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React from "react";
+
 import { renderWithSetup } from "test/test-utils";
 
 import InputField from "./InputField";

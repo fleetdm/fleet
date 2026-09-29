@@ -1,13 +1,13 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import { noop } from "lodash";
+import React from "react";
 
-import createMockUser from "__mocks__/userMock";
 import {
   createMockSoftwareTitlesResponse,
   createMockSoftwareVersionsResponse,
 } from "__mocks__/softwareMock";
-import { noop } from "lodash";
+import createMockUser from "__mocks__/userMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import SoftwareInventoryTable from "./SoftwareInventoryTable";
 

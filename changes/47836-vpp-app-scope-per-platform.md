@@ -1,0 +1,1 @@
+- Fixed VPP apps not scoped to a host still showing up in Self-service when the same app was also added in the fleet for another platform.

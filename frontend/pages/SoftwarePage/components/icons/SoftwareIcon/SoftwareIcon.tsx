@@ -1,9 +1,11 @@
+import { AxiosError } from "axios";
+import classnames from "classnames";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import classnames from "classnames";
-import { SoftwareIconSizes } from "styles/var/icon_sizes";
-import { AxiosError } from "axios";
+
 import softwareAPI from "services/entities/software";
+import { SoftwareIconSizes } from "styles/var/icon_sizes";
+
 import { getMatchedSoftwareIcon } from "../";
 import MatchedIcon from "../MatchedIcon";
 

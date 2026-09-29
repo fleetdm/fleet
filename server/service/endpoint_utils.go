@@ -231,8 +231,6 @@ func newDeviceSSOExemptEndpointer(svc fleet.Service, logger *slog.Logger, opts [
 func deviceAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	ssoGate bool, versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
-	// Extract certificate serial from X-Client-Cert-Serial header for certificate-based auth
-	opts = append(opts, kithttp.ServerBefore(extractCertSerialFromHeader))
 	// Make the Fleet Desktop device SSO session available to the auth middleware
 	opts = append(opts, kithttp.ServerBefore(extractDeviceSSOSessionFromCookie))
 	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints

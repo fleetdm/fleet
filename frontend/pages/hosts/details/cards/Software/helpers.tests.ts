@@ -2,7 +2,13 @@ import {
   createMockHostSoftware,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
-import { compareVersions, getUiStatus, getSoftwareSubheader } from "./helpers";
+
+import {
+  compareVersions,
+  getUiStatus,
+  getSoftwareSubheader,
+  getInstallerActionButtonConfig,
+} from "./helpers";
 
 describe("compareVersions", () => {
   it("correctly compares patch increments", () => {
@@ -148,6 +154,29 @@ describe("getUiStatus", () => {
       // version equal to installed version
     });
     expect(getUiStatus(sw, true)).toBe("failed_install_installed");
+  });
+
+  it("returns 'skipped_install' when the install was a patch-when-closed skip, even if an update would otherwise apply", () => {
+    const sw = createMockHostSoftware({
+      status: "failed_install",
+      skipped_install: true,
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }),
+    });
+    expect(getUiStatus(sw, true)).toBe("skipped_install");
+  });
+
+  it("collapses a patch-when-closed skip back into the failed_install family when suppressed (Self-service view)", () => {
+    // With an installer version newer than the installed version, the row would
+    // otherwise degrade to failed_install_update_available for admin views;
+    // Self-service passes suppressSkippedInstall=true to keep that behavior.
+    const sw = createMockHostSoftware({
+      status: "failed_install",
+      skipped_install: true,
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }),
+    });
+    expect(getUiStatus(sw, true, null, undefined, true)).toBe(
+      "failed_install_update_available"
+    );
   });
 
   it("returns 'failed_uninstall_update_available' when failed_uninstall and update available", () => {
@@ -437,11 +466,16 @@ describe("getUiStatus", () => {
     expect(getUiStatus(sw, true)).toBe("uninstalled");
   });
 
-  describe("Script packages UI statuses", () => {
+  describe("Script packages UI statuses (no uninstall script)", () => {
+    const scriptOnlyPackage = createMockHostSoftwarePackage({
+      has_uninstall_script: false,
+    });
+
     it("returns 'failed_script' when status is failed_install and isScriptPackage", () => {
       const sw = createMockHostSoftware({
         status: "failed_install",
         source: "sh_packages",
+        software_package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, true)).toBe("failed_script");
     });
@@ -450,6 +484,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "pending_install",
         source: "sh_packages",
+        software_package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, true)).toBe("running_script");
     });
@@ -458,6 +493,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "pending_install",
         source: "sh_packages",
+        software_package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, false)).toBe("pending_script");
     });
@@ -466,6 +502,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "installed",
         source: "sh_packages",
+        software_package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, true)).toBe("ran_script");
     });
@@ -474,8 +511,75 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: null,
         source: "sh_packages",
+        software_package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, true)).toBe("never_ran_script");
+    });
+  });
+
+  describe("Script packages with uninstall script use install statuses", () => {
+    const scriptPackageWithUninstall = createMockHostSoftwarePackage({
+      has_uninstall_script: true,
+    });
+
+    it("returns 'installed' (not 'ran_script') when a script-only package with an uninstall script is installed", () => {
+      const sw = createMockHostSoftware({
+        status: "installed",
+        source: "ps1_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: null,
+      });
+      expect(getUiStatus(sw, true)).toBe("installed");
+    });
+
+    it("returns 'failed_install' (not 'failed_script') when a script-only package with an uninstall script fails to install", () => {
+      const sw = createMockHostSoftware({
+        status: "failed_install",
+        source: "ps1_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: null,
+      });
+      expect(getUiStatus(sw, true)).toBe("failed_install");
+    });
+
+    it("returns 'installing' (not 'running_script') when a script-only package with an uninstall script is pending on an online host", () => {
+      const sw = createMockHostSoftware({
+        status: "pending_install",
+        source: "ps1_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: null,
+      });
+      expect(getUiStatus(sw, true)).toBe("installing");
+    });
+
+    it("returns 'uninstalled' (not 'never_ran_script') when a script-only package with an uninstall script has no install record", () => {
+      const sw = createMockHostSoftware({
+        status: null,
+        source: "sh_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: null,
+      });
+      expect(getUiStatus(sw, true)).toBe("uninstalled");
+    });
+
+    it("returns 'failed_install' (not 'failed_install_installed') when installed_versions is an empty array", () => {
+      const sw = createMockHostSoftware({
+        status: "failed_install",
+        source: "ps1_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: [],
+      });
+      expect(getUiStatus(sw, true)).toBe("failed_install");
+    });
+
+    it("returns 'failed_uninstall' (not 'failed_uninstall_installed') when installed_versions is an empty array", () => {
+      const sw = createMockHostSoftware({
+        status: "failed_uninstall",
+        source: "ps1_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: [],
+      });
+      expect(getUiStatus(sw, true)).toBe("failed_uninstall");
     });
   });
 });
@@ -559,5 +663,13 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: false,
     });
     expect(result).toBe("Software installed on this host.");
+  });
+});
+
+describe("getInstallerActionButtonConfig", () => {
+  it("returns 'Update' for a skipped_install row (a deferred update)", () => {
+    expect(
+      getInstallerActionButtonConfig("install", "skipped_install")
+    ).toEqual({ text: "Update", icon: "refresh" });
   });
 });

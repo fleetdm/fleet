@@ -88,7 +88,7 @@ func NewCVE(dbDir string, opts ...CVEOption) (*CVE, error) {
 		return nil, errors.New("directory not set")
 	}
 	s := CVE{
-		client:           fleethttp.NewClient(),
+		client:           fleethttp.NewClient(fleethttp.WithNoTimeout()),
 		dbDir:            dbDir,
 		logger:           slog.New(slog.DiscardHandler),
 		MaxTryAttempts:   maxRetryAttempts,

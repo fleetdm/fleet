@@ -1,5 +1,5 @@
-import React from "react";
 import { Command } from "cmdk";
+import React from "react";
 
 import { ITeamSummary } from "interfaces/team";
 

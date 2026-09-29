@@ -1,7 +1,15 @@
-import React from "react";
 import { cloneDeep } from "lodash";
+import React from "react";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { RecoveryLockPasswordStatus } from "interfaces/host";
+import {
+  isAndroidBYO,
+  isAndroidCOBO,
+  isAutomaticDeviceEnrollment,
+  isBYODAccountDrivenUserEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
 import {
   isLinuxLike,
   isAppleDevice,
@@ -11,13 +19,6 @@ import {
   isIPadOrIPhone,
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
-import {
-  isAndroidBYO,
-  isAndroidCOBO,
-  isAutomaticDeviceEnrollment,
-  isBYODAccountDrivenUserEnrollment,
-  MdmEnrollmentStatus,
-} from "interfaces/mdm";
 
 import {
   HostMdmDeviceStatusUIState,
@@ -113,7 +114,8 @@ interface IHostActionConfigOptions {
   isAppleBusinessEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
   isAndroidMdmEnabledAndConfigured: boolean;
-  doesStoreEncryptionKey: boolean;
+  isEncryptionKeyAvailable: boolean;
+  isEncryptionKeyArchived: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
   scriptsGloballyDisabled: boolean | undefined;
@@ -122,6 +124,7 @@ interface IHostActionConfigOptions {
   isRecoveryLockPasswordEnabled: boolean;
   diskEncryptionProfileStatus: string | undefined;
   recoveryLockPasswordAvailable: boolean;
+  recoveryLockPasswordStatus: RecoveryLockPasswordStatus | undefined;
   isManagedLocalAccountEnabled: boolean;
   managedAccountStatus: string | null | undefined;
   managedAccountDetail: string | undefined;
@@ -338,17 +341,27 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
+    isGlobalTechnician,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamTechnician,
   } = config;
-  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  return (
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isGlobalTechnician ||
+    isTeamAdmin ||
+    isTeamMaintainer ||
+    isTeamTechnician
+  );
 };
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   const {
     isPremiumTier,
     isConnectedToFleetMdm,
-    doesStoreEncryptionKey,
+    isEncryptionKeyAvailable,
+    isEncryptionKeyArchived,
     hostPlatform,
   } = config;
   if (!isPremiumTier) {
@@ -361,7 +374,12 @@ const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   if (isAppleDevice(hostPlatform) && !isConnectedToFleetMdm) {
     return false;
   }
-  return doesStoreEncryptionKey;
+  // Fleet never serves a Linux host's archived key: the current key is only
+  // removed once its LUKS slot is proven gone, so the archived one is dead.
+  if (isLinuxLike(hostPlatform)) {
+    return isEncryptionKeyAvailable;
+  }
+  return isEncryptionKeyAvailable || isEncryptionKeyArchived;
 };
 
 const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
@@ -710,6 +728,7 @@ const modifyOptions = (
     scriptsGloballyDisabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
+    recoveryLockPasswordStatus,
     managedAccountStatus,
     managedAccountDetail,
     managedAccountPasswordAvailable,
@@ -835,13 +854,23 @@ const modifyOptions = (
     );
     if (rlpOption) {
       rlpOption.disabled = true;
-      rlpOption.tooltipContent = (
-        <>
-          Recovery Lock password is unavailable
-          <br />
-          while pending or has failed.
-        </>
-      );
+      if (recoveryLockPasswordStatus === "failed") {
+        rlpOption.tooltipContent = (
+          <>
+            Failed to retrieve Recovery Lock password.
+            <br />
+            Head to <b>Controls</b> to see the error and retry.
+          </>
+        );
+      } else {
+        rlpOption.tooltipContent = (
+          <>
+            Recovery Lock password isn&apos;t available yet.
+            <br />
+            The command to retrieve it is pending.
+          </>
+        );
+      }
     }
   }
 

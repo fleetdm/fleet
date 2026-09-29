@@ -10,14 +10,15 @@ For Windows hosts, copy this [Windows configuration profile template](https://fl
 
 For Android hosts, copy this [Android configuration profile template](https://fleetdm.com/learn-more-about/example-android-profile) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how, watch [this video](https://youtu.be/Jk4Zcb2sR1w). To learn more about the different settings availabe for fully managed vs. BYOD Android devices, see [Google's documentation](https://support.google.com/work/android/topic/9621435?hl=en&ref_topic=6151012,6090502,6090491,&sjid=13375704519136380831-NA).
 
-### Apple declarations (DDM)
+### Apple declaration (DDM) profiles
 
-For macOS hosts, Fleet supports uploading Apple Declarative Device Management (DDM) profiles as `.json` files. Fleet supports the following declaration types:
+For Apple hosts, Fleet supports uploading declaration (DDM) profiles as `.json` files. Fleet supports the following types:
 
 #### Configurations (`com.apple.configuration.*`)
+
 Enforce settings like passcode policies, account configurations, and more.
 
-The following configuration declarations are not supported:
+The following configurations are not supported:
 
 - com.apple.configuration.management.status-subscriptions
 - com.apple.configuration.watch.enrollment
@@ -26,11 +27,13 @@ The following configuration declarations are not supported:
 > `com.apple.configuration.app.managed` is supported, but the referenced app must already be installed and managed via Fleet's VPP functionality for the configuration to apply on-device.
 
 #### Activations (`com.apple.activation.simple`)
+
 For advanced setups, you can provide a custom activation instead of having Fleet automatically create the activation when you upload a configuration profile.
 
 The activation must include `Type`, `Identifier`, and `Payload` key. `Payload` must have a `StandardConfiguration` containing a reference to a **single** configuration profile that already exists in Fleet. Adding a `Predicate` is allowed, however, best practices is to use labels for scoping.
 
 Example:
+
 ```json
 {
   "Type": "com.apple.activation.simple",
@@ -44,9 +47,12 @@ Example:
 ```
 
 #### Assets (`com.apple.asset.*`)
+
 Deploy credentials, certificates, and other assets referenced by configurations.
 
-Each **asset declaration** `.json` must include a `Type`, `Identifier`, and `Payload` key. Example:
+Each asset must include a `Type`, `Identifier`, and `Payload` key. 
+
+Example:
 
 ```json
 {
@@ -133,6 +139,8 @@ Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at t
 
 If a macOS host is automatically enrolled (via [ADE](https://support.apple.com/en-us/102300)), user-scoped profiles are delivered to the user that was created during first time setup. For Macs that enrolled and turned on MDM manually, user-scoped profiles are delivered to the user that turned on MDM on the **Fleet Desktop > My device** page.
 
+On Windows, Fleet does not support user-scoped profiles on devices shared by multiple users. User-scoped profiles are delivered to the currently signed-in user, so the user who completes the initial enrollment receives all user-scoped profiles defined at that time. If an admin adds or changes user-scoped profiles later, they may be delivered to a different user.
+
 How to deliver user-scoped configuration profiles:
 
 #### macOS
@@ -181,6 +189,8 @@ Here's an example DDM (`com.apple.configuration.*`) snippet:
 
 2. To make your Windows configuration profiles user scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
 
+Fleet delivers user-scoped profiles after an end user signs in to the host. Until then, they show **Pending**. If a profile includes both `./Device` and `./User` settings, Fleet delivers the whole profile after an end user signs in, so put device-scoped settings in a separate profile to deliver them right away.
+
 #### Upgrading from below 4.71.0
 
 Fleet added support for user-scoped macOS configuration profiles in Fleet 4.71.0. If you're upgrading Fleet from a version below 4.71.0, here's how to prepare your already enrolled hosts for macOS user-scoped configuration profiles:
@@ -198,6 +208,54 @@ Edit user-scoped configuration profiles that are already installed on hosts:
 In versions older than 4.71.0, Fleet always delivered configuration profiles to the device scope (even when the profile's `PayloadScope` was set to `User`)
 
 If you want to make sure the profile stays device-scoped, update `PayloadScope` to `System` or remove `PayloadScope` entirely. The default scope in Fleet is `System`. 
+
+### Self-service
+
+_Available in Fleet Premium_
+
+By default, configuration profiles are enforced when Fleet automatically installs and removes them on targeted hosts. You can instead make a profile self-service (opt-in), so it appears on the end user's **My device > Controls** tab and is only installed when the user chooses to install it.
+
+Self-service profiles are available for `.mobileconfig` profiles (macOS, iOS, iPadOS). They are not supported for Windows (`.xml`), Android (`.json`), or DDM declaration (`.json`) profiles.
+
+When a profile is self-service:
+- Fleet does **not** automatically install it on targeted hosts.
+- The end user sees the profile on the **My device > Controls** tab and can install or uninstall it on demand.
+- Label scoping still controls which hosts *see* the profile in self-service, but does not force-install it.
+- When the user uninstalls a self-service profile, Fleet sends the appropriate removal command (e.g., `RemoveProfile` on Apple platforms).
+
+Fleet UI: 
+
+1. In the Fleet UI, head to the **Controls > OS settings > Configuration profiles** page.
+
+2. Click **Add profile**, and upload a `.mobileconfig` configuration profile.
+
+3. Select **End user initiated (manual)** in the **Deploy** dropdown.
+
+4. Click **Add profile**.
+
+GitOps: 
+
+Set `self_service: true` on the profile:
+
+```yaml
+controls:
+  macos_settings:
+    configuration_profiles:
+      - paths: ../lib/macos/profiles/*.mobileconfig
+        self_service: true
+```
+
+Fleet API:
+
+Pass `"self_service": true` to the Create configuration profile endpoint.
+
+#### Hidden profiles
+
+You can also mark an enforced (`self_service: false`) profile as hidden. Hidden profiles are installed automatically but are hidden from the end user on the **My device > Controls** tab by default. End users can toggle "Show hidden profiles" to view them, but these profiles do not require the end user to take any action.
+
+`self_service` must be `false` to use hidden.
+
+GitOps: set `hidden: true` on the profile. Fleet API: pass `"hidden": true`.
 
 ## See status
 

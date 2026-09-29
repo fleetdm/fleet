@@ -1,14 +1,15 @@
 import React from "react";
 
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import StatusIndicator from "components/StatusIndicator";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
-import TooltipWrapper from "components/TooltipWrapper";
 import Tag from "components/Tag";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { IInvite } from "interfaces/invite";
 import { IUser, UserRole, UserStatus } from "interfaces/user";
-import { IDropdownOption } from "interfaces/dropdownOption";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import {
   generateRole,
   generateRoleGroups,
@@ -19,7 +20,7 @@ import {
   ROLE_GLOBAL,
   tooltipTextWithLineBreaks,
 } from "utilities/helpers";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+
 import ActionsDropdown from "../../../../../components/ActionsDropdown";
 
 const baseClass = "users-table";
@@ -173,6 +174,7 @@ const renderRole = (cellProps: ICellProps) => {
       value={cellProps.cell.value}
       grey={greyCell(cellProps.cell.value)}
       italic={greyCell(cellProps.cell.value)}
+      className="permissions-text"
     />
   );
 };

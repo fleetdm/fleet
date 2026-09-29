@@ -11,7 +11,7 @@ interface IDetailsNoHosts {
 
 const DetailsNoHosts = ({ header, details }: IDetailsNoHosts) => {
   return (
-    <Card borderRadiusSize="xxlarge" className={baseClass}>
+    <Card className={baseClass}>
       <h2>{header}</h2>
       <p>{details}</p>
     </Card>

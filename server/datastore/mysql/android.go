@@ -200,7 +200,7 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 
 		// create entry in host_mdm as enrolled (manually), because currently all
 		// android hosts are necessarily MDM-enrolled when created.
-		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, companyOwned, true, host.Host.ID); err != nil {
+		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, androidPersonalEnrollmentType(companyOwned), true, host.Host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "new Android host MDM info")
 		}
 
@@ -307,7 +307,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 
 		if fromEnroll {
 			// update host_mdm to set enrolled back to true
-			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, companyOwned, true, host.Host.ID); err != nil {
+			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, androidPersonalEnrollmentType(companyOwned), true, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update Android host MDM info")
 			}
 			// Certificate template records for re-enrolling hosts are created by the caller
@@ -395,7 +395,7 @@ func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint
 		// Cancel pending AMAPI commands. These are keyed by host_uuid, and the device that
 		// just re-enrolled will never acknowledge a command issued to the previous install.
 		if _, err := tx.ExecContext(ctx,
-			`DELETE FROM mdm_android_commands WHERE host_uuid = ? AND status = 'pending'`, hostUUID); err != nil {
+			`DELETE FROM mdm_android_commands WHERE host_uuid = ? AND status = 'Pending'`, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "cancel pending android commands on reenroll")
 		}
 
@@ -439,15 +439,17 @@ func (ds *Datastore) UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs
 	if len(hostUUIDs) == 0 {
 		return nil
 	}
-	query, args, err := sqlx.In(
-		`UPDATE android_devices ad JOIN hosts h ON ad.host_id = h.id SET ad.team_id = ? WHERE h.uuid IN (?)`,
-		teamID, hostUUIDs,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build update android_devices team_id query")
-	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "update android_devices team_id")
+	for batch := range slices.Chunk(hostUUIDs, hostIDsFanoutBatchSize) {
+		query, args, err := sqlx.In(
+			`UPDATE android_devices ad JOIN hosts h ON ad.host_id = h.id SET ad.team_id = ? WHERE h.uuid IN (?)`,
+			teamID, batch,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build update android_devices team_id query")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "update android_devices team_id")
+		}
 	}
 	return nil
 }
@@ -740,7 +742,7 @@ UPDATE android_devices
 // intentionally does not re-run enrollment side effects (setup experience, cert
 // templates, team assignment) — those belong to the ENROLLMENT path.
 //
-// It preserves the existing is_personal_enrollment classification rather than
+// It preserves the existing personal enrollment classification rather than
 // recomputing it: the triggering STATUS_REPORT payload may omit Ownership, which
 // would otherwise misclassify a COBO (company-owned) host as personal.
 func (ds *Datastore) SetAndroidHostEnrolled(ctx context.Context, hostID uint) (bool, error) {
@@ -768,11 +770,11 @@ func (ds *Datastore) SetAndroidHostEnrolled(ctx context.Context, hostID uint) (b
 	var didEnroll bool
 	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var current struct {
-			Enrolled             bool `db:"enrolled"`
-			IsPersonalEnrollment bool `db:"is_personal_enrollment"`
+			Enrolled               bool                         `db:"enrolled"`
+			PersonalEnrollmentType fleet.PersonalEnrollmentType `db:"personal_enrollment_type"`
 		}
 		err := sqlx.GetContext(ctx, tx, &current,
-			`SELECT enrolled, is_personal_enrollment FROM host_mdm WHERE host_id = ?`, hostID)
+			`SELECT enrolled, personal_enrollment_type FROM host_mdm WHERE host_id = ?`, hostID)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			// No host_mdm row yet; leave enrollment to the ENROLLMENT path.
@@ -783,7 +785,7 @@ func (ds *Datastore) SetAndroidHostEnrolled(ctx context.Context, hostID uint) (b
 			// Already enrolled: nothing to recover.
 			return nil
 		}
-		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, !current.IsPersonalEnrollment, true, hostID); err != nil {
+		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, current.PersonalEnrollmentType, true, hostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "re-enroll android host_mdm info")
 		}
 		didEnroll = true
@@ -795,7 +797,14 @@ func (ds *Datastore) SetAndroidHostEnrolled(ctx context.Context, hostID uint) (b
 	return didEnroll, nil
 }
 
-func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, companyOwned, enrolled bool, hostID uint) error {
+func androidPersonalEnrollmentType(companyOwned bool) fleet.PersonalEnrollmentType {
+	if companyOwned {
+		return fleet.PersonalEnrollmentTypeNone
+	}
+	return fleet.PersonalEnrollmentTypeWorkProfile
+}
+
+func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, personalType fleet.PersonalEnrollmentType, enrolled bool, hostID uint) error {
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
@@ -816,12 +825,12 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 
 	args := []any{}
 	parts := []string{}
-	args = append(args, enrolled, serverURL, companyOwned, mdmID, false, !companyOwned, hostID)
-	parts = append(parts, "(?, ?, ?, ?, ?, ?, ?)")
+	args = append(args, enrolled, serverURL, !personalType.IsPersonal(), mdmID, false, personalType.IsPersonal(), personalType, hostID)
+	parts = append(parts, "(?, ?, ?, ?, ?, ?, ?, ?)")
 
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, is_personal_enrollment, host_id) VALUES %s
-		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), installed_from_dep = VALUES(installed_from_dep), mdm_id = VALUES(mdm_id), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ",")), args...)
+		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, is_personal_enrollment, personal_enrollment_type, host_id) VALUES %s
+		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), installed_from_dep = VALUES(installed_from_dep), mdm_id = VALUES(mdm_id), is_personal_enrollment = VALUES(is_personal_enrollment), personal_enrollment_type = VALUES(personal_enrollment_type)`, strings.Join(parts, ",")), args...)
 
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
@@ -1332,12 +1341,7 @@ func (ds *Datastore) GetMDMAndroidCommandResults(ctx context.Context, commandUUI
 		SELECT
 			c.host_uuid,
 			c.command_uuid,
-			CASE c.status
-				WHEN 'pending' THEN 'Pending'
-				WHEN 'acknowledged' THEN 'Acknowledged'
-				WHEN 'error' THEN 'Error'
-				ELSE c.status
-			END AS status,
+			c.status,
 			c.updated_at,
 			c.command_type AS request_type,
 			c.raw_command  AS payload,
@@ -2780,22 +2784,25 @@ WHERE
 	h.platform = 'android'
 `
 
-	stmt, args, err := sqlx.In(stmt, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
-	}
-
-	var rows []struct {
-		ID   uint   `db:"id"`
-		UUID string `db:"uuid"`
-	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list mdm android uuids to host ids")
-	}
-
-	results := make(map[string]uint, len(rows))
-	for _, r := range rows {
-		results[r.UUID] = r.ID
+	results := make(map[string]uint)
+	if err := common_mysql.BatchProcessSimple(hostIDs, hostIDsFanoutBatchSize, func(batch []uint) error {
+		inStmt, args, err := sqlx.In(stmt, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare statement arguments")
+		}
+		var rows []struct {
+			ID   uint   `db:"id"`
+			UUID string `db:"uuid"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, inStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "list mdm android uuids to host ids")
+		}
+		for _, r := range rows {
+			results[r.UUID] = r.ID
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	return results, nil

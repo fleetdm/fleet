@@ -1,0 +1,1 @@
+- Mobile hosts (iOS, iPadOS, Android) now return real online/offline status based on MDM activity, instead of always reporting offline. Reflected on the hosts list, host details, dashboard summary, and target counts.

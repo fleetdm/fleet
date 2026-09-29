@@ -39,6 +39,7 @@ func TestMDMShared(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"TestResetPendingCertRenewals", testResetPendingCertRenewals},
 		{"TestGetDeviceInfoForACMERenewal", testGetDeviceInfoForACMERenewal},
 		{"TestListMDMCommandsByHostIdentifier", testListMDMCommandsByHostIdentifier},
 		{"TestMDMCommands", testMDMCommands},
@@ -55,6 +56,8 @@ func TestMDMShared(t *testing.T) {
 		{"TestMDMEULA", testMDMEULA},
 		{"TestGetHostCertAssociationsToExpire", testSCEPRenewalHelpers},
 		{"TestSCEPRenewalHelpers", testSCEPRenewalHelpers},
+		{"TestSCEPRenewalExclusion", testSCEPRenewalExclusion},
+		{"TestClearCertRenewalExclusions", testClearCertRenewalExclusions},
 		{"TestMDMProfilesSummaryAndHostFilters", testMDMProfilesSummaryAndHostFilters},
 		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
@@ -182,7 +185,8 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "hostname", PerPage: 100},
-		})
+		},
+	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
 	require.Equal(t, appleCmdUUID, cmds[0].CommandUUID)
@@ -221,7 +225,8 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "hostname", PerPage: 100},
-		})
+		},
+	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
 	require.Equal(t, appleCmdUUID, cmds[0].CommandUUID)
@@ -435,7 +440,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		},
 	)
 	require.Error(t, err)
-	require.ErrorContains(t, err, `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`)
+	require.ErrorContains(t, err, `"command_status" filter is only available for macOS, iOS, iPadOS, and Android hosts`)
 	require.Nil(t, cmds)
 	require.Nil(t, total)
 
@@ -1376,7 +1381,8 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 	)
 
 	// Test Case 8: Clear profiles for a specific team
-	applyAndExpect(nil, nil, nil, nil, ptr.Uint(1), nil, nil, nil, nil,
+	applyAndExpect(
+		nil, nil, nil, nil, new(uint(1)), nil, nil, nil, nil,
 		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
@@ -1396,10 +1402,11 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 
 	// we only care about declarations here, as batch-setting labels for profiles
 	// is tested elsewhere.
-	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
-		declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
-		declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
-	}, nil, nil,
+	applyAndExpect(
+		nil, nil, []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
+			declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
+		}, nil, nil,
 		nil, nil, []*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
 			declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
@@ -1408,19 +1415,21 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
-	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
-		declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
-		declForTest("D2", "D2", "foo"),
-	}, nil, nil,
+	applyAndExpect(
+		nil, nil, []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
+			declForTest("D2", "D2", "foo"),
+		}, nil, nil,
 		nil, nil, []*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
 			declForTest("D2", "D2", "foo"),
 		}, nil,
 		fleet.MDMProfilesUpdates{AppleConfigProfile: false, WindowsConfigProfile: false, AppleDeclaration: true, AndroidConfigProfile: false},
 	)
-	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
-		declForTest("D1", "D1", "foo"),
-	}, nil, nil,
+	applyAndExpect(
+		nil, nil, []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "foo"),
+		}, nil, nil,
 		nil, nil, []*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo"),
 		}, nil,
@@ -1971,7 +1980,8 @@ func cleanupStaleWindowsRemoveRows(t *testing.T, ds *Datastore, want map[*fleet.
 		// Only select remove rows for hosts in the current assertion's want map.
 		stmt, args, err := sqlx.In(
 			`SELECT profile_uuid, host_uuid FROM host_mdm_windows_profiles WHERE operation_type = 'remove' AND host_uuid IN (?)`,
-			wantWindowsHostUUIDs)
+			wantWindowsHostUUIDs,
+		)
 		if err != nil {
 			return err
 		}
@@ -2612,11 +2622,90 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		return team.ID, host
 	}
 
+	// One self-service profile pair per label-rule branch of the verification query: the "_opt" profile is
+	// opted in on this host, the "_noopt" one only on another host. Only the opted-in ones are expected.
+	macosSelfServiceSetup := func() (uint, *fleet.Host) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "macos-test-7",
+			OsqueryHostID: new("osquery-macos-7"),
+			NodeKey:       new("node-key-macos-7"),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 7"})
+		require.NoError(t, err)
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+		require.NoError(t, err)
+
+		includeAny, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-macos-ss-matched"})
+		require.NoError(t, err)
+		includeAll, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-macos-ss-matched"})
+		require.NoError(t, err)
+		exclude, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-macos-ss-unmatched"})
+		require.NoError(t, err)
+
+		branches := map[string][]*fleet.Label{
+			"nolabel":    nil,
+			"incall":     {includeAll},
+			"exc":        {exclude},
+			"incany":     {includeAny},
+			"incall_exc": {includeAll, exclude},
+			"incany_exc": {includeAny, exclude},
+		}
+		profiles := []*fleet.MDMAppleConfigProfile{configProfileForTest(t, "T7.1", "T7.1", "v")}
+		for branch, labels := range branches {
+			for _, suffix := range []string{"opt", "noopt"} {
+				ident := "ss_" + branch + "_" + suffix
+				profiles = append(profiles, configProfileForTest(t, ident, ident, ident, labels...))
+			}
+		}
+		_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil, nil)
+		require.NoError(t, err)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(
+				ctx,
+				`INSERT INTO label_membership (host_id, label_id) VALUES (?, ?), (?, ?)`,
+				host.ID, includeAny.ID, host.ID, includeAll.ID,
+			); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(
+				ctx,
+				`UPDATE mdm_apple_configuration_profiles SET self_service = 1 WHERE team_id = ? AND identifier LIKE 'ss\_%'`,
+				team.ID,
+			); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(
+				ctx, `
+				INSERT INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
+				SELECT ?, profile_uuid FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier LIKE '%\_opt'`,
+				host.UUID, team.ID,
+			); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(
+				ctx, `
+				INSERT INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
+				SELECT ?, profile_uuid FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier LIKE '%\_noopt'`,
+				uuid.NewString(), team.ID,
+			)
+			return err
+		})
+
+		return team.ID, host
+	}
+
 	tests := []struct {
-		name      string
-		setupFunc func() (uint, *fleet.Host)
-		wantMac   map[string]*fleet.ExpectedMDMProfile
-		os        string
+		name       string
+		setupFunc  func() (uint, *fleet.Host)
+		wantMac    map[string]*fleet.ExpectedMDMProfile
+		notWantMac []string
+		os         string
 	}{
 		{
 			name:      "macos basic team profiles no labels",
@@ -2674,8 +2763,26 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				"include_any_one_matches_prof": {Identifier: "include_any_one_matches_prof"},
 				"include_all_all_match_prof":   {Identifier: "include_all_all_match_prof"},
 				"exclude_none_match_prof":      {Identifier: "exclude_none_match_prof"},
+
 				"include_all_and_exclude_none_match_prof": {Identifier: "include_all_and_exclude_none_match_prof"},
 				"include_any_and_exclude_none_match_prof": {Identifier: "include_any_and_exclude_none_match_prof"},
+			},
+		},
+		{
+			name:      "macos self-service profiles only expected when opted in",
+			setupFunc: macosSelfServiceSetup,
+			wantMac: map[string]*fleet.ExpectedMDMProfile{
+				"T7.1":              {Identifier: "T7.1"},
+				"ss_nolabel_opt":    {Identifier: "ss_nolabel_opt"},
+				"ss_incall_opt":     {Identifier: "ss_incall_opt"},
+				"ss_exc_opt":        {Identifier: "ss_exc_opt"},
+				"ss_incany_opt":     {Identifier: "ss_incany_opt"},
+				"ss_incall_exc_opt": {Identifier: "ss_incall_exc_opt"},
+				"ss_incany_exc_opt": {Identifier: "ss_incany_exc_opt"},
+			},
+			notWantMac: []string{
+				"ss_nolabel_noopt", "ss_incall_noopt", "ss_exc_noopt",
+				"ss_incany_noopt", "ss_incall_exc_noopt", "ss_incany_exc_noopt",
 			},
 		},
 	}
@@ -2693,6 +2800,9 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 					if v.EarliestInstallDate != timeZero {
 						require.Equal(t, v.EarliestInstallDate, got[k].EarliestInstallDate)
 					}
+				}
+				for _, k := range tt.notWantMac {
+					require.NotContains(t, got, k)
 				}
 			}
 		})
@@ -3407,6 +3517,180 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	checkSCEPRenew(assocs[2], nil)
 }
 
+// newExpiredSCEPCertHost creates a darwin host with an already-expired identity
+// certificate association, so it always lands in the renewal window. idx must be
+// unique within a test.
+func newExpiredSCEPCertHost(t *testing.T, ds *Datastore, idx int, depAssigned bool) *fleet.Host {
+	ctx := t.Context()
+	scepDepot, err := ds.NewSCEPDepot()
+	require.NoError(t, err)
+	nanoStorage, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       fmt.Sprintf("renewal-host%d-name", idx),
+		OsqueryHostID:  new(fmt.Sprintf("renewal-osquery-%d", idx)),
+		NodeKey:        new(fmt.Sprintf("renewal-nodekey-%d", idx)),
+		UUID:           fmt.Sprintf("renewal-uuid-%d", idx),
+		HardwareSerial: fmt.Sprintf("renewal-serial-%d", idx),
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	serial, err := scepDepot.Serial()
+	require.NoError(t, err)
+	notAfter := time.Now().AddDate(-1, 0, 0)
+	cert := &x509.Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: "Fleet Identity"},
+		NotBefore:    time.Now().Add(-24 * time.Hour),
+		NotAfter:     notAfter,
+		Raw:          []byte(uuid.NewString()),
+	}
+	require.NoError(t, scepDepot.Put(cert.Subject.CommonName, cert))
+	req := mdm.Request{EnrollID: &mdm.EnrollID{ID: h.UUID}, Context: ctx}
+	require.NoError(t, nanoStorage.AssociateCertHash(&req, certauth.HashCert(cert), notAfter))
+	nanoEnroll(t, ds, h, true)
+
+	if depAssigned {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_dep_assignments (host_id, hardware_serial) VALUES (?, ?)`,
+				h.ID, h.HardwareSerial)
+			return err
+		})
+	}
+	return h
+}
+
+func testSCEPRenewalExclusion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	excludedAt := func(assoc fleet.SCEPIdentityAssociation) *time.Time {
+		var got *time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &got,
+				`SELECT renewal_excluded_at FROM nano_cert_auth_associations WHERE id = ? AND sha256 = ?`,
+				assoc.HostUUID, assoc.SHA256)
+		})
+		return got
+	}
+
+	assocsByHostUUID := func() map[string]fleet.SCEPIdentityAssociation {
+		assocs, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+		require.NoError(t, err)
+		byUUID := make(map[string]fleet.SCEPIdentityAssociation, len(assocs))
+		for _, assoc := range assocs {
+			byUUID[assoc.HostUUID] = assoc
+		}
+		return byUUID
+	}
+
+	hDEP := newExpiredSCEPCertHost(t, ds, 1, true)
+	hNoDEP := newExpiredSCEPCertHost(t, ds, 2, false)
+
+	// both are up for renewal, and DEP assignment is reported per host.
+	got := assocsByHostUUID()
+	require.Len(t, got, 2)
+	require.True(t, got[hDEP.UUID].DEPAssignedToFleet)
+	require.False(t, got[hNoDEP.UUID].DEPAssignedToFleet)
+
+	// no-op on an empty set
+	require.NoError(t, ds.ExcludeHostCertAssociationsFromRenewal(ctx, nil))
+	require.Nil(t, excludedAt(got[hDEP.UUID]))
+	require.Nil(t, excludedAt(got[hNoDEP.UUID]))
+
+	// excluding one association only stamps that association...
+	require.NoError(t, ds.ExcludeHostCertAssociationsFromRenewal(ctx, []fleet.SCEPIdentityAssociation{got[hNoDEP.UUID]}))
+	require.NotNil(t, excludedAt(got[hNoDEP.UUID]))
+	require.Nil(t, excludedAt(got[hDEP.UUID]))
+
+	// ...and drops it from the next renewal run.
+	afterExclusion := assocsByHostUUID()
+	require.Len(t, afterExclusion, 1)
+	require.Contains(t, afterExclusion, hDEP.UUID)
+}
+
+func testClearCertRenewalExclusions(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	h1 := newExpiredSCEPCertHost(t, ds, 1, true)
+	h2 := newExpiredSCEPCertHost(t, ds, 2, false)
+
+	assocs, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 2)
+
+	// no-op when nothing is excluded
+	require.NoError(t, ds.ClearCertRenewalExclusions(ctx))
+
+	require.NoError(t, ds.ExcludeHostCertAssociationsFromRenewal(ctx, assocs))
+	gated, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Empty(t, gated)
+
+	// clearing puts every excluded association back in the renewal window
+	require.NoError(t, ds.ClearCertRenewalExclusions(ctx))
+	restored, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, restored, 2)
+	gotUUIDs := []string{restored[0].HostUUID, restored[1].HostUUID}
+	require.ElementsMatch(t, []string{h1.UUID, h2.UUID}, gotUUIDs)
+}
+
+func testResetPendingCertRenewals(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	h1 := newExpiredSCEPCertHost(t, ds, 1, true)
+	h2 := newExpiredSCEPCertHost(t, ds, 2, true)
+
+	assocs, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 2)
+
+	// no-op when no renewal is in flight
+	require.NoError(t, ds.ResetPendingCertRenewals(ctx))
+
+	// put a renewal command in flight for each host
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+                  INSERT INTO nano_commands (command_uuid, request_type, command)
+                  VALUES ('renew-cmd-1', 'InstallProfile', '<?xml'), ('renew-cmd-2', 'InstallProfile', '<?xml')`)
+		return err
+	})
+	for i, assoc := range assocs {
+		cmdUUID := fmt.Sprintf("renew-cmd-%d", i+1)
+		require.NoError(t, ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{assoc}, cmdUUID))
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO nano_enrollment_queue (id, command_uuid, active) VALUES (?, ?, 1)`,
+				assoc.HostUUID, cmdUUID)
+			return err
+		})
+	}
+
+	// in-flight renewals are hidden from the next run
+	inFlight, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Empty(t, inFlight)
+
+	require.NoError(t, ds.ResetPendingCertRenewals(ctx))
+
+	// the queued commands are deactivated...
+	var activeCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &activeCount,
+			`SELECT COUNT(*) FROM nano_enrollment_queue WHERE active = 1`)
+	})
+	require.Zero(t, activeCount)
+
+	// ...and both hosts are eligible for renewal again
+	reset, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, reset, 2)
+	require.ElementsMatch(t, []string{h1.UUID, h2.UUID}, []string{reset[0].HostUUID, reset[1].HostUUID})
+}
+
 func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 	// TODO: Expand this test to include:
 	// - more scenarios for windows
@@ -3703,7 +3987,7 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 				false,
 				fleet.WellKnownMDMFleet,
 				"",
-				false,
+				fleet.PersonalEnrollmentTypeNone,
 			),
 		)
 	}
@@ -3904,7 +4188,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, connectedMac, false)
-	err = ds.SetOrUpdateMDMData(ctx, connectedMac.ID, false, true, "http://foo.com", false, "foo", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, connectedMac.ID, false, true, "http://foo.com", false, "foo", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	disconnectedWithoutCheckoutMac, err := ds.NewHost(ctx, &fleet.Host{
@@ -3916,7 +4200,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, disconnectedWithoutCheckoutMac, false)
-	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutMac.ID, false, false, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutMac.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	notConnectedWin, err := ds.NewHost(ctx, &fleet.Host{
@@ -3952,7 +4236,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, connectedWin.ID, false, true, "http://foo.com", false, "foo", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, connectedWin.ID, false, true, "http://foo.com", false, "foo", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	disconnectedWithoutCheckoutWin, err := ds.NewHost(ctx, &fleet.Host{
@@ -3978,7 +4262,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollmentDisconnectedWithoutCheckout)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutWin.ID, false, false, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutWin.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	connectedMap, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
@@ -4036,7 +4320,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		Platform:      "android",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, connectedAndroid.ID, false, true, "https://android.example.com", true, "Android", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, connectedAndroid.ID, false, true, "https://android.example.com", true, "Android", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// Android: host without MDM enrollment should not be connected
@@ -4058,7 +4342,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		Platform:      "android",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, unenrolledAndroid.ID, false, false, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, unenrolledAndroid.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	connectedMap, err = ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
@@ -4112,7 +4396,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	requireConnected(t, macH, false)
 
 	nanoEnroll(t, ds, macH, false)
-	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, true, "http://foo.com", false, "foo", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, true, "http://foo.com", false, "foo", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	requireConnected(t, macH, true)
@@ -4127,7 +4411,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	nanoEnrollUserDevice(t, ds, byodIpadH)
-	err = ds.SetOrUpdateMDMData(ctx, byodIpadH.ID, false, true, "http://foo.com", false, "foo", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, byodIpadH.ID, false, true, "http://foo.com", false, "foo", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	requireConnected(t, byodIpadH, true)
@@ -4157,15 +4441,15 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, true, "http://foo.com", false, "foo", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, true, "http://foo.com", false, "foo", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	requireConnected(t, windowsH, true)
 
 	// now simulate an un-enrollment without checkout, in this case, osquery reports the host as not-enrolled
-	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, false, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, false, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	requireConnected(t, macH, false)
@@ -4192,12 +4476,12 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 
 	requireConnected(t, androidH, false)
 
-	err = ds.SetOrUpdateMDMData(ctx, androidH.ID, false, true, "http://foo.com", false, fleet.WellKnownMDMFleet, "", false)
+	err = ds.SetOrUpdateMDMData(ctx, androidH.ID, false, true, "http://foo.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	requireConnected(t, androidH, true)
 
-	err = ds.SetOrUpdateMDMData(ctx, androidH.ID, false, false, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, androidH.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	requireConnected(t, androidH, false)
@@ -4713,7 +4997,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	host11 := newHost.Host
 
 	for _, h := range []*fleet.Host{host1, host2, host3, host4, host5, host6, host7, host8} {
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 	}
 
@@ -4977,7 +5261,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	for _, h := range []*fleet.Host{host1, host2, host3, host4, host5, host6} {
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 	}
 

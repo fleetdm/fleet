@@ -33,6 +33,10 @@ export const SKIPPED_INSTALL_DETAILS = `${SKIPPED_INSTALL_DETAILS_PREFIX}${SKIPP
 // A skip stores an empty pre-install query output, so there is nothing to echo back.
 export const SKIPPED_PRE_INSTALL_OUTPUT =
   "Query didn't return result or failed\nThe app was open";
+export const SKIPPED_PRE_INSTALL_OUTPUT_NOTIFY =
+  "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced.";
+export const PRE_INSTALL_QUERY_FAIL_OUTPUT =
+  "Query didn't return result or failed\nInstall stopped";
 
 const INSTALL_DETAILS_STATUS_PREDICATES: Record<
   EnhancedSoftwareInstallUninstallStatus | "skipped_install",

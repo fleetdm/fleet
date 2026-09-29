@@ -36,7 +36,32 @@ const (
 	// Fleet-signed JWT minted on the fly for the requesting host at command
 	// delivery time, so it never appears in the database or on /mdm/commands.
 	HostSecretPSSODeviceRegistrationToken = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: this is a constant identifier, not a credential
+
+	// HostSecretEnrollSecret is the host secret type for the per-device,
+	// single-use enroll secret embedded in the fleetd configuration profile when
+	// auth.use_one_time_enroll_secrets is enabled. The secret is minted for the
+	// requesting host the first time the profile is delivered and re-delivered
+	// unchanged until it is consumed by enrollment.
+	HostSecretEnrollSecret = "ENROLL_SECRET" // nolint:gosec // G101: this is a constant identifier, not a credential
 )
+
+// HostSecretPlaceholder returns the placeholder string for a host secret type,
+// e.g. "$FLEET_HOST_SECRET_ENROLL_SECRET".
+func HostSecretPlaceholder(secretType string) string {
+	return "$" + HostSecretPrefix + secretType
+}
+
+// ValidateNoHostSecretVariables rejects user-provided content that references
+// a $FLEET_HOST_SECRET_* placeholder. Those are expanded to per-host secrets
+// (recovery lock passwords, unlock tokens, enroll secrets) at delivery time and
+// are only ever written by Fleet into the profiles and commands it manages
+func ValidateNoHostSecretVariables(document string) error {
+	vars := ContainsPrefixVars(document, HostSecretPrefix)
+	if len(vars) == 0 {
+		return nil
+	}
+	return &BadRequestError{Message: fmt.Sprintf("Variable %s is reserved for profiles managed by Fleet and can't be used.", HostSecretPlaceholder(vars[0]))}
+}
 
 type MissingSecretsError struct {
 	MissingSecrets []string

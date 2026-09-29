@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react";
 import classnames from "classnames";
+import React, { useState, useCallback } from "react";
 
 import { COLORS } from "styles/var/colors";
 
@@ -21,31 +21,7 @@ const FleetAvatar = ({ className }: IFleetAvatarProps) => {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <circle cx="16" cy="16" r="15.5" fill="white" stroke="#C5C7D1" />
-      <path
-        d="M10 12C11.1046 12 12 11.1046 12 10C12 8.89543 11.1046 8 10 8C8.89543 8 8 8.89543 8 10C8 11.1046 8.89543 12 10 12Z"
-        fill="white"
-      />
-      <path
-        d="M16 12C17.1046 12 18 11.1046 18 10C18 8.89543 17.1046 8 16 8C14.8954 8 14 8.89543 14 10C14 11.1046 14.8954 12 16 12Z"
-        fill="white"
-      />
-      <path
-        d="M22 12C23.1046 12 24 11.1046 24 10C24 8.89543 23.1046 8 22 8C20.8954 8 20 8.89543 20 10C20 11.1046 20.8954 12 22 12Z"
-        fill="white"
-      />
-      <path
-        d="M10 18C11.1046 18 12 17.1046 12 16C12 14.8954 11.1046 14 10 14C8.89543 14 8 14.8954 8 16C8 17.1046 8.89543 18 10 18Z"
-        fill="white"
-      />
-      <path
-        d="M16 18C17.1046 18 18 17.1046 18 16C18 14.8954 17.1046 14 16 14C14.8954 14 14 14.8954 14 16C14 17.1046 14.8954 18 16 18Z"
-        fill="white"
-      />
-      <path
-        d="M10 24C11.1046 24 12 23.1046 12 22C12 20.8954 11.1046 20 10 20C8.89543 20 8 20.8954 8 22C8 23.1046 8.89543 24 10 24Z"
-        fill="white"
-      />
+      <circle cx="16" cy="16" r="15" stroke="#C5C7D1" strokeWidth="2" />
       <path
         d="M10.75 12.5C11.7165 12.5 12.5 11.7165 12.5 10.75C12.5 9.7835 11.7165 9 10.75 9C9.7835 9 9 9.7835 9 10.75C9 11.7165 9.7835 12.5 10.75 12.5Z"
         fill="#63C740"

@@ -1,17 +1,17 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
 import classnames from "classnames";
-import { Row } from "react-table";
-import useDeepEffect from "hooks/useDeepEffect";
 import { noop } from "lodash";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { Row } from "react-table";
 
-import SearchField from "components/forms/fields/SearchField";
-import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
+import SearchField from "components/forms/fields/SearchField";
 import Icon from "components/Icon/Icon";
+import Pagination from "components/Pagination";
 import TooltipWrapper from "components/TooltipWrapper";
+import useDeepEffect from "hooks/useDeepEffect";
 
-import DataTable from "./DataTable/DataTable";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
+import DataTable from "./DataTable/DataTable";
 import TableLayoutContext from "./TableLayoutContext";
 
 export interface ITableQueryData {

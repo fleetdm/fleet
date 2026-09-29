@@ -1,21 +1,18 @@
+import classnames from "classnames";
+import { format } from "date-fns";
+import FileSaver from "file-saver";
 import React from "react";
 
-import { format } from "date-fns";
-import { timeAgo } from "utilities/date_format";
-import FileSaver from "file-saver";
-import classnames from "classnames";
-
-import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
-import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
-import mdmAPI, { isDDMProfile } from "services/entities/mdm";
-
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
-
+import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
+import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
+import mdmAPI, { isDDMProfile } from "services/entities/mdm";
+import { timeAgo } from "utilities/date_format";
 import strUtils from "utilities/strings";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "profile-list-item";
 
@@ -189,42 +186,75 @@ const ProfileListItem = ({
       <div className={`${subClass}__actions-wrap`}>
         {renderLabelInfo()}
         <div className={`${subClass}__actions`}>
-          <Button
-            className={`${subClass}__action-button`}
-            variant="secondary"
-            onClick={() => onClickInfo(profile)}
-            icon="info"
-            ariaLabel={`View ${profile.name} details`}
-          />
-          {!isTechnician && (
-            // stays enabled in GitOps mode -- the modal is the only place to
-            // see a profile's label targeting; it blocks saving instead
+          <TooltipWrapper
+            tipContent="Details"
+            underline={false}
+            position="top"
+            showArrow
+            tipOffset={8}
+          >
             <Button
               className={`${subClass}__action-button`}
               variant="secondary"
-              onClick={() => onClickEdit(profile)}
-              ariaLabel={`Edit ${profile.name}`}
-              icon="pencil"
+              onClick={() => onClickInfo(profile)}
+              icon="info"
+              ariaLabel={`View ${profile.name} details`}
             />
+          </TooltipWrapper>
+          {!isTechnician && (
+            // stays enabled in GitOps mode -- the modal is the only place to
+            // see a profile's label targeting; it blocks saving instead
+            <TooltipWrapper
+              tipContent="Edit"
+              underline={false}
+              position="top"
+              showArrow
+              tipOffset={8}
+            >
+              <Button
+                className={`${subClass}__action-button`}
+                variant="secondary"
+                onClick={() => onClickEdit(profile)}
+                ariaLabel={`Edit ${profile.name}`}
+                icon="pencil"
+              />
+            </TooltipWrapper>
           )}
-          <Button
-            className={`${subClass}__action-button`}
-            variant="secondary"
-            onClick={onClickDownload}
-            icon="download"
-            ariaLabel={`Download ${profile.name}`}
-          />
+          <TooltipWrapper
+            tipContent="Download"
+            underline={false}
+            position="top"
+            showArrow
+            tipOffset={8}
+          >
+            <Button
+              className={`${subClass}__action-button`}
+              variant="secondary"
+              onClick={onClickDownload}
+              icon="download"
+              ariaLabel={`Download ${profile.name}`}
+            />
+          </TooltipWrapper>
           {!isTechnician && (
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
-                <Button
-                  disabled={disableChildren}
-                  className={`${subClass}__action-button`}
-                  variant="secondary"
-                  onClick={() => onClickDelete(profile)}
-                  icon="trash"
-                  ariaLabel={`Delete ${profile.name}`}
-                />
+                <TooltipWrapper
+                  tipContent="Delete"
+                  underline={false}
+                  position="top"
+                  showArrow
+                  tipOffset={8}
+                  disableTooltip={disableChildren}
+                >
+                  <Button
+                    disabled={disableChildren}
+                    className={`${subClass}__action-button`}
+                    variant="secondary"
+                    onClick={() => onClickDelete(profile)}
+                    icon="trash"
+                    ariaLabel={`Delete ${profile.name}`}
+                  />
+                </TooltipWrapper>
               )}
             />
           )}

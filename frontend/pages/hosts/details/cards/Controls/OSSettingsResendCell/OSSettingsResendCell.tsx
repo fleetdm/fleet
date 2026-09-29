@@ -1,21 +1,27 @@
-import React, { useState } from "react";
 import classnames from "classnames";
 import { noop } from "lodash";
+import React, { useState } from "react";
 
+import Button from "components/buttons/Button";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { getErrorReason } from "interfaces/errors";
+import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
+import { getResendProfileErrorMessage } from "pages/hosts/details/cards/Controls/helpers";
 import {
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
 } from "pages/hosts/details/helpers";
 
-import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
-import { getErrorReason } from "interfaces/errors";
-
-import { notify } from "components/ToastNotification";
-import Button from "components/buttons/Button";
-
 import { IHostMdmProfileWithAddedStatus } from "../OSSettingsTableConfig";
 
 const baseClass = "os-settings-resend-cell";
+
+// Android config profiles (unlike certificates) are synced by the host
+// checking in with Google periodically, similarly to Apple declaration (DDM)
+// profiles, rather than Fleet pushing them — so they can't be resent on demand.
+const ANDROID_PROFILE_NO_RESEND_TOOLTIP_MESSAGE =
+  "Fleet can't resend this configuration profile. Android hosts check in for profiles periodically, rather than Fleet pushing them.";
 
 interface IActionButtonProps {
   isPending: boolean;
@@ -51,8 +57,15 @@ const ActionButton = ({
 
 interface IOSSettingsResendCellProps {
   canResendProfiles: boolean;
+  /** Also offer Resend while the profile is "verifying" (Fleetd configuration
+   * profile with one-time enroll secrets). */
+  canResendWhileVerifying?: boolean;
   canRotateRecoveryLockPassword?: boolean;
   canResendHostNameTemplate?: boolean;
+  /** Shows a disabled "Resend" button with a tooltip explaining why, for
+   * Android configuration profiles (which sync automatically and can't be
+   * resent on demand). */
+  showDisabledResendForAndroidProfile?: boolean;
   profile: IHostMdmProfileWithAddedStatus;
   resendRequest: (profileUUID: string) => Promise<void>;
   resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>;
@@ -65,8 +78,10 @@ interface IOSSettingsResendCellProps {
 
 const OSSettingsResendCell = ({
   canResendProfiles,
+  canResendWhileVerifying = false,
   canRotateRecoveryLockPassword = false,
   canResendHostNameTemplate = false,
+  showDisabledResendForAndroidProfile = false,
   profile,
   resendRequest,
   resendCertificateRequest,
@@ -97,7 +112,7 @@ const OSSettingsResendCell = ({
         onProfileResent();
       }
     } catch (e) {
-      notify.error("Couldn't resend. Please try again.", { response: e });
+      notify.error(getResendProfileErrorMessage(e), { response: e });
     }
     setIsResending(false);
   };
@@ -135,6 +150,14 @@ const OSSettingsResendCell = ({
 
   const isFailed = profile.status === "failed";
   const isVerified = profile.status === "verified";
+  // Unlike Windows/Apple profiles, an Android cert can get stuck mid-delivery
+  // (e.g. a silent SCEP failure) with no automatic path back to failed. The
+  // backend allows resending from any status but pending, so let admins
+  // retry from here too instead of being stuck until the next status change.
+  const isAndroidCertStuckEnforcing =
+    isAndroidCertificate &&
+    (profile.status === "delivering" || profile.status === "delivered");
+  const isVerifying = profile.status === "verifying";
   const isRecoveryLockRow =
     profile.profile_uuid === REC_LOCK_SYNTHETIC_PROFILE_UUID;
   const isHostNameRow =
@@ -144,7 +167,10 @@ const OSSettingsResendCell = ({
   // must not go through the profile-resend path above.
   const showResendButton =
     canResendProfiles &&
-    (isFailed || isVerified) &&
+    (isFailed ||
+      isVerified ||
+      isAndroidCertStuckEnforcing ||
+      (isVerifying && canResendWhileVerifying)) &&
     !isRecoveryLockRow &&
     !isHostNameRow;
   const showRotateButton =
@@ -193,6 +219,28 @@ const OSSettingsResendCell = ({
           pendingText="Resending..."
           onClick={onResendHostNameTemplate}
         />
+      )}
+      {showDisabledResendForAndroidProfile && (
+        <TooltipWrapper
+          underline={false}
+          tipContent={ANDROID_PROFILE_NO_RESEND_TOOLTIP_MESSAGE}
+          // This button always sits at the right edge of its row (Actions
+          // column is right-aligned). A centered "top" placement can collide
+          // with the table's right edge and flip to the side (broken-looking)
+          // rather than just shifting — anchoring the tooltip's own right
+          // edge avoids that flip, only ever falling back to top/bottom.
+          position="top-end"
+          showArrow
+        >
+          <Button
+            disabled
+            variant="subdued"
+            className={actionClass("resend", "resending", false)}
+            icon="refresh"
+          >
+            Resend
+          </Button>
+        </TooltipWrapper>
       )}
     </div>
   );

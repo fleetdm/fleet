@@ -1,17 +1,17 @@
-import React, { useEffect } from "react";
 import { Command } from "cmdk";
+import React, { useEffect } from "react";
 
-import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
-import queriesAPI, { IQueriesResponse } from "services/entities/queries";
-import { ISchedulableQuery } from "interfaces/schedulable_query";
 import Icon from "components/Icon";
 import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
+import { ISchedulableQuery } from "interfaces/schedulable_query";
+import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
+import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 
-import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
-import getFleetSuffix from "./pickerCopy";
 import HighlightedLabel from "./HighlightedLabel";
+import getFleetSuffix from "./pickerCopy";
+import usePickerSearch from "./usePickerSearch";
 
 const baseClass = "command-palette";
 

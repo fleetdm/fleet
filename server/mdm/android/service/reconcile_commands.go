@@ -56,7 +56,7 @@ func ReconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, logger *s
 		return nil
 	}
 
-	client := newAMAPIClient(ctx, logger, licenseKey)
+	client := NewAMAPIClient(ctx, logger, licenseKey)
 
 	// Set the authentication secret for proxy client usage (a no-op for the Google client, which
 	// authenticates from its own env var and has no such asset). Without it every AMAPI call on the proxy
@@ -158,6 +158,7 @@ func reconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, client an
 
 		default:
 			status, errCode, errMsg := androidOperationTerminalState(op)
+			redactOperationSensitiveFields(op)
 			var rawResult *string
 			if resultJSON, err := json.Marshal(op); err == nil {
 				s := string(resultJSON)

@@ -2,9 +2,9 @@
 import React from "react";
 import { Link } from "react-router";
 
-import { ILabelPolicy } from "interfaces/label";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { ILabelPolicy } from "interfaces/label";
 
 const baseClass = "policy-label-modal";
 

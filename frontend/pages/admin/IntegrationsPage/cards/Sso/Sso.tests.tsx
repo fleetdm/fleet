@@ -1,6 +1,6 @@
-import React from "react";
-import { noop } from "lodash";
 import { screen } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
 import { InjectedRouter } from "react-router";
 
 import { createMockConfig } from "__mocks__/configMock";

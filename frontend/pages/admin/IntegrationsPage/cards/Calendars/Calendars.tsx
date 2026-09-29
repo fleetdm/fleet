@@ -1,22 +1,21 @@
 import React, { useState, useContext, useCallback, useEffect } from "react";
 import { useQueryClient } from "react-query";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { AppContext } from "context/app";
-import configAPI from "services/entities/config";
-import paths from "router/paths";
-import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
-
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
-import PageDescription from "components/PageDescription";
 import Card from "components/Card";
+import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import { notify } from "components/ToastNotification";
-import { getPathWithQueryParams } from "utilities/url";
+import { AppContext } from "context/app";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import paths from "router/paths";
+import configAPI from "services/entities/config";
+import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 

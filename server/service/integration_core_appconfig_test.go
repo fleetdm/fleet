@@ -39,7 +39,7 @@ func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	spec := []byte(`
   host_expiry_settings:
     host_expiry_enabled: true
-    host_expiry_window: 0
+    host_expiry_window: 30
   features:
     additional_queries:
       time: SELECT * FROM time
@@ -1498,6 +1498,52 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.True(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
 	require.Equal(t, 42, acResp.ActivityExpirySettings.ActivityExpiryWindow)
+
+	// Invalid host expiry window (0 and negative) while enabled.
+	for _, window := range []int{-1, 0} {
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+    "host_expiry_settings": {
+        "host_expiry_enabled": true,
+        "host_expiry_window": %d
+    }
+  }`, window)), http.StatusUnprocessableEntity, &acResp)
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.False(t, acResp.HostExpirySettings.HostExpiryEnabled)
+		require.Zero(t, acResp.HostExpirySettings.HostExpiryWindow)
+	}
+
+	// Valid host expiry window.
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "host_expiry_settings": {
+        "host_expiry_enabled": true,
+        "host_expiry_window": 42
+    }
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.HostExpirySettings.HostExpiryEnabled)
+	require.Equal(t, 42, acResp.HostExpirySettings.HostExpiryWindow)
+
+	// The window is not validated while host expiry is disabled, matching the
+	// fleet-level setting. This also resets the suite to the default (disabled).
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "host_expiry_settings": {
+        "host_expiry_enabled": false,
+        "host_expiry_window": -1
+    }
+  }`), http.StatusOK, &acResp)
+	require.False(t, acResp.HostExpirySettings.HostExpiryEnabled)
+	require.Equal(t, -1, acResp.HostExpirySettings.HostExpiryWindow)
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "host_expiry_settings": {
+        "host_expiry_enabled": false,
+        "host_expiry_window": 0
+    }
+  }`), http.StatusOK, &acResp)
+	require.Zero(t, acResp.HostExpirySettings.HostExpiryWindow)
 
 	// preserve_host_activities_on_reenrollment round-trip.
 	initialPreserve := acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment

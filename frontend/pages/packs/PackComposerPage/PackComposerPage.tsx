@@ -1,23 +1,20 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { notify } from "components/ToastNotification";
-
-import { IQuery } from "interfaces/query";
-import { ITargetsAPIResponse } from "interfaces/target";
-import { IEditPackFormData } from "interfaces/pack";
-
-import { getErrorReason } from "interfaces/errors";
-import packsAPI from "services/entities/packs";
-
 import NewPackForm from "components/forms/packs/NewPackForm";
+import MainContent from "components/MainContent";
 // @ts-ignore
 import PackInfoSidePanel from "components/side_panels/PackInfoSidePanel";
-import SidePanelPage from "components/SidePanelPage";
-import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
+import SidePanelPage from "components/SidePanelPage";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { IEditPackFormData } from "interfaces/pack";
+import { IQuery } from "interfaces/query";
+import { ITargetsAPIResponse } from "interfaces/target";
+import PATHS from "router/paths";
+import packsAPI from "services/entities/packs";
 
 interface IPackComposerPageProps {
   router: InjectedRouter;

@@ -1,0 +1,1 @@
+- Removed the deprecated `GET /api/v1/fleet/mdm/apple/commandresults` endpoint (deprecated since Fleet 4.40). Use `GET /api/v1/fleet/commands/results` instead.
