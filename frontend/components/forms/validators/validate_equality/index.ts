@@ -1,5 +1,5 @@
 import { isEqual } from "lodash";
 
-export default (actual: any, expected: any) => {
+export default (actual: unknown, expected: unknown) => {
   return isEqual(actual, expected);
 };

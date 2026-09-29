@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
+import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
@@ -30,9 +31,9 @@ const emptyCAHandler = http.get(baseUrl("/certificate_authorities"), () =>
   HttpResponse.json({ certificate_authorities: [] })
 );
 
-const androidMdmConfig = {
-  mdm: { android_enabled_and_configured: true },
-} as any;
+const androidMdmConfig = createMockConfig({
+  mdm: createMockMdmConfig({ android_enabled_and_configured: true }),
+});
 
 const baseProps = {
   currentTeamId: 0,

@@ -10633,7 +10633,7 @@ const variables = (url: string) => {
   };
 };
 
-const addVariable = (url: string, variable: any) => {
+const addVariable = (url: string, variable: { name: string }) => {
   if (variable.name === "DUPE") {
     return Promise.reject({ status: 409, message: "Conflict" });
   }
