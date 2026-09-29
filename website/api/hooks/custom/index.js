@@ -165,6 +165,7 @@ will be disabled and/or hidden in the UI.
           if (sails.config.environment === 'production' && sails.config.custom.datadogApiKey) {
             let timestampInSeconds = Math.floor(Date.now() / 1000);
             let thisDyno = process.env.DYNO;
+            let sanitizeUrl = (url) => { try { return new URL(url).origin; } catch (e) { return 'unknown'; } };
             // Create an array of metrics, and add the total request count.
             let metricsToSendToDatadog = [{
               metric: 'android_proxy.amapi_request_count',
@@ -178,7 +179,7 @@ will be disabled and/or hidden in the UI.
               let entry = requestCountByEnterpriseId[enterpriseId];
               let tags = [`dyno:${thisDyno}`, `android_enterprise_id:${enterpriseId}`];
               if (entry.fleetServerUrl) {
-                tags.push(`fleet_server_url:${entry.fleetServerUrl}`);
+                tags.push(`fleet_server_url:${sanitizeUrl(entry.fleetServerUrl)}`);
               }
               return {
                 metric: 'android_proxy.amapi_request_count_by_enterprise',
@@ -197,7 +198,7 @@ will be disabled and/or hidden in the UI.
                 type: 1,
                 interval: 60,
                 points: [{ timestamp: timestampInSeconds, value: entry.count }],
-                tags: [`android_enterprise_id:${entry.enterpriseId}`, `fleet_server_url:${entry.fleetServerUrl}`, `request_type:${entry.requestType}`],
+                tags: [`android_enterprise_id:${entry.enterpriseId}`, `fleet_server_url:${sanitizeUrl(entry.fleetServerUrl)}`, `request_type:${entry.requestType}`],
               };
             });
             metricsToSendToDatadog = metricsToSendToDatadog.concat(perRequestTypeMetrics);
