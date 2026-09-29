@@ -774,21 +774,68 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 	}))
 	require.Equal(t, windowsOneTimeEnrollSecretMintResult{found: 2, inserted: 1}, result, "device already had a live secret")
 
-	// The deleted-host push queues only alongside a secret it mints, and a failed queue leaves no secret behind for later
-	// sessions to mistake for one already sent.
+	// The deleted-host push queues once per live secret, and a failed queue leaves no secret behind for later sessions to mistake
+	// for one already sent.
+	const pushLocURI = "./Device/qa"
 	pushCmd := func(commandUUID string) *fleet.MDMWindowsCommand {
-		return &fleet.MDMWindowsCommand{CommandUUID: commandUUID, RawCommand: []byte("<Replace/>"), TargetLocURI: "./Device/qa"}
+		return &fleet.MDMWindowsCommand{CommandUUID: commandUUID, RawCommand: []byte("<Replace/>"), TargetLocURI: pushLocURI}
+	}
+	requirePushed := func(enrollmentID uint, want bool) {
+		got, err := ds.WindowsMDMEnrollSecretPushed(ctx, enrollmentID, pushLocURI)
+		require.NoError(t, err)
+		require.Equal(t, want, got)
 	}
 	pushed := insertWindowsEnrollment(t, ds, "hw-mint-pushed", "")
-	queued, err := ds.QueueWindowsMDMEnrollSecretPush(ctx, pushed.ID, pushed.MDMDeviceID, pushCmd("push-1"))
+	queued, err := ds.QueueWindowsMDMEnrollSecretPush(ctx, pushed.ID, pushed.MDMDeviceID, pushCmd("push-1"), nil)
 	require.NoError(t, err)
 	require.True(t, queued)
-	queued, err = ds.QueueWindowsMDMEnrollSecretPush(ctx, pushed.ID, pushed.MDMDeviceID, pushCmd("push-2"))
+	queued, err = ds.QueueWindowsMDMEnrollSecretPush(ctx, pushed.ID, pushed.MDMDeviceID, pushCmd("push-2"), nil)
 	require.NoError(t, err)
 	require.False(t, queued, "the device was already sent the live secret")
+
+	// A secret minted for a fleetd install was never pushed, so the push reuses it and queues the install alongside.
+	installed := insertWindowsEnrollment(t, ds, "hw-mint-installed", "")
+	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, installed.ID))
+	requirePushed(installed.ID, false)
+	installCmd := &fleet.MDMWindowsCommand{CommandUUID: "install-1", RawCommand: []byte("<Exec/>"), TargetLocURI: "./Device/install"}
+	queued, err = ds.QueueWindowsMDMEnrollSecretPush(ctx, installed.ID, installed.MDMDeviceID, pushCmd("push-3"), installCmd)
+	require.NoError(t, err)
+	require.True(t, queued)
+	require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, installed.ID), "the install's secret is reused")
+	pending, err := ds.MDMWindowsGetPendingCommands(ctx, installed.ID)
+	require.NoError(t, err)
+	require.Len(t, pending, 2)
+
+	// A delivered push has left the queue for the results table, and still counts.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, '')`, installed.ID)
+		if err != nil {
+			return err
+		}
+		responseID, _ := res.LastInsertId()
+		if _, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code)
+			VALUES (?, 'push-3', '', ?, '200')`, installed.ID, responseID); err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ?`, installed.ID)
+		return err
+	})
+	requirePushed(installed.ID, true)
+
+	// A push queued before the live secret was minted delivered an older secret.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE windows_mdm_commands c, host_one_time_enroll_secrets s
+			SET c.created_at = NOW() - INTERVAL 1 HOUR, s.consumed_at = NOW(6)
+			WHERE c.command_uuid = 'push-3' AND s.mdm_windows_enrollment_id = ?`, installed.ID)
+		return err
+	})
+	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, installed.ID))
+	requirePushed(installed.ID, false)
+
+	// The install is queued in the same transaction, so its failure takes the push and the secret with it.
 	failed := insertWindowsEnrollment(t, ds, "hw-mint-failed", "")
-	_, err = ds.QueueWindowsMDMEnrollSecretPush(ctx, failed.ID, failed.MDMDeviceID, pushCmd("push-1"))
-	require.Error(t, err, "the command UUID is taken")
+	_, err = ds.QueueWindowsMDMEnrollSecretPush(ctx, failed.ID, failed.MDMDeviceID, pushCmd("push-4"), installCmd)
+	require.Error(t, err, "the install command UUID is taken")
 	require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, failed.ID))
 
 	// Re-enrollment deletes the enrollment row, and the foreign key cascade is what invalidates the secret minted for it.

@@ -3671,18 +3671,19 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 	}
 }
 
+// serveFleetdMetadata serves the fleetd-base metadata that the fleetd install command is built from.
+func serveFleetdMetadata(t *testing.T, status int) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(`{"fleetd_base_msi_url":"https://example.com/fleetd.msi","fleetd_base_msi_sha256":"abc"}`))
+	}))
+	t.Cleanup(srv.Close)
+	dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", srv.URL, t)
+}
+
 func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 	const globalSecret = "global-enroll-secret"
 	device := &fleet.MDMWindowsEnrolledDevice{ID: 17, MDMDeviceID: "device-17"}
-
-	serveFleetdMetadata := func(t *testing.T, status int) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(status)
-			_, _ = w.Write([]byte(`{"fleetd_base_msi_url":"https://example.com/fleetd.msi","fleetd_base_msi_sha256":"abc"}`))
-		}))
-		t.Cleanup(srv.Close)
-		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", srv.URL, t)
-	}
 
 	newService := func(t *testing.T, windowsOneTimeEnrollSecrets bool) (*Service, *mock.Store, *[]string) {
 		ds := new(mock.Store)

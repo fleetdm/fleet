@@ -199,7 +199,7 @@ func (ds *Datastore) MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enro
 }
 
 func (ds *Datastore) QueueWindowsMDMEnrollSecretPush(
-	ctx context.Context, enrollmentID uint, mdmDeviceID string, cmd *fleet.MDMWindowsCommand,
+	ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd, installCmd *fleet.MDMWindowsCommand,
 ) (bool, error) {
 	var queued bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -211,16 +211,52 @@ func (ds *Datastore) QueueWindowsMDMEnrollSecretPush(
 		if minted.found == 0 {
 			return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"), "minting one-time enroll secret for push")
 		}
-		if minted.inserted == 0 {
-			return nil
-		}
-		if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, []string{mdmDeviceID}, cmd); err != nil {
+		// A reused secret may have been minted for a fleetd install that could not deliver it, so only a push already queued for
+		// it means the device was sent it.
+		pushed, err := windowsMDMEnrollSecretPushedDB(ctx, tx, enrollmentID, pushCmd.TargetLocURI)
+		if err != nil || pushed {
 			return err
+		}
+		for _, cmd := range []*fleet.MDMWindowsCommand{pushCmd, installCmd} {
+			if cmd == nil {
+				continue
+			}
+			if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, []string{mdmDeviceID}, cmd); err != nil {
+				return err
+			}
 		}
 		queued = true
 		return nil
 	})
 	return queued, err
+}
+
+func (ds *Datastore) WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error) {
+	return windowsMDMEnrollSecretPushedDB(ctx, ds.reader(ctx), enrollmentID, pushLocURI)
+}
+
+// windowsMDMEnrollSecretPushedDB reports whether a command targeting pushLocURI was queued for the enrollment since its live secret
+// was minted. It starts from the enrollment's own queue and results, which are keyed by enrollment. windows_mdm_commands.created_at
+// has only second precision, so the secret's creation time is truncated to the second before comparing.
+func windowsMDMEnrollSecretPushedDB(ctx context.Context, q sqlx.QueryerContext, enrollmentID uint, pushLocURI string) (bool, error) {
+	var pushed bool
+	if err := sqlx.GetContext(ctx, q, &pushed, `
+		SELECT EXISTS (
+			SELECT 1 FROM host_one_time_enroll_secrets s
+			JOIN (
+				SELECT command_uuid FROM windows_mdm_command_queue WHERE enrollment_id = ?
+				UNION
+				SELECT command_uuid FROM windows_mdm_command_results WHERE enrollment_id = ?
+			) ec
+			JOIN windows_mdm_commands c ON c.command_uuid = ec.command_uuid
+			WHERE s.mdm_windows_enrollment_id = ? AND s.consumed_at IS NULL
+				AND c.target_loc_uri = ?
+                -- trim to nearest second
+				AND c.created_at >= s.created_at - INTERVAL MICROSECOND(s.created_at) MICROSECOND
+		)`, enrollmentID, enrollmentID, enrollmentID, pushLocURI); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check windows one-time enroll secret push")
+	}
+	return pushed, nil
 }
 
 type windowsOneTimeEnrollSecretMintResult struct {

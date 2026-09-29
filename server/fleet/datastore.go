@@ -3825,9 +3825,14 @@ type Datastore interface {
 	// unconsumed one. Called when Fleet is about to install fleetd on the device. Returns a NotFound error for an unknown enrollment.
 	MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) error
 
-	// QueueWindowsMDMEnrollSecretPush mints a one-time enroll secret for the Windows MDM enrollment and queues cmd, which delivers
-	// it, in one transaction. It does nothing and returns false when the enrollment already has an unconsumed secret.
-	QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollmentID uint, mdmDeviceID string, cmd *MDMWindowsCommand) (bool, error)
+	// QueueWindowsMDMEnrollSecretPush makes sure the Windows MDM enrollment has a live one-time enroll secret, reusing an unconsumed
+	// one, and queues pushCmd, which delivers it, plus installCmd when not nil, in one transaction. It does nothing and returns false
+	// when a command targeting pushCmd's LocURI was already queued for the live secret.
+	QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd, installCmd *MDMWindowsCommand) (bool, error)
+
+	// WindowsMDMEnrollSecretPushed reports whether a command targeting pushLocURI was queued for the Windows MDM enrollment since its
+	// live one-time enroll secret was minted. It is false when the enrollment has no live secret.
+	WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Custom host vitals

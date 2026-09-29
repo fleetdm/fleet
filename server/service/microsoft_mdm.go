@@ -1516,19 +1516,39 @@ func (svc *Service) generateWindowsEUAToken(ctx context.Context, deviceID string
 }
 
 func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) error {
+	fleetdInstallCmd, err := svc.buildFleetdInstallCommand(ctx, enrolledDevice)
+	if err != nil || fleetdInstallCmd == nil {
+		return err
+	}
+	// Create the Windows one-time enroll secret, because the caller only gets here when fleetd is absent.
+	if svc.config.MDM.WindowsOneTimeEnrollSecrets {
+		if err := svc.ds.MintWindowsMDMOneTimeEnrollSecret(ctx, enrolledDevice.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "minting one-time enroll secret for fleetd install")
+		}
+	}
+
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{enrolledDevice.MDMDeviceID}, fleetdInstallCmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert command to install fleetd")
+	}
+
+	return nil
+}
+
+// buildFleetdInstallCommand returns the command that installs fleetd on the device, or nil when it cannot be built yet, which
+// the next session retries. With one-time enroll secrets the command carries a placeholder, resolved at delivery.
+func (svc *Service) buildFleetdInstallCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) (*fleet.MDMWindowsCommand, error) {
 	deviceID := enrolledDevice.MDMDeviceID
 
-	// With one-time enroll secrets the command carries a placeholder.
 	enrollSecret := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
 	if !svc.config.MDM.WindowsOneTimeEnrollSecrets {
 		secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting enroll secrets")
+			return nil, ctxerr.Wrap(ctx, err, "getting enroll secrets")
 		}
 
 		if len(secrets) == 0 {
 			svc.logger.WarnContext(ctx, "unable to find a global enroll secret to install fleetd")
-			return nil
+			return nil, nil
 		}
 		enrollSecret = secrets[0].Secret
 	}
@@ -1539,12 +1559,12 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, enrolledDev
 	fleetdMetadata, err := fleetdbase.GetMetadata()
 	if err != nil {
 		svc.logger.WarnContext(ctx, "unable to get fleetd-base metadata")
-		return nil
+		return nil, nil
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting app config")
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
 	}
 	fleetURL := appCfg.ServerSettings.ServerURL
 	// Fleet-internal CmdID: the Add is injected inline and is never its own tracked queue command. The Exec command is
@@ -1614,18 +1634,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, enrolledDev
 		RawCommand:   rawCombinedCmd,
 		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
 	}
-	// Create the Windows one-time enroll secret, because the caller only gets here when fleetd is absent.
-	if svc.config.MDM.WindowsOneTimeEnrollSecrets {
-		if err := svc.ds.MintWindowsMDMOneTimeEnrollSecret(ctx, enrolledDevice.ID); err != nil {
-			return ctxerr.Wrap(ctx, err, "minting one-time enroll secret for fleetd install")
-		}
-	}
-
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, fleetdInstallCmd); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert command to install fleetd")
-	}
-
-	return nil
+	return fleetdInstallCmd, nil
 }
 
 // Alerts Handlers
@@ -1633,6 +1642,12 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, enrolledDev
 // New session Alert Handler
 // This handler will return an protocol command to install an MSI on a new session from unenrolled device
 func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string, enrolledDevice *fleet.MDMWindowsEnrolledDevice, cmd mdm_types.ProtoCmdOperation) error {
+	// A host_uuid with no host means the host was deleted, so these go to the push instead.
+	if svc.config.MDM.WindowsOneTimeEnrollSecrets && enrolledDevice.HostUUID != "" && enrolledDevice.LinkedHostID == nil {
+		svc.pushEnrollSecretToOrphanedEnrollment(ctx, enrolledDevice)
+		return nil
+	}
+
 	// Checking if fleetd is present on the device
 	fleetdPresent, err := svc.isFleetdPresentOnDevice(ctx, enrolledDevice)
 	if err != nil {
@@ -1643,10 +1658,6 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 		if err := svc.enqueueInstallFleetdCommand(ctx, enrolledDevice); err != nil {
 			return err
 		}
-	}
-
-	if svc.config.MDM.WindowsOneTimeEnrollSecrets && enrolledDevice.HostUUID != "" && enrolledDevice.LinkedHostID == nil {
-		svc.pushEnrollSecretToOrphanedEnrollment(ctx, enrolledDevice)
 	}
 	return nil
 }

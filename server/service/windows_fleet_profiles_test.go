@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
@@ -208,20 +209,27 @@ func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
 	orphaned := &fleet.MDMWindowsEnrolledDevice{ID: 17, MDMDeviceID: "device-17", HostUUID: "host-uuid", MDMEnrollUserID: "not-a-upn"}
 
 	type state struct {
-		pushed *fleet.MDMWindowsCommand
+		pushed    *fleet.MDMWindowsCommand
+		installed *fleet.MDMWindowsCommand
 	}
-	newService := func(t *testing.T, windowsOneTimeEnrollSecrets bool, liveSecret string) (*Service, *mock.Store, *state) {
+	newService := func(t *testing.T, windowsOneTimeEnrollSecrets, alreadyPushed bool) (*Service, *mock.Store, *state) {
 		st := &state{}
 		ds := new(mock.Store)
-		ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
+		ds.WindowsMDMEnrollSecretPushedFunc = func(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error) {
 			require.Equal(t, orphaned.ID, enrollmentID)
-			return liveSecret, nil
+			require.Equal(t, windowsEnrollSecretPolicyURI, pushLocURI)
+			return alreadyPushed, nil
 		}
-		ds.QueueWindowsMDMEnrollSecretPushFunc = func(ctx context.Context, enrollmentID uint, mdmDeviceID string, cmd *fleet.MDMWindowsCommand) (bool, error) {
+		ds.QueueWindowsMDMEnrollSecretPushFunc = func(
+			ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd, installCmd *fleet.MDMWindowsCommand,
+		) (bool, error) {
 			require.Equal(t, orphaned.ID, enrollmentID)
 			require.Equal(t, orphaned.MDMDeviceID, mdmDeviceID)
-			st.pushed = cmd
+			st.pushed, st.installed = pushCmd, installCmd
 			return true, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"}}, nil
 		}
 		cfg := config.TestConfig()
 		cfg.MDM.WindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
@@ -233,14 +241,40 @@ func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
 	}
 
 	t.Run("a deleted host's enrollment is pushed a secret through the profile's own SyncML", func(t *testing.T) {
-		svc, _, st := newService(t, true, "")
+		svc, _, st := newService(t, true, false)
 		session(t, svc, orphaned)
 
 		require.NotNil(t, st.pushed)
 		require.Equal(t, windowsEnrollSecretPolicyURI, st.pushed.TargetLocURI)
 		require.Contains(t, string(st.pushed.RawCommand), fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret),
 			"the secret is resolved at delivery")
+		require.Nil(t, st.installed, "fleetd enrolled this device itself, so Fleet never installs it")
 	})
+
+	// isFleetdPresentOnDevice cannot find a deleted host, and the fleetd install it would queue cannot deliver a secret to a device
+	// that still runs fleetd, so it is skipped: its HostLiteByIdentifier mock is unset and would panic.
+	for _, tc := range []struct {
+		name           string
+		metadataStatus int
+	}{
+		{"a deleted user-driven host is pushed a secret and sent the fleetd install with it", http.StatusOK},
+		{"a user-driven push waits for a session that can also send the fleetd install", http.StatusInternalServerError},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			serveFleetdMetadata(t, tc.metadataStatus)
+			userDriven := *orphaned
+			userDriven.MDMEnrollUserID = "user@example.com"
+			svc, _, st := newService(t, true, false)
+			session(t, svc, &userDriven)
+
+			if tc.metadataStatus != http.StatusOK {
+				require.Nil(t, st.pushed)
+				return
+			}
+			require.NotNil(t, st.pushed)
+			require.Equal(t, syncml.FleetdWindowsInstallerGUID, st.installed.TargetLocURI)
+		})
+	}
 
 	withHost := *orphaned
 	withHost.LinkedHostID = new(uint(1))
@@ -250,19 +284,19 @@ func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
 		name                        string
 		windowsOneTimeEnrollSecrets bool
 		device                      *fleet.MDMWindowsEnrolledDevice
-		liveSecret                  string
+		alreadyPushed               bool
 	}{
 		{name: "windows one-time enroll secrets disabled", device: orphaned},
 		{name: "enrollment never linked to a host", windowsOneTimeEnrollSecrets: true, device: &unlinked},
 		{name: "host exists", windowsOneTimeEnrollSecrets: true, device: &withHost},
-		{name: "the enrollment holds an unconsumed secret", windowsOneTimeEnrollSecrets: true, device: orphaned, liveSecret: "already-sent"},
+		{name: "the live secret was already pushed", windowsOneTimeEnrollSecrets: true, device: orphaned, alreadyPushed: true},
 	} {
 		t.Run("nothing is pushed: "+tc.name, func(t *testing.T) {
-			svc, ds, st := newService(t, tc.windowsOneTimeEnrollSecrets, tc.liveSecret)
+			svc, ds, st := newService(t, tc.windowsOneTimeEnrollSecrets, tc.alreadyPushed)
 			session(t, svc, tc.device)
 			require.Nil(t, st.pushed)
-			if tc.liveSecret == "" {
-				require.False(t, ds.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked, "a session that needs no push costs no query")
+			if !tc.alreadyPushed {
+				require.False(t, ds.WindowsMDMEnrollSecretPushedFuncInvoked, "a session that needs no push costs no query")
 			}
 		})
 	}

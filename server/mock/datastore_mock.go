@@ -2078,7 +2078,9 @@ type WindowsMDMEnrollSecretUsedByOrbitFunc func(ctx context.Context, enrollmentI
 
 type MintWindowsMDMOneTimeEnrollSecretFunc func(ctx context.Context, enrollmentID uint) error
 
-type QueueWindowsMDMEnrollSecretPushFunc func(ctx context.Context, enrollmentID uint, mdmDeviceID string, cmd *fleet.MDMWindowsCommand) (bool, error)
+type QueueWindowsMDMEnrollSecretPushFunc func(ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd *fleet.MDMWindowsCommand, installCmd *fleet.MDMWindowsCommand) (bool, error)
+
+type WindowsMDMEnrollSecretPushedFunc func(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error)
 
 type CreateCustomHostVitalFunc func(ctx context.Context, name string) (fleet.CustomHostVital, error)
 
@@ -5586,6 +5588,9 @@ type DataStore struct {
 
 	QueueWindowsMDMEnrollSecretPushFunc        QueueWindowsMDMEnrollSecretPushFunc
 	QueueWindowsMDMEnrollSecretPushFuncInvoked bool
+
+	WindowsMDMEnrollSecretPushedFunc        WindowsMDMEnrollSecretPushedFunc
+	WindowsMDMEnrollSecretPushedFuncInvoked bool
 
 	CreateCustomHostVitalFunc        CreateCustomHostVitalFunc
 	CreateCustomHostVitalFuncInvoked bool
@@ -13412,11 +13417,18 @@ func (s *DataStore) MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrol
 	return s.MintWindowsMDMOneTimeEnrollSecretFunc(ctx, enrollmentID)
 }
 
-func (s *DataStore) QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollmentID uint, mdmDeviceID string, cmd *fleet.MDMWindowsCommand) (bool, error) {
+func (s *DataStore) QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd *fleet.MDMWindowsCommand, installCmd *fleet.MDMWindowsCommand) (bool, error) {
 	s.mu.Lock()
 	s.QueueWindowsMDMEnrollSecretPushFuncInvoked = true
 	s.mu.Unlock()
-	return s.QueueWindowsMDMEnrollSecretPushFunc(ctx, enrollmentID, mdmDeviceID, cmd)
+	return s.QueueWindowsMDMEnrollSecretPushFunc(ctx, enrollmentID, mdmDeviceID, pushCmd, installCmd)
+}
+
+func (s *DataStore) WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error) {
+	s.mu.Lock()
+	s.WindowsMDMEnrollSecretPushedFuncInvoked = true
+	s.mu.Unlock()
+	return s.WindowsMDMEnrollSecretPushedFunc(ctx, enrollmentID, pushLocURI)
 }
 
 func (s *DataStore) CreateCustomHostVital(ctx context.Context, name string) (fleet.CustomHostVital, error) {

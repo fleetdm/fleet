@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 )
@@ -99,18 +100,21 @@ func windowsEnrollSecretProfileSyncML() ([]byte, error) {
 // for the enrollment and writes it to the registry value the enroll secret profile carries. orbit reads that value before each
 // enroll attempt, and its enrollment recreates the host, or claims the pending Autopilot host by serial. Failures are logged
 // rather than returned, so the session is unaffected and the next one tries again.
+//
+// For an enrollment Fleet installs fleetd on (a user-driven or Autopilot enrollment), the fleetd install is queued with the same
+// secret in case fleetd was removed before the host was deleted. With fleetd still installed, Windows runs it as a reconfigure
+// that fails and changes nothing.
 func (svc *Service) pushEnrollSecretToOrphanedEnrollment(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) {
 	logger := svc.logger.With("enrollment_id", enrolledDevice.ID, "host_uuid", enrolledDevice.HostUUID)
 
-	// A device whose fleetd is gone for good keeps checking in, so the push must not repeat for every session. Only a new
-	// secret gets pushed: while the enrollment holds an unconsumed one, the device was already sent it.
-	live, err := svc.ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctx, enrolledDevice.ID)
+	// A device whose fleetd is gone for good keeps checking in, so the push must not repeat for every session: once per secret.
+	pushed, err := svc.ds.WindowsMDMEnrollSecretPushed(ctx, enrolledDevice.ID, windowsEnrollSecretPolicyURI)
 	if err != nil {
-		logger.ErrorContext(ctx, "failed to load the live one-time enroll secret", "err", err)
+		logger.ErrorContext(ctx, "failed to check for a queued one-time enroll secret push", "err", err)
 		ctxerr.Handle(ctx, err)
 		return
 	}
-	if live != "" {
+	if pushed {
 		return
 	}
 
@@ -120,15 +124,28 @@ func (svc *Service) pushEnrollSecretToOrphanedEnrollment(ctx context.Context, en
 		ctxerr.Handle(ctx, err)
 		return
 	}
-	cmd, err := buildCommandFromProfileBytes(syncML, uuid.NewString())
+	pushCmd, err := buildCommandFromProfileBytes(syncML, uuid.NewString())
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to build the enroll secret push", "err", err)
 		ctxerr.Handle(ctx, err)
 		return
 	}
-	cmd.TargetLocURI = windowsEnrollSecretPolicyURI
+	pushCmd.TargetLocURI = windowsEnrollSecretPolicyURI
 
-	queued, err := svc.ds.QueueWindowsMDMEnrollSecretPush(ctx, enrolledDevice.ID, enrolledDevice.MDMDeviceID, cmd)
+	var installCmd *fleet.MDMWindowsCommand
+	if microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID) {
+		if installCmd, err = svc.buildFleetdInstallCommand(ctx, enrolledDevice); err != nil {
+			logger.ErrorContext(ctx, "failed to build the fleetd install for a one-time enroll secret push", "err", err)
+			ctxerr.Handle(ctx, err)
+			return
+		}
+		// Queuing the push alone would mark the secret pushed, and no later session would send the install.
+		if installCmd == nil {
+			return
+		}
+	}
+
+	queued, err := svc.ds.QueueWindowsMDMEnrollSecretPush(ctx, enrolledDevice.ID, enrolledDevice.MDMDeviceID, pushCmd, installCmd)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to queue a one-time enroll secret push", "err", err)
 		ctxerr.Handle(ctx, err)
@@ -136,7 +153,7 @@ func (svc *Service) pushEnrollSecretToOrphanedEnrollment(ctx context.Context, en
 	}
 	if queued {
 		logger.InfoContext(ctx, "queued a one-time enroll secret for a windows mdm enrollment whose host was deleted",
-			"command_uuid", cmd.CommandUUID)
+			"command_uuid", pushCmd.CommandUUID, "with_fleetd_install", installCmd != nil)
 	}
 }
 
