@@ -545,7 +545,8 @@ const ManageHostsPage = ({
     }
   );
 
-  const useOneTimeEnrollSecrets = !!config?.auth?.use_one_time_enroll_secrets;
+  const useOneTimeEnrollSecrets = !!config?.auth
+    ?.mdm_apple_one_time_enroll_secrets;
 
   const {
     data: teams,
