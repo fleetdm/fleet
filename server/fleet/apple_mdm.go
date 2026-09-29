@@ -240,6 +240,9 @@ type MDMAppleConfigProfile struct {
 	// Name corresponds to the payload display name of the associated mobileconfig payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
+	// Description is free text written by the admin. It is not part of the
+	// checksum, so changing it never re-delivers the profile.
+	Description string `db:"description" json:"description"`
 	// Mobileconfig is the byte slice corresponding to the XML property list (i.e. plist)
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
 	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
@@ -345,6 +348,8 @@ type HostMDMAppleProfile struct {
 	VariablesUpdatedAt  *time.Time         `db:"variables_updated_at" json:"-"`
 	Scope               PayloadScope       `db:"scope" json:"scope"`
 	ManagedLocalAccount string             `db:"managed_local_account" json:"managed_local_account"`
+	SelfService         bool               `db:"self_service" json:"self_service"`
+	Hidden              bool               `db:"hidden" json:"hidden"`
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
@@ -364,6 +369,8 @@ func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 		Platform:            platform,
 		Scope:               &scope,
 		ManagedLocalAccount: &p.ManagedLocalAccount,
+		SelfService:         p.SelfService,
+		Hidden:              p.Hidden,
 	}
 }
 
@@ -527,6 +534,7 @@ type AppleProfileForReconcile struct {
 	IncludeLabels     []AppleProfileLabelRef
 	ExcludeLabels     []AppleProfileLabelRef
 	SelfService       bool
+	Hidden            bool
 }
 
 // AppleLabeledEntity implementation.
@@ -952,6 +960,10 @@ type MDMAppleDeclaration struct {
 	// Name corresponds to the file name of the associated JSON declaration payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
+
+	// Description is free text written by the admin. It is not part of the
+	// token, so changing it never re-delivers the declaration.
+	Description string `db:"description" json:"description"`
 
 	// Scope is the channel the declaration is delivered on, parsed from the
 	// declaration's top-level PayloadScope. "System" (the default) targets the

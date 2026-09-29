@@ -53,6 +53,8 @@ func TestMDMApple(t *testing.T) {
 		{"CleanupExpiredADUEEnrollmentChallenges", testCleanupExpiredADUEEnrollmentChallenges},
 		{"GetABMOrganizationNamesAssociatedByDefaultTeams", testGetABMOrganizationNamesAssociatedByDefaultTeams},
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
+		{"GetHostMDMAppleProfilesOrphanedRows", testGetHostMDMAppleProfilesOrphanedRows},
+		{"QueueHostMDMAppleProfileInstallAndRemoval", testQueueHostMDMAppleProfileInstallAndRemoval},
 		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
 		{"TestUpdateMDMAppleConfigProfile", testUpdateMDMAppleConfigProfile},
@@ -695,6 +697,42 @@ func testUpdateMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 	require.Greater(t, contentChangedProf.UploadedAt.Year(), 2020, "a content change must bump uploaded_at")
+
+	// the description isn't part of the checksum, so changing it alone must
+	// not bump uploaded_at, while it is still written with a content change
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET uploaded_at = '2020-01-01 00:00:00' WHERE profile_uuid = ?`, uploadedAtProfile.ProfileUUID)
+		return err
+	})
+	// the repeat covers the skipped write when the description is unchanged
+	for _, desc := range []string{"new description", "new description"} {
+		_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			ProfileUUID: uploadedAtProfile.ProfileUUID,
+			Identifier:  uploadedAtProfile.Identifier,
+			TeamID:      uploadedAtProfile.TeamID,
+			Description: desc,
+		}, nil)
+		require.NoError(t, err)
+		storedCP, err = ds.GetMDMAppleConfigProfile(ctx, uploadedAtProfile.ProfileUUID)
+		require.NoError(t, err)
+		require.Equal(t, desc, storedCP.Description)
+		require.Equal(t, 2020, storedCP.UploadedAt.Year(), "a description-only edit must not bump uploaded_at")
+		require.Equal(t, contentChangedProf.Checksum, storedCP.Checksum)
+	}
+
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  uploadedAtProfile.ProfileUUID,
+		Identifier:   uploadedAtProfile.Identifier,
+		Name:         "Uploaded At Profile Renamed",
+		TeamID:       uploadedAtProfile.TeamID,
+		Description:  "description with content",
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("UploadedAtBytes v3")),
+	}, nil)
+	require.NoError(t, err)
+	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, uploadedAtProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "description with content", storedCP.Description)
+	require.Greater(t, storedCP.UploadedAt.Year(), 2020)
 }
 
 func testVerifyAppleConfigProfileScopesDoNotConflict(t *testing.T, ds *Datastore) {
@@ -7553,6 +7591,23 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 	d1tm1B, err = ds.GetMDMAppleDeclaration(ctx, d1tm1B.DeclarationUUID)
 	require.NoError(t, err)
 	require.Equal(t, d1tm1B.DeclarationUUID, d1tm1.DeclarationUUID)
+
+	// the description isn't part of the token, so changing it alone must not
+	// bump uploaded_at or the token, which would make hosts re-sync
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_declarations SET uploaded_at = '2020-01-01 00:00:00' WHERE declaration_uuid = ?`, d1tm1B.DeclarationUUID)
+		return err
+	})
+	before, err := ds.GetMDMAppleDeclaration(ctx, d1tm1B.DeclarationUUID)
+	require.NoError(t, err)
+	before.Description = "new description"
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, before, nil, fleet.MDMAppleActivationKeep)
+	require.NoError(t, err)
+	described, err := ds.GetMDMAppleDeclaration(ctx, d1tm1B.DeclarationUUID)
+	require.NoError(t, err)
+	require.Equal(t, "new description", described.Description)
+	require.Equal(t, 2020, described.UploadedAt.Year(), "a description-only edit must not bump uploaded_at")
+	require.Equal(t, before.Token, described.Token)
 }
 
 func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastore) {
@@ -13890,9 +13945,116 @@ func testHostMDMProfileOptIns(t *testing.T, ds *Datastore) {
 	require.Equal(t, map[string]map[string]struct{}{"host-B": set("a1")}, got)
 }
 
+func testGetHostMDMAppleProfilesOrphanedRows(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := uuid.NewString()
+
+	// Host rows whose profile/declaration no longer exist, e.g. pending removal after deletion.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
+			(host_uuid, profile_uuid, command_uuid, status, operation_type, profile_name, profile_identifier, checksum, scope)
+			VALUES (?, ?, ?, ?, ?, 'P', 'com.p', UNHEX(REPEAT('00', 16)), 'System')`,
+			hostUUID, "a"+uuid.NewString(), uuid.NewString(), fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
+			(host_uuid, status, operation_type, token, declaration_identifier, declaration_uuid, declaration_name, scope)
+			VALUES (?, ?, ?, UNHEX(REPEAT('00', 16)), 'com.d', ?, 'D', 'System')`,
+			hostUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove, "d"+uuid.NewString())
+		return err
+	})
+
+	profs, err := ds.GetHostMDMAppleProfiles(ctx, hostUUID)
+	require.NoError(t, err)
+	require.Len(t, profs, 2)
+	for _, p := range profs {
+		require.False(t, p.Hidden)
+		require.False(t, p.SelfService)
+	}
+}
+
 func manualProfileIf(personal bool) fleet.PersonalEnrollmentType {
 	if personal {
 		return fleet.PersonalEnrollmentTypeManualProfile
 	}
 	return fleet.PersonalEnrollmentTypeNone
+}
+
+func testQueueHostMDMAppleProfileInstallAndRemoval(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := uuid.NewString()
+	profile := &fleet.AppleProfileForReconcile{
+		ProfileUUID:       "a" + uuid.NewString(),
+		ProfileIdentifier: "com.ss",
+		ProfileName:       "SS",
+		Checksum:          []byte("0123456789abcdef"),
+		Scope:             fleet.PayloadScopeSystem,
+	}
+
+	type row struct {
+		OperationType fleet.MDMOperationType `db:"operation_type"`
+		Status        *string                `db:"status"`
+		CommandUUID   string                 `db:"command_uuid"`
+		Detail        string                 `db:"detail"`
+		Retries       uint                   `db:"retries"`
+	}
+	getRow := func() *row {
+		var rows []row
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `SELECT operation_type, status, command_uuid, detail, retries
+				FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?`, hostUUID, profile.ProfileUUID)
+		})
+		if len(rows) == 0 {
+			return nil
+		}
+		return &rows[0]
+	}
+	setDelivered := func(op fleet.MDMOperationType, status fleet.MDMDeliveryStatus, cmdUUID string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET operation_type = ?, status = ?, command_uuid = ?, detail = 'boom', retries = 2
+				WHERE host_uuid = ? AND profile_uuid = ?`, op, status, cmdUUID, hostUUID, profile.ProfileUUID)
+			return err
+		})
+	}
+
+	// Removal without a row is a no-op.
+	require.NoError(t, ds.QueueHostMDMAppleProfileRemoval(ctx, hostUUID, profile.ProfileUUID))
+	require.Nil(t, getRow())
+
+	// Install inserts a pending (NULL status) row with no command yet.
+	require.NoError(t, ds.QueueHostMDMAppleProfileInstall(ctx, hostUUID, profile))
+	r := getRow()
+	require.NotNil(t, r)
+	require.Equal(t, fleet.MDMOperationTypeInstall, r.OperationType)
+	require.Nil(t, r.Status)
+	require.Empty(t, r.CommandUUID)
+	profs, err := ds.GetHostMDMAppleProfiles(ctx, hostUUID)
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, fleet.MDMDeliveryPending, *profs[0].Status)
+
+	// Removing an install that was never sent drops the row.
+	require.NoError(t, ds.QueueHostMDMAppleProfileRemoval(ctx, hostUUID, profile.ProfileUUID))
+	require.Nil(t, getRow())
+
+	// Removing a delivered install queues a removal and keeps the command UUID.
+	require.NoError(t, ds.QueueHostMDMAppleProfileInstall(ctx, hostUUID, profile))
+	setDelivered(fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, "cmd-install")
+	require.NoError(t, ds.QueueHostMDMAppleProfileRemoval(ctx, hostUUID, profile.ProfileUUID))
+	r = getRow()
+	require.NotNil(t, r)
+	require.Equal(t, row{OperationType: fleet.MDMOperationTypeRemove, CommandUUID: "cmd-install"}, *r)
+
+	// Re-installing over a sent removal flips it back and keeps the command UUID for cancellation.
+	setDelivered(fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, "cmd-remove")
+	require.NoError(t, ds.QueueHostMDMAppleProfileInstall(ctx, hostUUID, profile))
+	r = getRow()
+	require.NotNil(t, r)
+	require.Equal(t, row{OperationType: fleet.MDMOperationTypeInstall, CommandUUID: "cmd-remove"}, *r)
+
+	// A queued reinstall (NULL status, previously sent) is not dropped on removal: the device may still have it.
+	require.NoError(t, ds.QueueHostMDMAppleProfileRemoval(ctx, hostUUID, profile.ProfileUUID))
+	r = getRow()
+	require.NotNil(t, r)
+	require.Equal(t, fleet.MDMOperationTypeRemove, r.OperationType)
 }

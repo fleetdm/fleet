@@ -1,0 +1,4 @@
+# An app_store_apps entry must set app_store_id (or path/paths); this one has none.
+software:
+  app_store_apps:
+    - self_service: true
