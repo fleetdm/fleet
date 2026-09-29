@@ -3519,12 +3519,13 @@ software:
 		assert.Equal(t, "222222", result.Software.AppStoreApps[1].AppStoreID)
 	})
 
-	t.Run("nested_path_rejected", func(t *testing.T) {
+	t.Run("nested_references_rejected", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 
 		appFile := filepath.Join(dir, "from-file.yml")
-		require.NoError(t, os.WriteFile(appFile, []byte("- path: nested.yml\n"), 0o644))
+		// With an identifier set, only the nested-reference check stops this applying with its glob dropped.
+		require.NoError(t, os.WriteFile(appFile, []byte("- path: nested.yml\n- app_store_id: \"333333\"\n  paths: \"*.yml\"\n"), 0o644))
 
 		top := yamlToRawJSON(t, `
 software:
@@ -3535,7 +3536,8 @@ software:
 		result := &GitOps{TeamName: &teamName}
 		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
 		require.Error(t, multiErr.ErrorOrNil())
-		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported")
+		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: nested.yml")
+		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: *.yml")
 	})
 }
 
@@ -3588,12 +3590,13 @@ software:
 		assert.Equal(t, "app-b/darwin", result.Software.FleetMaintainedApps[1].Slug)
 	})
 
-	t.Run("nested_path_rejected", func(t *testing.T) {
+	t.Run("nested_references_rejected", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 
 		fmaFile := filepath.Join(dir, "from-file.yml")
-		require.NoError(t, os.WriteFile(fmaFile, []byte("- path: nested.yml\n"), 0o644))
+		// With an identifier set, only the nested-reference check stops this applying with its glob dropped.
+		require.NoError(t, os.WriteFile(fmaFile, []byte("- path: nested.yml\n- slug: nested/darwin\n  paths: \"*.yml\"\n"), 0o644))
 
 		top := yamlToRawJSON(t, `
 software:
@@ -3604,7 +3607,8 @@ software:
 		result := &GitOps{TeamName: &teamName}
 		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
 		require.Error(t, multiErr.ErrorOrNil())
-		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported")
+		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: nested.yml")
+		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: *.yml")
 	})
 
 }
@@ -3649,6 +3653,17 @@ software:
       self_service: true
 `,
 		},
+		{
+			// A zero value is still a value the referenced file would otherwise override.
+			name:  "zero-valued field beside path",
+			files: map[string]string{"from-file.yml": "- slug: file-app/darwin\n  self_service: true\n"},
+			software: `
+software:
+  fleet_maintained_apps:
+    - path: from-file.yml
+      self_service: false
+`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -3666,8 +3681,7 @@ software:
 			multiErr := parseSoftware(yamlToRawJSON(t, tt.software), result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
 			require.Error(t, multiErr.ErrorOrNil())
 			assert.Contains(t, multiErr.ErrorOrNil().Error(), "cannot set other fields")
-			assert.Empty(t, result.Software.AppStoreApps)
-			assert.Empty(t, result.Software.FleetMaintainedApps)
+			assert.Contains(t, multiErr.ErrorOrNil().Error(), "self_service", "the error names the offending keys")
 		})
 	}
 }

@@ -2,6 +2,7 @@ package spec
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2588,6 +2589,34 @@ func gatherFleetMaintainedAppSecrets(result *GitOps, spec fleet.MaintainedAppSpe
 	return nil
 }
 
+// fieldsBesideFileReference reports entries that set "path" or "paths" alongside
+// other keys, which the referenced file would silently override.
+func fieldsBesideFileReference(entries []map[string]json.RawMessage, entityType string) []error {
+	var errs []error
+	for _, entry := range entries {
+		refKey := "path"
+		ref, ok := entry[refKey]
+		if !ok {
+			refKey = "paths"
+			if ref, ok = entry[refKey]; !ok {
+				continue
+			}
+		}
+		extra := make([]string, 0, len(entry))
+		for k := range entry {
+			if k != "path" && k != "paths" {
+				extra = append(extra, k)
+			}
+		}
+		if len(extra) > 0 {
+			slices.Sort(extra)
+			errs = append(errs, fmt.Errorf("%s entry %q %s cannot set other fields: %s",
+				entityType, refKey, ref, strings.Join(extra, ", ")))
+		}
+	}
+	return errs
+}
+
 func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, options GitOpsOptions, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
 	if ok {
@@ -2613,12 +2642,21 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 	}
 	var software Software
+	// Raw keys tell an absent field from one set to its zero value; the typed structs can't.
+	var rawSoftware struct {
+		AppStoreApps        []map[string]json.RawMessage `json:"app_store_apps"`
+		FleetMaintainedApps []map[string]json.RawMessage `json:"fleet_maintained_apps"`
+	}
 	if len(softwareRaw) > 0 {
 		if err := json.Unmarshal(softwareRaw, &software); err != nil {
 			return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"software"}, err))
 		}
+		// Cannot fail: the typed unmarshal above already rejected any shape this would.
+		_ = json.Unmarshal(softwareRaw, &rawSoftware)
 		// Validate unknown keys in software section.
 		multiError = multierror.Append(multiError, validateRawKeys(softwareRaw, reflect.TypeFor[Software](), filePath, []string{"software"})...)
+		multiError = multierror.Append(multiError, fieldsBesideFileReference(rawSoftware.AppStoreApps, "app_store_app")...)
+		multiError = multierror.Append(multiError, fieldsBesideFileReference(rawSoftware.FleetMaintainedApps, "fleet_maintained_app")...)
 	}
 
 	var pathErrs []error
@@ -2635,11 +2673,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 			result.Software.AppStoreApps = append(result.Software.AppStoreApps, &resolved)
-			continue
-		}
-
-		if !reflect.DeepEqual(item.TeamSpecAppStoreApp, fleet.TeamSpecAppStoreApp{}) {
-			multiError = multierror.Append(multiError, fmt.Errorf("app_store_app entry that references a file cannot set other fields; move them into %s", *item.Path))
 			continue
 		}
 
@@ -2664,8 +2697,8 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if pa == nil {
 				continue
 			}
-			if pa.Path != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pa.Path, *item.Path))
+			if nested := cmp.Or(pa.Path, pa.Paths); nested != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("nested paths are not supported: %s in %s", *nested, *item.Path))
 				continue
 			}
 			resolved, err := validateAppStoreApp(pa.TeamSpecAppStoreApp, filepath.Dir(*item.Path))
@@ -2697,11 +2730,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
-		if !reflect.DeepEqual(item.MaintainedAppSpec, fleet.MaintainedAppSpec{}) {
-			multiError = multierror.Append(multiError, fmt.Errorf("fleet_maintained_app entry that references a file cannot set other fields; move them into %s", *item.Path))
-			continue
-		}
-
 		fileBytes, err := os.ReadFile(*item.Path)
 		if err != nil {
 			multiError = multierror.Append(multiError, fmt.Errorf("failed to read fleet_maintained_apps file %s: %v", *item.Path, err))
@@ -2723,8 +2751,8 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if pf == nil {
 				continue
 			}
-			if pf.Path != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pf.Path, *item.Path))
+			if nested := cmp.Or(pf.Path, pf.Paths); nested != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("nested paths are not supported: %s in %s", *nested, *item.Path))
 				continue
 			}
 			resolved, err := validateFleetMaintainedApp(pf.MaintainedAppSpec, filepath.Dir(*item.Path))
