@@ -29160,6 +29160,56 @@ func (s *integrationMDMTestSuite) TestRotateFileVaultKey() {
 		require.Contains(t, string(*listActivities.Activities[0].Details), "failed to expand host secrets")
 	})
 
+	t.Run("transfer to a fleet without escrow while pending", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		rotation := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, rotation)
+		followUp := uuid.NewString()
+		require.NoError(t, s.mdmCommander.EnqueueCommand(ctx, []string{host.UUID}, fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>ProfileList</string>
+	</dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+</dict>
+</plist>`, followUp)))
+
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{host.ID}},
+			http.StatusOK, &addHostsToTeamResponse{})
+		_, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		require.True(t, fleet.IsNotFound(err), "the destination fleet doesn't escrow, so the key is dropped")
+
+		// The rotation can't be expanded any more. It must fail rather than block
+		// the commands queued behind it.
+		var delivered []string
+		cmd, err := mdmClient.Idle()
+		for i := 0; err == nil && i < 10; i++ {
+			if cmd != nil {
+				delivered = append(delivered, cmd.CommandUUID)
+				cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+			} else {
+				cmd, err = mdmClient.Idle()
+			}
+		}
+		require.NoError(t, err)
+		require.Contains(t, delivered, followUp)
+		require.NotContains(t, delivered, *rotation)
+
+		var status string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status, `SELECT status FROM nano_command_results WHERE id = ? AND command_uuid = ?`, host.UUID, *rotation)
+		})
+		require.Equal(t, fleet.MDMAppleStatusError, status)
+	})
+
 	t.Run("a marker whose command is gone is replaced after the grace period", func(t *testing.T) {
 		host, _ := newEscrowedHost(t, "AAA-111-222")
 		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)

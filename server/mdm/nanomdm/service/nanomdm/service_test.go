@@ -122,6 +122,14 @@ func TestCommandAndReportResultsRotateFileVaultKeyExpansion(t *testing.T) {
 		require.Len(t, stored, 2)
 		require.Equal(t, "cmd-1", stored[1].CommandUUID)
 		require.Equal(t, "Error", stored[1].Status)
+		// nano_command_results.result is NOT NULL; an empty body fails the insert
+		// and leaves the command at the head of the queue.
+		decoded, err := mdm.DecodeCommandResults(stored[1].Raw)
+		require.NoError(t, err)
+		require.Equal(t, "cmd-1", decoded.CommandUUID)
+		require.Equal(t, "Error", decoded.Status)
+		require.Len(t, decoded.ErrorChain, 1)
+		require.Contains(t, decoded.ErrorChain[0].LocalizedDescription, "decrypting disk encryption key")
 	})
 }
 
