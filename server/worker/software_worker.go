@@ -320,6 +320,13 @@ func (v *SoftwareWorker) ensureHostSpecificPolicyIsApplied(ctx context.Context, 
 			return err
 		}
 
+		// That patch replaces every setting of the host policy, which a re-enrolled host
+		// reuses and the profile reconciler may already have filled for this enrollment,
+		// so have the reconciler send the host's profiles again.
+		if err := v.Datastore.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostUUID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "reset android profiles for redelivery for host %s", hostUUID)
+		}
+
 		err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "build and send fleet agent config for host %s", hostUUID)

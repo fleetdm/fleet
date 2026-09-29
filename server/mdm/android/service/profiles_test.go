@@ -91,7 +91,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"UnresolvableFleetVarMarksProfileFailed", testUnresolvableFleetVarMarksProfileFailed},
 		{"MissingCustomHostVitalValueMarksProfileFailed", testMissingCustomHostVitalValueMarksProfileFailed},
 		{"ReconcileProfilesWithClientDisablesRetry", testReconcileProfilesWithClientDisablesRetry},
-		{"RejectedProfileRedeliveredAfterFixAndReenroll", testRejectedProfileRedeliveredAfterFixAndReenroll},
+		{"RejectedProfileRedeliveredAfterFixAndPolicyReset", testRejectedProfileRedeliveredAfterFixAndPolicyReset},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -425,9 +425,8 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	})
 }
 
-func testRejectedProfileRedeliveredAfterFixAndReenroll(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+func testRejectedProfileRedeliveredAfterFixAndPolicyReset(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
-	mds := ds.(*mysql.Datastore)
 
 	rejectPatches := true
 	var patchedPolicyNames []string
@@ -497,8 +496,9 @@ func testRejectedProfileRedeliveredAfterFixAndReenroll(t *testing.T, ds fleet.Da
 	require.NoError(t, err)
 	require.Empty(t, patchedPolicyNames)
 
-	// h1 is factory reset and re-enrolls: its profiles are sent again, h2 is left alone.
-	_, _, err = mds.AndroidResetOnReenrollment(ctx, h1.Host.ID, h1.UUID, true)
+	// h1 re-enrolls and the setup experience replaces its policy, so its profiles are sent
+	// again even though their content did not change; h2 is left alone.
+	err = ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, h1.UUID)
 	require.NoError(t, err)
 	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)

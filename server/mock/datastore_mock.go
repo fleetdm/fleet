@@ -2144,6 +2144,8 @@ type AndroidResetOnReenrollmentFunc func(ctx context.Context, hostID uint, hostU
 
 type BulkUpsertMDMAndroidHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error
 
+type ResetMDMAndroidHostProfilesForRedeliveryFunc func(ctx context.Context, hostUUID string) error
+
 type BulkDeleteMDMAndroidHostProfilesFunc func(ctx context.Context, hostUUID string, policyVersionID int64) error
 
 type ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
@@ -5678,6 +5680,9 @@ type DataStore struct {
 
 	BulkUpsertMDMAndroidHostProfilesFunc        BulkUpsertMDMAndroidHostProfilesFunc
 	BulkUpsertMDMAndroidHostProfilesFuncInvoked bool
+
+	ResetMDMAndroidHostProfilesForRedeliveryFunc        ResetMDMAndroidHostProfilesForRedeliveryFunc
+	ResetMDMAndroidHostProfilesForRedeliveryFuncInvoked bool
 
 	BulkDeleteMDMAndroidHostProfilesFunc        BulkDeleteMDMAndroidHostProfilesFunc
 	BulkDeleteMDMAndroidHostProfilesFuncInvoked bool
@@ -13631,6 +13636,13 @@ func (s *DataStore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payloa
 	s.BulkUpsertMDMAndroidHostProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkUpsertMDMAndroidHostProfilesFunc(ctx, payload)
+}
+
+func (s *DataStore) ResetMDMAndroidHostProfilesForRedelivery(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ResetMDMAndroidHostProfilesForRedeliveryFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetMDMAndroidHostProfilesForRedeliveryFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error {
