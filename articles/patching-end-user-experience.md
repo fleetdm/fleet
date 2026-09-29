@@ -43,7 +43,7 @@ This is the default option. End users don't see anything.
 When the patch policy fails, Fleet checks whether the app is running:
 
 - If the app isn't running, Fleet will patch the app silently.
-- If the app is running, Fleet skips the patch and tries again on the next policy run.
+- If the app is running, Fleet skips the patch and tries again on the [next policy run](https://fleetdm.com/guides/automations#policy-automations).
 
 You'll see the skipped install in the host's activity feed.
 
