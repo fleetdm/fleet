@@ -140,11 +140,11 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they’re not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
-To automatically patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
+To force patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
 
-To automatically patch the app when this policy fails and app is not open, set `patch_when_closed` to `true`. With this option, Fleet adds a read-only pre-install query that skips automatic install while the app is open and retries on the next policy run. Also, the `continuous_automations_enabled` is automatically set to `true`. 
+To silently patch the app when this policy fails and app is not open, set both `install_software` and `patch_when_closed` to `true`.
 
-Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
+Fleet adds a read-only pre-install query that checks if the app is open when `patch_when_closed` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled. The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs. Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
 #### Automations
 
@@ -156,6 +156,7 @@ To trigger software install, when policy fails, specify one of:
   - `install_software.package_path` is the path to a [custom package YAML file](#packages) with one package in it. If the file has multiple packages, use `install_software.hash_sha256` instead, or split the multi-package file into single-package files.
   - `install_software.fleet_maintained_app_slug` is a [Fleet-maintained app slug](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
   - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
+  - `install_software.app_store_id` is the ID of the Apple App Store app or Google Play app.
 
 ##### Run script
 
@@ -251,6 +252,7 @@ policies:
   type: patch
   fleet_maintained_app_slug: zoom/darwin
   continuous_automations_enabled: true
+  install_software: true
   patch_when_closed: true
 - name: Slack
   description: Outdated software might introduce security vulnerabilities or compatibility issues.
