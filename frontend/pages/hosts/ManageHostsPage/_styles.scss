@@ -168,9 +168,14 @@
             flex-direction: row;
             flex: 1;
 
-            .form-field--dropdown,
+            // Ratio tuned for 768px. Label may overhang a few px between
+            // 768-778px; not worth further layout complexity.
+            .form-field--dropdown {
+              flex: 8;
+            }
+
             .manage-hosts__label-filter-dropdown {
-              flex: 1;
+              flex: 13;
             }
 
             .manage-hosts__status-filter {
