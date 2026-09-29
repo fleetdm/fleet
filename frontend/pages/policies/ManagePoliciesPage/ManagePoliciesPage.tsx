@@ -663,7 +663,8 @@ const ManagePolicyPage = ({
     if (canEditAutomationsSettings && hasPoliciesToAutomate) {
       setShowAutomationsModal(true);
     }
-    const { manage_automations, ...rest } = location.query;
+    const rest = { ...location.query };
+    delete rest.manage_automations;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     location.query,

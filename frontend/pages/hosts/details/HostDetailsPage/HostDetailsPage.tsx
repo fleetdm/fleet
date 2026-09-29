@@ -812,7 +812,8 @@ const HostDetailsPage = ({
       // sharing the URL won't reopen the modal. Opening never adds the param
       // — it's only set by external deep-links.
       if (closing && location.query.show_mdm_status === "true") {
-        const { show_mdm_status: _, ...rest } = location.query;
+        const rest = { ...location.query };
+        delete rest.show_mdm_status;
         router.replace({ pathname: location.pathname, query: rest });
       }
       return !prev;

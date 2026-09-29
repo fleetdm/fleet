@@ -244,7 +244,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     if (isGlobalAdmin && (isAllTeamsSelected || isPrimoMode)) {
       setShowManageAutomationsModal(true);
     }
-    const { manage_automations, ...rest } = queryParams;
+    const rest = { ...queryParams };
+    delete rest.manage_automations;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     queryParams,
