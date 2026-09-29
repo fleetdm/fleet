@@ -343,7 +343,7 @@ var githubAPIHost = "api.github.com"
 //
 // - If no token is set, then this is equivalent to call `NewClient(WithNoTimeout())`.
 // - If a token is set, then the client sends it as a bearer token, but only on
-// requests to the GitHub API host.
+// HTTPS requests to the GitHub API host.
 //
 // Ambient variables such as GITHUB_TOKEN or GH_TOKEN are deliberately ignored so
 // that a Fleet server never authenticates to GitHub unless explicitly configured to.
@@ -359,7 +359,7 @@ func NewGithubClient() *http.Client {
 	return cli
 }
 
-// githubTokenTransport authenticates requests to the GitHub API only. The same
+// githubTokenTransport authenticates HTTPS requests to the GitHub API only. The same
 // client also downloads from configurable mirror URLs and follows redirects to
 // asset hosts, none of which should see the token. Deciding per request (rather
 // than setting the header once) also covers redirects, because the client
@@ -370,7 +370,7 @@ type githubTokenTransport struct {
 }
 
 func (t *githubTokenTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if !strings.EqualFold(req.URL.Host, githubAPIHost) {
+	if req.URL.Scheme != "https" || !strings.EqualFold(req.URL.Host, githubAPIHost) {
 		return t.base.RoundTrip(req)
 	}
 	// A RoundTripper must not modify the caller's request.

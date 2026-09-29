@@ -59,7 +59,7 @@ func DownloadCVEFeed(vulnPath, cveFeedPrefixURL string, debug bool, logger *slog
 	var err error
 
 	if cveFeedPrefixURL == "" {
-		cveFeedPrefixURL, err = GetGitHubCVEAssetPath()
+		cveFeedPrefixURL, err = GetGitHubCVEAssetPath(context.Background())
 		if err != nil {
 			return fmt.Errorf("get cve asset path: %w", err)
 		}
@@ -85,14 +85,16 @@ const (
 
 var cveReleaseTagRegex = regexp.MustCompile(`cve-\d+`)
 
-func GetGitHubCVEAssetPath() (string, error) {
+// GetGitHubCVEAssetPath returns the download URL prefix of the latest published
+// CVE release.
+func GetGitHubCVEAssetPath(ctx context.Context) (string, error) {
 	vulnOwner := os.Getenv("TEST_VULN_GITHUB_OWNER")
 	if vulnOwner == "" {
 		vulnOwner = owner
 	}
 
 	ghClient := github.NewClient(fleethttp.NewGithubClient())
-	found, err := findLatestCVEReleaseTag(context.Background(), ghClient, vulnOwner)
+	found, err := findLatestCVEReleaseTag(ctx, ghClient, vulnOwner)
 	if err != nil {
 		return "", err
 	}

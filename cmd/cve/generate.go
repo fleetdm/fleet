@@ -179,7 +179,7 @@ func githubRetryAfter(err error) (time.Duration, bool) {
 func downloadLatestRelease(ctx context.Context, dbDir string, debug bool, logger *slog.Logger) error {
 	// Resolve the release once so the feeds and last_mod_start_date.txt come from
 	// the same release even if a newer one is published mid-download.
-	assetPath, err := nvd.GetGitHubCVEAssetPath()
+	assetPath, err := nvd.GetGitHubCVEAssetPath(ctx)
 	if err != nil {
 		return fmt.Errorf("get github cve asset path: %w", err)
 	}
