@@ -2831,6 +2831,129 @@ WHERE
 	return &hostLastInstall, nil
 }
 
+// deletableHostSoftwareInstallPredicate is shared whole by the select and the
+// delete, so the re-check on the primary cannot drift from the reader's. The
+// first clause reads the base columns because the generated status column is
+// NULL for both removed rows and successful uninstalls. updated_at implies
+// created_at, which is bounded anyway because the select's index ranges on it.
+const deletableHostSoftwareInstallPredicate = `(hsi.canceled = 1 OR hsi.removed = 1
+		OR hsi.install_script_exit_code IS NOT NULL
+		OR hsi.post_install_script_exit_code IS NOT NULL
+		OR hsi.uninstall_script_exit_code IS NOT NULL
+		OR hsi.pre_install_query_output = '')
+	AND hsi.created_at < ? AND hsi.updated_at < ?
+	AND NOT EXISTS (SELECT 1 FROM setup_experience_status_results sesr WHERE sesr.host_software_installs_execution_id = hsi.execution_id)`
+
+// supersededHostSoftwareInstall matches a row that beats hsi under every ranking
+// this table is read with: hostSoftwareInstalls and hostSoftwareUninstalls rank
+// on (created_at, id) behind a visibility filter, getLatestPastInstall on id
+// alone behind canceled = 0. Requiring the newer row to be at least as visible
+// column by column leaves a winner under any of them with no match here.
+const supersededHostSoftwareInstall = `newer.host_id = hsi.host_id
+	AND newer.software_installer_id = hsi.software_installer_id
+	AND newer.uninstall = hsi.uninstall
+	AND newer.id > hsi.id AND newer.created_at >= hsi.created_at
+	AND (hsi.canceled = 1 OR newer.canceled = 0)
+	AND (hsi.removed = 1 OR newer.removed = 0)`
+
+// unreadHostSoftwareInstall is a row no ranking can return, so it needs no newer
+// sibling. They all join hosts, which a deleted host is not in, and all key on
+// software_installer_id except hostsBySoftwareStatus, which keys on the title
+// and drops removed and canceled rows. Deleting an installer marks its rows
+// removed before nulling the id, so a visible orphan is a successful uninstall.
+const unreadHostSoftwareInstall = `hsi.host_deleted_at IS NOT NULL
+	OR (hsi.software_installer_id IS NULL
+		AND (hsi.software_title_id IS NULL OR hsi.removed = 1 OR hsi.canceled = 1))`
+
+func (ds *Datastore) CleanupHostSoftwareInstalls(ctx context.Context, olderThan time.Time) (int64, error) {
+	const (
+		batchSize  = 500
+		maxBatches = 200 // 100k rows per tick
+	)
+	return cleanupHostSoftwareInstallsDB(ctx, ds, olderThan, batchSize, maxBatches)
+}
+
+func cleanupHostSoftwareInstallsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
+	// Keyset cursor on the created_at index, so kept rows are passed once per run
+	// rather than once per batch. created_at has ties, so the cursor carries the
+	// primary key too. CreateIntermediateInstallFailureRecord copies an old
+	// created_at onto a new row, which can land behind the cursor and waits a run.
+	const selectStmt = `
+SELECT hsi.id, hsi.created_at
+FROM host_software_installs hsi
+WHERE hsi.created_at >= ? AND (hsi.created_at > ? OR hsi.id > ?)
+	AND ` + deletableHostSoftwareInstallPredicate + `
+	AND (` + unreadHostSoftwareInstall + `
+		OR EXISTS (SELECT 1 FROM host_software_installs newer WHERE ` + supersededHostSoftwareInstall + `))
+ORDER BY hsi.created_at, hsi.id
+LIMIT ?`
+
+	type installKey struct {
+		ID        uint      `db:"id"`
+		CreatedAt time.Time `db:"created_at"`
+	}
+	var deleted int64
+	// TIMESTAMP epoch, not a zero time.Time: the driver serializes that as
+	// "0000-00-00", which MySQL rejects under NO_ZERO_DATE.
+	last := installKey{CreatedAt: time.Unix(0, 0).UTC()}
+	hitCap := true
+	for range maxBatches {
+		var rows []installKey
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectStmt,
+			last.CreatedAt, last.CreatedAt, last.ID, olderThan, olderThan, batchSize); err != nil {
+			return deleted, ctxerr.Wrap(ctx, err, "select expired host software installs")
+		}
+		if len(rows) == 0 {
+			hitCap = false
+			break
+		}
+		last = rows[len(rows)-1]
+		ids := make([]uint, len(rows))
+		for i, row := range rows {
+			ids[i] = row.ID
+		}
+		n, err := deleteHostSoftwareInstallsByIDs(ctx, ds.writer(ctx), ids, olderThan)
+		if err != nil {
+			return deleted, err
+		}
+		deleted += n
+		// The cursor moved past this batch whether or not the delete took it, so
+		// only a short page ends the run.
+		if len(rows) < batchSize {
+			hitCap = false
+			break
+		}
+	}
+	if hitCap {
+		ds.logger.WarnContext(ctx, "cleanup host software installs hit its batch cap, any remaining rows are cleaned on the next run",
+			"deleted", deleted, "max_batches", maxBatches)
+	}
+	return deleted, nil
+}
+
+// deleteHostSoftwareInstallsByIDs re-checks the predicate on the primary, since
+// a row the reader selected can have been answered or superseded since. The
+// newer sibling is a join rather than a subquery because MySQL rejects a
+// subquery on the table a DELETE targets.
+func deleteHostSoftwareInstallsByIDs(ctx context.Context, q sqlx.ExecerContext, ids []uint, olderThan time.Time) (int64, error) {
+	const deleteStmt = `
+DELETE hsi FROM host_software_installs hsi
+LEFT JOIN host_software_installs newer ON ` + supersededHostSoftwareInstall + `
+WHERE hsi.id IN (?)
+	AND (` + unreadHostSoftwareInstall + ` OR newer.id IS NOT NULL)
+	AND ` + deletableHostSoftwareInstallPredicate
+	stmt, args, err := sqlx.In(deleteStmt, ids, olderThan, olderThan)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "build delete expired host software installs")
+	}
+	res, err := q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "delete expired host software installs")
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
 func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error {
 	if softwareInstallStore == nil {
 		// no-op in this case, possible if not running with a Premium license

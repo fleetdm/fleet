@@ -64,7 +64,7 @@ const AndroidZeroTouchPage = () => {
 
     return (
       <pre className={`${baseClass}__dpc-extras-code`}>
-        <code>{zeroTouchConfig.dpc_extras}</code>
+        <code>{JSON.stringify(zeroTouchConfig.dpc_extras, null, 2)}</code>
       </pre>
     );
   };
@@ -89,14 +89,14 @@ const AndroidZeroTouchPage = () => {
 
     return (
       <>
-        <p className={`${baseClass}__description`}>
+        <div className={`${baseClass}__description`}>
           To connect Fleet to Android zero-touch, go to the{" "}
           <CustomLink
             url="https://fleetdm.com/learn-more-about/android-zero-touch-portal"
             text="Android zero-touch portal"
             newTab
           />
-        </p>
+        </div>
         <p className={`${baseClass}__enrollment-info`}>
           Android hosts will automatically enroll to the <b>Unassigned</b>{" "}
           fleet. Changing fleets is coming soon.
@@ -106,7 +106,7 @@ const AndroidZeroTouchPage = () => {
             <span className={`${baseClass}__dpc-extras-label`}>DPC extras</span>
             {hasConfig && (
               <CopyButton
-                copyText={zeroTouchConfig.dpc_extras}
+                copyText={JSON.stringify(zeroTouchConfig.dpc_extras, null, 2)}
                 variant="secondary"
               />
             )}

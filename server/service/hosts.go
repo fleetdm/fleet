@@ -3041,8 +3041,9 @@ func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, err
 	// self-service tab. Same URL as the Web Clip profile in
 	// docs/solutions/ios-ipados.
 	if host.Platform == "ios" || host.Platform == "ipados" {
+		// Hosts assigned in Apple Business but not yet enrolled have no UUID.
 		if host.UUID == "" {
-			return "", ctxerr.New(ctx, "host has no UUID to build a device URL from")
+			return "", &fleet.BadRequestError{Message: fleet.MyDeviceURLNotEnrolledMessage}
 		}
 		ac, err := svc.ds.AppConfig(ctx)
 		if err != nil {
