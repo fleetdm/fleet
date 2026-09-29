@@ -10,7 +10,6 @@ How it works:
 2. At sign-in, PingFederate's [X.509 Certificate Integration Kit](https://docs.pingidentity.com/integrations/x509/x509_certificate_integration_kit/pf_x509_certificate_ik.html) asks the browser for the certificate and checks that your CA issued it.
 3. PingFederate looks up the UUID with Fleet's [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier) API and denies sign-in if the host isn't found or is failing policies.
 
-This follows the same pattern as Ping's [Jamf](https://docs.pingidentity.com/integrations/jamf/pf_jamf_ik.html) and [Intune](https://docs.pingidentity.com/integrations/intune/pf_intune_ik_overview_of_the_sso_flow.html) integration kits.
 
 ## Prerequisites
 
