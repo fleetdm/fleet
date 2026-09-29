@@ -5,7 +5,7 @@ This guide shows how to block Duo sign-in from hosts that aren't managed by Flee
 How it works:
 
 1. Duo Desktop on each host reports the host's device ID to Duo at sign-in.
-2. Once a day, a script exports the device IDs of Fleet hosts that are passing all policies, and Duo's sync script uploads them to Duo.
+2. Every few minutes, a script exports the device IDs of Fleet hosts that are passing all policies, and Duo's sync script uploads them to Duo.
 3. Duo's [Trusted Endpoints](https://duo.com/docs/trusted-endpoints-generic-duo-desktop) policy blocks sign-in from hosts that aren't on the list.
 
 Unlike [PingFederate](https://fleetdm.com/guides/require-fleet-managed-hosts-in-pingfederate), Duo doesn't need a certificate on the host.
@@ -42,12 +42,12 @@ SELECT data AS machine_guid FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTW
 2. Select **Generic Integrations**, choose **macOS**, and select **Add**. Repeat for **Windows** and **Linux**.
 3. On each integration's page, download Duo's `device_cache_sync.py`.
 
-## Step 5: Sync hosts daily
+## Step 5: Sync hosts
 
 1. Download [`export-fleet-hosts-for-duo.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/api-scripts/export-fleet-hosts-for-duo.sh) and set your Fleet URL and the report ID from Step 3.
 2. Run it with `FLEET_API_TOKEN` set to the token from Step 1. It writes `macos.csv`, `windows.csv`, and `linux.csv`.
 3. Upload each file with the matching integration's sync script, for example `python device_cache_sync.py --infile macos.csv`.
-4. Schedule these steps to run daily. Each sync replaces the previous list, so hosts that start failing a policy lose access after the next sync.
+4. Schedule these steps to run every 5 minutes. Each sync replaces the previous list, so a host's access changes on the next sync after its policy results change. To update a host sooner, select **Refetch** on its **Host details** page.
 
 ## Step 6: Turn on the policy
 
@@ -61,7 +61,7 @@ SELECT data AS machine_guid FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTW
 |---|---|
 | Managed, passing policies | Sign-in succeeds |
 | Not in Fleet | Sign-in denied |
-| Managed, failing a policy | Sign-in denied after the next sync |
+| Managed, failing a policy | Sign-in denied after refetch and the next sync |
 
 ## Troubleshooting
 
