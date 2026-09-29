@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -10,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 )
 
 func (svc *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
@@ -188,6 +190,25 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 		return err
 	}
 
+	// fail the notification too, the notify script is the only thing that reports its outcome
+	notificationUUID, notificationErr := svc.notificationsSvc.NotificationUUIDForExecution(ctx, executionID)
+	if notificationErr != nil && !fleet.IsNotFound(notificationErr) {
+		svc.logger.ErrorContext(ctx, "failed to look up the end user notification a canceled script belongs to",
+			"err", notificationErr, "host_id", host.ID, "execution_id", executionID)
+	}
+	if notificationErr == nil {
+		err = svc.notificationsSvc.SetNotificationStatus(ctx, notificationUUID,
+			notifications_api.EndUserNotificationFailed,
+			new(notifications_api.EndUserNotificationReasonCanceled),
+			[]string{notifications_api.EndUserNotificationDispatched})
+		if err != nil {
+			svc.logger.ErrorContext(ctx, "failed to fail the end user notification whose script was canceled",
+				"err", err, "host_id", host.ID, "execution_id", executionID, "notification_uuid", notificationUUID)
+		}
+		// drop the canceled activity, a notification's script never appears in the feed
+		pastAct = nil
+	}
+
 	if pastAct != nil {
 		// If a VPP install was canceled, release the reserved license seat
 		// (if any). Best-effort: failures shouldn't block the cancel response.
@@ -265,6 +286,19 @@ func (svc *Service) releaseVPPSeat(ctx context.Context, host *fleet.Host, info *
 
 	if _, err := vpp.DisassociateAssets(tokenDB.Token, req); err != nil {
 		return ctxerr.Wrap(ctx, err, "disassociate vpp assets on cancel")
+	}
+	return nil
+}
+
+func cancelActivitiesAndNotificationsForHost(ctx context.Context, ds fleet.Datastore, notificationsSvc fleet.NotificationsWriteService, logger *slog.Logger, hostID uint) error {
+	_, err := ds.BatchCancelAllHostUpcomingActivities(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cancel upcoming activities")
+	}
+
+	err = notificationsSvc.FailNotificationsForHost(ctx, hostID, notifications_api.EndUserNotificationReasonCanceled)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to fail end user notifications for host", "host_id", hostID, "err", err)
 	}
 	return nil
 }

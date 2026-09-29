@@ -1,13 +1,12 @@
 import React, { useContext, useState } from "react";
 
+import { renderAppleManualEnrollmentDisabled } from "components/AddHostsModal/helpers";
 import CustomLink from "components/CustomLink";
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { getPathWithQueryParams } from "utilities/url";
-
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
-import { renderAppleManualEnrollmentDisabled } from "components/AddHostsModal/helpers";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import EnrollQrCode from "../EnrollQrCode";
 
@@ -79,9 +78,6 @@ const IosIpadosPanel = ({
             onChange={() => setEnrollmentType("companyOwned")}
           />
         </fieldset>
-        <h3 className="platform-wrapper__panel-heading">
-          Enrollment instructions
-        </h3>
         <InputField
           label="Share this link with your end users:"
           enableCopy
@@ -89,6 +85,7 @@ const IosIpadosPanel = ({
           inputWrapperClass={`${baseClass}__enroll-link`}
           name="enroll-link"
           value={url}
+          helpText="This link must be opened in Safari. If opened in another browser, end users will have to sign in again using Safari."
         />
         <EnrollQrCode url={url} />
       </form>

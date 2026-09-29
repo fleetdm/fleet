@@ -1,10 +1,9 @@
 import React, { useMemo } from "react";
 
-import { ISoftwareTitle } from "interfaces/software";
-import { SetupExperiencePlatform } from "interfaces/platform";
-
-import TableContainer from "components/TableContainer";
 import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
+import { SetupExperiencePlatform } from "interfaces/platform";
+import { ISoftwareTitle } from "interfaces/software";
 
 import generateTableConfig from "./InstallSoftwareTableConfig";
 

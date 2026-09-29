@@ -1,21 +1,20 @@
 import React from "react";
 import { useQuery } from "react-query";
 
-import { dateAgo } from "utilities/date_format";
-import { internationalTimeFormat } from "utilities/helpers";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import idpAPI from "services/entities/idp";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-import idpAPI from "services/entities/idp";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
-import TooltipWrapper from "components/TooltipWrapper";
-import PageDescription from "components/PageDescription";
-import EmptyState from "components/EmptyState";
+import { dateAgo } from "utilities/date_format";
+import { internationalTimeFormat } from "utilities/helpers";
 
 import SectionCard from "../../../MdmSettings/components/SectionCard";
 

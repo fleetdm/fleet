@@ -1189,3 +1189,42 @@ func (s *integrationTestSuite) TestTeamPolicyResendConfigProfileRequiresPremium(
 		}},
 	}, http.StatusOK)
 }
+
+func (s *integrationTestSuite) TestTeamPolicyHiddenRequiresPremium() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID),
+		&fleet.TeamPolicyRequest{Name: "premium hidden", Query: "SELECT 1;", Hidden: true}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
+
+	pol, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{Name: "premium hidden patch", Query: "SELECT 1;"})
+	require.NoError(t, err)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, pol.ID),
+		json.RawMessage(`{"hidden": true}`), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
+
+	res = s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{Name: "premium hidden spec", Query: "SELECT 1;", Team: team.Name, Hidden: true}},
+	}, http.StatusPaymentRequired)
+	require.Contains(t, extractServerErrorText(res.Body), "Requires Fleet Premium license")
+
+	token := "hidden-policies-token"
+	createHostAndDeviceToken(t, s.ds, token)
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"?include_hidden_policies=true", nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
+
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	var raw struct {
+		Host struct {
+			Issues map[string]any `json:"issues"`
+		} `json:"host"`
+	}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&raw))
+	require.NoError(t, res.Body.Close())
+	require.Contains(t, raw.Host.Issues, "failing_policies_count")
+	require.NotContains(t, raw.Host.Issues, "failing_unhidden_policies_count")
+}

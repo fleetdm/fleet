@@ -1,5 +1,6 @@
 .create-linux-key-modal {
-  ol {
+  ol,
+  ul {
     display: flex;
     flex-direction: column;
     gap: $pad-medium;

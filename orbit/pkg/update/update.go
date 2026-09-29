@@ -843,7 +843,7 @@ func createTUFRemoteStore(opt Options, serverURL string) (client.RemoteStore, er
 	remoteOpt := &client.HTTPRemoteOptions{
 		UserAgent: fmt.Sprintf("orbit/%s (%s %s)", build.Version, runtime.GOOS, runtime.GOARCH),
 	}
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsConfig))
+	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(tlsConfig))
 	remoteStore, err := client.HTTPRemoteStore(serverURL, remoteOpt, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("init remote store: %w", err)

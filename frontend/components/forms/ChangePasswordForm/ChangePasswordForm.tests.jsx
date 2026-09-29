@@ -1,8 +1,8 @@
-import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
+import React from "react";
 
-import { renderWithSetup } from "test/test-utils";
 import ChangePasswordForm from "components/forms/ChangePasswordForm";
+import { renderWithSetup } from "test/test-utils";
 
 describe("ChangePasswordForm - component", () => {
   const props = {

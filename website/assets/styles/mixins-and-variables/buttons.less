@@ -1,3 +1,24 @@
+.searchbar-submit-btn() {
+  width: auto;
+  margin-top: 4px;
+  margin-right: 4px;
+  margin-bottom: 4px;
+  // Padding is intentionally asymmetric (5/3 instead of 4/4) to optically center the
+  // "⏎" glyph: the character's ink sits slightly above the middle of its own line box
+  // (a font ascent/descent quirk, not a flex alignment bug -- the box itself is
+  // centered correctly), so a touch more padding on top than bottom nudges it into
+  // place without changing the button's overall height.
+  padding: 5px 8px 3px 8px;
+  border: 1px solid @core-fleet-black-25;
+  border-radius: 4px;
+  color: @core-fleet-black-75;
+  background-color: @ui-off-white;
+  cursor: pointer;
+  &:hover {
+    background-color: @core-fleet-black-5;
+  }
+}
+
 .btn-reset() {
   border-top: none;
   border-bottom: none;

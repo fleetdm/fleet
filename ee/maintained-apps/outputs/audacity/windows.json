@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "4.0.0",
+      "version": "4.0.0.262451524",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity' AND version_compare(version, '4.0.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity' AND version_compare(version, '4.0.0.262451524') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('audacity.exe','audacity4.exe'));"
       },
       "installer_url": "https://github.com/audacity/audacity/releases/download/Audacity-4.0.0/audacity-win-4.0.0-x86_64.msi",

@@ -1,5 +1,6 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
+
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
@@ -11,6 +12,7 @@ import {
 } from "pages/hosts/details/helpers";
 
 import { ANDROID_CERT_RETRYING_DISPLAY_CONFIG } from "../statusDisplayConfig";
+
 import OSSettingStatusCell from "./OSSettingStatusCell";
 
 describe("OS setting status cell", () => {

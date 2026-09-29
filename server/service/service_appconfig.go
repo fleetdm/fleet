@@ -78,7 +78,6 @@ func cleanupURL(url string) string {
 
 func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
 	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) &&
-		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) &&
 		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 			return nil, err
@@ -282,4 +281,15 @@ func (svc *Service) PartnershipsConfig(ctx context.Context) (*fleet.Partnerships
 	return &fleet.Partnerships{
 		EnablePrimo: svc.config.Partnerships.EnablePrimo,
 	}, nil
+}
+
+func (svc *Service) AuthSettings(ctx context.Context) (*fleet.AuthSettings, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	if !svc.config.Auth.UseOneTimeEnrollSecrets {
+		// Like Partnerships, omit the whole object while nothing in it is enabled.
+		return nil, nil
+	}
+	return &fleet.AuthSettings{UseOneTimeEnrollSecrets: true}, nil
 }

@@ -1,10 +1,9 @@
 import React from "react";
 
-import { TRANSPARENCY_LINK } from "utilities/constants";
-
 import Button from "components/buttons/Button";
-import Modal from "components/Modal";
 import CustomLink from "components/CustomLink";
+import Modal from "components/Modal";
+import { TRANSPARENCY_LINK } from "utilities/constants";
 
 export interface IInfoModalProps {
   onCancel: () => void;

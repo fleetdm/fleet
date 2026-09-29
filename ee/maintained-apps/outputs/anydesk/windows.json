@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "9.7.15",
+      "version": "9.7.16",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'AnyDesk' AND publisher = 'AnyDesk Software GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AnyDesk' AND publisher = 'AnyDesk Software GmbH' AND version_compare(version, '9.7.15') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AnyDesk' AND publisher = 'AnyDesk Software GmbH' AND version_compare(version, '9.7.16') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'anydesk.exe');"
       },
       "installer_url": "https://download.anydesk.com/AnyDesk.exe",

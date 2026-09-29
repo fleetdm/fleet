@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -31,6 +32,9 @@ const emptyData = `{
 }`
 
 var cleanEnvVar = "VULNERABILITIES_CLEAN"
+
+// maxDecompressedBytes caps gunzip output to prevent decompression bombs (gosec G110).
+const maxDecompressedBytes int64 = 400 * 1024 * 1024
 
 func main() {
 	dbDir := flag.String("db_dir", "/tmp/vulndbs", "Path to the vulnerability database")
@@ -123,7 +127,7 @@ func downloadLatestRelease(dbDir string, debug bool, logger *slog.Logger) error 
 		return fmt.Errorf("glob json files: %w", err)
 	}
 	for _, file := range files {
-		err = gunzipFileToDisk(file, dbDir)
+		err = gunzipFileToDisk(file, dbDir, maxDecompressedBytes)
 		if err != nil {
 			return fmt.Errorf("gunzip file %s to disk: %w", file, err)
 		}
@@ -145,7 +149,7 @@ func downloadLatestGitHubAsset(dbDir, fileName string) error {
 		return fmt.Errorf("get github cve asset path: %w", err)
 	}
 
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	resp, err := client.Get(assetPath + fileName)
 	if err != nil {
 		return fmt.Errorf("get last mod start date: %w", err)
@@ -248,7 +252,7 @@ func gunzipFileAndComputeSHA256(filename string) (string, error) {
 	return gunzipAndComputeSHA256(f)
 }
 
-func gunzipFileToDisk(filename, dbpath string) error {
+func gunzipFileToDisk(filename, dbpath string, maxBytes int64) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
@@ -261,20 +265,27 @@ func gunzipFileToDisk(filename, dbpath string) error {
 	}
 	defer gz.Close()
 
-	filepath := filepath.Join(dbpath, strings.TrimSuffix(filepath.Base(filename), ".gz"))
+	outPath := filepath.Join(dbpath, strings.TrimSuffix(filepath.Base(filename), ".gz"))
 
-	out, err := os.Create(filepath)
+	out, err := os.Create(outPath)
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
 	defer out.Close()
 
-	// Using a maxBytes limit to prevent decompression bombs: gosec G110
-	maxBytes := 200 * 1024 * 1024 // 200MB
-	_, err = io.CopyN(out, gz, int64(maxBytes))
-	if err != nil && err != io.EOF {
-		msg := fmt.Sprintf("error copying file %s: %v", f.Name(), err)
-		panic(msg)
+	// Copy one byte past the limit so that reaching it is distinguishable from a
+	// complete copy: io.CopyN reports no error when it copies exactly n bytes.
+	written, err := io.CopyN(out, gz, maxBytes+1)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return fmt.Errorf("copy file %s: %w", filename, err)
+	}
+	if written > maxBytes {
+		// A truncated feed parses as a valid, silently incomplete file several
+		// stages later, so it must not survive this failure.
+		if rmErr := os.Remove(outPath); rmErr != nil {
+			return fmt.Errorf("remove truncated file %s: %w", outPath, rmErr)
+		}
+		return fmt.Errorf("decompressed %s exceeds max size of %d bytes", filename, maxBytes)
 	}
 
 	return nil

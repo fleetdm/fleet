@@ -1,16 +1,18 @@
 import React, { useState } from "react";
-import Modal from "components/Modal";
+
 import Button from "components/buttons/Button";
-import { IVariableFormData } from "interfaces/variables";
+import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 import { hasStatusKey, getErrorReason } from "interfaces/errors";
+import { IVariableFormData } from "interfaces/variables";
 import variablesAPI from "services/entities/variables";
 import {
   LEARN_MORE_ABOUT_BASE_LINK,
   MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
-import { notify } from "components/ToastNotification";
-import CustomLink from "components/CustomLink";
-import InputField from "components/forms/fields/InputField";
+
 import { validateFormData, IAddCustomVariableFormValidation } from "./helpers";
 
 const baseClass = "add-custom-variable-modal";

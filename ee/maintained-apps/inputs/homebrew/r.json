@@ -1,0 +1,10 @@
+{
+  "name": "R for macOS",
+  "unique_identifier": "org.R-project.R",
+  "token": "r-app",
+  "installer_format": "pkg",
+  "slug": "r/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

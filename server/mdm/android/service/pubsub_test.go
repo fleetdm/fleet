@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // sha256 of "TestBrand:test-serial". Will need to be updated if our test enrollment message changes
@@ -2803,6 +2804,39 @@ func TestPubSubCommand(t *testing.T) {
 		require.NotNil(t, capturedRawResult, "raw_result should be stored on status update")
 		require.Contains(t, *capturedRawResult, stored.OperationName, "raw_result should contain the operation name")
 		require.Contains(t, *capturedRawResult, `"done":true`, "raw_result should contain done:true")
+	})
+
+	t.Run("newPassword is redacted from raw_result metadata", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-redact",
+			HostUUID:      "host-uuid",
+			OperationName: "enterprises/E/devices/D/operations/redact-1",
+			CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		var capturedRawResult *string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			capturedRawResult = rawResult
+			return nil
+		}
+
+		op := androidmanagement.Operation{
+			Name:     stored.OperationName,
+			Done:     true,
+			Metadata: googleapi.RawMessage(`{"@type":"type.googleapis.com/google.android.devicemanagement.v1.Command","type":"RESET_PASSWORD","newPassword":"s3cret!","userName":"enterprises/E/users/U"}`),
+		}
+		msg := makeMessage(t, op)
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+
+		require.NotNil(t, capturedRawResult)
+		require.NotContains(t, *capturedRawResult, "s3cret!", "newPassword value must not appear in raw_result")
+		require.NotContains(t, *capturedRawResult, "newPassword", "newPassword key must not appear in raw_result")
+		require.Contains(t, *capturedRawResult, "RESET_PASSWORD", "other metadata fields should be preserved")
 	})
 
 	t.Run("pending -> error on op.Error set", func(t *testing.T) {

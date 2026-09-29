@@ -1,8 +1,9 @@
-import React from "react";
 import { render } from "@testing-library/react";
+import React from "react";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+
 import TooltipTruncatedText from "./TooltipTruncatedText";
 
 // Mock TooltipWrapper so we can spy on the props TooltipTruncatedText forwards.

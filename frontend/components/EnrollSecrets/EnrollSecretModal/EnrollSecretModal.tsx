@@ -1,12 +1,12 @@
 import React from "react";
 
-import { ITeam } from "interfaces/team";
-import { IEnrollSecret } from "interfaces/enroll_secret";
-
+import Button from "components/buttons/Button";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
-import Button from "components/buttons/Button";
+import { IEnrollSecret } from "interfaces/enroll_secret";
+import { ITeam } from "interfaces/team";
+
 import EnrollSecretTable from "../EnrollSecretTable";
 
 interface IEnrollSecretModal {

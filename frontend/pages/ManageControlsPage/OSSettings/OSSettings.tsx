@@ -1,11 +1,11 @@
 import React, { useContext, useMemo } from "react";
-import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 
-import { AppContext } from "context/app";
-import SideNav from "pages/admin/components/SideNav";
 import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
+import SideNav from "pages/admin/components/SideNav";
 import mdmAPI from "services/entities/mdm";
 
 import getOSSettingsNavItems from "./OSSettingsNavItems";

@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
 import classnames from "classnames";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
 

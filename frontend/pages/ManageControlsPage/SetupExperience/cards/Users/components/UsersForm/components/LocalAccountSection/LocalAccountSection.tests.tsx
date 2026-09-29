@@ -1,7 +1,8 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
+
 import { EndUserLocalAccountType } from "interfaces/mdm";
+import { createCustomRenderer } from "test/test-utils";
 
 import LocalAccountSection from "./LocalAccountSection";
 

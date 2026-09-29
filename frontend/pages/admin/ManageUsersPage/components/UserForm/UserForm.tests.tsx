@@ -1,8 +1,10 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
-import { renderWithSetup, createMockRouter } from "test/test-utils";
+import React from "react";
+
 import createMockTeam from "__mocks__/teamMock";
+import { renderWithSetup, createMockRouter } from "test/test-utils";
+
 import UserForm from "./UserForm";
 
 // Note: Happy path is tested e2e so these integration tests are only edge cases

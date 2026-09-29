@@ -1,12 +1,13 @@
 import React from "react";
+
 import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
 import { IEmptyStateProps } from "interfaces/empty_state";
+import { HostPlatform, isAndroid } from "interfaces/platform";
 import {
   getVulnFilterRenderDetails,
   ISoftwareVulnFiltersParams,
 } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
-import { HostPlatform, isAndroid } from "interfaces/platform";
 
 export interface IEmptySoftwareTableProps {
   vulnFilters?: ISoftwareVulnFiltersParams;

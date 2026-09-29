@@ -1,32 +1,30 @@
+import { isEmpty } from "lodash";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { useDebouncedCallback } from "use-debounce";
-import { isEmpty } from "lodash";
 
-import { IHost } from "interfaces/host";
-import { ILabelSummary } from "interfaces/label";
-import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
-import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
-import labelsAPI from "services/entities/labels";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
 import Checkbox from "components/forms/fields/Checkbox";
-import Icon from "components/Icon";
-import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-
+import SearchField from "components/forms/fields/SearchField";
+import Icon from "components/Icon";
+import Modal from "components/Modal";
 import {
   ANY_SEVERITY_VALUE,
   ISeverityFilterValue,
   severityFilters,
   SeverityValue,
 } from "components/SeverityFilter";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
+import { IHost } from "interfaces/host";
+import { ILabelSummary } from "interfaces/label";
+import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
+import labelsAPI from "services/entities/labels";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import SoftwareFilters from "./SoftwareFilters";
 import {

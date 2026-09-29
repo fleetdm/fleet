@@ -472,9 +472,10 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 }
 
 // TestTranslateSoftwareToCPEExcludedSources tests that software from sources Fleet does not
-// scan for vulnerabilities never reaches the CPE translation step. Adobe plugins are excluded
-// because no CVE data source maps an Adobe CEP/UXP extension to a CVE, so any match would be
-// a false positive borrowed from the host Adobe application.
+// scan for vulnerabilities with NVD never reaches the CPE translation step. Adobe plugins are
+// excluded because no CVE data source maps an Adobe CEP/UXP extension to a CVE, so any match
+// would be a false positive borrowed from the host Adobe application. Go binaries are matched
+// against the Go vulnerability database instead.
 func TestTranslateSoftwareToCPEExcludedSources(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -500,6 +501,7 @@ func TestTranslateSoftwareToCPEExcludedSources(t *testing.T) {
 	require.Contains(t, excludedSources[0], "adobe_plugins")
 	require.Contains(t, excludedSources[0], "ios_apps")
 	require.Contains(t, excludedSources[0], "ipados_apps")
+	require.Contains(t, excludedSources[0], "go_binaries")
 }
 
 // TestTranslateSoftwareToCPEIgnoreEmptyVersion tests that TranslateSoftwareToCPE ignores
@@ -676,7 +678,25 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "5.5",
 				Vendor:           "",
 				BundleIdentifier: "com.adobe.mas.lightroomCC",
-			}, cpe: "cpe:2.3:a:adobe:lightroom:5.5:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:adobe:lightroom:5.5:*:*:*:desktop:macos:*:*",
+		},
+		{
+			// NVD distinguishes Lightroom from Lightroom Classic only by sw_edition, so without an
+			// explicit edition each app would match the other's CVEs.
+			software: fleet.Software{
+				Name:             "Adobe Lightroom.app",
+				Source:           "apps",
+				Version:          "9.5",
+				BundleIdentifier: "com.adobe.lightroomCC",
+			}, cpe: "cpe:2.3:a:adobe:lightroom:9.5:*:*:*:desktop:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Adobe Lightroom Classic.app",
+				Source:           "apps",
+				Version:          "15.4.1",
+				BundleIdentifier: "com.adobe.LightroomClassicCC7",
+			}, cpe: "cpe:2.3:a:adobe:lightroom:15.4.1:*:*:*:classic:macos:*:*",
 		},
 		{
 			software: fleet.Software{

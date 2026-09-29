@@ -1,22 +1,22 @@
-import React from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { pick } from "lodash";
-import { createCustomRenderer } from "test/test-utils";
-
-import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import React from "react";
 
 import createMockHost, { createMockHostGeolocation } from "__mocks__/hostMock";
-import { IHost } from "interfaces/host";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import { IHostCustomVital } from "interfaces/custom_host_vitals";
+import { IHost } from "interfaces/host";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { HostPlatform } from "interfaces/platform";
-import { IHostCustomVital } from "interfaces/custom_host_vitals";
+import { createCustomRenderer } from "test/test-utils";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   HOST_VITALS_DATA,
 } from "utilities/constants";
 import { normalizeEmptyValues } from "utilities/helpers";
+
 import Vitals from "./Vitals";
 
 jest.mock("hooks/useCheckTruncatedElement", () => ({

@@ -1,12 +1,11 @@
 import React, { useContext } from "react";
 
-import { AppContext } from "context/app";
-import { syntaxHighlight } from "utilities/helpers";
-import { ISoftwareVulnerability } from "interfaces/software";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import Modal from "components/Modal";
+import { AppContext } from "context/app";
+import { ISoftwareVulnerability } from "interfaces/software";
+import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "preview-data-modal";
 

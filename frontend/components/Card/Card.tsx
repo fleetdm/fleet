@@ -1,13 +1,12 @@
 // Base component to reusable <InfoBanner/>, <HostCountCard/>, <SectionCard/>, etc
 // and countless single use components
-import React from "react";
-import classnames from "classnames";
 
+import classnames from "classnames";
+import React from "react";
 import { Link } from "react-router";
 
 const baseClass = "card";
 
-type BorderRadiusSize = "small" | "medium" | "large" | "xlarge" | "xxlarge";
 type CardColor = "white" | "grey" | "yellow";
 type PaddingSize =
   | "small"
@@ -19,11 +18,6 @@ type PaddingSize =
 
 interface ICardProps {
   children?: React.ReactNode;
-  /** The size of the border radius. Defaults to `small`.
-   *
-   * These correspond to the border radius in the design system. Look at
-   * `var/_global.scss` for values */
-  borderRadiusSize?: BorderRadiusSize;
   /** Includes the card shadows. Defaults to `false` */
   includeShadow?: boolean;
   /** The color of the card. Defaults to `white` */
@@ -49,7 +43,6 @@ interface ICardProps {
  */
 const Card = ({
   children,
-  borderRadiusSize = "small",
   includeShadow = false,
   color = "white",
   className,
@@ -60,7 +53,6 @@ const Card = ({
   const classNames = classnames(
     baseClass,
     `${baseClass}__${color}`,
-    `${baseClass}__radius-${borderRadiusSize}`,
     {
       // TODO: simplify this when we've replaced largePadding prop with paddingSize
       [`${baseClass}__padding-${paddingSize}`]:

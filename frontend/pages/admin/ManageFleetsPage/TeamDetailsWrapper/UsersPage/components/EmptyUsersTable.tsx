@@ -1,10 +1,10 @@
 import React from "react";
 
 import Button from "components/buttons/Button";
-import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
-import PATHS from "router/paths";
+import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PATHS from "router/paths";
 
 interface IEmptyUsersTableProps {
   className: string;

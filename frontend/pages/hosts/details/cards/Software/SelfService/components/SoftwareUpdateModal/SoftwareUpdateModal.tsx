@@ -1,13 +1,13 @@
 import React from "react";
 
+import Button from "components/buttons/Button";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
 import {
   IHostSoftware,
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
-import IconStatusMessage from "components/IconStatusMessage";
-import ModalFooter from "components/ModalFooter";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
@@ -75,6 +75,8 @@ interface ISoftwareUpdateModalProps {
   software: IHostSoftware;
   onExit: () => void;
   isDeviceUser?: boolean;
+  /** Hides the Update button; modal is view-only */
+  disableUpdate?: boolean;
   /** Currently API for updating is the same as installing */
   onUpdate: (id: number) => void;
 }
@@ -83,6 +85,7 @@ const SoftwareUpdateModal = ({
   hostDisplayName,
   software,
   isDeviceUser = false,
+  disableUpdate = false,
   onExit,
   onUpdate,
 }: ISoftwareUpdateModalProps) => {
@@ -124,7 +127,7 @@ const SoftwareUpdateModal = ({
       </div>
       <ModalFooter
         primaryButtons={
-          status === "pending_install" ? (
+          status === "pending_install" || disableUpdate ? (
             <Button type="submit" onClick={onExit}>
               Close
             </Button>

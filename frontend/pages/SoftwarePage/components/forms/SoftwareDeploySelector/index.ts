@@ -3,4 +3,4 @@ export {
   PatchOptionSelector,
 } from "./SoftwareDeploySelector";
 export { getPatchPolicyFlags } from "./SoftwareDeploySelector";
-export type { PatchOption } from "./SoftwareDeploySelector";
+export type { PatchOption, EndUserExperience } from "./SoftwareDeploySelector";

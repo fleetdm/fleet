@@ -111,6 +111,9 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
+	}
 
 	// Inject host into context
 	ctx = host.NewContext(ctx, h)
@@ -250,6 +253,9 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
+	}
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 
 	// Inject host into context
@@ -402,6 +408,9 @@ func TestGetDeviceHostEndpointConditionalAccessBypass(t *testing.T) {
 			}
 			ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 				return nil, nil
+			}
+			ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+				return &fleet.NanoMDMEnrollmentDetails{}, nil
 			}
 
 			// Inject host into context

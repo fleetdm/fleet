@@ -1,5 +1,11 @@
 import React, { useEffect, useRef } from "react";
 
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import Icon from "components/Icon";
+import Spinner from "components/Spinner";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   IAppLastInstall,
   IDeviceSoftware,
@@ -9,16 +15,9 @@ import {
   ISoftwareLastInstall,
   SoftwareInstallStatus,
 } from "interfaces/software";
-import { dateAgo } from "utilities/date_format";
-
-import Card from "components/Card";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { dateAgo } from "utilities/date_format";
 
 import { HostInstallerActionButton } from "../../../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 import {
@@ -232,11 +231,7 @@ const UpdateSoftwareItem = ({
   onShowInstallerDetails,
 }: IUpdateSoftwareItemProps) => {
   return (
-    <Card
-      borderRadiusSize="large"
-      paddingSize="medium"
-      className={`${baseClass}__item`}
-    >
+    <Card paddingSize="medium" className={`${baseClass}__item`}>
       <div className={`${baseClass}__item-content`}>
         <InstallerInfo software={software} />
         <InstallerStatusAction
