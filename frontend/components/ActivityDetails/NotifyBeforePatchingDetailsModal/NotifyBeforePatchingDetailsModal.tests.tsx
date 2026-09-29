@@ -138,22 +138,42 @@ describe("NotifyBeforePatchingDetailsModal", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders output only (no failure sentence) for an unknown exit code", async () => {
+  it("renders the unexpected-failure sentence and raw output for an unknown exit code", async () => {
     useScriptResultHandler({ exit_code: 999, output: "unknown error output" });
     renderModal({ status: "failed" });
 
-    // Reveal to expose the raw output.
-    await userEvent.click(
-      await screen.findByRole("button", { name: /Details/ })
-    );
-    expect(await screen.findByText(/unknown error output/)).toBeInTheDocument();
-    // None of the documented failure sentences should appear.
+    // The generic reason line should appear so the row isn't blank.
+    expect(
+      await screen.findByText(/notification failed unexpectedly/i)
+    ).toBeInTheDocument();
+    // None of the enumerated failure sentences should appear.
     expect(
       screen.queryByText(/The Fleet Desktop app is required/)
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/The notification couldn't load/)
     ).not.toBeInTheDocument();
+
+    // Raw output is still available under the reveal.
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Details/ })
+    );
+    expect(await screen.findByText(/unknown error output/)).toBeInTheDocument();
+  });
+
+  it("renders the 'end user wasn't logged in' sentence for exit code 40", async () => {
+    useScriptResultHandler({
+      exit_code: 40,
+      output: "No user is logged in at the GUI.",
+    });
+    renderModal({ status: "failed" });
+
+    expect(
+      await screen.findByText(/The end user wasn't logged in\./)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Fleet will try again on the next policy run\./)
+    ).toBeInTheDocument();
   });
 
   it("renders the deferred sentence when script_execution_id is absent, no fetch fired", async () => {

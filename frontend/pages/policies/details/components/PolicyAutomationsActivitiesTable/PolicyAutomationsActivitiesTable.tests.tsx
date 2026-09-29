@@ -333,7 +333,7 @@ describe("getDetailOutputText for notify rows", () => {
     ).toMatch(/Another notification was displayed/);
   });
 
-  it("falls through to activity.output for a notify failure with an unmapped exit code", () => {
+  it("returns the unexpected-failure sentence for a notify failure with an unmapped exit code", () => {
     expect(
       getDetailOutputText(
         mockActivity({
@@ -349,7 +349,26 @@ describe("getDetailOutputText for notify rows", () => {
           },
         })
       )
-    ).toBe("screen was locked");
+    ).toMatch(/notification failed unexpectedly/i);
+  });
+
+  it("returns the 'end user wasn't logged in' sentence for a notify failure with exit code 40", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+          output: "No user is logged in at the GUI.",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            time_before: 3600,
+            script_execution_id: "exec-1",
+            exit_code: 40,
+          },
+        })
+      )
+    ).toMatch(/end user wasn't logged in/i);
   });
 });
 
