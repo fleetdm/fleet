@@ -299,11 +299,12 @@ INSERT INTO
 func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
-			Identifier string `db:"identifier"`
-			Name       string `db:"name"`
+			Identifier  string `db:"identifier"`
+			Name        string `db:"name"`
+			Description string `db:"description"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT identifier, name FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT identifier, name, description FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
@@ -376,7 +377,7 @@ WHERE profile_uuid = ? AND identifier = ?`
 			if aff, _ := res.RowsAffected(); aff == 0 {
 				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
 			}
-		} else {
+		} else if existing.Description != cp.Description {
 			// Description is not part of the checksum, so it is written without
 			// touching uploaded_at: a bump would re-verify every installed copy.
 			res, err := tx.ExecContext(ctx,
@@ -386,16 +387,7 @@ WHERE profile_uuid = ? AND identifier = ?`
 				return ctxerr.Wrap(ctx, err, "updating apple mdm config profile description")
 			}
 			if aff, _ := res.RowsAffected(); aff == 0 {
-				// 0 rows also means "unchanged", so only fail when the row is gone.
-				var exists bool
-				if err := sqlx.GetContext(ctx, tx, &exists,
-					`SELECT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?)`,
-					cp.ProfileUUID); err != nil {
-					return ctxerr.Wrap(ctx, err, "checking apple mdm config profile exists")
-				}
-				if !exists {
-					return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
-				}
+				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
 			}
 		}
 

@@ -967,10 +967,11 @@ func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID
 func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
-			Name string `db:"name"`
+			Name        string `db:"name"`
+			Description string `db:"description"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT name FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT name, description FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
@@ -1007,14 +1008,17 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			}, "android", false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating android profile variable associations")
 			}
-		} else {
+		} else if existing.Description != cp.Description {
 			// Description is not part of the checksum, so it is written without
-			// touching uploaded_at. Zero affected rows only means it was
-			// unchanged: the SELECT above already confirmed the profile exists.
-			if _, err := tx.ExecContext(ctx,
+			// touching uploaded_at.
+			res, err := tx.ExecContext(ctx,
 				`UPDATE mdm_android_configuration_profiles SET description = ? WHERE profile_uuid = ?`,
-				cp.Description, cp.ProfileUUID); err != nil {
+				cp.Description, cp.ProfileUUID)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating android mdm config profile description")
+			}
+			if aff, _ := res.RowsAffected(); aff == 0 {
+				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
 			}
 		}
 

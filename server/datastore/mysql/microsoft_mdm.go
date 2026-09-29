@@ -3301,11 +3301,12 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
-			Name   string `db:"name"`
-			SyncML []byte `db:"syncml"`
+			Name        string `db:"name"`
+			Description string `db:"description"`
+			SyncML      []byte `db:"syncml"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT name, syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT name, description, syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
@@ -3404,14 +3405,17 @@ WHERE profile_uuid = ?`
 			}, "windows", false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profile variable associations")
 			}
-		} else {
+		} else if existing.Description != cp.Description {
 			// Description is not part of the checksum, so it is written without
-			// touching uploaded_at. Zero affected rows only means it was
-			// unchanged: the SELECT above already confirmed the profile exists.
-			if _, err := tx.ExecContext(ctx,
+			// touching uploaded_at.
+			res, err := tx.ExecContext(ctx,
 				`UPDATE mdm_windows_configuration_profiles SET description = ? WHERE profile_uuid = ?`,
-				cp.Description, cp.ProfileUUID); err != nil {
+				cp.Description, cp.ProfileUUID)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows mdm config profile description")
+			}
+			if aff, _ := res.RowsAffected(); aff == 0 {
+				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
 			}
 		}
 
