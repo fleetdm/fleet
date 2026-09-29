@@ -4374,7 +4374,7 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 				OperationType:           fleet.MDMOperationTypeInstall,
 				Detail:                  "stale detail",
 				RequestFailCount:        1,
-				IncludedInPolicyVersion: ptr.Int(5),
+				IncludedInPolicyVersion: new(5),
 				Checksum:                profileChecksum,
 				CanReverify:             true,
 			},

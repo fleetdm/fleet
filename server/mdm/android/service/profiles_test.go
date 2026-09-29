@@ -482,14 +482,14 @@ func testRejectedProfileRedeliveredAfterFixAndReenroll(t *testing.T, ds fleet.Da
 	require.ElementsMatch(t, []string{h1PolicyName, h2PolicyName}, patchedPolicyNames)
 	require.EqualValues(t, 2, lastMaxTimeToLock)
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2), PolicyRequestUUID: new(""), DeviceRequestUUID: new("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2), PolicyRequestUUID: new(""), DeviceRequestUUID: new("")},
 	})
 
 	// Both hosts verify the policy.
 	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), Checksum: p1Checksum},
-		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), Checksum: p1Checksum},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2), Checksum: p1Checksum},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2), Checksum: p1Checksum},
 	})
 	require.NoError(t, err)
 	patchedPolicyNames = nil
@@ -505,8 +505,8 @@ func testRejectedProfileRedeliveredAfterFixAndReenroll(t *testing.T, ds fleet.Da
 	require.Equal(t, []string{h1PolicyName}, patchedPolicyNames)
 	require.EqualValues(t, 2, lastMaxTimeToLock)
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2)},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2), PolicyRequestUUID: new(""), DeviceRequestUUID: new("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2)},
 	})
 }
 
