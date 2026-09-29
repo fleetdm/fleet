@@ -1658,7 +1658,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostPlatform="android"
-          hostMdmEnrollmentStatus="On (manual - personal)"
+          hostMdmEnrollmentStatus="On (personal)"
           isConnectedToFleetMdm
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
@@ -1886,88 +1886,91 @@ describe("Host Actions Dropdown", () => {
     );
   });
 
-  describe("personally enrolled hosts (e.g. enrollment status => On (manual - personal))", () => {
-    it("render only the Transfer and Delete options for personally enrolled ios host", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isMacMdmEnabledAndConfigured: true,
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
+  describe.each(["On (personal)", "On (manual - personal)"] as const)(
+    "personally enrolled hosts (enrollment status %s)",
+    (enrollmentStatus) => {
+      it("render only the Transfer and Delete options for personally enrolled ios host", async () => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isMacMdmEnabledAndConfigured: true,
+              isPremiumTier: true,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
           },
-        },
+        });
+
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostMdmEnrollmentStatus={enrollmentStatus}
+            hostMdmDeviceStatus="unlocked"
+            isConnectedToFleetMdm
+            hostScriptsEnabled
+            hostPlatform="ios"
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        expect(screen.getByText("Transfer")).toBeInTheDocument();
+        expect(screen.getByText("Delete")).toBeInTheDocument();
+        expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+        expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+        expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+        expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+        expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+        expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+        expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+        expect(
+          screen.queryByText("Show disk encryption key")
+        ).not.toBeInTheDocument();
       });
 
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostMdmEnrollmentStatus={"On (manual - personal)"}
-          hostMdmDeviceStatus="unlocked"
-          isConnectedToFleetMdm
-          hostScriptsEnabled
-          hostPlatform="ios"
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      expect(screen.getByText("Transfer")).toBeInTheDocument();
-      expect(screen.getByText("Delete")).toBeInTheDocument();
-      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
-      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
-      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
-      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
-      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
-      expect(
-        screen.queryByText("Show disk encryption key")
-      ).not.toBeInTheDocument();
-    });
-
-    it("render only the Transfer and Delete options for personally enrolled ipad host", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
+      it("render only the Transfer and Delete options for personally enrolled ipad host", async () => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: true,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
           },
-        },
+        });
+
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostMdmEnrollmentStatus={enrollmentStatus}
+            isConnectedToFleetMdm
+            hostMdmDeviceStatus="unlocked"
+            hostScriptsEnabled
+            hostPlatform="ipados"
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        expect(screen.getByText("Transfer")).toBeInTheDocument();
+        expect(screen.getByText("Delete")).toBeInTheDocument();
+        expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+        expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+        expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+        expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+        expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+        expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+        expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+        expect(
+          screen.queryByText("Show disk encryption key")
+        ).not.toBeInTheDocument();
       });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostMdmEnrollmentStatus={"On (manual - personal)"}
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus="unlocked"
-          hostScriptsEnabled
-          hostPlatform="ipados"
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      expect(screen.getByText("Transfer")).toBeInTheDocument();
-      expect(screen.getByText("Delete")).toBeInTheDocument();
-      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
-      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
-      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
-      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
-      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
-      expect(
-        screen.queryByText("Show disk encryption key")
-      ).not.toBeInTheDocument();
-    });
-  });
+    }
+  );
 
   describe("Show Recovery Lock password action", () => {
     it("renders the action when recovery lock is enabled and host is macOS connected to Fleet MDM", async () => {
