@@ -114,7 +114,7 @@ For the blocklist wildcard, use `*` as the only entry: `value="1&#xF000;*"`. For
 
 ## Linux
 
-Fleet doesn't support configuration profiles on Linux. Instead, run a script that writes a managed policy file. Chrome reads every JSON file in `/etc/opt/chrome/policies/managed/`.
+Linux has no MDM configuration profiles. Instead, use a Fleet script to write a managed policy file. Chrome reads every JSON file in `/etc/opt/chrome/policies/managed/`.
 
 1. Save the following as `chrome-extension-blocklist.sh`. Replace the extension IDs with your own. Scripts require `fleetd` with scripts enabled.
 
