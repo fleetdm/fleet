@@ -29,7 +29,8 @@ export const canShowMyDeviceButton = (
   // platform is a plain string rather than HostPlatform: legacy ChromeOS hosts
   // report "CrOS", which predates the HostPlatform union.
   host: Pick<IHost, "fleet_desktop_version" | "mdm"> & { platform: string },
-  fleetDesktopSSOEnabled: boolean
+  fleetDesktopSSOEnabled: boolean,
+  isPremiumTier: boolean
 ) => {
   // Android and ChromeOS have no My device page, so the link would only lead to
   // an error. GET /hosts/:id/device_url rejects them for the same reason.
@@ -43,9 +44,20 @@ export const canShowMyDeviceButton = (
   if (!isIPadOrIPhone(host.platform) && !host.fleet_desktop_version) {
     return false;
   }
-  if (isIPadOrIPhone(host.platform) && fleetDesktopSSOEnabled) {
-    // Remove the button for iOS/iPadOS hosts when Fleet Desktop SSO is enabled.
-    return false;
+  if (isIPadOrIPhone(host.platform)) {
+    if (fleetDesktopSSOEnabled) {
+      return false;
+    }
+    // The iOS/iPadOS page is only the self-service list, a Premium feature.
+    if (!isPremiumTier) {
+      return false;
+    }
+    // A pending host has no UUID to build the URL from, and an unenrolled one
+    // can't use self-service.
+    const status = host.mdm.enrollment_status;
+    if (!status || status === "Pending" || status === "Off") {
+      return false;
+    }
   }
   const uiState = getHostDeviceStatusUIState(
     host.mdm.device_status,
