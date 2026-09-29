@@ -2,14 +2,17 @@ package service
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/stretchr/testify/require"
@@ -325,6 +328,229 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 		require.Empty(t, failMsg)
 		require.Equal(t, "echo hello", expanded)
 	})
+
+	t.Run("NDES challenge", func(t *testing.T) {
+		const challenge = "8CE317021F690069"
+		ndesCA := &fleet.NDESSCEPProxyCA{
+			URL: "https://ndes.example.com/certsrv/mscep/mscep.dll", AdminURL: "https://ndes.example.com/certsrv/mscep_admin/",
+			Username: "admin", Password: "secret",
+		}
+		type ndesCalls struct {
+			// every fetch consumes a one-time password from the NDES cache
+			fetches   int
+			caLookups int
+		}
+		newNDESSvc := func(t *testing.T, ca *fleet.NDESSCEPProxyCA, challengeErr error) (*Service, context.Context, *mock.Store, *ndesCalls) {
+			svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
+			calls := &ndesCalls{}
+			ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+				require.True(t, includeSecrets)
+				calls.caLookups++
+				return &fleet.GroupedCertificateAuthorities{NDESSCEP: ca}, nil
+			}
+			svc.scepConfigService = &scep_mock.SCEPConfigService{
+				GetNDESSCEPChallengeFunc: func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
+					calls.fetches++
+					require.Equal(t, *ndesCA, proxy)
+					if challengeErr != nil {
+						return "", challengeErr
+					}
+					return challenge, nil
+				},
+			}
+			return svc, ctx, ds, calls
+		}
+
+		t.Run("resolves to a fresh challenge on each interpreter", func(t *testing.T) {
+			const body = "challengePassword = $FLEET_VAR_NDES_SCEP_CHALLENGE"
+			svc, ctx, _, calls := newNDESSvc(t, ndesCA, nil)
+			h := *host
+			h.Platform = "ubuntu"
+			expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h, body)
+			require.NoError(t, err)
+			require.Empty(t, failMsg)
+			requireVarsDelivered(t, expanded, body, map[string]string{"NDES_SCEP_CHALLENGE": challenge})
+
+			h.Platform = "windows"
+			expanded, failMsg, err = svc.maybeExpandScriptFleetVariables(ctx, &h, body)
+			require.NoError(t, err)
+			require.Empty(t, failMsg)
+			require.Equal(t, "$FLEET_VAR_NDES_SCEP_CHALLENGE = "+variables.PowerShellCharArray(challenge)+"\r\n"+body, expanded)
+
+			// a param() block without variables keeps its place ahead of the value
+			expanded, failMsg, err = svc.maybeExpandScriptFleetVariables(ctx, &h, "param($Foo = \"bar\")\r\n"+body)
+			require.NoError(t, err)
+			require.Empty(t, failMsg)
+			require.Equal(t, "param($Foo = \"bar\")\r\n$FLEET_VAR_NDES_SCEP_CHALLENGE = "+variables.PowerShellCharArray(challenge)+"\r\n"+body, expanded)
+
+			h.Platform = "ubuntu"
+			expanded, failMsg, err = svc.maybeExpandScriptFleetVariables(ctx, &h,
+				"#!/usr/bin/env python3\nprint(\"$FLEET_VAR_NDES_SCEP_CHALLENGE\")\n")
+			require.NoError(t, err)
+			require.Empty(t, failMsg)
+			require.Equal(t, "#!/usr/bin/env python3\nprint(\""+variables.PythonEscape(challenge)+"\")\n", expanded)
+
+			// one challenge per script fetch
+			require.Equal(t, 4, calls.fetches)
+		})
+
+		t.Run("referenced twice consumes one challenge", func(t *testing.T) {
+			const body = "a=$FLEET_VAR_NDES_SCEP_CHALLENGE\nb=${FLEET_VAR_NDES_SCEP_CHALLENGE}\necho $FLEET_VAR_HOST_UUID"
+			svc, ctx, _, calls := newNDESSvc(t, ndesCA, nil)
+			expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, body)
+			require.NoError(t, err)
+			require.Empty(t, failMsg)
+			requireVarsDelivered(t, expanded, body, map[string]string{"NDES_SCEP_CHALLENGE": challenge, "HOST_UUID": "ABC-123"})
+			require.Equal(t, 1, calls.fetches)
+		})
+
+		t.Run("scripts without it never look up the CA", func(t *testing.T) {
+			svc, ctx, _, calls := newNDESSvc(t, ndesCA, nil)
+			for _, contents := range []string{"echo hello", "echo $FLEET_VAR_HOST_UUID", "echo $FLEET_VAR_NDES_SCEP_PROXY_URL"} {
+				_, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, contents)
+				require.NoError(t, err)
+				require.Empty(t, failMsg)
+			}
+			require.Zero(t, calls.caLookups)
+			require.Zero(t, calls.fetches)
+		})
+
+		t.Run("NDES not configured", func(t *testing.T) {
+			svc, ctx, ds, calls := newNDESSvc(t, nil, nil)
+			expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, "echo $FLEET_VAR_NDES_SCEP_CHALLENGE")
+			require.NoError(t, err)
+			require.Empty(t, expanded)
+			require.Equal(t, fleet.NDESNotConfiguredMsg, failMsg)
+
+			// accumulates with other failures like any unresolvable variable
+			mockScimUser(ds, nil)
+			_, failMsg, err = svc.maybeExpandScriptFleetVariables(ctx, host,
+				"echo $FLEET_VAR_NDES_SCEP_CHALLENGE $FLEET_VAR_HOST_END_USER_IDP_USERNAME")
+			require.NoError(t, err)
+			require.ElementsMatch(t, []string{
+				fleet.NDESNotConfiguredMsg,
+				"There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.",
+			}, splitLines(failMsg))
+			require.Zero(t, calls.fetches)
+		})
+
+		t.Run("challenge failures name the cause", func(t *testing.T) {
+			cases := map[string]struct {
+				err  error
+				want string
+			}{
+				"transient": {
+					err:  scep.NewNDESTransientError("NDES admin URL returned status 503; could not retrieve the enrollment challenge password"),
+					want: "Fleet couldn't reach NDES to populate $FLEET_VAR_NDES_SCEP_CHALLENGE. NDES admin URL returned status 503",
+				},
+				"unreachable": {
+					err:  errors.New("sending request: dial tcp: connection refused"),
+					want: "Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE. sending request: dial tcp: connection refused",
+				},
+				"invalid credentials": {
+					err:  scep.NewNDESInvalidError("unexpected status code: 401"),
+					want: "Invalid NDES admin credentials. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE.",
+				},
+				"password cache full": {
+					err:  scep.NewNDESPasswordCacheFullError("the password cache is full"),
+					want: "The NDES password cache is full. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE.",
+				},
+				"insufficient permissions": {
+					err:  scep.NewNDESInsufficientPermissionsError("no enroll permission"),
+					want: "This account does not have sufficient permissions to enroll with SCEP. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE.",
+				},
+			}
+			for name, c := range cases {
+				t.Run(name, func(t *testing.T) {
+					svc, ctx, _, calls := newNDESSvc(t, ndesCA, c.err)
+					expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, "echo $FLEET_VAR_NDES_SCEP_CHALLENGE")
+					require.NoError(t, err)
+					require.Empty(t, expanded)
+					require.Contains(t, failMsg, c.want)
+					// a failed run is recorded, not retried by the expander
+					require.NotContains(t, failMsg, "will try again")
+					require.Equal(t, 1, calls.fetches)
+				})
+			}
+		})
+
+		t.Run("no challenge is consumed when the script can't run anyway", func(t *testing.T) {
+			svc, ctx, ds, calls := newNDESSvc(t, ndesCA, nil)
+			mockScimUser(ds, nil)
+			_, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
+				"echo $FLEET_VAR_NDES_SCEP_CHALLENGE $FLEET_VAR_HOST_END_USER_IDP_USERNAME")
+			require.NoError(t, err)
+			require.Equal(t, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.", failMsg)
+
+			h := *host
+			h.Platform = "windows"
+			_, failMsg, err = svc.maybeExpandScriptFleetVariables(ctx, &h,
+				"param($Foo = $FLEET_VAR_HOST_UUID)\r\nWrite-Output $FLEET_VAR_NDES_SCEP_CHALLENGE\r\n")
+			require.NoError(t, err)
+			require.Equal(t, powerShellParamBlockMsg, failMsg)
+
+			require.Zero(t, calls.fetches)
+		})
+
+		t.Run("scripts sharing a fetch state share one challenge", func(t *testing.T) {
+			scripts := []string{"install $FLEET_VAR_NDES_SCEP_CHALLENGE", "post $FLEET_VAR_NDES_SCEP_CHALLENGE"}
+
+			svc, ctx, _, calls := newNDESSvc(t, ndesCA, nil)
+			fetch := &scriptFetchState{}
+			for _, body := range scripts {
+				expanded, failMsg, err := svc.expandScriptFleetVariables(ctx, host, body, fetch)
+				require.NoError(t, err)
+				require.Empty(t, failMsg)
+				requireVarsDelivered(t, expanded, body, map[string]string{"NDES_SCEP_CHALLENGE": challenge})
+			}
+			require.Equal(t, 1, calls.caLookups)
+			require.Equal(t, 1, calls.fetches)
+
+			// a failure is shared too, so the second script doesn't ask NDES again
+			cacheFull := scep.NewNDESPasswordCacheFullError("the password cache is full")
+			svc, ctx, _, calls = newNDESSvc(t, ndesCA, cacheFull)
+			fetch = &scriptFetchState{}
+			for _, body := range scripts {
+				_, failMsg, err := svc.expandScriptFleetVariables(ctx, host, body, fetch)
+				require.NoError(t, err)
+				require.Equal(t, scep.NDESChallengeErrorToScriptDetail(cacheFull), failMsg)
+			}
+			require.Equal(t, 1, calls.fetches)
+
+			svc, ctx, _, calls = newNDESSvc(t, nil, nil)
+			fetch = &scriptFetchState{}
+			for _, body := range scripts {
+				_, failMsg, err := svc.expandScriptFleetVariables(ctx, host, body, fetch)
+				require.NoError(t, err)
+				require.Equal(t, fleet.NDESNotConfiguredMsg, failMsg)
+			}
+			require.Equal(t, 1, calls.caLookups)
+			require.Zero(t, calls.fetches)
+		})
+
+		t.Run("a dropped request is an infrastructure error", func(t *testing.T) {
+			svc, ctx, _, _ := newNDESSvc(t, ndesCA, nil)
+			ctx, cancel := context.WithCancel(ctx)
+			svc.scepConfigService.(*scep_mock.SCEPConfigService).GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
+				cancel()
+				return "", ctx.Err()
+			}
+			_, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, "echo $FLEET_VAR_NDES_SCEP_CHALLENGE")
+			require.ErrorIs(t, err, context.Canceled)
+			require.Empty(t, failMsg)
+		})
+
+		t.Run("CA lookup error is an infrastructure error", func(t *testing.T) {
+			svc, ctx, ds, calls := newNDESSvc(t, ndesCA, nil)
+			ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+				return nil, errors.New("db down")
+			}
+			_, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, "echo $FLEET_VAR_NDES_SCEP_CHALLENGE")
+			require.ErrorContains(t, err, "db down")
+			require.Empty(t, failMsg)
+			require.Zero(t, calls.fetches)
+		})
+	})
 }
 
 // requireVarsDelivered asserts each variable is defined in the preamble, that
@@ -416,41 +642,72 @@ func TestGetHostScriptFleetVariables(t *testing.T) {
 	})
 
 	t.Run("unresolvable variable records failed result and returns marked script", func(t *testing.T) {
-		svc, ctx, ds := newSvcAndCtx(t, host, "echo $FLEET_VAR_HOST_END_USER_IDP_USERNAME", nil)
-		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
-			return nil, newNotFoundError()
+		cases := map[string]struct {
+			contents   string
+			setup      func(ds *mock.Store)
+			wantOutput string
+		}{
+			"missing IdP user": {
+				contents: "echo $FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+				setup: func(ds *mock.Store) {
+					ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+						return nil, newNotFoundError()
+					}
+					ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+						return nil, nil
+					}
+				},
+				wantOutput: "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.",
+			},
+			"NDES not configured": {
+				contents: "echo $FLEET_VAR_NDES_SCEP_CHALLENGE",
+				setup: func(ds *mock.Store) {
+					ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+						return &fleet.GroupedCertificateAuthorities{}, nil
+					}
+				},
+				wantOutput: fleet.NDESNotConfiguredMsg,
+			},
 		}
-		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
-			return nil, nil
-		}
-		var savedResult *fleet.HostScriptResultPayload
-		ds.SetHostScriptExecutionResultFunc = func(ctx context.Context, result *fleet.HostScriptResultPayload, attemptNumber *int) (*fleet.HostScriptResult, string, error) {
-			savedResult = result
-			exitCode := int64(result.ExitCode)
-			return &fleet.HostScriptResult{
-				HostID:      result.HostID,
-				ExecutionID: result.ExecutionID,
-				Output:      result.Output,
-				ExitCode:    &exitCode,
-			}, "", nil
-		}
-		ds.MaybeUpdateSetupExperienceScriptStatusFunc = func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
-			return false, nil
-		}
+		for name, c := range cases {
+			t.Run(name, func(t *testing.T) {
+				svc, ctx, ds := newSvcAndCtx(t, host, c.contents, nil)
+				c.setup(ds)
+				var savedResult *fleet.HostScriptResultPayload
+				ds.SetHostScriptExecutionResultFunc = func(ctx context.Context, result *fleet.HostScriptResultPayload, attemptNumber *int) (*fleet.HostScriptResult, string, error) {
+					savedResult = result
+					exitCode := int64(result.ExitCode)
+					return &fleet.HostScriptResult{
+						HostID:      result.HostID,
+						ExecutionID: result.ExecutionID,
+						Output:      result.Output,
+						ExitCode:    &exitCode,
+					}, "", nil
+				}
+				var setupExperienceStatus fleet.SetupExperienceStatusResultStatus
+				ds.MaybeUpdateSetupExperienceScriptStatusFunc = func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+					setupExperienceStatus = status
+					return false, nil
+				}
 
-		script, err := svc.GetHostScript(ctx, "exec-1")
-		require.NoError(t, err)
+				script, err := svc.GetHostScript(ctx, "exec-1")
+				require.NoError(t, err)
 
-		// the failure was recorded through the normal result-saving path
-		require.NotNil(t, savedResult)
-		require.Equal(t, fleet.ExitCodeFleetVarResolutionFailed, savedResult.ExitCode)
-		require.Contains(t, savedResult.Output, "There is no IdP username for this host.")
-		require.Equal(t, host.ID, savedResult.HostID)
+				// the failure was recorded through the normal result-saving path
+				require.NotNil(t, savedResult)
+				require.Equal(t, fleet.ExitCodeFleetVarResolutionFailed, savedResult.ExitCode)
+				require.Equal(t, c.wantOutput, savedResult.Output)
+				require.Equal(t, host.ID, savedResult.HostID)
 
-		// the returned script carries the exit code so fleetd skips it and
-		// keeps processing its queue
-		require.NotNil(t, script.ExitCode)
-		require.EqualValues(t, fleet.ExitCodeFleetVarResolutionFailed, *script.ExitCode)
+				// a setup experience script is marked failed so enrollment moves on
+				require.Equal(t, fleet.SetupExperienceStatusFailure, setupExperienceStatus)
+
+				// the returned script carries the exit code so fleetd skips it and
+				// keeps processing its queue
+				require.NotNil(t, script.ExitCode)
+				require.EqualValues(t, fleet.ExitCodeFleetVarResolutionFailed, *script.ExitCode)
+			})
+		}
 	})
 
 	t.Run("already-completed execution is not re-recorded", func(t *testing.T) {
@@ -481,10 +738,10 @@ func TestGetSoftwareInstallDetailsFleetVariables(t *testing.T) {
 		OsqueryHostID:  new("osquery-42"),
 	}
 
-	newSvcAndCtx := func(t *testing.T, details *fleet.SoftwareInstallDetails) (fleet.Service, context.Context, *mock.Store) {
+	newSvcAndCtx := func(t *testing.T, details *fleet.SoftwareInstallDetails, scepConfig fleet.SCEPConfigService) (fleet.Service, context.Context, *mock.Store) {
 		ds := new(mock.Store)
 		lic := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: lic, SkipCreateTestUsers: true})
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: lic, SkipCreateTestUsers: true, SCEPConfigService: scepConfig})
 		ctx = test.HostContext(ctx, host)
 		ds.GetSoftwareInstallDetailsFunc = func(ctx context.Context, executionID string) (*fleet.SoftwareInstallDetails, error) {
 			return details, nil
@@ -493,22 +750,34 @@ func TestGetSoftwareInstallDetailsFleetVariables(t *testing.T) {
 	}
 
 	t.Run("variables expand in all three scripts", func(t *testing.T) {
-		svc, ctx, _ := newSvcAndCtx(t, &fleet.SoftwareInstallDetails{
+		var fetches int
+		scepConfig := &scep_mock.SCEPConfigService{
+			GetNDESSCEPChallengeFunc: func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
+				fetches++
+				return "8CE317021F690069", nil
+			},
+		}
+		svc, ctx, ds := newSvcAndCtx(t, &fleet.SoftwareInstallDetails{
 			HostID:            host.ID,
 			ExecutionID:       "install-1",
-			InstallScript:     "install $FLEET_VAR_HOST_HARDWARE_SERIAL",
-			PostInstallScript: "post ${FLEET_VAR_HOST_UUID}",
+			InstallScript:     "install $FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_NDES_SCEP_CHALLENGE",
+			PostInstallScript: "post ${FLEET_VAR_HOST_UUID} $FLEET_VAR_NDES_SCEP_CHALLENGE",
 			UninstallScript:   "uninstall $FLEET_VAR_HOST_PLATFORM",
-		})
+		}, scepConfig)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{NDESSCEP: &fleet.NDESSCEPProxyCA{AdminURL: "https://ndes.example.com/certsrv/mscep_admin/"}}, nil
+		}
 
 		details, err := svc.GetSoftwareInstallDetails(ctx, "install-1")
 		require.NoError(t, err)
-		requireVarsDelivered(t, details.InstallScript, "install $FLEET_VAR_HOST_HARDWARE_SERIAL",
-			map[string]string{"HOST_HARDWARE_SERIAL": "SERIAL-1"})
-		requireVarsDelivered(t, details.PostInstallScript, "post ${FLEET_VAR_HOST_UUID}",
-			map[string]string{"HOST_UUID": "ABC-123"})
+		requireVarsDelivered(t, details.InstallScript, "install $FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_NDES_SCEP_CHALLENGE",
+			map[string]string{"HOST_HARDWARE_SERIAL": "SERIAL-1", "NDES_SCEP_CHALLENGE": "8CE317021F690069"})
+		requireVarsDelivered(t, details.PostInstallScript, "post ${FLEET_VAR_HOST_UUID} $FLEET_VAR_NDES_SCEP_CHALLENGE",
+			map[string]string{"HOST_UUID": "ABC-123", "NDES_SCEP_CHALLENGE": "8CE317021F690069"})
 		requireVarsDelivered(t, details.UninstallScript, "uninstall $FLEET_VAR_HOST_PLATFORM",
 			map[string]string{"HOST_PLATFORM": "ubuntu"})
+		// the scripts delivered in one fetch share one challenge
+		require.Equal(t, 1, fetches)
 	})
 
 	t.Run("scripts without variables are unchanged", func(t *testing.T) {
@@ -516,7 +785,7 @@ func TestGetSoftwareInstallDetailsFleetVariables(t *testing.T) {
 			HostID:        host.ID,
 			ExecutionID:   "install-1",
 			InstallScript: "install --flag",
-		})
+		}, nil)
 
 		details, err := svc.GetSoftwareInstallDetails(ctx, "install-1")
 		require.NoError(t, err)
@@ -530,7 +799,7 @@ func TestGetSoftwareInstallDetailsFleetVariables(t *testing.T) {
 			ExecutionID:     "install-1",
 			InstallScript:   "install $FLEET_VAR_HOST_END_USER_IDP_USERNAME",
 			UninstallScript: "uninstall $FLEET_VAR_HOST_END_USER_IDP_USERNAME",
-		})
+		}, nil)
 		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 			return nil, newNotFoundError()
 		}
@@ -572,7 +841,7 @@ func TestGetSoftwareInstallDetailsFleetVariables(t *testing.T) {
 			HostID:        host.ID,
 			ExecutionID:   "install-1",
 			InstallScript: "install $FLEET_VAR_HOST_END_USER_IDP_USERNAME",
-		})
+		}, nil)
 		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 			return nil, newNotFoundError()
 		}

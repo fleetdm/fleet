@@ -36410,8 +36410,8 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariables() {
 		require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg)
 
 		// CA variables are profile-delivery machinery and are rejected in scripts
-		res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo $FLEET_VAR_NDES_SCEP_CHALLENGE"}, http.StatusUnprocessableEntity)
-		require.Contains(t, extractServerErrorText(res.Body), "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in scripts.")
+		res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo $FLEET_VAR_NDES_SCEP_PROXY_URL"}, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), "Fleet variable $FLEET_VAR_NDES_SCEP_PROXY_URL is not supported in scripts.")
 
 		var runResp fleet.RunScriptResponse
 		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: supportedVarContents}, http.StatusAccepted, &runResp)

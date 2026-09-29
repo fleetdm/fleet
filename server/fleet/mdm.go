@@ -113,6 +113,10 @@ const (
 	OneTimeChallengeTTL = 1 * time.Hour
 )
 
+// NDESNotConfiguredMsg is the failure detail for a $FLEET_VAR_NDES_SCEP_CHALLENGE
+// reference when no NDES certificate authority is configured.
+const NDESNotConfiguredMsg = "NDES is not configured. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE."
+
 // HasCAVariables returns true if any of the given Fleet variable names
 // (as returned by variables.Find, without the FLEET_VAR_ prefix) correspond
 // to a certificate authority variable.

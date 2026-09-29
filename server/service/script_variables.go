@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -32,6 +33,22 @@ const (
 // supported one (e.g. $FLEET_VAR_HOST_UUID_LEGACY), whose prefix
 // variables.Replace rewrites along with the supported variable.
 func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *fleet.Host, contents string) (expanded string, failureMessage string, err error) {
+	return svc.expandScriptFleetVariables(ctx, host, contents, &scriptFetchState{})
+}
+
+// scriptFetchState holds values resolved at most once per fetch and shared by
+// every script delivered in it, such as the install, post-install, and
+// uninstall scripts of a software install.
+type scriptFetchState struct {
+	ndesCALookedUp bool
+	ndesCA         *fleet.NDESSCEPProxyCA
+	// a challenge is a one-time password taken from the NDES cache
+	ndesChallengeFetched bool
+	ndesChallenge        string
+	ndesChallengeFailure string
+}
+
+func (svc *Service) expandScriptFleetVariables(ctx context.Context, host *fleet.Host, contents string, fetch *scriptFetchState) (expanded string, failureMessage string, err error) {
 	fleetVars := variables.Find(contents)
 	if len(fleetVars) == 0 {
 		return contents, "", nil
@@ -68,9 +85,27 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 
 	resolved := make(map[string]string, len(supported))
 	hostIDForUUIDCache := map[string]uint{host.UUID: host.ID}
+	var needsNDESChallenge bool
 	for _, v := range supported {
 		var value string
 		switch fleet.FleetVarName(v) {
+		case fleet.FleetVarNDESSCEPChallenge:
+			// fetched after the loop, once nothing else can stop the script
+			// from running
+			if !fetch.ndesCALookedUp {
+				groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
+				if err != nil {
+					return "", "", ctxerr.Wrap(ctx, err, "get certificate authorities for script")
+				}
+				fetch.ndesCA = groupedCAs.NDESSCEP
+				fetch.ndesCALookedUp = true
+			}
+			if fetch.ndesCA == nil {
+				_ = fail(fleet.NDESNotConfiguredMsg)
+				continue
+			}
+			needsNDESChallenge = true
+			continue
 		case fleet.FleetVarHostUUID:
 			value = host.UUID
 			if value == "" {
@@ -102,10 +137,29 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 
 		// a NUL silently truncates the line for the interpreter
 		if strings.ContainsRune(value, 0) {
-			_ = fail(fmt.Sprintf("The value for $FLEET_VAR_%s contains an invalid character. Fleet couldn't populate it.", v))
+			_ = fail(nulValueMsg(v))
 			continue
 		}
 		resolved[v] = value
+	}
+
+	if needsNDESChallenge && len(failures) == 0 {
+		// the preamble insertion below would fail anyway; check first so the
+		// failure doesn't cost a challenge
+		if err := variables.CheckPreamble(contents, dialect); err != nil {
+			if errors.Is(err, variables.ErrPowerShellLeadingParamBlock) {
+				return "", powerShellParamBlockMsg, nil
+			}
+			return "", "", ctxerr.Wrap(ctx, err, "check fleet variable preamble")
+		}
+		challenge, failure, err := svc.scriptNDESChallenge(ctx, fetch)
+		if err != nil {
+			return "", "", err
+		}
+		if failure != "" {
+			return "", failure, nil
+		}
+		resolved[string(fleet.FleetVarNDESSCEPChallenge)] = challenge
 	}
 
 	if len(failures) > 0 {
@@ -136,6 +190,32 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 		return "", "", ctxerr.Wrap(ctx, err, "insert fleet variable preamble")
 	}
 	return expanded, "", nil
+}
+
+// scriptNDESChallenge fetches a challenge from the NDES admin URL, once per
+// fetch. The challenge must never be logged.
+func (svc *Service) scriptNDESChallenge(ctx context.Context, fetch *scriptFetchState) (challenge string, failureMessage string, err error) {
+	if !fetch.ndesChallengeFetched {
+		value, err := svc.scepConfigService.GetNDESSCEPChallenge(ctx, *fetch.ndesCA)
+		// a dropped request is not the CA's failure and must not fail the run
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", "", ctxerr.Wrap(ctx, ctxErr, "get NDES challenge for script")
+		}
+		fetch.ndesChallengeFetched = true
+		switch {
+		case err != nil:
+			fetch.ndesChallengeFailure = scep.NDESChallengeErrorToScriptDetail(err)
+		case strings.ContainsRune(value, 0):
+			fetch.ndesChallengeFailure = nulValueMsg(string(fleet.FleetVarNDESSCEPChallenge))
+		default:
+			fetch.ndesChallenge = value
+		}
+	}
+	return fetch.ndesChallenge, fetch.ndesChallengeFailure, nil
+}
+
+func nulValueMsg(name string) string {
+	return fmt.Sprintf("The value for $FLEET_VAR_%s contains an invalid character. Fleet couldn't populate it.", name)
 }
 
 // scriptFleetVarDialect returns the interpreter to write the preamble for, or a
