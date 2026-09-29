@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -52,6 +53,7 @@ type oneTimeEnrollFixture struct {
 	row        fleet.HostOneTimeEnrollSecret
 	rejections *[]fleet.ActivityTypeHostEnrollmentRejected
 	enrolled   *int
+	logs       *bytes.Buffer
 }
 
 func newOneTimeEnrollFixture(t *testing.T, useOneTimeEnrollSecrets bool) *oneTimeEnrollFixture {
@@ -69,7 +71,8 @@ func newOneTimeEnrollFixture(t *testing.T, useOneTimeEnrollSecrets bool) *oneTim
 	ds := new(mock.DataStore)
 	cfg := config.TestConfig()
 	cfg.Auth.UseOneTimeEnrollSecrets = useOneTimeEnrollSecrets
-	opts := &TestServerOpts{KeyValueStore: memoryKVStore()}
+	var logs bytes.Buffer
+	opts := &TestServerOpts{KeyValueStore: memoryKVStore(), Logger: slog.New(slog.NewTextHandler(&logs, nil))}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 
 	var rejections []fleet.ActivityTypeHostEnrollmentRejected
@@ -121,7 +124,7 @@ func newOneTimeEnrollFixture(t *testing.T, useOneTimeEnrollSecrets bool) *oneTim
 	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 	ds.SerialUpdateHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 
-	return &oneTimeEnrollFixture{ds: ds, svc: svc, ctx: ctx, row: row, rejections: &rejections, enrolled: &enrolled}
+	return &oneTimeEnrollFixture{ds: ds, svc: svc, ctx: ctx, row: row, rejections: &rejections, enrolled: &enrolled, logs: &logs}
 }
 
 func (f *oneTimeEnrollFixture) orbitInfo() fleet.OrbitHostInfo {
@@ -230,6 +233,8 @@ func TestEnrollOrbitWithOneTimeEnrollSecret(t *testing.T) {
 		require.Equal(t, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, (*f.rejections)[0].Reason)
 		require.Equal(t, &victim, (*f.rejections)[0].HostID)
 		require.Zero(t, *f.enrolled)
+		require.Contains(t, f.logs.String(), `msg="enrollment rejected"`)
+		require.Contains(t, f.logs.String(), "host_id=77 ")
 	})
 
 	t.Run("unknown secret is still invalid", func(t *testing.T) {
