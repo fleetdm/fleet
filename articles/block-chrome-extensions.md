@@ -58,7 +58,7 @@ Chrome offers three extension policies:
 ```
 
 2. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
-3. Choose the `.mobileconfig` file and select **Add**.
+3. Choose the `.mobileconfig` file and select **Add profile** to upload it.
 
 To allow only specific extensions, block everything with `*` and add the extensions you approve to `ExtensionInstallAllowlist`:
 
@@ -99,7 +99,7 @@ To force-install an extension, add it to `ExtensionInstallForcelist` as `<extens
 ```
 
 2. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
-3. Choose the `.xml` file and select **Add**.
+3. Choose the `.xml` file and select **Add profile** to upload it.
 
 > **Note:** The `value` is a list of numbered entries separated by the `&#xF000;` character: `1&#xF000;first-id&#xF000;2&#xF000;second-id`.
 
