@@ -13,6 +13,7 @@ import (
 
 	"github.com/micromdm/nanolib/log"
 	"github.com/micromdm/nanolib/log/ctxlog"
+	"github.com/micromdm/plist"
 )
 
 // Service is the main NanoMDM service which dispatches to storage.
@@ -303,6 +304,13 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 					LocalizedDescription: errorMsg,
 				}},
 			}
+			// The stored result can't be empty: without it the command stays
+			// first in the queue and blocks every command behind it.
+			raw, marshalErr := plist.Marshal(failedResult)
+			if marshalErr != nil {
+				logger.Info("level", "error", "msg", "marshalling failed command result", "err", marshalErr)
+			}
+			failedResult.Raw = raw
 			if storeErr := s.store.StoreCommandReport(r, failedResult); storeErr != nil {
 				logger.Info("level", "error", "msg", "storing failed command result", "err", storeErr)
 			}
