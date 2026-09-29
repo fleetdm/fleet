@@ -26,6 +26,9 @@ const (
 // and flips them to unenrolled if Google reports them missing (404).
 // This complements (does not replace) Pub/Sub DELETED handling.
 func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, newActivityFn fleet.NewActivityFunc) error {
+	// A run that hits the AMAPI quota is retried by the next scheduled run.
+	ctx = androidmgmt.WithoutRetry(ctx)
+
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
