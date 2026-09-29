@@ -2,7 +2,7 @@
 
 > **Note:** This workflow isn't available yet. It depends on Okta's local account provisioning for Windows, which is coming soon. This feature creates the end user's local account from their Okta credentials, so they can sign in with their Okta username.
 
-When a hardware partner prepares your Windows devices with a provisioning package, you can have each one arrive with Okta Verify and Okta's device certificate installed, ready for the end user to sign in with their Okta username. This guide covers only the Okta-specific steps. For the zero-touch workflow and its trade-offs, see [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot). For building and applying the package, see [Preinstall Fleet's agent on Windows with a provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package).
+When a hardware partner prepares your Windows devices with a provisioning package, you can have each one arrive with Okta Verify and Okta's device certificate installed, ready for the end user to sign in with their Okta username. Fleet supports zero-touch Windows deployment without Autopilot for any identity provider (IdP). Learn how in [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot). This guide covers only the Okta-specific steps. For building and applying the package, see [Preinstall Fleet's agent on Windows with a provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package).
 
 Here's how it works:
 
