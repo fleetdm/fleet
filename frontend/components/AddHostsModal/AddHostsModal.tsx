@@ -58,7 +58,7 @@ const AddHostsModal = ({
         <>
           <p>You have no enroll secrets.</p>
           <p>
-            {config?.auth?.use_one_time_enroll_secrets ? (
+            {config?.auth?.mdm_apple_one_time_enroll_secrets ? (
               <>
                 Only Apple hosts that automatically enroll via Automated Device
                 Enrollment (ADE) can enroll to <b>{teamDisplayName}</b>. Add an

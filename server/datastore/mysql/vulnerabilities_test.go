@@ -50,6 +50,7 @@ func TestVulnerabilities(t *testing.T) {
 		{"TestListVulnerabilities", testListVulnerabilities},
 		{"TestVulnerabilityWithOS", testVulnerabilityWithOS},
 		{"TestVulnerabilityWithSoftware", testVulnerabilityWithSoftware},
+		{"TestIsCVEKnownToFleet", testIsCVEKnownToFleet},
 		{"TestOSVersionsByCVEFailsGracefullyWithNoOSVersionRows", testOSVersionsByCVEFailsGracefullyWithNoOSVersionRows},
 		{"TestOSVersionsByCVE", testOSVersionsByCVE},
 		{"TestSoftwareByCVE", testSoftwareByCVE},
@@ -204,6 +205,10 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	var nfe *common_mysql.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 
+	known, err := ds.IsCVEKnownToFleet(ctx, "CVE-2020-1234")
+	require.NoError(t, err)
+	require.False(t, known)
+
 	// Insert Host Count
 	insertStmt := `
 		INSERT INTO vulnerability_host_counts (cve, team_id, host_count, global_stats)
@@ -225,6 +230,20 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 		},
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
+
+	// Matched CVEs can lack cve_meta, e.g. when MSRC publishes a CVE before NVD does.
+	known, err = ds.IsCVEKnownToFleet(ctx, "CVE-2020-1234")
+	require.NoError(t, err)
+	require.True(t, known)
+	for teamID, hostsCount := range map[*uint]uint{nil: 10, new(uint(1)): 4, new(uint(0)): 6} {
+		for _, includeCVEScores := range []bool{false, true} {
+			v, err = ds.Vulnerability(ctx, "CVE-2020-1234", teamID, includeCVEScores)
+			require.NoError(t, err)
+			require.Equal(t, fleet.CVE{CVE: "CVE-2020-1234"}, v.CVE)
+			require.Equal(t, hostsCount, v.HostsCount)
+			require.Equal(t, fleet.MSRCSource, v.Source)
+		}
+	}
 
 	// // insert CVEMeta
 	err = ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
@@ -303,6 +322,27 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 }
 
+func testIsCVEKnownToFleet(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	require.NoError(t, ds.InsertCVEMeta(ctx, []fleet.CVEMeta{{CVE: "CVE-2020-0001", CVSSScore: new(5.0)}}))
+	_, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: 1, CVE: "CVE-2020-0002"}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertOSVulnerability(ctx, fleet.OSVulnerability{OSID: 1, CVE: "CVE-2020-0003"}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	for cve, want := range map[string]bool{
+		"CVE-2020-0001": true, // cve_meta only: NVD knows it, nothing matched
+		"CVE-2020-0002": true, // software match only
+		"CVE-2020-0003": true, // OS match only
+		"CVE-2020-0004": false,
+	} {
+		known, err := ds.IsCVEKnownToFleet(ctx, cve)
+		require.NoError(t, err)
+		require.Equal(t, want, known, cve)
+	}
+}
+
 func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 	mockTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	ctx := context.Background()
@@ -332,6 +372,15 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 		CVE:        "CVE-2020-1234",
 	}, fleet.NVDSource)
 	require.NoError(t, err)
+
+	known, err := ds.IsCVEKnownToFleet(ctx, "CVE-2020-1234")
+	require.NoError(t, err)
+	require.True(t, known)
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, true)
+	require.NoError(t, err)
+	require.Equal(t, fleet.CVE{CVE: "CVE-2020-1234"}, v.CVE)
+	require.Equal(t, uint(10), v.HostsCount)
+	require.Equal(t, fleet.NVDSource, v.Source)
 
 	// insert CVEMeta
 	err = ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{

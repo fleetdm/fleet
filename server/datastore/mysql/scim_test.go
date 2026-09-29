@@ -3,6 +3,7 @@ package mysql
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -51,7 +52,8 @@ func TestScim(t *testing.T) {
 		{"DeleteScimGroup", testDeleteScimGroup},
 		{"ListScimGroups", testListScimGroups},
 		{"ScimLastRequest", testScimLastRequest},
-		{"ScimUsersExist", testScimUsersExist},
+		{"ExistingScimUserIDs", testExistingScimUserIDs},
+		{"ExistingScimGroupIDs", testExistingScimGroupIDs},
 		{"ScimNestedGroups", testScimNestedGroups},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
@@ -2928,61 +2930,59 @@ func forceSetAppleHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string
 	})
 }
 
-func testScimUsersExist(t *testing.T, ds *Datastore) {
-	// Create test users
+func testExistingScimUserIDs(t *testing.T, ds *Datastore) {
 	users := createTestScimUsers(t, ds)
 	userIDs := make([]uint, len(users))
 	for i, user := range users {
 		userIDs[i] = user.ID
 	}
 
-	// Test 1: Empty slice should return true
-	exist, err := ds.ScimUsersExist(t.Context(), []uint{})
+	found, err := ds.ExistingScimUserIDs(t.Context(), nil)
 	require.NoError(t, err)
-	assert.True(t, exist, "Empty slice should return true")
+	require.Empty(t, found)
 
-	// Test 2: All existing users should return true
-	exist, err = ds.ScimUsersExist(t.Context(), userIDs)
+	found, err = ds.ExistingScimUserIDs(t.Context(), append(slices.Clone(userIDs), 99999, 100000))
 	require.NoError(t, err)
-	assert.True(t, exist, "All existing users should return true")
+	require.Equal(t, idSet(userIDs...), found)
 
-	// Test 3: Mix of existing and non-existing users should return false
-	nonExistentIDs := userIDs
-	nonExistentIDs = append(nonExistentIDs, 99999)
-	exist, err = ds.ScimUsersExist(t.Context(), nonExistentIDs)
+	found, err = ds.ExistingScimUserIDs(t.Context(), []uint{99999, 100000})
 	require.NoError(t, err)
-	assert.False(t, exist, "Mix of existing and non-existing users should return false")
+	require.Empty(t, found)
 
-	// Test 4: Only non-existing users should return false
-	exist, err = ds.ScimUsersExist(t.Context(), []uint{99999, 100000})
+	// Spans several query batches, with existing IDs in the first and last batch.
+	largeIDs := []uint{userIDs[0]}
+	for i := range 24990 {
+		largeIDs = append(largeIDs, uint(1000000)+uint(i)) // nolint:gosec // dismiss G115 integer overflow
+	}
+	largeIDs = append(largeIDs, userIDs[1])
+	found, err = ds.ExistingScimUserIDs(t.Context(), largeIDs)
 	require.NoError(t, err)
-	assert.False(t, exist, "Only non-existing users should return false")
+	require.Equal(t, idSet(userIDs[0], userIDs[1]), found)
+}
 
-	// Test 5: Test with a large number of IDs to verify batching works
-	// First, create a large number of test users
-	largeUserIDs := make([]uint, 0, 25000)
-	largeUserIDs = append(largeUserIDs, userIDs...) // Add existing users
-
-	// Add some non-existent IDs to test batching with mixed results
-	for i := 0; i < 24990; i++ {
-		largeUserIDs = append(largeUserIDs, uint(1000000)+uint(i)) // nolint:gosec // dismiss G115 integer overflow
+func testExistingScimGroupIDs(t *testing.T, ds *Datastore) {
+	var groupIDs []uint
+	for _, name := range []string{"existing-ids-a", "existing-ids-b"} {
+		id, err := ds.CreateScimGroup(t.Context(), &fleet.ScimGroup{DisplayName: name})
+		require.NoError(t, err)
+		groupIDs = append(groupIDs, id)
 	}
 
-	exist, err = ds.ScimUsersExist(t.Context(), largeUserIDs)
+	found, err := ds.ExistingScimGroupIDs(t.Context(), nil)
 	require.NoError(t, err)
-	assert.False(t, exist, "Large batch with non-existing users should return false")
+	require.Empty(t, found)
 
-	// Test 6: Test with a large number of existing IDs
-	// This is a bit tricky to test thoroughly without creating thousands of users,
-	// so we'll just verify the function handles a large slice without errors
-	largeExistingIDs := make([]uint, 0, 25000)
-	for i := 0; i < 25000; i++ {
-		largeExistingIDs = append(largeExistingIDs, userIDs[i%len(userIDs)])
+	found, err = ds.ExistingScimGroupIDs(t.Context(), append(slices.Clone(groupIDs), 99999))
+	require.NoError(t, err)
+	require.Equal(t, idSet(groupIDs...), found)
+}
+
+func idSet(ids ...uint) map[uint]struct{} {
+	set := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		set[id] = struct{}{}
 	}
-
-	exist, err = ds.ScimUsersExist(t.Context(), largeExistingIDs)
-	require.NoError(t, err)
-	assert.True(t, exist, "Large batch with only existing users should return true")
+	return set
 }
 
 func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {

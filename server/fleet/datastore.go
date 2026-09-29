@@ -3463,6 +3463,11 @@ type Datastore interface {
 	// CleanupUnusedSoftwareInstallers will remove software installers that have
 	// no references to them from the software_installers table.
 	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore, removeCreatedBefore time.Time) error
+	// CleanupHostSoftwareInstalls deletes installs and uninstalls that finished
+	// before olderThan, except those a host is still working on, those setup
+	// experience refers to, and the newest one per host and installer in each
+	// direction. The count is what was deleted before any failure.
+	CleanupHostSoftwareInstalls(ctx context.Context, olderThan time.Time) (int64, error)
 
 	// SaveInHouseAppUpdates persists new values to an existing in house app.
 	SaveInHouseAppUpdates(ctx context.Context, payload *UpdateSoftwareInstallerPayload) error
@@ -3949,12 +3954,10 @@ type Datastore interface {
 	ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*ScimUser, error)
 	// ScimUserByHostID retrieves a SCIM user associated with a host ID
 	ScimUserByHostID(ctx context.Context, hostID uint) (*ScimUser, error)
-	// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
-	// If the slice is empty, it returns true
-	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
-	// ScimGroupsExist checks if all the provided SCIM group IDs exist in the datastore
-	// If the slice is empty, it returns true
-	ScimGroupsExist(ctx context.Context, ids []uint) (bool, error)
+	// ExistingScimUserIDs returns the subset of the provided SCIM user IDs that exist.
+	ExistingScimUserIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error)
+	// ExistingScimGroupIDs returns the subset of the provided SCIM group IDs that exist.
+	ExistingScimGroupIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
 	ReplaceScimUser(ctx context.Context, user *ScimUser) ([]ActivityTypeResentCertificate, error)
 	// DeleteScimUser deletes a SCIM user from the database

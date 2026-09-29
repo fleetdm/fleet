@@ -245,7 +245,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			redis_key_value.New(deps.redisPool),
 			deps.logger,
 			deps.config.MDM.CertificateProfilesLimit,
-			deps.config.Auth.UseOneTimeEnrollSecrets,
+			deps.config.MDM.AppleOneTimeEnrollSecrets,
 		)
 	})
 

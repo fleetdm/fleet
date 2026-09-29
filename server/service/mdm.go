@@ -3806,7 +3806,7 @@ func (svc *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.
 
 	// With one-time enroll secrets, resending the fleetd profile mints a new
 	// enrollment credential for the device, which is an admin decision.
-	if svc.config.Auth.UseOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName) {
+	if svc.config.MDM.AppleOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName) {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile",
 			"The Fleetd configuration profile contains a one-time enroll secret and can only be resent by an admin. Ask your IT admin to resend it.").
 			WithStatus(http.StatusForbidden), "check fleetd profile device resend")
@@ -3844,7 +3844,7 @@ func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet
 	// fleetd profile may be terminally in the "verifying" state because it has been
 	// acknowledged by MDM but osquery will never report back for verification, so allow
 	// resending it to allow an admin to repair the host's orbit/osquery installation
-	deliversOneTimeSecret := svc.config.Auth.UseOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName)
+	deliversOneTimeSecret := svc.config.MDM.AppleOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName)
 	verifyingAllowed := deliversOneTimeSecret && status == fleet.MDMDeliveryVerifying
 	if status == fleet.MDMDeliveryPending || (status == fleet.MDMDeliveryVerifying && !verifyingAllowed) {
 		onError(ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.").WithStatus(http.StatusConflict), "check profile status"), true)

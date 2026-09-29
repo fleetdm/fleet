@@ -1243,6 +1243,7 @@ module.exports.routes = {
   'GET /company/contact': '/contact',
   'GET /legal': '/legal/terms',
   'GET /terms': '/legal/terms',
+  'GET /legal/dpa': 'https://drive.google.com/file/d/1COccvlNJzxqxqZj0Q7ZXGV64REo6WUXT/view?usp=sharing',// Fleet Data Processing Addendum, referenced in Section 12.2 of the subscription terms.
   'GET /handbook/security/github': '/handbook/security#git-hub-security',
   'GET /slack': '/support',// Note: This redirect is used on error pages and email templates in the Fleet UI.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',

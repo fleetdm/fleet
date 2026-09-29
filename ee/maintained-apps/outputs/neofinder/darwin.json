@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.3",
+      "version": "9.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'de.wfs-apps.neofinder';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'de.wfs-apps.neofinder' AND version_compare(bundle_short_version, '9.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'de.wfs-apps.neofinder' AND version_compare(bundle_short_version, '9.3.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'de.wfs-apps.neofinder' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.wfs-apps.de/updates/neofinder-mac.9.3.zip",
+      "installer_url": "https://www.wfs-apps.de/updates/neofinder-mac.9.3.1.zip",
       "install_script_ref": "1ed6fe6c",
       "uninstall_script_ref": "7bb02dab",
-      "sha256": "561829258205ca3b52171283deac5ebadcd1793f08f88a8460a1302b7011f5a5",
+      "sha256": "375ef64fb0ed84930f7961fc2a5200e2aa06e0294c15e70d4b60513e804b006f",
       "default_categories": [
         "Productivity"
       ]
