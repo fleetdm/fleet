@@ -1561,4 +1561,10 @@ func TestGetProfilesContentsNameAndDescription(t *testing.T) {
 		[]fleet.MDMProfileSpec{{Path: winPath}},
 		nil, false)
 	require.ErrorContains(t, err, "firewall")
+
+	// a name of only spaces is refused, as the batch endpoint does, rather
+	// than silently falling back to the derived name
+	_, err = getProfilesContents(tempDir, nil,
+		[]fleet.MDMProfileSpec{{Path: winPath, Name: "   "}}, nil, false)
+	require.ErrorContains(t, err, "Profile name can't be empty.")
 }

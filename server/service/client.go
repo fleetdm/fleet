@@ -468,8 +468,11 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 
 			// an explicit name replaces the derived one, for every type; the
 			// server stores it trimmed, so match that here
-			if n := strings.TrimSpace(profile.Name); n != "" {
-				name = n
+			if profile.Name != "" {
+				name = strings.TrimSpace(profile.Name)
+				if name == "" {
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Profile name can't be empty.")
+				}
 			}
 
 			// check for duplicate names across all profiles
