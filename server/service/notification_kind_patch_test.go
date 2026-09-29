@@ -644,6 +644,39 @@ func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 	}
 }
 
+func TestPatchNotificationRenderUpdatedInInventory(t *testing.T) {
+	ds := new(mock.Store)
+	kind := &patchNotificationKind{
+		ds: ds, notificationSvc: &stubNotificationService{acts: true}, logger: slog.New(slog.DiscardHandler),
+	}
+	ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
+		return []fleet.PatchNotificationAppDetail{{
+			SoftwareTitleID: 10, SoftwareInstallerID: new(uint(20)), Name: "1Password", UpdatedInInventory: true,
+		}}, nil
+	}
+	ds.ListPatchNotificationAppInstallStatusesFunc = func(_ context.Context, _ string) (map[uint]fleet.SoftwareInstallerStatus, error) {
+		return nil, nil
+	}
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+	ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
+		return "device-token", nil
+	}
+	ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
+		return nil, nil
+	}
+
+	// render an acted notification whose app the deadline found updated in inventory with no Fleet install, the app should show updated
+	view, err := kind.Render(t.Context(), &notifications_api.EndUserNotification{
+		UUID: "notification-uuid", HostID: 1,
+		Status:  notifications_api.EndUserNotificationActed,
+		Payload: patchNotificationReminderPayload,
+	})
+	require.NoError(t, err)
+	require.Len(t, view.Items, 1)
+	require.Equal(t, "Updated", view.Items[0].Status)
+	require.Equal(t, "installed", view.Items[0].InstallStatus)
+}
+
 // A notification whose apps are gone, after an admin deletes the title, fails rather than retrying.
 func TestPatchNotificationRenderWithNoApps(t *testing.T) {
 	ds := new(mock.Store)
@@ -888,6 +921,10 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		// the pass tried to take the notification, whether or not it got it
 		wantActed       bool
 		wantAppsDropped []uint
+		// apps set as queued without an install, checked as a subset because the pass also marks the apps it queues
+		wantMarkedQueued []uint
+		// apps recorded as updated in the host's software inventory
+		wantUpdatedInInventory []uint
 	}{
 		{
 			name:              "an app updated during the hour is dropped from the reminder",
@@ -917,6 +954,16 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
+			name:                   "an app the host's software inventory shows on the installer's version is recorded as updated in inventory without an install at the deadline",
+			untilDeadline:          -time.Minute,
+			displayed:              true,
+			reminder:               true,
+			installedVersions:      map[uint]string{oneTitleID: installerVersion, twoTitleID: "1.0.0"},
+			wantActed:              true,
+			wantInstalls:           []uint{twoInstallerID},
+			wantUpdatedInInventory: []uint{oneTitleID},
+		},
+		{
 			// Fleet's own install record catches a My device self-service update before the host's
 			// software inventory has refreshed to show it
 			name:              "an app Fleet installed since it was added to the notification is not installed again",
@@ -927,7 +974,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			lastInstalled:     new(appAddedAt.Add(time.Minute)),
 			wantActed:         true,
 			wantInstalls:      []uint{twoInstallerID},
-			wantAppsDropped:   []uint{oneTitleID},
+			wantMarkedQueued:  []uint{oneTitleID},
 		},
 		{
 			// the app was added after Fleet's install finished, because its policy failed anyway, so
@@ -1163,6 +1210,11 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				markedQueued = append(markedQueued, softwareTitleIDs...)
 				return nil
 			}
+			var updatedInInventory []uint
+			ds.SetPatchNotificationAppsUpdatedInInventoryFunc = func(_ context.Context, _ string, softwareTitleIDs []uint) error {
+				updatedInInventory = append(updatedInInventory, softwareTitleIDs...)
+				return nil
+			}
 
 			passErr := kind.RemindAndInstallDuePatches(context.Background())
 			if c.firstInstallFails {
@@ -1182,6 +1234,8 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 
 			require.ElementsMatch(t, c.wantInstalls, installs)
 			require.ElementsMatch(t, c.wantAppsDropped, gotDropped)
+			require.Subset(t, markedQueued, c.wantMarkedQueued)
+			require.ElementsMatch(t, c.wantUpdatedInInventory, updatedInInventory)
 			require.Equal(t, c.wantActed, notificationSvc.actInvoked)
 
 			if !c.wantReminder {
