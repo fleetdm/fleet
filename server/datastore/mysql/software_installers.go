@@ -4121,7 +4121,10 @@ func (ds *Datastore) GetDetailsForUninstallFromExecutionID(ctx context.Context, 
 		DisplayName *string `db:"display_name"`
 		SelfService bool    `db:"self_service"`
 	}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, executionID, executionID)
+	// Read from the primary: this feeds the uninstall activity's frozen display
+	// name. A replica read could miss a rename committed to the primary moments
+	// earlier and record the raw title instead. See GetSoftwareTitleDisplayName.
+	err := sqlx.GetContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &result, stmt, executionID, executionID)
 	if err != nil {
 		return "", nil, false, ctxerr.Wrap(ctx, err, "get software details for uninstall activity from execution ID")
 	}
