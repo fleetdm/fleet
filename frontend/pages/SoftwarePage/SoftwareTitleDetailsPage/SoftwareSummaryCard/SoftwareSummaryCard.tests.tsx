@@ -58,6 +58,95 @@ describe("Software Summary Card", () => {
     });
   });
 
+  describe("IDs", () => {
+    const renderPremium = createCustomRenderer({
+      context: { app: { isPremiumTier: true, isGlobalAdmin: true } },
+    });
+    const renderFree = createCustomRenderer({
+      context: { app: { isPremiumTier: false, isGlobalAdmin: true } },
+    });
+    const fmaTitle = () =>
+      createMockSoftwareTitle({
+        software_package: createMockSoftwarePackage({
+          fleet_maintained_app_id: 1,
+          fleet_maintained_app_slug: "zoom/darwin",
+        }),
+      });
+    const renderCard = (
+      renderFn: (ui: React.ReactElement) => unknown,
+      softwareTitle: ReturnType<typeof createMockSoftwareTitle>
+    ) =>
+      renderFn(
+        <SoftwareSummaryCard
+          softwareTitle={softwareTitle}
+          softwareId={42}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+    it("shows the ID and Fleet-maintained app slug on Premium", () => {
+      renderCard(renderPremium, fmaTitle());
+      expect(screen.getByText("ID")).toBeInTheDocument();
+      expect(screen.getByText("42")).toBeInTheDocument();
+      expect(screen.getByText("Fleet-maintained app slug")).toBeInTheDocument();
+      expect(screen.getByText("zoom/darwin")).toBeInTheDocument();
+    });
+
+    it("shows the App Store ID for Apple VPP apps on Premium", () => {
+      renderCard(
+        renderPremium,
+        createMockSoftwareTitle({
+          software_package: null,
+          app_store_app: createMockAppStoreAppIos(),
+        })
+      );
+      expect(screen.getByText("App Store ID")).toBeInTheDocument();
+      expect(screen.getByText("546505307")).toBeInTheDocument();
+      expect(screen.queryByText("Google Play ID")).not.toBeInTheDocument();
+    });
+
+    it("shows the Google Play ID for Android apps on Premium", () => {
+      renderCard(
+        renderPremium,
+        createMockSoftwareTitle({
+          software_package: null,
+          app_store_app: createMockAppStoreAppAndroid(),
+        })
+      );
+      expect(screen.getByText("Google Play ID")).toBeInTheDocument();
+      expect(screen.getByText("com.test.app")).toBeInTheDocument();
+      expect(screen.queryByText("App Store ID")).not.toBeInTheDocument();
+    });
+
+    it("shows only the ID for custom packages", () => {
+      renderCard(
+        renderPremium,
+        createMockSoftwareTitle({
+          software_package: createMockSoftwarePackage(),
+        })
+      );
+      expect(screen.getByText("ID")).toBeInTheDocument();
+      expect(
+        screen.queryByText("Fleet-maintained app slug")
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("App Store ID")).not.toBeInTheDocument();
+      expect(screen.queryByText("Google Play ID")).not.toBeInTheDocument();
+    });
+
+    it("shows only the ID on Fleet Free", () => {
+      renderCard(renderFree, fmaTitle());
+      expect(screen.getByText("ID")).toBeInTheDocument();
+      expect(screen.getByText("42")).toBeInTheDocument();
+      expect(
+        screen.queryByText("Fleet-maintained app slug")
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("zoom/darwin")).not.toBeInTheDocument();
+    });
+  });
+
   describe("Actions dropdown", () => {
     const render = createCustomRenderer({
       context: {
