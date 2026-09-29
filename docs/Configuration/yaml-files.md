@@ -562,7 +562,7 @@ controls:
 
 Each entry can use either `path:` or `paths:`. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for glob pattern support.
 
-Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all` or `labels_include_any` can be specified. `labels_exclude_any` can be used on its own or combined with either one to exclude hosts from the included set. A label can't appear in both an include and an exclude list. If none are specified, all hosts are targeted.
 
 #### android_settings.certificates
 
@@ -638,7 +638,7 @@ Each entry can use either `path:` or `paths:`:
 - **`path:`** references a single file. Filenames must not contain `*`, `?`, `[`, or `{`.
 - **`paths:`** accepts a [glob pattern](#path-vs-paths-glob-patterns) to match multiple files (e.g. `../lib/windows/profiles/*.xml`). Labels and other options specified on a `paths:` entry apply to all matched files.
 
-Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all` or `labels_include_any` can be specified. `labels_exclude_any` can be used on its own or combined with either one to exclude hosts from the included set. A label can't appear in both an include and an exclude list. If none are specified, all hosts are targeted.
 
 ## software
 
