@@ -6,9 +6,9 @@ When a hardware partner prepares your Windows devices with a provisioning packag
 
 Here's how it works:
 
-1. Your partner applies the provisioning package, then completes Windows setup with a temporary admin account.
-2. Fleet installs Okta Verify with a policy automation, and the Okta SCEP profile installs once Windows MDM turns on.
-3. The lock screen prompts for an Okta username, and your partner shuts down and ships the device.
+1. Your partner applies a provisioning package (`.ppkg`) that installs Fleet's agent (fleetd). They shut down and ship the device.
+2. The end user boots up the device. Okta Verify and the Okta SCEP certificate are installed right after they connect to Wi-Fi.
+3. At the login window (lock screen), the end user picks **Other** and enters their Okta username and password.
 
 In Okta, the device appears as **Managed**.
 
@@ -25,7 +25,7 @@ In Okta, the device appears as **Managed**.
 
 ## Step 2: Install Okta Verify with a policy
 
-The provisioning package builds fleetd with `--disable-setup-experience`, so Fleet's setup experience doesn't install software on these devices. Use a policy automation instead:
+Install Okta Verify automatically with a policy automation:
 
 1. Head to **Policies**, choose the fleet for the new devices, and select **Add policy**. Use this query, which fails on hosts without Okta Verify:
 
@@ -43,7 +43,7 @@ Fleet installs Okta Verify the first time the device fails the policy. Learn mor
 
 > **Note:** This Okta feature is coming soon.
 
-Set up Okta's local account provisioning for Windows, so the lock screen prompts for the end user's Okta username.
+Set up Okta's local account provisioning for Windows, so the end user can sign in at the login window with their Okta username and password.
 
 ## Step 4: Deploy the Okta SCEP certificate
 
@@ -51,8 +51,6 @@ Okta marks the device as managed when it finds a certificate from Okta's certifi
 
 1. Follow the [Okta Verify on Windows guide](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile) to create the `OKTA_SCEP_URL`, `OKTA_SCEP_CHALLENGE`, and `OKTA_CA_THUMBPRINT` variables and get the profile.
 2. Head to **Controls > OS settings > Configuration profiles**, select **Add profile**, and upload the profile to the fleet for the new devices.
-
-Windows MDM turns on after someone signs in to the device, so the profile installs once your partner signs in with the temporary admin account.
 
 ## Step 5: Build the provisioning package
 
@@ -64,16 +62,11 @@ Send your partner:
 
 - **The `.ppkg` file**, on a USB drive or through a secure file share.
 - **The package password**, through a separate channel from the file.
-- **The temporary admin account** to create during Windows setup: its username and password.
-- **These instructions:**
-  1. Follow [Apply the package and ship the device](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package#apply-the-package-and-ship-the-device) through the step that removes the USB drive.
-  2. Instead of shutting down, finish Windows setup with the temporary admin account.
-  3. At the desktop, stay signed in and connected to the internet while Fleet installs Okta Verify and the Okta certificate. Don't restart or shut down the device during this step.
-  4. When the device restarts and the lock screen prompts for an Okta username, shut down the device and ship it.
+- **These instructions:** [Apply the package and ship the device](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package#apply-the-package-and-ship-the-device).
 
 ## Verify
 
-Before your partner ships the first device, confirm that it's set up correctly:
+After the first end user connects their device to Wi-Fi, confirm that it's set up correctly:
 
 1. In Fleet, head to **Hosts**, select the fleet, and search for the device's serial number.
 2. On **Host details > Policies**, confirm the Okta Verify policy from Step 2 is passing.
