@@ -3,9 +3,9 @@
     {
       "version": "26.002.21901",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Adobe Acrobat DC (64-bit)' AND publisher = 'Adobe';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Adobe Acrobat DC (64-bit)' AND publisher = 'Adobe' AND version_compare(version, '26.002.21901') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'adobe acrobat pro.exe');"
+        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{AC76BA86-1033-FFFF-7760-BC15014EA700}' AND publisher = 'Adobe';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE identifying_number = '{AC76BA86-1033-FFFF-7760-BC15014EA700}' AND publisher = 'Adobe' AND version_compare(version, '26.002.21901') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'acrobat.exe');"
       },
       "installer_url": "https://trials.adobe.com/AdobeProducts/APRO/Acrobat_HelpX/win32/Acrobat_DC_Web_x64_WWMUI.zip",
       "install_script_ref": "eff7ec32",
