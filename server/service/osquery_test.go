@@ -3565,7 +3565,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 }
 
-// A failed stop may leave the campaign live in Redis, so the host is re-targeted.
+// A failed stop means Redis or MySQL is down, so no restore is attempted.
 func TestIngestDistributedQueryOrphanedCampaignLoadStopError(t *testing.T) {
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
@@ -3585,12 +3585,11 @@ func TestIngestDistributedQueryOrphanedCampaignLoadStopError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
-	lq.On("RestoreQueryTargetForHost", "42", host.ID).Return(nil)
 
 	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stop orphaned campaign after load failure")
-	lq.AssertExpectations(t)
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 }
 
 func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
@@ -3661,12 +3660,10 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 	host := fleet.Host{ID: 1}
 
 	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
-	// The campaign stays live when closing it fails, so the host must be re-targeted.
-	lq.On("RestoreQueryTargetForHost", "42", host.ID).Return(nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "closing orphaned campaign")
-	lq.AssertExpectations(t)
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 }
 
 func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
@@ -3702,11 +3699,10 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 	host := fleet.Host{ID: 1}
 
 	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
-	lq.On("RestoreQueryTargetForHost", "42", host.ID).Return(nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stopping orphaned campaign")
-	lq.AssertExpectations(t)
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 }
 
 func TestIngestDistributedQueryOrphanedStop(t *testing.T) {

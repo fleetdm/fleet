@@ -2733,7 +2733,7 @@ func (svc *Service) ingestDistributedQuery(
 		return newOsqueryError("record query completion: " + err.Error())
 	}
 	if !targeted {
-		svc.logger.WarnContext(ctx, "discarding live query result for campaign not targeting host", "campaignID", campaignID, "hostID", host.ID)
+		svc.logger.DebugContext(ctx, "discarding live query result for campaign not targeting host", "campaignID", campaignID, "hostID", host.ID)
 		return nil
 	}
 
@@ -2767,9 +2767,6 @@ func (svc *Service) ingestDistributedQuery(
 		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID)) //nolint:gosec // dismiss G115
 		if err != nil {
 			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
-				// The campaign may still be live in Redis, so this host must keep
-				// its target and retry.
-				svc.restoreQueryTarget(ctx, campaignID, host.ID)
 				return newOsqueryError("stop orphaned campaign after load failure: " + err.Error())
 			}
 			return newOsqueryError("loading orphaned campaign: " + err.Error())
@@ -2794,15 +2791,11 @@ func (svc *Service) ingestDistributedQuery(
 		if campaign.Status != fleet.QueryComplete {
 			campaign.Status = fleet.QueryComplete
 			if err := svc.ds.SaveDistributedQueryCampaign(ctx, campaign); err != nil {
-				// The campaign is still live for every other host, so this one must
-				// keep its target and retry.
-				svc.restoreQueryTarget(ctx, campaignID, host.ID)
 				return newOsqueryError("closing orphaned campaign: " + err.Error())
 			}
 		}
 
 		if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
-			svc.restoreQueryTarget(ctx, campaignID, host.ID)
 			return newOsqueryError("stopping orphaned campaign: " + err.Error())
 		}
 
