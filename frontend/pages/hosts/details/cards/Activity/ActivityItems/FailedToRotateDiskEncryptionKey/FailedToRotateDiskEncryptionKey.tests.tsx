@@ -36,7 +36,7 @@ describe("FailedToRotateDiskEncryptionKeyActivityItem", () => {
     expect(screen.getByTestId("info-outline-icon")).toBeInTheDocument();
   });
 
-  it("offers no details without a recorded reason", () => {
+  it("offers details even without a recorded reason", () => {
     render(
       <FailedToRotateDiskEncryptionKeyActivityItem
         activity={failedActivity()}
@@ -45,6 +45,6 @@ describe("FailedToRotateDiskEncryptionKeyActivityItem", () => {
       />
     );
 
-    expect(screen.queryByTestId("info-outline-icon")).not.toBeInTheDocument();
+    expect(screen.getByTestId("info-outline-icon")).toBeInTheDocument();
   });
 });

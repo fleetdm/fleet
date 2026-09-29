@@ -1,9 +1,10 @@
 import { screen, waitFor } from "@testing-library/react";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
 
 import { notify } from "components/ToastNotification";
 import hostAPI from "services/entities/hosts";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 
 import DiskEncryptionKeyModal, {
   ESCROW_OFF_TOOLTIP,
@@ -103,11 +104,60 @@ describe("DiskEncryptionKeyModal", () => {
     );
   });
 
+  it("shows a rotation someone else started once the request conflicts", async () => {
+    const err = apiError(
+      "Disk encryption key rotation is already in progress for this host."
+    );
+    (hostAPI.rotateDiskEncryptionKey as jest.Mock).mockRejectedValue(err);
+    const onCancel = jest.fn();
+    const { user } = renderModal({ onCancel });
+    await user.click(await screen.findByRole("button", { name: "Rotate key" }));
+
+    await waitFor(() =>
+      expect(
+        notify.error
+      ).toHaveBeenCalledWith(
+        "Disk encryption key rotation is already in progress for this host.",
+        { response: err }
+      )
+    );
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Rotating..." })).toBeDisabled();
+  });
+
+  // The app's QueryClient keeps the key cached after the modal closes; the shared
+  // test renderer's cacheTime: 0 would hide both the cache write and the reuse.
+  it("still shows the rotation on reopen without fetching the key again", async () => {
+    (hostAPI.rotateDiskEncryptionKey as jest.Mock).mockResolvedValue(undefined);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const modal = (
+      <QueryClientProvider client={client}>
+        <DiskEncryptionKeyModal
+          platform="darwin"
+          hostId={7}
+          canRotateKey
+          isEscrowEnabled
+          onCancel={jest.fn()}
+        />
+      </QueryClientProvider>
+    );
+
+    const { user, unmount } = renderWithSetup(modal);
+    await user.click(await screen.findByRole("button", { name: "Rotate key" }));
+    await waitFor(() => expect(notify.success).toHaveBeenCalled());
+    unmount();
+
+    renderWithSetup(modal);
+    expect(
+      await screen.findByRole("button", { name: "Rotating..." })
+    ).toBeDisabled();
+    expect(hostAPI.getEncryptionKey).toHaveBeenCalledTimes(1);
+    client.clear();
+  });
+
   it.each([
-    [
-      "Disk encryption key rotation is already in progress for this host.",
-      "Disk encryption key rotation is already in progress for this host.",
-    ],
     [
       "Couldn't rotate disk encryption key. The current key is not decryptable.",
       "Couldn't rotate disk encryption key. The current key is not decryptable.",

@@ -56,18 +56,21 @@ const DiskEncryptionKeyModal = ({
     select: (data) => data.encryption_key,
   });
 
+  const markRotationPending = () =>
+    queryClient.setQueryData<IHostEncrpytionKeyResponse | undefined>(
+      queryKey,
+      (prev) =>
+        prev && {
+          ...prev,
+          encryption_key: { ...prev.encryption_key, rotation_pending: true },
+        }
+    );
+
   const onRotateKey = async () => {
     setIsRotating(true);
     try {
       await hostAPI.rotateDiskEncryptionKey(hostId);
-      queryClient.setQueryData<IHostEncrpytionKeyResponse | undefined>(
-        queryKey,
-        (prev) =>
-          prev && {
-            ...prev,
-            encryption_key: { ...prev.encryption_key, rotation_pending: true },
-          }
-      );
+      markRotationPending();
       notify.success(
         "Successfully sent request to rotate disk encryption key."
       );
@@ -79,6 +82,7 @@ const DiskEncryptionKeyModal = ({
       if (reason.includes("already in progress")) {
         msg =
           "Disk encryption key rotation is already in progress for this host.";
+        markRotationPending();
       } else if (reason.includes("not decryptable")) {
         msg =
           "Couldn't rotate disk encryption key. The current key is not decryptable.";
