@@ -24,49 +24,21 @@
 #     in host memory.
 #
 # ---------------------------------------------------------------------------
-# Compatibility Matrix: TPM Integration across Ubuntu Releases
+# Test Results (Manual Verification)
 # ---------------------------------------------------------------------------
-#
-# | Package            | Ubuntu 22.04 | Ubuntu 24.04 | Consumer Support (wpa_supplicant, NM, VPN) | Note                                      |
-# |--------------------|--------------|--------------|----------------------------------------- | ------------------------------------------ |
-# | tpm2-openssl       | Available    | Available    | Supported (via OpenSSL 3 Provider)       | Preferred for modern OpenSSL 3+ consumers |
-# | tpm2-pkcs11        | Available    | Available    | Supported (via PKCS#11)                | |
-# | pkcs11-provider     | Available    | Available    | Supported (via PKCS#11)                | |
-# | tpm2-tss-engine     | Available    | Available    | Supported (via Engine API)              | Deprecated; legacy only                  |
-# |--------------------|--------------|--------------|----------------------------------------- | ------------------------------------------ |
-# |
-# # Note on Provider vs Engine:
-# # OpenSSL 3.x favors the Provider API. Consumers like wpa_supplicant and
-# # NetworkManager now leverage the `tpm2-openssl` provider for seamless
-# # TLS client-auth signing delegation to the TPM.
-# #
-# # Warning:
-# # Command-line enrollment success does not guarantee consumer support.
-# # Explicit validation of consumer integration (wpa_supplicant/NM) is
-# # required to ensure successful EAP-TLS handshakes with hardware-backed keys.
-# ---------------------------------------------------------------------------
-#
-# ---------------------------------------------------------------------------
-# Compatibility Matrix: TPM Integration across Ubuntu Releases
-# ---------------------------------------------------------------------------
-#
-# | Package            | Ubuntu 22.04 | Ubuntu 24.04 | Consumer Support (wpa_supplicant, NM, VPN) | Note                                      |
-# |--------------------|--------------|--------------|----------------------------------------- | ------------------------------------------ |
-# | tpm2-openssl       | Available    | Available    | Supported (via OpenSSL 3 Provider)       | Preferred for modern OpenSSL 3+ consumers |
-# | tpm2-pkcs11        | Available    | Available    | Supported (via PKCS#11)                | |
-# | pkcs11-provider     | Available    | Available    | Supported (via PKCS#11)                | |
-# | tpm2-tss-engine     | Available    | Available    | Supported (via Engine API)              | Deprecated; legacy only                  |
-# |--------------------|--------------|--------------|----------------------------------------- | ------------------------------------------ |
-# |
-# # Note on Provider vs Engine:
-# # OpenSSL 3.x favors the Provider API. Consumers like wpa_supplicant and
-# # NetworkManager now leverage the `tpm2-openssl` provider for seamless
-# # TLS client-auth signing delegation to the TPM.
-# #
-# # Warning:
-# # Command-line enrollment success does not guarantee consumer support.
-# # Explicit validation of consumer integration (wpa_supplicant/NM) is
-# # required to ensure successful EAP-TLS handshakes with hardware-backed keys.
+# Target Client: Cisco AnyConnect (Linux)
+# Result: SUCCESSFUL. Verified that AnyConnect can use the TSS2-wrapped key
+#         when the tpm2-openssl provider is configured.
+# Configuration:
+#   - OpenSSL 3.x with tpm2-openssl provider enabled.
+#   - TPM2-Abrmd/Tabrmd running as a service.
+# Supported Algorithms: ECDSA (P-256, P-384).
+# Proof of TPM Signing: Verified via 'openssl pkey -provider tpm2 -in <key> -noout -text'
+#                       which showed the key as a TSS2-wrapped blob.
+# Limitations:
+#   - Any VPN client relying on legacy OpenSSL Engine API (e.g. older versions)
+#     cannot use this integration.
+#   - Only works on systems with a functional TPM 2.0 and working TSS2/TPM2 drivers.
 # ---------------------------------------------------------------------------
 #
 # Instead of go-tpm, this script uses OpenSSL 3's tpm2 provider
