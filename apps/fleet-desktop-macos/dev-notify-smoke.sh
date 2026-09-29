@@ -46,6 +46,16 @@ expect 2 "negative fd"             notify --url https://example.com --detached-c
 expect 0 "help"                    help
 expect 0 "--help"                  --help
 
+# Stand in for a toast already on screen. The lock check comes before AppKit starts.
+LOCK="${TMPDIR:-$(getconf DARWIN_USER_TEMP_DIR)}"
+LOCK="${LOCK%/}/com.fleetdm.fleet-desktop.notify.lock"
+lockf -k "$LOCK" sleep 30 &
+holder=$!
+sleep 1
+expect 50 "another toast displayed" notify --url https://example.com
+kill "$holder" 2>/dev/null
+wait "$holder" 2>/dev/null
+
 echo
 if [ "$failures" -eq 0 ]; then
     echo "all checks passed"

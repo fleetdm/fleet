@@ -155,6 +155,17 @@ enum NotifyCommand {
         // Never log the URL: the server embeds the device token in its path.
         logger.log("target host \(options.url.host ?? "?", privacy: .public)")
 
+        switch acquireToastLock() {
+        case .acquired:
+            break
+        case .heldElsewhere:
+            handshake.send(.anotherDisplayed, "Another notification is already displayed.")
+            exit(ExitCode.anotherDisplayed.rawValue)
+        case .failed(let err):
+            handshake.send(.internalError, "Could not take the notification lock (errno \(err)).")
+            exit(ExitCode.internalError.rawValue)
+        }
+
         // Behind a locked screen the toast would expire unseen while reporting success.
         if isScreenLocked() {
             handshake.send(.screenLocked, "The screen is locked.")
@@ -171,6 +182,38 @@ enum NotifyCommand {
         app.run()
 
         exit(ExitCode.internalError.rawValue) // run() doesn't return
+    }
+
+    private enum ToastLockResult {
+        case acquired
+        case heldElsewhere
+        case failed(Int32)
+    }
+
+    /// Held for the child's whole lifetime, so the kernel releases it on any exit,
+    /// crashes included, and a stale lock can never block the next toast.
+    private static var toastLockFD: Int32 = -1
+
+    /// One toast per user at a time. flock rather than scanning running processes,
+    /// which would let two children launched together each miss the other.
+    ///
+    /// Taken before the page loads, so a toast that is still loading counts as displayed.
+    private static func acquireToastLock() -> ToastLockResult {
+        // Per-user even under `sudo -u`, which drops TMPDIR: Foundation then falls
+        // back to the user's confstr temp dir.
+        let path = (NSTemporaryDirectory() as NSString)
+            .appendingPathComponent("com.fleetdm.fleet-desktop.notify.lock")
+        let fd = open(path, O_RDWR | O_CREAT | O_CLOEXEC, 0o600)
+        guard fd >= 0 else { return .failed(errno) }
+
+        while flock(fd, LOCK_EX | LOCK_NB) != 0 {
+            let err = errno
+            if err == EINTR { continue }
+            close(fd)
+            return err == EWOULDBLOCK ? .heldElsewhere : .failed(err)
+        }
+        toastLockFD = fd
+        return .acquired
     }
 
     /// The lock key is undocumented, so an absent key means unlocked rather than a

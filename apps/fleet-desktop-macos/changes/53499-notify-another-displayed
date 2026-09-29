@@ -1,0 +1,2 @@
+- The `notify` command now exits with code 50 when another notification is already displayed, so Fleet can retry later instead of stacking toasts.
+- Pressing Cmd+Shift+X now closes a `notify` toast, as a fallback when the page's own dismiss doesn't work.
