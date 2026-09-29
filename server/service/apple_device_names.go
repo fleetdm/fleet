@@ -345,3 +345,13 @@ func resolveHostNameIDPValue(user *fleet.HostEndUser, fleetVar string) (value st
 		return "", nil, false, fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
 	}
 }
+
+func logDeviceNameRetry(ctx context.Context, logger *slog.Logger, outcome fleet.DeviceNameRetryOutcome, reason string, attrs ...any) {
+	attrs = append(attrs, "reason", reason)
+	switch outcome {
+	case fleet.DeviceNameRetried:
+		logger.InfoContext(ctx, "re-enforcing host name template", attrs...)
+	case fleet.DeviceNameRetriesExhausted:
+		logger.WarnContext(ctx, "host name template retries exhausted, marked failed", attrs...)
+	}
+}

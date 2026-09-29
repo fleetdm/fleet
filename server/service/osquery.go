@@ -2211,11 +2211,11 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if detailUpdated && ac.MDM.EnabledAndConfigured && host.Platform == "darwin" && host.ComputerName != "" {
-		drifted, err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, host.ComputerName)
+		outcome, err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, host.ComputerName)
 		if err != nil {
 			logging.WithErr(ctx, err)
-		} else if drifted {
-			svc.logger.InfoContext(ctx, "host renamed off its name template, re-enforcing", "host_uuid", host.UUID, "reported_name", host.ComputerName)
+		} else {
+			logDeviceNameRetry(ctx, svc.logger, outcome, "renamed on device", "host_uuid", host.UUID, "reported_name", host.ComputerName)
 		}
 	}
 
