@@ -269,9 +269,6 @@ describe("ManageHostsPage", () => {
       );
 
       expect(await screen.findByText("No hosts")).toBeInTheDocument();
-      expect(
-        screen.queryByText(/you have no enroll secrets\./i)
-      ).not.toBeInTheDocument();
 
       const headerWrap = screen
         .getByRole("button", { name: "Hosts page settings" })
@@ -281,6 +278,11 @@ describe("ManageHostsPage", () => {
       );
 
       expect(await screen.findByText(modalText)).toBeInTheDocument();
+      // The modal's no-secret state proves the secrets request finished, so
+      // the only "no enroll secrets" message left is the modal's, not the banner's.
+      expect(screen.getAllByText(/you have no enroll secrets\./i)).toHaveLength(
+        1
+      );
     }
   );
 

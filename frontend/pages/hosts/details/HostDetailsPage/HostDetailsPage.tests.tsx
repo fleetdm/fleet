@@ -2,10 +2,12 @@ import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
+import { createMockActivity } from "__mocks__/activityMock";
 import createMockConfig from "__mocks__/configMock";
 import createMockHost from "__mocks__/hostMock";
 import createMockUser from "__mocks__/userMock";
 import { notify } from "components/ToastNotification";
+import { ActivityType } from "interfaces/activity";
 import { IHost } from "interfaces/host";
 import { IUser } from "interfaces/user";
 import activitiesAPI from "services/entities/activities";
@@ -383,5 +385,39 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
 
     expect(await screen.findByText("No activity")).toBeInTheDocument();
     expect(screen.queryAllByRole("switch")).toHaveLength(0);
+  });
+});
+
+describe("HostDetailsPage - enrollment rejection details", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("names the Fleetd enroll secret profile for a Windows spent-secret rejection", async () => {
+    stubQueries(mockWindowsHost());
+    (activitiesAPI.getHostPastActivities as jest.Mock).mockResolvedValue({
+      activities: [
+        createMockActivity({
+          type: ActivityType.HostEnrollmentRejected,
+          fleet_initiated: true,
+          details: {
+            host_display_name: "Anna's laptop",
+            reason: "one_time_secret_spent",
+            platform: "windows",
+          },
+        }),
+      ],
+      meta: { has_next_results: false, has_previous_results: false },
+    });
+
+    renderHostDetails();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "show info" })
+    );
+
+    expect(await screen.findByText("Enrollment details")).toBeInTheDocument();
+    expect(screen.getByText("Fleetd enroll secret")).toBeInTheDocument();
+    expect(screen.queryByText("Fleetd configuration")).not.toBeInTheDocument();
   });
 });
