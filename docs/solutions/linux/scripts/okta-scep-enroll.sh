@@ -1,12 +1,12 @@
 #!/bin/bash
-# NOTE: This doesn't work yet. Marking Linux hosts as managed in Okta is still in
-# the works. Learn why: https://fleetdm.com/guides/deploy-okta-fastpass-for-linux
+# NOTE: This script deploys an Okta device certificate, but Okta Verify for Linux
+# doesn't use it to mark the host as managed yet. Learn more:
+# https://fleetdm.com/guides/deploy-okta-fastpass-for-linux
 #
 # Enroll this host's Okta device certificate over SCEP and install it.
 #
-# Uses scepclient v2.3.0 or later from micromdm/scep
-# (https://github.com/micromdm/scep/releases). Ubuntu's "scep" package ships
-# v2.1.0, which can't parse Okta's response ("pkcs7: Message digest mismatch").
+# Uses scepclient v2.3.0 from micromdm/scep. If it isn't installed yet, the
+# script downloads it (x86_64, 32-bit ARM) or builds it with Go (arm64).
 #
 # Optional overrides, useful for testing (defaults shown):
 #   CERT_DIR=/etc/okta          where device.key and device.pem are installed
@@ -14,6 +14,7 @@
 #                               cert from GetCACert to encrypt the request to; the
 #                               script logs each cert's fingerprint
 #                               (default: let scepclient pick)
+#   SCEPCLIENT_DIR=/usr/local/lib/okta-scep   where scepclient is installed
 #   KEEP_WORK_DIR=0             1 = keep temp files for debugging (they contain
 #                               the private key and challenge; delete afterwards)
 set -eo pipefail
@@ -33,7 +34,7 @@ log() { echo "[okta-scep] $*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
 
 # --- Preflight -------------------------------------------------------------
-for cmd in openssl curl scepclient; do
+for cmd in openssl curl; do
   command -v "$cmd" >/dev/null 2>&1 || die "'$cmd' is not installed"
 done
 case "$CHALLENGE_URL$SCEP_URL$SCEP_USERNAME" in
@@ -53,6 +54,63 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+
+# --- 0. scepclient ---------------------------------------------------------
+# Needs micromdm scepclient v2.3.0 or later. Ubuntu's "scep" package ships
+# v2.1.0, which can't parse Okta's response ("pkcs7: Message digest mismatch"),
+# so the script installs its own pinned copy once and ignores any other one.
+SCEPCLIENT_VERSION="v2.3.0"
+SCEPCLIENT="${SCEPCLIENT_DIR:-/usr/local/lib/okta-scep}/scepclient-$SCEPCLIENT_VERSION"
+
+apt_install() {
+  command -v apt-get >/dev/null 2>&1 || die "Install $* first (no apt-get on this host)"
+  log "Installing $* with apt-get"
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -q "$@" >/dev/null \
+    || { apt-get update -q >/dev/null \
+         && DEBIAN_FRONTEND=noninteractive apt-get install -y -q "$@" >/dev/null; } \
+    || die "apt-get install $* failed"
+}
+
+install_scepclient() {
+  local base="https://github.com/micromdm/scep" src="$WORK_DIR/scepclient" zip="" sha=""
+  # SHA-256 of the v2.3.0 release files (GitHub doesn't publish checksums).
+  case "$(uname -m)" in
+    x86_64|amd64)  zip="scepclient-linux-amd64-$SCEPCLIENT_VERSION.zip"
+                   sha="47b20e1b44b5789d4dd8572b17b22fe7d7d5fa6c1fe1b61f24fe26a3a1826a30" ;;
+    armv7l|armv6l) zip="scepclient-linux-arm-$SCEPCLIENT_VERSION.zip"
+                   sha="597272cb90080e2e03a4e42128d806ac940e00801ce340c3d3d4a938a57330d4" ;;
+    aarch64|arm64) ;;
+    *) die "No scepclient build for $(uname -m)" ;;
+  esac
+
+  if [ -n "$zip" ]; then
+    log "Downloading scepclient $SCEPCLIENT_VERSION ($zip)"
+    curl --fail --silent --show-error --location -o "$WORK_DIR/$zip" \
+      "$base/releases/download/$SCEPCLIENT_VERSION/$zip"
+    echo "$sha  $WORK_DIR/$zip" | sha256sum -c --quiet - || die "Checksum mismatch for $zip"
+    command -v unzip >/dev/null 2>&1 || apt_install unzip
+    unzip -q -o "$WORK_DIR/$zip" -d "$WORK_DIR/scepclient-zip"
+    src="$WORK_DIR/scepclient-zip/${zip%-"$SCEPCLIENT_VERSION".zip}"
+  else
+    # The release has no arm64 binary, so build it from the tagged source.
+    log "Building scepclient $SCEPCLIENT_VERSION from source (no arm64 release binary)"
+    command -v go >/dev/null 2>&1 || apt_install golang-go
+    curl --fail --silent --show-error --location -o "$WORK_DIR/scep.tar.gz" \
+      "$base/archive/refs/tags/$SCEPCLIENT_VERSION.tar.gz"
+    echo "d93239264aff09a0eb6097f0f5b828d9646a505be454320fca590283f2ca2482  $WORK_DIR/scep.tar.gz" \
+      | sha256sum -c --quiet - || die "Checksum mismatch for the scepclient source"
+    tar -xzf "$WORK_DIR/scep.tar.gz" -C "$WORK_DIR"
+    ( cd "$WORK_DIR/scep-${SCEPCLIENT_VERSION#v}" \
+      && HOME="$WORK_DIR" GOPATH="$WORK_DIR/go" GOCACHE="$WORK_DIR/gocache" GOFLAGS=-modcacherw \
+         go build -o "$src" ./cmd/scepclient ) \
+      || die "Building scepclient failed (check that the installed Go is recent enough)"
+  fi
+
+  install -d -m 755 "$(dirname "$SCEPCLIENT")"
+  install -m 755 "$src" "$SCEPCLIENT"
+  log "Installed $SCEPCLIENT"
+}
+[ -x "$SCEPCLIENT" ] || install_scepclient
 
 # --- 1. Private key --------------------------------------------------------
 # Built in WORK_DIR so a failed run never touches the currently installed key.
@@ -125,7 +183,7 @@ scep_args=(
   -organization "" -ou "" -country ""
 )
 [ -z "$CA_FP" ] || scep_args+=(-ca-fingerprint "$CA_FP")
-scepclient "${scep_args[@]}" || die "scepclient enrollment failed"
+"$SCEPCLIENT" "${scep_args[@]}" || die "scepclient enrollment failed"
 
 # --- 5. Validate before installing ----------------------------------------
 [ -s "$WORK_DIR/device.pem" ] || die "scepclient did not produce a certificate"
