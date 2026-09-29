@@ -1209,6 +1209,7 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		}
 		decl.LabelsExcludeAny = excludeLabels
 	}
+	decl.Description = existing.Description
 
 	// Three states: an edit that doesn't mention the activation keeps the stored
 	// one, a null one removes it, and content replaces it. The datastore write
@@ -1934,6 +1935,7 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 		cp.LabelsExcludeAny = excludeLabels
 	}
 	cp.ProfileUUID = profileUUID
+	cp.Description = existing.Description
 
 	if _, err := svc.ds.UpdateMDMAppleConfigProfile(ctx, *cp, varNames); err != nil {
 		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
