@@ -165,7 +165,7 @@ will be disabled and/or hidden in the UI.
           if (sails.config.environment === 'production' && sails.config.custom.datadogApiKey) {
             let timestampInSeconds = Math.floor(Date.now() / 1000);
             let thisDyno = process.env.DYNO;
-            let sanitizeUrl = (url) => { try { return new URL(url).origin; } catch (e) { return 'unknown'; } };
+            let sanitizeUrl = (url) => { try { return new URL(url).origin; } catch (unused) { return 'unknown'; } };
             // Create an array of metrics, and add the total request count.
             let metricsToSendToDatadog = [{
               metric: 'android_proxy.amapi_request_count',
