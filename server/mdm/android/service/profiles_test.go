@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // TODO: there may be a better package to put this test in, as it required some
@@ -89,6 +91,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"UnresolvableFleetVarMarksProfileFailed", testUnresolvableFleetVarMarksProfileFailed},
 		{"MissingCustomHostVitalValueMarksProfileFailed", testMissingCustomHostVitalValueMarksProfileFailed},
 		{"ReconcileProfilesWithClientDisablesRetry", testReconcileProfilesWithClientDisablesRetry},
+		{"RejectedProfileRedeliveredAfterFixAndReenroll", testRejectedProfileRedeliveredAfterFixAndReenroll},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -419,6 +422,91 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+	})
+}
+
+func testRejectedProfileRedeliveredAfterFixAndReenroll(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+	mds := ds.(*mysql.Datastore)
+
+	rejectPatches := true
+	var patchedPolicyNames []string
+	var lastMaxTimeToLock int64
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		if rejectPatches {
+			return nil, &googleapi.Error{Code: http.StatusBadRequest, Message: "policyEnforcementRules[0] must have a block action and a wipe action."}
+		}
+		patchedPolicyNames = append(patchedPolicyNames, policyName)
+		lastMaxTimeToLock = policy.MaximumTimeToLock
+		policy.Version = policy.MaximumTimeToLock
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	h1 := createAndroidHost(t, ds, 1)
+	h2 := createAndroidHost(t, ds, 2)
+	h1PolicyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), h1.UUID)
+	h2PolicyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), h2.UUID)
+
+	p1 := androidProfileWithPayloadForTest("p1", `{"maximumTimeToLock": "1"}`)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
+	require.NoError(t, err)
+
+	// Google rejects the policy until the profile is marked failed.
+	for range 4 {
+		_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+		require.NoError(t, err)
+	}
+	for _, h := range []*fleet.AndroidHost{h1, h2} {
+		profs, err := ds.GetHostMDMAndroidProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Len(t, profs, 1)
+		require.NotNil(t, profs[0].Status)
+		require.Equal(t, fleet.MDMDeliveryFailed, *profs[0].Status)
+	}
+	require.Empty(t, patchedPolicyNames)
+
+	// The admin fixes the profile through a batch set (GitOps); the fixed content is
+	// re-delivered without any other change.
+	rejectPatches = false
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil, nil, []*fleet.MDMAndroidConfigProfile{
+		{ProfileUUID: p1.ProfileUUID, Name: p1.Name, RawJSON: []byte(`{"maximumTimeToLock": "2"}`)},
+	}, nil)
+	require.NoError(t, err)
+	p1Checksum := getAndroidProfileChecksum(t, ds, p1.ProfileUUID)
+
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{h1PolicyName, h2PolicyName}, patchedPolicyNames)
+	require.EqualValues(t, 2, lastMaxTimeToLock)
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+	})
+
+	// Both hosts verify the policy.
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), Checksum: p1Checksum},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), Checksum: p1Checksum},
+	})
+	require.NoError(t, err)
+	patchedPolicyNames = nil
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, patchedPolicyNames)
+
+	// h1 is factory reset and re-enrolls: its profiles are sent again, h2 is left alone.
+	_, _, err = mds.AndroidResetOnReenrollment(ctx, h1.Host.ID, h1.UUID, true)
+	require.NoError(t, err)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{h1PolicyName}, patchedPolicyNames)
+	require.EqualValues(t, 2, lastMaxTimeToLock)
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2)},
 	})
 }
 
