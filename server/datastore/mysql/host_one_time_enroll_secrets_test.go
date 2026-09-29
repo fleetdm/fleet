@@ -455,7 +455,7 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	})
 
-	t.Run("a deleted Fleet MDM Windows host that checked in since cannot be recreated with a shared secret", func(t *testing.T) {
+	t.Run("a deleted Fleet MDM Windows host cannot be recreated with a shared secret", func(t *testing.T) {
 		// A session after the delete pushed the device a one-time secret, so it has its own way back. The presented platform is
 		// not trusted, so claiming another one does not help.
 		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
@@ -482,17 +482,14 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, rejectWindowsOsquery)...)
 		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &recreated.ID)
 
-		// Deleted again and never checked in since, as when re-imaged: no push is waiting, so the shared secret is the way back.
+		// Deleted again, as when re-imaged: the shared secret stays refused until the device enrolls in MDM again, which replaces
+		// the linked enrollment.
 		require.NoError(t, ds.DeleteHost(ctx, recreated.ID))
-		reimaged, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
+		_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, nil)
+		_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, device.MDMHardwareID)
 		require.NoError(t, err)
-		require.NotEqual(t, recreated.ID, reimaged.ID)
-
-		// The stale enrollment is gone rather than relinked, so the new host isn't MDM-managed and its next enrollment with a
-		// shared secret is accepted too.
-		_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
-		require.True(t, fleet.IsNotFound(err))
-		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, rejectWindowsOsquery)...)
+		_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
 		require.NoError(t, err)
 	})
 
