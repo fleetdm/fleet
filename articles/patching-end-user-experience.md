@@ -77,7 +77,7 @@ If the notification is still open when the hour is up, the updates start for eac
 
 The 1-hour timer starts only after the notification appears on screen. If the notification can't be shown, nothing installs. See [When notifications aren't shown](#when-notifications-arent-shown).
 
-Breakglass command to close notification is **Cmd+Shift+X**, close it.
+Break glass keyboard combination to close the notification is **Cmd+Shift+X**.
 
 ### Multiple apps
 
