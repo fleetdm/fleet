@@ -103,6 +103,7 @@ github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectAlternat
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	LinuxSettings	fleet.LinuxSettings
 github.com/fleetdm/fleet/v4/server/fleet/LinuxSettings	EnableEscrowDiskEncryptionKey	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	HostNameTemplate	string
+github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	IdentityProvider	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Features	fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool

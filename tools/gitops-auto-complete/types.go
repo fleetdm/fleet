@@ -33,7 +33,8 @@ type ControlsWithTypes struct {
 	EnableRecoveryLockPassword  bool `json:"enable_recovery_lock_password"`
 	WindowsRequireBitLockerPIN  bool `json:"windows_require_bitlocker_pin"`
 
-	NameTemplate string `json:"name_template"`
+	NameTemplate     string `json:"name_template"`
+	IdentityProvider string `json:"identity_provider,omitempty"`
 
 	MacOSUpdates   *fleet.AppleOSUpdateSettings `json:"macos_updates"`
 	IOSUpdates     *fleet.AppleOSUpdateSettings `json:"ios_updates"`

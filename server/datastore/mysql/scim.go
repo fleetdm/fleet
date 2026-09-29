@@ -32,13 +32,19 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 
 	var userID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		connectionID, err := idpConnectionID(ctx, tx)
+		if err != nil {
+			return err
+		}
+		user.IDPConnectionID = connectionID
 		const insertUserQuery = `
 		INSERT INTO scim_users (
-			external_id, user_name, given_name, family_name, department, active
-		) VALUES (?, ?, ?, ?, ?, ?)`
+			idp_connection_id, external_id, user_name, given_name, family_name, department, active
+		) VALUES (?, ?, ?, ?, ?, ?, ?)`
 		result, err := tx.ExecContext(
 			ctx,
 			insertUserQuery,
+			connectionID,
 			user.ExternalID,
 			user.UserName,
 			user.GivenName,
@@ -87,14 +93,18 @@ func (ds *Datastore) SetScimUserFleetUserID(ctx context.Context, scimUserID uint
 
 // ScimUserByID retrieves a SCIM user by ID
 func (ds *Datastore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser, error) {
+	connectionID, err := idpConnectionID(ctx, ds.reader(ctx))
+	if err != nil {
+		return nil, err
+	}
 	const query = `
 		SELECT
-			id, external_id, user_name, given_name, family_name, department, active, updated_at, user_id
+			id, idp_connection_id, external_id, user_name, given_name, family_name, department, active, updated_at, user_id
 		FROM scim_users
-		WHERE id = ?
+		WHERE id = ? AND idp_connection_id = ?
 	`
 	user := &fleet.ScimUser{}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), user, query, id)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), user, query, id, connectionID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, notFound("scim user").WithID(id)
@@ -125,14 +135,18 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 }
 
 func scimUserByUserName(ctx context.Context, q sqlx.QueryerContext, userName string) (*fleet.ScimUser, error) {
+	connectionID, err := idpConnectionID(ctx, q)
+	if err != nil {
+		return nil, err
+	}
 	const query = `
 		SELECT
-			id, external_id, user_name, given_name, family_name, department, active, updated_at, user_id
+			id, idp_connection_id, external_id, user_name, given_name, family_name, department, active, updated_at, user_id
 		FROM scim_users
-		WHERE user_name = ?
+		WHERE user_name = ? AND idp_connection_id = ?
 	`
 	user := &fleet.ScimUser{}
-	err := sqlx.GetContext(ctx, q, user, query, userName)
+	err = sqlx.GetContext(ctx, q, user, query, userName, connectionID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, notFound("scim user")
@@ -189,16 +203,20 @@ func scimUserByUserNameOrEmail(ctx context.Context, q sqlx.QueryerContext, logge
 	}
 
 	// Next, to find the user by email
+	connectionID, err := idpConnectionID(ctx, q)
+	if err != nil {
+		return nil, err
+	}
 	const query = `
 		SELECT
-			scim_users.id, external_id, user_name, given_name, family_name, department, active, scim_users.updated_at
+			scim_users.id, scim_users.idp_connection_id, external_id, user_name, given_name, family_name, department, active, scim_users.updated_at
 		FROM scim_users
 		JOIN scim_user_emails ON scim_users.id = scim_user_emails.scim_user_id
-		WHERE scim_user_emails.email = ?
+		WHERE scim_user_emails.email = ? AND scim_users.idp_connection_id = ?
 	`
 
 	var users []fleet.ScimUser
-	err = sqlx.SelectContext(ctx, q, &users, query, email)
+	err = sqlx.SelectContext(ctx, q, &users, query, email, connectionID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select scim user by email")
 	}
@@ -677,8 +695,12 @@ func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) ([]fleet.Activ
 		resentCerts = append(resentCerts, certs...)
 
 		// Delete the user
-		const deleteUserQuery = `DELETE FROM scim_users WHERE id = ?`
-		result, err := tx.ExecContext(ctx, deleteUserQuery, id)
+		connectionID, err := idpConnectionID(ctx, tx)
+		if err != nil {
+			return err
+		}
+		const deleteUserQuery = `DELETE FROM scim_users WHERE id = ? AND idp_connection_id = ?`
+		result, err := tx.ExecContext(ctx, deleteUserQuery, id, connectionID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete scim user")
 		}
@@ -721,6 +743,10 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 	var whereClause string
 	var params []interface{}
 
+	connectionID, err := idpConnectionID(ctx, ds.reader(ctx))
+	if err != nil {
+		return nil, 0, err
+	}
 	if opts.UserNameFilter != nil {
 		// Filter by username
 		whereClause = " WHERE scim_users.user_name = ?"
@@ -731,6 +757,12 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 		whereClause = " WHERE scim_user_emails.type = ? AND scim_user_emails.email = ?"
 		params = append(params, *opts.EmailTypeFilter, *opts.EmailValueFilter)
 	}
+	if whereClause == "" {
+		whereClause = " WHERE scim_users.idp_connection_id = ?"
+	} else {
+		whereClause += " AND scim_users.idp_connection_id = ?"
+	}
+	params = append(params, connectionID)
 
 	// First, get the total count without pagination
 	countQuery := "SELECT COUNT(DISTINCT id) FROM (" + baseQuery + whereClause + ") AS filtered_users"
@@ -930,13 +962,19 @@ func (ds *Datastore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup
 
 	var groupID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		connectionID, err := idpConnectionID(ctx, tx)
+		if err != nil {
+			return err
+		}
+		group.IDPConnectionID = connectionID
 		const insertGroupQuery = `
 		INSERT INTO scim_groups (
-			external_id, display_name
-		) VALUES (?, ?)`
+			idp_connection_id, external_id, display_name
+		) VALUES (?, ?, ?)`
 		result, err := tx.ExecContext(
 			ctx,
 			insertGroupQuery,
+			connectionID,
 			group.ExternalID,
 			group.DisplayName,
 		)
@@ -1021,14 +1059,18 @@ func insertScimGroupUsers(ctx context.Context, tx sqlx.ExtContext, groupID uint,
 // ScimGroupByID retrieves a SCIM group by ID
 // If excludeUsers is true, the group's users (and nested child groups) will not be fetched
 func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint, excludeUsers bool) (*fleet.ScimGroup, error) {
+	connectionID, err := idpConnectionID(ctx, ds.reader(ctx))
+	if err != nil {
+		return nil, err
+	}
 	const query = `
 		SELECT
-			id, external_id, display_name
+			id, idp_connection_id, external_id, display_name
 		FROM scim_groups
-		WHERE id = ?
+		WHERE id = ? AND idp_connection_id = ?
 	`
 	group := &fleet.ScimGroup{}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), group, query, id)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), group, query, id, connectionID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, notFound("scim group").WithID(id)
@@ -1064,13 +1106,18 @@ func (ds *Datastore) ScimGroupsExist(ctx context.Context, ids []uint) (bool, err
 	// Create a set to track which IDs we've found
 	foundIDs := make(map[uint]struct{}, len(ids))
 
+	connectionID, err := idpConnectionID(ctx, ds.reader(ctx))
+	if err != nil {
+		return false, err
+	}
+
 	batchSize := 10000
-	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
+	err = common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
 		query, args, err := sqlx.In(`
 			SELECT id
 			FROM scim_groups
-			WHERE id IN (?)
-		`, batchIDs)
+			WHERE idp_connection_id = ? AND id IN (?)
+		`, connectionID, batchIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "prepare scim groups exist batch query")
 		}
@@ -1170,14 +1217,18 @@ func getTransitiveScimGroupUserIDs(ctx context.Context, q sqlx.QueryerContext, g
 // ScimGroupByDisplayName retrieves a SCIM group by display name
 // This method always fetches the group's users
 func (ds *Datastore) ScimGroupByDisplayName(ctx context.Context, displayName string) (*fleet.ScimGroup, error) {
+	connectionID, err := idpConnectionID(ctx, ds.reader(ctx))
+	if err != nil {
+		return nil, err
+	}
 	const query = `
 		SELECT
-			id, external_id, display_name
+			id, idp_connection_id, external_id, display_name
 		FROM scim_groups
-		WHERE display_name = ?
+		WHERE display_name = ? AND idp_connection_id = ?
 	`
 	group := &fleet.ScimGroup{}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), group, query, displayName)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), group, query, displayName, connectionID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, notFound("scim group")
@@ -1226,9 +1277,13 @@ type scimGroupAttributes struct {
 // loadScimGroupAttributes reads a SCIM group's scalar attributes, so a caller can
 // tell what the update would change.
 func loadScimGroupAttributes(ctx context.Context, tx sqlx.ExtContext, groupID uint) (scimGroupAttributes, error) {
+	connectionID, err := idpConnectionID(ctx, tx)
+	if err != nil {
+		return scimGroupAttributes{}, err
+	}
 	var existing scimGroupAttributes
-	err := sqlx.GetContext(ctx, tx, &existing,
-		`SELECT external_id, display_name FROM scim_groups WHERE id = ?`, groupID)
+	err = sqlx.GetContext(ctx, tx, &existing,
+		`SELECT external_id, display_name FROM scim_groups WHERE id = ? AND idp_connection_id = ?`, groupID, connectionID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return existing, notFound("scim group").WithID(groupID)
@@ -1240,17 +1295,22 @@ func loadScimGroupAttributes(ctx context.Context, tx sqlx.ExtContext, groupID ui
 
 // updateScimGroupAttributes writes a SCIM group's scalar attributes.
 func updateScimGroupAttributes(ctx context.Context, tx sqlx.ExtContext, group *fleet.ScimGroup) error {
+	connectionID, err := idpConnectionID(ctx, tx)
+	if err != nil {
+		return err
+	}
 	const updateGroupQuery = `
 		UPDATE scim_groups SET
 			external_id = ?,
 			display_name = ?
-		WHERE id = ?`
+		WHERE id = ? AND idp_connection_id = ?`
 	result, err := tx.ExecContext(
 		ctx,
 		updateGroupQuery,
 		group.ExternalID,
 		group.DisplayName,
 		group.ID,
+		connectionID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update scim group")
@@ -1502,8 +1562,12 @@ func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
 		}
 
 		// Delete the group
-		const deleteGroupQuery = `DELETE FROM scim_groups WHERE id = ?`
-		result, err := tx.ExecContext(ctx, deleteGroupQuery, id)
+		connectionID, err := idpConnectionID(ctx, tx)
+		if err != nil {
+			return err
+		}
+		const deleteGroupQuery = `DELETE FROM scim_groups WHERE id = ? AND idp_connection_id = ?`
+		result, err := tx.ExecContext(ctx, deleteGroupQuery, id, connectionID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete scim group")
 		}
@@ -1543,10 +1607,20 @@ func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimGroupsLi
 	var whereClause string
 	var params []interface{}
 
+	connectionID, err := idpConnectionID(ctx, ds.reader(ctx))
+	if err != nil {
+		return nil, 0, err
+	}
 	if opts.DisplayNameFilter != nil {
 		whereClause = " WHERE scim_groups.display_name = ?"
 		params = append(params, *opts.DisplayNameFilter)
 	}
+	if whereClause == "" {
+		whereClause = " WHERE scim_groups.idp_connection_id = ?"
+	} else {
+		whereClause += " AND scim_groups.idp_connection_id = ?"
+	}
+	params = append(params, connectionID)
 
 	// First, get the total count without pagination
 	countQuery := "SELECT COUNT(DISTINCT id) FROM (" + baseQuery + whereClause + ") AS filtered_groups"
@@ -2352,13 +2426,18 @@ func (ds *Datastore) ScimUsersExist(ctx context.Context, ids []uint) (bool, erro
 	// Create a map to track which IDs we've found
 	foundIDs := make(map[uint]bool, len(ids))
 
+	connectionID, err := idpConnectionID(ctx, ds.reader(ctx))
+	if err != nil {
+		return false, err
+	}
+
 	batchSize := 10000
-	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
+	err = common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
 		query, args, err := sqlx.In(`
 			SELECT id
 			FROM scim_users
-			WHERE id IN (?)
-		`, batchIDs)
+			WHERE idp_connection_id = ? AND id IN (?)
+		`, connectionID, batchIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "prepare scim users exist batch query")
 		}

@@ -2710,8 +2710,15 @@ func (c *Client) DoGitOps(
 		}
 	}
 
+	if incoming.Controls.IdentityProvider != "" && (incoming.TeamName == nil || incoming.IsNoTeam()) {
+		return nil, errors.New("controls.identity_provider can only be set on a fleet")
+	}
+
 	if !incoming.IsNoTeam() {
 		mdmAppConfig["name_template"] = nameTemplate
+		if incoming.TeamName != nil {
+			mdmAppConfig["identity_provider"] = incoming.Controls.IdentityProvider
+		}
 
 		// Common controls settings between org and team settings
 		// Put in default values for macos_settings

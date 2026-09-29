@@ -40,6 +40,10 @@ func (e *sessionNotFoundError) Unwrap() []error {
 type SSORequestData struct {
 	HostUUID  string `json:"host_uuid,omitempty"`
 	Initiator string `json:"initiator,omitempty"`
+	// EntityID is the service-provider entity ID of the IdP connection that
+	// started this session. The callback validates against it instead of the
+	// org-wide end_user_authentication settings.
+	EntityID string `json:"entity_id,omitempty"`
 }
 
 // Session stores state for the lifetime of a single sign on session.

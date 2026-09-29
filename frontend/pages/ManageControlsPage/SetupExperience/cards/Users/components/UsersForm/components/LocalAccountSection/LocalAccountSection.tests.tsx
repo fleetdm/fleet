@@ -21,6 +21,7 @@ describe("LocalAccountSection", () => {
       enableManagedLocalAccount: false,
       localAccountType: EndUserLocalAccountType.ADMIN,
       enableManagedLocalAccountWindows: false,
+      identityProvider: "",
     },
     onLocalAccountTypeChange: onLocalAccountTypeChangeMock,
     onEnableManagedLocalAccountChange: onEnableManagedLocalAccountChangeMock,

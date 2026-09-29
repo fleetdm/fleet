@@ -1,0 +1,1 @@
+- Added support for multiple identity providers, so an organization can use one default IdP or assign a different IdP to each fleet for end-user authentication, SCIM, identity-provider labels, and end-user vitals.

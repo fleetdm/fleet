@@ -21,14 +21,15 @@ func (e *SCIMValidationError) Error() string {
 
 // ScimUser represents a SCIM user in the database
 type ScimUser struct {
-	ID         uint      `db:"id"`
-	ExternalID *string   `db:"external_id"`
-	UserName   string    `db:"user_name"`
-	GivenName  *string   `db:"given_name"`
-	FamilyName *string   `db:"family_name"`
-	Department *string   `db:"department"`
-	Active     *bool     `db:"active"`
-	UpdatedAt  time.Time `db:"updated_at"`
+	ID              uint      `db:"id"`
+	IDPConnectionID uint      `db:"idp_connection_id"`
+	ExternalID      *string   `db:"external_id"`
+	UserName        string    `db:"user_name"`
+	GivenName       *string   `db:"given_name"`
+	FamilyName      *string   `db:"family_name"`
+	Department      *string   `db:"department"`
+	Active          *bool     `db:"active"`
+	UpdatedAt       time.Time `db:"updated_at"`
 	// FleetUserID is the durable link to the matching Fleet user, used to
 	// deprovision that user on deactivation regardless of later changes to
 	// userName/emails. Nil when no matching Fleet user has been resolved.
@@ -121,10 +122,11 @@ type ScimGroupsListOptions struct {
 }
 
 type ScimGroup struct {
-	ID          uint    `db:"id"`
-	ExternalID  *string `db:"external_id"`
-	DisplayName string  `db:"display_name"`
-	ScimUsers   []uint
+	ID              uint    `db:"id"`
+	IDPConnectionID uint    `db:"idp_connection_id"`
+	ExternalID      *string `db:"external_id"`
+	DisplayName     string  `db:"display_name"`
+	ScimUsers       []uint
 	// ChildGroups holds the IDs of SCIM groups that are direct (nested) members
 	// of this group. Microsoft Entra ID provisions nested groups by sending
 	// group-type members rather than flattening them into user members.

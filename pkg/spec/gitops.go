@@ -200,6 +200,7 @@ type GitOpsControls struct {
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        any              `json:"windows_require_bitlocker_pin,omitempty"`
 	NameTemplate               any              `json:"name_template"`
+	IdentityProvider           string           `json:"identity_provider,omitempty"`
 	Scripts                    []fleet.BaseItem `json:"scripts"`
 
 	Defined bool
@@ -216,7 +217,8 @@ func (c GitOpsControls) Set() bool {
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
 		c.AppleAccountProvisioning != nil ||
 		c.OnlyAllowAppleBusinessEnrollment != nil ||
-		c.NameTemplate != nil || c.LinuxSettings != nil
+		c.NameTemplate != nil || c.LinuxSettings != nil ||
+		c.IdentityProvider != ""
 }
 
 type Policy struct {
@@ -756,6 +758,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
 			multiError = validateSSOConfig(result.OrgSettings, multiError)
 			multiError = normalizeMDMSSOConfig(result.OrgSettings, multiError)
+			multiError = validateIdentityProviders(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
@@ -917,6 +920,69 @@ func normalizeMDMSSOConfig(orgSettings map[string]any, multiError *multierror.Er
 		eua["metadata_url"] = strings.TrimSpace(v)
 	}
 	return multiError
+}
+
+// validateIdentityProviders checks org_settings.mdm.identity_providers. Each
+// connection needs a unique name, entity_id, and metadata or metadata_url.
+// At most one connection is the default.
+func validateIdentityProviders(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	mdm, _ := orgSettings["mdm"].(map[string]any)
+	if mdm == nil {
+		return multiError
+	}
+	raw, ok := mdm["identity_providers"]
+	if !ok || raw == nil {
+		return multiError
+	}
+	list, ok := raw.([]any)
+	if !ok {
+		return multierror.Append(multiError, errors.New("org_settings.mdm.identity_providers must be a list"))
+	}
+	seen := make(map[string]struct{}, len(list))
+	defaults := 0
+	for i, item := range list {
+		conn, ok := item.(map[string]any)
+		if !ok {
+			multiError = multierror.Append(multiError, fmt.Errorf("org_settings.mdm.identity_providers[%d] must be a map", i))
+			continue
+		}
+		trimMapString(conn, "name")
+		trimMapString(conn, "entity_id")
+		trimMapString(conn, "idp_name")
+		trimMapString(conn, "metadata")
+		trimMapString(conn, "metadata_url")
+		name, _ := conn["name"].(string)
+		if name == "" {
+			multiError = multierror.Append(multiError, fmt.Errorf("org_settings.mdm.identity_providers[%d].name must be set", i))
+			continue
+		}
+		if _, dup := seen[name]; dup {
+			multiError = multierror.Append(multiError, fmt.Errorf("org_settings.mdm.identity_providers name %q is duplicated", name))
+		}
+		seen[name] = struct{}{}
+		if def, _ := conn["default"].(bool); def {
+			defaults++
+		}
+		entityID, _ := conn["entity_id"].(string)
+		metadata, _ := conn["metadata"].(string)
+		metadataURL, _ := conn["metadata_url"].(string)
+		if entityID == "" {
+			multiError = multierror.Append(multiError, fmt.Errorf("org_settings.mdm.identity_providers %q requires entity_id", name))
+		}
+		if metadata == "" && metadataURL == "" {
+			multiError = multierror.Append(multiError, fmt.Errorf("org_settings.mdm.identity_providers %q requires metadata or metadata_url", name))
+		}
+	}
+	if defaults > 1 {
+		multiError = multierror.Append(multiError, errors.New("org_settings.mdm.identity_providers can only mark one connection as default"))
+	}
+	return multiError
+}
+
+func trimMapString(m map[string]any, key string) {
+	if v, ok := m[key].(string); ok {
+		m[key] = strings.TrimSpace(v)
+	}
 }
 
 // validateGitOpsConfig validates the `org_settings.gitops` block at parse time

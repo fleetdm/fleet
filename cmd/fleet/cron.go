@@ -1132,6 +1132,7 @@ func newWorkerIntegrationsSchedule(
 	chartSvc chart_api.Service,
 	androidBatchSize int,
 	newActivitySvc activity_api.NewActivityService,
+	ssoFleetSecret string,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -1173,6 +1174,7 @@ func newWorkerIntegrationsSchedule(
 	// no-ops.
 	if depStorage != nil {
 		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger)
+		depSvc.SetSSOFleetSecret(ssoFleetSecret)
 		depCli = apple_mdm.NewDEPClient(depStorage, ds, logger)
 	}
 	macosSetupAsst := &worker.MacosSetupAssistant{
@@ -2122,13 +2124,14 @@ func newAppleMDMDEPProfileAssigner(
 	ds fleet.Datastore,
 	depStorage *mysql.NanoDEPStorage,
 	logger *slog.Logger,
+	ssoFleetSecret string,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 	logger = logger.With("cron", name, "component", "nanodep-syncer")
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
-		schedule.WithJob("dep_syncer", appleMDMDEPSyncerJob(ds, depStorage, logger)),
+		schedule.WithJob("dep_syncer", appleMDMDEPSyncerJob(ds, depStorage, logger, ssoFleetSecret)),
 	)
 
 	return s, nil
@@ -2138,6 +2141,7 @@ func appleMDMDEPSyncerJob(
 	ds fleet.Datastore,
 	depStorage *mysql.NanoDEPStorage,
 	logger *slog.Logger,
+	ssoFleetSecret string,
 ) func(context.Context) error {
 	var fleetSyncer *apple_mdm.DEPService
 	return func(ctx context.Context) error {
@@ -2172,6 +2176,7 @@ func appleMDMDEPSyncerJob(
 
 		if fleetSyncer == nil {
 			fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
+			fleetSyncer.SetSSOFleetSecret(ssoFleetSecret)
 		}
 
 		return fleetSyncer.RunAssigner(ctx)

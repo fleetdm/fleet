@@ -5275,6 +5275,29 @@ WHERE %s`
 		return nil
 	}
 
+	wantConnection := user.IDPConnectionID
+	if wantConnection == 0 {
+		var err error
+		wantConnection, err = idpConnectionID(ctx, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: default identity provider connection")
+		}
+	}
+	matched := hostIDs[:0]
+	for _, hid := range hostIDs {
+		hostConnection, err := idpConnectionIDForHost(ctx, tx, hid)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: host identity provider connection")
+		}
+		if hostConnection == wantConnection {
+			matched = append(matched, hid)
+		}
+	}
+	hostIDs = matched
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
 	// A single IdP user can legitimately be associated with multiple hosts (e.g. a
 	// laptop and a desktop belonging to the same person), so associate every matching
 	// host rather than only the first one — otherwise only one host would receive the
@@ -5293,14 +5316,30 @@ WHERE %s`
 // Given a host, attempt to associate with a SCIM user.
 func (ds *Datastore) MaybeAssociateHostWithScimUser(ctx context.Context, hostID uint) error {
 	// Check for an existing SCIM user association for the host.
-	var existingSCIMUserID uint
-	checkExistingSQL := `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &existingSCIMUserID, checkExistingSQL, hostID)
+	var existing struct {
+		SCIMUserID      uint `db:"scim_user_id"`
+		IDPConnectionID uint `db:"idp_connection_id"`
+	}
+	checkExistingSQL := `
+		SELECT hsu.scim_user_id, su.idp_connection_id
+		FROM host_scim_user hsu
+		JOIN scim_users su ON su.id = hsu.scim_user_id
+		WHERE hsu.host_id = ?`
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &existing, checkExistingSQL, hostID)
 	if err == nil {
-		ds.logger.DebugContext(ctx, "MaybeAssociateHostWithScimUser: existing SCIM user association found for host", "host_id", hostID, "scim_user_id", existingSCIMUserID)
-		// Existing SCIM user association found, nothing to do.
-		// Bail early so that we don't trigger side-effects downstream like resending profiles.
-		return nil
+		hostConnectionID, connErr := idpConnectionIDForHost(ctx, ds.reader(ctx), hostID)
+		if connErr != nil {
+			return ctxerr.Wrap(ctx, connErr, "MaybeAssociateHostWithScimUser: resolve identity provider connection")
+		}
+		if existing.IDPConnectionID == hostConnectionID {
+			ds.logger.DebugContext(ctx, "MaybeAssociateHostWithScimUser: existing SCIM user association found for host", "host_id", hostID, "scim_user_id", existing.SCIMUserID)
+			// Existing SCIM user association found, nothing to do.
+			// Bail early so that we don't trigger side-effects downstream like resending profiles.
+			return nil
+		}
+		if _, err := deleteHostSCIMUserMapping(ctx, ds.writer(ctx), hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "MaybeAssociateHostWithScimUser: clear identity provider mismatch")
+		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return ctxerr.Wrap(ctx, err, "MaybeAssociateHostWithScimUser: check existing SCIM user for host")
 	}
@@ -5346,6 +5385,11 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 		return nil
 	}
 
+	connectionID, err := idpConnectionIDForHost(ctx, tx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "resolve identity provider connection for host")
+	}
+	ctx = fleet.NewContextWithIDPConnection(ctx, connectionID)
 	scimUser, err := scimUserByUserNameOrEmail(ctx, tx, logger, idp.Username, idp.Email)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):

@@ -168,6 +168,8 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
           enableManagedLocalAccountWindows
         }
         isIdPConfigured={isEndUserIdPConfigured(globalConfig)}
+        globalConfig={globalConfig}
+        defaultIdentityProvider={teamConfig?.mdm?.identity_provider ?? ""}
       />
     );
   };

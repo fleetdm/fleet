@@ -18,6 +18,8 @@ import (
 	"github.com/elimity-com/scim/schema"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
@@ -281,9 +283,35 @@ func RegisterSCIM(
 	// We cannot use Go URL path pattern like {version} because the http.StripPrefix method
 	// that gets us to the root SCIM path does not support wildcards: https://github.com/golang/go/issues/64909
 	// Apply OTEL instrumentation at the mux level (outermost)
-	mux.Handle("/api/v1/fleet/scim/", scimOTELMiddleware(applyMiddleware("/api/v1/fleet/scim", server), "/api/v1/fleet/scim", *fleetConfig))
-	mux.Handle("/api/latest/fleet/scim/", scimOTELMiddleware(applyMiddleware("/api/latest/fleet/scim", server), "/api/latest/fleet/scim", *fleetConfig))
+	mux.Handle("/api/v1/fleet/scim/", scimOTELMiddleware(scimConnectionMiddleware(ds, applyMiddleware("/api/v1/fleet/scim", server)), "/api/v1/fleet/scim", *fleetConfig))
+	mux.Handle("/api/latest/fleet/scim/", scimOTELMiddleware(scimConnectionMiddleware(ds, applyMiddleware("/api/latest/fleet/scim", server)), "/api/latest/fleet/scim", *fleetConfig))
+	tokenHandler := newSCIMTokenHandler(ds, svc, authorizer, scimLogger)
+	mux.Handle("/api/v1/fleet/identity_providers/", auth.SetRequestsContextMiddleware(svc, auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, tokenHandler)))
+	mux.Handle("/api/latest/fleet/identity_providers/", auth.SetRequestsContextMiddleware(svc, auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, tokenHandler)))
 	return nil
+}
+
+// scimConnectionMiddleware sends a connection-scoped bearer token to that
+// connection's directory. A Fleet API token is left unchanged and therefore
+// writes only the org default directory.
+func scimConnectionMiddleware(ds fleet.Datastore, next http.Handler) http.Handler {
+	type tokenLookup interface {
+		IDPConnectionBySCIMTokenHash(ctx context.Context, hash []byte) (uint, error)
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		lookup, ok := ds.(tokenLookup)
+		bearer := string(token.FromHTTPRequest(r))
+		if ok && bearer != "" {
+			id, err := lookup.IDPConnectionBySCIMTokenHash(r.Context(), fleet.HashSCIMToken(bearer))
+			if err == nil {
+				ctx := fleet.NewContextWithIDPConnection(r.Context(), id)
+				ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // scimOTELMiddleware provides OpenTelemetry instrumentation for SCIM endpoints

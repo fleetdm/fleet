@@ -25,6 +25,7 @@ spec:
         enable_escrow_disk_encryption_key: false
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      identity_provider: null
       ios_updates:
         deadline: null
         deadline_days: null
@@ -91,6 +92,7 @@ spec:
         custom_settings: null
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      identity_provider: null
       ios_updates:
         deadline: null
         deadline_days: null
@@ -178,6 +180,7 @@ spec:
         enable_escrow_disk_encryption_key: false
       enable_disk_encryption: false
       enable_recovery_lock_password: true
+      identity_provider: null
       ios_updates:
         deadline: null
         deadline_days: null
@@ -253,6 +256,7 @@ spec:
         custom_settings: null
       enable_disk_encryption: false
       enable_recovery_lock_password: true
+      identity_provider: null
       ios_updates:
         deadline: null
         deadline_days: null

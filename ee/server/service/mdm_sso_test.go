@@ -121,7 +121,7 @@ func TestInitiateMDMSSOACSURLWithURLPrefix(t *testing.T) {
 
 			svc, _ := newMDMSSOTestService(t, mdmSSOTestAppConfig(tc.serverURL, true), cfg)
 
-			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), "", "", "")
+			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), "", "", "", "")
 			require.NoError(t, err)
 			require.NotEmpty(t, idpURL)
 
@@ -158,7 +158,7 @@ func TestInitiateMDMSSOSetsNoRelayState(t *testing.T) {
 		fleet.SSOInitiatorAccountDrivenEnroll + ":cf2b9a1e4d7c8f36b05e91a2d4c7e830f16b5a92",
 	} {
 		t.Run(initiator, func(t *testing.T) {
-			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), initiator, "", hostUUIDFor(initiator))
+			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), initiator, "", hostUUIDFor(initiator), "")
 			require.NoError(t, err)
 
 			parsed, err := url.Parse(idpURL)
@@ -278,7 +278,7 @@ func TestInitiateMDMSSOSetupExperienceRequiresPendingPrompt(t *testing.T) {
 			}
 
 			_, _, idpURL, err := svc.InitiateMDMSSO(
-				t.Context(), fleet.SSOInitiatorOrbitSetupExperience, "", tc.hostUUID)
+				t.Context(), fleet.SSOInitiatorOrbitSetupExperience, "", tc.hostUUID, "")
 			if tc.wantRefused {
 				require.Error(t, err)
 				require.Empty(t, idpURL)
