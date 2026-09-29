@@ -176,6 +176,19 @@ describe("NotifyBeforePatchingDetailsModal", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders the Fleet Desktop internal-error sentence for exit code 70", async () => {
+    useScriptResultHandler({ exit_code: 70 });
+    renderModal({ status: "failed" });
+
+    expect(
+      await screen.findByText(/Fleet Desktop had an internal error\./)
+    ).toBeInTheDocument();
+    // Distinguishes 70 from the generic unknown-code fallback.
+    expect(
+      screen.queryByText(/notification failed unexpectedly/i)
+    ).not.toBeInTheDocument();
+  });
+
   it("renders the 'scripts are disabled' sentence for exit code -2", async () => {
     useScriptResultHandler({
       exit_code: -2,

@@ -43,7 +43,7 @@ export const COPY_BY_EXIT_CODE: Record<number, string> = {
   41: `The screen was locked so the end user couldn't see the notification. ${RETRY_NEXT_RUN}`,
   42: `No display was connected. ${RETRY_NEXT_RUN}`,
   [DEFERRED_EXIT_CODE]: DEFERRED_SENTENCE,
-  70: UNEXPECTED_FAILURE_COPY,
+  70: `Fleet Desktop had an internal error. ${RETRY_NEXT_RUN}`,
   [-2]: `Scripts are disabled on the host. ${RETRY_LATER}`,
   [-5]: `Fleet couldn't build the notification URL. ${RETRY_LATER}`,
   100: "The Fleet Desktop app is required to notify end users. Add the app from the Fleet-maintained catalog and deploy to all your hosts.",
