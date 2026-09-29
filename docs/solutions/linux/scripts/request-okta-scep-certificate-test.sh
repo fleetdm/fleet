@@ -37,6 +37,14 @@ die() { log "ERROR: $*"; exit 1; }
 for cmd in openssl curl; do
   command -v "$cmd" >/dev/null 2>&1 || die "'$cmd' is not installed"
 done
+case "$CHALLENGE_URL" in
+  https://*) ;;
+  *) die "CHALLENGE_URL must use HTTPS" ;;
+esac
+case "$SCEP_URL" in
+  https://*) ;;
+  *) die "SCEP_URL must use HTTPS" ;;
+esac
 case "$CHALLENGE_URL$SCEP_URL$SCEP_USERNAME" in
   *"<Okta-"*) die "Fill in CHALLENGE_URL, SCEP_URL and SCEP_USERNAME at the top of the script" ;;
 esac
