@@ -1,10 +1,7 @@
 #!/bin/bash
-# Installs all available OS package updates so the host reaches its distribution's
-# current point release. Pair it with an "Operating system up to date (Linux)" policy
-# as its run_script remediation, or run it on demand.
-#
-# Package upgrades only: never reboots, never crosses a release boundary
-# (Ubuntu 24.04 -> 26.04, Fedora 43 -> 44), never removes packages.
+# Installs pending OS package updates (apt or dnf) so the host reaches its distribution's
+# current point release. It never reboots, never upgrades to a new release (e.g. Ubuntu
+# 24.04 -> 26.04), and never removes packages.
 
 set -euo pipefail
 
@@ -12,7 +9,7 @@ TAG="[update-linux-os]"
 UNIT="fleet-os-update"
 STATE_DIR="/var/lib/fleet"
 STATUS_FILE="$STATE_DIR/os-update.status"
-WAIT_SECONDS=240          # keep under agent_options.script_execution_timeout (default 300s)
+WAIT_SECONDS=240          # keep under Fleet's script timeout (default 300s)
 MIN_BATTERY_PERCENT=30
 
 log() { echo "$TAG $*"; }
@@ -35,10 +32,7 @@ if systemctl is-active --quiet "$UNIT.service" 2>/dev/null; then
   exit 0
 fi
 
-# An upgrade interrupted by a dead battery can leave dpkg/rpm half-applied.
 for supply in /sys/class/power_supply/*; do
-  # Only the system battery matters; peripherals (Bluetooth mice/keyboards) also
-  # report type=Battery but scope=Device, and would defer this forever on desktops.
   [ -r "$supply/type" ] && [ "$(cat "$supply/type")" = "Battery" ] || continue
   [ -r "$supply/scope" ] && [ "$(cat "$supply/scope")" = "Device" ] && continue
   [ -r "$supply/status" ] && [ -r "$supply/capacity" ] || continue
@@ -50,17 +44,6 @@ done
 
 case " ${ID:-} ${ID_LIKE:-} " in
   *" debian "*|*" ubuntu "*)
-    # `upgrade --with-new-pkgs` pulls new dependencies (e.g. a new kernel through its
-    # meta-package) but never removes anything, unlike full-upgrade.
-    # `apt-get update` failures (e.g. one broken third-party repo) shouldn't block
-    # upgrading everything else, so its failure is swallowed. Ubuntu's phased-rollout
-    # packages are left deferred on purpose -- they don't affect the `base-files`
-    # point release this policy checks; add
-    # -o APT::Get::Always-Include-Phased-Updates=true if a future policy compares
-    # package versions instead.
-    # A dirty dpkg journal with no dpkg running means a run was cut short (e.g. by
-    # power loss); apt refuses to start until `dpkg --configure -a` finishes it.
-    # Use-Pty=0 keeps dpkg's progress meter out of the output tail.
     UPGRADE_CMD='export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a UCF_FORCE_CONFFOLD=1
       if [ -n "$(ls -A /var/lib/dpkg/updates 2>/dev/null)" ] && ! pgrep -x dpkg >/dev/null; then
         dpkg --force-confdef --force-confold --configure -a
@@ -71,7 +54,6 @@ case " ${ID:-} ${ID_LIKE:-} " in
         upgrade --with-new-pkgs'
     ;;
   *" fedora "*|*" rhel "*|*" centos "*)
-    # No --refresh: hourly policy runs would otherwise re-download repo metadata every time.
     UPGRADE_CMD='dnf -y upgrade'
     ;;
   *)
@@ -123,19 +105,15 @@ reboot_needed=""
 [ -e /var/run/reboot-required ] && reboot_needed=1
 if command -v dnf >/dev/null 2>&1; then
   if dnf needs-restarting --help >/dev/null 2>&1; then
-    # needs-restarting exits 1 when a reboot is required.
     rc=0; dnf needs-restarting -r >/dev/null 2>&1 || rc=$?
     [ "$rc" -eq 1 ] && reboot_needed=1
   elif rpm -q --quiet kernel-core 2>/dev/null; then
-    # needs-restarting is an optional plugin (dnf5-plugins / dnf-plugins-core); without
-    # it, compare the running kernel against the newest installed one.
     newest_kernel="$(rpm -q kernel-core --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' | sort -V | tail -n 1)"
     [ "$newest_kernel" != "$(uname -r)" ] && reboot_needed=1
   fi
 fi
 if [ -n "$reboot_needed" ]; then
   log "Updates installed; a restart is required to finish (kernel or core libraries)."
-  # No Fleet Desktop (login screen, servers) means no one to notify, not a failure.
   uid="$(ps -o uid= -C fleet-desktop 2>/dev/null | head -n 1 | tr -d ' ' || true)"
   if [ -n "$uid" ] && command -v notify-send >/dev/null 2>&1; then
     sudo -u "#$uid" -H env DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
