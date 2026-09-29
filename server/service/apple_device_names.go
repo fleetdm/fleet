@@ -346,6 +346,15 @@ func resolveHostNameIDPValue(user *fleet.HostEndUser, fleetVar string) (value st
 	}
 }
 
+func (svc *Service) reconcileHostDeviceNameReport(ctx context.Context, hostUUID, reportedName string) {
+	outcome, err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, hostUUID, reportedName)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "update host device name status from report", "host_uuid", hostUUID, "err", err)
+		return
+	}
+	logDeviceNameRetry(ctx, svc.logger, outcome, "renamed on device", "host_uuid", hostUUID, "reported_name", reportedName)
+}
+
 func logDeviceNameRetry(ctx context.Context, logger *slog.Logger, outcome fleet.DeviceNameRetryOutcome, reason string, attrs ...any) {
 	attrs = append(attrs, "reason", reason)
 	switch outcome {

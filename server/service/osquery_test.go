@@ -7309,3 +7309,58 @@ func TestQueryReportCapReadsMissingHostCountFromDB(t *testing.T) {
 	ds.CountAllHostsFunc = func(ctx context.Context) (int, error) { return 0, errors.New("db down") }
 	require.Equal(t, 3, serv.queryReportCap(ctx, settings))
 }
+
+func TestSubmitDistributedQueryResultsDeferredSaveReportsDeviceNameAfterSave(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, clock.NewMockClock())
+
+	host := &fleet.Host{ID: 1, UUID: "mac-uuid", Platform: "darwin", OsqueryHostID: new("mac")}
+	ctx = hostctx.NewContext(ctx, host)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		ac := &fleet.AppConfig{}
+		ac.ServerSettings.DeferredSaveHost = true
+		ac.MDM.EnabledAndConfigured = true
+		return ac, nil
+	}
+	saved := make(chan struct{})
+	ds.SerialUpdateHostFunc = func(ctx context.Context, h *fleet.Host) error {
+		assert.Equal(t, "Renamed by user", h.ComputerName)
+		close(saved)
+		return nil
+	}
+	reported := make(chan string, 1)
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+		select {
+		case <-saved:
+		default:
+			t.Error("device name reported before the deferred host save landed")
+		}
+		assert.Equal(t, "mac-uuid", hostUUID)
+		reported <- reportedName
+		return fleet.DeviceNameRetried, nil
+	}
+
+	results := map[string][]map[string]string{
+		"fleet_detail_query_system_info": {{
+			"computer_name":      "Renamed by user",
+			"hostname":           "Renamed by user",
+			"uuid":               "mac-uuid",
+			"hardware_serial":    "SERIAL1",
+			"hardware_model":     "MacBookPro16,1",
+			"physical_memory":    "16000000000",
+			"cpu_physical_cores": "8",
+			"cpu_logical_cores":  "8",
+		}},
+	}
+	require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results,
+		map[string]fleet.OsqueryStatus{"fleet_detail_query_system_info": 0}, map[string]string{}, map[string]*fleet.Stats{}))
+
+	select {
+	case name := <-reported:
+		require.Equal(t, "Renamed by user", name)
+	case <-time.After(5 * time.Second):
+		t.Fatal("device name was never reported after the deferred host save")
+	}
+}

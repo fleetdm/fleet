@@ -2200,9 +2200,23 @@ func (svc *Service) SubmitDistributedQueryResults(
 		svc.logger.DebugContext(ctx, "refetch critical status on submit distributed query results", "host_id", host.ID, "refetch_requested", refetchRequested, "refetch_critical_queries_until", host.RefetchCriticalQueriesUntil, "refetch_critical_cleared", refetchCriticalCleared)
 	}
 
+	reportDeviceName := detailUpdated && ac.MDM.EnabledAndConfigured && host.Platform == "darwin" && host.ComputerName != ""
 	if refetchRequested || detailUpdated || refetchCriticalCleared {
 		if ac.ServerSettings.DeferredSaveHost {
-			go svc.serialUpdateHost(ctx, host)
+			hostUUID, computerName, report := host.UUID, host.ComputerName, reportDeviceName
+			go func() {
+				svc.serialUpdateHost(ctx, host)
+				// The device-name cron compares the template against the saved
+				// computer_name, so drift must only be re-queued once the deferred save
+				// has landed; otherwise the cron can see the old, matching name and mark
+				// the host verified without renaming it.
+				if report {
+					reportCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+					defer cancel()
+					svc.reconcileHostDeviceNameReport(reportCtx, hostUUID, computerName)
+				}
+			}()
+			reportDeviceName = false
 		} else {
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
 				logging.WithErr(ctx, err)
@@ -2210,13 +2224,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
-	if detailUpdated && ac.MDM.EnabledAndConfigured && host.Platform == "darwin" && host.ComputerName != "" {
-		outcome, err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, host.ComputerName)
-		if err != nil {
-			logging.WithErr(ctx, err)
-		} else {
-			logDeviceNameRetry(ctx, svc.logger, outcome, "renamed on device", "host_uuid", host.UUID, "reported_name", host.ComputerName)
-		}
+	if reportDeviceName {
+		svc.reconcileHostDeviceNameReport(ctx, host.UUID, host.ComputerName)
 	}
 
 	if host.DiskEncryptionKeyEscrowed {
