@@ -12,10 +12,10 @@ export default PropTypes.shape({
   ]),
 });
 
-export interface IFormField<T = any[] | boolean | number | string> {
+export interface IFormField<T = unknown[] | boolean | number | string> {
   error: string;
   name: string;
-  onChange: (value: any) => void;
+  onChange: (value: unknown) => void;
   value: T;
 }
 
