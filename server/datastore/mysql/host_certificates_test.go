@@ -2488,13 +2488,13 @@ func testSoftDeleteMDMHostCertificatesForUnenrolledHosts(t *testing.T, ds *Datas
 		[]*fleet.HostCertificateRecord{mkCert(unenrolled.ID, "u-osquery")}, fleet.HostCertificateOriginOsquery, nil))
 	require.NoError(t, ds.UpdateHostCertificates(ctx, unenrolled.ID, unenrolled.UUID,
 		[]*fleet.HostCertificateRecord{mkCert(unenrolled.ID, "u-mdm")}, fleet.HostCertificateOriginMDM, nil))
-	require.NoError(t, ds.SetOrUpdateMDMData(ctx, unenrolled.ID, false, false, "https://mdm.example.com", false, "Fleet", "", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, unenrolled.ID, false, false, "https://mdm.example.com", false, "Fleet", "", fleet.PersonalEnrollmentTypeNone))
 
 	// Enrolled host with an mdm-origin cert that must NOT be swept.
 	enrolled := newHost("enrolled")
 	require.NoError(t, ds.UpdateHostCertificates(ctx, enrolled.ID, enrolled.UUID,
 		[]*fleet.HostCertificateRecord{mkCert(enrolled.ID, "e-mdm")}, fleet.HostCertificateOriginMDM, nil))
-	require.NoError(t, ds.SetOrUpdateMDMData(ctx, enrolled.ID, false, true, "https://mdm.example.com", false, "Fleet", "", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, enrolled.ID, false, true, "https://mdm.example.com", false, "Fleet", "", fleet.PersonalEnrollmentTypeNone))
 
 	count, err := ds.SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx)
 	require.NoError(t, err)

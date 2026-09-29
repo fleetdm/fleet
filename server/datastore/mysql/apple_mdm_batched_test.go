@@ -32,7 +32,7 @@ func TestGetAppleProfileReconcileSnapshotChecksMDMStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		nanoEnroll(t, ds, h, false)
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, enrolled, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, enrolled, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 
 		return h
@@ -65,7 +65,7 @@ func TestGetAppleProfileReconcileSnapshotIncludesOptIns(t *testing.T) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, h, false)
-	require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 	require.NoError(t, ds.ApplyHostMDMProfileOptInChanges(ctx, &fleet.MDMProfileOptInChanges{
 		Add: []fleet.HostProfileUUID{{HostUUID: h.UUID, ProfileUUID: "a1"}, {HostUUID: "uuid-not-in-window", ProfileUUID: "a2"}},
 	}))
@@ -94,7 +94,7 @@ func TestGetAppleProfileReconcileSnapshotPageFullWithDuplicateUUIDs(t *testing.T
 			Platform:        "darwin",
 		})
 		require.NoError(t, err)
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		return h
 	}
@@ -173,7 +173,7 @@ func TestGetAppleMDMHostForReconcileIgnoresHostMDMStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		nanoEnroll(t, ds, h, false)
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, enrolled, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, enrolled, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 
 		return h

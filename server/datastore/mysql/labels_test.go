@@ -415,11 +415,11 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 
 	ctx := context.Background()
 	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
-	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone) // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMIru, "", false) // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMIru, "", fleet.PersonalEnrollmentTypeNone) // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: unenrolled
+	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone) // enrollment: unenrolled
 	require.NoError(t, err)
 
 	var simpleMDMID uint
@@ -2438,7 +2438,7 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	// add two hosts to MDM to enforce disk encryption, fleet doesn't enforce settings on centos so h3 is not included
 	for _, h := range []*fleet.Host{h1, h2} {
 		windowsEnroll(t, db, h)
-		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "", false))
+		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 	}
 	// add disk encryption key for h1
 	_, err = db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1, "test-key", "", ptr.Bool(true))

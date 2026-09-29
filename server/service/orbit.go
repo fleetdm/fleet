@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
@@ -161,10 +162,39 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 	return upn, deviceID, acct.UUID, nil
 }
 
+// recordPendingEndUserAuth keeps the "Fleet asked this device's end user to sign
+// in" record in step with the enroll response. The unauthenticated setup
+// experience MDM SSO flow refuses any host UUID that is not recorded here.
+// endUserAuthChecked says the host was subject to end user auth, so a success
+// may have a prompt to clear; other hosts never had one.
+func (svc *Service) recordPendingEndUserAuth(ctx context.Context, hostUUID string, enrollErr error, endUserAuthChecked bool) {
+	if svc.keyValueStore == nil || hostUUID == "" {
+		// Without a store there is nothing to keep in step: the SSO flow reads
+		// the same nil store and fails closed.
+		return
+	}
+
+	switch {
+	case fleet.IsOrbitIDPAuthRequired(enrollErr):
+		if err := shared_mdm.RecordEndUserAuthPrompt(ctx, svc.keyValueStore, hostUUID, svc.clock.Now()); err != nil {
+			svc.logger.ErrorContext(ctx, "recording pending end user auth prompt",
+				"err", err, "host_uuid", hostUUID)
+		}
+	case enrollErr == nil && endUserAuthChecked:
+		if err := shared_mdm.ClearEndUserAuthPrompt(ctx, svc.keyValueStore, hostUUID); err != nil {
+			svc.logger.ErrorContext(ctx, "clearing pending end user auth prompt",
+				"err", err, "host_uuid", hostUUID)
+		}
+	}
+}
+
 // EnrollOrbit enrolls an Orbit instance to Fleet and returns the orbit node key.
-func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string, euaToken string) (string, error) {
+func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string, euaToken string) (nodeKey string, err error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
+
+	var endUserAuthChecked bool
+	defer func() { svc.recordPendingEndUserAuth(ctx, hostInfo.HardwareUUID, err, endUserAuthChecked) }()
 
 	// Force primary reads for the whole handler. EnrollOrbit is a
 	// read-after-write flow: the Setup Experience SSO callback and the MSI
@@ -203,7 +233,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		secretOpts   []fleet.DatastoreEnrollOrbitOption
 	)
 	var oneTime *fleet.HostOneTimeEnrollSecret
-	if svc.config.Auth.UseOneTimeEnrollSecrets {
+	if svc.config.MDM.AppleOneTimeEnrollSecrets {
 		var err error
 		oneTime, err = svc.lookupOneTimeEnrollSecret(ctx, enrollSecret)
 		if err != nil {
@@ -232,7 +262,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			return "", fleet.OrbitError{Message: "enroll failed"}
 		}
 		enrollTeamID = secret.TeamID
-		secretOpts = append(secretOpts, fleet.WithEnrollOrbitRejectSharedSecretForMDMHosts(svc.config.Auth.UseOneTimeEnrollSecrets))
+		secretOpts = append(secretOpts, fleet.WithEnrollOrbitRejectSharedSecretForAppleMDMHosts(svc.config.MDM.AppleOneTimeEnrollSecrets))
 	}
 
 	identifier := hostInfo.OsqueryIdentifier
@@ -287,6 +317,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		if hostInfo.HardwareUUID == "" {
 			return "", fleet.OrbitError{Message: "failed to get IdP account: hardware uuid is empty"}
 		}
+		endUserAuthChecked = true
 		// Try to find an IdP account for this host.
 		idpAccount, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, hostInfo.HardwareUUID)
 		if err != nil {
@@ -1355,7 +1386,18 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 		var failureMessage string
 		// a notification's script is Fleet's own, and carries only its URL variable
 		if isNotificationScript(script) {
-			expanded, failureMessage = svc.expandNotificationURL(ctx, host, script)
+			var notificationUUID string
+			notificationUUID, err = svc.notificationsSvc.NotificationUUIDForExecution(ctx, script.ExecutionID)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "failed to find the end user notification a script belongs to", "execution_id", script.ExecutionID, "err", err)
+				failureMessage = "Fleet couldn't find the notification this script belongs to."
+			}
+			if failureMessage == "" {
+				failureMessage = svc.setPatchNotificationPayloadForDisplay(ctx, notificationUUID)
+			}
+			if failureMessage == "" {
+				expanded, failureMessage = svc.expandNotificationURL(ctx, host, script, notificationUUID)
+			}
 		} else {
 			expanded, failureMessage, err = svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
 			if err != nil {

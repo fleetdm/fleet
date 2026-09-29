@@ -166,8 +166,8 @@ type ProjectStatus struct {
 	Title     string // the project's title
 }
 
-func GetIssueProjectStatuses(issueNumber int, projects []int) (map[int]ProjectStatus, error) {
-	found, err := GetAllIssueProjectStatuses(issueNumber)
+func GetIssueProjectStatuses(repo string, issueNumber int, projects []int) (map[int]ProjectStatus, error) {
+	found, err := GetAllIssueProjectStatuses(repo, issueNumber)
 	if err != nil {
 		found = map[int]ProjectStatus{}
 	}
@@ -185,8 +185,11 @@ func GetIssueProjectStatuses(issueNumber int, projects []int) (map[int]ProjectSt
 
 // GetAllIssueProjectStatuses returns the Status value for every project the issue
 // belongs to, keyed by project number. One GraphQL call; unset Status is "".
-func GetAllIssueProjectStatuses(issueNumber int) (map[int]ProjectStatus, error) {
-	owner, repo, err := getRepoOwnerAndName()
+// repo is "owner/name"; when empty, the current directory's repo is used —
+// wrong for issues living elsewhere (e.g. fleetdm/confidential), so callers
+// that know the issue's repo must pass it.
+func GetAllIssueProjectStatuses(repoFullName string, issueNumber int) (map[int]ProjectStatus, error) {
+	owner, repo, err := splitRepoFullName(repoFullName)
 	if err != nil {
 		return nil, err
 	}

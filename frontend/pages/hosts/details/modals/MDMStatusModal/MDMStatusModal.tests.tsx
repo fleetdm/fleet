@@ -642,6 +642,9 @@ describe("MDMStatusModal - MDM check-in", () => {
       expect(onSuccessfulCheckIn).toHaveBeenCalled();
     });
     expect(hostAPI.apnsPing).toHaveBeenCalledWith(3);
+    expect(notify.success).toHaveBeenCalledWith(
+      "Successfully sent request to check in."
+    );
     expect(notify.error).not.toHaveBeenCalled();
   });
 
@@ -680,6 +683,7 @@ describe("MDMStatusModal - MDM check-in", () => {
       expect(notify.error).toHaveBeenCalled();
     });
     expect(onSuccessfulCheckIn).not.toHaveBeenCalled();
+    expect(notify.success).not.toHaveBeenCalled();
     // The button has to come back so the admin can retry.
     await waitFor(() => {
       expect(

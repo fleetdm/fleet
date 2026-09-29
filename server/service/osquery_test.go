@@ -2843,13 +2843,13 @@ func TestDetailQueries(t *testing.T) {
 		return map[string]string{}, nil
 	}
 	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string,
-		fleetEnrollmentRef string, isPersonalEnrollment bool,
+		fleetEnrollmentRef string, personalType fleet.PersonalEnrollmentType,
 	) error {
 		require.True(t, enrolled)
 		require.False(t, installedFromDep)
 		require.Equal(t, "hi.com", serverURL)
 		require.Empty(t, fleetEnrollmentRef)
-		require.False(t, isPersonalEnrollment)
+		require.Equal(t, fleet.PersonalEnrollmentTypeNone, personalType)
 		return nil
 	}
 	ds.SetOrUpdateMunkiInfoFunc = func(ctx context.Context, hostID uint, version string, errs, warns []string) error {

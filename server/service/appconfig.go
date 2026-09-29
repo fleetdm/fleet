@@ -1048,7 +1048,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if appConfig.HostExpirySettings.HostExpiryEnabled && appConfig.HostExpirySettings.HostExpiryWindow < 1 {
-		invalid.Append("host_expiry_settings.host_expiry_window", "must be greater than 0")
+		invalid.Append("host_expiry_settings.host_expiry_window", "When enabling host expiry, host expiry window must be a positive number.")
 	}
 
 	if appConfig.OrgInfo.ContactURL == "" {

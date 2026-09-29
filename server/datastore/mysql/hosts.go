@@ -682,6 +682,7 @@ var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_service_subscriptions":  "host_uuid",
 	"host_mdm_apple_os_updates":             "host_uuid",
 	"host_mdm_android_device_vitals":        "host_uuid",
+	"host_mdm_profile_opt_ins":              "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -814,6 +815,26 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 				return ctxerr.Wrapf(ctx, err, "deleting host_mdm_idp_accounts for host uuids %v", uuidsToDelete)
 			}
+		}
+	}
+
+	// Windows enrollments outlive the host so the device can relink. Touching
+	// updated_at starts the stale-enrollment retention window at deletion;
+	// otherwise an idle enrollment would be reaped within the hour. Empty
+	// UUIDs are skipped so never-linked enrollments keep their own clock.
+	linkedUUIDs := make([]string, 0, len(hostUUIDs))
+	for _, u := range hostUUIDs {
+		if u != "" {
+			linkedUUIDs = append(linkedUUIDs, u)
+		}
+	}
+	if len(linkedUUIDs) > 0 {
+		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP WHERE host_uuid IN (?)`, linkedUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building touch statement for windows mdm enrollments")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrapf(ctx, err, "touching windows mdm enrollments for host uuids %v", linkedUUIDs)
 		}
 	}
 
@@ -1096,6 +1117,7 @@ const hostMDMJoin = `
 	  hm.installed_from_dep,
 	  hm.enrollment_status,
 	  hm.is_personal_enrollment,
+	  hm.personal_enrollment_type,
 	  hm.server_url,
 	  hm.mdm_id,
 	  hm.host_id,
@@ -1699,7 +1721,12 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		case fleet.MDMEnrollStatusManual:
 			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 AND hmdm.is_personal_enrollment = 0`
 		case fleet.MDMEnrollStatusPersonal:
-			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 AND hmdm.is_personal_enrollment = 1`
+			// IS NULL mirrors the enrollment_status column's fall-through for unclassified personal hosts.
+			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 AND hmdm.is_personal_enrollment = 1` +
+				` AND (hmdm.personal_enrollment_type IS NULL OR hmdm.personal_enrollment_type != 'manual_profile')`
+		case fleet.MDMEnrollStatusManualPersonal:
+			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 AND hmdm.is_personal_enrollment = 1` +
+				` AND hmdm.personal_enrollment_type = 'manual_profile'`
 		case fleet.MDMEnrollStatusEnrolled:
 			sql += ` AND hmdm.enrolled = 1`
 		case fleet.MDMEnrollStatusPending:
@@ -2261,6 +2288,18 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 			return ctxerr.Wrap(ctx, err, "cleanup host_display_names")
 		}
 
+		// This path bypasses deleteHosts, so it needs the same enrollment touch.
+		// selectIDs is embedded rather than expanding ids into placeholders,
+		// which a large backlog could push past MySQL's placeholder limit.
+		touchEnrollments := fmt.Sprintf(`
+			UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP
+			WHERE host_uuid IN (SELECT uuid FROM hosts WHERE uuid <> '' AND id IN (%s))`,
+			selectIDs,
+		)
+		if _, err := tx.ExecContext(ctx, touchEnrollments, now); err != nil {
+			return ctxerr.Wrap(ctx, err, "touch windows mdm enrollments of incoming hosts")
+		}
+
 		cleanupHosts := `
 		DELETE FROM hosts
 		WHERE hostname = '' AND osquery_version = '' AND hardware_serial = ''
@@ -2540,7 +2579,10 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		Platform:       hostInfo.Platform,
 		PlatformLike:   hostInfo.PlatformLike,
 	}
+	// Logged only after commit because a rejected enrollment rolls back and overwrites nothing.
+	var overwrittenHostID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		overwrittenHostID = 0
 		// The serial is passed through for Windows so a pending Autopilot host can be reused.
 		serialToMatch := hostInfo.HardwareSerial
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
@@ -2559,11 +2601,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				// This means a orbit host already enrolled at this hosts entry.
 				// This can happen if two devices have duplicate hardware identifiers or
 				// if orbit's node key file was deleted from the device (e.g. uninstall+install).
-				ds.logger.WarnContext(
-					ctx, "orbit host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
-					"identifier", hostInfo.HardwareUUID,
-					"host_id", enrolledHostInfo.ID,
-				)
+				overwrittenHostID = enrolledHostInfo.ID
 			}
 			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
 			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil &&
@@ -2572,7 +2610,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", hostInfo.OsqueryIdentifier))
 			}
 
-			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForMDMHosts {
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {
 				if err := rejectSharedSecretForMDMManagedAppleHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
 					return err
 				}
@@ -2724,6 +2762,13 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 	if err != nil {
 		return nil, err
 	}
+	if overwrittenHostID != 0 {
+		ds.logger.WarnContext(
+			ctx, "orbit host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
+			"identifier", hostInfo.HardwareUUID,
+			"host_id", overwrittenHostID,
+		)
+	}
 
 	return &host, nil
 }
@@ -2773,7 +2818,10 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 	}
 
 	var host fleet.Host
+	// Logged only after commit because a rejected enrollment rolls back and overwrites nothing.
+	var overwrittenHostID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		overwrittenHostID = 0
 		zeroTime := common_mysql.GetDefaultNonZeroTime()
 
 		var hostID uint
@@ -2835,11 +2883,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				// This means a osquery host already enrolled at this hosts entry.
 				// This can happen if two devices have duplicate hardware identifiers or
 				// if osquery.db was deleted from the device (e.g. uninstall+install).
-				ds.logger.WarnContext(
-					ctx, "osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
-					"identifier", hardwareUUID,
-					"host_id", enrolledHostInfo.ID,
-				)
+				overwrittenHostID = enrolledHostInfo.ID
 			}
 
 			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
@@ -2849,7 +2893,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", osqueryHostID))
 			}
 
-			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForMDMHosts {
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {
 				if err := rejectSharedSecretForMDMManagedAppleHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
 					return err
 				}
@@ -2980,6 +3024,13 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 	})
 	if err != nil {
 		return nil, err
+	}
+	if overwrittenHostID != 0 {
+		ds.logger.WarnContext(
+			ctx, "osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
+			"identifier", hardwareUUID,
+			"host_id", overwrittenHostID,
+		)
 	}
 	return &host, nil
 }
@@ -5063,7 +5114,7 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	installedFromDep bool,
 	name string,
 	fleetEnrollmentRef string,
-	isPersonalEnrollment bool,
+	personalType fleet.PersonalEnrollmentType,
 ) error {
 	var mdmID *uint
 	if serverURL != "" {
@@ -5076,9 +5127,9 @@ func (ds *Datastore) SetOrUpdateMDMData(
 
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ?, is_server = ?, fleet_enroll_ref = ?, is_personal_enrollment = ? WHERE host_id = ?`,
-		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, fleet_enroll_ref, is_personal_enrollment, host_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		enrolled, serverURL, installedFromDep, mdmID, isServer, fleetEnrollmentRef, isPersonalEnrollment, hostID,
+		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ?, is_server = ?, fleet_enroll_ref = ?, is_personal_enrollment = ?, personal_enrollment_type = ? WHERE host_id = ?`,
+		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, fleet_enroll_ref, is_personal_enrollment, personal_enrollment_type, host_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		enrolled, serverURL, installedFromDep, mdmID, isServer, fleetEnrollmentRef, personalType.IsPersonal(), personalType, hostID,
 	)
 }
 
@@ -5645,6 +5696,7 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 			hm.installed_from_dep,
 			hm.mdm_id,
 			hm.is_personal_enrollment,
+			hm.personal_enrollment_type,
 			hm.managed_apple_id,
 			COALESCE(hm.is_server, false) AS is_server,
 			COALESCE(mdms.name, ?) AS name,
@@ -6118,7 +6170,10 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 				COALESCE(SUM(CASE WHEN NOT enrolled AND installed_from_dep THEN 1 ELSE 0 END), 0) as pending_hosts_count,
 				COALESCE(SUM(CASE WHEN enrolled AND installed_from_dep THEN 1 ELSE 0 END), 0) as enrolled_automated_hosts_count,
 				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND NOT is_personal_enrollment THEN 1 ELSE 0 END), 0) as enrolled_manual_hosts_count,
-				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND is_personal_enrollment THEN 1 ELSE 0 END), 0) as enrolled_personal_hosts_count
+				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND is_personal_enrollment
+					AND (personal_enrollment_type IS NULL OR personal_enrollment_type != 'manual_profile') THEN 1 ELSE 0 END), 0) as enrolled_personal_hosts_count,
+				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND is_personal_enrollment
+					AND personal_enrollment_type = 'manual_profile' THEN 1 ELSE 0 END), 0) as enrolled_manual_personal_hosts_count
 			 FROM host_mdm hm
        	`
 	args := []interface{}{}
@@ -7060,21 +7115,22 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 		return nil, ctxerr.Wrap(ctx, err, "loading host health")
 	}
 
+	// LoadHostSoftware joins full CVE metadata, which is costly on a frequently polled endpoint.
+	// NO_SEMIJOIN keeps the plan host-driven; as a semijoin MySQL may full-scan software_cve.
+	const vulnerableSoftwareStmt = `
+		SELECT s.id, s.name, s.version
+		FROM host_software hs
+		JOIN software s ON s.id = hs.software_id
+		WHERE hs.host_id = ? AND EXISTS (
+			SELECT /*+ NO_SEMIJOIN() */ 1 FROM software_cve scv WHERE scv.software_id = hs.software_id
+		)
+		ORDER BY hs.software_id
+	`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hh.VulnerableSoftware, vulnerableSoftwareStmt, id); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading host health vulnerable software")
+	}
+
 	host := &fleet.Host{ID: id, Platform: hh.Platform}
-	if err := ds.LoadHostSoftware(ctx, host, true); err != nil {
-		return nil, err
-	}
-
-	for _, s := range host.Software {
-		if len(s.Vulnerabilities) > 0 {
-			hh.VulnerableSoftware = append(hh.VulnerableSoftware, fleet.HostHealthVulnerableSoftware{
-				ID:      s.ID,
-				Name:    s.Name,
-				Version: s.Version,
-			})
-		}
-	}
-
 	policies, err := ds.ListPoliciesForHost(ctx, host)
 	if err != nil {
 		return nil, err

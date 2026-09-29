@@ -922,6 +922,17 @@ func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", 9999999), fleet.DeleteTeamPoliciesRequest{IDs: []uint{1, 1000}}, http.StatusNotFound, &deleteTeamPoliciesResp)
 }
 
+func (s *integrationTestSuite) TestDeleteGlobalPoliciesNotExists() {
+	t := s.T()
+
+	var resp fleet.DeleteGlobalPoliciesResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{IDs: []uint{9999999}}, http.StatusNotFound, &resp)
+
+	resp = fleet.DeleteGlobalPoliciesResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{IDs: []uint{}}, http.StatusOK, &resp)
+	require.Empty(t, resp.Deleted)
+}
+
 func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
 	t := s.T()
 	ctx := context.Background()
