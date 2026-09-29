@@ -15,7 +15,7 @@ Connect Fleet to the Android zero-touch portal so that company-owned Android dev
 ## Create a configuration
 
 1. Sign in to the [Android zero-touch portal](https://enterprise.google.com/android/zero-touch/customers).
-2. Select **Configurations**, then click the  "+ Add Configuration" button
+2. Select **Configurations**, then select **+ Add Configuration**.
 3. Enter a **Configuration name** (e.g., "Fleet").
 4. For **EMM DPC**, select **Android Device Policy**.
 5. Paste the DPC extras JSON into the **DPC extras** field.
@@ -39,11 +39,15 @@ After a device is factory reset or unboxed and connected to a network:
 
 All zero-touch-enrolled hosts enroll to the **Unassigned** fleet. Enrolling to a specific fleet is coming soon.
 
+> Zero-touch enrollment doesn't support [end-user authentication (EUA)](https://fleetdm.com/guides/setup-experience#end-user-authentication). There's no browser-based identity provider (IdP) sign-in during zero-touch provisioning, so IdP variables in certificates won't work on these hosts.
+
 ## Troubleshoot
 
 **Device does not enter zero-touch setup**
 
 Check the [zero-touch portal](https://enterprise.google.com/android/zero-touch/customers) to confirm the device appears under **Devices** with a configuration assigned. The device may not be claimed to your zero-touch customer account.
+
+If your reseller entered the device's info incorrectly, Google won't recognize the device and it won't boot into zero-touch enrollment. Ask your reseller to fix it using [Google's correction form](https://docs.google.com/forms/d/1zQGYyNcK1B5Q2FGF3b95Oqvs9dSAIW-lmQc_nCcc7Y8/viewform).
 
 **Device enters setup but fails to enroll**
 
