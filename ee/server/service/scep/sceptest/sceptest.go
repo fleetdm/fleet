@@ -1,6 +1,6 @@
-// Package sceptest provides test helpers (SCEP test server, NDES admin
-// page emulator, dynamic challenge server) for tests that exercise the SCEP
-// proxy.
+// Package sceptest provides test helpers (SCEP test server, crafted-response SCEP server, NDES
+// admin page emulator, dynamic challenge server) for tests that exercise SCEP enrollment and
+// the SCEP proxy.
 //
 // It imports the "testing" package and must therefore only ever be imported
 // from test code; importing it from production code would pull "testing"
@@ -153,6 +153,12 @@ func newTestSCEPHTTPServer(t *testing.T, crt *x509.Certificate, key *rsa.Private
 	if err != nil {
 		t.Fatal(err)
 	}
+	return newSCEPHTTPServer(t, svc)
+}
+
+// newSCEPHTTPServer serves svc at /scep.
+func newSCEPHTTPServer(t *testing.T, svc scepserver.Service) *httptest.Server {
+	t.Helper()
 	logger := slog.New(slog.DiscardHandler)
 	e := scepserver.MakeServerEndpoints(svc)
 	scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
