@@ -28,7 +28,9 @@ export const getErrorMessage = (e: unknown, hostName: string) => {
 export const canShowMyDeviceButton = (
   // platform is a plain string rather than HostPlatform: legacy ChromeOS hosts
   // report "CrOS", which predates the HostPlatform union.
-  host: Pick<IHost, "fleet_desktop_version" | "mdm"> & { platform: string },
+  host: Pick<IHost, "fleet_desktop_version" | "mdm" | "uuid"> & {
+    platform: string;
+  },
   fleetDesktopSSOEnabled: boolean,
   isPremiumTier: boolean
 ) => {
@@ -52,10 +54,10 @@ export const canShowMyDeviceButton = (
     if (!isPremiumTier) {
       return false;
     }
-    // A pending host has no UUID to build the URL from, and an unenrolled one
-    // can't use self-service.
+    // The URL is built from the UUID, which a host assigned in Apple Business
+    // may not have yet; an unenrolled host can't use self-service.
     const status = host.mdm.enrollment_status;
-    if (!status || status === "Pending" || status === "Off") {
+    if (!host.uuid || !status || status === "Pending" || status === "Off") {
       return false;
     }
   }

@@ -169,6 +169,11 @@ describe("canShowMyDeviceButton for iOS/iPadOS enrollment and tier", () => {
     expect(canShowMyDeviceButton(iosHost(status), false, true)).toBe(true);
   });
 
+  it("returns false when enrolled but the UUID isn't known yet", () => {
+    const host = { ...iosHost("On (automatic)"), uuid: "" };
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
+  });
+
   it("returns false on Fleet Free even when enrolled", () => {
     expect(canShowMyDeviceButton(iosHost("On (automatic)"), false, false)).toBe(
       false
