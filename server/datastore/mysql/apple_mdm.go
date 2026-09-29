@@ -1074,12 +1074,15 @@ SELECT
 	CASE
 		WHEN hmap.scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = hmap.host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
 		ELSE ''
-	END AS managed_local_account
+	END AS managed_local_account,
+	COALESCE(macp.hidden, FALSE) AS hidden,
+	COALESCE(macp.self_service, FALSE) AS self_service
 FROM
 	host_mdm_apple_profiles hmap
-	LEFT JOIN mdm_apple_configuration_profiles macp ON macp.profile_uuid = hmap.profile_uuid
+	LEFT JOIN mdm_apple_configuration_profiles macp
+		ON hmap.profile_uuid = macp.profile_uuid
 WHERE
-	hmap.host_uuid = ? AND NOT (hmap.operation_type = '%s' AND COALESCE(hmap.status, '%s') IN('%s', '%s'))
+	hmap.host_uuid = ? AND (NOT (hmap.operation_type = '%s' AND COALESCE(hmap.status, '%s') IN('%s', '%s')))
 
 UNION ALL
 
@@ -1098,10 +1101,13 @@ SELECT
 	CASE
 		WHEN hmad.scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = hmad.host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
 		ELSE ''
-	END AS managed_local_account
+	END AS managed_local_account,
+	COALESCE(mad.hidden, FALSE) AS hidden,
+	FALSE AS self_service
 FROM
 	host_mdm_apple_declarations hmad
-	LEFT JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
+	LEFT JOIN mdm_apple_declarations mad
+		ON hmad.declaration_uuid = mad.declaration_uuid
 WHERE
 	hmad.host_uuid = ? AND hmad.declaration_name NOT IN (?) AND NOT (hmad.operation_type = '%s' AND COALESCE(hmad.status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
@@ -7933,7 +7939,8 @@ func (ds *Datastore) AssociateHostMDMIdPAccountFromSSO(ctx context.Context, host
 		// FOR UPDATE locks the (possibly absent) row so a concurrent binding
 		// cannot slip in between this read and the write below.
 		previousAcctUUID = ""
-		switch err := sqlx.GetContext(ctx, tx, &previousAcctUUID,
+		switch err := sqlx.GetContext(
+			ctx, tx, &previousAcctUUID,
 			`SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = ? FOR UPDATE`, hostUUID,
 		); {
 		case errors.Is(err, sql.ErrNoRows):
@@ -9169,4 +9176,60 @@ func (ds *Datastore) bulkGetHostMDMProfileOptInsTransaction(
 	}
 
 	return out, nil
+}
+
+func (ds *Datastore) HasHostMDMProfileOptIn(ctx context.Context, hostUUID, profileUUID string) (bool, error) {
+	if hostUUID == "" {
+		return false, fleet.NewInvalidArgumentError("hostUUID", "hostUUID cannot be empty")
+	}
+	if profileUUID == "" {
+		return false, fleet.NewInvalidArgumentError("profileUUID", "profileUUID cannot be empty")
+	}
+
+	out, err := ds.BulkGetHostMDMProfileOptIns(ctx, []string{hostUUID})
+	if err != nil {
+		return false, err
+	}
+	if profiles, ok := out[hostUUID]; ok {
+		_, optedIn := profiles[profileUUID]
+		return optedIn, nil
+	}
+	return false, nil
+}
+
+func (ds *Datastore) QueueHostMDMAppleProfileInstall(ctx context.Context, hostUUID string, profile *fleet.AppleProfileForReconcile) error {
+	// command_uuid is kept on conflict so the reconciler can cancel whatever command it supersedes.
+	stmt := `
+INSERT INTO host_mdm_apple_profiles
+	(host_uuid, profile_uuid, profile_identifier, profile_name, checksum, secrets_updated_at, scope, operation_type, status, command_uuid, detail)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, '', '')
+ON DUPLICATE KEY UPDATE
+	profile_identifier = VALUES(profile_identifier),
+	profile_name = VALUES(profile_name),
+	checksum = VALUES(checksum),
+	secrets_updated_at = VALUES(secrets_updated_at),
+	scope = VALUES(scope),
+	operation_type = VALUES(operation_type),
+	status = NULL,
+	detail = '',
+	retries = 0`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, profile.ProfileUUID, profile.ProfileIdentifier, profile.ProfileName,
+		profile.Checksum, profile.SecretsUpdatedAt, profile.Scope, fleet.MDMOperationTypeInstall)
+	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile install")
+}
+
+func (ds *Datastore) QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUID, profileUUID string) error {
+	// An install that was never sent to the device has nothing to remove, so drop the row instead.
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+DELETE FROM host_mdm_apple_profiles
+WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ? AND status IS NULL AND command_uuid = ''`,
+		hostUUID, profileUUID, fleet.MDMOperationTypeInstall); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete unsent host mdm apple profile install")
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_mdm_apple_profiles
+SET operation_type = ?, status = NULL, detail = '', retries = 0
+WHERE host_uuid = ? AND profile_uuid = ?`,
+		fleet.MDMOperationTypeRemove, hostUUID, profileUUID)
+	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile removal")
 }

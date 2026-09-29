@@ -116,7 +116,27 @@ type EnrollmentTokenResponse struct {
 }
 
 type ZeroTouchConfigurationResponse struct {
-	DPCExtras json.RawMessage `json:"dpc_extras"`
+	DPCExtras json.RawMessage `json:"-"`
 	Warning   string          `json:"warning,omitempty"`
 	DefaultResponse
+}
+
+func (r ZeroTouchConfigurationResponse) MarshalJSON() ([]byte, error) {
+	if len(r.DPCExtras) == 0 {
+		return json.Marshal(struct {
+			Warning string `json:"warning,omitempty"`
+		}{Warning: r.Warning})
+	}
+	// Start with DPCExtras as the base object, then merge warning if present.
+	if r.Warning == "" {
+		return r.DPCExtras, nil
+	}
+	// Merge warning into the DPC extras object.
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(r.DPCExtras, &m); err != nil {
+		return r.DPCExtras, nil
+	}
+	w, _ := json.Marshal(r.Warning)
+	m["warning"] = w
+	return json.Marshal(m)
 }

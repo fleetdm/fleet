@@ -360,6 +360,8 @@ type HostMDMAppleProfile struct {
 	VariablesUpdatedAt  *time.Time         `db:"variables_updated_at" json:"-"`
 	Scope               PayloadScope       `db:"scope" json:"scope"`
 	ManagedLocalAccount string             `db:"managed_local_account" json:"managed_local_account"`
+	SelfService         bool               `db:"self_service" json:"self_service"`
+	Hidden              bool               `db:"hidden" json:"hidden"`
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
@@ -379,6 +381,8 @@ func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 		Platform:            platform,
 		Scope:               &scope,
 		ManagedLocalAccount: &p.ManagedLocalAccount,
+		SelfService:         p.SelfService,
+		Hidden:              p.Hidden,
 	}
 }
 
@@ -542,6 +546,7 @@ type AppleProfileForReconcile struct {
 	IncludeLabels     []AppleProfileLabelRef
 	ExcludeLabels     []AppleProfileLabelRef
 	SelfService       bool
+	Hidden            bool
 }
 
 // AppleLabeledEntity implementation.
