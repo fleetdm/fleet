@@ -1117,6 +1117,7 @@ const hostMDMJoin = `
 	  hm.installed_from_dep,
 	  hm.enrollment_status,
 	  hm.is_personal_enrollment,
+	  hm.personal_enrollment_type,
 	  hm.server_url,
 	  hm.mdm_id,
 	  hm.host_id,
@@ -1720,7 +1721,12 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		case fleet.MDMEnrollStatusManual:
 			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 AND hmdm.is_personal_enrollment = 0`
 		case fleet.MDMEnrollStatusPersonal:
-			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 AND hmdm.is_personal_enrollment = 1`
+			// IS NULL mirrors the enrollment_status column's fall-through for unclassified personal hosts.
+			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 AND hmdm.is_personal_enrollment = 1` +
+				` AND (hmdm.personal_enrollment_type IS NULL OR hmdm.personal_enrollment_type != 'manual_profile')`
+		case fleet.MDMEnrollStatusManualPersonal:
+			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 AND hmdm.is_personal_enrollment = 1` +
+				` AND hmdm.personal_enrollment_type = 'manual_profile'`
 		case fleet.MDMEnrollStatusEnrolled:
 			sql += ` AND hmdm.enrolled = 1`
 		case fleet.MDMEnrollStatusPending:
@@ -2604,7 +2610,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", hostInfo.OsqueryIdentifier))
 			}
 
-			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForMDMHosts {
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {
 				if err := rejectSharedSecretForMDMManagedAppleHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
 					return err
 				}
@@ -2887,7 +2893,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", osqueryHostID))
 			}
 
-			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForMDMHosts {
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {
 				if err := rejectSharedSecretForMDMManagedAppleHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
 					return err
 				}
@@ -6164,7 +6170,10 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 				COALESCE(SUM(CASE WHEN NOT enrolled AND installed_from_dep THEN 1 ELSE 0 END), 0) as pending_hosts_count,
 				COALESCE(SUM(CASE WHEN enrolled AND installed_from_dep THEN 1 ELSE 0 END), 0) as enrolled_automated_hosts_count,
 				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND NOT is_personal_enrollment THEN 1 ELSE 0 END), 0) as enrolled_manual_hosts_count,
-				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND is_personal_enrollment THEN 1 ELSE 0 END), 0) as enrolled_personal_hosts_count
+				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND is_personal_enrollment
+					AND (personal_enrollment_type IS NULL OR personal_enrollment_type != 'manual_profile') THEN 1 ELSE 0 END), 0) as enrolled_personal_hosts_count,
+				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND is_personal_enrollment
+					AND personal_enrollment_type = 'manual_profile' THEN 1 ELSE 0 END), 0) as enrolled_manual_personal_hosts_count
 			 FROM host_mdm hm
        	`
 	args := []interface{}{}
@@ -7106,21 +7115,22 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 		return nil, ctxerr.Wrap(ctx, err, "loading host health")
 	}
 
+	// LoadHostSoftware joins full CVE metadata, which is costly on a frequently polled endpoint.
+	// NO_SEMIJOIN keeps the plan host-driven; as a semijoin MySQL may full-scan software_cve.
+	const vulnerableSoftwareStmt = `
+		SELECT s.id, s.name, s.version
+		FROM host_software hs
+		JOIN software s ON s.id = hs.software_id
+		WHERE hs.host_id = ? AND EXISTS (
+			SELECT /*+ NO_SEMIJOIN() */ 1 FROM software_cve scv WHERE scv.software_id = hs.software_id
+		)
+		ORDER BY hs.software_id
+	`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hh.VulnerableSoftware, vulnerableSoftwareStmt, id); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading host health vulnerable software")
+	}
+
 	host := &fleet.Host{ID: id, Platform: hh.Platform}
-	if err := ds.LoadHostSoftware(ctx, host, true); err != nil {
-		return nil, err
-	}
-
-	for _, s := range host.Software {
-		if len(s.Vulnerabilities) > 0 {
-			hh.VulnerableSoftware = append(hh.VulnerableSoftware, fleet.HostHealthVulnerableSoftware{
-				ID:      s.ID,
-				Name:    s.Name,
-				Version: s.Version,
-			})
-		}
-	}
-
 	policies, err := ds.ListPoliciesForHost(ctx, host)
 	if err != nil {
 		return nil, err
