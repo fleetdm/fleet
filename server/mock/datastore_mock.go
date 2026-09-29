@@ -2262,9 +2262,9 @@ type ScimUserByUserNameOrEmailFunc func(ctx context.Context, userName string, em
 
 type ScimUserByHostIDFunc func(ctx context.Context, hostID uint) (*fleet.ScimUser, error)
 
-type ScimUsersExistFunc func(ctx context.Context, ids []uint) (bool, error)
+type ExistingScimUserIDsFunc func(ctx context.Context, ids []uint) (map[uint]struct{}, error)
 
-type ScimGroupsExistFunc func(ctx context.Context, ids []uint) (bool, error)
+type ExistingScimGroupIDsFunc func(ctx context.Context, ids []uint) (map[uint]struct{}, error)
 
 type ReplaceScimUserFunc func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error)
 
@@ -5848,11 +5848,11 @@ type DataStore struct {
 	ScimUserByHostIDFunc        ScimUserByHostIDFunc
 	ScimUserByHostIDFuncInvoked bool
 
-	ScimUsersExistFunc        ScimUsersExistFunc
-	ScimUsersExistFuncInvoked bool
+	ExistingScimUserIDsFunc        ExistingScimUserIDsFunc
+	ExistingScimUserIDsFuncInvoked bool
 
-	ScimGroupsExistFunc        ScimGroupsExistFunc
-	ScimGroupsExistFuncInvoked bool
+	ExistingScimGroupIDsFunc        ExistingScimGroupIDsFunc
+	ExistingScimGroupIDsFuncInvoked bool
 
 	ReplaceScimUserFunc        ReplaceScimUserFunc
 	ReplaceScimUserFuncInvoked bool
@@ -14026,18 +14026,18 @@ func (s *DataStore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.S
 	return s.ScimUserByHostIDFunc(ctx, hostID)
 }
 
-func (s *DataStore) ScimUsersExist(ctx context.Context, ids []uint) (bool, error) {
+func (s *DataStore) ExistingScimUserIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error) {
 	s.mu.Lock()
-	s.ScimUsersExistFuncInvoked = true
+	s.ExistingScimUserIDsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ScimUsersExistFunc(ctx, ids)
+	return s.ExistingScimUserIDsFunc(ctx, ids)
 }
 
-func (s *DataStore) ScimGroupsExist(ctx context.Context, ids []uint) (bool, error) {
+func (s *DataStore) ExistingScimGroupIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error) {
 	s.mu.Lock()
-	s.ScimGroupsExistFuncInvoked = true
+	s.ExistingScimGroupIDsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ScimGroupsExistFunc(ctx, ids)
+	return s.ExistingScimGroupIDsFunc(ctx, ids)
 }
 
 func (s *DataStore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
