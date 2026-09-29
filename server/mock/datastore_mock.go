@@ -1762,6 +1762,8 @@ type DeleteHostLocationDataFunc func(ctx context.Context, hostID uint) error
 
 type CleanupUnusedScriptContentsFunc func(ctx context.Context) error
 
+type CleanupHostScriptResultsFunc func(ctx context.Context, olderThan time.Time) (int64, error)
+
 type CleanupExpiredLiveQueriesFunc func(ctx context.Context, expiryWindowDays int) error
 
 type WipeHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error
@@ -1879,6 +1881,8 @@ type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, teamID *uint, ap
 type GetSoftwareInstallResultsFunc func(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error)
 
 type CleanupUnusedSoftwareInstallersFunc func(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error
+
+type CleanupHostSoftwareInstallsFunc func(ctx context.Context, olderThan time.Time) (int64, error)
 
 type SaveInHouseAppUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error
 
@@ -5088,6 +5092,9 @@ type DataStore struct {
 	CleanupUnusedScriptContentsFunc        CleanupUnusedScriptContentsFunc
 	CleanupUnusedScriptContentsFuncInvoked bool
 
+	CleanupHostScriptResultsFunc        CleanupHostScriptResultsFunc
+	CleanupHostScriptResultsFuncInvoked bool
+
 	CleanupExpiredLiveQueriesFunc        CleanupExpiredLiveQueriesFunc
 	CleanupExpiredLiveQueriesFuncInvoked bool
 
@@ -5264,6 +5271,9 @@ type DataStore struct {
 
 	CleanupUnusedSoftwareInstallersFunc        CleanupUnusedSoftwareInstallersFunc
 	CleanupUnusedSoftwareInstallersFuncInvoked bool
+
+	CleanupHostSoftwareInstallsFunc        CleanupHostSoftwareInstallsFunc
+	CleanupHostSoftwareInstallsFuncInvoked bool
 
 	SaveInHouseAppUpdatesFunc        SaveInHouseAppUpdatesFunc
 	SaveInHouseAppUpdatesFuncInvoked bool
@@ -12251,6 +12261,13 @@ func (s *DataStore) CleanupUnusedScriptContents(ctx context.Context) error {
 	return s.CleanupUnusedScriptContentsFunc(ctx)
 }
 
+func (s *DataStore) CleanupHostScriptResults(ctx context.Context, olderThan time.Time) (int64, error) {
+	s.mu.Lock()
+	s.CleanupHostScriptResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostScriptResultsFunc(ctx, olderThan)
+}
+
 func (s *DataStore) CleanupExpiredLiveQueries(ctx context.Context, expiryWindowDays int) error {
 	s.mu.Lock()
 	s.CleanupExpiredLiveQueriesFuncInvoked = true
@@ -12662,6 +12679,13 @@ func (s *DataStore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwar
 	s.CleanupUnusedSoftwareInstallersFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupUnusedSoftwareInstallersFunc(ctx, softwareInstallStore, removeCreatedBefore)
+}
+
+func (s *DataStore) CleanupHostSoftwareInstalls(ctx context.Context, olderThan time.Time) (int64, error) {
+	s.mu.Lock()
+	s.CleanupHostSoftwareInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostSoftwareInstallsFunc(ctx, olderThan)
 }
 
 func (s *DataStore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
