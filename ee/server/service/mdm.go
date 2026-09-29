@@ -869,6 +869,33 @@ func (svc *Service) GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context)
 	return godepProfile, &profile.UpdatedAt, nil
 }
 
+func (svc *Service) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, gracePeriodHours *int) (*time.Time, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollmentProfile{}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	hours := fleet.DefaultAutomaticEnrollmentTokenGracePeriodHours
+	if gracePeriodHours != nil {
+		hours = *gracePeriodHours
+	}
+	if hours < 0 || hours > fleet.MaxAutomaticEnrollmentTokenGracePeriodHours {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("grace_period_hours",
+			fmt.Sprintf("must be between 0 and %d", fleet.MaxAutomaticEnrollmentTokenGracePeriodHours)))
+	}
+
+	expiresAt, err := svc.ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, uuid.NewString(), time.Duration(hours)*time.Hour)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "rotate automatic enrollment token")
+	}
+
+	// Apple only learns the new URL when each fleet's profile is re-defined and
+	// its devices re-assigned.
+	if err := svc.mdmAppleSyncDEPProfiles(ctx); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "queue automatic enrollment profile updates")
+	}
+	return expiresAt, nil
+}
+
 func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err

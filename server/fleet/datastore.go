@@ -1773,8 +1773,15 @@ type Datastore interface {
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
 
-	// GetMDMAppleEnrollmentProfileByToken loads the enrollment profile from its secret token.
+	// GetMDMAppleEnrollmentProfileByToken loads the enrollment profile from its secret token, or
+	// from its previous token until that expires.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*MDMAppleEnrollmentProfile, error)
+
+	// RotateMDMAppleAutomaticEnrollmentToken replaces the automatic enrollment profile's token with
+	// newToken. The current token becomes the previous token, valid for gracePeriod, or is
+	// discarded if gracePeriod is 0. It returns when the previous token expires, or nil if it was
+	// discarded, and a not found error if there is no automatic enrollment profile with a token.
+	RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, newToken string, gracePeriod time.Duration) (previousTokenExpiresAt *time.Time, err error)
 
 	// GetMDMAppleEnrollmentProfileByType loads the enrollment profile from its type (e.g. manual, automatic).
 	GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ MDMAppleEnrollmentType) (*MDMAppleEnrollmentProfile, error)

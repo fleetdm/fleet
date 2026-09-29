@@ -10728,6 +10728,76 @@ func TestMDMAppleEnrollEndpointAuthenticatesBeforeProcessing(t *testing.T) {
 	})
 }
 
+func TestRotateMDMAppleAutomaticEnrollmentToken(t *testing.T) {
+	adminCtx := func(ctx context.Context) context.Context {
+		return viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+	}
+
+	t.Run("free license", func(t *testing.T) {
+		svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		_, err := svc.RotateMDMAppleAutomaticEnrollmentToken(adminCtx(ctx), nil)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.False(t, ds.RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked)
+	})
+
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx = adminCtx(ctx)
+	expiresAt := time.Now().Add(time.Hour)
+	var gotGracePeriod time.Duration
+	var gotToken string
+	ds.RotateMDMAppleAutomaticEnrollmentTokenFunc = func(ctx context.Context, newToken string, gracePeriod time.Duration) (*time.Time, error) {
+		gotToken, gotGracePeriod = newToken, gracePeriod
+		return &expiresAt, nil
+	}
+	var queuedTasks []string
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		var args struct {
+			Task string `json:"task"`
+		}
+		require.NoError(t, json.Unmarshal(*job.Args, &args))
+		queuedTasks = append(queuedTasks, args.Task)
+		return job, nil
+	}
+
+	t.Run("grace period out of range", func(t *testing.T) {
+		for _, hours := range []int{-1, fleet.MaxAutomaticEnrollmentTokenGracePeriodHours + 1} {
+			ds.RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked = false
+			_, err := svc.RotateMDMAppleAutomaticEnrollmentToken(ctx, &hours)
+			var invalid *fleet.InvalidArgumentError
+			require.ErrorAs(t, err, &invalid)
+			require.False(t, ds.RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked)
+		}
+	})
+
+	t.Run("defaults to 24 hours and re-registers the profiles", func(t *testing.T) {
+		queuedTasks = nil
+		got, err := svc.RotateMDMAppleAutomaticEnrollmentToken(ctx, nil)
+		require.NoError(t, err)
+		require.Equal(t, &expiresAt, got)
+		require.Equal(t, 24*time.Hour, gotGracePeriod)
+		require.NotEmpty(t, gotToken)
+		require.Equal(t, []string{"update_all_profiles"}, queuedTasks)
+	})
+
+	t.Run("explicit grace period", func(t *testing.T) {
+		firstToken := gotToken
+		_, err := svc.RotateMDMAppleAutomaticEnrollmentToken(ctx, new(0))
+		require.NoError(t, err)
+		require.Zero(t, gotGracePeriod)
+		require.NotEqual(t, firstToken, gotToken)
+	})
+
+	t.Run("no automatic enrollment profile", func(t *testing.T) {
+		ds.RotateMDMAppleAutomaticEnrollmentTokenFunc = func(ctx context.Context, newToken string, gracePeriod time.Duration) (*time.Time, error) {
+			return nil, newNotFoundError()
+		}
+		queuedTasks = nil
+		_, err := svc.RotateMDMAppleAutomaticEnrollmentToken(ctx, nil)
+		require.True(t, fleet.IsNotFound(err))
+		require.Empty(t, queuedTasks)
+	})
+}
+
 func TestInitiateMDMSSOEndpointDeviceInfo(t *testing.T) {
 	ctx := t.Context()
 

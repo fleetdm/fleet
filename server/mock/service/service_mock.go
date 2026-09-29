@@ -727,6 +727,8 @@ type GetDefaultMDMAppleSetupAssistantProfileFunc func(ctx context.Context) (prof
 
 type DeleteMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) error
 
+type RotateMDMAppleAutomaticEnrollmentTokenFunc func(ctx context.Context, gracePeriodHours *int) (previousTokenExpiresAt *time.Time, err error)
+
 type HasCustomSetupAssistantConfigurationWebURLFunc func(ctx context.Context, teamID *uint) (bool, error)
 
 type UpdateMDMAppleSetupFunc func(ctx context.Context, payload fleet.MDMAppleSetupPayload) error
@@ -2102,6 +2104,9 @@ type Service struct {
 
 	DeleteMDMAppleSetupAssistantFunc        DeleteMDMAppleSetupAssistantFunc
 	DeleteMDMAppleSetupAssistantFuncInvoked bool
+
+	RotateMDMAppleAutomaticEnrollmentTokenFunc        RotateMDMAppleAutomaticEnrollmentTokenFunc
+	RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked bool
 
 	HasCustomSetupAssistantConfigurationWebURLFunc        HasCustomSetupAssistantConfigurationWebURLFunc
 	HasCustomSetupAssistantConfigurationWebURLFuncInvoked bool
@@ -5049,6 +5054,13 @@ func (s *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint
 	s.DeleteMDMAppleSetupAssistantFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMAppleSetupAssistantFunc(ctx, teamID)
+}
+
+func (s *Service) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, gracePeriodHours *int) (previousTokenExpiresAt *time.Time, err error) {
+	s.mu.Lock()
+	s.RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.RotateMDMAppleAutomaticEnrollmentTokenFunc(ctx, gracePeriodHours)
 }
 
 func (s *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Context, teamID *uint) (bool, error) {
