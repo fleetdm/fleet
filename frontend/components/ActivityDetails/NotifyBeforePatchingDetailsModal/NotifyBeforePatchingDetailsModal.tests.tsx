@@ -189,6 +189,20 @@ describe("NotifyBeforePatchingDetailsModal", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders the 'notification command was invalid' sentence for exit code 2", async () => {
+    useScriptResultHandler({ exit_code: 2 });
+    renderModal({ status: "failed" });
+
+    expect(
+      await screen.findByText(/The notification command was invalid\./)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Fleet won't try again\./)).toBeInTheDocument();
+    // Distinguishes 2 (usage error, no retry) from the internal-error / retry copy.
+    expect(
+      screen.queryByText(/notification failed unexpectedly/i)
+    ).not.toBeInTheDocument();
+  });
+
   it("renders the 'scripts are disabled' sentence for exit code -2", async () => {
     useScriptResultHandler({
       exit_code: -2,

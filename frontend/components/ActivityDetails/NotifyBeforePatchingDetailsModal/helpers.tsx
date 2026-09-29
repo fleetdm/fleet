@@ -35,7 +35,7 @@ export const UNEXPECTED_FAILURE_COPY = `The notification failed unexpectedly. ${
 // server-side map in server/notifications/internal/service/record_outcome.go.
 export const COPY_BY_EXIT_CODE: Record<number, string> = {
   0: "If the host is offline when the patch is forced, Fleet skips the patch. When the host comes back online Fleet notifies the end user again and the patch is forced 1 hour later.",
-  2: `The notification couldn't be sent because of an internal error. ${NO_RETRY}`,
+  2: `The notification command was invalid. ${NO_RETRY}`,
   20: `The notification couldn't be sent because of an internal configuration error. ${NO_RETRY}`,
   30: `The notification couldn't load. ${RETRY_NEXT_RUN}`,
   31: `The notification couldn't load. ${RETRY_NEXT_RUN}`,
