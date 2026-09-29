@@ -26,6 +26,7 @@ Here's what the end user sees with each option:
 | **Patch when app is closed** (default) | The app is patched silently only when the app isn't running. |
 | **Force patch** > **Patch immediately** | The patch installs as soon as the policy fails. It can interupt the end user without notice. |
 | **Force patch** > **Notify before patching** | If the app is running, end user sees a notification that the app will close and update in 1 hour. If the app isn't running it's patched silently. |
+| **Force patch** > **Deadline** ([coming soon](https://github.com/fleetdm/fleet/issues/39176)) | Apps with this option will update every __n__ days (customizable), at the choosen time. Fleet consolidates all outdated apps into a single notification that appears one day, one hour, and 5 minutes before the deadline. Users can enable a grace period for those who were offline when the deadline was reached. |
 | **End user initiated (manual)** | Nothing installs on its own. The end user updates the app from self-service when they choose. End user only see |
 
 > The [Fleet Desktop](https://fleetdm.com/software-catalog/fleet-desktop-darwin) app is required to notify end users. If app is missing and **Notify before patching** is selected, Fleet will skip patching on hosts that are missing Fleet Desktop.
@@ -46,11 +47,13 @@ When the patch policy fails, Fleet checks whether the app is running:
 
 You'll see the skipped install in the host's activity feed.
 
+Best used for productivity and content creation apps such as Word, PowerPoint, Creative Suite, etc. The apps that are open for a purpose to create something, and closing them can cause loss of data. In the case of a critical vulnerability, it's best to switch to **Force patch: notify before patching**.
+
 ## Force patch: patch immediately
 
 End users aren't notified. Fleet installs the patch as soon as the policy fails. Fleet doesn't check whether the app is running first.
 
-Choose this option when a patch can't wait (e.g. you found a critical vulnerability that must be patched ASAP).
+Choose this option for urgent patches (e.g., critical vulnerabilities) or to update security tools and utilities with classified data, where the risk of unsaved changes is minimal (e.g. 1Password, Santa, Okta Verify, etc).
 
 ## Force patch: notify before patching
 
@@ -67,10 +70,10 @@ The notification shows your organization's logo from **Settings > Organization s
 
 The end user has two choices:
 
-- **Remind me 5 minutes before** closes the notification. 55 minutes later, a second notification says "These apps will close and update in 5 minutes." The end user can select **Hide** or **Update now**. If they select **Hide**, the update still happens in the background when the hour is up.
+- **Remind me 5 minutes before** closes the notification. 55 minutes later, a second notification appears. The end user can select **Hide** or **Update now**. If they select **Hide**, the update still happens in the background when the hour is up.
 - **Update now** starts updating all listed apps right away. After that, only **Hide** is available. Updates keep running after the end user hides the notification.
 
-If the notification is still open when the hour is up, the updates start and each app shows "Updating...".
+If the notification is still open when the hour is up, the updates start for each app.
 
 The 1-hour timer starts only after the notification appears on screen. If the notification can't be shown, nothing installs. See [When notifications aren't shown](#when-notifications-arent-shown).
 
@@ -78,7 +81,7 @@ Breakglass command to close notification is **Cmd+Shift+X**, close it.
 
 ### Multiple apps
 
-When several apps are waiting on the same timer, they appear together in one notification. If more than four apps are listed, the list scrolls.
+When several apps are waiting on the same timer, they appear together in one notification.
 
 If the end user updates one of the listed apps from self-service during the hour, Fleet drops it from the 5-minute reminder and doesn't install it again.
 
@@ -95,7 +98,7 @@ Fleet only starts the 1-hour timer after the end user sees the notification. Her
 - **Fleet Desktop is missing or older than 1.5.0.** There's no notification and Fleet skips the patch. You'll see a "failed to notify" activity telling you to deploy Fleet Desktop.
 
 
-### Installs that never show a notification
+### Installs via self-service and setup experience
 
 Fleet doesn't show a notification, and ignores the pre-install query, when the install starts from:
 
@@ -109,31 +112,6 @@ Fleet doesn't show a notification, and ignores the pre-install query, when the i
 Fleet creates the patch policy with no software automation, so nothing installs on its own. The policy tells you which hosts run an outdated version.
 
 End users update the app when they choose. If the app is available in [self-service](https://fleetdm.com/guides/software-self-service), they select the Fleet icon in the menu bar, select **Self-service**, and update the app from there.
-
-
-## What IT sees in activities
-
-Fleet records each notification in the host's activity feed. Find it in the **Activities** section on the host's **Details** tab.
-
-| Activity | When |
-|:---------|:-----|
-| Fleet notified end user 1 hour before patching _app_ on _host_. | The notification appeared on screen. |
-| Fleet failed to notify end user 1 hour before patching _app_ on _host_. | Fleet couldn't show the notification. |
-
-If a notification lists more than three apps, the activity names the first three, then ", and _n_ more".
-
-Open a failed activity to see why Fleet couldn't notify the end user:
-
-| Cause | Message |
-|:------|:--------|
-| Fleet Desktop isn't installed | The Fleet Desktop app is required to notify end users. Add the app from the Fleet-maintained catalog and deploy to all your hosts. |
-| Fleet Desktop is older than 1.5.0 | The Fleet Desktop app v1.5.0 is required to notify end users. |
-| The notification didn't load | The notification couldn't load. Fleet will try again on the next policy run. |
-| The screen was locked | The screen was locked so the end user couldn't see the notification. Fleet will try again on the next policy run. |
-| Another notification was showing | Another notification was displayed. Fleet will try again on the next policy run. |
-
-If you change an app's patch settings while a host's timer is running, the host's activity feed shows the change. For example, if you switch to **End user initiated (manual)**, the app won't install when the timer runs out.
-
 
 <meta name="articleTitle" value="Patching end user experience">
 <meta name="authorFullName" value="Marko Lisica">
