@@ -3301,11 +3301,12 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
-			Name   string `db:"name"`
-			SyncML []byte `db:"syncml"`
+			Name        string `db:"name"`
+			Description string `db:"description"`
+			SyncML      []byte `db:"syncml"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT name, syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT name, description, syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
@@ -3406,7 +3407,7 @@ WHERE profile_uuid = ?`
 			}, "windows", false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profile variable associations")
 			}
-		} else {
+		} else if existing.Name != cp.Name || existing.Description != cp.Description {
 			// Name and description are not part of the checksum, so they are
 			// written without touching uploaded_at. A rename re-checks
 			// cross-platform uniqueness in the statement, as on content.
@@ -3432,13 +3433,16 @@ WHERE profile_uuid = ?`
 				return ctxerr.Wrap(ctx, err, "updating windows mdm config profile metadata")
 			}
 			// A rename blocked by the NOT EXISTS guard matches no row; the
-			// profile itself is known to exist from the SELECT above.
-			if aff, _ := res.RowsAffected(); aff == 0 && nameChanged {
-				return ctxerr.Wrap(ctx, &existsError{
-					ResourceType: "MDMWindowsConfigProfile.Name",
-					Identifier:   cp.Name,
-					TeamID:       cp.TeamID,
-				})
+			// profile itself existed at the SELECT above.
+			if aff, _ := res.RowsAffected(); aff == 0 {
+				if nameChanged {
+					return ctxerr.Wrap(ctx, &existsError{
+						ResourceType: "MDMWindowsConfigProfile.Name",
+						Identifier:   cp.Name,
+						TeamID:       cp.TeamID,
+					})
+				}
+				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
 			}
 		}
 

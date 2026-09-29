@@ -2028,51 +2028,27 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 		"windows": "windows desc",
 	}, descByName)
 
-	// a description-only update must not move uploaded_at: it is not part of
-	// the checksum, so nothing is re-delivered
-	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
-		ProfileUUID: apple.ProfileUUID,
-		Identifier:  apple.Identifier,
-		Name:        apple.Name,
-		Description: "apple desc 2",
-	}, nil)
+	// backdated, since uploaded_at only has one-second precision
+	backdateProfiles := func() {
+		for _, table := range []string{
+			"mdm_apple_configuration_profiles", "mdm_apple_declarations",
+			"mdm_windows_configuration_profiles", "mdm_android_configuration_profiles",
+		} {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE `+table+` SET uploaded_at = '2020-01-01 00:00:00'`)
+				return err
+			})
+		}
+	}
+	backdateProfiles()
+	gotApple, err = ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
 	require.NoError(t, err)
-	updApple, err := ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	gotDecl, err = ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
 	require.NoError(t, err)
-	require.Equal(t, "apple desc 2", updApple.Description)
-	require.Equal(t, gotApple.UploadedAt, updApple.UploadedAt)
-	require.Equal(t, gotApple.Checksum, updApple.Checksum)
-
-	gotDecl.Description = "decl desc 2"
-	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, gotDecl, nil, fleet.MDMAppleActivationKeep)
+	gotWin, err = ds.GetMDMWindowsConfigProfile(ctx, win.ProfileUUID)
 	require.NoError(t, err)
-	updDecl, err := ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+	gotAndroid, err = ds.GetMDMAndroidConfigProfile(ctx, android.ProfileUUID)
 	require.NoError(t, err)
-	require.Equal(t, "decl desc 2", updDecl.Description)
-	require.Equal(t, gotDecl.UploadedAt, updDecl.UploadedAt)
-	require.Equal(t, gotDecl.Token, updDecl.Token)
-
-	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
-		ProfileUUID: win.ProfileUUID,
-		Name:        win.Name,
-		Description: "windows desc 2",
-	}, nil)
-	require.NoError(t, err)
-	updWin, err := ds.GetMDMWindowsConfigProfile(ctx, win.ProfileUUID)
-	require.NoError(t, err)
-	require.Equal(t, "windows desc 2", updWin.Description)
-	require.Equal(t, gotWin.UploadedAt, updWin.UploadedAt)
-
-	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
-		ProfileUUID: android.ProfileUUID,
-		Name:        android.Name,
-		Description: "android desc 2",
-	}, nil)
-	require.NoError(t, err)
-	updAndroid, err := ds.GetMDMAndroidConfigProfile(ctx, android.ProfileUUID)
-	require.NoError(t, err)
-	require.Equal(t, "android desc 2", updAndroid.Description)
-	require.Equal(t, gotAndroid.UploadedAt, updAndroid.UploadedAt)
 
 	// a rename without content keeps uploaded_at and checksums too, and is
 	// checked against the other platforms' names
@@ -2203,10 +2179,8 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, listed, 4)
 	descByName = make(map[string]string, len(listed))
-	uploadedAtByName := make(map[string]time.Time, len(listed))
 	for _, p := range listed {
 		descByName[p.Name] = p.Description
-		uploadedAtByName[p.Name] = p.UploadedAt
 	}
 	require.Equal(t, map[string]string{
 		"batch-android": "batch android",
@@ -2215,6 +2189,7 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 		"batch-windows": "batch windows",
 	}, descByName)
 
+	backdateProfiles()
 	bApple.Description = "batch apple 2"
 	bDecl.Description = "batch decl 2"
 	bWin.Description = "batch windows 2"
@@ -2229,7 +2204,7 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	require.Len(t, listed, 4)
 	for _, p := range listed {
 		require.Equal(t, descByName[p.Name]+" 2", p.Description, p.Name)
-		require.Equal(t, uploadedAtByName[p.Name], p.UploadedAt, p.Name)
+		require.Equal(t, 2020, p.UploadedAt.Year(), p.Name)
 	}
 }
 

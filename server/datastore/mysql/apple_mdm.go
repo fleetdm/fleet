@@ -299,11 +299,12 @@ INSERT INTO
 func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
-			Identifier string `db:"identifier"`
-			Name       string `db:"name"`
+			Identifier  string `db:"identifier"`
+			Name        string `db:"name"`
+			Description string `db:"description"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT identifier, name FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT identifier, name, description FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
@@ -382,7 +383,7 @@ WHERE profile_uuid = ? AND identifier = ?` + nameGuard
 				}
 				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
 			}
-		} else {
+		} else if nameChanged || existing.Description != cp.Description {
 			// Name and description are not part of the checksum, so they are
 			// written without touching uploaded_at: a bump would re-verify every
 			// installed copy.
@@ -395,10 +396,11 @@ WHERE profile_uuid = ? AND identifier = ?` + nameGuard
 				}
 				return ctxerr.Wrap(ctx, err, "updating apple mdm config profile metadata")
 			}
-			// 0 rows also means "unchanged"; the row is known to exist from the
-			// SELECT above, so only a blocked rename is an error here.
-			if aff, _ := res.RowsAffected(); aff == 0 && nameChanged {
-				return nameExists()
+			if aff, _ := res.RowsAffected(); aff == 0 {
+				if nameChanged {
+					return nameExists()
+				}
+				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
 			}
 		}
 

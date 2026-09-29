@@ -971,10 +971,11 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
-			Name string `db:"name"`
+			Name        string `db:"name"`
+			Description string `db:"description"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT name FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT name, description FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
@@ -1036,7 +1037,7 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			}, "android", false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating android profile variable associations")
 			}
-		} else {
+		} else if nameChanged || existing.Description != cp.Description {
 			// Name and description are not part of the checksum, so they are
 			// written without touching uploaded_at.
 			stmt := `UPDATE mdm_android_configuration_profiles SET name = ?, description = ? WHERE profile_uuid = ?` + nameGuard
@@ -1049,9 +1050,12 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 				return ctxerr.Wrap(ctx, err, "updating android mdm config profile metadata")
 			}
 			// A rename blocked by the guard matches no row; the profile
-			// is known to exist from the SELECT above.
-			if aff, _ := res.RowsAffected(); aff == 0 && nameChanged {
-				return nameExists()
+			// existed at the SELECT above.
+			if aff, _ := res.RowsAffected(); aff == 0 {
+				if nameChanged {
+					return nameExists()
+				}
+				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
 			}
 		}
 
