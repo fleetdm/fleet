@@ -54,6 +54,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetABMOrganizationNamesAssociatedByDefaultTeams", testGetABMOrganizationNamesAssociatedByDefaultTeams},
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
 		{"GetHostMDMAppleProfilesOrphanedRows", testGetHostMDMAppleProfilesOrphanedRows},
+		{"QueueHostMDMAppleProfileInstallAndRemoval", testQueueHostMDMAppleProfileInstallAndRemoval},
 		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
 		{"TestUpdateMDMAppleConfigProfile", testUpdateMDMAppleConfigProfile},
@@ -13924,4 +13925,83 @@ func manualProfileIf(personal bool) fleet.PersonalEnrollmentType {
 		return fleet.PersonalEnrollmentTypeManualProfile
 	}
 	return fleet.PersonalEnrollmentTypeNone
+}
+
+func testQueueHostMDMAppleProfileInstallAndRemoval(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := uuid.NewString()
+	profile := &fleet.AppleProfileForReconcile{
+		ProfileUUID:       "a" + uuid.NewString(),
+		ProfileIdentifier: "com.ss",
+		ProfileName:       "SS",
+		Checksum:          []byte("0123456789abcdef"),
+		Scope:             fleet.PayloadScopeSystem,
+	}
+
+	type row struct {
+		OperationType fleet.MDMOperationType `db:"operation_type"`
+		Status        *string                `db:"status"`
+		CommandUUID   string                 `db:"command_uuid"`
+		Detail        string                 `db:"detail"`
+		Retries       uint                   `db:"retries"`
+	}
+	getRow := func() *row {
+		var rows []row
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `SELECT operation_type, status, command_uuid, detail, retries
+				FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?`, hostUUID, profile.ProfileUUID)
+		})
+		if len(rows) == 0 {
+			return nil
+		}
+		return &rows[0]
+	}
+	setDelivered := func(op fleet.MDMOperationType, status fleet.MDMDeliveryStatus, cmdUUID string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET operation_type = ?, status = ?, command_uuid = ?, detail = 'boom', retries = 2
+				WHERE host_uuid = ? AND profile_uuid = ?`, op, status, cmdUUID, hostUUID, profile.ProfileUUID)
+			return err
+		})
+	}
+
+	// Removal without a row is a no-op.
+	require.NoError(t, ds.QueueHostMDMAppleProfileRemoval(ctx, hostUUID, profile.ProfileUUID))
+	require.Nil(t, getRow())
+
+	// Install inserts a pending (NULL status) row with no command yet.
+	require.NoError(t, ds.QueueHostMDMAppleProfileInstall(ctx, hostUUID, profile))
+	r := getRow()
+	require.NotNil(t, r)
+	require.Equal(t, fleet.MDMOperationTypeInstall, r.OperationType)
+	require.Nil(t, r.Status)
+	require.Empty(t, r.CommandUUID)
+	profs, err := ds.GetHostMDMAppleProfiles(ctx, hostUUID)
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, fleet.MDMDeliveryPending, *profs[0].Status)
+
+	// Removing an install that was never sent drops the row.
+	require.NoError(t, ds.QueueHostMDMAppleProfileRemoval(ctx, hostUUID, profile.ProfileUUID))
+	require.Nil(t, getRow())
+
+	// Removing a delivered install queues a removal and keeps the command UUID.
+	require.NoError(t, ds.QueueHostMDMAppleProfileInstall(ctx, hostUUID, profile))
+	setDelivered(fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, "cmd-install")
+	require.NoError(t, ds.QueueHostMDMAppleProfileRemoval(ctx, hostUUID, profile.ProfileUUID))
+	r = getRow()
+	require.NotNil(t, r)
+	require.Equal(t, row{OperationType: fleet.MDMOperationTypeRemove, CommandUUID: "cmd-install"}, *r)
+
+	// Re-installing over a sent removal flips it back and keeps the command UUID for cancellation.
+	setDelivered(fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, "cmd-remove")
+	require.NoError(t, ds.QueueHostMDMAppleProfileInstall(ctx, hostUUID, profile))
+	r = getRow()
+	require.NotNil(t, r)
+	require.Equal(t, row{OperationType: fleet.MDMOperationTypeInstall, CommandUUID: "cmd-remove"}, *r)
+
+	// A queued reinstall (NULL status, previously sent) is not dropped on removal: the device may still have it.
+	require.NoError(t, ds.QueueHostMDMAppleProfileRemoval(ctx, hostUUID, profile.ProfileUUID))
+	r = getRow()
+	require.NotNil(t, r)
+	require.Equal(t, fleet.MDMOperationTypeRemove, r.OperationType)
 }

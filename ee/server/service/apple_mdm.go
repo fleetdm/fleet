@@ -808,7 +808,8 @@ func (svc *Service) handleInstallSelfServiceConfigurationProfile(ctx context.Con
 		hostLabelMemberships = memberships
 	}
 
-	if !reconcile.EntityAppliesToHost(profile, host.EffectiveTeamID(), host.LabelUpdatedAt, hostLabelMemberships, true) {
+	// entityOnHost=false matches the reconciler, which won't install a new opt-in until dynamic label membership is known.
+	if !reconcile.EntityAppliesToHost(profile, host.EffectiveTeamID(), host.LabelUpdatedAt, hostLabelMemberships, false) {
 		return "", &fleet.BadRequestError{
 			Message: "This profile is not available for self-service installation on this host.",
 		}
@@ -823,6 +824,11 @@ func (svc *Service) handleInstallSelfServiceConfigurationProfile(ctx context.Con
 		},
 	}); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "applying host MDM profile opt-in changes")
+	}
+
+	// Surfaces the install as pending right away; on failure the reconciler still acts on the opt-in next pass.
+	if err := svc.ds.QueueHostMDMAppleProfileInstall(ctx, host.UUID, profile); err != nil {
+		svc.logger.ErrorContext(ctx, "queue self-service profile install", "host.uuid", host.UUID, "profile.uuid", profile.ProfileUUID, "err", err)
 	}
 
 	return profile.ProfileName, nil
@@ -882,6 +888,11 @@ func (svc *Service) handleUninstallSelfServiceConfigurationProfile(ctx context.C
 		},
 	}); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "applying host MDM profile opt-in changes")
+	}
+
+	// Surfaces the removal as pending right away; on failure the reconciler still acts on the missing opt-in next pass.
+	if err := svc.ds.QueueHostMDMAppleProfileRemoval(ctx, host.UUID, profileUUID); err != nil {
+		svc.logger.ErrorContext(ctx, "queue self-service profile removal", "host.uuid", host.UUID, "profile.uuid", profileUUID, "err", err)
 	}
 
 	return profile.ProfileName, nil

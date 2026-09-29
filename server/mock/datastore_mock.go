@@ -2494,6 +2494,10 @@ type BulkGetHostMDMProfileOptInsFunc func(ctx context.Context, hostUUIDs []strin
 
 type HasHostMDMProfileOptInFunc func(ctx context.Context, hostUUID string, profileUUID string) (bool, error)
 
+type QueueHostMDMAppleProfileInstallFunc func(ctx context.Context, hostUUID string, profile *fleet.AppleProfileForReconcile) error
+
+type QueueHostMDMAppleProfileRemovalFunc func(ctx context.Context, hostUUID string, profileUUID string) error
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -6199,6 +6203,12 @@ type DataStore struct {
 
 	HasHostMDMProfileOptInFunc        HasHostMDMProfileOptInFunc
 	HasHostMDMProfileOptInFuncInvoked bool
+
+	QueueHostMDMAppleProfileInstallFunc        QueueHostMDMAppleProfileInstallFunc
+	QueueHostMDMAppleProfileInstallFuncInvoked bool
+
+	QueueHostMDMAppleProfileRemovalFunc        QueueHostMDMAppleProfileRemovalFunc
+	QueueHostMDMAppleProfileRemovalFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -14846,4 +14856,18 @@ func (s *DataStore) HasHostMDMProfileOptIn(ctx context.Context, hostUUID string,
 	s.HasHostMDMProfileOptInFuncInvoked = true
 	s.mu.Unlock()
 	return s.HasHostMDMProfileOptInFunc(ctx, hostUUID, profileUUID)
+}
+
+func (s *DataStore) QueueHostMDMAppleProfileInstall(ctx context.Context, hostUUID string, profile *fleet.AppleProfileForReconcile) error {
+	s.mu.Lock()
+	s.QueueHostMDMAppleProfileInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueueHostMDMAppleProfileInstallFunc(ctx, hostUUID, profile)
+}
+
+func (s *DataStore) QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUID string, profileUUID string) error {
+	s.mu.Lock()
+	s.QueueHostMDMAppleProfileRemovalFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueueHostMDMAppleProfileRemovalFunc(ctx, hostUUID, profileUUID)
 }

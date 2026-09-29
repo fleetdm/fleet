@@ -9129,3 +9129,40 @@ func (ds *Datastore) HasHostMDMProfileOptIn(ctx context.Context, hostUUID, profi
 	}
 	return false, nil
 }
+
+func (ds *Datastore) QueueHostMDMAppleProfileInstall(ctx context.Context, hostUUID string, profile *fleet.AppleProfileForReconcile) error {
+	// command_uuid is kept on conflict so the reconciler can cancel whatever command it supersedes.
+	stmt := `
+INSERT INTO host_mdm_apple_profiles
+	(host_uuid, profile_uuid, profile_identifier, profile_name, checksum, secrets_updated_at, scope, operation_type, status, command_uuid, detail)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, '', '')
+ON DUPLICATE KEY UPDATE
+	profile_identifier = VALUES(profile_identifier),
+	profile_name = VALUES(profile_name),
+	checksum = VALUES(checksum),
+	secrets_updated_at = VALUES(secrets_updated_at),
+	scope = VALUES(scope),
+	operation_type = VALUES(operation_type),
+	status = NULL,
+	detail = '',
+	retries = 0`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, profile.ProfileUUID, profile.ProfileIdentifier, profile.ProfileName,
+		profile.Checksum, profile.SecretsUpdatedAt, profile.Scope, fleet.MDMOperationTypeInstall)
+	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile install")
+}
+
+func (ds *Datastore) QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUID, profileUUID string) error {
+	// An install that was never sent to the device has nothing to remove, so drop the row instead.
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+DELETE FROM host_mdm_apple_profiles
+WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ? AND status IS NULL AND command_uuid = ''`,
+		hostUUID, profileUUID, fleet.MDMOperationTypeInstall); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete unsent host mdm apple profile install")
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_mdm_apple_profiles
+SET operation_type = ?, status = NULL, detail = '', retries = 0
+WHERE host_uuid = ? AND profile_uuid = ?`,
+		fleet.MDMOperationTypeRemove, hostUUID, profileUUID)
+	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile removal")
+}

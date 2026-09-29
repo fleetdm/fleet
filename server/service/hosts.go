@@ -5028,8 +5028,7 @@ func (svc *Service) availableSelfServiceAppleProfiles(ctx context.Context, host 
 	}
 	var out []fleet.HostMDMAppleProfile
 	for _, p := range candidates {
-		// entityOnHost=true matches the install endpoint, which lets unknown dynamic label membership through.
-		if !reconcile.EntityAppliesToHost(p, host.EffectiveTeamID(), host.LabelUpdatedAt, memberships[host.ID], true) {
+		if !reconcile.EntityAppliesToHost(p, host.EffectiveTeamID(), host.LabelUpdatedAt, memberships[host.ID], false) {
 			continue
 		}
 		out = append(out, fleet.HostMDMAppleProfile{

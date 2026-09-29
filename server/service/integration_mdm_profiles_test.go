@@ -11231,6 +11231,21 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 		require.Equal(t, got, find(deviceResp.Host.MDM.Profiles))
 		return got
 	}
+	// requireQueued asserts the install/uninstall endpoint wrote a NULL-status row for the reconciler, shown as pending.
+	requireQueued := func(op fleet.MDMOperationType) {
+		p := hostProfile("ISS1")
+		require.NotNil(t, p)
+		require.Equal(t, op, p.OperationType)
+		var rawStatus *string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &rawStatus, `SELECT status FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?`, host.UUID, ssUUID)
+		})
+		require.Nil(t, rawStatus)
+		d := ssDetails()
+		require.NotNil(t, d)
+		require.Equal(t, op, d.OperationType)
+		require.Equal(t, string(fleet.MDMDeliveryPending), *d.Status)
+	}
 	requireAvailable := func() {
 		d := ssDetails()
 		require.NotNil(t, d)
@@ -11255,6 +11270,7 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusAccepted)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledOptInConfigurationProfile{}.ActivityName(), activity(false), 0)
 	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusConflict)
+	requireQueued(fleet.MDMOperationTypeInstall)
 	s.DoRawNoAuth("POST", devicePath(ssUUID, "install"), nil, http.StatusConflict)
 
 	reconcileAndAck()
@@ -11270,6 +11286,7 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 	s.DoRawNoAuth("POST", devicePath(ssUUID, "uninstall"), nil, http.StatusAccepted)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeUninstalledOptInConfigurationProfile{}.ActivityName(), activity(true), 0)
 	s.DoRawNoAuth("POST", devicePath(ssUUID, "uninstall"), nil, http.StatusNotFound)
+	requireQueued(fleet.MDMOperationTypeRemove)
 
 	require.NoError(t, kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
 	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
@@ -11288,8 +11305,27 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 	// End user opts back in from the device endpoint.
 	s.DoRawNoAuth("POST", devicePath(ssUUID, "install"), nil, http.StatusAccepted)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledOptInConfigurationProfile{}.ActivityName(), activity(true), 0)
+	requireQueued(fleet.MDMOperationTypeInstall)
 	reconcileAndAck()
 	p = hostProfile("ISS1")
 	require.NotNil(t, p)
 	require.Equal(t, fleet.MDMOperationTypeInstall, p.OperationType)
+	require.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
+
+	// Remove it again, then install and uninstall before the reconciler runs: the never-sent install is dropped
+	// and nothing is sent to the device.
+	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusAccepted)
+	reconcileAndAck()
+	require.Nil(t, hostProfile("ISS1"))
+	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusAccepted)
+	requireQueued(fleet.MDMOperationTypeInstall)
+	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusAccepted)
+	require.Nil(t, hostProfile("ISS1"))
+	requireAvailable()
+	require.NoError(t, kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
+	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	require.Nil(t, hostProfile("ISS1"))
 }
