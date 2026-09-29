@@ -5743,6 +5743,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 					if inHouseAct == nil {
 						return nil, nil
 					}
+					// Set the install as failed here, verification only runs for acknowledged installs
+					err = svc.ds.SetInHouseAppInstallAsFailed(r.Context, inHouseAct.HostID, cmdResult.CommandUUID, "")
+					if err != nil {
+						return nil, ctxerr.Wrap(r.Context, err, "set in-house app install as failed")
+					}
 					inHouseAct.FromSetupExperience = fromSetupExperience
 					if err := svc.newActivityFn(r.Context, inHouseUser, inHouseAct); err != nil {
 						return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed in-house app")
