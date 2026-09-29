@@ -30,6 +30,41 @@ describe("EnrollmentAttemptDetailsModal", () => {
     expect(screen.getByText("Host details > Controls")).toBeInTheDocument();
   });
 
+  it.each([
+    { platform: "darwin", profile: "Fleetd configuration" },
+    { platform: "ios", profile: "Fleetd configuration" },
+    { platform: undefined, profile: "Fleetd configuration" },
+    { platform: "windows", profile: "Fleetd enroll secret" },
+  ])(
+    "names the $profile profile for a spent secret on $platform",
+    ({ platform, profile }) => {
+      renderModal({
+        hostDisplayName: "Anna's laptop",
+        reason: "one_time_secret_spent",
+        platform,
+      });
+      expect(screen.getByText(profile)).toBeInTheDocument();
+      const otherProfile =
+        profile === "Fleetd configuration"
+          ? "Fleetd enroll secret"
+          : "Fleetd configuration";
+      expect(screen.queryByText(otherProfile)).not.toBeInTheDocument();
+    }
+  );
+
+  it("keeps the shared secret text for a Windows host", () => {
+    renderModal({
+      reason: "shared_secret_for_mdm_managed_host",
+      platform: "windows",
+    });
+    expect(
+      screen.getByText(
+        /A shared enroll secret was used for a host that requires a one-time enroll secret\./
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Fleetd/)).not.toBeInTheDocument();
+  });
+
   it("describes an identifier mismatch in the headline with a support link", () => {
     renderModal({
       hostDisplayName: "Anna's MacBook Pro",

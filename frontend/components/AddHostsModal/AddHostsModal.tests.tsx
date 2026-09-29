@@ -397,37 +397,70 @@ describe("AddHostsModal", () => {
     expect(openEnrollSecretModal).toHaveBeenCalledTimes(1);
   });
 
-  it("explains manual enrollment in the no enroll secret state when one-time enroll secrets are on", () => {
-    const render = createCustomRenderer({
-      withBackendMock: true,
-      context: {
-        app: {
-          isPreviewMode: false,
-          config: createMockConfig({
-            auth: { mdm_apple_one_time_enroll_secrets: true },
-          }),
-        },
+  describe("no enroll secret state with one-time enroll secrets on", () => {
+    const APPLE_HOSTS =
+      "Apple hosts that automatically enroll via Automated Device Enrollment (ADE)";
+    const WINDOWS_HOSTS =
+      "Windows hosts that automatically enroll via Microsoft Entra ID or Autopilot";
+
+    it.each([
+      {
+        name: "Apple only",
+        auth: { mdm_apple_one_time_enroll_secrets: true },
+        hosts: APPLE_HOSTS,
       },
+      {
+        name: "Windows only",
+        auth: { mdm_windows_one_time_enroll_secrets: true },
+        hosts: WINDOWS_HOSTS,
+      },
+      {
+        name: "Apple and Windows",
+        auth: {
+          mdm_apple_one_time_enroll_secrets: true,
+          mdm_windows_one_time_enroll_secrets: true,
+        },
+        hosts:
+          "hosts that automatically enroll via Apple's Automated Device Enrollment (ADE), Microsoft Entra ID, or Autopilot",
+      },
+    ])("names the hosts that can still enroll ($name)", ({ auth, hosts }) => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPreviewMode: false,
+            config: createMockConfig({ auth }),
+          },
+        },
+      });
+
+      render(
+        <AddHostsModal
+          isAnyTeamSelected={false}
+          isLoading={false}
+          onCancel={noop}
+          openEnrollSecretModal={noop}
+        />
+      );
+
+      expect(
+        screen.getByText(/you have no enroll secrets\./i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          (_, element) =>
+            element?.tagName === "P" &&
+            element.textContent ===
+              `Only ${hosts} can enroll to Fleet. Add an enroll secret to enroll other hosts.`
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/new hosts will not enroll/i)
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /add enroll secret/i })
+      ).toBeInTheDocument();
     });
-
-    render(
-      <AddHostsModal
-        isAnyTeamSelected={false}
-        isLoading={false}
-        onCancel={noop}
-        openEnrollSecretModal={noop}
-      />
-    );
-
-    expect(
-      screen.getByText(/you have no enroll secrets\./i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/only apple hosts that automatically enroll via/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /add enroll secret/i })
-    ).toBeInTheDocument();
   });
 
   it("excludes `--enable-scripts` flag if `config.server_settings.scripts-disabled` is `true`", async () => {

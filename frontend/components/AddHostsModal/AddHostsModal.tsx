@@ -54,15 +54,31 @@ const AddHostsModal = ({
       return <Spinner />;
     }
     if (!enrollSecret) {
+      // Hosts that get a one-time enroll secret from Fleet's MDM can still
+      // enroll without one.
+      const appleOneTimeSecrets = !!config?.auth
+        ?.mdm_apple_one_time_enroll_secrets;
+      const windowsOneTimeSecrets = !!config?.auth
+        ?.mdm_windows_one_time_enroll_secrets;
+      let autoEnrollingHosts = "";
+      if (appleOneTimeSecrets && windowsOneTimeSecrets) {
+        autoEnrollingHosts =
+          "hosts that automatically enroll via Apple's Automated Device Enrollment (ADE), Microsoft Entra ID, or Autopilot";
+      } else if (appleOneTimeSecrets) {
+        autoEnrollingHosts =
+          "Apple hosts that automatically enroll via Automated Device Enrollment (ADE)";
+      } else if (windowsOneTimeSecrets) {
+        autoEnrollingHosts =
+          "Windows hosts that automatically enroll via Microsoft Entra ID or Autopilot";
+      }
       return (
         <>
           <p>You have no enroll secrets.</p>
           <p>
-            {config?.auth?.mdm_apple_one_time_enroll_secrets ? (
+            {autoEnrollingHosts ? (
               <>
-                Only Apple hosts that automatically enroll via Automated Device
-                Enrollment (ADE) can enroll to <b>{teamDisplayName}</b>. Add an
-                enroll secret to enroll other hosts.
+                Only {autoEnrollingHosts} can enroll to <b>{teamDisplayName}</b>
+                . Add an enroll secret to enroll other hosts.
               </>
             ) : (
               <>
