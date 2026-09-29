@@ -41,7 +41,7 @@ Okta requires a one-time SCEP challenge in each certificate request. The script 
 
 1. Create an API-only user with the global maintainer role. Learn how in the [API-only user guide](https://fleetdm.com/guides/fleetctl#create-api-only-user). For least privilege, restrict the user to only the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) endpoint by passing its `id` in `api_endpoints` when you create the user. Find the `id` with [`GET /rest_api`](https://fleetdm.com/docs/rest-api/rest-api#list-api-endpoints-for-api-only-user-permissions).
 2. In Fleet, head to **Controls > Variables** and create a variable called `REQUEST_CERTIFICATE_API_TOKEN` with the API-only user's API token as its value. The script reads it as `$FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN`.
-3. Download [`okta-request-certificate.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/okta-request-certificate.sh), then replace `<Fleet-server-URL>` and `<Okta-CA-ID>` (the CA `id` from Step 3) with your own values.
+3. Download [`request-okta-scep-certificate.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/request-okta-scep-certificate.sh), then replace `<Fleet-server-URL>` and `<Okta-CA-ID>` (the CA `id` from Step 3) with your own values.
 
    By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard x509 certificate. The script passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `device.pem`.
 4. In Fleet, head to **Software**, select **Add software > Custom package**, and upload the script (a script with no installer becomes a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)).
@@ -53,7 +53,7 @@ Until [fleetdm/fleet#52993](https://github.com/fleetdm/fleet/issues/52993) ships
 
 1. Make sure the test host can reach GitHub. The script uses [`scepclient`](https://github.com/micromdm/scep) v2.3.0 to enroll with Okta's SCEP endpoint, and installs it the first time it runs: it downloads the release binary on x86_64 hosts, and builds it with Go on arm64 hosts (the release has no arm64 binary). On Debian and Ubuntu, it installs `unzip` or `golang-go` with `apt-get` if they're missing. Ubuntu's own `scep` package isn't used: it ships v2.1.0, which fails with `pkcs7: Message digest mismatch` when it reads Okta's response.
 2. In Fleet, head to **Controls > Variables** and create a variable called `OKTA_SCEP_PASSWORD` with the password from Okta's **Add device management platform** page in Step 3. The script reads it as `$FLEET_SECRET_OKTA_SCEP_PASSWORD`.
-3. Download [`okta-scep-enroll.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/okta-scep-enroll.sh), then replace `<Okta-challenge-URL>`, `<Okta-SCEP-URL>`, and `<Okta-SCEP-username>` with the values from the same Okta page.
+3. Download [`request-okta-scep-certificate-test.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/request-okta-scep-certificate-test.sh), then replace `<Okta-challenge-URL>`, `<Okta-SCEP-URL>`, and `<Okta-SCEP-username>` with the values from the same Okta page.
 4. In Fleet, head to **Controls > Scripts**, upload the script, then run it on the test host from **Host details > Actions > Run script**.
 
 ## Step 5: Renew or restore the certificate automatically
