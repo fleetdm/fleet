@@ -2036,9 +2036,8 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 	// resolve Fleet variables in the installer's scripts for this host, after
 	// the secrets and custom host vitals expansions done by the datastore
 	var failures []string
-	fetch := &scriptFetchState{}
 	for _, script := range []*string{&details.InstallScript, &details.PostInstallScript, &details.UninstallScript} {
-		expanded, failureMessage, err := svc.expandScriptFleetVariables(ctx, host, *script, fetch)
+		expanded, failureMessage, err := svc.maybeExpandScriptFleetVariables(ctx, host, *script)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and install %s", host.ID, installUUID))
 		}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -492,42 +493,6 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 			require.Zero(t, calls.fetches)
 		})
 
-		t.Run("scripts sharing a fetch state share one challenge", func(t *testing.T) {
-			scripts := []string{"install $FLEET_VAR_NDES_SCEP_CHALLENGE", "post $FLEET_VAR_NDES_SCEP_CHALLENGE"}
-
-			svc, ctx, _, calls := newNDESSvc(t, ndesCA, nil)
-			fetch := &scriptFetchState{}
-			for _, body := range scripts {
-				expanded, failMsg, err := svc.expandScriptFleetVariables(ctx, host, body, fetch)
-				require.NoError(t, err)
-				require.Empty(t, failMsg)
-				requireVarsDelivered(t, expanded, body, map[string]string{"NDES_SCEP_CHALLENGE": challenge})
-			}
-			require.Equal(t, 1, calls.caLookups)
-			require.Equal(t, 1, calls.fetches)
-
-			// a failure is shared too, so the second script doesn't ask NDES again
-			cacheFull := scep.NewNDESPasswordCacheFullError("the password cache is full")
-			svc, ctx, _, calls = newNDESSvc(t, ndesCA, cacheFull)
-			fetch = &scriptFetchState{}
-			for _, body := range scripts {
-				_, failMsg, err := svc.expandScriptFleetVariables(ctx, host, body, fetch)
-				require.NoError(t, err)
-				require.Equal(t, scep.NDESChallengeErrorToScriptDetail(cacheFull), failMsg)
-			}
-			require.Equal(t, 1, calls.fetches)
-
-			svc, ctx, _, calls = newNDESSvc(t, nil, nil)
-			fetch = &scriptFetchState{}
-			for _, body := range scripts {
-				_, failMsg, err := svc.expandScriptFleetVariables(ctx, host, body, fetch)
-				require.NoError(t, err)
-				require.Equal(t, fleet.NDESNotConfiguredMsg, failMsg)
-			}
-			require.Equal(t, 1, calls.caLookups)
-			require.Zero(t, calls.fetches)
-		})
-
 		t.Run("a dropped request is an infrastructure error", func(t *testing.T) {
 			svc, ctx, _, _ := newNDESSvc(t, ndesCA, nil)
 			ctx, cancel := context.WithCancel(ctx)
@@ -754,7 +719,7 @@ func TestGetSoftwareInstallDetailsFleetVariables(t *testing.T) {
 		scepConfig := &scep_mock.SCEPConfigService{
 			GetNDESSCEPChallengeFunc: func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 				fetches++
-				return "8CE317021F690069", nil
+				return fmt.Sprintf("challenge-%d", fetches), nil
 			},
 		}
 		svc, ctx, ds := newSvcAndCtx(t, &fleet.SoftwareInstallDetails{
@@ -771,13 +736,13 @@ func TestGetSoftwareInstallDetailsFleetVariables(t *testing.T) {
 		details, err := svc.GetSoftwareInstallDetails(ctx, "install-1")
 		require.NoError(t, err)
 		requireVarsDelivered(t, details.InstallScript, "install $FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_NDES_SCEP_CHALLENGE",
-			map[string]string{"HOST_HARDWARE_SERIAL": "SERIAL-1", "NDES_SCEP_CHALLENGE": "8CE317021F690069"})
+			map[string]string{"HOST_HARDWARE_SERIAL": "SERIAL-1", "NDES_SCEP_CHALLENGE": "challenge-1"})
 		requireVarsDelivered(t, details.PostInstallScript, "post ${FLEET_VAR_HOST_UUID} $FLEET_VAR_NDES_SCEP_CHALLENGE",
-			map[string]string{"HOST_UUID": "ABC-123", "NDES_SCEP_CHALLENGE": "8CE317021F690069"})
+			map[string]string{"HOST_UUID": "ABC-123", "NDES_SCEP_CHALLENGE": "challenge-2"})
 		requireVarsDelivered(t, details.UninstallScript, "uninstall $FLEET_VAR_HOST_PLATFORM",
 			map[string]string{"HOST_PLATFORM": "ubuntu"})
-		// the scripts delivered in one fetch share one challenge
-		require.Equal(t, 1, fetches)
+		// each script gets its own challenge, since a challenge is single use
+		require.Equal(t, 2, fetches)
 	})
 
 	t.Run("scripts without variables are unchanged", func(t *testing.T) {

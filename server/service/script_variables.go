@@ -33,22 +33,6 @@ const (
 // supported one (e.g. $FLEET_VAR_HOST_UUID_LEGACY), whose prefix
 // variables.Replace rewrites along with the supported variable.
 func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *fleet.Host, contents string) (expanded string, failureMessage string, err error) {
-	return svc.expandScriptFleetVariables(ctx, host, contents, &scriptFetchState{})
-}
-
-// scriptFetchState holds values resolved at most once per fetch and shared by
-// every script delivered in it, such as the install, post-install, and
-// uninstall scripts of a software install.
-type scriptFetchState struct {
-	ndesCALookedUp bool
-	ndesCA         *fleet.NDESSCEPProxyCA
-	// a challenge is a one-time password taken from the NDES cache
-	ndesChallengeFetched bool
-	ndesChallenge        string
-	ndesChallengeFailure string
-}
-
-func (svc *Service) expandScriptFleetVariables(ctx context.Context, host *fleet.Host, contents string, fetch *scriptFetchState) (expanded string, failureMessage string, err error) {
 	fleetVars := variables.Find(contents)
 	if len(fleetVars) == 0 {
 		return contents, "", nil
@@ -85,26 +69,22 @@ func (svc *Service) expandScriptFleetVariables(ctx context.Context, host *fleet.
 
 	resolved := make(map[string]string, len(supported))
 	hostIDForUUIDCache := map[string]uint{host.UUID: host.ID}
-	var needsNDESChallenge bool
+	var ndesCA *fleet.NDESSCEPProxyCA
 	for _, v := range supported {
 		var value string
 		switch fleet.FleetVarName(v) {
 		case fleet.FleetVarNDESSCEPChallenge:
 			// fetched after the loop, once nothing else can stop the script
 			// from running
-			if !fetch.ndesCALookedUp {
-				groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
-				if err != nil {
-					return "", "", ctxerr.Wrap(ctx, err, "get certificate authorities for script")
-				}
-				fetch.ndesCA = groupedCAs.NDESSCEP
-				fetch.ndesCALookedUp = true
+			groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
+			if err != nil {
+				return "", "", ctxerr.Wrap(ctx, err, "get certificate authorities for script")
 			}
-			if fetch.ndesCA == nil {
+			if groupedCAs.NDESSCEP == nil {
 				_ = fail(fleet.NDESNotConfiguredMsg)
 				continue
 			}
-			needsNDESChallenge = true
+			ndesCA = groupedCAs.NDESSCEP
 			continue
 		case fleet.FleetVarHostUUID:
 			value = host.UUID
@@ -143,7 +123,7 @@ func (svc *Service) expandScriptFleetVariables(ctx context.Context, host *fleet.
 		resolved[v] = value
 	}
 
-	if needsNDESChallenge && len(failures) == 0 {
+	if ndesCA != nil && len(failures) == 0 {
 		// the preamble insertion below would fail anyway; check first so the
 		// failure doesn't cost a challenge
 		if err := variables.CheckPreamble(contents, dialect); err != nil {
@@ -152,7 +132,7 @@ func (svc *Service) expandScriptFleetVariables(ctx context.Context, host *fleet.
 			}
 			return "", "", ctxerr.Wrap(ctx, err, "check fleet variable preamble")
 		}
-		challenge, failure, err := svc.scriptNDESChallenge(ctx, fetch)
+		challenge, failure, err := svc.scriptNDESChallenge(ctx, *ndesCA)
 		if err != nil {
 			return "", "", err
 		}
@@ -192,26 +172,21 @@ func (svc *Service) expandScriptFleetVariables(ctx context.Context, host *fleet.
 	return expanded, "", nil
 }
 
-// scriptNDESChallenge fetches a challenge from the NDES admin URL, once per
-// fetch. The challenge must never be logged.
-func (svc *Service) scriptNDESChallenge(ctx context.Context, fetch *scriptFetchState) (challenge string, failureMessage string, err error) {
-	if !fetch.ndesChallengeFetched {
-		value, err := svc.scepConfigService.GetNDESSCEPChallenge(ctx, *fetch.ndesCA)
-		// a dropped request is not the CA's failure and must not fail the run
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return "", "", ctxerr.Wrap(ctx, ctxErr, "get NDES challenge for script")
-		}
-		fetch.ndesChallengeFetched = true
-		switch {
-		case err != nil:
-			fetch.ndesChallengeFailure = scep.NDESChallengeErrorToScriptDetail(err)
-		case strings.ContainsRune(value, 0):
-			fetch.ndesChallengeFailure = nulValueMsg(string(fleet.FleetVarNDESSCEPChallenge))
-		default:
-			fetch.ndesChallenge = value
-		}
+// scriptNDESChallenge fetches a challenge from the NDES admin URL. The
+// challenge must never be logged.
+func (svc *Service) scriptNDESChallenge(ctx context.Context, ca fleet.NDESSCEPProxyCA) (challenge string, failureMessage string, err error) {
+	challenge, err = svc.scepConfigService.GetNDESSCEPChallenge(ctx, ca)
+	// a dropped request is not the CA's failure and must not fail the run
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return "", "", ctxerr.Wrap(ctx, ctxErr, "get NDES challenge for script")
 	}
-	return fetch.ndesChallenge, fetch.ndesChallengeFailure, nil
+	switch {
+	case err != nil:
+		return "", scep.NDESChallengeErrorToScriptDetail(err), nil
+	case strings.ContainsRune(challenge, 0):
+		return "", nulValueMsg(string(fleet.FleetVarNDESSCEPChallenge)), nil
+	}
+	return challenge, "", nil
 }
 
 func nulValueMsg(name string) string {

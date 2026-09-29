@@ -872,10 +872,11 @@ func ndesChallengeErrorToDetail(err error, willRetry bool) string {
 		return fmt.Sprintf("This account does not have sufficient permissions to enroll with SCEP. Fleet couldn't populate %s. "+
 			"Please update the account with NDES SCEP enroll permissions and try again.", varName)
 	case errors.As(err, &NDESTransientError{}):
+		var retry string
 		if willRetry {
-			return fmt.Sprintf("Fleet couldn't reach NDES to populate %s and will try again. %s", varName, err.Error())
+			retry = " and will try again"
 		}
-		return fmt.Sprintf("Fleet couldn't reach NDES to populate %s. %s", varName, err.Error())
+		return fmt.Sprintf("Fleet couldn't reach NDES to populate %s%s. %s", varName, retry, err.Error())
 	default:
 		return fmt.Sprintf("Fleet couldn't populate %s. %s", varName, err.Error())
 	}
