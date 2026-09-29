@@ -330,6 +330,7 @@ SELECT
 	pna.software_title_id,
 	pna.software_installer_id,
 	pna.install_queued,
+	pna.updated_in_inventory,
 	pna.created_at,
 	COALESCE(si.version, '') AS installer_version
 FROM patch_notification_apps pna

@@ -542,12 +542,14 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		return ctxerr.Wrap(ctx, err, "set patch notification apps updated in inventory")
 	}
 
-	// Queue every other app, an app Fleet installed since it joined is set as queued without a new install
+	// Queue every other app, an app Fleet installed since it joined is set as queued without a new install.
+	// Skip an app an earlier pass recorded as updated in inventory even if the inventory changed since, the toast already shows it as updated.
 	appsToQueue := make([]fleet.PatchNotificationAppDetail, 0, len(apps))
 	for _, app := range apps {
-		if !slices.Contains(updatedInInventoryTitleIDs, app.SoftwareTitleID) {
-			appsToQueue = append(appsToQueue, app)
+		if app.UpdatedInInventory || slices.Contains(updatedInInventoryTitleIDs, app.SoftwareTitleID) {
+			continue
 		}
+		appsToQueue = append(appsToQueue, app)
 	}
 	_, err = k.queuePatchNotificationInstalls(ctx, duePatch.NotificationUUID, duePatch.HostID, appsToQueue, installsByTitle)
 	if err != nil {

@@ -915,6 +915,8 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		// the notification is already acted, which an earlier pass stopping part way through leaves behind
 		statusActed bool
 		hostOffline bool
+		// an earlier deadline pass recorded the first app as updated in inventory
+		firstAppUpdatedInInventory bool
 
 		wantReminder bool
 		wantInstalls []uint
@@ -1056,6 +1058,19 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
+			// the inventory reports the old version again by the time a later pass finishes the installs
+			name:                       "an acted notification with an app an earlier pass recorded as updated in inventory does not install that app",
+			untilDeadline:              -time.Minute,
+			displayed:                  true,
+			reminder:                   true,
+			statusActed:                true,
+			alreadyActed:               true,
+			firstAppUpdatedInInventory: true,
+			installedVersions:          behind,
+			wantActed:                  true,
+			wantInstalls:               []uint{twoInstallerID},
+		},
+		{
 			name:              "an Update now that got there first stops the deadline installing the same apps again",
 			untilDeadline:     -time.Minute,
 			displayed:         true,
@@ -1137,7 +1152,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			ds.ListPatchNotificationAppsForNotificationsFunc = func(_ context.Context, uuids []string) (map[string][]fleet.PatchNotificationAppDetail, error) {
 				appReads++
 				all := []fleet.PatchNotificationAppDetail{
-					{SoftwareTitleID: oneTitleID, SoftwareInstallerID: new(oneInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion, CreatedAt: appAddedAt},
+					{SoftwareTitleID: oneTitleID, SoftwareInstallerID: new(oneInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion, CreatedAt: appAddedAt, UpdatedInInventory: c.firstAppUpdatedInInventory},
 					{SoftwareTitleID: twoTitleID, SoftwareInstallerID: new(twoInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion, CreatedAt: appAddedAt},
 				}
 				listed := make([]fleet.PatchNotificationAppDetail, 0, len(all))
