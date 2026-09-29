@@ -13,6 +13,8 @@ on:
   # them (log masking doesn't stop e.g. curl to an attacker's server). The
   # PR's config is checked out separately below and treated as data only.
   pull_request_target:
+    branches:
+      - main
     paths:
       - "it-and-security/**"
       - ".github/workflows/dogfood-gitops.yml"
