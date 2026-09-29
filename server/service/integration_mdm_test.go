@@ -29011,7 +29011,7 @@ func (s *integrationMDMTestSuite) TestRotateFileVaultKey() {
 		require.Equal(t, archivedBefore+1, archiveRows(host.ID))
 		require.Equal(t, escrowedBefore+1, hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName()))
 
-		// the next report of the same blob is unchanged
+		// a report of a different key follows the normal path
 		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "OTHER-555")
 		require.Equal(t, archivedBefore+2, archiveRows(host.ID), "a different key still follows the normal path")
 		require.Nil(t, storedKey(host.ID).Decryptable)
@@ -29110,6 +29110,7 @@ func (s *integrationMDMTestSuite) TestRotateFileVaultKey() {
 		})
 
 		// indistinguishable from a request whose command isn't enqueued yet
+		require.True(t, getKey(host.ID).EncryptionKey.RotationPending)
 		s.Do("POST", rotateURL(host.ID), nil, http.StatusConflict)
 
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -29119,7 +29120,10 @@ func (s *integrationMDMTestSuite) TestRotateFileVaultKey() {
 				WHERE host_id = ?`, host.ID)
 			return err
 		})
+		// GET and rotate agree that the marker is stale
+		require.False(t, getKey(host.ID).EncryptionKey.RotationPending)
 		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		require.True(t, getKey(host.ID).EncryptionKey.RotationPending)
 		second := storedKey(host.ID).RotationCommandUUID
 		require.NotNil(t, second)
 		require.NotEqual(t, *first, *second)

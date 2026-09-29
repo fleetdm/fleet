@@ -36,6 +36,7 @@ func TestDiskEncryption(t *testing.T) {
 		{"TestBitLockerPINRequestCleanup", testBitLockerPINRequestCleanup},
 		{"TestDiskEncryptionKeyRotation", testDiskEncryptionKeyRotation},
 		{"TestIsAppleMDMCommandPending", testIsAppleMDMCommandPending},
+		{"TestDiskEncryptionKeyRotationInProgress", testDiskEncryptionKeyRotationInProgress},
 	}
 
 	for _, c := range cases {
@@ -638,7 +639,7 @@ func testIsAppleMDMCommandPending(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, host, false)
 	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
 
-	pending, err := ds.IsAppleMDMCommandPending(ctx, host.UUID, "missing")
+	pending, err := ds.isAppleMDMCommandPending(ctx, host.UUID, "missing")
 	require.NoError(t, err)
 	require.False(t, pending)
 
@@ -653,19 +654,19 @@ func testIsAppleMDMCommandPending(t *testing.T, ds *Datastore) {
 	}
 
 	queued := enqueue()
-	pending, err = ds.IsAppleMDMCommandPending(ctx, host.UUID, queued)
+	pending, err = ds.isAppleMDMCommandPending(ctx, host.UUID, queued)
 	require.NoError(t, err)
 	require.True(t, pending)
 
 	report(queued, fleet.MDMAppleStatusNotNow)
-	pending, err = ds.IsAppleMDMCommandPending(ctx, host.UUID, queued)
+	pending, err = ds.isAppleMDMCommandPending(ctx, host.UUID, queued)
 	require.NoError(t, err)
 	require.True(t, pending, "NotNow is retried")
 
 	for _, status := range fleet.MDMAppleTerminalStatuses {
 		answered := enqueue()
 		report(answered, status)
-		pending, err = ds.IsAppleMDMCommandPending(ctx, host.UUID, answered)
+		pending, err = ds.isAppleMDMCommandPending(ctx, host.UUID, answered)
 		require.NoError(t, err)
 		require.False(t, pending, status)
 	}
@@ -675,7 +676,49 @@ func testIsAppleMDMCommandPending(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `UPDATE nano_enrollment_queue SET active = 0 WHERE command_uuid = ?`, inactive)
 		return err
 	})
-	pending, err = ds.IsAppleMDMCommandPending(ctx, host.UUID, inactive)
+	pending, err = ds.isAppleMDMCommandPending(ctx, host.UUID, inactive)
 	require.NoError(t, err)
 	require.False(t, pending)
+}
+
+func testDiskEncryptionKeyRotationInProgress(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "in-progress.local", "1.1.1.1", "in-progress-osquery", "in-progress-node", time.Now())
+	nanoEnroll(t, ds, host, false)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	_, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "blob-1", "", new(true))
+	require.NoError(t, err)
+
+	inProgress := func(t *testing.T, cmdUUID string) bool {
+		got, err := ds.IsHostDiskEncryptionKeyRotationInProgress(ctx, host.ID, host.UUID, cmdUUID, time.Minute)
+		require.NoError(t, err)
+		return got
+	}
+	backdate := func(t *testing.T) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET rotation_requested_at = NOW(6) - INTERVAL 2 MINUTE, updated_at = updated_at WHERE host_id = ?`, host.ID)
+			return err
+		})
+	}
+
+	require.False(t, inProgress(t, "none"), "no marker")
+
+	// not queued yet, but just requested
+	ok, err := ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.True(t, inProgress(t, "cmd-1"))
+	require.False(t, inProgress(t, "other"), "only the pending command counts")
+	backdate(t)
+	require.False(t, inProgress(t, "cmd-1"), "an old marker with no queued command is stale")
+	require.NoError(t, ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1"))
+
+	// queued and unanswered, however old
+	cmdUUID := uuid.NewString()
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NoError(t, commander.EnqueueCommand(ctx, []string{host.UUID}, createRawAppleCmd(fleet.RotateFileVaultKeyCmdName, cmdUUID)))
+	backdate(t)
+	require.True(t, inProgress(t, cmdUUID))
 }

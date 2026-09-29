@@ -306,8 +306,9 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 			k.RotationCommandUUID = e.marker
 			return &k, nil
 		}
-		e.ds.IsAppleMDMCommandPendingFunc = func(ctx context.Context, hostUUID, cmdUUID string) (bool, error) {
-			return e.pending, nil
+		e.ds.IsHostDiskEncryptionKeyRotationInProgressFunc = func(ctx context.Context, hostID uint, hostUUID, cmdUUID string, staleAfter time.Duration) (bool, error) {
+			require.Equal(t, time.Minute, staleAfter)
+			return e.pending || !e.stale, nil
 		}
 		e.ds.ClearHostDiskEncryptionKeyRotationCommandFunc = func(ctx context.Context, hostID uint, cmdUUID string) error {
 			if e.marker != nil && *e.marker == cmdUUID {
@@ -445,6 +446,17 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 		require.ErrorAs(t, e.svc.RotateDiskEncryptionKey(adminCtx(), 1), &conflict)
 		require.Empty(t, e.commander.calls)
 		require.Equal(t, "in-flight", *e.marker)
+	})
+
+	t.Run("losing the stale-marker race conflicts", func(t *testing.T) {
+		e := setup(t)
+		e.marker, e.stale = new("stale"), true
+		e.ds.ClearStaleHostDiskEncryptionKeyRotationCommandFunc = func(ctx context.Context, hostID uint, cmdUUID string, olderThan time.Duration) (bool, error) {
+			return false, nil
+		}
+		var conflict *fleet.ConflictError
+		require.ErrorAs(t, e.svc.RotateDiskEncryptionKey(adminCtx(), 1), &conflict)
+		require.Empty(t, e.commander.calls)
 	})
 
 	t.Run("enqueue failure clears the marker", func(t *testing.T) {

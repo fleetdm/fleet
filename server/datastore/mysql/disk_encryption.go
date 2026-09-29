@@ -397,7 +397,7 @@ func (ds *Datastore) IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID
 
 // The rotation statements below set updated_at = updated_at because updated_at
 // tracks when the key itself changed: the verification cron compares against it
-// and the API reports it, so marker and status changes must not move it.
+// and the API reports it, so marker changes and rotation failures must not move it.
 
 func (ds *Datastore) SetHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string) (bool, error) {
 	res, err := ds.writer(ctx).ExecContext(ctx, `
@@ -437,6 +437,25 @@ WHERE host_id = ? AND rotation_command_uuid = ?
 		return false, ctxerr.Wrap(ctx, err, "rows affected clearing stale host disk encryption key rotation command")
 	}
 	return affected == 1, nil
+}
+
+func (ds *Datastore) IsHostDiskEncryptionKeyRotationInProgress(ctx context.Context, hostID uint, hostUUID, cmdUUID string, staleAfter time.Duration) (bool, error) {
+	pending, err := ds.isAppleMDMCommandPending(ctx, hostUUID, cmdUUID)
+	if err != nil || pending {
+		return pending, err
+	}
+	var recent sql.NullBool
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &recent, `
+SELECT rotation_requested_at >= NOW(6) - INTERVAL ? MICROSECOND
+FROM host_disk_encryption_keys
+WHERE host_id = ? AND rotation_command_uuid = ?`, staleAfter.Microseconds(), hostID, cmdUUID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "check host disk encryption key rotation age")
+	}
+	return recent.Valid && recent.Bool, nil
 }
 
 func clearHostDiskEncryptionKeyRotationByHostUUIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {

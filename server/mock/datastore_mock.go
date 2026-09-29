@@ -972,7 +972,7 @@ type GetHostByDiskEncryptionKeyRotationCommandFunc func(ctx context.Context, cmd
 
 type ReplaceHostDiskEncryptionKeyBlobFunc func(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error
 
-type IsAppleMDMCommandPendingFunc func(ctx context.Context, hostUUID string, cmdUUID string) (bool, error)
+type IsHostDiskEncryptionKeyRotationInProgressFunc func(ctx context.Context, hostID uint, hostUUID string, cmdUUID string, staleAfter time.Duration) (bool, error)
 
 type GetHostEscrowStateFunc func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error)
 
@@ -3923,8 +3923,8 @@ type DataStore struct {
 	ReplaceHostDiskEncryptionKeyBlobFunc        ReplaceHostDiskEncryptionKeyBlobFunc
 	ReplaceHostDiskEncryptionKeyBlobFuncInvoked bool
 
-	IsAppleMDMCommandPendingFunc        IsAppleMDMCommandPendingFunc
-	IsAppleMDMCommandPendingFuncInvoked bool
+	IsHostDiskEncryptionKeyRotationInProgressFunc        IsHostDiskEncryptionKeyRotationInProgressFunc
+	IsHostDiskEncryptionKeyRotationInProgressFuncInvoked bool
 
 	GetHostEscrowStateFunc        GetHostEscrowStateFunc
 	GetHostEscrowStateFuncInvoked bool
@@ -9536,11 +9536,11 @@ func (s *DataStore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID
 	return s.ReplaceHostDiskEncryptionKeyBlobFunc(ctx, hostID, currentBase64Encrypted, newBase64Encrypted)
 }
 
-func (s *DataStore) IsAppleMDMCommandPending(ctx context.Context, hostUUID string, cmdUUID string) (bool, error) {
+func (s *DataStore) IsHostDiskEncryptionKeyRotationInProgress(ctx context.Context, hostID uint, hostUUID string, cmdUUID string, staleAfter time.Duration) (bool, error) {
 	s.mu.Lock()
-	s.IsAppleMDMCommandPendingFuncInvoked = true
+	s.IsHostDiskEncryptionKeyRotationInProgressFuncInvoked = true
 	s.mu.Unlock()
-	return s.IsAppleMDMCommandPendingFunc(ctx, hostUUID, cmdUUID)
+	return s.IsHostDiskEncryptionKeyRotationInProgressFunc(ctx, hostID, hostUUID, cmdUUID, staleAfter)
 }
 
 func (s *DataStore) GetHostEscrowState(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {

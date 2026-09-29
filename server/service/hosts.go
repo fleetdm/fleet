@@ -4106,6 +4106,16 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
+	// Same rule the rotate endpoint uses, so a marker it would replace isn't
+	// reported as pending.
+	var rotationPending bool
+	if key != nil && key.RotationCommandUUID != nil {
+		rotationPending, err = svc.ds.IsHostDiskEncryptionKeyRotationInProgress(ctx, host.ID, host.UUID, *key.RotationCommandUUID,
+			fleet.DiskEncryptionKeyRotationStaleAfter)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking pending disk encryption key rotation")
+		}
+	}
 	// The archived fallback exists for macOS, where re-enrollment clears the
 	// current row while the archived FileVault key is still valid. On Linux the
 	// current row is authoritative: it only goes missing once the verify query
@@ -4145,7 +4155,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			svc.logger.InfoContext(ctx, "decrypted current host disk encryption key", "host_id", host.ID)
 			key.Decryptable = ptr.Bool(true)
 			key.DecryptedValue = decrypted
-			key.RotationPending = key.RotationCommandUUID != nil
+			key.RotationPending = rotationPending
 
 			return key, nil // Return the decrypted key immediately if successful.
 		}
@@ -4163,10 +4173,6 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			svc.logger.InfoContext(ctx, "decrypted archived host disk encryption key", "host_id", host.ID)
 
 			// We successfully decrypted the archived key so we'll use it in place of the current key.
-			var rotationCommandUUID *string
-			if key != nil {
-				rotationCommandUUID = key.RotationCommandUUID
-			}
 			key = &fleet.HostDiskEncryptionKey{
 				HostID:              host.ID,
 				Base64Encrypted:     archivedKey.Base64Encrypted,
@@ -4175,8 +4181,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 				Decryptable:         ptr.Bool(true),
 				DecryptedValue:      decrypted,
 				UpdatedAt:           archivedKey.CreatedAt,
-				RotationCommandUUID: rotationCommandUUID,
-				RotationPending:     rotationCommandUUID != nil,
+				RotationPending:     rotationPending,
 			}
 		}
 	}

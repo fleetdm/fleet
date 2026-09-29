@@ -1493,8 +1493,9 @@ type Datastore interface {
 	// the stored ciphertext is still currentBase64Encrypted. It leaves decryptable and updated_at unchanged and does
 	// not archive the blob.
 	ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error
-	// IsAppleMDMCommandPending reports whether the command is still queued for the host with no terminal result.
-	IsAppleMDMCommandPending(ctx context.Context, hostUUID, cmdUUID string) (bool, error)
+	// IsHostDiskEncryptionKeyRotationInProgress reports whether the host's pending FileVault key rotation cmdUUID
+	// is still queued with no terminal result, or was requested less than staleAfter ago.
+	IsHostDiskEncryptionKeyRotationInProgress(ctx context.Context, hostID uint, hostUUID, cmdUUID string, staleAfter time.Duration) (bool, error)
 	// GetHostEscrowState reports whether a LUKS escrow request is queued and how long ago the agent
 	// last showed activity on one in flight. No row means the zero state.
 	GetHostEscrowState(ctx context.Context, hostID uint) (*HostEscrowState, error)

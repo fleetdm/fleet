@@ -9014,7 +9014,7 @@ func (ds *Datastore) ResetPendingCertRenewals(ctx context.Context) error {
 	})
 }
 
-func (ds *Datastore) IsAppleMDMCommandPending(ctx context.Context, hostUUID, cmdUUID string) (bool, error) {
+func (ds *Datastore) isAppleMDMCommandPending(ctx context.Context, hostUUID, cmdUUID string) (bool, error) {
 	var cmd struct {
 		Active            bool `db:"active"`
 		HasTerminalResult bool `db:"has_terminal_result"`
