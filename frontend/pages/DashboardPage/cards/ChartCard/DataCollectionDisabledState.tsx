@@ -10,21 +10,29 @@ const baseClass = "data-collection-disabled-state";
 
 interface IDataCollectionDisabledStateProps {
   datasetLabel: string;
+  // Org-level historical_data setting for this dataset. When false, the fleet
+  // toggle can't take effect and only a global admin can turn it back on.
+  globallyEnabled: boolean;
   currentTeamId?: number;
 }
 
 const DataCollectionDisabledState = ({
   datasetLabel,
+  globallyEnabled,
   currentTeamId,
 }: IDataCollectionDisabledStateProps): JSX.Element => {
   const { currentUser, isGlobalAdmin } = useContext(AppContext);
-  // Resolve team-admin against the fleet we're rendering for, not the app's
-  // currently selected fleet. When a host detail page is opened by URL, the
-  // app context's `currentTeam` isn't set to the host's fleet.
-  const canAccessSettings = currentTeamId
+  // Only offer a fleet-level fix when the org gate is open — a team admin
+  // can't override a disabled global setting. Resolve team-admin against the
+  // fleet we're rendering for, not the app's currently selected fleet.
+  const scopedToFleet = !!currentTeamId && globallyEnabled;
+  const canAccessSettings = scopedToFleet
     ? !!(isGlobalAdmin || permissions.isTeamAdmin(currentUser, currentTeamId))
     : !!isGlobalAdmin;
 
+  // Scope text tracks the user's context (which fleet they're viewing), not
+  // where the fix lives — otherwise a team admin sees "all fleets" while
+  // clearly inside one fleet's dashboard.
   const scopeText = currentTeamId ? "this fleet" : "all fleets";
 
   return (
@@ -37,8 +45,10 @@ const DataCollectionDisabledState = ({
       {canAccessSettings && (
         <Button
           onClick={() => {
-            currentTeamId
-              ? browserHistory.push(paths.FLEET_DETAILS_SETTINGS(currentTeamId))
+            scopedToFleet
+              ? browserHistory.push(
+                  paths.FLEET_DETAILS_SETTINGS(currentTeamId as number)
+                )
               : browserHistory.push(paths.ADMIN_ORGANIZATION_ADVANCED);
           }}
         >

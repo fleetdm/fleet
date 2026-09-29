@@ -14,6 +14,7 @@ describe("DataCollectionDisabledState", () => {
     render(
       <DataCollectionDisabledState
         datasetLabel="Hosts online"
+        globallyEnabled
         currentTeamId={5}
       />
     );
@@ -42,6 +43,7 @@ describe("DataCollectionDisabledState", () => {
     render(
       <DataCollectionDisabledState
         datasetLabel="Hosts online"
+        globallyEnabled
         currentTeamId={5}
       />
     );
@@ -69,6 +71,7 @@ describe("DataCollectionDisabledState", () => {
     render(
       <DataCollectionDisabledState
         datasetLabel="Hosts online"
+        globallyEnabled
         currentTeamId={5}
       />
     );
@@ -77,5 +80,53 @@ describe("DataCollectionDisabledState", () => {
     expect(
       screen.queryByRole("button", { name: /Turn on/i })
     ).not.toBeInTheDocument();
+  });
+
+  it("hides Turn on from a team admin when the setting is disabled globally — only a global admin can override the org gate", () => {
+    const teamAdminOfFleet5 = createMockUser({
+      global_role: null,
+      teams: [{ id: 5, name: "Fleet 5", role: "admin" }],
+    });
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          currentUser: teamAdminOfFleet5,
+          isGlobalAdmin: false,
+        },
+      },
+    });
+    render(
+      <DataCollectionDisabledState
+        datasetLabel="Hosts online"
+        globallyEnabled={false}
+        currentTeamId={5}
+      />
+    );
+
+    expect(screen.getByText(/Ask an admin to turn on/i)).toBeInTheDocument();
+    // Scope tracks the user's fleet context, not where the fix lives — a
+    // team-admin viewing their fleet's dashboard shouldn't see "all fleets".
+    expect(screen.getByText(/for this fleet/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Turn on/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Turn on to a global admin when the setting is disabled globally, scope stays on the current fleet", () => {
+    const render = createCustomRenderer({
+      context: { app: { isGlobalAdmin: true } },
+    });
+    render(
+      <DataCollectionDisabledState
+        datasetLabel="Hosts online"
+        globallyEnabled={false}
+        currentTeamId={5}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Turn on/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/for this fleet/i)).toBeInTheDocument();
   });
 });
