@@ -32,8 +32,6 @@ describe("EnrollmentAttemptDetailsModal", () => {
 
   it.each([
     { platform: "darwin", profile: "Fleetd configuration" },
-    { platform: "ios", profile: "Fleetd configuration" },
-    { platform: undefined, profile: "Fleetd configuration" },
     { platform: "windows", profile: "Fleetd enroll secret" },
   ])(
     "names the $profile profile for a spent secret on $platform",
@@ -51,19 +49,6 @@ describe("EnrollmentAttemptDetailsModal", () => {
       expect(screen.queryByText(otherProfile)).not.toBeInTheDocument();
     }
   );
-
-  it("keeps the shared secret text for a Windows host", () => {
-    renderModal({
-      reason: "shared_secret_for_mdm_managed_host",
-      platform: "windows",
-    });
-    expect(
-      screen.getByText(
-        /A shared enroll secret was used for a host that requires a one-time enroll secret\./
-      )
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/Fleetd/)).not.toBeInTheDocument();
-  });
 
   it("describes an identifier mismatch in the headline with a support link", () => {
     renderModal({

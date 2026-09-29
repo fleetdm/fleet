@@ -21,8 +21,6 @@ export interface IEnrollmentAttemptDetailsModalProps {
   /** Fallback identifier when the host has no display name. */
   hostSerial?: string;
   reason?: EnrollmentRejectedReason | string;
-  /** Platform the enrolling agent reported. Picks which profile carries a new
-   * one-time secret. */
   platform?: string;
   createdAt?: string;
   onDone: () => void;

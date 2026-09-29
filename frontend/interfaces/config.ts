@@ -283,7 +283,6 @@ interface IFleetPartnerships {
   enable_primo: boolean;
 }
 
-// The server omits each field when it is false.
 interface IAuthSettings {
   mdm_apple_one_time_enroll_secrets?: boolean;
   mdm_windows_one_time_enroll_secrets?: boolean;

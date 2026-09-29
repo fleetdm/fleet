@@ -54,8 +54,7 @@ const AddHostsModal = ({
       return <Spinner />;
     }
     if (!enrollSecret) {
-      // Hosts that get a one-time enroll secret from Fleet's MDM can still
-      // enroll without one.
+      // Hosts that get a one-time enroll secret from Fleet's MDM can still enroll without one.
       const appleOneTimeSecrets = !!config?.auth
         ?.mdm_apple_one_time_enroll_secrets;
       const windowsOneTimeSecrets = !!config?.auth
