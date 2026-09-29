@@ -120,7 +120,7 @@ func newAMAPIClient(ctx context.Context, logger *slog.Logger, licenseKey string)
 	} else {
 		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, getEnv)
 	}
-	return client
+	return androidmgmt.NewRetryClient(client, logger)
 }
 
 func newErrResponse(err error) android.DefaultResponse {
@@ -541,6 +541,9 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 }
 
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
+	// This endpoint is unauthenticated (gated only by the enroll secret), so don't let requests hold
+	// connections open for minutes while the AMAPI quota is exhausted; the device can request again.
+	ctx = androidmgmt.WithoutRetry(ctx)
 	req := request.(*enrollmentTokenRequest)
 	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpUUID, req.FullyManaged)
 	if err != nil {
