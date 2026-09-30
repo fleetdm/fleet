@@ -278,8 +278,40 @@ const DiskEncryption = ({
     />
   );
 
+  const ENFORCE_CHECKBOX_TOOLTIP_CONTENT: Record<
+    "macos" | "windows",
+    JSX.Element
+  > = {
+    macos: (
+      <>
+        If turned on, Fleet enforces FileVault. If turned off, Fleet stops
+        enforcing, but keys are still escrowed as long as Escrow recovery key
+        with Fleet is checked. Keys already escrowed aren&rsquo;t deleted.{" "}
+        <CustomLink
+          text="Learn more"
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
+          variant="tooltip-link"
+          newTab
+        />
+      </>
+    ),
+    windows: (
+      <>
+        If turned on, Fleet enforces BitLocker and escrows the recovery key. If
+        turned off, Fleet stops enforcing and stops escrowing new keys. Keys
+        already escrowed aren&rsquo;t deleted.{" "}
+        <CustomLink
+          text="Learn more"
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
+          variant="tooltip-link"
+          newTab
+        />
+      </>
+    ),
+  };
+
   const renderEnforceCheckbox = (
-    platform: DiskEncryptionSettingsPlatform,
+    platform: "macos" | "windows",
     key: "macOSEnabled" | "windowsEnabled",
     value: boolean
   ) => (
@@ -288,16 +320,8 @@ const DiskEncryption = ({
       onChange={onToggleSetting(key)}
       value={value}
       className={`${baseClass}__checkbox`}
-      helpText={
-        <>
-          If turned on, Fleet enforces disk encryption.{" "}
-          <CustomLink
-            text="Learn more"
-            url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
-            newTab
-          />
-        </>
-      }
+      labelTooltipContent={ENFORCE_CHECKBOX_TOOLTIP_CONTENT[platform]}
+      labelTooltipClickable
     >
       Enable disk encryption
     </Checkbox>
