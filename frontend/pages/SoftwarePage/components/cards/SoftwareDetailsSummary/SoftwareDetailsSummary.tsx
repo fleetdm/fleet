@@ -194,12 +194,8 @@ interface ISoftwareDetailsSummaryProps {
    * pencil-icon "Edit" button that opens the Edit Appearance modal directly.
    * Per-installer Edit lives on the Library accordion row. */
   useSingleEditAppearanceButton?: boolean;
-  /** Software title ID */
-  titleId?: number;
   fleetMaintainedAppSlug?: string;
-  /** Apple App Store ID (VPP) */
   appStoreId?: string;
-  /** Android Play Store app ID */
   googlePlayId?: string;
 }
 
@@ -226,7 +222,6 @@ const SoftwareDetailsSummary = ({
   headerPills,
   isAppleVpp = false,
   useSingleEditAppearanceButton = false,
-  titleId,
   fleetMaintainedAppSlug,
   appStoreId,
   googlePlayId,
@@ -402,7 +397,6 @@ const SoftwareDetailsSummary = ({
             )}
             {renderGitOpsIdDataSet("App Store ID", appStoreId)}
             {renderGitOpsIdDataSet("Google Play ID", googlePlayId)}
-            {!!titleId && <DataSet title="ID" value={titleId} />}
           </dl>
           {headerPills && (
             <div className={`${baseClass}__header-pills`}>{headerPills}</div>

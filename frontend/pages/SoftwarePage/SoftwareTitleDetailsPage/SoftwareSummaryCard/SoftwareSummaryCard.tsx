@@ -290,7 +290,6 @@ const SoftwareSummaryCard = ({
             iconUrl={softwareTitle.icon_url}
             iconUploadedAt={iconUploadedAt}
             headerPills={headerPills}
-            titleId={softwareId}
           />
         </Card>
         {policiesModal}
@@ -381,7 +380,6 @@ const SoftwareSummaryCard = ({
           }
           headerPills={headerPills}
           isAppleVpp={isAppleVpp}
-          titleId={softwareId}
           fleetMaintainedAppSlug={fleetMaintainedAppSlug}
           appStoreId={appStoreId}
           googlePlayId={googlePlayId}

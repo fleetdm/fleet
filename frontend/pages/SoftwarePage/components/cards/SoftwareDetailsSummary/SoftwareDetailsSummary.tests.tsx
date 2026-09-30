@@ -251,19 +251,16 @@ describe("SoftwareDetailsSummary headerPills slot", () => {
 });
 
 describe("SoftwareDetailsSummary IDs", () => {
-  it("renders the ID and GitOps IDs when provided", () => {
+  it("renders GitOps IDs when provided", () => {
     render(
       <SoftwareDetailsSummary
         displayName="My software"
-        titleId={1432}
         fleetMaintainedAppSlug="zoom/darwin"
         appStoreId="1016366447"
         googlePlayId="com.android.chrome"
       />
     );
 
-    expect(screen.getByText("ID")).toBeInTheDocument();
-    expect(screen.getByText("1432")).toBeInTheDocument();
     expect(screen.getByText("Fleet-maintained app slug")).toBeInTheDocument();
     expect(screen.getByText("zoom/darwin")).toBeInTheDocument();
     expect(screen.getByText("App Store ID")).toBeInTheDocument();
@@ -275,7 +272,6 @@ describe("SoftwareDetailsSummary IDs", () => {
   it("does not render IDs that aren't provided", () => {
     render(<SoftwareDetailsSummary displayName="My software" />);
 
-    expect(screen.queryByText("ID")).not.toBeInTheDocument();
     expect(
       screen.queryByText("Fleet-maintained app slug")
     ).not.toBeInTheDocument();

@@ -87,12 +87,11 @@ describe("Software Summary Card", () => {
         />
       );
 
-    it("shows the ID and Fleet-maintained app slug on Premium", () => {
+    it("shows the Fleet-maintained app slug on Premium", () => {
       renderCard(renderPremium, fmaTitle());
-      expect(screen.getByText("ID")).toBeInTheDocument();
-      expect(screen.getByText("42")).toBeInTheDocument();
       expect(screen.getByText("Fleet-maintained app slug")).toBeInTheDocument();
       expect(screen.getByText("zoom/darwin")).toBeInTheDocument();
+      expect(screen.queryByText("ID")).not.toBeInTheDocument();
     });
 
     it("shows the App Store ID for Apple VPP apps on Premium", () => {
@@ -121,14 +120,13 @@ describe("Software Summary Card", () => {
       expect(screen.queryByText("App Store ID")).not.toBeInTheDocument();
     });
 
-    it("shows only the ID for custom packages", () => {
+    it("shows no GitOps IDs for custom packages", () => {
       renderCard(
         renderPremium,
         createMockSoftwareTitle({
           software_package: createMockSoftwarePackage(),
         })
       );
-      expect(screen.getByText("ID")).toBeInTheDocument();
       expect(
         screen.queryByText("Fleet-maintained app slug")
       ).not.toBeInTheDocument();
@@ -136,10 +134,8 @@ describe("Software Summary Card", () => {
       expect(screen.queryByText("Google Play ID")).not.toBeInTheDocument();
     });
 
-    it("shows only the ID on Fleet Free", () => {
+    it("hides the Fleet-maintained app slug on Fleet Free", () => {
       renderCard(renderFree, fmaTitle());
-      expect(screen.getByText("ID")).toBeInTheDocument();
-      expect(screen.getByText("42")).toBeInTheDocument();
       expect(
         screen.queryByText("Fleet-maintained app slug")
       ).not.toBeInTheDocument();

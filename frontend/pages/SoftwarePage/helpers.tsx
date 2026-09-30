@@ -387,7 +387,6 @@ export const mergePolicies = ({
   return Array.from(byId.values());
 };
 
-/** Tooltip for IDs used to reference software in GitOps (FMA slug, App Store ID, Google Play ID) */
 export const GITOPS_ID_TOOLTIP = (
   <>
     Used to manage apps in GitOps.{" "}
