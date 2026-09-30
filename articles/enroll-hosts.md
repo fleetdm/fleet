@@ -225,9 +225,8 @@ If an end user wants to switch their workstation's operating system (e.g., Windo
 
 ### Enroll NixOS hosts
 
-_Available in Fleet 4.94.0 and fleetd 1.63.0._
 
-NixOS is declarative, so `fleetctl package` doesn't build a package for it. Instead, fleetd is installed with the community [`services.orbit`](https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/services/monitoring/orbit.nix) NixOS module, which uses osquery and Fleet Desktop from nixpkgs instead of Fleet's update server.
+Fleet's agent (fleetd) is installed via the [NixOS module](https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/services/monitoring/orbit.nix) instead of a package generated via `fleetctl package`. The module uses osquery and Fleet Desktop from nixpkgs instead of Fleet's update server.
 
 Prerequisites:
 
