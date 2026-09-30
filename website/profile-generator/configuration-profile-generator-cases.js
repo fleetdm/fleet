@@ -152,6 +152,58 @@ const TEST_CASES = [
     }
   },
   {
+    id: 'csp-disable-guest-account',
+    profileType: 'csp',
+    instructions: 'Disable the built-in Guest account.',
+    expect: {
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_EnableGuestAccountStatus'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Data', '1'], ['Format', 'bool']],
+      mustNotContain: ['<SyncML', '<?xml'],
+    }
+  },
+  {
+    id: 'csp-disable-onedrive',
+    profileType: 'csp',
+    instructions: 'Prevent OneDrive from syncing files.',
+    expect: {
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync'],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Data', '0'], ['Format', 'bool']],
+      mustNotContain: ['<SyncML', '<?xml'],
+    }
+  },
+  {
+    id: 'csp-machine-inactivity-limit',
+    profileType: 'csp',
+    instructions: 'Set the interactive logon machine inactivity limit to 15 minutes.',
+    // The node takes seconds, so 15 minutes is 900.  A model that copies the number from the
+    // instructions writes <Data>15</Data>.
+    expect: {
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_MachineInactivityLimit'],
+      mustContainElement: [['Format', 'int'], ['Data', '900']],
+      mustNotContainElement: [['Data', '15']],
+      mustNotContain: ['<SyncML', '<?xml'],
+    }
+  },
+  {
+    id: 'csp-defender-protections',
+    profileType: 'csp',
+    instructions: 'Turn on Microsoft Defender real-time protection, cloud-delivered protection, behavior monitoring, and script scanning, and send safe samples automatically.',
+    // SubmitSamplesConsent is an enum, not a toggle: 1 is "send safe samples", 2 is "never send", 3 is
+    // "send all".
+    readByEye: 'Five Items, one per node, each with <Data>1</Data>.',
+    expect: {
+      mustContain: [
+        'Defender/AllowRealtimeMonitoring', 'Defender/AllowCloudProtection', 'Defender/AllowBehaviorMonitoring',
+        'Defender/AllowScriptScanning', 'Defender/SubmitSamplesConsent'
+      ],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Format', 'bool'], ['Data', '0'], ['Data', '2'], ['Data', '3']],
+      mustNotContain: ['<SyncML', '<?xml'],
+    }
+  },
+  {
     id: 'csp-cis-cortana-above-lock',
     profileType: 'csp',
     instructions: 'Stop people from using Cortana while the machine is locked.',
