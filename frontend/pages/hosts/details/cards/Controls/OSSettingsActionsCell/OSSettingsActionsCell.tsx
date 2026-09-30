@@ -225,21 +225,21 @@ const OSSettingsActionsCell = ({
     !isRecoveryLockRow &&
     !isHostNameRow;
   // Disabled rather than hidden so users can tell resend exists for this profile.
-  const showDisabledResendButton =
-    canResendProfiles &&
-    !showResendButton &&
-    profile.status !== null &&
-    !isRecoveryLockRow &&
-    !isHostNameRow;
   const isSelfService = canManageSelfServiceProfiles && profile.self_service;
   const isNotInstalled = profile.status === null;
   const isPendingInstall =
     profile.operation_type === "install" && profile.status === "pending";
-  // Install holds the primary slot until the profile lands, then Resend takes it.
+  // Once Install is clicked it flips to a disabled Resend until the profile lands.
   const showInstallButton =
-    isSelfService && !!onInstall && (isNotInstalled || isPendingInstall);
+    isSelfService && !!onInstall && isNotInstalled && !isActionRequested;
+  const showDisabledResendButton =
+    canResendProfiles &&
+    !showResendButton &&
+    (profile.status !== null || (isSelfService && isActionRequested)) &&
+    !isRecoveryLockRow &&
+    !isHostNameRow;
   const showUninstallButton =
-    isSelfService && !!onClickUninstall && !isNotInstalled;
+    isSelfService && !!onClickUninstall && !isNotInstalled && !isPendingInstall;
   const showRotateButton =
     canRotateRecoveryLockPassword && (isFailed || isVerified);
   // canResendHostNameTemplate is already pre-gated on the host name row by the
@@ -257,7 +257,7 @@ const OSSettingsActionsCell = ({
           pendingText="Installing..."
           icon="install-self-service"
           isPending={isInstalling}
-          disabled={isPendingInstall || isActionRequested}
+          disabled={isActionRequested}
           onClick={onInstallProfile}
         />
       );

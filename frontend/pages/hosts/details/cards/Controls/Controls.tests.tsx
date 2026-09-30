@@ -400,7 +400,7 @@ describe("Controls card", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("keeps Install disabled until the host reports a new status", async () => {
+    it("flips Install to a disabled Resend until the host reports a new status", async () => {
       const onProfileResent = jest.fn();
       const { user } = renderControls({
         ...selfServiceProps,
@@ -410,7 +410,10 @@ describe("Controls card", () => {
       await user.click(screen.getByRole("button", { name: "Install" }));
       await waitFor(() => expect(onProfileResent).toHaveBeenCalled());
       // The refetch comes back before the reconciler has run.
-      expect(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Resend" })).toBeDisabled();
+      expect(
+        screen.queryByRole("button", { name: "Install" })
+      ).not.toBeInTheDocument();
     });
 
     it("keeps Uninstall disabled until the host reports a new status", async () => {
@@ -474,13 +477,18 @@ describe("Controls card", () => {
       expect(screen.getByRole("button", { name: "Uninstall" })).toBeEnabled();
     });
 
-    it("disables Install while the install is pending", () => {
+    it("shows only a disabled Resend while the install is pending", () => {
       renderControls({
         ...selfServiceProps,
         controls: [{ ...installed, status: "pending" }],
       });
-      expect(screen.getByRole("button", { name: "Install" })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Uninstall" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Resend" })).toBeDisabled();
+      expect(
+        screen.queryByRole("button", { name: "Install" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Uninstall" })
+      ).not.toBeInTheDocument();
     });
 
     it("disables Uninstall while removing enforcement", () => {
