@@ -26,21 +26,18 @@ var brewPaths = []string{
 	"/usr/local/bin/brew",
 }
 
-// brewTimeout is the budget shared by all brew calls in one scan. Homebrew and
-// its taps aren't updated (see brewQueryEnv), but brew may still download the
-// package API data, or portable Ruby after a Homebrew upgrade.
+// brewTimeout is the budget shared by a scan's brew calls, which may still
+// download the package API data or, after a Homebrew upgrade, portable Ruby.
 const brewTimeout = 60 * time.Second
 
-// apiRefreshInterval is the max age of the package API data before a query
-// downloads it inline, matching brew's own daily auto-update interval.
+// apiRefreshInterval is how old the package API data may get before a query
+// re-downloads it.
 const apiRefreshInterval = 24 * time.Hour
 
 // brewQueryEnv returns env for the query calls. Homebrew's auto-update (self
-// update plus a git fetch of every tap) is skipped: it can outlast the query
-// budget and the table only needs to know what is outdated. The package API
-// data, the source of current_version for core formulae and casks, is still
-// refreshed inline, but only once older than apiRefreshInterval instead of
-// brew's default 450s.
+// update plus a git fetch of every tap) can outlast the query budget, so it is
+// skipped; only the package API data, where core formulae and casks get
+// current_version, is refreshed.
 func brewQueryEnv(env []string) []string {
 	return append(slices.Clone(env),
 		"HOMEBREW_NO_AUTO_UPDATE=1",
@@ -107,7 +104,7 @@ var cache scanCache
 
 // queryRows runs the brew calls for a full scan and builds the rows.
 func queryRows(ctx context.Context, brewPath, prefix string, uid, gid uint32, env []string) ([]map[string]string, error) {
-	// One deadline for both brew calls so cumulative latency stays capped.
+	// Both brew calls share one deadline.
 	ctx, cancel := context.WithTimeout(ctx, brewTimeout)
 	defer cancel()
 

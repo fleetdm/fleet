@@ -110,9 +110,8 @@ func outdatedPackages(run brewRunner) ([]outdatedPackage, error) {
 	return pkgs, nil
 }
 
-// filterRows returns the rows whose name is in names, or all rows when names is
-// empty. Filtering here instead of pushing names down to brew lets every query
-// share the cached scan.
+// filterRows keeps the rows named in names, or all rows when names is empty.
+// Filtering here rather than in brew lets every query share the cached scan.
 func filterRows(rows []map[string]string, names []string) []map[string]string {
 	if len(names) == 0 {
 		return rows
@@ -130,13 +129,12 @@ func filterRows(rows []map[string]string, names []string) []map[string]string {
 	return out
 }
 
-// scanCacheTTL is how long a scan is served to later queries, so a batch of
-// policies costs one brew run instead of one per policy.
+// scanCacheTTL lets a batch of policies share one brew run.
 const scanCacheTTL = 5 * time.Minute
 
-// scanCache holds the last scan. Failures are cached too so a slow or broken
-// brew is hit once per window, not once per query. Returned rows are shared and
-// must not be modified.
+// scanCache holds the last scan. Failures are cached too, so a broken brew runs
+// once per TTL rather than once per query. Returned rows are shared; don't
+// modify them.
 type scanCache struct {
 	mu      sync.Mutex
 	key     string
@@ -154,11 +152,10 @@ type scanFlight struct {
 	err  error
 }
 
-// get returns the rows cached under key (console user + Homebrew install),
-// running scan when they are missing or expired. Concurrent callers share one
-// scan. The scan is detached from the callers so one giving up early neither
-// cuts it short nor leaves its own deadline cached; each caller still returns
-// as soon as its ctx ends.
+// get returns the scan cached under key (console user + Homebrew install),
+// running scan when it is missing or expired; concurrent callers share one scan.
+// The scan is detached from its callers, so one giving up early neither cuts it
+// short nor gets its deadline cached.
 func (c *scanCache) get(ctx context.Context, key string, now time.Time, scan func(context.Context) ([]map[string]string, error)) ([]map[string]string, error) {
 	c.mu.Lock()
 	if c.key == key && now.Before(c.expires) {
@@ -195,9 +192,9 @@ func (c *scanCache) get(ctx context.Context, key string, now time.Time, scan fun
 // maxBrewStderr caps how much of brew's stderr is included in a returned error.
 const maxBrewStderr = 1000
 
-// describeBrewError appends brew's stderr to an exit error so the table reports
-// why brew failed rather than a bare "exit status 1", from the fatal "Error:"
-// line onward when there is one. Other errors pass through.
+// describeBrewError adds brew's stderr to an exit error, from the first "Error:"
+// line when there is one, instead of a bare "exit status 1". Other errors pass
+// through.
 func describeBrewError(err error) error {
 	exitErr, ok := errors.AsType[*exec.ExitError](err)
 	if !ok {

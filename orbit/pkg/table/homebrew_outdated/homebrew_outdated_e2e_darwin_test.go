@@ -22,8 +22,7 @@ func TestGenerateE2E(t *testing.T) {
 		t.Skip("Homebrew is not installed; skipping e2e test")
 	}
 
-	// Same environment as production, so the test neither triggers Homebrew's
-	// full auto-update nor diverges from what ships.
+	// Production's environment, so the test doesn't run Homebrew's auto-update.
 	env := brewQueryEnv(os.Environ())
 
 	outdatedCmd := exec.Command(brewPath, "outdated", "--json=v2")

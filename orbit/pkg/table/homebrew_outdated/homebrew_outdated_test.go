@@ -92,8 +92,7 @@ func TestOutdatedPackagesFullScan(t *testing.T) {
 }
 
 func TestOutdatedPackagesExitOneWithValidJSON(t *testing.T) {
-	// brew can exit non-zero yet still print valid JSON. That output must be used,
-	// not treated as a failure.
+	// brew can exit non-zero yet print valid JSON; that output is used.
 	run := func(args ...string) ([]byte, error) {
 		return outdatedData, errors.New("exit status 1")
 	}
@@ -185,8 +184,7 @@ func TestScanCacheKeyChangeRescans(t *testing.T) {
 }
 
 func TestScanCacheCachesFailures(t *testing.T) {
-	// A failing scan is not retried on every query in a batch of policies; the
-	// failure is served until the TTL passes, then the scan is retried.
+	// A failure is served until the TTL passes, not retried on every query.
 	var scans int
 	scan := func(context.Context) ([]map[string]string, error) {
 		scans++
@@ -207,8 +205,8 @@ func TestScanCacheCachesFailures(t *testing.T) {
 }
 
 func TestScanCacheCallerDeadlineDoesNotPoisonCache(t *testing.T) {
-	// A query that gives up early must not fail the shared scan or leave its own
-	// deadline cached for the queries after it.
+	// A query giving up early must neither fail the shared scan nor get its
+	// deadline cached.
 	var scans atomic.Int32
 	release := make(chan struct{})
 	scanErr := make(chan error, 1)
@@ -256,8 +254,7 @@ func TestScanCacheWaiterHonorsItsContext(t *testing.T) {
 }
 
 func TestScanCacheSerializesConcurrentScans(t *testing.T) {
-	// Concurrent queries (a live query alongside scheduled ones) share one scan
-	// rather than each starting brew.
+	// Concurrent queries share one scan.
 	var scans atomic.Int32
 	started := make(chan struct{})
 	release := make(chan struct{})
@@ -409,8 +406,7 @@ func exitErrWithStderr(stderr string) error {
 }
 
 func TestDescribeBrewErrorUsesErrorLines(t *testing.T) {
-	// brew's auto-update chatter precedes the fatal message on stderr; only the
-	// "Error:" line and what follows it belong in the returned error.
+	// Only the "Error:" line onward belongs in the error, not the chatter before.
 	stderr := "==> Auto-updating Homebrew...\n==> New Formulae\nfoo: does things\nError: No available formula with the name \"zzz\".\nDid you mean zz?\n"
 	err := describeBrewError(exitErrWithStderr(stderr))
 	require.Error(t, err)
@@ -422,8 +418,7 @@ func TestDescribeBrewErrorUsesErrorLines(t *testing.T) {
 }
 
 func TestDescribeBrewErrorSkipsMidLineErrorPrefix(t *testing.T) {
-	// Only a line that starts with "Error:" marks the fatal message; an earlier
-	// mid-line occurrence must not stop the search or keep the chatter.
+	// Only "Error:" at the start of a line counts.
 	stderr := "Warning: see Error: docs\n==> Auto-updating Homebrew...\nError: real failure\n"
 	err := describeBrewError(exitErrWithStderr(stderr))
 	require.Error(t, err)
@@ -466,8 +461,8 @@ func TestDescribeBrewErrorPassthrough(t *testing.T) {
 }
 
 func TestDescribeBrewErrorKeepsDeadlineSignal(t *testing.T) {
-	// A brew call killed at the deadline is reported with both the deadline and
-	// brew's stderr, and remains identifiable as a deadline error.
+	// A deadline kill reports the deadline and stderr, and still matches
+	// context.DeadlineExceeded.
 	killed := fmt.Errorf("%w: %w", context.DeadlineExceeded, exitErrWithStderr("==> Auto-updating Homebrew...\n"))
 	err := describeBrewError(killed)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
