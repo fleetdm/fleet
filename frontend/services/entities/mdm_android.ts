@@ -11,7 +11,7 @@ interface IGetAndroidEnterpriseResponse {
 }
 
 export interface IGetZeroTouchConfigurationResponse {
-  dpc_extras: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 export default {
