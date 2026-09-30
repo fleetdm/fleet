@@ -1,0 +1,1 @@
+- Database migrations that are missing are now applied even when newer migrations were already applied (for example, a migration shipped in a patch release after later-numbered migrations). This removes the need to renumber migrations after patch releases and lets developers keep their databases when switching between releases.
