@@ -1039,6 +1039,7 @@ const DeviceUserPage = ({
                     isLoading={isDupDetailsPreviousData}
                     deviceUser
                     showHiddenPolicies={showHiddenPolicies}
+                    hasHiddenPolicies={!!host?.issues?.hidden_policies_count}
                     onToggleShowHiddenPolicies={() =>
                       setShowHiddenPolicies((current) => !current)
                     }
