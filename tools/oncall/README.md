@@ -11,3 +11,5 @@ gh auth login
 `prs` columns: number | opened | issue | tested | author | title
 
 With `-v`: number | opened | issue | tested | author | assignee | link | title | labels
+
+With `-s`: one Slack mrkdwn line per PR, with linked PR and issue numbers and short dates (used by the `oncall-community-prs.yml` workflow).
