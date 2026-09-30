@@ -67,7 +67,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     {{ end }}
     {{ if .EnableBypassEndUserAuthProperty }}
 		<!-- Orbit parses this as a bool and fails to start on any other value, so the default can't be "dummy". -->
-		<Property Id="BYPASS_END_USER_AUTH" Value="{{ if .BypassEndUserAuth }}True{{ else }}False{{ end }}"/>
+		<Property Id="BYPASS_END_USER_AUTH" Value="{{ if .BypassEndUserAuth }}True{{ else }}False{{ end }}" Secure="yes"/>
     {{ end }}
 
     <MediaTemplate EmbedCab="yes" />

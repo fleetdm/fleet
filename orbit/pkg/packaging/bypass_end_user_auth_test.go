@@ -49,7 +49,7 @@ func TestBypassEndUserAuthTemplates(t *testing.T) {
 	})
 
 	t.Run("windows msi BYPASS_END_USER_AUTH property", func(t *testing.T) {
-		propertyRe := regexp.MustCompile(`<Property Id="BYPASS_END_USER_AUTH" Value="([^"]*)"/>`)
+		propertyRe := regexp.MustCompile(`<Property Id="BYPASS_END_USER_AUTH" Value="([^"]*)" Secure="yes"/>`)
 		for _, tc := range []struct {
 			name         string
 			bypass       bool
