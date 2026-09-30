@@ -343,7 +343,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	vpp3 := va3.VPPAppID
 	va3InTeam1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}},
+		AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform,
 	}, &team1.ID)
 	require.NoError(t, err)
 
@@ -4474,6 +4474,7 @@ func testTwoAppStoreAppInstancesInOneFleet(t *testing.T, ds *Datastore) {
 			}, &team.ID)
 		}
 		require.NoError(t, err)
+		require.NotNil(t, firstInstance)
 		var secondInstanceID int64
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			res, err := q.ExecContext(ctx, `
