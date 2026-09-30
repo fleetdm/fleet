@@ -276,7 +276,7 @@ const TEST_CASES = [
     id: 'mobileconfig-two-payloads',
     profileType: 'mobileconfig',
     instructions: 'Disable AirDrop and turn off Siri.',
-    readByEye: 'Two dicts, each with a distinct uppercase PayloadUUID and an identifier that is the root identifier plus a suffix.  Duplicate UUIDs install unpredictably and nothing here can detect them.',
+    readByEye: 'Both keys are com.apple.applicationaccess, so ONE dict inside PayloadContent, not two.  Its PayloadUUID must be distinct from the root\'s, and its identifier the root identifier plus a suffix.',
     expect: {
       mustContain: ['com.apple.applicationaccess', 'allowAirDrop', 'allowAssistant'],
     }
