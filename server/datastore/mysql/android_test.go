@@ -559,6 +559,7 @@ func testUpdateAndroidHostEnrollmentTimes(t *testing.T, ds *Datastore) {
 	assert.WithinDuration(t, longAgo, afterEnroll.CreatedAt, time.Second,
 		"a re-enrollment reuses the host row, so its creation time must not move")
 
+	backdate()
 	reportedAt := time.Now().UTC().Add(-10 * time.Minute).Truncate(time.Second)
 	created.DetailUpdatedAt = reportedAt
 	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
@@ -567,6 +568,27 @@ func testUpdateAndroidHostEnrollmentTimes(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.WithinDuration(t, reportedAt, delayed.SeenTime, time.Second,
 		"a delayed delivery must be seen at the device's report time, not when Fleet processed it")
+
+	// Two overlapping deliveries can both pass the stale check, so the older one may commit last.
+	created.DetailUpdatedAt = reportedAt.Add(-5 * time.Minute)
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	outOfOrder, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, reportedAt, outOfOrder.SeenTime, time.Second,
+		"an older report committing last must not move the last-seen time backwards")
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_seen_times SET seen_time = NULL WHERE host_id = ?`, created.Host.ID)
+		return err
+	})
+	created.DetailUpdatedAt = reportedAt
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	fromNull, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, reportedAt, fromNull.SeenTime, time.Second,
+		"a NULL seen time must still be replaced by the report time")
 }
 
 func testAndroidMDMStats(t *testing.T, ds *Datastore) {

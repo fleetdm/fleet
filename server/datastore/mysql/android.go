@@ -311,9 +311,11 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		// An Android host never checks in through osquery, so the AMAPI status reports that
 		// drive this update are the only evidence Fleet has heard from the device. Without a
 		// host_seen_times row the host reads as last seen when its row was created.
+		// The stale-message check runs before this and is recorded after, so an older report
+		// processed concurrently can commit last; never move the seen time backwards.
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
-			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
+			ON DUPLICATE KEY UPDATE seen_time = GREATEST(COALESCE(seen_time, VALUES(seen_time)), VALUES(seen_time))`,
 			host.Host.ID, seenTime,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android host seen time")
