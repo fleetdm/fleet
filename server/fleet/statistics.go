@@ -135,6 +135,18 @@ type StatisticsPayload struct {
 	// the policy installs a package or a VPP app. Kept in sync with
 	// policiesSoftwareAutomationClause in server/datastore/mysql/policies.go.
 	NumPoliciesAutomationEnabledSoftware int `json:"numPoliciesAutomationEnabledSoftware"`
+
+	// VulnerabilitiesCronRuns lists completed vulnerability cron runs since the
+	// last time statistics were sent. Each run carries its raw duration so that
+	// Datadog can compute p50/p95/p99 percentiles.
+	VulnerabilitiesCronRuns []VulnerabilitiesCronRun `json:"vulnerabilitiesCronRuns"`
+}
+
+// VulnerabilitiesCronRun reports one completed run of the vulnerabilities cron.
+type VulnerabilitiesCronRun struct {
+	DurationSeconds int           `json:"durationSeconds"`
+	StatsType       CronStatsType `json:"statsType"`
+	HasErrors       bool          `json:"hasErrors"`
 }
 
 // FleetMaintainedAppUsage reports a Fleet-maintained app in use, whether a patch policy

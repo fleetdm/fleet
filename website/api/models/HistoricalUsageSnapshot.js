@@ -61,6 +61,7 @@ module.exports = {
     fleetDesktopSSOEnabled: {required: true, type: 'boolean'},
     numHostsFleetMDMEnrolledMacOS: {required: true, type: 'number'},
     numHostsFleetMDMEnrolledWindows: {required: true, type: 'number'},
+    vulnerabilitiesCronRuns: {required: true, type: 'json'},
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

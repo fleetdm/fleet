@@ -1097,6 +1097,69 @@ module.exports = {
     });
 
 
+    //
+    //  ██╗   ██╗██╗   ██╗██╗     ███╗   ██╗     ██████╗██████╗  ██████╗ ███╗   ██╗
+    //  ██║   ██║██║   ██║██║     ████╗  ██║    ██╔════╝██╔══██╗██╔═══██╗████╗  ██║
+    //  ██║   ██║██║   ██║██║     ██╔██╗ ██║    ██║     ██████╔╝██║   ██║██╔██╗ ██║
+    //  ╚██╗ ██╔╝██║   ██║██║     ██║╚██╗██║    ██║     ██╔══██╗██║   ██║██║╚██╗██║
+    //   ╚████╔╝ ╚██████╔╝███████╗██║ ╚████║    ╚██████╗██║  ██║╚██████╔╝██║ ╚████║
+    //    ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═══╝     ╚═════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═══╝
+    //
+    // Collect vulnerability cron run durations from ALL snapshots (not just the
+    // latest per instance) so that runs reported in intermediate hourly payloads
+    // are not lost.
+    let distributionPointsToReport = [];
+    for (let snapshot of filteredStatistics) {
+      if (!snapshot.vulnerabilitiesCronRuns || !Array.isArray(snapshot.vulnerabilitiesCronRuns)) {
+        continue;
+      }
+      // Determine a host-count bucket for tagging.
+      let hostCount = snapshot.numHostsEnrolled || 0;
+      let hostCountBucket;
+      if (hostCount <= 100) { hostCountBucket = '0-100'; }
+      else if (hostCount <= 1000) { hostCountBucket = '101-1000'; }
+      else if (hostCount <= 5000) { hostCountBucket = '1001-5000'; }
+      else if (hostCount <= 25000) { hostCountBucket = '5001-25000'; }
+      else { hostCountBucket = '25001+'; }
+      for (let run of snapshot.vulnerabilitiesCronRuns) {
+        if (run.durationSeconds === undefined || run.durationSeconds === null) {
+          continue;
+        }
+        distributionPointsToReport.push({
+          metric: 'usage_statistics_v2.vulnerabilities_cron_duration_seconds',
+          points: [[timestampForTheseMetrics, [run.durationSeconds]]],
+          tags: [
+            `organization:${snapshot.organization || 'unknown'}`,
+            `fleet_version:${snapshot.fleetVersion}`,
+            `license_tier:${snapshot.licenseTier}`,
+            `stats_type:${run.statsType || 'scheduled'}`,
+            `has_errors:${run.hasErrors === true}`,
+            `host_count_bucket:${hostCountBucket}`,
+          ],
+        });
+      }//∞
+    }//∞
+    // Submit distribution points to Datadog's distribution_points API so Datadog
+    // can compute p50/p95/p99 percentiles server-side.
+    if (distributionPointsToReport.length > 0) {
+      let chunkedDistributionPoints = _.chunk(distributionPointsToReport, 500);
+      for (let chunk of chunkedDistributionPoints) {
+        await sails.helpers.http.post.with({
+          url: 'https://api.us5.datadoghq.com/api/v1/distribution_points',
+          data: {
+            series: chunk,
+          },
+          headers: {
+            'DD-API-KEY': sails.config.custom.datadogApiKey,
+            'Content-Type': 'application/json',
+          }
+        }).intercept((err)=>{
+          return new Error(`When sending vulnerability cron duration distribution points to Datadog, an error occurred. Raw error: ${require('util').inspect(err)}`);
+        });
+      }//∞
+      sails.log(`Sent ${distributionPointsToReport.length} vulnerability cron duration distribution points to Datadog.`);
+    }
+
     // Break the metrics into smaller arrays to ensure we don't exceed Datadog's 512 kb request body limit.
     let chunkedMetrics = _.chunk(metricsToReport, 500);// Note: 500 stringified JSON metrics is ~410 kb.
     for(let chunkOfMetrics of chunkedMetrics) {

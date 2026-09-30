@@ -108,14 +108,34 @@ by an exit code of zero.`,
 				return errors.New("vuln path empty, check environment variables or app config yml")
 			}
 			logger.InfoContext(ctx, "scanning vulnerabilities")
+
+			statsID, statsErr := ds.InsertCronStats(ctx, fleet.CronStatsTypeScheduled, string(fleet.CronVulnerabilities), "vuln_processing_command", fleet.CronStatsStatusPending)
+			if statsErr != nil {
+				logger.WarnContext(ctx, "failed to insert cron stats row", "err", statsErr)
+			}
+
 			start := time.Now()
+			var runErr error
+			cronErrors := make(fleet.CronScheduleErrors)
 			vulnFuncs := getVulnFuncs(ds, logger, &vulnConfig)
 			for _, vulnFunc := range vulnFuncs {
-				if err := vulnFunc.VulnFunc(ctx); err != nil {
-					return err
+				if runErr = vulnFunc.VulnFunc(ctx); runErr != nil {
+					cronErrors[vulnFunc.Name] = runErr
+					break
 				}
 			}
+
+			if statsErr == nil {
+				if updateErr := ds.UpdateCronStats(ctx, statsID, fleet.CronStatsStatusCompleted, &cronErrors); updateErr != nil {
+					logger.WarnContext(ctx, "failed to update cron stats row", "err", updateErr)
+				}
+			}
+
 			logger.InfoContext(ctx, "vulnerability processing finished", "took", time.Since(start))
+
+			if runErr != nil {
+				return runErr
+			}
 
 			return
 		},

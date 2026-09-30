@@ -1214,6 +1214,9 @@ type Datastore interface {
 	UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus CronStatsStatus, toStatus CronStatsStatus) error
 	// CleanupCronStats cleans up expired cron stats.
 	CleanupCronStats(ctx context.Context) error
+	// GetCompletedVulnerabilitiesCronStats returns all completed vulnerabilities
+	// cron_stats rows whose updated_at falls after since.
+	GetCompletedVulnerabilitiesCronStats(ctx context.Context, since time.Time) ([]CronStats, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Aggregated Stats

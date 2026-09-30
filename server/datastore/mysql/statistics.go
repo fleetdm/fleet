@@ -267,6 +267,19 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.GitOpsModeExceptions = gitOpsExceptionsList(appConfig.GitOpsConfig.Exceptions)
 		stats.FleetDesktopSSOEnabled = appConfig.FleetDesktop.SSOEnabled
 
+		vulnCronStats, err := ds.GetCompletedVulnerabilitiesCronStats(ctx, since)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "vulnerabilities cron stats")
+		}
+		stats.VulnerabilitiesCronRuns = make([]fleet.VulnerabilitiesCronRun, 0, len(vulnCronStats))
+		for _, cs := range vulnCronStats {
+			stats.VulnerabilitiesCronRuns = append(stats.VulnerabilitiesCronRuns, fleet.VulnerabilitiesCronRun{
+				DurationSeconds: int(cs.UpdatedAt.Sub(cs.CreatedAt).Seconds()),
+				StatsType:       cs.StatsType,
+				HasErrors:       cs.Errors != "" && cs.Errors != "{}",
+			})
+		}
+
 		return nil
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -137,4 +138,20 @@ func (ds *Datastore) CleanupCronStats(ctx context.Context) error {
 
 		return nil
 	})
+}
+
+func (ds *Datastore) GetCompletedVulnerabilitiesCronStats(ctx context.Context, since time.Time) ([]fleet.CronStats, error) {
+	stmt := `
+		SELECT id, name, instance, stats_type, status, created_at, updated_at, COALESCE(errors, '') AS errors
+		FROM cron_stats
+		WHERE name = ?
+			AND status = ?
+			AND updated_at > ?
+		ORDER BY updated_at ASC`
+
+	var res []fleet.CronStats
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, fleet.CronVulnerabilities, fleet.CronStatsStatusCompleted, since); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get completed vulnerabilities cron stats")
+	}
+	return res, nil
 }

@@ -844,6 +844,8 @@ type UpdateAllCronStatsForInstanceFunc func(ctx context.Context, instance string
 
 type CleanupCronStatsFunc func(ctx context.Context) error
 
+type GetCompletedVulnerabilitiesCronStatsFunc func(ctx context.Context, since time.Time) ([]fleet.CronStats, error)
+
 type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type LoadHostByNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
@@ -3650,6 +3652,9 @@ type DataStore struct {
 
 	CleanupCronStatsFunc        CleanupCronStatsFunc
 	CleanupCronStatsFuncInvoked bool
+
+	GetCompletedVulnerabilitiesCronStatsFunc        GetCompletedVulnerabilitiesCronStatsFunc
+	GetCompletedVulnerabilitiesCronStatsFuncInvoked bool
 
 	UpdateQueryAggregatedStatsFunc        UpdateQueryAggregatedStatsFunc
 	UpdateQueryAggregatedStatsFuncInvoked bool
@@ -8886,6 +8891,13 @@ func (s *DataStore) CleanupCronStats(ctx context.Context) error {
 	s.CleanupCronStatsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupCronStatsFunc(ctx)
+}
+
+func (s *DataStore) GetCompletedVulnerabilitiesCronStats(ctx context.Context, since time.Time) ([]fleet.CronStats, error) {
+	s.mu.Lock()
+	s.GetCompletedVulnerabilitiesCronStatsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCompletedVulnerabilitiesCronStatsFunc(ctx, since)
 }
 
 func (s *DataStore) UpdateQueryAggregatedStats(ctx context.Context) error {

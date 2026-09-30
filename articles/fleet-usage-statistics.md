@@ -88,6 +88,13 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
       "softwareAutomation": false
     }
   ],
+  "vulnerabilitiesCronRuns": [
+    {
+      "durationSeconds": 1834,
+      "statsType": "scheduled",
+      "hasErrors": false
+    }
+  ],
   "hostsEnrolledByOperatingSystem": {
     "android": [
       {

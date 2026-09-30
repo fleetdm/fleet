@@ -57,6 +57,7 @@ module.exports = {
     fleetDesktopSSOEnabled: {type: 'boolean', defaultsTo: false},
     numHostsFleetMDMEnrolledMacOS: {type: 'number', defaultsTo: 0 },
     numHostsFleetMDMEnrolledWindows: {type: 'number', defaultsTo: 0 },
+    vulnerabilitiesCronRuns: {type: [{}], defaultsTo: [], description: 'Completed vulnerability cron runs since last statistics send, each with durationSeconds, statsType, and hasErrors.'},
   },
 
 
