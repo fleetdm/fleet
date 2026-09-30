@@ -1389,4 +1389,24 @@ func TestMacOSSettingsFromMapCustomSettings(t *testing.T) {
 		{Path: "b"},
 		{Path: "c"},
 	}, s.CustomSettings)
+
+	// null is the same as omitted, but any other non-string is rejected
+	require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [
+		{"path": "a", "name": null, "description": null}
+	]}`), &raw))
+	_, err = s.FromMap(raw)
+	require.NoError(t, err)
+	require.Equal(t, []MDMProfileSpec{{Path: "a"}}, s.CustomSettings)
+
+	for _, tc := range []struct{ field, value string }{
+		{"description", `123`},
+		{"description", `{"a": "b"}`},
+		{"name", `true`},
+		{"name", `["x"]`},
+	} {
+		require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [{"path": "a", "`+
+			tc.field+`": `+tc.value+`}]}`), &raw))
+		_, err = s.FromMap(raw)
+		require.ErrorContains(t, err, "macos_settings.custom_settings."+tc.field+" of type string", tc.value)
+	}
 }
