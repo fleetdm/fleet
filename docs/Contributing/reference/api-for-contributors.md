@@ -3646,30 +3646,6 @@ Signals the Fleet server to send a webbook request with the device UUID and seri
 
 ---
 
-### Trigger Linux disk encryption escrow
-
-_Available in Fleet Premium_
-
-Signals the Fleet server to queue up the LUKS disk encryption escrow process (LUKS passphrase and slot key). If validation succeeds (disk encryption must be enforced for the fleet, the host's platform must be supported, the host's disk must already be encrypted, and the host's Orbit version must be new enough), this adds a notification flag for Orbit that, triggers escrow from the Orbit side.
-
-`POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-##### Example
-
-`POST /api/v1/fleet/device/abcdef012456789/mdm/linux/trigger_escrow`
-
-##### Default response
-
-`Status: 204`
-
----
-
 ### Get the setup experience status for the device
 
 _Available in Fleet Premium_
