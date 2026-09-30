@@ -682,7 +682,7 @@ func testUpdateMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 		Mobileconfig: mobileconfig.Mobileconfig([]byte("UploadedAtBytes")),
 	}, nil)
 	require.NoError(t, err)
-	require.Greater(t, renamedOnly.UploadedAt.Year(), 2020, "a rename must bump uploaded_at")
+	require.Equal(t, 2020, renamedOnly.UploadedAt.Year(), "a rename isn't resent, so it must not bump uploaded_at")
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET uploaded_at = '2020-01-01 00:00:00' WHERE profile_uuid = ?`, uploadedAtProfile.ProfileUUID)

@@ -911,6 +911,34 @@ FROM (
 		return nil, nil, err
 	}
 
+	// PayloadDisplayName can differ from the stored name once an admin renames
+	// the profile. Read it for this page only, rather than pulling every
+	// mobileconfig through the paginated UNION.
+	if len(macProfUUIDs) > 0 {
+		var contents []struct {
+			ProfileUUID  string `db:"profile_uuid"`
+			Mobileconfig []byte `db:"mobileconfig"`
+		}
+		stmt, args, err := sqlx.In(
+			`SELECT profile_uuid, mobileconfig FROM mdm_apple_configuration_profiles WHERE profile_uuid IN (?)`,
+			macProfUUIDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "sqlx.In profile contents")
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &contents, stmt, args...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "select profile contents")
+		}
+		displayNames := make(map[string]string, len(contents))
+		for _, c := range contents {
+			displayNames[c.ProfileUUID] = fleet.PayloadDisplayNameFromMobileconfig(c.Mobileconfig)
+		}
+		for _, prof := range profs {
+			if name, ok := displayNames[prof.ProfileUUID]; ok {
+				prof.PayloadDisplayName = name
+			}
+		}
+	}
+
 	// match the labels with their profiles
 	profMap := make(map[string]*fleet.MDMConfigProfilePayload, len(profs))
 	for _, prof := range profs {
@@ -1935,6 +1963,64 @@ WHERE hmap.command_uuid = ?
 		return dest, ctxerr.Wrap(ctx, err, "probe profile for ACME payload")
 	}
 	return dest, nil
+}
+
+// profileNameTables names where a platform stores its profiles and the host
+// rows that keep a copy of each profile's name.
+type profileNameTables struct {
+	profileTable   string
+	uuidColumn     string
+	hostTable      string
+	hostNameColumn string
+}
+
+var (
+	appleProfileNameTables   = profileNameTables{"mdm_apple_configuration_profiles", "profile_uuid", "host_mdm_apple_profiles", "profile_name"}
+	declarationNameTables    = profileNameTables{"mdm_apple_declarations", "declaration_uuid", "host_mdm_apple_declarations", "declaration_name"}
+	windowsProfileNameTables = profileNameTables{"mdm_windows_configuration_profiles", "profile_uuid", "host_mdm_windows_profiles", "profile_name"}
+	androidProfileNameTables = profileNameTables{"mdm_android_configuration_profiles", "profile_uuid", "host_mdm_android_profiles", "profile_name"}
+)
+
+// snapshotProfileNamesForDeletionDB copies the name of each profile matching
+// profileWhere (on alias p) onto the host's copy before the profile is
+// deleted. The host rows outlive it and reads fall back to their copy, which a
+// rename doesn't update. BINARY because the collation ignores case, and a
+// rename may only change case.
+func snapshotProfileNamesForDeletionDB(ctx context.Context, tx sqlx.ExtContext, t profileNameTables, profileWhere string, args ...any) error {
+	stmt, args, err := sqlx.In(fmt.Sprintf(`
+		UPDATE %[3]s h
+		JOIN %[1]s p ON p.%[2]s = h.%[2]s
+		SET h.%[4]s = p.name
+		WHERE h.%[4]s != CAST(p.name AS BINARY) AND (`+profileWhere+`)`,
+		t.profileTable, t.uuidColumn, t.hostTable, t.hostNameColumn), args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building profile name snapshot")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrapf(ctx, err, "snapshotting %s names before deletion", t.profileTable)
+	}
+	return nil
+}
+
+// profileRenameGuard returns the clauses a rename appends to its UPDATE of
+// ownTable. Names are unique per team across all four profile tables and no
+// index spans them, so the check sits in the statement to stay atomic.
+func profileRenameGuard(ownTable, name string, teamID uint) (string, []any) {
+	var clauses strings.Builder
+	var args []any
+	for _, t := range []string{
+		appleProfileNameTables.profileTable,
+		declarationNameTables.profileTable,
+		windowsProfileNameTables.profileTable,
+		androidProfileNameTables.profileTable,
+	} {
+		if t == ownTable {
+			continue
+		}
+		fmt.Fprintf(&clauses, "\n\tAND NOT EXISTS (SELECT 1 FROM %s WHERE name = ? AND team_id = ?)", t)
+		args = append(args, name, teamID)
+	}
+	return clauses.String(), args
 }
 
 func batchSetProfileLabelAssociationsDB(
