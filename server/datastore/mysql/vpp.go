@@ -42,7 +42,9 @@ FROM
 	vpp_apps vap
 	INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
 WHERE
-	vap.title_id = ? %s`
+	vap.title_id = ? %s
+ORDER BY vat.id
+LIMIT 1`
 
 	// when team id is not nil, we need to filter by the global or team id given.
 	args := []any{titleID}
@@ -1014,7 +1016,7 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 		// setup, do additional check.
 		var installDuringSetup bool
 		if err := sqlx.GetContext(ctx, tx, &installDuringSetup,
-			`SELECT install_during_setup FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ? AND platform = ?`, globalOrTeamID, appID.AdamID, appID.Platform); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			`SELECT install_during_setup FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ? AND platform = ? ORDER BY id LIMIT 1`, globalOrTeamID, appID.AdamID, appID.Platform); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return ctxerr.Wrap(ctx, err, "check if vpp app is installed during setup")
 		}
 		if installDuringSetup {
@@ -1085,6 +1087,8 @@ func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context
 	FROM vpp_apps va
 	JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform AND vat.global_or_team_id = ?
 	WHERE va.adam_id = ? AND va.platform = ?
+	ORDER BY vat.id
+	LIMIT 1
   `
 
 	// when team id is not nil, we need to filter by the global or team id given.
@@ -1122,6 +1126,8 @@ SELECT
 FROM vpp_apps va
 JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 WHERE vat.global_or_team_id = ? AND va.title_id = ?
+ORDER BY vat.id
+LIMIT 1
   `
 
 	var tmID uint

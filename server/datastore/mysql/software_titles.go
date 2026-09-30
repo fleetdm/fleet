@@ -82,7 +82,10 @@ FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND (%s)
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.is_active = TRUE AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
-LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
+LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s AND vat.id = (
+	SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+	WHERE vat2.adam_id = vat.adam_id AND vat2.platform = vat.platform AND vat2.global_or_team_id = vat.global_or_team_id
+)
 LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND %s
 WHERE st.id = ? AND
 	(sthc.software_title_id IS NOT NULL OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL OR iha.title_id IS NOT NULL)
@@ -774,7 +777,10 @@ FROM software_titles st
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = {{teamID .}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
-			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
+			{{if .PackagesOnly}} FALSE {{else}} vat.id = (
+				SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+				WHERE vat2.adam_id = vap.adam_id AND vat2.platform = vap.platform AND vat2.global_or_team_id = {{teamID .}}
+			){{end}}
 	{{end}}
 	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
@@ -833,10 +839,18 @@ WHERE
 		{{if not $.AvailableForInstall}}
 			{{$defFilter = $defFilter | printf " ( %s OR sthc.software_title_id IS NOT NULL ) "}}
 		{{ end }}
-		{{if and $.SelfServiceOnly (hasTeamID $)}}
-		   {{$defFilter = $defFilter | printf "%s AND ( si.self_service = 1 OR vat.self_service = 1 OR iha.self_service = 1 ) "}}
-		{{end}}
 		AND ({{$defFilter}})
+		{{if and $.SelfServiceOnly (hasTeamID $)}}
+		AND (
+			si.self_service = 1
+			OR iha.self_service = 1
+			OR EXISTS (
+				SELECT 1 FROM vpp_apps_teams vat_ss
+				WHERE vat_ss.adam_id = vap.adam_id AND vat_ss.platform = vap.platform
+					AND vat_ss.global_or_team_id = {{teamID $}} AND vat_ss.self_service = 1
+			)
+		)
+		{{end}}
 	{{end}}
 	-- If for setup experience, exclude any installers that are not supported.
 	-- In-house apps are only supported for setup experience on iOS/iPadOS, so
@@ -1103,8 +1117,10 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		)
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = %[1]d
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id
-		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
-			AND vat.global_or_team_id = %[1]d`, teamID)
+		LEFT JOIN vpp_apps_teams vat ON vat.id = (
+			SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+			WHERE vat2.adam_id = vap.adam_id AND vat2.platform = vap.platform AND vat2.global_or_team_id = %[1]d
+		)`, teamID)
 	}
 
 	outerSQL += `
