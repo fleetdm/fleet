@@ -26,6 +26,8 @@ Below is the end user experience for Linux. Check out the separate video for [Wi
 
 Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue. 
 
+Until the end user logs in, Fleet opens a new browser tab with the login page every 5 minutes. If your IdP settings in **Settings > Integrations > Identity provider (IdP)** are wrong, the end user can't log in, and new tabs keep opening. Fleet doesn't show a clear error yet: the **Sign in** button may spin forever, or the end user sees a generic "Something's gone wrong" page. This is a [known bug](https://github.com/fleetdm/fleet/issues/54343).
+
 If the end user enrolls through **Settings > Access work or school**, Fleet's authentication window will be skipped because the user already authenticated.
 
 Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
@@ -42,7 +44,7 @@ If end users authenticate before Fleet's agent (fleetd) is installed, for exampl
 fleetctl package --type msi --fleet-url <your_fleet_url> --enroll-secret <your_enroll_secret> --bypass-end-user-auth
 ```
 
-This flag only works if the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) is set to false.
+This flag only works if the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) is set to `true` (the default). If it's set to `false`, Fleet blocks these installers from enrolling.
 ## Install software
 
 ### End user experience

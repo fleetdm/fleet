@@ -135,6 +135,8 @@ export enum ActivityType {
   EditedDeclarationProfile = "edited_declaration_profile",
   ResentConfigurationProfile = "resent_configuration_profile",
   ResentConfigurationProfileBatch = "resent_configuration_profile_batch",
+  InstalledOptInConfigurationProfile = "installed_opt_in_configuration_profile",
+  UninstalledOptInConfigurationProfile = "uninstalled_opt_in_configuration_profile",
   AddedSoftware = "added_software",
   EditedSoftware = "edited_software",
   DeletedSoftware = "deleted_software",
@@ -279,6 +281,8 @@ export type IHostPastActivityType =
   | ActivityType.NotifiedEndUserBeforePatching
   | ActivityType.ReleasedDeviceFromAB
   | ActivityType.ResentConfigurationProfile
+  | ActivityType.InstalledOptInConfigurationProfile
+  | ActivityType.UninstalledOptInConfigurationProfile
   | ActivityType.ResetPolicy
   | ActivityType.HostEnrollmentRejected;
 
@@ -582,6 +586,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   installed_app_store_app: "Installed App Store app",
   installed_software: "Install software",
   installed_all_self_service_software: "Installed all self-service software",
+  installed_opt_in_configuration_profile:
+    "Installed opt-in configuration profile",
   live_query: "Ran live report",
   locked_host: "Locked host",
   mdm_enrolled: "MDM turned on",
@@ -604,6 +610,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   reset_policy: "Reset policy",
   transferred_hosts: "Transferred hosts",
   uninstalled_software: "Uninstall software",
+  uninstalled_opt_in_configuration_profile:
+    "Uninstalled opt-in configuration profile",
   unlocked_host: "Unlocked host",
   updated_script: "Updated script",
   user_added_by_sso: "Added user via JIT",

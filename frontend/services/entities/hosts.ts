@@ -727,6 +727,16 @@ export default {
     return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
   },
 
+  installProfile: (hostId: number, profileUUID: string): Promise<void> => {
+    const { HOST_INSTALL_PROFILE } = endpoints;
+    return sendRequest("POST", HOST_INSTALL_PROFILE(hostId, profileUUID));
+  },
+
+  uninstallProfile: (hostId: number, profileUUID: string): Promise<void> => {
+    const { HOST_UNINSTALL_PROFILE } = endpoints;
+    return sendRequest("POST", HOST_UNINSTALL_PROFILE(hostId, profileUUID));
+  },
+
   resendCertificate: (
     hostId: number,
     certificateTemplateId: number
