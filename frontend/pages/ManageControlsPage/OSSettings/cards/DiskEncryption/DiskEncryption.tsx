@@ -286,7 +286,7 @@ const DiskEncryption = ({
       <>
         If turned on, Fleet enforces FileVault. If turned off, Fleet stops
         enforcing. Keys are still escrowed if Escrow recovery key with Fleet is
-        checked, and already escrowed keys aren&rsquo;t deleted.{" "}
+        checked.{" "}
         <CustomLink
           text="Learn more"
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
