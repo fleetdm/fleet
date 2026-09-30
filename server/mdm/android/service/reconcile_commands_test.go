@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -260,6 +261,50 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		}
 		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			t.Fatalf("the command must stay pending when its wipe side effect fails")
+			return nil
+		}
+
+		require.NoError(t, reconcileAndroidCommands(t.Context(), &mockDS.DataStore, client, logger, noopNewActivity, reconcileNow, reconcileTestCallInterval))
+		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+	})
+
+	t.Run("acknowledged WIPE for a deleted host still reaches a terminal state", func(t *testing.T) {
+		cmd := pendingCommandForReconcile("cmd-wipe-host-gone", string(android.MDMAndroidCommandTypeWipe), 48*time.Hour)
+		mockDS, client, logger := newReconcileFixture(t, cmd)
+		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+			return &androidmanagement.Operation{Name: operationName, Done: true}, nil
+		}
+		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return nil, common_mysql.NotFound("Android device").WithName(hostUUID)
+		}
+		var gotStatus string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			gotStatus = status
+			return nil
+		}
+		newActivity := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			t.Fatalf("no activity must be emitted for a host that no longer exists")
+			return nil
+		}
+
+		require.NoError(t, reconcileAndroidCommands(t.Context(), &mockDS.DataStore, client, logger, newActivity, reconcileNow, reconcileTestCallInterval))
+
+		require.True(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked, "the command must not stay pending forever")
+		assert.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), gotStatus)
+		assert.False(t, mockDS.SetAndroidHostUnenrolledFuncInvoked)
+	})
+
+	t.Run("a failed WIPE host lookup leaves the command pending so the next run retries it", func(t *testing.T) {
+		cmd := pendingCommandForReconcile("cmd-wipe-lookup-transient", string(android.MDMAndroidCommandTypeWipe), 48*time.Hour)
+		mockDS, client, logger := newReconcileFixture(t, cmd)
+		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+			return &androidmanagement.Operation{Name: operationName, Done: true}, nil
+		}
+		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return nil, errors.New("simulated transient DB connection drop")
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			t.Fatalf("the command must stay pending when the host lookup fails transiently")
 			return nil
 		}
 

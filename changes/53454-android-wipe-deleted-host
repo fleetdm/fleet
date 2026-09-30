@@ -1,0 +1,1 @@
+- Fixed an Android wipe command staying pending forever when its host was deleted from Fleet before the wipe was acknowledged.
