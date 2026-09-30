@@ -139,25 +139,25 @@ func TestFilterRows(t *testing.T) {
 
 func TestScanCacheReusesWithinTTL(t *testing.T) {
 	var scans int
-	scan := func() ([]map[string]string, error) {
+	scan := func(context.Context) ([]map[string]string, error) {
 		scans++
 		return []map[string]string{{"name": "git"}}, nil
 	}
 	var c scanCache
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	rows, err := c.get("k", now, scan)
+	rows, err := c.get(t.Context(), "k", now, scan)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 
 	// Same key within the TTL: served from cache.
-	rows, err = c.get("k", now.Add(scanCacheTTL-time.Second), scan)
+	rows, err = c.get(t.Context(), "k", now.Add(scanCacheTTL-time.Second), scan)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, 1, scans)
 
 	// Past the TTL: a new scan.
-	_, err = c.get("k", now.Add(scanCacheTTL), scan)
+	_, err = c.get(t.Context(), "k", now.Add(scanCacheTTL), scan)
 	require.NoError(t, err)
 	require.Equal(t, 2, scans)
 }
@@ -165,19 +165,19 @@ func TestScanCacheReusesWithinTTL(t *testing.T) {
 func TestScanCacheKeyChangeRescans(t *testing.T) {
 	// A different console user or Homebrew install must not see another's rows.
 	var scans int
-	scan := func() ([]map[string]string, error) {
+	scan := func(context.Context) ([]map[string]string, error) {
 		scans++
 		return []map[string]string{{"name": fmt.Sprint(scans)}}, nil
 	}
 	var c scanCache
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	rows, err := c.get("brew:501", now, scan)
+	rows, err := c.get(t.Context(), "brew:501", now, scan)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, "1", rows[0]["name"])
 
-	rows, err = c.get("brew:502", now, scan)
+	rows, err = c.get(t.Context(), "brew:502", now, scan)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, "2", rows[0]["name"])
@@ -188,44 +188,71 @@ func TestScanCacheCachesFailures(t *testing.T) {
 	// A failing scan is not retried on every query in a batch of policies; the
 	// failure is served until the TTL passes, then the scan is retried.
 	var scans int
-	scan := func() ([]map[string]string, error) {
+	scan := func(context.Context) ([]map[string]string, error) {
 		scans++
 		return nil, errors.New("exit status 1: Error: boom")
 	}
 	var c scanCache
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	_, err := c.get("k", now, scan)
+	_, err := c.get(t.Context(), "k", now, scan)
 	require.ErrorContains(t, err, "boom")
-	_, err = c.get("k", now.Add(time.Second), scan)
+	_, err = c.get(t.Context(), "k", now.Add(time.Second), scan)
 	require.ErrorContains(t, err, "boom")
 	require.Equal(t, 1, scans)
 
-	_, err = c.get("k", now.Add(scanCacheTTL), scan)
+	_, err = c.get(t.Context(), "k", now.Add(scanCacheTTL), scan)
 	require.ErrorContains(t, err, "boom")
 	require.Equal(t, 2, scans)
 }
 
-func TestScanCacheDoesNotCacheCancellation(t *testing.T) {
-	// A query cancelled by its caller says nothing about brew; the next query
-	// must run the scan.
-	var scans int
-	scan := func() ([]map[string]string, error) {
-		scans++
-		if scans == 1 {
-			return nil, fmt.Errorf("running brew outdated: %w", context.Canceled)
-		}
-		return []map[string]string{}, nil
+func TestScanCacheCallerDeadlineDoesNotPoisonCache(t *testing.T) {
+	// A query that gives up early must not fail the shared scan or leave its own
+	// deadline cached for the queries after it.
+	var scans atomic.Int32
+	release := make(chan struct{})
+	scanErr := make(chan error, 1)
+	scan := func(ctx context.Context) ([]map[string]string, error) {
+		scans.Add(1)
+		<-release
+		scanErr <- ctx.Err()
+		return []map[string]string{{"name": "git"}}, nil
 	}
 	var c scanCache
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	_, err := c.get("k", now, scan)
-	require.ErrorIs(t, err, context.Canceled)
-	rows, err := c.get("k", now, scan)
+	short, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
+	defer cancel()
+	_, err := c.get(short, "k", now, scan)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+
+	close(release)
+	require.NoError(t, <-scanErr, "the scan must not inherit the caller's deadline")
+	rows, err := c.get(t.Context(), "k", now, scan)
 	require.NoError(t, err)
-	require.Empty(t, rows)
-	require.Equal(t, 2, scans)
+	require.Len(t, rows, 1)
+	require.Equal(t, int32(1), scans.Load())
+}
+
+func TestScanCacheWaiterHonorsItsContext(t *testing.T) {
+	// A query arriving mid-scan can give up without waiting for the scan.
+	started := make(chan struct{})
+	release := make(chan struct{})
+	defer close(release)
+	scan := func(context.Context) ([]map[string]string, error) {
+		close(started)
+		<-release
+		return nil, nil
+	}
+	var c scanCache
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	go func() { _, _ = c.get(t.Context(), "k", now, scan) }()
+	<-started
+	cancelled, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err := c.get(cancelled, "k", now, scan)
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func TestScanCacheSerializesConcurrentScans(t *testing.T) {
@@ -234,7 +261,7 @@ func TestScanCacheSerializesConcurrentScans(t *testing.T) {
 	var scans atomic.Int32
 	started := make(chan struct{})
 	release := make(chan struct{})
-	scan := func() ([]map[string]string, error) {
+	scan := func(context.Context) ([]map[string]string, error) {
 		if scans.Add(1) == 1 {
 			close(started)
 			<-release
@@ -247,7 +274,7 @@ func TestScanCacheSerializesConcurrentScans(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 5 {
 		wg.Go(func() {
-			rows, err := c.get("k", now, scan)
+			rows, err := c.get(t.Context(), "k", now, scan)
 			require.NoError(t, err)
 			require.Len(t, rows, 1)
 		})

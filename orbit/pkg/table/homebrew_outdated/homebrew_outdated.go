@@ -143,25 +143,53 @@ type scanCache struct {
 	expires time.Time
 	rows    []map[string]string
 	err     error
+	flight  *scanFlight // the scan in progress, if any
+}
+
+// scanFlight is one scan shared by every caller that arrives while it runs.
+type scanFlight struct {
+	key  string
+	done chan struct{} // closed once rows and err are set
+	rows []map[string]string
+	err  error
 }
 
 // get returns the rows cached under key (console user + Homebrew install),
 // running scan when they are missing or expired. Concurrent callers share one
-// scan.
-func (c *scanCache) get(key string, now time.Time, scan func() ([]map[string]string, error)) ([]map[string]string, error) {
+// scan. The scan is detached from the callers so one giving up early neither
+// cuts it short nor leaves its own deadline cached; each caller still returns
+// as soon as its ctx ends.
+func (c *scanCache) get(ctx context.Context, key string, now time.Time, scan func(context.Context) ([]map[string]string, error)) ([]map[string]string, error) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.key == key && now.Before(c.expires) {
-		return c.rows, c.err
+		rows, err := c.rows, c.err
+		c.mu.Unlock()
+		return rows, err
 	}
-	rows, err := scan()
-	if errors.Is(err, context.Canceled) {
-		// The caller went away; that says nothing about brew.
-		c.key = ""
-		return nil, err
+	f := c.flight
+	if f == nil || f.key != key {
+		f = &scanFlight{key: key, done: make(chan struct{})}
+		c.flight = f
+		go func() {
+			rows, err := scan(context.WithoutCancel(ctx))
+			c.mu.Lock()
+			f.rows, f.err = rows, err
+			if c.flight == f {
+				c.flight = nil
+				c.key, c.expires, c.rows, c.err = key, now.Add(scanCacheTTL), rows, err
+			}
+			c.mu.Unlock()
+			close(f.done)
+		}()
 	}
-	c.key, c.expires, c.rows, c.err = key, now.Add(scanCacheTTL), rows, err
-	return rows, err
+	c.mu.Unlock()
+
+	select {
+	case <-f.done:
+		return f.rows, f.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 // maxBrewStderr caps how much of brew's stderr is included in a returned error.

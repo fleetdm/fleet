@@ -93,8 +93,8 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		env = append(env, "HOME="+homeDir)
 	}
 
-	rows, err := cache.get(brewPath+":"+strconv.FormatUint(uint64(uid), 10), time.Now(), func() ([]map[string]string, error) {
-		return queryRows(ctx, brewPath, prefix, uid, gid, brewQueryEnv(env))
+	rows, err := cache.get(ctx, brewPath+":"+strconv.FormatUint(uint64(uid), 10), time.Now(), func(scanCtx context.Context) ([]map[string]string, error) {
+		return queryRows(scanCtx, brewPath, prefix, uid, gid, brewQueryEnv(env))
 	})
 	if err != nil {
 		return nil, err
