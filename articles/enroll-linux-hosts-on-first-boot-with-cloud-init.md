@@ -2,7 +2,7 @@
 
 Fleet has no built-in zero-touch enrollment for Linux. This guide shows how to build it with cloud-init, the first-boot tool that ships in most Linux cloud images and in Ubuntu's unattended installer. A new host installs fleetd on its first boot and appears in Fleet about 20 to 30 seconds later, with nobody touching it.
 
-cloud-init isn't part of Fleet, so you run the supporting infrastructure yourself. This guide was tested with Ubuntu 24.04 and AlmaLinux 10 on arm64, Fleet 4.91.1, and fleetd 1.61.0. It wasn't tested on x86_64.
+cloud-init isn't part of Fleet, so you run the supporting infrastructure yourself. This guide was tested with Ubuntu 24.04 and AlmaLinux 10 on arm64, Fleet 4.91.1, and fleetd 1.61.0.
 
 ## What you provide
 
