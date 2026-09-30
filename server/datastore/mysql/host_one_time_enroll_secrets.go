@@ -235,23 +235,24 @@ func (ds *Datastore) WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmen
 	return windowsMDMEnrollSecretPushedDB(ctx, ds.reader(ctx), enrollmentID, pushLocURI)
 }
 
-// windowsMDMEnrollSecretPushedDB reports whether a command targeting pushLocURI was queued for the enrollment since its live secret
-// was minted. It starts from the enrollment's own queue and results, which are keyed by enrollment. windows_mdm_commands.created_at
-// has only second precision, so the secret's creation time is truncated to the second before comparing.
+// windowsMDMEnrollSecretPushedDB reports whether a push of the enrollment's live secret is in flight or delivered: a command
+// targeting pushLocURI, queued since the secret was minted, is still waiting for the device or returned a 2xx. The push is one
+// <Atomic>, so its status covers the value write. A failed push can then be sent again, which is harmless because the mint reuses
+// the live secret. windows_mdm_commands.created_at has only second precision, so the secret's creation time is truncated to the
+// second before comparing.
 func windowsMDMEnrollSecretPushedDB(ctx context.Context, q sqlx.QueryerContext, enrollmentID uint, pushLocURI string) (bool, error) {
 	var pushed bool
 	if err := sqlx.GetContext(ctx, q, &pushed, `
 		SELECT EXISTS (
 			SELECT 1 FROM host_one_time_enroll_secrets s
 			JOIN (
-				SELECT command_uuid FROM windows_mdm_command_queue WHERE enrollment_id = ?
+				SELECT command_uuid FROM windows_mdm_command_queue WHERE enrollment_id = ? AND acked_at IS NULL
 				UNION
-				SELECT command_uuid FROM windows_mdm_command_results WHERE enrollment_id = ?
+				SELECT command_uuid FROM windows_mdm_command_results WHERE enrollment_id = ? AND status_code LIKE '2%'
 			) ec
 			JOIN windows_mdm_commands c ON c.command_uuid = ec.command_uuid
 			WHERE s.mdm_windows_enrollment_id = ? AND s.consumed_at IS NULL
 				AND c.target_loc_uri = ?
-                -- trim to nearest second
 				AND c.created_at >= s.created_at - INTERVAL MICROSECOND(s.created_at) MICROSECOND
 		)`, enrollmentID, enrollmentID, enrollmentID, pushLocURI); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "check windows one-time enroll secret push")
@@ -570,20 +571,23 @@ func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id 
 	}
 
 	// A secret minted before its host was known is bound only to its MDM enrollment, and nothing above ties it to a host. So it
-	// must not land on a host that another Windows MDM enrollment already claims: that is a different machine presenting this
-	// host's identifiers, and landing would rotate the real host's node key.
+	// must not land on a host that another Windows MDM enrollment already claims, or on a host that isn't Windows: either is a
+	// different machine presenting this host's identifiers, and landing would rotate the real host's node key. The stored platform
+	// is what counts, since the agent's is self-reported.
 	if s.HostID == nil && s.MDMWindowsEnrollmentID != nil {
 		var claimed bool
 		if err := sqlx.GetContext(ctx, tx, &claimed, `
 			SELECT EXISTS (
 				SELECT 1 FROM hosts h JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
 				WHERE h.id = ? AND h.uuid != '' AND mwe.id != ?
-			)`, matchedHostID, *s.MDMWindowsEnrollmentID); err != nil {
+			) OR EXISTS (
+				SELECT 1 FROM hosts WHERE id = ? AND platform NOT IN ('', 'windows')
+			)`, matchedHostID, *s.MDMWindowsEnrollmentID, matchedHostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "check windows mdm enrollment claims on matched host")
 		}
 		if claimed {
 			return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: &matchedHostID},
-				"one-time enroll secret landing on a host claimed by another windows mdm enrollment")
+				"one-time enroll secret landing on a host claimed by another windows mdm enrollment or not windows")
 		}
 	}
 

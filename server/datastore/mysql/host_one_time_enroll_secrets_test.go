@@ -803,27 +803,37 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pending, 2)
 
-	// A delivered push has left the queue for the results table, and still counts.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, '')`, installed.ID)
-		if err != nil {
+	// The device answers the push: its result replaces the queued entry. A failed push means the value was never written, so it
+	// goes out again, reusing the live secret; a successful one counts as delivered.
+	deliver := func(commandUUID, status string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, '')`, installed.ID)
+			if err != nil {
+				return err
+			}
+			responseID, _ := res.LastInsertId()
+			if _, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code)
+				VALUES (?, ?, '', ?, ?)`, installed.ID, commandUUID, responseID, status); err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ?`, installed.ID)
 			return err
-		}
-		responseID, _ := res.LastInsertId()
-		if _, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code)
-			VALUES (?, 'push-3', '', ?, '200')`, installed.ID, responseID); err != nil {
-			return err
-		}
-		_, err = q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ?`, installed.ID)
-		return err
-	})
+		})
+	}
+	deliver("push-3", "500")
+	requirePushed(installed.ID, false)
+	queued, err = ds.QueueWindowsMDMEnrollSecretPush(ctx, installed.ID, installed.MDMDeviceID, pushCmd("push-3b"), nil)
+	require.NoError(t, err)
+	require.True(t, queued)
+	require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, installed.ID), "the re-push carries the same secret")
+	deliver("push-3b", "200")
 	requirePushed(installed.ID, true)
 
 	// A push queued before the live secret was minted delivered an older secret.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE windows_mdm_commands c, host_one_time_enroll_secrets s
 			SET c.created_at = NOW() - INTERVAL 1 HOUR, s.consumed_at = NOW(6)
-			WHERE c.command_uuid = 'push-3' AND s.mdm_windows_enrollment_id = ?`, installed.ID)
+			WHERE c.command_uuid = 'push-3b' AND s.mdm_windows_enrollment_id = ?`, installed.ID)
 		return err
 	})
 	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, installed.ID))
@@ -966,6 +976,26 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, before.OrbitNodeKey, after.OrbitNodeKey, "the refused enrollment must not rotate the victim's node key")
 		require.Equal(t, before.NodeKey, after.NodeKey)
+		require.Equal(t, row.Secret, liveWindowsSecret(t, ds, attacker.ID).Secret, "a refused attempt must not spend the secret")
+	})
+
+	t.Run("a first-install secret cannot take over a host that isn't Windows", func(t *testing.T) {
+		// A Mac has no Windows MDM enrollment to claim it, and the agent reports its own platform, so the stored platform decides.
+		victim := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+		attacker := insertWindowsEnrollment(t, ds, "hw-mac-attacker", "")
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, attacker.ID))
+		row := liveWindowsSecret(t, ds, attacker.ID)
+		before, err := ds.Host(ctx, victim.ID)
+		require.NoError(t, err)
+
+		asWindows := *victim
+		asWindows.Platform = "windows"
+		_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(&asWindows, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, &victim.ID)
+
+		after, err := ds.Host(ctx, victim.ID)
+		require.NoError(t, err)
+		require.Equal(t, before.OrbitNodeKey, after.OrbitNodeKey, "the refused enrollment must not rotate the victim's node key")
 		require.Equal(t, row.Secret, liveWindowsSecret(t, ds, attacker.ID).Secret, "a refused attempt must not spend the secret")
 	})
 

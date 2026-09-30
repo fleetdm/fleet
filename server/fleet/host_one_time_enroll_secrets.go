@@ -66,17 +66,17 @@ func (s *HostOneTimeEnrollSecret) WindowsEnrollmentID() *uint {
 	return s.MDMWindowsEnrollmentID
 }
 
-// matchesCapturedIdentifiers compares only the identifiers both sides actually have. An enrollment-bound secret is minted before
-// the device has reported most of them: the hardware UUID is never known at that point, and the serial only if a DevDetail
-// response already landed. The agent is equally partial in the other direction. An empty value on either side means "nothing to
-// compare" and is skipped.
+// matchesCapturedIdentifiers compares only the identifiers the secret captured. An enrollment-bound secret is minted before the
+// device has reported most of them: the hardware UUID is never known at that point, and the serial only if a DevDetail response
+// already landed. An empty value on either side of the platform or UUID is skipped. A captured serial must be presented, since
+// fleetd always reports one and an agent could otherwise skip the check by omitting it.
 func (s *HostOneTimeEnrollSecret) matchesCapturedIdentifiers(platform, hardwareUUID, hardwareSerial string) bool {
 	captured := func(stored, presented string) bool {
 		return stored == "" || presented == "" || strings.EqualFold(stored, presented)
 	}
 	return captured(s.Platform, platform) &&
 		captured(s.HardwareUUID, hardwareUUID) &&
-		captured(s.HardwareSerial, hardwareSerial)
+		(s.HardwareSerial == "" || strings.EqualFold(s.HardwareSerial, hardwareSerial))
 }
 
 // UsedAt returns the time the secret was used by the given plane, or nil.

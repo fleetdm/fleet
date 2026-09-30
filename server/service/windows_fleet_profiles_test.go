@@ -5,6 +5,7 @@ import (
 	"html"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -248,6 +249,7 @@ func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
 		require.Equal(t, windowsEnrollSecretPolicyURI, st.pushed.TargetLocURI)
 		require.Contains(t, string(st.pushed.RawCommand), fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret),
 			"the secret is resolved at delivery")
+		require.True(t, strings.HasPrefix(string(st.pushed.RawCommand), "<Atomic>"), "one status covers the ADMX install and the value write")
 		require.Nil(t, st.installed, "fleetd enrolled this device itself, so Fleet never installs it")
 	})
 

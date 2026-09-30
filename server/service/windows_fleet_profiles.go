@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"fmt"
 	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -124,7 +125,7 @@ func (svc *Service) pushEnrollSecretToOrphanedEnrollment(ctx context.Context, en
 		ctxerr.Handle(ctx, err)
 		return
 	}
-	pushCmd, err := buildCommandFromProfileBytes(syncML, uuid.NewString())
+	pushCmd, err := buildCommandFromProfileBytes(fmt.Appendf(nil, "<Atomic>%s</Atomic>", syncML), uuid.NewString())
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to build the enroll secret push", "err", err)
 		ctxerr.Handle(ctx, err)

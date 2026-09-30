@@ -24,9 +24,10 @@ func TestHostOneTimeEnrollSecretMatchesHost(t *testing.T) {
 				want: true,
 			},
 			{
+				// fleetd always reports a serial, so omitting it would only skip the check.
 				name: "serial captured, agent presents none", storedPlatform: "windows", storedSers: "SERIAL-1",
 				platform: "windows", uuid: "UUID-1", serial: "",
-				want: true,
+				want: false,
 			},
 			{
 				name: "serial captured and agreed", storedPlatform: "windows", storedSers: "SERIAL-1",
