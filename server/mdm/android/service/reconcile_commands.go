@@ -38,6 +38,8 @@ const (
 	// googleStatusCodeNotFound is google.rpc.Code NOT_FOUND, recorded on rows we fail because AMAPI no
 	// longer has the Operation.
 	googleStatusCodeNotFound = 5
+
+	androidCommandPreviousEnterpriseErrorMessage = "Fleet did not receive a result for this command and can no longer check it, because it was sent under an Android Enterprise that Fleet is no longer connected to."
 )
 
 // ReconcileAndroidCommands recovers Android MDM commands whose Pub/Sub COMMAND notification never
@@ -83,7 +85,27 @@ func ReconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, logger *s
 func reconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, client androidmgmt.Client, logger *slog.Logger,
 	newActivityFn fleet.NewActivityFunc, now time.Time, callInterval time.Duration,
 ) error {
-	cmds, err := ds.ListPendingMDMAndroidCommands(ctx, now.Add(-androidCommandReconcileMinAge), androidCommandReconcileBatchSize)
+	enterprise, err := ds.GetEnterprise(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get android enterprise for reconcile")
+	}
+	operationNamePrefix := enterprise.Name() + "/"
+
+	// A command issued under an enterprise Fleet has since been disconnected from can never be read
+	// back: AMAPI rejects it with a 403 that is indistinguishable from Fleet losing access to its
+	// current enterprise. Keep those rows out of the polled batch so they can't stop the run or crowd
+	// out current commands, and once no notification can arrive anymore, fail them to unstick the host.
+	failed, err := ds.FailPendingMDMAndroidCommandsOutsidePrefix(ctx, operationNamePrefix,
+		now.Add(-androidCommandReconcileNotFoundGrace), androidCommandPreviousEnterpriseErrorMessage,
+		androidCommandReconcileBatchSize)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to fail android commands from a previous enterprise", "err", err)
+		ctxerr.Handle(ctx, err)
+	} else if failed > 0 {
+		logger.InfoContext(ctx, "android commands from a previous enterprise past grace period, marked error", "count", failed)
+	}
+
+	cmds, err := ds.ListPendingMDMAndroidCommands(ctx, operationNamePrefix, now.Add(-androidCommandReconcileMinAge), androidCommandReconcileBatchSize)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list pending android commands for reconcile")
 	}

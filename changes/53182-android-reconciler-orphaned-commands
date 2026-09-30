@@ -1,0 +1,1 @@
+- Fixed the Android stuck-command reconciler stopping on every run when a pending command from a previously connected Android Enterprise was at the head of the queue. Such commands are now skipped and marked as failed after 7 days.

@@ -44,7 +44,14 @@ func newReconcileFixture(t *testing.T, cmds ...*android.MDMAndroidCommand) (*And
 	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
 	}
-	mockDS.ListPendingMDMAndroidCommandsFunc = func(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
+	mockDS.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{EnterpriseID: "E"}, nil
+	}
+	mockDS.FailPendingMDMAndroidCommandsOutsidePrefixFunc = func(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error) {
+		return 0, nil
+	}
+	mockDS.ListPendingMDMAndroidCommandsFunc = func(ctx context.Context, operationNamePrefix string, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
+		require.Equal(t, "enterprises/E/", operationNamePrefix)
 		require.Equal(t, reconcileNow.Add(-androidCommandReconcileMinAge), createdBefore)
 		require.Equal(t, androidCommandReconcileBatchSize, limit)
 		return cmds, nil
@@ -349,6 +356,63 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		}
 	})
 
+	t.Run("commands from a previous enterprise past the grace period are failed before polling", func(t *testing.T) {
+		// A command left pending when Android Enterprise was disconnected points at an enterprise Fleet can no
+		// longer read. AMAPI answers it with a 403, which would stop the run, so it must never be polled.
+		current := pendingCommandForReconcile("cmd-current", string(android.MDMAndroidCommandTypeLock), 48*time.Hour)
+		mockDS, client, logger := newReconcileFixture(t, current)
+		var calls []string
+		mockDS.FailPendingMDMAndroidCommandsOutsidePrefixFunc = func(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error) {
+			calls = append(calls, "fail")
+			assert.Equal(t, "enterprises/E/", operationNamePrefix)
+			assert.Equal(t, reconcileNow.Add(-androidCommandReconcileNotFoundGrace), createdBefore)
+			assert.NotEmpty(t, errorMessage)
+			assert.Equal(t, androidCommandReconcileBatchSize, limit)
+			return 3, nil
+		}
+		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+			calls = append(calls, operationName)
+			return &androidmanagement.Operation{Name: operationName, Done: true}, nil
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			return nil
+		}
+
+		require.NoError(t, reconcileAndroidCommands(t.Context(), &mockDS.DataStore, client, logger, noopNewActivity, reconcileNow, reconcileTestCallInterval))
+		require.Equal(t, []string{"fail", current.OperationName}, calls)
+	})
+
+	t.Run("a failure to fail previous-enterprise commands does not stop the run", func(t *testing.T) {
+		current := pendingCommandForReconcile("cmd-current", string(android.MDMAndroidCommandTypeLock), 48*time.Hour)
+		mockDS, client, logger := newReconcileFixture(t, current)
+		mockDS.FailPendingMDMAndroidCommandsOutsidePrefixFunc = func(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error) {
+			return 0, errors.New("simulated DB failure")
+		}
+		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+			return &androidmanagement.Operation{Name: operationName, Done: true}, nil
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			return nil
+		}
+
+		require.NoError(t, reconcileAndroidCommands(t.Context(), &mockDS.DataStore, client, logger, noopNewActivity, reconcileNow, reconcileTestCallInterval))
+		require.True(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked, "current commands must still be reconciled")
+	})
+
+	t.Run("an enterprise lookup failure surfaces without calling AMAPI", func(t *testing.T) {
+		cmd := pendingCommandForReconcile("cmd-lookup", string(android.MDMAndroidCommandTypeLock), 48*time.Hour)
+		mockDS, client, logger := newReconcileFixture(t, cmd)
+		mockDS.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+			return nil, errors.New("simulated DB outage")
+		}
+
+		err := reconcileAndroidCommands(t.Context(), &mockDS.DataStore, client, logger, noopNewActivity, reconcileNow, reconcileTestCallInterval)
+		require.ErrorContains(t, err, "simulated DB outage")
+		require.False(t, client.EnterprisesDevicesOperationsGetFuncInvoked)
+		require.False(t, mockDS.FailPendingMDMAndroidCommandsOutsidePrefixFuncInvoked)
+		require.False(t, mockDS.ListPendingMDMAndroidCommandsFuncInvoked)
+	})
+
 	t.Run("nothing pending makes no AMAPI calls", func(t *testing.T) {
 		mockDS, client, logger := newReconcileFixture(t)
 
@@ -358,7 +422,7 @@ func TestReconcileAndroidCommands(t *testing.T) {
 
 	t.Run("a datastore failure surfaces so the cron run is marked failed", func(t *testing.T) {
 		mockDS, client, logger := newReconcileFixture(t)
-		mockDS.ListPendingMDMAndroidCommandsFunc = func(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
+		mockDS.ListPendingMDMAndroidCommandsFunc = func(ctx context.Context, operationNamePrefix string, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
 			return nil, errors.New("simulated DB outage")
 		}
 
