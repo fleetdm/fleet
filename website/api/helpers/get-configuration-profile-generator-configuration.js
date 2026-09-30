@@ -648,7 +648,11 @@ ${naturalLanguageInstructions}
         // documentation, not a constraint.
         let schemaLines = [];
         for (let areaName of _.clone(windowsCspAreasProvided).sort()) {
-          schemaLines.push(areaName);
+          // Six names are both a Policy area and a standalone CSP (Accounts, BitLocker, CloudDesktop, Defender,
+          // Update, WiFi).  Given the bare area name, the model built the standalone CSP's path for a Policy node
+          // (./Device/Vendor/MSFT/Wifi/AllowAutoConnectToWiFiSenseHotspots), so those areas spell theirs out.
+          let sharesItsNameWithACsp = !_.endsWith(areaName, ' CSP') && _.any(Object.keys(nodesByArea), (otherName)=>{ return otherName.toLowerCase() === `${areaName} CSP`.toLowerCase(); });
+          schemaLines.push(sharesItsNameWithACsp ? `${areaName}  (Policy CSP area: ./Device/Vendor/MSFT/Policy/Config/${areaName}/<NodeName>)` : areaName);
           for (let node of _.sortBy(nodesByArea[areaName], (node)=>{ return node.csp === 'Policy' ? node.name : node.locUri; })) {
             // A standalone CSP's paths follow no single pattern, so its nodes are listed by full LocURI,
             // which also carries the scope that @User marks on a Policy node.
@@ -678,6 +682,20 @@ ${naturalLanguageInstructions}
             if(node.dependsOn) {
               parts.push(`needs ${node.dependsOn.locUri.split('/').slice(-2).join('/')}${node.dependsOn.allowedValue !== undefined ? `=${node.dependsOn.allowedValue}` : ''}`);
             }
+            // What the node does, only where its values do not already say: NotifyMalicious and
+            // NotifyPasswordReuse both read "0=Disabled 1=Enabled", and MaxDevicePasswordFailedAttempts has no
+            // values at all, so nothing told the model that it wipes the device.  First sentence only, since
+            // longer lines have pulled the model towards whichever node shares a word with the request.
+            let valuesAreGeneric = _.every(node.allowedValues || [], (allowedValue)=>{
+              return /^(disabled|enabled|allowed|not allowed|allow|block|blocked|off|on|true|false|disable|enable|not configured)\.?$/i.test(String(allowedValue.description || '').trim());
+            });
+            if(node.description && valuesAreGeneric) {
+              // Microsoft's boilerplate opening goes first: it is a third of the sentence and identical across
+              // lookalikes, so a length cap would otherwise cut exactly the words that tell them apart.
+              let firstSentence = node.description.split(/(?<=[a-z0-9)]\.)\s+(?=[A-Z])/)[0]
+              .replace(/^This (?:policy setting|policy|setting) (?:determines|specifies|controls|allows you to (?:specify|configure)|lets you (?:specify|configure)|configures|enables or disables|allows or disallows)(?: whether(?: or not)?)?\s*/i, '');
+              parts.push(`-- ${firstSentence.length <= 140 ? firstSentence : firstSentence.slice(0, 140).replace(/\s+\S*$/, '') + '…'}`);
+            }
             schemaLines.push('  ' + parts.join(' '));
           }
         }
@@ -694,8 +712,9 @@ Copy them exactly.  A {Braced} segment is a dynamic node: replace it, braces inc
 name the request calls for (an SSID, a VPN profile name, a rule ID), and create the instance with Add.
 
 Format is a group, then one node per line:
-  <NodeName or LocURI> <format> [flags] [values, range or default] [dependency]
-\`*\` marks a value as that node's default.  \`@User\` marks a Policy node that exists only under ./User/ --
+  <NodeName or LocURI> <format> [flags] [values, range or default] [dependency] [-- what it does]
+\`-- …\` is Microsoft's description of what the node does, given where its values alone do not say; when
+two nodes' names both fit the request, it decides between them.  \`*\` marks a value as that node's default.  \`@User\` marks a Policy node that exists only under ./User/ --
 writing it under ./Device/ deploys cleanly and enforces nothing.  \`atomic\` marks a node Microsoft
 documents as requiring an <Atomic> wrapper.  \`deprecated\` marks a node Microsoft has retired; prefer
 another node that does the same thing.  \`range=[a-b]\` is the node's allowed numeric range.  \`needs X=Y\`
