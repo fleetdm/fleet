@@ -191,6 +191,8 @@ const tripleHeightCardClass = `${baseClass}__card--triple-height`;
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
+const NIXOS_PACKAGE_MANAGEMENT_LINK =
+  "https://fleetdm.com/learn-more-about/nixos-package-management";
 
 /** Returns why the software library is unsupported on the host's platform, or
  * undefined if it's supported. Android hosts don't support software installs
@@ -211,7 +213,16 @@ const getSoftwareLibraryUnsupportedInfo = (
     );
   }
   if (platform === "nixos") {
-    return "Fleet doesn't support installing software on NixOS hosts.";
+    return (
+      <>
+        Fleet doesn&apos;t support installing software on NixOS hosts.{" "}
+        <CustomLink
+          text="Learn more"
+          url={NIXOS_PACKAGE_MANAGEMENT_LINK}
+          newTab
+        />
+      </>
+    );
   }
   return undefined;
 };

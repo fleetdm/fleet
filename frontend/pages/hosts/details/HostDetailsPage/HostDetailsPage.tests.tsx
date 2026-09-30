@@ -406,9 +406,13 @@ describe("HostDetailsPage - software library", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Fleet doesn't support installing software on NixOS hosts."
+        /Fleet doesn't support installing software on NixOS hosts./
       )
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/learn-more-about/nixos-package-management"
+    );
     expect(hostAPI.getHostSoftware).not.toHaveBeenCalled();
   });
 });
