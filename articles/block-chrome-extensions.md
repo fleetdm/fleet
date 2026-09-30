@@ -152,6 +152,44 @@ To allow only specific extensions or force-install extensions, add `ExtensionIns
 
 > **Note:** This path applies to Google Chrome. Chromium reads `/etc/chromium/policies/managed/`, and some distributions use a different directory. Ubuntu's Chromium package, for example, reads `/etc/chromium-browser/policies`.
 
+## Manage with GitOps
+
+To manage these settings with [GitOps](https://fleetdm.com/docs/configuration/yaml-files), save the files in your GitOps repository and reference them in your fleet's YAML file:
+
+```yaml
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ../lib/macos/profiles/chrome-extension-blocklist.mobileconfig
+  windows_settings:
+    configuration_profiles:
+      - path: ../lib/windows/profiles/chrome-admx.xml
+      - path: ../lib/windows/profiles/chrome-extension-blocklist.xml
+  scripts:
+    - path: ../lib/linux/scripts/chrome-extension-blocklist.sh
+```
+
+The `chrome-admx.xml` profile is the Chrome ADMX profile from [Managing Google Chrome on Windows with Fleet](https://fleetdm.com/guides/managing-chrome-with-fleet).
+
+To run the Linux script automatically, add a policy that runs it when a host fails the check. This requires Fleet Premium.
+
+```yaml
+policies:
+  - name: Linux - Chrome extension blocklist is present
+    query: SELECT 1 FROM file WHERE path = '/etc/opt/chrome/policies/managed/fleet-extensions.json';
+    platform: linux
+    run_script:
+      path: ../lib/linux/scripts/chrome-extension-blocklist.sh
+```
+
+> **Note:** This policy only checks that the file exists. After you change the extension list, run the script again from each host's **Details** page.
+
+## What users see
+
+- **Blocked extension:** If a user tries to install a blocked extension, Chrome tells them the administrator blocked it: `<name> (extension ID "<id>") is blocked by the administrator.` A blocked extension that's already installed is disabled, and users can't turn it back on.
+- **Force-installed extension:** Chrome installs it without a prompt. Users can't remove or modify it. Chrome tells them the administrator of the machine requires the extension.
+- **Custom message:** To show your own text in the Chrome Web Store when an install is blocked, such as a link to request an exception, use the `blocked_install_message` field of the [`ExtensionSettings` policy](https://chromeenterprise.google/policies/extension-settings/).
+
 ## Verify
 
 1. On a host, open `chrome://policy` in Chrome.
