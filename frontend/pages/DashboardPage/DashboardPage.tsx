@@ -346,6 +346,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     }),
     [config?.features?.historical_data, teamHistoricalData]
   );
+  const historicalDataGloballyEnabled = useMemo(
+    () => ({
+      uptime: config?.features?.historical_data?.uptime ?? true,
+      vulnerabilities:
+        config?.features?.historical_data?.vulnerabilities ?? true,
+    }),
+    [config?.features?.historical_data]
+  );
   const isViewingVulnerableSoftware = !!softwareNavTabIndex; // we can take the tab index as a boolean to represent the vulnerable flag
 
   const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
@@ -923,6 +931,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             <ChartCard
               currentTeamId={teamIdForApi}
               historicalDataEnabled={historicalDataEnabled}
+              historicalDataGloballyEnabled={historicalDataGloballyEnabled}
               filterDefaults={
                 featuresConfig?.vulnerability_exposure_historical_reporting
               }
