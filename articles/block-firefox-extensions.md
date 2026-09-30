@@ -227,6 +227,42 @@ To allow only specific extensions or force-install extensions, use the same `Ext
 
 > **Note:** `/etc/firefox/policies/` works for Firefox installed from `deb` and `rpm` packages and for the Ubuntu snap. The Flatpak version can't read the host's `/etc`. For Flatpak, write the file to `/var/lib/flatpak/extension/org.mozilla.firefox.systemconfig/<arch>/<branch>/policies/policies.json`.
 
+## Manage with GitOps
+
+To manage these settings with [GitOps](https://fleetdm.com/docs/configuration/yaml-files), save the files in your GitOps repository and reference them in your fleet's YAML file:
+
+```yaml
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ../lib/macos/profiles/firefox-extension-blocklist.mobileconfig
+  windows_settings:
+    configuration_profiles:
+      - path: ../lib/windows/profiles/firefox-admx.xml
+      - path: ../lib/windows/profiles/firefox-extension-blocklist.xml
+  scripts:
+    - path: ../lib/linux/scripts/firefox-extension-blocklist.sh
+```
+
+To run the Linux script automatically, add a policy that runs it when a host fails the check. This requires Fleet Premium.
+
+```yaml
+policies:
+  - name: Linux - Firefox extension policy is present
+    query: SELECT 1 FROM file_lines WHERE path = '/etc/firefox/policies/policies.json' AND line LIKE '%ExtensionSettings%';
+    platform: linux
+    run_script:
+      path: ../lib/linux/scripts/firefox-extension-blocklist.sh
+```
+
+> **Note:** This policy only checks that the file mentions `ExtensionSettings`. After you change the extension list, run the script again from each host's **Details** page.
+
+## What users see
+
+- **Blocked extension:** If a user tries to install a blocked extension, Firefox tells them it's blocked by their organization: `<name> (<id>) is blocked by your organization.` A blocked extension that's already installed is removed when Firefox applies the policy.
+- **Force-installed extension:** Firefox installs it without a prompt. Users can't remove or disable it.
+- **Normally installed extension:** Firefox installs it without a prompt. Users can disable it, but not remove it.
+
 ## Verify
 
 1. On a host, open `about:policies` in Firefox.
