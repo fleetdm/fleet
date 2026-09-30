@@ -258,17 +258,16 @@ const TEST_CASES = [
       mustNotContainElement: [['Format', 'bool']],
     }
   },
-  // Needs node descriptions in the Windows schema: the lookup cannot tell that NewsAndInterests is Widgets.
-  // {
-  //   id: 'csp-cis-widgets',
-  //   profileType: 'csp',
-  //   instructions: 'Turn off the Widgets feed on the taskbar.',
-  //   expect: {
-  //     mustContain: ['Policy/Config/NewsAndInterests/AllowNewsAndInterests'],
-  //     mustContainElement: [['Format', 'int'], ['Data', '0']],
-  //     mustNotContainElement: [['Format', 'bool']],
-  //   }
-  // },
+  {
+    id: 'csp-cis-widgets',
+    profileType: 'csp',
+    instructions: 'Turn off the Widgets feed on the taskbar.',
+    expect: {
+      mustContain: ['Policy/Config/NewsAndInterests/AllowNewsAndInterests'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+    }
+  },
   {
     id: 'csp-cis-online-tips',
     profileType: 'csp',
@@ -279,17 +278,16 @@ const TEST_CASES = [
       mustNotContainElement: [['Format', 'bool']],
     }
   },
-  // Needs node descriptions in the Windows schema: the lookup cannot tell that Messaging holds message sync.
-  // {
-  //   id: 'csp-cis-message-sync',
-  //   profileType: 'csp',
-  //   instructions: 'Stop text messages being backed up and synced to the cloud, and do not let users turn that back on.',
-  //   expect: {
-  //     mustContain: ['Policy/Config/Messaging/AllowMessageSync'],
-  //     mustContainElement: [['Format', 'int'], ['Data', '0']],
-  //     mustNotContainElement: [['Format', 'bool']],
-  //   }
-  // },
+  {
+    id: 'csp-cis-message-sync',
+    profileType: 'csp',
+    instructions: 'Stop text messages being backed up and synced to the cloud, and do not let users turn that back on.',
+    expect: {
+      mustContain: ['Policy/Config/Messaging/AllowMessageSync'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+    }
+  },
   {
     id: 'csp-cis-behavior-monitoring',
     profileType: 'csp',
