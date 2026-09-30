@@ -8,7 +8,7 @@ $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion
 function Get-SUHelperEntry {
     Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
-        Where-Object { $_.DisplayName -eq $softwareName -and $_.Publisher -eq $publisher } |
+        Where-Object { $_.DisplayName -like "$softwareName *" -and $_.Publisher -eq $publisher } |
         Select-Object -First 1
 }
 
