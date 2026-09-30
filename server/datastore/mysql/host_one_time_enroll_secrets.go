@@ -400,9 +400,9 @@ type windowsEnrollmentBoundHost struct {
 	UUID string
 }
 
-// windowsOrphanedEnrollmentTeamsDB returns the fleet each orphaned enrollment's host comes back to: one whose host_uuid names a
-// host that no longer exists. That is the fleet the host was in when it was deleted if the fleet still exists, and otherwise the
-// Windows enrollment default fleet, or no fleet when none is configured.
+// windowsOrphanedEnrollmentTeamsDB returns the fleet each orphaned enrollment's host comes back to. That is the fleet
+// the host was in when it was deleted if the fleet still exists, and otherwise the Windows enrollment default fleet, or
+// no fleet when none is configured.
 func windowsOrphanedEnrollmentTeamsDB(
 	ctx context.Context, tx sqlx.ExtContext, enrollments []windowsEnrollmentMintRow, boundHosts map[uint]windowsEnrollmentBoundHost,
 ) (map[uint]*uint, error) {
@@ -436,23 +436,26 @@ func windowsOrphanedEnrollmentTeamsDB(
 		}
 	}
 
-	var defaultTeamID *uint
-	if err := sqlx.GetContext(ctx, tx, &defaultTeamID, `
-		SELECT mwec.default_team_id FROM mdm_windows_enrollment_config mwec
-		JOIN teams t ON t.id = mwec.default_team_id
-		WHERE mwec.id = 1`); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, ctxerr.Wrap(ctx, err, "load windows enrollment default fleet")
-	}
-
 	teams := make(map[uint]*uint, len(orphans))
+	var needDefault []uint
 	for _, e := range orphans {
-		teamID := defaultTeamID
 		if e.DeletedHostTeamID != nil {
 			if _, ok := existing[*e.DeletedHostTeamID]; ok {
-				teamID = e.DeletedHostTeamID
+				teams[e.ID] = e.DeletedHostTeamID
+				continue
 			}
 		}
-		teams[e.ID] = teamID
+		needDefault = append(needDefault, e.ID)
+	}
+	if len(needDefault) == 0 {
+		return teams, nil
+	}
+	defaultTeamID, _, err := getWindowsEnrollmentDefaultFleetDB(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range needDefault {
+		teams[id] = defaultTeamID
 	}
 	return teams, nil
 }
