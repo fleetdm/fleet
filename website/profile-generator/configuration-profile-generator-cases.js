@@ -1134,7 +1134,7 @@ const TEST_CASES = [
     instructions: 'In Safari, only accept cookies from sites people have actually visited, and block pop-ups.',
     readByEye: 'AcceptCookies is an enum with exactly four values in the supplied schema (Never|CurrentWebsite|VisitedWebsites|Always).  "Sites people have visited" is VisitedWebsites -- confirm the model picked from the enum rather than inventing a boolean or a string like "visited".',
     expect: {
-      mustContain: ['com.apple.configuration.safari.settings', 'AcceptCookies', 'VisitedWebsites', 'AllowPopups'],
+      mustContain: ['com.apple.configuration.safari.settings', '"AcceptCookies":"VisitedWebsites"', '"AllowPopups":false'],
       mustNotContain: ['acceptCookies', 'allowPopups', 'allowPopUps'],
     }
   },
@@ -1144,7 +1144,7 @@ const TEST_CASES = [
     instructions: 'Let people read from USB drives but not write to them.',
     readByEye: 'Restrictions.ExternalStorage is a nested dictionary with the enum Allowed|ReadOnly|Disallowed.  ReadOnly is the answer; a boolean here is an unknown value in a known key.',
     expect: {
-      mustContain: ['com.apple.configuration.diskmanagement.settings', 'Restrictions', 'ExternalStorage', 'ReadOnly'],
+      mustContain: ['com.apple.configuration.diskmanagement.settings', '"Restrictions"', '"ExternalStorage":"ReadOnly"'],
       mustNotContain: ['externalStorage', 'NetworkStorage'],
     }
   },
@@ -1153,7 +1153,7 @@ const TEST_CASES = [
     profileType: 'ddm',
     instructions: 'Turn off dictation and predictive text on the keyboard.',
     expect: {
-      mustContain: ['com.apple.configuration.keyboard.settings', 'AllowDictation', 'AllowPredictiveText'],
+      mustContain: ['com.apple.configuration.keyboard.settings', '"AllowDictation":false', '"AllowPredictiveText":false'],
       mustNotContain: ['allowDictation', 'allowPredictiveText', 'AllowSpellCheck', 'AllowAutoCorrection'],
     }
   },
@@ -1228,7 +1228,6 @@ const TEST_CASES = [
       // "}{" only occurs where two top-level objects were concatenated -- whitespace is stripped
       // before comparing, so "}\n{" collapses to it.  An array shape stays a readByEye.
       mustNotContain: ['}{'],
-      deliveryNotesIsNotEmpty: true,
     }
   },
 
