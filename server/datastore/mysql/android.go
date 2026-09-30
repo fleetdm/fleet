@@ -2563,14 +2563,15 @@ WHERE
 func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error) {
 	const stmt = `
 SELECT
-	CAST(? AS JSON) != CAST(configuration AS JSON) AS has_changed
+	COALESCE(CAST(? AS JSON) != CAST(configuration AS JSON), ?) AS has_changed
 FROM
 	vpp_apps_teams
 WHERE
 	adam_id = ? AND
 	global_or_team_id = ? AND
-	platform = 'android' AND
-	configuration IS NOT NULL
+	platform = 'android'
+ORDER BY id
+LIMIT 1
 `
 
 	newConfigStr := string(newConfig)
@@ -2579,7 +2580,7 @@ WHERE
 	}
 
 	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, applicationID, teamID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, len(newConfig) > 0, applicationID, teamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// old config does not exist, so old one is changed if not empty
@@ -2592,6 +2593,7 @@ WHERE
 
 // GetAndroidAppConfiguration retrieves the configuration for an Android app by app ID and team
 func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error) {
+	// TODO(JK): read the configuration of a specific instance, with several instances of the app in the fleet this returns any one of them
 	stmt := `SELECT configuration FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = 'android' AND configuration IS NOT NULL`
 
 	var config []byte
@@ -2626,6 +2628,7 @@ func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, 
 }
 
 func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error) {
+	// TODO(JK): key the configurations by instance, with several instances of an app in the fleet the map keeps the last one read
 	const bulkGetStmt = `
 	SELECT
 		adam_id AS application_id,

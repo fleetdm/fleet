@@ -46,6 +46,8 @@ WHERE
 ORDER BY vat.id
 LIMIT 1`
 
+	tmID := ptr.ValOrZero(teamID)
+
 	// when team id is not nil, we need to filter by the global or team id given.
 	args := []any{titleID}
 	teamFilter := ""
@@ -100,11 +102,6 @@ LIMIT 1`
 	}
 	app.Categories = categories
 
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
-
 	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get display name for app store app")
@@ -112,23 +109,15 @@ LIMIT 1`
 
 	app.DisplayName = displayName
 
-	switch app.Platform {
-	case fleet.AndroidPlatform:
-		config, err := ds.GetAndroidAppConfiguration(ctx, app.AdamID, tmID) // tmID can be used as globalOrTeamID
-		if err != nil && !fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, err, "get android configuration for app store app")
-		}
-		if config != nil {
-			app.Configuration = config
-		}
-	case fleet.IOSPlatform, fleet.IPadOSPlatform:
-		config, err := ds.GetVPPAppConfiguration(ctx, app.Platform, app.AdamID, tmID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, err, "get vpp configuration for app store app")
-		}
-		if config != nil {
-			app.Configuration = config
-		}
+	// Select configuration separately because we can't scan NULL into json.RawMessage
+	var configuration []byte
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &configuration,
+		`SELECT configuration FROM vpp_apps_teams WHERE id = ? AND global_or_team_id = ?`, app.VPPAppsTeamsID, tmID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, err, "get configuration for app store app")
+	}
+	if configuration != nil {
+		app.Configuration = configuration
 	}
 
 	if teamID != nil {
@@ -974,6 +963,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 
 func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appID fleet.VPPAppID) error {
 	// allow delete only if install_during_setup is false
+	// TODO(JK): delete a single instance, with several instances of the app in the fleet this deletes the ones not installed during setup and reports success
 	const stmt = `DELETE FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ? AND platform = ? AND install_during_setup = 0`
 
 	var globalOrTeamID uint
@@ -3359,18 +3349,19 @@ SELECT EXISTS(
 func (ds *Datastore) HasVPPAppConfigurationChanged(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error) {
 	const stmt = `
 SELECT
-	BINARY COALESCE(?, '') != configuration AS has_changed
+	COALESCE(BINARY COALESCE(?, '') != configuration, ?) AS has_changed
 FROM
 	vpp_apps_teams
 WHERE
 	adam_id = ? AND
 	global_or_team_id = ? AND
-	platform = ? AND
-	configuration IS NOT NULL
+	platform = ?
+ORDER BY id
+LIMIT 1
 `
 
 	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, adamID, teamID, platform)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, len(newConfig) > 0, adamID, teamID, platform)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return len(newConfig) > 0, nil
@@ -3381,6 +3372,7 @@ WHERE
 }
 
 func (ds *Datastore) GetVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error) {
+	// TODO(JK): read the configuration of a specific instance, with several instances of the app in the fleet this returns any one of them
 	const stmt = `SELECT configuration FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = ? AND configuration IS NOT NULL`
 
 	var config []byte
@@ -3404,6 +3396,7 @@ func (ds *Datastore) BulkGetVPPAppConfigurationsTx(ctx context.Context, tx sqlx.
 }
 
 func (ds *Datastore) bulkGetVPPAppConfigurations(ctx context.Context, q sqlx.QueryerContext, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
+	// TODO(JK): key the configurations by instance, with several instances of an app in the fleet the map keeps the last one read
 	if len(adamIDs) == 0 {
 		return nil, nil
 	}
