@@ -7,7 +7,7 @@ import {
   isAndroidBYO,
   isAndroidCOBO,
   isAutomaticDeviceEnrollment,
-  isBYODAccountDrivenUserEnrollment,
+  isPersonalEnrollment,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
 import {
@@ -271,11 +271,10 @@ const canWipeHost = ({
   const canWipeWindowsOrAppleOS =
     hostMdmEnabled && isConnectedToFleetMdm && isEnrolledInMdm;
 
-  // there is a special case for iOS and iPadOS devices that are account driven enrolled
-  // in MDM. These hosts cannot be wiped.
-  const isAccountDrivenEnrolledIosOrIpadosDevice =
+  // Personal (BYOD) iOS and iPadOS hosts cannot be wiped.
+  const isPersonalIosOrIpadosDevice =
     isIPadOrIPhone(hostPlatform) &&
-    isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus);
+    isPersonalEnrollment(hostMdmEnrollmentStatus);
 
   // Android: Wipe is COBO-only. COBO maps to enrollment_status="On (automatic)" today (matching
   // the generated-column rule enrolled=1 AND installed_from_dep=1 AND is_personal_enrollment=0).
@@ -293,7 +292,7 @@ const canWipeHost = ({
   // other platforms Premium-only.
   return (
     (isPremiumTier || canWipeAndroid) &&
-    !isAccountDrivenEnrolledIosOrIpadosDevice &&
+    !isPersonalIosOrIpadosDevice &&
     hostMdmDeviceStatus === "unlocked" &&
     (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS || canWipeAndroid) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
