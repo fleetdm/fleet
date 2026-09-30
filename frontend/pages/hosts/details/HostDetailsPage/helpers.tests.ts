@@ -1,4 +1,5 @@
 import createMockHost from "__mocks__/hostMock";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { HostPlatform } from "interfaces/platform";
 
 import { canShowMyDeviceButton, hasEverEnrolled } from "./helpers";
@@ -9,7 +10,7 @@ describe("canShowMyDeviceButton", () => {
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "unlocked" },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(true);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(true);
   });
 
   it("returns true for a locked host that still has Fleet Desktop", () => {
@@ -17,7 +18,7 @@ describe("canShowMyDeviceButton", () => {
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "locked" },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(true);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(true);
   });
 
   // Android and ChromeOS have no My device page, so the link must be hidden
@@ -28,7 +29,7 @@ describe("canShowMyDeviceButton", () => {
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "unlocked" },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   it("returns false for ChromeOS even with Fleet Desktop reported", () => {
@@ -37,7 +38,7 @@ describe("canShowMyDeviceButton", () => {
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "unlocked" },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   it("returns false for legacy ChromeOS (CrOS) even with Fleet Desktop reported", () => {
@@ -47,7 +48,7 @@ describe("canShowMyDeviceButton", () => {
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "unlocked" },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   // iOS/iPadOS never run Fleet Desktop; they reach the My device page by host
@@ -56,32 +57,44 @@ describe("canShowMyDeviceButton", () => {
     const host = createMockHost({
       platform: "ios",
       fleet_desktop_version: null,
-      mdm: { ...createMockHost().mdm, device_status: "unlocked" },
+      mdm: {
+        ...createMockHost().mdm,
+        device_status: "unlocked",
+        enrollment_status: "On (automatic)",
+      },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(true);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(true);
   });
 
   it("returns true for iPadOS without Fleet Desktop", () => {
     const host = createMockHost({
       platform: "ipados",
       fleet_desktop_version: null,
-      mdm: { ...createMockHost().mdm, device_status: "unlocked" },
+      mdm: {
+        ...createMockHost().mdm,
+        device_status: "unlocked",
+        enrollment_status: "On (automatic)",
+      },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(true);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(true);
   });
 
   it("returns false for a wiped iOS host", () => {
     const host = createMockHost({
       platform: "ios",
       fleet_desktop_version: null,
-      mdm: { ...createMockHost().mdm, device_status: "wiped" },
+      mdm: {
+        ...createMockHost().mdm,
+        device_status: "wiped",
+        enrollment_status: "On (automatic)",
+      },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   it("returns false when Fleet Desktop is not installed", () => {
     const host = createMockHost({ fleet_desktop_version: null });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   it("returns false when the host has been wiped", () => {
@@ -89,7 +102,7 @@ describe("canShowMyDeviceButton", () => {
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "wiped" },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   it("returns false when the host has a wipe in flight", () => {
@@ -101,7 +114,7 @@ describe("canShowMyDeviceButton", () => {
         pending_action: "wipe",
       },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   // Only wipe-related states hide the button. Other transient states leave the
@@ -115,7 +128,7 @@ describe("canShowMyDeviceButton", () => {
         pending_action: "clear_passcode",
       },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(true);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(true);
   });
 
   it("returns false for ios when fleet desktop SSO is configured", () => {
@@ -123,7 +136,61 @@ describe("canShowMyDeviceButton", () => {
       platform: "ios",
       fleet_desktop_version: "1.22.1",
     });
-    expect(canShowMyDeviceButton(host, true)).toBe(false);
+    expect(canShowMyDeviceButton(host, true, true)).toBe(false);
+  });
+});
+
+describe("canShowMyDeviceButton for iOS/iPadOS enrollment and tier", () => {
+  const iosHost = (enrollmentStatus: MdmEnrollmentStatus | null) =>
+    createMockHost({
+      platform: "ios",
+      fleet_desktop_version: null,
+      mdm: {
+        ...createMockHost().mdm,
+        device_status: "unlocked",
+        enrollment_status: enrollmentStatus,
+      },
+    });
+
+  it.each<MdmEnrollmentStatus | null>(["Pending", "Off", null])(
+    "returns false when MDM status is %s",
+    (status) => {
+      expect(canShowMyDeviceButton(iosHost(status), false, true)).toBe(false);
+    }
+  );
+
+  it.each<MdmEnrollmentStatus>([
+    "On (automatic)",
+    "On (manual)",
+    "On (personal)",
+    "On (manual - personal)",
+    "On (company-owned)",
+  ])("returns true when MDM status is %s", (status) => {
+    expect(canShowMyDeviceButton(iosHost(status), false, true)).toBe(true);
+  });
+
+  it("returns false when enrolled but the UUID isn't known yet", () => {
+    const host = { ...iosHost("On (automatic)"), uuid: "" };
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
+  });
+
+  it("returns false on Fleet Free even when enrolled", () => {
+    expect(canShowMyDeviceButton(iosHost("On (automatic)"), false, false)).toBe(
+      false
+    );
+  });
+
+  it("does not apply the tier or enrollment checks to macOS", () => {
+    const host = createMockHost({
+      platform: "darwin",
+      fleet_desktop_version: "1.22.1",
+      mdm: {
+        ...createMockHost().mdm,
+        device_status: "unlocked",
+        enrollment_status: "Off",
+      },
+    });
+    expect(canShowMyDeviceButton(host, false, false)).toBe(true);
   });
 });
 
