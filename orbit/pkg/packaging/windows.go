@@ -108,6 +108,10 @@ func BuildMSI(opt Options) (string, error) {
 	if semver.Compare(orbitVersion, "v1.55.0") >= 0 {
 		opt.EnableEUATokenProperty = true
 	}
+	// v1.60.0 introduced ORBIT_BYPASS_END_USER_AUTH, which the BYPASS_END_USER_AUTH property sets.
+	if semver.Compare(orbitVersion, "v1.60.0") >= 0 {
+		opt.EnableBypassEndUserAuthProperty = true
+	}
 
 	// Write files
 

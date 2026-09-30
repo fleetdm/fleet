@@ -65,6 +65,10 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     {{ if .EnableEUATokenProperty }}
 		<Property Id="EUA_TOKEN" Value="dummy"/>
     {{ end }}
+    {{ if .EnableBypassEndUserAuthProperty }}
+		<!-- Orbit parses this as a bool and fails to start on any other value, so the default can't be "dummy". -->
+		<Property Id="BYPASS_END_USER_AUTH" Value="{{ if .BypassEndUserAuth }}True{{ else }}False{{ end }}"/>
+    {{ end }}
 
     <MediaTemplate EmbedCab="yes" />
 
@@ -124,7 +128,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   {{ if .EnableEUATokenProperty }}<MultiStringValue>ORBIT_EUA_TOKEN=[EUA_TOKEN]</MultiStringValue>{{ end }}
                   {{ if .OsqueryDB }}<MultiStringValue>ORBIT_OSQUERY_DB={{ .OsqueryDB }}</MultiStringValue>{{ end }}
                   {{ if .DisableSetupExperience }}<MultiStringValue>ORBIT_DISABLE_SETUP_EXPERIENCE=true</MultiStringValue>{{ end }}
-                  {{ if .BypassEndUserAuth }}<MultiStringValue>ORBIT_BYPASS_END_USER_AUTH=true</MultiStringValue>{{ end }}
+                  {{ if .EnableBypassEndUserAuthProperty }}<MultiStringValue>ORBIT_BYPASS_END_USER_AUTH=[BYPASS_END_USER_AUTH]</MultiStringValue>{{ else if .BypassEndUserAuth }}<MultiStringValue>ORBIT_BYPASS_END_USER_AUTH=true</MultiStringValue>{{ end }}
                 </RegistryValue>
                 <!--
                   ##############################################################################################

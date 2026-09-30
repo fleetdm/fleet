@@ -133,6 +133,9 @@ type Options struct {
 	EndUserEmail string
 	// EnableEUATokenProperty is a boolean indicating whether to enable EUA_TOKEN property in Windows MSI package.
 	EnableEUATokenProperty bool
+	// EnableBypassEndUserAuthProperty is a boolean indicating whether to enable BYPASS_END_USER_AUTH property in Windows MSI
+	// package. When enabled, BypassEndUserAuth only sets the property's default value.
+	EnableBypassEndUserAuthProperty bool
 	// DisableKeystore disables the use of the keychain on macOS and Credentials Manager on Windows
 	DisableKeystore bool
 	// OsqueryDB is the directory to use for the osquery database.
