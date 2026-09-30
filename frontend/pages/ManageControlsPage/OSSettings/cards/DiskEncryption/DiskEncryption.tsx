@@ -284,9 +284,7 @@ const DiskEncryption = ({
   > = {
     macos: (
       <>
-        If turned on, Fleet enforces FileVault.
-        <br />
-        If turned off, Fleet stops enforcing.
+        Turning this off stops enforcing FileVault.
         <br />
         Keys are still escrowed if Escrow recovery key with Fleet is checked.{" "}
         <CustomLink
@@ -299,9 +297,8 @@ const DiskEncryption = ({
     ),
     windows: (
       <>
-        If turned on, Fleet enforces BitLocker and escrows the recovery key.
-        <br />
-        If turned off, Fleet stops enforcing and stops escrowing new keys.{" "}
+        Turning this off stops enforcing BitLocker and stops escrowing new
+        recovery keys.{" "}
         <CustomLink
           text="Learn more"
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
