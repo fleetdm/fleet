@@ -63,6 +63,10 @@ const ANY_SEVERITY_OPTION: ISeverityOption = {
   maxSeverity: 10,
 };
 
+// Custom severity is a derived label, not a user-selectable choice — it never
+// appears in the menu (see the "Rework filters for vulnerable software" spec
+// on #52474). It's still resolvable below so the dropdown can display it as
+// the current value once `severityForRange` has derived it.
 export const SEVERITY_DROPDOWN_OPTIONS: ISeverityOption[] = [
   ANY_SEVERITY_OPTION,
   ...SEVERITY_BANDS.map(({ value, min, max }) => ({
@@ -72,13 +76,17 @@ export const SEVERITY_DROPDOWN_OPTIONS: ISeverityOption[] = [
     minSeverity: min,
     maxSeverity: max,
   })),
+];
+
+const ALL_SEVERITY_OPTIONS: ISeverityOption[] = [
+  ...SEVERITY_DROPDOWN_OPTIONS,
   CUSTOM_SEVERITY_OPTION,
 ];
 
 export const getSeverityOption = (
   severity?: string
 ): ISeverityOption | undefined =>
-  SEVERITY_DROPDOWN_OPTIONS.find((option) => option.value === severity);
+  ALL_SEVERITY_OPTIONS.find((option) => option.value === severity);
 
 export const getSeverityBand = (severity: SeverityValue) =>
   SEVERITY_BANDS.find((band) => band.value === severity);
