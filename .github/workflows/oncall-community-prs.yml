@@ -1,6 +1,6 @@
 name: Post open community PRs to Slack
 
-# Every Monday, runs `./tools/oncall/oncall.sh prs` and posts the list of open
+# Every Monday, runs `./tools/oncall/oncall.sh prs --slack` and posts the list of open
 # PRs from outside contributors to #help-engineering.
 
 on:
@@ -46,7 +46,7 @@ jobs:
             echo "::error::FLEET_GITHUB_TOKEN_MEMBERS_READ secret is not set or is empty."
             exit 1
           fi
-          ./tools/oncall/oncall.sh prs > "$RUNNER_TEMP/prs.txt"
+          ./tools/oncall/oncall.sh prs --slack > "$RUNNER_TEMP/prs.txt"
           cat "$RUNNER_TEMP/prs.txt"
 
       - name: Post to Slack
@@ -58,12 +58,11 @@ jobs:
             text=":tada: No open PRs from outside contributors this week."
           else
             # Top-level text (not a section block) to avoid the 3000 character
-            # limit on block text; a code block keeps the columns aligned.
-            fence='```'
-            text=$(printf '*%s open PRs from outside contributors*\nColumns: number | opened | issue | tested | author | title\n%s\n%s\n%s' \
-              "$count" "$fence" "$(cat "$RUNNER_TEMP/prs.txt")" "$fence")
+            # limit on block text. Not a code block, so the links render.
+            text=$(printf '*%s open PRs from outside contributors*\n%s' \
+              "$count" "$(cat "$RUNNER_TEMP/prs.txt")")
           fi
-          jq -n --arg text "$text" '{text: $text}' |
+          jq -n --arg text "$text" '{text: $text, unfurl_links: false, unfurl_media: false}' |
             curl -sfS -X POST "$SLACK_WEBHOOK_URL" -H 'Content-Type: application/json' --data @-
 
       - name: Slack notification on failure
