@@ -185,6 +185,42 @@ To allow only specific extensions or force-install extensions, add `ExtensionIns
 }
 ```
 
+## Manage with GitOps
+
+To manage these settings with [GitOps](https://fleetdm.com/docs/configuration/yaml-files), save the files in your GitOps repository and reference them in your fleet's YAML file:
+
+```yaml
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ../lib/macos/profiles/edge-extension-blocklist.mobileconfig
+  windows_settings:
+    configuration_profiles:
+      - path: ../lib/windows/profiles/edge-admx.xml
+      - path: ../lib/windows/profiles/edge-extension-blocklist.xml
+  scripts:
+    - path: ../lib/linux/scripts/edge-extension-blocklist.sh
+```
+
+To run the Linux script automatically, add a policy that runs it when a host fails the check. This requires Fleet Premium.
+
+```yaml
+policies:
+  - name: Linux - Edge extension blocklist is present
+    query: SELECT 1 FROM file WHERE path = '/etc/opt/edge/policies/managed/fleet-extensions.json';
+    platform: linux
+    run_script:
+      path: ../lib/linux/scripts/edge-extension-blocklist.sh
+```
+
+> **Note:** This policy only checks that the file exists. After you change the extension list, run the script again from each host's **Details** page.
+
+## What users see
+
+- **Blocked extension:** A blocked extension that's already installed is disabled, and users can't turn it back on. It isn't uninstalled. If a user tries to install a blocked extension from the Microsoft Edge Add-ons website, Edge shows an error.
+- **Force-installed extension:** Edge installs it without a prompt. Users can't uninstall or disable it.
+- **Custom message:** To add your own text to the error on the Microsoft Edge Add-ons website, such as who to contact for an exception, use the `blocked_install_message` field of the [`ExtensionSettings` policy](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-manage-extensions-ref-guide).
+
 ## Verify
 
 1. On a host, open `edge://policy` in Edge.
