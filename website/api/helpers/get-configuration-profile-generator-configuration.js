@@ -442,8 +442,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           // Embedded values.
           'When a node\'s value is embedded XML -- WiFi/Profile/*/WlanXml, ADMXInstall, and similar -- wrap it in <![CDATA[ ... ]]> rather than escaping it as entities, and emit that value as a single line with no line breaks or indentation between its elements.  This applies only to the embedded value; the surrounding SyncML keeps its normal indentation.',
           'Be consistent within a profile about optional <Meta> children.  If you emit <Type> for one item, emit it for all of them, and namespace every <Meta> child as xmlns="syncml:metinf".',
-          'For WiFi profiles, emit both <name> and <hex> inside <SSID>, where <hex> is the uppercase hex encoding of the SSID bytes.  Windows and some MDMs treat the hex form as authoritative when both are present.',
-        ],
+          'For WiFi profiles, emit both <name> and <hex> inside <SSID>, taking <hex> from the encodings supplied with the instructions.  Never work a hex encoding out yourself: Windows and some MDMs treat the hex form as authoritative when both are present, so one wrong byte connects to nothing.  If no encoding was supplied for the SSID, emit <name> alone.',        ],
       },
 
       'mobileconfig': {
@@ -528,24 +527,32 @@ This is the complete set.  A declaration type or key that does not appear here d
     // Windows is the one profile type whose settings were never provided, only pointed at: the model was
     // given a documentation URL it cannot open and asked to recall node paths, formats and polarities from
     // memory, and it recalled them wrong often enough that CSP passed 12/45 of its cases where the two
-    // types with a provided schema passed ~90%.  The whole table is ~155KB, too much to put in front of the
-    // model that writes the profile, so the areas this request needs are looked up first and only those go
-    // in.  An area averages 587 bytes, so three or four cost less than a tenth of what the whole table would.
+    // types with a provided schema passed ~90%.  The whole table renders to ~310KB, too much to put in front
+    // of the model that writes the profile, so the areas this request needs are looked up first and only
+    // those go in.  An area averages under 1KB, and the largest (VPNv2) is ~18KB.
     let windowsCspAreasProvided = [];
     if(profileType === 'csp') {
 
-      // Scraped from Microsoft's published reference by `sails run regenerate-windows-csp-policy-nodes`.
-      let nodeFilePath = path.resolve(sails.config.appPath, 'profile-generator/schema/windows-csp-policy-nodes.json');
+      // Scraped from Microsoft's published reference by `sails run regenerate-windows-csp-nodes`.
+      let nodeFilePath = path.resolve(sails.config.appPath, 'profile-generator/schema/windows-csp-nodes.json');
       let nodeFile;
       try {
         nodeFile = require(nodeFilePath);
       } catch (err) {
         throw new Error(
           `Could not read the Windows CSP node reference at ${nodeFilePath}.  Run ` +
-          `\`sails run regenerate-windows-csp-policy-nodes\` to build it.  Full error: ${err.message}`
+          `\`sails run regenerate-windows-csp-nodes\` to build it.  Full error: ${err.message}`
         );
       }
-      let nodesByArea = _.groupBy(nodeFile.nodes, 'area');
+      // Policy CSP nodes are grouped by area, since that is how the Policy CSP is organized and how its
+      // LocURIs are built.  Every other CSP is one group of its own, suffixed so it cannot collide with a
+      // Policy area: DeviceLock, Defender, Update and Wifi are each both, and matching is case-insensitive.
+      //
+      // A standalone CSP's Get-only nodes are dropped here, since no profile can set them: DevDetail,
+      // DeviceStatus and the other inventory CSPs are nothing but, and they are half of the largest CSPs.
+      // Every Policy CSP node is settable.
+      let nodesAProfileCanSet = _.filter(nodeFile.nodes, (node)=>{ return node.csp === 'Policy' || /Add|Replace|Exec/.test(node.accessType || ''); });
+      let nodesByArea = _.groupBy(nodesAProfileCanSet, (node)=>{ return node.csp === 'Policy' ? node.area : `${node.csp} CSP`; });
 
       // Node names rather than area names, deliberately.  Picking from an index of area names alone was
       // measured at 10/27 on the generator's csp cases, against 21/27 for picking from node names:
@@ -553,10 +560,15 @@ This is the complete set.  A declaration type or key that does not appear here d
       // Storage, not ADMX_RemovableStorage; the sign-in banner is in LocalPoliciesSecurityOptions, not any
       // of the four areas with "Logon" in the name), so an area-name index asks the model to recall the
       // taxonomy -- which is the failure this whole reference exists to remove.  Given node names it can
-      // find the setting and read off the area instead.  The index is ~95KB and identical on every request,
+      // find the setting and read off the area instead.  The index is ~140KB and identical on every request,
       // so it wants to be a cached prompt prefix.
+      //
+      // A standalone CSP's interior nodes are left out, since the leaves under them already spell out the
+      // path.  Names are deduplicated because a CSP published in both scopes (WiFi) would otherwise list
+      // each one twice.
       let nodeNameIndex = _.map(nodesByArea, (nodesInThisArea, areaName)=>{
-        return `${areaName}: ${_.pluck(nodesInThisArea, 'name').sort().join(' ')}`;
+        let leafNodes = _.filter(nodesInThisArea, (node)=>{ return node.csp === 'Policy' || node.format !== 'node'; });
+        return `${areaName}: ${_.uniq(_.pluck(leafNodes, 'name')).sort().join(' ')}`;
       }).join('\n');
 
       // The small model on purpose: this is a lookup rather than a judgement.
@@ -565,9 +577,11 @@ This is the complete set.  A declaration type or key that does not appear here d
 `Return ONLY a raw JSON object.  Do not include \`\`\`json, \`\`\`, or any markdown formatting.  Do not
 include any explanation or text before or after the JSON.  Your entire response must be valid JSON.
 
-Below is every Windows Policy CSP node, grouped by the area it belongs to.  An IT admin has asked for a
-configuration profile, and another model is about to write it -- but it can only be shown a few areas'
-worth of nodes, so your job is to say which areas those should be.
+Below is every Windows CSP node a profile can set, in groups.  Policy CSP nodes are grouped by the area
+they belong to (DeviceLock, Experience, ...); every other CSP is a single group named "<Name> CSP" (WiFi
+CSP, Firewall CSP, BitLocker CSP, ...).  An IT admin has asked for a configuration profile, and another
+model is about to write it -- but it can only be shown a few groups' worth of nodes, so your job is to say
+which groups those should be.  Answer with group names, each called an area below.
 
 Find the nodes that would actually satisfy the request and name the areas holding them.  Read the node
 lists to do it: an area's name frequently does not follow from what its nodes do, so an area that sounds
@@ -579,12 +593,15 @@ naming only the area you thought of first is how the right one gets left out.  A
 most confident in, add the ones holding any other node that could plausibly do what was asked, including
 ones you half-rejected.  Every area you name must appear verbatim below; do not invent one.
 
-Return an empty array, naming nothing, when the request is not a Policy CSP request at all.  Windows has
-many other CSPs, and some of the most common requests belong to them: provisioning a Wi-Fi network is the
-WiFi CSP, a VPN is VPNv2, installing a certificate or an ADMX file has its own CSP too.  The Policy CSP
-has adjacent-sounding areas -- Wifi holds AllowWiFi and AllowWiFiDirect -- and naming one of those for a
-request that needs a different CSP is worse than naming nothing, because it answers a question that was
-not asked and buries the one that was.  An empty array is a real answer here, not a failure.
+Some of the most common requests belong to a standalone CSP rather than the Policy CSP: provisioning a
+Wi-Fi network is the WiFi CSP, a VPN is the VPNv2 CSP, installing a certificate is ClientCertificateInstall
+CSP or RootCATrustedCertificates CSP, and turning the firewall on per network profile is the Firewall CSP.
+The Policy CSP has adjacent-sounding areas -- Wifi holds AllowWiFi and AllowWiFiDirect -- that allow or
+block a feature rather than configure it.  For a request to set something up, name the standalone CSP
+first; name the Policy area too only if the request also asks to allow or block the feature.
+
+Return an empty array, naming nothing, only when no group below could satisfy the request.  An empty
+array is a real answer here, not a failure.
 
 ${nodeNameIndex}
 
@@ -632,10 +649,15 @@ ${naturalLanguageInstructions}
         let schemaLines = [];
         for (let areaName of _.clone(windowsCspAreasProvided).sort()) {
           schemaLines.push(areaName);
-          for (let node of _.sortBy(nodesByArea[areaName], 'name')) {
-            let parts = [node.name, node.format];
-            if(!_.contains(node.scopes, 'Device')) {
+          for (let node of _.sortBy(nodesByArea[areaName], (node)=>{ return node.csp === 'Policy' ? node.name : node.locUri; })) {
+            // A standalone CSP's paths follow no single pattern, so its nodes are listed by full LocURI,
+            // which also carries the scope that @User marks on a Policy node.
+            let parts = [node.csp === 'Policy' ? node.name : node.locUri, node.format];
+            if(node.csp === 'Policy' && !_.contains(node.scopes, 'Device')) {
               parts.push('@User');
+            }
+            if(node.deprecated) {
+              parts.push('deprecated');
             }
             if(node.mustBeWrappedInAtomic) {
               parts.push('atomic');
@@ -648,44 +670,54 @@ ${naturalLanguageInstructions}
                 let summarizedDescription = _.trunc(firstClause.replace(/\s+/g, ' '), {length: 52, omission: ''}).trim().replace(/[,;:]$/, '');
                 return `${allowedValue.value}${allowedValue.isDefault ? '*' : ''}=${summarizedDescription}`;
               }).join(' '));
+            } else if(node.allowedRange !== undefined) {
+              parts.push(`range=${node.allowedRange}${node.defaultValue !== undefined ? ` d=${node.defaultValue}` : ''}`);
             } else if(node.defaultValue !== undefined) {
               parts.push(`d=${node.defaultValue}`);
             }
             if(node.dependsOn) {
-              parts.push(`needs ${node.dependsOn.locUri.split('/').slice(-2).join('/')}=${node.dependsOn.allowedValue}`);
+              parts.push(`needs ${node.dependsOn.locUri.split('/').slice(-2).join('/')}${node.dependsOn.allowedValue !== undefined ? `=${node.dependsOn.allowedValue}` : ''}`);
             }
             schemaLines.push('  ' + parts.join(' '));
           }
         }
 
         promptConfig.providedSchemaDescription =
-`Provided context: the Windows Policy CSP nodes this request looks like it needs, straight from
-Microsoft's published reference.  A node's LocURI is ./Device/Vendor/MSFT/Policy/Config/<Area>/<NodeName>
--- never a shortened form of that path, and never an area segment you inferred from a policy's name.
+`Provided context: the Windows CSP nodes this request looks like it needs, straight from Microsoft's
+published reference.  Each group is either a Policy CSP area or a whole standalone CSP, named "<Name> CSP".
 
-Format is an area, then one node per line:
-  <NodeName> <format> [flags] [values or default] [dependency]
-\`*\` marks a value as that node's default.  \`@User\` marks a node that exists only under ./User/ --
+In a Policy CSP area, a node's LocURI is ./Device/Vendor/MSFT/Policy/Config/<Area>/<NodeName> -- never a
+shortened form of that path, and never an area segment you inferred from a policy's name.  In a standalone
+CSP, each line starts with the node's full LocURI instead, because those paths follow no single pattern:
+Firewall's start ./Vendor/MSFT/Firewall/, WiFi's ./Device/Vendor/MSFT/WiFi/ or ./User/Vendor/MSFT/WiFi/.
+Copy them exactly.  A {Braced} segment is a dynamic node: replace it, braces included, with the instance
+name the request calls for (an SSID, a VPN profile name, a rule ID), and create the instance with Add.
+
+Format is a group, then one node per line:
+  <NodeName or LocURI> <format> [flags] [values, range or default] [dependency]
+\`*\` marks a value as that node's default.  \`@User\` marks a Policy node that exists only under ./User/ --
 writing it under ./Device/ deploys cleanly and enforces nothing.  \`atomic\` marks a node Microsoft
-documents as requiring an <Atomic> wrapper.  \`needs X=Y\` is a node the setting depends on, which
-belongs in the profile alongside it.  The format on each line is the node's declared DFFormat: emit it
+documents as requiring an <Atomic> wrapper.  \`deprecated\` marks a node Microsoft has retired; prefer
+another node that does the same thing.  \`range=[a-b]\` is the node's allowed numeric range.  \`needs X=Y\`
+is a node the setting depends on, which belongs in the profile alongside it.  The format on each line is
+the node's declared DFFormat (\`node\` is an interior node that holds children, not a value): emit it
 verbatim and make <Data> legal for it, rather than reasoning about the value's type from its name.
 
-This is authoritative for the areas below and settles their node names, paths, formats and values.  It is
-not the whole Policy CSP, and what is missing decides between two different answers.  If no node here
+This is authoritative for the groups below and settles their node names, paths, formats and values.  It
+is not the whole CSP reference, and what is missing decides between two different answers.  If no node here
 enforces what was asked, return the "couldNotGenerateProfile" shape and name what you were looking for,
-rather than recalling a node from an area you were not given.  But if a node here does enforce it and the
+rather than recalling a node from a group you were not given.  But if a node here does enforce it and the
 request merely describes the effect in words the node does not use -- asking to wipe after failed
 passcode attempts, where the node sets the failed-attempt threshold that produces that outcome -- then
 that is the node, so use it and put what it actually does, and anything the admin should know about the
 gap, in "valueMeaning" and "caveats".  Abstaining is for a setting you cannot find, not for one whose
 published name is less specific than the request.
 
-Every area that exists, with its node count, is listed after the detail.  Use it only to tell whether
+Every group that exists, with its node count, is listed after the detail.  Use it only to tell whether
 a setting you cannot find lives somewhere that was not provided -- the names alone do not tell you what
-is in an area, and an area's name is often not what you would guess.`;
+is in a group, and a group's name is often not what you would guess.`;
 
-        promptConfig.providedSchema = `${schemaLines.join('\n')}\n\nAll areas: ${_.map(Object.keys(nodesByArea).sort(), (areaName)=>{ return `${areaName}(${nodesByArea[areaName].length})`; }).join(' ')}`;
+        promptConfig.providedSchema = `${schemaLines.join('\n')}\n\nAll groups: ${_.map(Object.keys(nodesByArea).sort(), (areaName)=>{ return `${areaName}(${nodesByArea[areaName].length})`; }).join(' ')}`;
 
         // Ahead of the existing rules on purpose.  Several of those tell the model how to decide a format
         // or a polarity from memory -- sound advice when nothing was provided, and a licence to override
@@ -747,8 +779,23 @@ ${RESPONSE_SHAPE}`;
 `;
     }
 
+    // Supplied for the same reason as the UUIDs: a WiFi SSID's <hex> is authoritative over its <name>, and the
+    // model's own hex encoding of "CorpNet" came back with a byte inserted or changed in two runs of three.
+    // Only quoted strings, since that is how an SSID arrives in the instructions, and double quotes only, so an
+    // apostrophe does not open one.
+    let hexEncodingsToUse = '';
+    if(profileType === 'csp') {
+      let quotedStrings = _.uniq(_.map(naturalLanguageInstructions.match(/["“”][^"“”]+["“”]/g) || [], (quoted)=>{ return quoted.slice(1, -1); }));
+      if(quotedStrings.length > 0) {
+        hexEncodingsToUse = `
+    Uppercase hex encodings of the quoted strings in the instructions, for <hex> inside a WiFi <SSID>:
+    ${quotedStrings.map((quoted)=>`- ${JSON.stringify(quoted)}: ${Buffer.from(quoted, 'utf8').toString('hex').toUpperCase()}`).join('\n    ')}
+`;
+      }
+    }
+
     let userPrompt = `Given these instructions from an IT admin, generate a ${promptConfig.description}.
-${uuidsToUse}
+${uuidsToUse}${hexEncodingsToUse}
     Here are the instructions:
     \`\`\`
     ${naturalLanguageInstructions}
