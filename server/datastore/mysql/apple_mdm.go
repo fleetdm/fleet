@@ -320,9 +320,6 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 			cp.Name = existing.Name
 		}
 
-		// A name is unique per team across all four profile tables and no index
-		// spans them, so a rename re-checks the other tables in the statement
-		// itself, keeping check and write atomic.
 		var teamID uint
 		if cp.TeamID != nil {
 			teamID = *cp.TeamID
@@ -331,11 +328,7 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 		nameGuard := ""
 		var nameGuardArgs []any
 		if nameChanged {
-			nameGuard = `
-	AND NOT EXISTS (SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?)
-	AND NOT EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?)
-	AND NOT EXISTS (SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?)`
-			nameGuardArgs = []any{cp.Name, teamID, cp.Name, teamID, cp.Name, teamID}
+			nameGuard, nameGuardArgs = profileRenameGuard(appleProfileNameTables.profileTable, cp.Name, teamID)
 		}
 		nameExists := func() error {
 			return ctxerr.Wrap(ctx, &existsError{
@@ -358,8 +351,8 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 			}
 
 			// Preserve uploaded_at unless the contents change, as the batch
-			// upsert does: a rename isn't resent. The IF sees the pre-update
-			// values since SET evaluates left to right.
+			// upsert does, so a rename doesn't re-send the profile. The IF sees
+			// the pre-update values since SET evaluates left to right.
 			stmt := `
 UPDATE mdm_apple_configuration_profiles
 SET uploaded_at = IF(checksum = UNHEX(MD5(?)), uploaded_at, CURRENT_TIMESTAMP()),
@@ -747,15 +740,17 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUI
 
 func deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, tx sqlx.ExtContext, id uint, uuid string) error {
 	var arg any
-	stmt := `DELETE FROM mdm_apple_configuration_profiles WHERE `
+	where := `profile_uuid = ?`
 	if uuid != "" {
 		arg = uuid
-		stmt += `profile_uuid = ?`
 	} else {
 		arg = id
-		stmt += `profile_id = ?`
+		where = `profile_id = ?`
 	}
-	res, err := tx.ExecContext(ctx, stmt, arg)
+	if err := snapshotProfileNamesForDeletionDB(ctx, tx, appleProfileNameTables, "p."+where, arg); err != nil {
+		return err
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE `+where, arg)
 	if err != nil {
 		if isMySQLForeignKey(err) {
 			if strings.Contains(err.Error(), "fk_policies_resend_apple_profile") {
@@ -949,8 +944,11 @@ func (ds *Datastore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID
 }
 
 func deleteMDMAppleDeclaration(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
-	stmt := `DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?`
+	if err := snapshotProfileNamesForDeletionDB(ctx, tx, declarationNameTables, "p.declaration_uuid = ?", uuid); err != nil {
+		return err
+	}
 
+	stmt := `DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?`
 	res, err := tx.ExecContext(ctx, stmt, uuid)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -1055,8 +1053,8 @@ ON DUPLICATE KEY UPDATE
 }
 
 func (ds *Datastore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
-	// The live profile is the source of truth for the name, since a rename
-	// isn't resent; the host row's copy covers profiles already deleted.
+	// Use the profile's name, since the host's copy isn't updated on a rename.
+	// The copy is only read once the profile is deleted, which refreshes it.
 	stmt := fmt.Sprintf(
 		`
 SELECT
@@ -3027,7 +3025,7 @@ VALUES
   -- see https://stackoverflow.com/a/51393124/1094941
   ( CONCAT('` + fleet.MDMAppleProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
 ON DUPLICATE KEY UPDATE
-  -- a rename alone isn't resent, so it doesn't count as a new upload
+  -- a rename alone doesn't re-send the profile, so it isn't a new upload
   uploaded_at = IF(checksum = VALUES(checksum), uploaded_at, CURRENT_TIMESTAMP(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
   checksum = VALUES(checksum),
@@ -3094,6 +3092,12 @@ ON DUPLICATE KEY UPDATE
 	}
 	if err := sqlx.SelectContext(ctx, tx, &deletedProfileUUIDs, stmt, args...); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "load profiles to be deleted")
+	}
+
+	if len(deletedProfileUUIDs) > 0 {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, appleProfileNameTables, "p.profile_uuid IN (?)", deletedProfileUUIDs); err != nil {
+			return false, err
+		}
 	}
 
 	// delete the obsolete profiles (all those that are not in keepIdents or delivered by Fleet)
@@ -5382,6 +5386,11 @@ WHERE
 	}
 	if err := sqlx.SelectContext(ctx, tx, &deletedDeclUUIDs, selStmt, selArgs...); err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "load deleted declarations")
+	}
+	if len(deletedDeclUUIDs) > 0 {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, declarationNameTables, "p.declaration_uuid IN (?)", deletedDeclUUIDs); err != nil {
+			return nil, false, err
+		}
 	}
 
 	delStmt, delArgs, err := sqlx.In(fmtDeleteStmt, teamID, keepNames)

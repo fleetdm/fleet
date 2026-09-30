@@ -991,17 +991,11 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			cp.Name = existing.Name
 		}
 
-		// A name is unique per team across all four profile tables and no index
-		// spans them, so a rename re-checks the other tables in the statement.
 		nameChanged := existing.Name != cp.Name
 		nameGuard := ""
 		var nameGuardArgs []any
 		if nameChanged {
-			nameGuard = `
-	AND NOT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?)
-	AND NOT EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?)
-	AND NOT EXISTS (SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?)`
-			nameGuardArgs = []any{cp.Name, teamID, cp.Name, teamID, cp.Name, teamID}
+			nameGuard, nameGuardArgs = profileRenameGuard(androidProfileNameTables.profileTable, cp.Name, teamID)
 		}
 		nameExists := func() error {
 			return ctxerr.Wrap(ctx, &existsError{
@@ -1106,6 +1100,9 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 
 func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, androidProfileNameTables, "p.profile_uuid = ?", profileUUID); err != nil {
+			return err
+		}
 		stmt := `DELETE FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`
 		res, err := tx.ExecContext(ctx, stmt, profileUUID)
 		if err != nil {
@@ -2125,8 +2122,8 @@ func (ds *Datastore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID str
 		`
 SELECT
 	hmap.profile_uuid,
-	-- the live profile is the source of truth for the name, since a rename
-	-- isn't resent; the host row's copy covers profiles already deleted
+	-- the profile's name, since the host's copy isn't updated on a rename;
+	-- the copy is only read once the profile is deleted, which refreshes it
 	COALESCE(macp.name, hmap.profile_name) AS name,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
@@ -2195,6 +2192,9 @@ func (ds *Datastore) deleteAllAndroidProfiles(ctx context.Context, tx sqlx.ExtCo
 	var teamID uint
 	if tmID != nil {
 		teamID = *tmID
+	}
+	if err := snapshotProfileNamesForDeletionDB(ctx, tx, androidProfileNameTables, "p.team_id = ?", teamID); err != nil {
+		return 0, err
 	}
 	res, err := tx.ExecContext(ctx, `DELETE FROM mdm_android_configuration_profiles WHERE team_id = ?`, teamID)
 	if err != nil {
@@ -2269,6 +2269,9 @@ WHERE
   profile_uuid IN (?)
 `
 	if len(deletedProfileUUIDs) > 0 {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, androidProfileNameTables, "p.profile_uuid IN (?)", deletedProfileUUIDs); err != nil {
+			return false, err
+		}
 		var result sql.Result
 		stmt, args, err = sqlx.In(deleteProfilesNotInList, deletedProfileUUIDs)
 		if err != nil {

@@ -2303,7 +2303,7 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{profileUUID}); err != nil {
 			return err
 		}
-		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, []string{profileUUID}); err != nil {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, windowsProfileNameTables, "p.profile_uuid IN (?)", []string{profileUUID}); err != nil {
 			return err
 		}
 		if err := deleteMDMWindowsConfigProfile(ctx, tx, profileUUID); err != nil {
@@ -2438,29 +2438,6 @@ func (ds *Datastore) retainWindowsProfilePriorContentDB(ctx context.Context, tx 
 	return nil
 }
 
-// snapshotWindowsProfileNamesForDeletionDB copies each profile's live name onto its host
-// rows before the profile row is deleted: those rows outlive it, and their denormalized
-// profile_name is what reads fall back to once the live name is gone. Casts to BINARY
-// because the column's collation is case-insensitive, so a plain != would skip a rename
-// that only changed case.
-func snapshotWindowsProfileNamesForDeletionDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
-	if len(profileUUIDs) == 0 {
-		return nil
-	}
-	stmt, args, err := sqlx.In(`
-		UPDATE host_mdm_windows_profiles hmwp
-		JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
-		SET hmwp.profile_name = mwcp.name
-		WHERE hmwp.profile_uuid IN (?) AND hmwp.profile_name != CAST(mwcp.name AS BINARY)`, profileUUIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building IN for profile name snapshot")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "snapshotting windows profile names before deletion")
-	}
-	return nil
-}
-
 // GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.
 // Reader-backed; callers that cannot tolerate a replica-lag miss (the reconcile pass consumes each modify-install once) wrap the
 // context with ctxdb.RequirePrimary.
@@ -2511,7 +2488,7 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{profile.ProfileUUID}); err != nil {
 			return err
 		}
-		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, []string{profile.ProfileUUID}); err != nil {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, windowsProfileNameTables, "p.profile_uuid IN (?)", []string{profile.ProfileUUID}); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profile.ProfileUUID); err != nil {
@@ -3342,23 +3319,18 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 				}
 			}
 
-			// Only new contents count as a fresh upload; a rename isn't resent.
+			// Only new contents count as a new upload, so a rename doesn't
+			// re-send the profile.
 			const setClause = `UPDATE mdm_windows_configuration_profiles
 SET syncml = ?, name = ?, description = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at)
 WHERE profile_uuid = ?`
 
-			// A name is unique per team across all four profile tables and no index
-			// spans them, so a cross-platform clash is checked here. In the statement
-			// rather than a preceding SELECT so check and write are atomic, as
-			// NewMDMWindowsConfigProfile does on insert.
 			stmt := setClause
 			args := []any{cp.SyncML, cp.Name, cp.Description, contentChanged, cp.ProfileUUID}
 			if nameChanged {
-				stmt += `
-	AND NOT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?)
-	AND NOT EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?)
-	AND NOT EXISTS (SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?)`
-				args = append(args, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+				guard, guardArgs := profileRenameGuard(windowsProfileNameTables.profileTable, cp.Name, teamID)
+				stmt += guard
+				args = append(args, guardArgs...)
 			}
 
 			res, err := tx.ExecContext(ctx, stmt, args...)
@@ -3421,17 +3393,14 @@ WHERE profile_uuid = ?`
 			}
 		} else if existing.Name != cp.Name || existing.Description != cp.Description {
 			// Name and description are not part of the checksum, so they are
-			// written without touching uploaded_at. A rename re-checks
-			// cross-platform uniqueness in the statement, as on content.
+			// written without touching uploaded_at.
 			stmt := `UPDATE mdm_windows_configuration_profiles SET name = ?, description = ? WHERE profile_uuid = ?`
 			args := []any{cp.Name, cp.Description, cp.ProfileUUID}
 			nameChanged := existing.Name != cp.Name
 			if nameChanged {
-				stmt += `
-	AND NOT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?)
-	AND NOT EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?)
-	AND NOT EXISTS (SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?)`
-				args = append(args, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+				guard, guardArgs := profileRenameGuard(windowsProfileNameTables.profileTable, cp.Name, teamID)
+				stmt += guard
+				args = append(args, guardArgs...)
 			}
 			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
@@ -3715,7 +3684,7 @@ ON DUPLICATE KEY UPDATE
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, deletedProfileUUIDs); err != nil {
 			return false, nil, ctxerr.Wrap(ctx, err, "retain deleted profiles for async removal")
 		}
-		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, deletedProfileUUIDs); err != nil {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, windowsProfileNameTables, "p.profile_uuid IN (?)", deletedProfileUUIDs); err != nil {
 			return false, nil, err
 		}
 	}

@@ -53,6 +53,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
 		{"TestMDMConfigProfilesDescription", testMDMConfigProfilesDescription},
 		{"TestMDMConfigProfileRenameShowsOnHosts", testMDMConfigProfileRenameShowsOnHosts},
+		{"TestMDMConfigProfileRenameThenDeleteShowsOnHosts", testMDMConfigProfileRenameThenDeleteShowsOnHosts},
 		{"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
 		{"TestMDMEULA", testMDMEULA},
@@ -6840,4 +6841,108 @@ func testMDMConfigProfileRenameShowsOnHosts(t *testing.T, ds *Datastore) {
 	require.Equal(t, "apple batch renamed", after.Name)
 	require.Equal(t, before.UploadedAt, after.UploadedAt)
 	require.ElementsMatch(t, []string{"apple batch renamed", "decl renamed"}, appleNames())
+}
+
+func testMDMConfigProfileRenameThenDeleteShowsOnHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Installs one profile of each type on host and renames them without new
+	// contents, which leaves the host's copy of each name stale.
+	setup := func(host string, teamID *uint) (appleUUID, declUUID, androidUUID string) {
+		apple, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			Name:         "apple " + host,
+			Identifier:   "com.example.apple." + host,
+			Mobileconfig: mobileconfig.Mobileconfig("<plist/>"),
+			Scope:        fleet.PayloadScopeSystem,
+			TeamID:       teamID,
+		}, nil)
+		require.NoError(t, err)
+		decl := declForTest("decl "+host, "decl."+host, "decl")
+		decl.TeamID = teamID
+		decl, err = ds.NewMDMAppleDeclaration(ctx, decl, nil)
+		require.NoError(t, err)
+		android := androidConfigProfileForTest(t, "android "+host, nil)
+		android.TeamID = teamID
+		android, err = ds.NewMDMAndroidConfigProfile(ctx, *android, nil)
+		require.NoError(t, err)
+
+		// verified, so a deletion marks the rows for removal instead of
+		// dropping them
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
+				(host_uuid, profile_uuid, profile_identifier, profile_name, command_uuid, checksum, operation_type, status)
+				VALUES (?, ?, ?, ?, ?, UNHEX(MD5('x')), 'install', 'verified')`,
+				host, apple.ProfileUUID, apple.Identifier, apple.Name, "cmd-"+host); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
+				(host_uuid, declaration_uuid, declaration_identifier, declaration_name, token, operation_type, status)
+				VALUES (?, ?, ?, ?, UNHEX(MD5('x')), 'install', 'verified')`,
+				host, decl.DeclarationUUID, decl.Identifier, decl.Name); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_android_profiles
+				(host_uuid, profile_uuid, profile_name, operation_type, status)
+				VALUES (?, ?, ?, 'install', 'verified')`, host, android.ProfileUUID, android.Name)
+			return err
+		})
+
+		_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			ProfileUUID: apple.ProfileUUID,
+			Identifier:  apple.Identifier,
+			Name:        apple.Name + " renamed",
+			TeamID:      teamID,
+		}, nil)
+		require.NoError(t, err)
+		decl.Name += " renamed"
+		_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, nil, fleet.MDMAppleActivationKeep)
+		require.NoError(t, err)
+		_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+			ProfileUUID: android.ProfileUUID,
+			Name:        android.Name + " renamed",
+			TeamID:      teamID,
+		}, nil)
+		require.NoError(t, err)
+		return apple.ProfileUUID, decl.DeclarationUUID, android.ProfileUUID
+	}
+
+	// once the profiles are gone, the host's copy is what's shown
+	requireHostNames := func(host string) {
+		appleProfs, err := ds.GetHostMDMAppleProfiles(ctx, host)
+		require.NoError(t, err)
+		androidProfs, err := ds.GetHostMDMAndroidProfiles(ctx, host)
+		require.NoError(t, err)
+		var names []string
+		for _, p := range appleProfs {
+			names = append(names, p.Name)
+		}
+		for _, p := range androidProfs {
+			names = append(names, p.Name)
+		}
+		require.ElementsMatch(t, []string{
+			"apple " + host + " renamed", "decl " + host + " renamed", "android " + host + " renamed",
+		}, names)
+	}
+
+	// deleted one by one
+	appleUUID, declUUID, androidUUID := setup("single", nil)
+	require.NoError(t, ds.DeleteMDMAppleConfigProfile(ctx, appleUUID))
+	require.NoError(t, ds.DeleteMDMAppleDeclaration(ctx, declUUID))
+	require.NoError(t, ds.DeleteMDMAndroidConfigProfile(ctx, androidUUID))
+	requireHostNames("single")
+
+	// dropped by a batch (GitOps) run
+	batchTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "rename then batch"})
+	require.NoError(t, err)
+	setup("batch", &batchTeam.ID)
+	_, err = ds.BatchSetMDMProfiles(ctx, &batchTeam.ID, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+	requireHostNames("batch")
+
+	// deleted with their team
+	deletedTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "rename then delete team"})
+	require.NoError(t, err)
+	setup("team", &deletedTeam.ID)
+	require.NoError(t, ds.DeleteTeam(ctx, deletedTeam.ID))
+	requireHostNames("team")
 }
