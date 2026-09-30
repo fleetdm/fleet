@@ -256,11 +256,14 @@ ${naturalLanguageInstructions}
           return undefined;
         });
 
-        // Filtered against the real names rather than trusted, as the Windows lookup is.
+        // Filtered against the real names rather than trusted, as the Windows lookup is.  The index line's
+        // "(title; platforms)" is cut off first, since the model sometimes copies it: "com.apple.MCX (Time
+        // Server; macOS)" matched nothing and was dropped, and with it the request's whole schema.
         if(picked && _.isArray(picked.payloadTypes)) {
           let realEntryNames = _.uniq(_.pluck(schemaFile.entries, 'name'));
           for (let candidate of picked.payloadTypes) {
-            let matched = _.find(realEntryNames, (entryName)=>{ return entryName.toLowerCase() === String(candidate).toLowerCase(); });
+            let candidateName = String(candidate).split(' (')[0].trim();
+            let matched = _.find(realEntryNames, (entryName)=>{ return entryName.toLowerCase() === candidateName.toLowerCase(); });
             if(matched && !_.contains(ALWAYS_PROVIDED_ENTRY_NAMES, matched) && !_.contains(applePayloadTypesProvided, matched)) {
               applePayloadTypesProvided.push(matched);
             }
@@ -269,14 +272,17 @@ ${naturalLanguageInstructions}
 
         // Restrictions is Apple's catch-all -- 210 keys under a title and description that match almost no
         // request -- so the lookup passes it over for payloads whose titles sound closer (Content Caching
-        // Service over allowContentCaching, Time Server over forceAutomaticDateAndTime).  Added only when
-        // the lookup found something, so a request it found nothing for still falls back to the full schema.
+        // Service over allowContentCaching, Time Server over forceAutomaticDateAndTime).  Software Update is
+        // missed the same way: asked to install security responses and system data files, the lookup names
+        // Restrictions for allowRapidSecurityResponseInstallation and leaves out ConfigDataInstall and
+        // CriticalUpdateInstall.  Added only when the lookup found something, so a request it found nothing
+        // for still falls back to the full schema.
         if(applePayloadTypesProvided.length > 0) {
-          applePayloadTypesProvided = _.union(applePayloadTypesProvided, ['com.apple.applicationaccess']);
+          applePayloadTypesProvided = _.union(applePayloadTypesProvided, ['com.apple.applicationaccess', 'com.apple.SoftwareUpdate']);
         }
 
 
-        // sails.log.warn(`[payload-type lookup] instructions: ${JSON.stringify(naturalLanguageInstructions)} | lookup returned: ${JSON.stringify(picked ? picked.payloadTypes : '(lookup failed)')} | provided: ${JSON.stringify(applePayloadTypesProvided)}`);
+        sails.log.warn(`[payload-type lookup] instructions: ${JSON.stringify(naturalLanguageInstructions)} | lookup returned: ${JSON.stringify(picked ? picked.payloadTypes : '(lookup failed)')} | provided: ${JSON.stringify(applePayloadTypesProvided)}`);
       }
 
       if(applePayloadTypesProvided.length > 0) {
@@ -393,6 +399,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
       'Generate a profile that any MDM can deliver.  Use only syntax defined by Apple, Microsoft, or Google -- never a vendor-specific variable, placeholder, or extension, and never Fleet-specific syntax such as $FLEET_SECRET_ or FLEET_VAR_.  A vendor placeholder the delivering MDM does not recognize is shipped to the device as a literal value.',
       'Reproduce user-supplied identifiers character for character, including case: SSIDs, profile names, certificate subjects, domain names.  Never re-capitalize, trim, or reword them.  An SSID differing by one letter\'s case deploys cleanly and matches nothing.',
       'Use only settings you can attribute to a specific published source (an Apple payload key, a Windows CSP node, or an Apple declaration type).  If the instructions cannot be satisfied that way, do not approximate -- return the "couldNotGenerateProfile" shape instead.',
+      'A configuration profile sets preferences and restrictions. It cannot start, stop, load, or unload a system service or daemon, run a command, change a file or its permissions, or change a local account\'s state. If the only way to satisfy the request is one of those, return `couldNotGenerateProfile` and name the mechanism that does it (a script, launchctl, systemsetup).',
       'You have no network access and cannot open any URL.  Never state or imply that you validated this profile against a reference, a schema, or a linter.  "documentationUrl" is where a human can check your work, not evidence that you checked it.',
       'Enforce only what the instructions ask for.  The only settings you may add beyond the request are ones the requested setting depends on, and each of those must be called out in "caveats".',
       'Write credentials the admin supplied as literals, since the profile is unusable without them.  Do not invent a placeholder.  Note in "deliveryNotes" that the file contains a cleartext credential.',
