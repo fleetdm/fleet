@@ -3455,7 +3455,7 @@ func testCleanupHostScriptResultsQueryPlan(t *testing.T, ds *Datastore) {
 
 	conn, err := ds.primary.Connx(ctx)
 	require.NoError(t, err)
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck
 
 	// Materialization left as the only antijoin strategy.
 	_, err = conn.ExecContext(ctx, `SET SESSION optimizer_switch = 'firstmatch=off,loosescan=off,duplicateweedout=off'`)
