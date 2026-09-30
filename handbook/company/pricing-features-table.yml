@@ -244,7 +244,7 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  documentationUrl: https://fleetdm.com/guides/mdm-migration-guides
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
