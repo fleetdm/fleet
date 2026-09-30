@@ -3557,23 +3557,26 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 	}
 }
 
+// TestReleaseUnusedFleetdInstallSecret covers the gates around the deletion. TestIsFleetdPresentOnDevice covers the presence decision.
 func TestReleaseUnusedFleetdInstallSecret(t *testing.T) {
+	t.Parallel()
+
 	enrolledAt := time.Date(2026, 6, 10, 9, 36, 32, 0, time.UTC)
 	for _, tc := range []struct {
-		name                        string
-		windowsOneTimeEnrollSecrets bool
-		enrollUser                  string
-		seenOffset                  time.Duration
-		wantDeleted                 bool
+		name        string
+		disabled    bool          // windows one-time enroll secrets turned off
+		enrollUser  string        // a UPN for a user-driven enrollment, a device token for a programmatic one
+		seenOffset  time.Duration // host's last check-in, relative to the enrollment's created_at
+		wantDeleted bool
 	}{
-		{name: "the linked host's fleetd is already running", windowsOneTimeEnrollSecrets: true, enrollUser: "alice@example.com",
-			seenOffset: time.Minute, wantDeleted: true},
-		{name: "a re-imaged device's old host keeps the secret for the install to come", windowsOneTimeEnrollSecrets: true,
-			enrollUser: "alice@example.com", seenOffset: -20 * 24 * time.Hour},
-		{name: "windows one-time enroll secrets disabled", enrollUser: "alice@example.com", seenOffset: time.Minute},
-		{name: "programmatic enrollment", windowsOneTimeEnrollSecrets: true, enrollUser: "device-token", seenOffset: time.Minute},
+		{name: "the linked host's fleetd is already running", enrollUser: "alice@example.com", seenOffset: time.Minute, wantDeleted: true},
+		{name: "a re-imaged device's old host keeps it for the install", enrollUser: "alice@example.com", seenOffset: -20 * 24 * time.Hour},
+		{name: "windows one-time enroll secrets disabled", disabled: true, enrollUser: "alice@example.com", seenOffset: time.Minute},
+		{name: "programmatic enrollment", enrollUser: "device-token", seenOffset: time.Minute},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			ds := new(mock.Store)
 			ds.HostLiteByIdentifierFunc = func(context.Context, string) (*fleet.HostLite, error) {
 				return &fleet.HostLite{ID: 1, SeenTime: enrolledAt.Add(tc.seenOffset)}, nil
@@ -3584,23 +3587,16 @@ func TestReleaseUnusedFleetdInstallSecret(t *testing.T) {
 			ds.WindowsMDMEnrollSecretUsedByOrbitFunc = func(context.Context, uint) (bool, error) {
 				return false, nil
 			}
-			var deleted []uint
 			ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc = func(ctx context.Context, enrollmentID uint) error {
-				deleted = append(deleted, enrollmentID)
+				assert.EqualValues(t, 17, enrollmentID)
 				return nil
 			}
-			cfg := config.TestConfig()
-			cfg.MDM.WindowsOneTimeEnrollSecrets = tc.windowsOneTimeEnrollSecrets
-			svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+			svc := &Service{ds: ds, config: config.FleetConfig{MDM: config.MDMConfig{WindowsOneTimeEnrollSecrets: !tc.disabled}}}
 
-			svc.(validationMiddleware).Service.(*Service).releaseUnusedFleetdInstallSecret(t.Context(), &fleet.MDMWindowsEnrolledDevice{
+			svc.releaseUnusedFleetdInstallSecret(t.Context(), &fleet.MDMWindowsEnrolledDevice{
 				ID: 17, MDMEnrollUserID: tc.enrollUser, HostUUID: "host-1", CreatedAt: enrolledAt,
 			})
-			if tc.wantDeleted {
-				require.Equal(t, []uint{17}, deleted)
-			} else {
-				require.Empty(t, deleted)
-			}
+			require.Equal(t, tc.wantDeleted, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked)
 		})
 	}
 }
