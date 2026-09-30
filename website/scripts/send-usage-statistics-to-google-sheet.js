@@ -44,27 +44,34 @@ module.exports = {
       '',
     ];
 
+    // Snapshots older than 60 days are deleted by the cleanup-old-usage-statistics script.
     let nowAt = Date.now();
-    let ninetyDaysAgoAt = nowAt - (1000 * 60 * 60 * 24 * 90);
+    let sixtyDaysAgoAt = nowAt - (1000 * 60 * 60 * 24 * 60);
 
-    let usageStatisticsReportedInTheLastNinetyDays = await HistoricalUsageSnapshot.find({
-      createdAt: { '>=': ninetyDaysAgoAt },
-      licenseTier: 'premium',
-      organization: { nin: ORGANIZATIONS_TO_EXCLUDE },
-    });
+    // Fleet instances report hourly, so pick the latest report from each instance in the database
+    // instead of loading every snapshot. The license tier and organization filters are applied after
+    // picking the latest report, so an instance that downgraded or was renamed to an excluded
+    // organization isn't exported from an older report.
+    let nativeQueryToFindLatestReportFromEachInstance = `
+    SELECT "id" FROM (
+      SELECT DISTINCT ON ("anonymousIdentifier") "id", "licenseTier", "organization"
+      FROM "historicalusagesnapshot"
+      WHERE "createdAt" >= $1
+      ORDER BY "anonymousIdentifier", "id" DESC
+    ) AS "latestReports"
+    WHERE "licenseTier" = 'premium' AND "organization" <> ALL($2)`;
+    let latestReportIds = _.pluck((await sails.sendNativeQuery(nativeQueryToFindLatestReportFromEachInstance, [sixtyDaysAgoAt, ORGANIZATIONS_TO_EXCLUDE])).rows, 'id');
 
-    // Reduce to the latest report from each Fleet instance.
-    let statisticsReportedByFleetInstance = _.groupBy(usageStatisticsReportedInTheLastNinetyDays, 'anonymousIdentifier');
-    let latestStatisticsForEachInstance = [];
-    for (let id in statisticsReportedByFleetInstance) {
-      let lastReportIdForThisInstance = _.max(_.pluck(statisticsReportedByFleetInstance[id], 'id'));
-      latestStatisticsForEachInstance.push(_.find(statisticsReportedByFleetInstance[id], {id: lastReportIdForThisInstance}));
-    }
-    // Show the largest deployments first.
-    latestStatisticsForEachInstance = _.sortByOrder(latestStatisticsForEachInstance, 'numHostsEnrolled', 'desc');
+    let latestStatisticsForEachInstance = await HistoricalUsageSnapshot.find({ id: { in: latestReportIds } })
+    .sort('numHostsEnrolled DESC');
 
     // Platforms reported in hostsEnrolledByOperatingSystem that are not their own column. Anything unrecognized is counted as Linux, since Fleet reports each Linux distribution as its own platform.
     const PLATFORM_COLUMNS = {darwin: 'macOS', windows: 'Windows', ios: 'iOS', ipados: 'iPadOS', android: 'Android', chrome: 'ChromeOS'};
+
+    // Fleet v4.93.0 and later report each Fleet-maintained app as an object instead of a slug.
+    let getFleetMaintainedAppNames = (apps)=>{
+      return _.map(apps || [], (app)=>{ return _.isString(app) ? app : app.name; });
+    };
 
     let rows = [];
     for (let statistics of latestStatisticsForEachInstance) {
@@ -108,8 +115,8 @@ module.exports = {
         statistics.numQueries,
         statistics.numHostsABMPending,
         readableHostCountsByPlatform,
-        (statistics.fleetMaintainedAppsMacOS || []).join(', '),
-        (statistics.fleetMaintainedAppsWindows || []).join(', '),
+        getFleetMaintainedAppNames(statistics.fleetMaintainedAppsMacOS).join(', '),
+        getFleetMaintainedAppNames(statistics.fleetMaintainedAppsWindows).join(', '),
         statistics.oktaConditionalAccessConfigured,
         statistics.conditionalAccessEnabled,
         statistics.conditionalAccessBypassDisabled,
@@ -126,7 +133,7 @@ module.exports = {
 
     if (rows.length === 0) {
       // Leave the existing sheet contents in place rather than wiping them with an empty result.
-      sails.log.warn('The send-usage-statistics-to-google-sheet script found no usage statistics reported by Fleet Premium instances in the last 90 days. The Google sheet was not updated.');
+      sails.log.warn('The send-usage-statistics-to-google-sheet script found no usage statistics reported by Fleet Premium instances in the last 60 days. The Google sheet was not updated.');
       return;
     }
 
@@ -151,13 +158,10 @@ module.exports = {
         private_key: sails.config.custom.usageStatisticsServiceAccountPrivateKey,// eslint-disable-line camelcase
       },
     });
-    let sheets = google.sheets({version: 'v4', auth: googleAuth});
+    // googleapis retries failed requests a limited number of times, so each attempt only needs a timeout.
+    let sheets = google.sheets({version: 'v4', auth: googleAuth, timeout: 30000});
 
-    // Clear the entire tab before writing so deployments that stopped reporting don't linger as stale rows.
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId: SPREADSHEET_ID,
-      range: 'Data',
-    });
+    // Write the new rows before clearing anything, so a failed request leaves the previous export in place.
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: 'Data!A1',
@@ -166,6 +170,20 @@ module.exports = {
         values: [HEADER_ROW].concat(rows),
       },
     });
+    // Clear leftover rows below the new export so deployments that stopped reporting don't linger.
+    // The Sheets API rejects ranges that start past the last row of the tab, so check the row count first.
+    let dataTab = (await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+      ranges: ['Data'],
+      fields: 'sheets.properties.gridProperties.rowCount',
+    })).data.sheets[0];
+    let numRowsInDataTab = dataTab.properties.gridProperties.rowCount;
+    if (numRowsInDataTab > rows.length + 1) {
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `Data!${rows.length + 2}:${numRowsInDataTab}`,
+      });
+    }
 
     sails.log(`Usage statistics for ${rows.length} Fleet Premium deployments were sent to the usage statistics Google sheet.`);
   }
