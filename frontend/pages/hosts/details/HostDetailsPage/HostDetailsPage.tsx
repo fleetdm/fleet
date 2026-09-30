@@ -163,6 +163,7 @@ import {
   canShowMyDeviceButton,
   getErrorMessage,
   hasEverEnrolled,
+  getCanManageSelfServiceProfiles,
   hasReportedVitals,
 } from "./helpers";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
@@ -1271,7 +1272,7 @@ const HostDetailsPage = ({
         isRecoveryLockPasswordEnabled={
           mdmConfig?.enable_recovery_lock_password ?? false
         }
-        diskEncryptionProfileStatus={diskEncryptionProfile?.status ?? undefined}
+        diskEncryptionProfileStatus={diskEncryptionProfile?.status}
         recoveryLockPasswordAvailable={
           host.mdm.os_settings?.recovery_lock_password?.password_available ??
           false
@@ -1570,8 +1571,11 @@ const HostDetailsPage = ({
       isHostTeamMaintainer ||
       isHostTeamTechnician);
 
-  const canManageSelfServiceProfiles =
-    !!isPremiumTier && isMacOSHost && canResendProfiles;
+  const canManageSelfServiceProfiles = getCanManageSelfServiceProfiles(
+    isPremiumTier,
+    isMacOSHost,
+    canResendProfiles
+  );
 
   // "My device" link points to that host's end-user My device page. The URL
   // embeds the device auth token so it acts as a credential, hence global

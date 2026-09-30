@@ -122,7 +122,7 @@ interface IHostActionConfigOptions {
   isPrimoMode: boolean;
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
   isRecoveryLockPasswordEnabled: boolean;
-  diskEncryptionProfileStatus: string | undefined;
+  diskEncryptionProfileStatus: string | null | undefined;
   recoveryLockPasswordAvailable: boolean;
   recoveryLockPasswordStatus: RecoveryLockPasswordStatus | undefined;
   isManagedLocalAccountEnabled: boolean;
