@@ -18,12 +18,15 @@ const actions = {
   SET_REDIRECT_LOCATION: "SET_REDIRECT_LOCATION",
 };
 
-type Action = { type: string; pathname?: string | null };
+type Action = {
+  type: typeof actions.SET_REDIRECT_LOCATION;
+  pathname: string | null;
+};
 
 const reducer = (state: InitialStateType, action: Action) => {
   switch (action.type) {
     case actions.SET_REDIRECT_LOCATION:
-      return { ...state, redirectLocation: action.pathname ?? null };
+      return { ...state, redirectLocation: action.pathname };
     default:
       return state;
   }
