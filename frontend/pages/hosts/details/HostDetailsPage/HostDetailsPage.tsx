@@ -163,6 +163,7 @@ import {
   canShowMyDeviceButton,
   getErrorMessage,
   hasEverEnrolled,
+  getCanManageSelfServiceProfiles,
   hasReportedVitals,
 } from "./helpers";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
@@ -916,6 +917,26 @@ const HostDetailsPage = ({
     [host?.id]
   );
 
+  const installProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.installProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
+
+  const uninstallProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.uninstallProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
+
   const resendCertificate = useCallback(
     (certificateTemplateId: number): Promise<void> => {
       if (!host?.id) {
@@ -1550,6 +1571,12 @@ const HostDetailsPage = ({
       isHostTeamMaintainer ||
       isHostTeamTechnician);
 
+  const canManageSelfServiceProfiles = getCanManageSelfServiceProfiles(
+    isPremiumTier,
+    isMacOSHost,
+    canResendProfiles
+  );
+
   // "My device" link points to that host's end-user My device page. The URL
   // embeds the device auth token so it acts as a credential, hence global
   // admin only. Also hide it on hosts that have no live end-user surface —
@@ -1916,6 +1943,10 @@ const HostDetailsPage = ({
                     rotateRecoveryLockPassword={rotateRecoveryLockPassword}
                     resendHostNameTemplate={resendHostNameTemplate}
                     onProfileResent={refetchHostDetails}
+                    isMacOSHost={isMacOSHost}
+                    canManageSelfServiceProfiles={canManageSelfServiceProfiles}
+                    installRequest={installProfile}
+                    uninstallRequest={uninstallProfile}
                     isMacOSDiskEncryptionEnforceOnly={isMacOSDiskEncryptionEnforceOnly(
                       fleetDiskEncryptionSettings
                     )}

@@ -21,6 +21,8 @@ const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   detail: "This is verified",
   scope: "device",
   managed_local_account: "",
+  hidden: false,
+  self_service: false,
 };
 
 export const createMockHostMdmProfile = (
