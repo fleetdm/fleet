@@ -268,7 +268,8 @@ The following features aren't supported on NixOS hosts:
 - Installing or uninstalling software from Fleet. Add packages to the NixOS configuration instead. Learn more in the [NixOS manual](https://nixos.org/manual/nixos/stable/#sec-package-management).
 - Updating fleetd, osquery, or Fleet Desktop from Fleet (including [update channels](#specifying-update-channels)).
 - Fleet-delivered osquery extensions.
-- Disk encryption key escrow.
+
+Disk encryption key escrow for NixOS is coming soon. Learn more in the [story](https://github.com/fleetdm/fleet/issues/54422).
 
 Software inventory, scripts, reports, policies, and Fleet Desktop work the same as on other Linux hosts. Vulnerability detection uses NVD only, so a CVE that nixpkgs patched without changing the package version may still be reported.
 
