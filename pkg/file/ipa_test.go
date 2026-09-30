@@ -138,6 +138,20 @@ func TestExtractZIPMetadataAppPlistSelection(t *testing.T) {
 				{"Payload/HelloWorld.app/SomethingInfo.plist", framework},
 			},
 		},
+		{
+			name: "entry names with a leading ./",
+			entries: [][2]string{
+				{"./Payload/HelloWorld.app/Frameworks/AcmeKit.framework/Info.plist", framework},
+				{"./Payload/HelloWorld.app/Info.plist", app},
+			},
+		},
+		{
+			name: "entry names with a leading /",
+			entries: [][2]string{
+				{"/Payload/HelloWorld.app/Frameworks/AcmeKit.framework/Info.plist", framework},
+				{"/Payload/HelloWorld.app/Info.plist", app},
+			},
+		},
 	}
 
 	for _, tt := range tests {

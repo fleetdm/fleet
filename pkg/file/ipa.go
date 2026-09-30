@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"howett.net/plist"
@@ -37,8 +38,10 @@ func ExtractZIPMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 		// Only the app's own plist describes the app. Embedded frameworks,
 		// extensions and watch apps ship their own, and zip entry order is not
 		// guaranteed, so anything below the .app directory is ignored. Zip names
-		// always use forward slashes, hence path and not filepath.
-		if matched, _ := path.Match("Payload/*.app/Info.plist", f.Name); !matched {
+		// always use forward slashes, hence path and not filepath. Some tools
+		// write names as "./Payload/..." or "/Payload/...", which iOS installs.
+		name := strings.TrimPrefix(path.Clean("/"+f.Name), "/")
+		if matched, _ := path.Match("Payload/*.app/Info.plist", name); !matched {
 			continue
 		}
 
