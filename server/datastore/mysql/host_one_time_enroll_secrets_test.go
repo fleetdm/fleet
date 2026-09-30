@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -25,7 +27,8 @@ func TestHostOneTimeEnrollSecrets(t *testing.T) {
 		{"Mint", testOneTimeEnrollSecretMint},
 		{"EnrollBothPlanes", testOneTimeEnrollSecretEnrollBothPlanes},
 		{"EnrollRules", testOneTimeEnrollSecretEnrollRules},
-		{"RejectSharedSecretForMDMHosts", testOneTimeEnrollSecretRejectShared},
+		{"OverwriteWarningOnlyWhenEnrolled", testOneTimeEnrollSecretOverwriteWarning},
+		{"RejectSharedSecretForAppleMDMHosts", testOneTimeEnrollSecretRejectShared},
 		{"ResetTurnOffAndDelete", testOneTimeEnrollSecretResetAndDelete},
 		{"Cleanup", testOneTimeEnrollSecretCleanup},
 		{"FleetdProfileByTeamAndIdentifier", testFleetdProfileByTeamAndIdentifier},
@@ -249,6 +252,35 @@ func testOneTimeEnrollSecretEnrollBothPlanes(t *testing.T, ds *Datastore) {
 	require.NotNil(t, spent.ConsumedAt)
 }
 
+func testOneTimeEnrollSecretOverwriteWarning(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	oldLogger := ds.logger
+	t.Cleanup(func() { ds.logger = oldLogger })
+	var buf bytes.Buffer
+	ds.logger = logging.NewSlogLogger(logging.Options{Output: &buf, Debug: true})
+
+	h := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+	row := mintOneTimeSecret(t, ds, h.UUID)
+	_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+	require.NoError(t, err)
+	_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, fleet.WithEnrollOsqueryOneTimeEnrollSecret(row.ID))...)
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), "osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data")
+	require.Contains(t, buf.String(), fmt.Sprintf("host_id=%d", h.ID))
+
+	buf.Reset()
+	_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+	requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretSpent, &h.ID)
+	_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, fleet.WithEnrollOsqueryOneTimeEnrollSecret(row.ID))...)
+	requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretSpent, &h.ID)
+	require.NotContains(t, buf.String(), "will overwrite existing host data")
+
+	_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil)...)
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), "orbit host with duplicate identifier has enrolled in Fleet and will overwrite existing host data")
+	require.Contains(t, buf.String(), fmt.Sprintf("host_id=%d", h.ID))
+}
+
 func testOneTimeEnrollSecretEnrollRules(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -309,8 +341,8 @@ func testOneTimeEnrollSecretEnrollRules(t *testing.T, ds *Datastore) {
 
 func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	reject := fleet.WithEnrollOrbitRejectSharedSecretForMDMHosts(true)
-	rejectOsquery := fleet.WithEnrollOsqueryRejectSharedSecretForMDMHosts(true)
+	reject := fleet.WithEnrollOrbitRejectSharedSecretForAppleMDMHosts(true)
+	rejectOsquery := fleet.WithEnrollOsqueryRejectSharedSecretForAppleMDMHosts(true)
 
 	t.Run("Fleet MDM enrolled Mac", func(t *testing.T) {
 		h := newOneTimeSecretTestHost(t, ds, "darwin", nil)

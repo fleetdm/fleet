@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -61,6 +62,39 @@ func TestSessionStore(t *testing.T) {
 
 	t.Run("cluster", func(t *testing.T) {
 		p := redistest.SetupRedis(t, "request", true, false, false)
+		runTest(t, p)
+	})
+}
+
+func TestConsumeAssertion(t *testing.T) {
+	runTest := func(t *testing.T, pool fleet.RedisPool) {
+		store := NewSessionStore(pool)
+
+		require.Error(t, store.ConsumeAssertion("", time.Now().Add(time.Minute)))
+
+		err := store.ConsumeAssertion("assertion-1", time.Now().Add(time.Minute))
+		require.NoError(t, err)
+		err = store.ConsumeAssertion("assertion-1", time.Now().Add(time.Minute))
+		require.ErrorIs(t, err, ErrAssertionAlreadyUsed)
+
+		// A different assertion is unaffected.
+		require.NoError(t, store.ConsumeAssertion("assertion-2", time.Now().Add(time.Minute)))
+
+		// An already-expired assertion is still held for the minimum TTL and
+		// then released.
+		require.NoError(t, store.ConsumeAssertion("assertion-3", time.Now().Add(-2*saml.MaxClockSkew)))
+		require.ErrorIs(t, store.ConsumeAssertion("assertion-3", time.Now().Add(-2*saml.MaxClockSkew)), ErrAssertionAlreadyUsed)
+		time.Sleep(1100 * time.Millisecond)
+		require.NoError(t, store.ConsumeAssertion("assertion-3", time.Now().Add(-2*saml.MaxClockSkew)))
+	}
+
+	t.Run("standalone", func(t *testing.T) {
+		p := redistest.SetupRedis(t, consumedAssertionKeyPrefix, false, false, false)
+		runTest(t, p)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		p := redistest.SetupRedis(t, consumedAssertionKeyPrefix, true, false, false)
 		runTest(t, p)
 	})
 }

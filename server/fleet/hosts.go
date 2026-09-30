@@ -135,12 +135,13 @@ func IsPlaceholderHardwareSerial(serial string) bool {
 type MDMEnrollStatus string
 
 const (
-	MDMEnrollStatusManual     = MDMEnrollStatus("manual")
-	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
-	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
-	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
-	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual", "automatic" and "personal"
-	MDMEnrollStatusPersonal   = MDMEnrollStatus("personal")
+	MDMEnrollStatusManual         = MDMEnrollStatus("manual")
+	MDMEnrollStatusAutomatic      = MDMEnrollStatus("automatic")
+	MDMEnrollStatusPending        = MDMEnrollStatus("pending")
+	MDMEnrollStatusUnenrolled     = MDMEnrollStatus("unenrolled")
+	MDMEnrollStatusEnrolled       = MDMEnrollStatus("enrolled") // combination of "manual", "automatic", "personal" and "manual-personal"
+	MDMEnrollStatusPersonal       = MDMEnrollStatus("personal")
+	MDMEnrollStatusManualPersonal = MDMEnrollStatus("manual-personal")
 )
 
 // OSSettingsStatus defines the possible statuses of the host's OS settings, which is derived from the
@@ -538,6 +539,13 @@ type Host struct {
 	// for every other platform, or when a given field wasn't reported by a
 	// particular status report.
 	HostMDMAndroidDeviceVitals
+}
+
+func (h *Host) EffectiveTeamID() uint {
+	if h.TeamID == nil {
+		return 0
+	}
+	return *h.TeamID
 }
 
 type HostForeignVitalGroup struct {
@@ -1266,6 +1274,7 @@ func (h *HostLite) DisplayName() string {
 
 type HostIssues struct {
 	FailingPoliciesCount         uint64  `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
+	FailingUnhiddenPoliciesCount *uint64 `json:"failing_unhidden_policies_count,omitempty" db:"-" csv:"-"`
 	CriticalVulnerabilitiesCount *uint64 `json:"critical_vulnerabilities_count,omitempty" db:"critical_vulnerabilities_count" csv:"-"` // We set it to nil if the license is not premium
 	TotalIssuesCount             uint64  `json:"total_issues_count" db:"total_issues_count" csv:"issues"`                              // when exporting in CSV, we want that value as the "issues" column
 }
@@ -1298,9 +1307,8 @@ type HostDetail struct {
 	// populate it too. HostDetail's service layer still writes to h.LastMDMCheckedInAt
 	// on the way out.
 	// LastMDMEnrollmentType is the MDM enrollment channel reported by the device,
-	// e.g. "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven
-	// User Enrollment both report the "On (manual - personal)" status, so this is
-	// what distinguishes them. Nil for hosts with no Apple MDM enrollment.
+	// e.g. "Device" or "User Enrollment (Device)". Nil for hosts with no Apple MDM
+	// enrollment.
 	LastMDMEnrollmentType *string `json:"last_mdm_enrollment_type"`
 
 	MDMEnrollmentHardwareAttested bool `json:"mdm_enrollment_hardware_attested"`
@@ -1658,15 +1666,16 @@ type HostMunkiInfo struct {
 // used by a host. Note that it uses a different JSON representation than its
 // struct - it implements a custom JSON marshaler.
 type HostMDM struct {
-	HostID                 uint    `db:"host_id" json:"-" csv:"-"`
-	Enrolled               bool    `db:"enrolled" json:"-" csv:"-"`
-	ServerURL              string  `db:"server_url" json:"-" csv:"-"`
-	InstalledFromDep       bool    `db:"installed_from_dep" json:"-" csv:"-"`
-	IsServer               bool    `db:"is_server" json:"-" csv:"-"`
-	IsPersonalEnrollment   bool    `db:"is_personal_enrollment" json:"-" csv:"-"`
-	MDMID                  *uint   `db:"mdm_id" json:"-" csv:"-"`
-	Name                   string  `db:"name" json:"-" csv:"-"`
-	DEPProfileAssignStatus *string `db:"dep_profile_assign_status" json:"-" csv:"-"`
+	HostID                 uint                   `db:"host_id" json:"-" csv:"-"`
+	Enrolled               bool                   `db:"enrolled" json:"-" csv:"-"`
+	ServerURL              string                 `db:"server_url" json:"-" csv:"-"`
+	InstalledFromDep       bool                   `db:"installed_from_dep" json:"-" csv:"-"`
+	IsServer               bool                   `db:"is_server" json:"-" csv:"-"`
+	IsPersonalEnrollment   bool                   `db:"is_personal_enrollment" json:"-" csv:"-"`
+	PersonalEnrollmentType PersonalEnrollmentType `db:"personal_enrollment_type" json:"-" csv:"-"`
+	MDMID                  *uint                  `db:"mdm_id" json:"-" csv:"-"`
+	Name                   string                 `db:"name" json:"-" csv:"-"`
+	DEPProfileAssignStatus *string                `db:"dep_profile_assign_status" json:"-" csv:"-"`
 	// ManagedAppleID is set for iOS/iPadOS hosts enrolled via Account-Driven
 	// User Enrollment, sourced from the IdP account email resolved from the
 	// OAuth Bearer token at TokenUpdate time. Apple does not reliably populate
@@ -1747,17 +1756,64 @@ func MDMNameFromServerURL(serverURL string) string {
 	return UnknownMDMName
 }
 
-// MDM enrollment status values returned by HostMDM.EnrollmentStatus and sent back to the UI.
+// PersonalEnrollmentType is how a personal (BYOD) enrollment reached Fleet. The
+// empty value means the enrollment is not personal.
+type PersonalEnrollmentType string
+
 const (
-	MDMEnrollmentStatusPersonal  = "On (manual - personal)"
-	MDMEnrollmentStatusManual    = "On (manual)"
-	MDMEnrollmentStatusAutomatic = "On (automatic)"
-	MDMEnrollmentStatusPending   = "Pending"
-	MDMEnrollmentStatusOff       = "Off"
+	PersonalEnrollmentTypeNone          PersonalEnrollmentType = ""
+	PersonalEnrollmentTypeAccountDriven PersonalEnrollmentType = "account_driven"
+	PersonalEnrollmentTypeWorkProfile   PersonalEnrollmentType = "work_profile"
+	PersonalEnrollmentTypeManualProfile PersonalEnrollmentType = "manual_profile"
 )
 
+func (t PersonalEnrollmentType) IsPersonal() bool { return t != PersonalEnrollmentTypeNone }
+
+// Value stores the empty type as NULL rather than an empty-string enum member.
+func (t PersonalEnrollmentType) Value() (driver.Value, error) {
+	if t == PersonalEnrollmentTypeNone {
+		return nil, nil
+	}
+	return string(t), nil
+}
+
+func (t *PersonalEnrollmentType) Scan(src any) error {
+	switch v := src.(type) {
+	case nil:
+		*t = PersonalEnrollmentTypeNone
+	case []byte:
+		*t = PersonalEnrollmentType(v)
+	case string:
+		*t = PersonalEnrollmentType(v)
+	default:
+		return fmt.Errorf("unsupported type for PersonalEnrollmentType: %T", src)
+	}
+	return nil
+}
+
+// MDM enrollment status values returned by HostMDM.EnrollmentStatus and sent back to the UI.
+const (
+	MDMEnrollmentStatusPersonal       = "On (personal)"
+	MDMEnrollmentStatusManualPersonal = "On (manual - personal)"
+	MDMEnrollmentStatusManual         = "On (manual)"
+	MDMEnrollmentStatusAutomatic      = "On (automatic)"
+	MDMEnrollmentStatusPending        = "Pending"
+	MDMEnrollmentStatusOff            = "Off"
+)
+
+// IsPersonalEnrollmentStatus reports whether status is either personal (BYOD)
+// status. Wipe, lock and vitals guards must use it rather than comparing against
+// one status, or devices enrolled by the other mechanism lose their protection.
+func IsPersonalEnrollmentStatus(status string) bool {
+	return status == MDMEnrollmentStatusPersonal || status == MDMEnrollmentStatusManualPersonal
+}
+
+// EnrollmentStatus mirrors the host_mdm.enrollment_status generated column.
 func (h *HostMDM) EnrollmentStatus() string {
 	switch {
+	case h.Enrolled && !h.InstalledFromDep && h.IsPersonalEnrollment &&
+		h.PersonalEnrollmentType == PersonalEnrollmentTypeManualProfile:
+		return MDMEnrollmentStatusManualPersonal
 	case h.Enrolled && !h.InstalledFromDep && h.IsPersonalEnrollment:
 		return MDMEnrollmentStatusPersonal
 	case h.Enrolled && !h.InstalledFromDep && !h.IsPersonalEnrollment:
@@ -1777,7 +1833,7 @@ func (h *HostMDM) EnrollmentStatus() string {
 // and misleading. Validation failures return a typed BadRequestError or InvalidArgumentError; a failure reading the app config
 // returns the underlying datastore error. Callers wrap the result with ctxerr.
 func ValidateAndroidWipeRequest(ctx context.Context, ds Datastore, host *Host) error {
-	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == MDMEnrollmentStatusPersonal {
+	if host.MDM.EnrollmentStatus != nil && IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) {
 		return &BadRequestError{
 			Message: "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.",
 		}
@@ -1873,12 +1929,13 @@ type AggregatedMunkiIssue struct {
 }
 
 type AggregatedMDMStatus struct {
-	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
-	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
-	EnrolledPersonalHostsCount  int `json:"enrolled_personal_hosts_count" db:"enrolled_personal_hosts_count"`
-	PendingHostsCount           int `json:"pending_hosts_count" db:"pending_hosts_count"`
-	UnenrolledHostsCount        int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
-	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
+	EnrolledManualHostsCount         int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
+	EnrolledAutomatedHostsCount      int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
+	EnrolledPersonalHostsCount       int `json:"enrolled_personal_hosts_count" db:"enrolled_personal_hosts_count"`
+	EnrolledManualPersonalHostsCount int `json:"enrolled_manual_personal_hosts_count" db:"enrolled_manual_personal_hosts_count"`
+	PendingHostsCount                int `json:"pending_hosts_count" db:"pending_hosts_count"`
+	UnenrolledHostsCount             int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
+	HostsCount                       int `json:"hosts_count" db:"hosts_count"`
 }
 
 // AggregatedMDMData contains aggregated data from mdm installations.
@@ -1987,6 +2044,7 @@ type HostDetailOptions struct {
 	IncludeCriticalVulnerabilitiesCount bool
 	IncludePolicies                     bool
 	ExcludeSoftware                     bool
+	ExcludeHiddenPolicies               bool
 }
 
 // EnrollHostLimiter defines the methods to support enforcement of enrolled

@@ -377,7 +377,7 @@ func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 		}
 
 		err := ds.RemovePendingInHouseAppInstalls(ctx, id)
-		if err != nil && !fleet.IsNotFound(err) {
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete in house app: remove pending in house app installs")
 		}
 
@@ -434,7 +434,8 @@ func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHous
 
 	for _, in := range installs {
 		_, err := ds.CancelHostUpcomingActivity(ctx, in.HostID, in.ExecutionID)
-		if err != nil {
+		// Ignore the not found error for installs that finished or were canceled since the select above, their upcoming activity is already deleted
+		if err != nil && !fleet.IsNotFound(err) {
 			return err
 		}
 	}
@@ -663,7 +664,7 @@ func (ds *Datastore) SetInHouseAppInstallAsFailed(ctx context.Context, hostID ui
 	stmt := `
 UPDATE host_in_house_software_installs
 SET verification_failed_at = CURRENT_TIMESTAMP(6),
-verification_command_uuid = ?
+verification_command_uuid = NULLIF(?, '')
 WHERE command_uuid = ?
 	`
 

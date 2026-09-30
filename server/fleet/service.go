@@ -516,7 +516,7 @@ type Service interface {
 	// ListDevicePolicies lists all policies for the given host in their
 	// device-safe representation (which excludes the policy author's identity
 	// and the raw SQL query), including passing / failing responses.
-	ListDevicePolicies(ctx context.Context, host *Host) ([]*DevicePolicy, error)
+	ListDevicePolicies(ctx context.Context, host *Host, includeHidden bool) ([]*DevicePolicy, error)
 
 	// BypassConditionalAccess lets a host skip conditional access checks for one check
 	BypassConditionalAccess(ctx context.Context, host *Host) error
@@ -1753,6 +1753,13 @@ type Service interface {
 	// SendAPNSPing sends a ping to the specified host via APNS. Only valid for Apple hosts.
 	SendAPNSPing(ctx context.Context, hostID uint) error
 	DeviceSendAPNSPing(ctx context.Context, host *Host) error
+
+	// InstallSelfServiceConfigurationProfile opts-in to the specified self-service configuration profile on the host.
+	InstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error
+	// UninstallSelfServiceConfigurationProfile opts-out of the specified self-service configuration profile on the host.
+	UninstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error
+	DeviceInstallSelfServiceConfigurationProfile(ctx context.Context, host *Host, profileUUID string) error
+	DeviceUninstallSelfServiceConfigurationProfile(ctx context.Context, host *Host, profileUUID string) error
 }
 
 type KeyValueStore interface {

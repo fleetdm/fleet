@@ -4759,7 +4759,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	// simulate osquery reporting host mdm details (host_mdm.enrolled = 1 is condition for
 	// hosts filtering by os settings status and generating mdm profiles summaries)
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, nil, label)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
 		Verified: 1,
@@ -9285,6 +9285,133 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	})
 }
 
+// Moving a host between fleets that hold a byte-identical profile must keep the
+// pending install the host already has queued, whether the device hasn't
+// fetched it yet or answered NotNow.
+func (s *integrationMDMTestSuite) TestAppleProfileTransferKeepsPendingInstallForIdenticalProfile() {
+	t := s.T()
+	ctx := t.Context()
+
+	const identifier = "com.example.transfer.shared"
+	shared := mobileconfigForTest("TransferShared", identifier)
+
+	teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_A"})
+	require.NoError(t, err)
+	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_B"})
+	require.NoError(t, err)
+	for _, tm := range []*fleet.Team{teamA, teamB} {
+		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{shared}},
+			http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	}
+
+	profileUUIDForTeam := func(teamID uint) string {
+		var profUUID string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &profUUID,
+				`SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier = ?`, teamID, identifier)
+		})
+		return profUUID
+	}
+
+	type hostProfileRow struct {
+		ProfileUUID string                   `db:"profile_uuid"`
+		Status      *fleet.MDMDeliveryStatus `db:"status"`
+		CommandUUID string                   `db:"command_uuid"`
+	}
+	getRow := func(hostUUID string) hostProfileRow {
+		var row hostProfileRow
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT profile_uuid, status, command_uuid FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_identifier = ?`,
+				hostUUID, identifier)
+		})
+		return row
+	}
+	isQueued := func(hostUUID, cmdUUID string) bool {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n,
+				`SELECT COUNT(*) FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ? AND active = 1`, hostUUID, cmdUUID)
+		})
+		return n > 0
+	}
+	transfer := func(h *fleet.Host, teamID uint) {
+		s.Do("POST", "/api/v1/fleet/hosts/transfer",
+			addHostsToTeamRequest{TeamID: &teamID, HostIDs: []uint{h.ID}}, http.StatusOK)
+	}
+
+	// drainCommands answers every queued command, NotNow for notNowCmd and
+	// Acknowledged for the rest, and reports whether wantCmd was delivered.
+	drainCommands := func(device *mdmtest.TestAppleMDMClient, wantCmd, notNowCmd string) bool {
+		var seen bool
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.CommandUUID == wantCmd {
+				seen = true
+			}
+			if cmd.CommandUUID == notNowCmd {
+				cmd, err = device.NotNow(cmd.CommandUUID)
+			} else {
+				cmd, err = device.Acknowledge(cmd.CommandUUID)
+			}
+			require.NoError(t, err)
+		}
+		return seen
+	}
+
+	offlineHost, offlineDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	notNowHost, notNowDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	for _, h := range []*fleet.Host{offlineHost, notNowHost} {
+		transfer(h, teamA.ID)
+		require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+h.UUID))
+	}
+	s.awaitTriggerProfileSchedule(t)
+
+	profA, profB := profileUUIDForTeam(teamA.ID), profileUUIDForTeam(teamB.ID)
+	require.NotEqual(t, profA, profB)
+
+	queuedCmds := make(map[string]string, 2)
+	for _, h := range []*fleet.Host{offlineHost, notNowHost} {
+		row := getRow(h.UUID)
+		require.Equal(t, profA, row.ProfileUUID)
+		require.NotNil(t, row.Status)
+		require.Equal(t, fleet.MDMDeliveryPending, *row.Status)
+		require.NotEmpty(t, row.CommandUUID)
+		queuedCmds[h.UUID] = row.CommandUUID
+	}
+
+	// the offline host never checks in; the other fetches the install and defers it
+	require.True(t, drainCommands(notNowDevice, queuedCmds[notNowHost.UUID], queuedCmds[notNowHost.UUID]))
+
+	for _, h := range []*fleet.Host{offlineHost, notNowHost} {
+		transfer(h, teamB.ID)
+		require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+h.UUID))
+	}
+	s.awaitTriggerProfileSchedule(t)
+
+	for _, tc := range []struct {
+		host   *fleet.Host
+		device *mdmtest.TestAppleMDMClient
+	}{
+		{offlineHost, offlineDevice},
+		{notNowHost, notNowDevice},
+	} {
+		cmdUUID := queuedCmds[tc.host.UUID]
+		row := getRow(tc.host.UUID)
+		require.Equal(t, profB, row.ProfileUUID, "host %s", tc.host.UUID)
+		require.NotNil(t, row.Status)
+		require.Equal(t, fleet.MDMDeliveryPending, *row.Status)
+		require.Equal(t, cmdUUID, row.CommandUUID, "the new fleet's row takes over the queued install")
+		require.True(t, isQueued(tc.host.UUID, cmdUUID), "the taken-over install must still be queued for the device")
+
+		require.True(t, drainCommands(tc.device, cmdUUID, ""), "device must receive the queued install")
+		row = getRow(tc.host.UUID)
+		require.NotNil(t, row.Status)
+		require.Equal(t, fleet.MDMDeliveryVerifying, *row.Status)
+	}
+}
+
 func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 	t := s.T()
 	ctx := t.Context()
@@ -11026,4 +11153,179 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationResendConfigurationProfile
 	reportPolicies(map[uint]*bool{winResendPolicy.ID: new(false)})
 	require.Equal(t, lastActivityID, s.lastActivityMatches("", "", 0),
 		"no activity should be recorded for a profile the host can't receive")
+}
+
+func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninstall() {
+	t := s.T()
+	ctx := t.Context()
+	kv := redis_key_value.New(s.redisPool)
+
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+		{Name: "SS1", Contents: mobileconfigForTest("SS1", "ISS1")},
+	}}, http.StatusNoContent)
+	t.Cleanup(func() {
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{}, http.StatusNoContent)
+	})
+	regularUUID := s.assertConfigProfilesByIdentifier(nil, "I1", true).ProfileUUID
+	ssUUID := s.assertConfigProfilesByIdentifier(nil, "ISS1", true).ProfileUUID
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET self_service = 1 WHERE profile_uuid = ?`, ssUUID)
+		return err
+	})
+
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	token := "self_service_profile_token"
+	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, token))
+
+	reconcileAndAck := func() {
+		require.NoError(t, kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
+		require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+	hostProfile := func(ident string) *fleet.HostMDMAppleProfile {
+		profs, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		for _, p := range profs {
+			if p.Identifier == ident {
+				return &p
+			}
+		}
+		return nil
+	}
+	activity := func(selfService bool) string {
+		return fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "self_service": %t, "profile_name": "SS1"}`,
+			host.ID, host.DisplayName(), selfService)
+	}
+	adminPath := func(profUUID, action string) string {
+		return fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/%s", host.ID, profUUID, action)
+	}
+	devicePath := func(profUUID, action string) string {
+		return fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/%s", token, profUUID, action)
+	}
+	// ssDetails returns the self-service profile's entry from the admin and device host details, asserting both
+	// agree and that it is listed at most once.
+	ssDetails := func() *fleet.HostMDMProfile {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		var deviceResp getDeviceHostResponse
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&deviceResp))
+		find := func(profs *[]fleet.HostMDMProfile) *fleet.HostMDMProfile {
+			require.NotNil(t, profs)
+			var found *fleet.HostMDMProfile
+			for _, p := range *profs {
+				if p.ProfileUUID == ssUUID {
+					require.Nil(t, found, "self-service profile listed more than once")
+					found = &p
+				}
+			}
+			return found
+		}
+		got := find(hostResp.Host.MDM.Profiles)
+		require.Equal(t, got, find(deviceResp.Host.MDM.Profiles))
+		return got
+	}
+	// requireQueued asserts the install/uninstall endpoint wrote a NULL-status row for the reconciler, shown as pending.
+	requireQueued := func(op fleet.MDMOperationType) {
+		p := hostProfile("ISS1")
+		require.NotNil(t, p)
+		require.Equal(t, op, p.OperationType)
+		var rawStatus *string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &rawStatus, `SELECT status FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?`, host.UUID, ssUUID)
+		})
+		require.Nil(t, rawStatus)
+		d := ssDetails()
+		require.NotNil(t, d)
+		require.Equal(t, op, d.OperationType)
+		require.Equal(t, string(fleet.MDMDeliveryPending), *d.Status)
+	}
+	requireAvailable := func() {
+		d := ssDetails()
+		require.NotNil(t, d)
+		require.Nil(t, d.Status)
+		require.True(t, d.SelfService)
+	}
+
+	// Without an opt-in, only the regular profile is delivered.
+	reconcileAndAck()
+	require.NotNil(t, hostProfile("I1"))
+	require.Nil(t, hostProfile("ISS1"))
+	requireAvailable()
+
+	// Invalid targets are rejected.
+	s.Do("POST", adminPath(regularUUID, "install"), nil, http.StatusBadRequest)
+	s.Do("POST", adminPath(uuid.NewString(), "install"), nil, http.StatusBadRequest)
+	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusNotFound)
+	linuxHost := createOrbitEnrolledHost(t, "linux", "self_service_linux", s.ds)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/install", linuxHost.ID, ssUUID), nil, http.StatusBadRequest)
+
+	// Admin opts the host in; the reconciler then installs the profile.
+	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusAccepted)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledOptInConfigurationProfile{}.ActivityName(), activity(false), 0)
+	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusConflict)
+	requireQueued(fleet.MDMOperationTypeInstall)
+	s.DoRawNoAuth("POST", devicePath(ssUUID, "install"), nil, http.StatusConflict)
+
+	reconcileAndAck()
+	p := hostProfile("ISS1")
+	require.NotNil(t, p)
+	require.Equal(t, fleet.MDMOperationTypeInstall, p.OperationType)
+	require.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
+	d := ssDetails()
+	require.NotNil(t, d)
+	require.Equal(t, string(fleet.MDMDeliveryVerifying), *d.Status)
+
+	// End user opts out from the device endpoint; the reconciler removes it.
+	s.DoRawNoAuth("POST", devicePath(ssUUID, "uninstall"), nil, http.StatusAccepted)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeUninstalledOptInConfigurationProfile{}.ActivityName(), activity(true), 0)
+	s.DoRawNoAuth("POST", devicePath(ssUUID, "uninstall"), nil, http.StatusNotFound)
+	requireQueued(fleet.MDMOperationTypeRemove)
+
+	require.NoError(t, kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
+	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
+	p = hostProfile("ISS1")
+	require.NotNil(t, p)
+	require.Equal(t, fleet.MDMOperationTypeRemove, p.OperationType)
+	d = ssDetails()
+	require.NotNil(t, d)
+	require.Equal(t, fleet.MDMOperationTypeRemove, d.OperationType)
+	require.Equal(t, string(fleet.MDMDeliveryPending), *d.Status)
+	reconcileAndAck()
+	require.Nil(t, hostProfile("ISS1"))
+	require.NotNil(t, hostProfile("I1"))
+	requireAvailable()
+
+	// End user opts back in from the device endpoint.
+	s.DoRawNoAuth("POST", devicePath(ssUUID, "install"), nil, http.StatusAccepted)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledOptInConfigurationProfile{}.ActivityName(), activity(true), 0)
+	requireQueued(fleet.MDMOperationTypeInstall)
+	reconcileAndAck()
+	p = hostProfile("ISS1")
+	require.NotNil(t, p)
+	require.Equal(t, fleet.MDMOperationTypeInstall, p.OperationType)
+	require.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
+
+	// Remove it again, then install and uninstall before the reconciler runs: the never-sent install is dropped
+	// and nothing is sent to the device.
+	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusAccepted)
+	reconcileAndAck()
+	require.Nil(t, hostProfile("ISS1"))
+	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusAccepted)
+	requireQueued(fleet.MDMOperationTypeInstall)
+	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusAccepted)
+	require.Nil(t, hostProfile("ISS1"))
+	requireAvailable()
+	require.NoError(t, kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
+	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	require.Nil(t, hostProfile("ISS1"))
 }

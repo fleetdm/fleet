@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.4.7",
+      "version": "8.4.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.smileonmymac.textexpander';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.smileonmymac.textexpander' AND version_compare(bundle_short_version, '8.4.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.smileonmymac.textexpander' AND version_compare(bundle_short_version, '8.4.8') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.smileonmymac.textexpander' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.textexpander.com/mac/847.4/TextExpander_8.4.7.dmg",
+      "installer_url": "https://cdn.textexpander.com/mac/848.4/TextExpander_8.4.8.dmg",
       "install_script_ref": "b2126808",
       "uninstall_script_ref": "86a75cf4",
-      "sha256": "c07be7ffac1ca1b058a9ec0ff5a6ae11326a32b9ac53f27d97070369c424b929",
+      "sha256": "b587de0724684329f33e5dfdb0b7842cf70d1e4e2d83f55b68cc4669daecdeb7",
       "default_categories": [
         "Productivity"
       ]

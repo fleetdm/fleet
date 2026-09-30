@@ -28,6 +28,7 @@ type MDMAndroidConfigProfile struct {
 	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
 	TeamID           *uint                       `db:"team_id" json:"team_id" renameto:"fleet_id"`
 	Name             string                      `db:"name" json:"name"`
+	Description      string                      `db:"description" json:"description"`
 	RawJSON          []byte                      `db:"raw_json" json:"-"`
 	AutoIncrement    int64                       `db:"auto_increment" json:"auto_increment"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
@@ -245,6 +246,7 @@ type HostMDMAndroidProfile struct {
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string             `db:"detail" json:"detail"`
+	Hidden        bool               `db:"hidden" json:"hidden"`
 }
 
 func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
@@ -257,6 +259,8 @@ func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "android",
+		Hidden:        p.Hidden,
+		SelfService:   false,
 	}
 }
 

@@ -2,11 +2,14 @@ import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 
-import { SKIPPED_PRE_INSTALL_OUTPUT } from "components/ActivityDetails/InstallDetails/constants";
+import {
+  PRE_INSTALL_QUERY_FAIL_OUTPUT,
+  SKIPPED_PRE_INSTALL_OUTPUT,
+  SKIPPED_PRE_INSTALL_OUTPUT_NOTIFY,
+} from "components/ActivityDetails/InstallDetails/constants";
 import {
   getCaveatMessage,
   getAutomationNotifiedMessage,
-  isNotifyBeforePatchingSkip,
   SKIPPED_INSTALL_NOTIFY_EXPLANATION,
   EXIT_CODES_NEEDING_EUE_LINK,
   PATCHING_END_USER_EXPERIENCE_URL,
@@ -32,6 +35,7 @@ import {
   getAutomationRunDisplayName,
   getAutomationStatusIcon,
   getDetailOutputText,
+  isNotifySkip,
 } from "../PolicyAutomationsActivitiesTable/helpers";
 
 const baseClass = "policy-automation-activity-details-modal";
@@ -57,8 +61,7 @@ const PolicyAutomationActivityDetailsModal = ({
   const isSoftwareInstall = activity.type === ActivityType.InstalledSoftware;
   const isSkippedInstall =
     isSoftwareInstall && !!activity.details?.skipped_install;
-  const isSkippedNotifyVariant =
-    isSkippedInstall && isNotifyBeforePatchingSkip(activity.pre_install_output);
+  const isSkippedNotifyVariant = isSkippedInstall && isNotifySkip(activity);
   const scriptExecutionId = activity.details?.script_execution_id;
 
   const [showDetails, setShowDetails] = useState(false);
@@ -111,7 +114,7 @@ const PolicyAutomationActivityDetailsModal = ({
   })();
   const detailsContent = (() => {
     if (isNotify) return scriptResult?.output || activity.output || null;
-    if (isSkippedNotifyVariant) return activity.pre_install_output;
+    if (isSkippedNotifyVariant) return SKIPPED_PRE_INSTALL_OUTPUT_NOTIFY;
     return null;
   })();
 
@@ -188,14 +191,15 @@ const PolicyAutomationActivityDetailsModal = ({
       );
     }
     if (isSoftwareInstall) {
+      let preInstallOutput = activity.pre_install_output;
+      if (isSkippedInstall) {
+        preInstallOutput = SKIPPED_PRE_INSTALL_OUTPUT;
+      } else if (activity.status === "error" && preInstallOutput === "") {
+        preInstallOutput = PRE_INSTALL_QUERY_FAIL_OUTPUT;
+      }
       return (
         <>
-          {renderOutputSection(
-            "Pre-install query output",
-            activity.details?.skipped_install
-              ? SKIPPED_PRE_INSTALL_OUTPUT
-              : activity.pre_install_output
-          )}
+          {renderOutputSection("Pre-install query output", preInstallOutput)}
           {renderOutputSection("Details", activity.output)}
           {renderOutputSection(
             "Post-install script output",

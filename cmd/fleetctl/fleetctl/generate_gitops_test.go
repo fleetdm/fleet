@@ -201,6 +201,9 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 }
 
 func (c MockClient) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
+	if c.IsFree {
+		return nil, fleet.ErrMissingLicense
+	}
 	if !c.WithAssets {
 		return nil, nil
 	}
@@ -503,6 +506,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				Description: "This is a team policy with VPP app automation",
 				Platform:    "darwin",
 				Type:        fleet.PolicyTypeDynamic,
+				Hidden:      true,
 			},
 			InstallSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 2,

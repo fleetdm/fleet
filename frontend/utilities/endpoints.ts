@@ -82,6 +82,10 @@ export default {
   },
   DEVICE_RESEND_PROFILE: (token: string, profileUUID: string) =>
     `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/resend`,
+  DEVICE_INSTALL_PROFILE: (token: string, profileUUID: string) =>
+    `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/install`,
+  DEVICE_UNINSTALL_PROFILE: (token: string, profileUUID: string) =>
+    `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/uninstall`,
   DEVICE_BYPASS_CONDITIONAL_ACCESS: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/bypass_conditional_access`,
   DEVICE_NOTIFICATION: (token: string, notificationUuid: string) =>
@@ -115,6 +119,10 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/clear_passcode`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/resend`,
+  HOST_INSTALL_PROFILE: (hostId: number, profileUUID: string) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/install`,
+  HOST_UNINSTALL_PROFILE: (hostId: number, profileUUID: string) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/uninstall`,
   HOST_RESEND_CERTIFICATE: (hostId: number, certificateTemplateId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/certificates/${certificateTemplateId}/resend`,
   HOST_RESEND_NAME_TEMPLATE: (hostId: number) =>
@@ -170,6 +178,7 @@ export default {
   MDM_ANDROID_ENTERPRISE: `/${API_VERSION}/fleet/android_enterprise`,
   MDM_ANDROID_SIGNUP_URL: `/${API_VERSION}/fleet/android_enterprise/signup_url`,
   MDM_ANDROID_SSE_URL: `/api/${API_VERSION}/fleet/android_enterprise/signup_sse`,
+  MDM_ANDROID_ZERO_TOUCH_CONFIGURATION: `/${API_VERSION}/fleet/android_enterprise/zero_touch_configuration`,
 
   // apple mdm endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,

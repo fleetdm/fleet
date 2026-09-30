@@ -1,6 +1,8 @@
 package mysql
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +23,7 @@ func TestAndroidZeroTouch(t *testing.T) {
 		{"GetNotFound", testZeroTouchGetNotFound},
 		{"CreateAndGet", testZeroTouchCreateAndGet},
 		{"CreateDuplicateTeam", testZeroTouchCreateDuplicateTeam},
+		{"ConcurrentCreate", testZeroTouchConcurrentCreate},
 		{"DeleteAll", testZeroTouchDeleteAll},
 	}
 	for _, c := range cases {
@@ -97,24 +100,60 @@ func testZeroTouchCreateDuplicateTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	teamID := team.ID
 
-	token := &android.ZeroTouchToken{
+	first, err := ds.CreateZeroTouchEnrollmentToken(testCtx(), &android.ZeroTouchToken{
 		TeamID:     &teamID,
 		TokenName:  "enterprises/LC00test/enrollmentTokens/first",
 		TokenValue: "first",
 		ExpiresAt:  expiresAt,
-	}
-	_, err = ds.CreateZeroTouchEnrollmentToken(testCtx(), token)
+	})
 	require.NoError(t, err)
 
-	// A second token for the same team should fail (unique key)
-	dup := &android.ZeroTouchToken{
+	// A duplicate insert returns the existing token, not an error.
+	got, err := ds.CreateZeroTouchEnrollmentToken(testCtx(), &android.ZeroTouchToken{
 		TeamID:     &teamID,
 		TokenName:  "enterprises/LC00test/enrollmentTokens/second",
 		TokenValue: "second",
 		ExpiresAt:  expiresAt,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, first.ID, got.ID)
+	assert.Equal(t, "first", got.TokenValue)
+}
+
+func testZeroTouchConcurrentCreate(t *testing.T, ds *Datastore) {
+	expiresAt := time.Now().Add(100 * 365 * 24 * time.Hour)
+
+	const n = 10
+	type result struct {
+		token *android.ZeroTouchToken
+		err   error
 	}
-	_, err = ds.CreateZeroTouchEnrollmentToken(testCtx(), dup)
-	assert.Error(t, err)
+	results := make([]result, n)
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := range n {
+		go func(i int) {
+			defer wg.Done()
+			tok, err := ds.CreateZeroTouchEnrollmentToken(testCtx(), &android.ZeroTouchToken{
+				TokenName:  fmt.Sprintf("enterprises/LC00test/enrollmentTokens/tok%d", i),
+				TokenValue: fmt.Sprintf("value%d", i),
+				ExpiresAt:  expiresAt,
+			})
+			results[i] = result{tok, err}
+		}(i)
+	}
+	wg.Wait()
+
+	// All calls must succeed and return the same winning token.
+	var winnerID uint
+	for _, r := range results {
+		require.NoError(t, r.err)
+		require.NotNil(t, r.token)
+		if winnerID == 0 {
+			winnerID = r.token.ID
+		}
+		assert.Equal(t, winnerID, r.token.ID, "all callers should get the same token")
+	}
 }
 
 func testZeroTouchDeleteAll(t *testing.T, ds *Datastore) {

@@ -273,7 +273,7 @@ type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fle
 
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
 
-type ListDevicePoliciesFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error)
+type ListDevicePoliciesFunc func(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error)
 
 type BypassConditionalAccessFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -1028,6 +1028,14 @@ type ApplyMicrosoftGraphCredentialsFunc func(ctx context.Context, creds []fleet.
 type SendAPNSPingFunc func(ctx context.Context, hostID uint) error
 
 type DeviceSendAPNSPingFunc func(ctx context.Context, host *fleet.Host) error
+
+type InstallSelfServiceConfigurationProfileFunc func(ctx context.Context, hostID uint, profileUUID string) error
+
+type UninstallSelfServiceConfigurationProfileFunc func(ctx context.Context, hostID uint, profileUUID string) error
+
+type DeviceInstallSelfServiceConfigurationProfileFunc func(ctx context.Context, host *fleet.Host, profileUUID string) error
+
+type DeviceUninstallSelfServiceConfigurationProfileFunc func(ctx context.Context, host *fleet.Host, profileUUID string) error
 
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
@@ -2542,6 +2550,18 @@ type Service struct {
 	DeviceSendAPNSPingFunc        DeviceSendAPNSPingFunc
 	DeviceSendAPNSPingFuncInvoked bool
 
+	InstallSelfServiceConfigurationProfileFunc        InstallSelfServiceConfigurationProfileFunc
+	InstallSelfServiceConfigurationProfileFuncInvoked bool
+
+	UninstallSelfServiceConfigurationProfileFunc        UninstallSelfServiceConfigurationProfileFunc
+	UninstallSelfServiceConfigurationProfileFuncInvoked bool
+
+	DeviceInstallSelfServiceConfigurationProfileFunc        DeviceInstallSelfServiceConfigurationProfileFunc
+	DeviceInstallSelfServiceConfigurationProfileFuncInvoked bool
+
+	DeviceUninstallSelfServiceConfigurationProfileFunc        DeviceUninstallSelfServiceConfigurationProfileFunc
+	DeviceUninstallSelfServiceConfigurationProfileFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -3427,11 +3447,11 @@ func (s *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite, e
 	return s.HostLiteByIDFunc(ctx, id)
 }
 
-func (s *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
+func (s *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error) {
 	s.mu.Lock()
 	s.ListDevicePoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListDevicePoliciesFunc(ctx, host)
+	return s.ListDevicePoliciesFunc(ctx, host, includeHidden)
 }
 
 func (s *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
@@ -6071,4 +6091,32 @@ func (s *Service) DeviceSendAPNSPing(ctx context.Context, host *fleet.Host) erro
 	s.DeviceSendAPNSPingFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeviceSendAPNSPingFunc(ctx, host)
+}
+
+func (s *Service) InstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	s.mu.Lock()
+	s.InstallSelfServiceConfigurationProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.InstallSelfServiceConfigurationProfileFunc(ctx, hostID, profileUUID)
+}
+
+func (s *Service) UninstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	s.mu.Lock()
+	s.UninstallSelfServiceConfigurationProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UninstallSelfServiceConfigurationProfileFunc(ctx, hostID, profileUUID)
+}
+
+func (s *Service) DeviceInstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	s.mu.Lock()
+	s.DeviceInstallSelfServiceConfigurationProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeviceInstallSelfServiceConfigurationProfileFunc(ctx, host, profileUUID)
+}
+
+func (s *Service) DeviceUninstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	s.mu.Lock()
+	s.DeviceUninstallSelfServiceConfigurationProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeviceUninstallSelfServiceConfigurationProfileFunc(ctx, host, profileUUID)
 }

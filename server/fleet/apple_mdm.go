@@ -76,6 +76,9 @@ const (
 	MDMAppleStatusNotNow             = "NotNow"
 )
 
+// Statuses a device will not answer again; NotNow is still outstanding and gets re-served.
+var MDMAppleTerminalStatuses = []string{MDMAppleStatusAcknowledged, MDMAppleStatusError, MDMAppleStatusCommandFormatError}
+
 // MDMAppleEnrollmentProfilePayload contains the data necessary to create
 // an enrollment profile in Fleet.
 type MDMAppleEnrollmentProfilePayload struct {
@@ -237,6 +240,9 @@ type MDMAppleConfigProfile struct {
 	// Name corresponds to the payload display name of the associated mobileconfig payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
+	// Description is free text written by the admin. It is not part of the
+	// checksum, so changing it never re-delivers the profile.
+	Description string `db:"description" json:"description"`
 	// Mobileconfig is the byte slice corresponding to the XML property list (i.e. plist)
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
 	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
@@ -342,6 +348,8 @@ type HostMDMAppleProfile struct {
 	VariablesUpdatedAt  *time.Time         `db:"variables_updated_at" json:"-"`
 	Scope               PayloadScope       `db:"scope" json:"scope"`
 	ManagedLocalAccount string             `db:"managed_local_account" json:"managed_local_account"`
+	SelfService         bool               `db:"self_service" json:"self_service"`
+	Hidden              bool               `db:"hidden" json:"hidden"`
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
@@ -361,6 +369,8 @@ func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 		Platform:            platform,
 		Scope:               &scope,
 		ManagedLocalAccount: &p.ManagedLocalAccount,
+		SelfService:         p.SelfService,
+		Hidden:              p.Hidden,
 	}
 }
 
@@ -523,6 +533,8 @@ type AppleProfileForReconcile struct {
 	IncludeMode       AppleProfileIncludeMode
 	IncludeLabels     []AppleProfileLabelRef
 	ExcludeLabels     []AppleProfileLabelRef
+	SelfService       bool
+	Hidden            bool
 }
 
 // AppleLabeledEntity implementation.
@@ -948,6 +960,10 @@ type MDMAppleDeclaration struct {
 	// Name corresponds to the file name of the associated JSON declaration payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
+
+	// Description is free text written by the admin. It is not part of the
+	// token, so changing it never re-delivers the declaration.
+	Description string `db:"description" json:"description"`
 
 	// Scope is the channel the declaration is delivered on, parsed from the
 	// declaration's top-level PayloadScope. "System" (the default) targets the
@@ -2082,6 +2098,42 @@ type MDMAppleCommandCleanupStateStore interface {
 	// SetMDMAppleCommandCleanupState stores the cursors. A nil state resets
 	// them.
 	SetMDMAppleCommandCleanupState(ctx context.Context, state *MDMAppleCommandCleanupState) error
+}
+
+// MDMAppleCommandCleanupOptions carries the server config knobs into one run of
+// the Apple MDM command cleanup.
+type MDMAppleCommandCleanupOptions struct {
+	// ShortRetention is how long inactive queue rows and completed commands
+	// in AppleMDMShortRetentionClasses are kept; zero skips the inactive
+	// purge and moves the short classes to the standard window.
+	ShortRetention time.Duration
+	// StandardRetention is how long other completed commands in
+	// AppleMDMStandardRetentionRequestTypes are kept; zero skips that sweep.
+	StandardRetention time.Duration
+	// MaxRowDeletions caps queue/result pairs deleted per run; zero deletes
+	// none.
+	MaxRowDeletions int
+	// MaxCmdDeletions caps nano_commands rows deleted per run; zero deletes
+	// none.
+	MaxCmdDeletions int
+}
+
+// MDMAppleCommandCleanupStats reports what one cleanup run did, for the cron's
+// log line.
+type MDMAppleCommandCleanupStats struct {
+	InactivePairsDeleted int
+	ShortPairsDeleted    int
+	StandardPairsDeleted int
+	// CommandsDeleted: nano_commands rows removed right after their pairs; OrphanCommandsDeleted: found by the background walk.
+	CommandsDeleted       int
+	OrphanCommandsDeleted int
+	// RowBudgetExhausted is set when a pair sweep stopped early, on
+	// MaxRowDeletions or its per-run scan cap, with candidates left, so the
+	// backlog carries over to the next run.
+	RowBudgetExhausted bool
+	// CmdBudgetExhausted is set when the command mop stopped on
+	// MaxCmdDeletions with candidates left.
+	CmdBudgetExhausted bool
 }
 
 // The following constants represent which GetToken[1] service types supported by Fleet for Apple MDM.

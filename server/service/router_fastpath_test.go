@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	chart_bootstrap "github.com/fleetdm/fleet/v4/server/chart/bootstrap"
@@ -74,7 +75,7 @@ func productionFeatureRoutes(t *testing.T, fleetSvc fleet.Service) []endpointer.
 
 	_, activityRoutes := activity_bootstrap.New(conns, nil, nil, logger)
 	_, acmeRoutes := acme_bootstrap.New(conns, nil, nil, logger)
-	_, chartRoutes := chart_bootstrap.New(conns, nil, nil, logger)
+	_, chartRoutes := chart_bootstrap.New(conns, nil, nil, chartacl.ExpandPlatform, logger)
 
 	return []endpointer.HandlerRoutesFunc{
 		android_service.GetRoutes(fleetSvc, nil),
