@@ -1,0 +1,1 @@
+- Replaced the "Enable disk encryption" checkbox's helper text with a tooltip on the macOS and Windows tabs of **Controls > OS settings > Disk encryption**.
