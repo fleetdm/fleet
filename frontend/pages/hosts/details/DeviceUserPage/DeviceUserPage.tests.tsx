@@ -492,6 +492,7 @@ describe("Device User Page", () => {
             ...response,
             host: {
               ...response.host,
+              issues: { ...response.host.issues, hidden_policies_count: 2 },
               policies: includeHidden ? withHidden : visible,
             },
           });
@@ -535,6 +536,54 @@ describe("Device User Page", () => {
         expect(policiesTab).toHaveTextContent(/Policies\s*3$/);
       });
       expect(screen.getAllByText("Hidden policy A").length).toBeGreaterThan(0);
+    });
+
+    it("does not render the toggle when the device has no hidden policies", async () => {
+      const response = createDefaultDeviceResponse();
+      response.global_config.features.enable_software_inventory = true;
+      const policy = ({
+        id: 1,
+        name: "Visible policy",
+        description: "",
+        resolution: "",
+        platform: "darwin",
+        critical: false,
+        conditional_access_enabled: false,
+        response: "pass",
+      } as unknown) as IHostPolicy;
+      mockServer.use(
+        http.get(baseUrl("/device/:token"), () =>
+          HttpResponse.json({
+            ...response,
+            host: {
+              ...response.host,
+              issues: { ...response.host.issues, hidden_policies_count: 0 },
+              policies: [policy],
+            },
+          })
+        )
+      );
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={{
+            ...mockLocation,
+            pathname: PATHS.DEVICE_USER_DETAILS_POLICIES("testToken"),
+          }}
+        />
+      );
+
+      expect(
+        (await screen.findAllByText("Visible policy")).length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.queryByRole("switch", { name: "Show hidden policies" })
+      ).not.toBeInTheDocument();
     });
   });
 

@@ -1935,12 +1935,15 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	// Calculate the number of failing policies for the host based on the returned policies to
 	// avoid discrepancies due to read replica delay.
-	var failingPolicies, failingUnhiddenPolicies uint64
+	var failingPolicies, failingUnhiddenPolicies, hiddenPolicies uint64
 	if policies != nil {
 		visible := make([]*fleet.HostPolicy, 0, len(*policies))
 		for _, p := range *policies {
 			if p == nil {
 				continue
+			}
+			if p.Hidden {
+				hiddenPolicies++
 			}
 			if p.Response == "fail" {
 				failingPolicies++
@@ -1957,6 +1960,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.HostIssues.FailingPoliciesCount = failingPolicies
 	if license.IsPremium(ctx) {
 		host.HostIssues.FailingUnhiddenPoliciesCount = &failingUnhiddenPolicies
+		host.HostIssues.HiddenPoliciesCount = &hiddenPolicies
 	}
 
 	// If Fleet MDM is enabled and configured, we want to include MDM profiles,
