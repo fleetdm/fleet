@@ -4953,25 +4953,29 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 
 	// buildReqMsg builds a minimal valid SyncML request. extraBody (if non-empty) is inserted into <SyncBody>; use it to
 	// inject a <Results> with the device's reply to our DevDetail Get.
-	buildReqMsg := func(t *testing.T, extraBody string) *fleet.SyncML {
+	buildReqMsgWithID := func(t *testing.T, msgID, extraBody string) *fleet.SyncML {
 		t.Helper()
 		raw := fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
 			<SyncHdr>
 				<VerDTD>1.2</VerDTD>
 				<VerProto>DM/1.2</VerProto>
 				<SessionID>1</SessionID>
-				<MsgID>1</MsgID>
+				<MsgID>%s</MsgID>
 				<Source><LocURI>%s</LocURI></Source>
 			</SyncHdr>
 			<SyncBody>
 				%s
 				<Final/>
 			</SyncBody>
-		</SyncML>`, testDeviceID, extraBody)
+		</SyncML>`, msgID, testDeviceID, extraBody)
 		reqMsg := &fleet.SyncML{}
 		require.NoError(t, xml.Unmarshal([]byte(raw), reqMsg))
 		reqMsg.Raw = []byte(raw)
 		return reqMsg
+	}
+	buildReqMsg := func(t *testing.T, extraBody string) *fleet.SyncML {
+		t.Helper()
+		return buildReqMsgWithID(t, "1", extraBody)
 	}
 
 	// newSvc builds a service with the stubs that processIncomingMDMCmds always touches; per-subtest stubs override.
@@ -5085,6 +5089,53 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 			}
 		}
 		assert.True(t, foundInternalCmdID, "expected to find the DevDetail Get among response commands")
+	})
+
+	t.Run("unlinked enrollment mid-session: no Get", func(t *testing.T) {
+		svc, _, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "2", ""), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.True(t, hasGetForDevDetailSerial(cmds), "MsgID 2 still opens the session")
+
+		cmds, err = svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "3", ""), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.False(t, hasGetForDevDetailSerial(cmds), "the Get is sent once per session, not on every message")
+	})
+
+	t.Run("challenged session: Get goes out on the first trusted message", func(t *testing.T) {
+		svc, _, _, ctx := newSvc(t)
+		svc.keyValueStore = memoryKVStore()
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
+
+		// Real devices: MsgID 1 is challenged, MsgID 2 is the first
+		// trusted message, and MsgID 3 acks it.
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "1", ""), RequestAuthStateChallenge)
+		require.NoError(t, err)
+		assert.False(t, hasGetForDevDetailSerial(cmds), "a challenge response carries only the auth status")
+
+		cmds, err = svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "2", ""), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.True(t, hasGetForDevDetailSerial(cmds))
+
+		cmds, err = svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "3", ""), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.False(t, hasGetForDevDetailSerial(cmds))
+	})
+
+	t.Run("Results with SMBIOS serial link the host mid-session", func(t *testing.T) {
+		svc, ds, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
+		stubLink(t, ds, true)
+
+		// The reply to the session-start Get arrives mid-session.
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "3", serialResults(testSerial)), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+		assert.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID)
+		assert.False(t, hasGetForDevDetailSerial(cmds), "no Get once linked")
 	})
 
 	t.Run("already-linked enrollment: no Get and no host lookup", func(t *testing.T) {
