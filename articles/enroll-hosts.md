@@ -24,6 +24,8 @@ To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleet
 
 4. Install fleetd on your host(s) to enroll it to Fleet.
 
+If you're trying to enroll a NixOS Linux host, follow [these instructions](#enroll-nixos-hosts) instead. 
+
 #### Mobile devices
 
 To manually enroll iOS, iPadOS, or Android hosts, follow the steps below:
