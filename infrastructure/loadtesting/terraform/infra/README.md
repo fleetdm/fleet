@@ -72,7 +72,7 @@ Additionally, refer to the [Reference Architecture sizing recommendations](https
 
 ## OpenTelemetry tracing with SigNoz
 
-By default, the loadtest environment uses Elastic APM. You can optionally use OpenTelemetry with SigNoz instead by setting `enable_otel=true`:
+By default, the loadtest environment runs without tracing. Elastic APM is not supported. Its instrumentation is gorilla-specific, so the Fleet server turns off the stdlib ServeMux fast path whenever Elastic APM is active. To trace a load test, enable OpenTelemetry with SigNoz by setting `enable_otel=true`:
 
 ```sh
 terraform apply -var=tag=v4.72.0 -var=enable_otel=true
@@ -211,7 +211,7 @@ terraform workspace delete <workspace_name>
 |------|-------------|------|---------|:--------:|
 | <a name="input_database_instance_count"></a> [database\_instance\_count](#input\_database\_instance\_count) | The number of Aurora database instances | `number` | `2` | no |
 | <a name="input_database_instance_size"></a> [database\_instance\_size](#input\_database\_instance\_size) | The instance size for Aurora database instances | `string` | `"db.t4g.medium"` | no |
-| <a name="input_enable_otel"></a> [enable\_otel](#input\_enable\_otel) | Enable OpenTelemetry tracing with SigNoz instead of Elastic APM | `bool` | `false` | no |
+| <a name="input_enable_otel"></a> [enable\_otel](#input\_enable\_otel) | Enable OpenTelemetry tracing with SigNoz. Tracing is disabled when false | `bool` | `false` | no |
 | <a name="input_fleet_task_count"></a> [fleet\_task\_count](#input\_fleet\_task\_count) | The total number (max) that ECS can scale Fleet containers up to | `number` | `5` | no |
 | <a name="input_fleet_task_cpu"></a> [fleet\_task\_cpu](#input\_fleet\_task\_cpu) | The CPU configuration for Fleet containers | `number` | `512` | no |
 | <a name="input_fleet_task_memory"></a> [fleet\_task\_memory](#input\_fleet\_task\_memory) | The memory configuration for Fleet containers | `number` | `4096` | no |

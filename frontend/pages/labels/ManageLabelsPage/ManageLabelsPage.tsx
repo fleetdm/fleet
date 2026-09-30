@@ -1,25 +1,20 @@
 import React, { useContext, useCallback, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-
-import PATHS from "router/paths";
-
-import { AppContext } from "context/app";
-import { notify } from "components/ToastNotification";
-import useGitOpsMode from "hooks/useGitOpsMode";
-
-import labelsAPI, { ILabelsResponse } from "services/entities/labels";
-import getDeleteLabelErrorMessages from "pages/labels/helpers";
-
-import { ILabel } from "interfaces/label";
-
-import DeleteLabelModal from "pages/hosts/ManageHostsPage/components/DeleteLabelModal";
+import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
-import MainContent from "components/MainContent";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { ILabel } from "interfaces/label";
+import DeleteLabelModal from "pages/hosts/ManageHostsPage/components/DeleteLabelModal";
+import getDeleteLabelErrorMessages from "pages/labels/helpers";
+import PATHS from "router/paths";
+import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 
 import LabelsTable from "./LabelsTable";
 

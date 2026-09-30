@@ -1,8 +1,8 @@
 import React, { useContext } from "react";
-import { syntaxHighlight } from "utilities/helpers";
 
 import { AppContext } from "context/app";
 import { IPolicyWebhookPreviewPayload } from "interfaces/policy";
+import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "example-payload";
 

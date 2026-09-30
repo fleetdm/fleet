@@ -1,13 +1,13 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import mockServer from "test/mock-server";
 import {
   activityHandlerHasMoreActivities,
   activityHandlerHasPreviousActivities,
 } from "test/handlers/activity-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import ActivityFeed from "./ActivityFeed";
 

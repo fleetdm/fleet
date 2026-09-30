@@ -1,63 +1,62 @@
-import React, { useMemo, useRef, useState } from "react";
-import { timeAgo } from "utilities/date_format";
-import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
+import React, { useMemo, useRef, useState } from "react";
+import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import paths from "router/paths";
-
-import activitiesAPI, {
-  IActivitiesResponse,
-} from "services/entities/activities";
-
-import {
-  resolveUninstallStatus,
-  SoftwareInstallUninstallStatus,
-  SCRIPT_PACKAGE_SOURCES,
-} from "interfaces/software";
+import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
+import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
+import NotifyBeforePatchingDetailsModal from "components/ActivityDetails/NotifyBeforePatchingDetailsModal";
+import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import IconStatusMessage from "components/IconStatusMessage";
+import EnrollmentAttemptDetailsModal, {
+  IEnrollmentAttemptDetailsModalProps,
+} from "components/modals/EnrollmentAttemptDetailsModal";
+import FailedEnrollmentProfileModal, {
+  IFailedEnrollmentProfileModalProps,
+} from "components/modals/FailedEnrollmentProfileModal";
+import ShowQueryModal from "components/modals/ShowQueryModal";
+import Pagination from "components/Pagination";
+import Spinner from "components/Spinner";
 import {
   ActivityType,
   IActivityDetails,
   IActivityDetailsWithActor,
 } from "interfaces/activity";
 import { PerformanceImpactIndicator } from "interfaces/schedulable_query";
-
 import {
-  formatMdmCommandNameForActivityItem,
-  getMdmCommandDisplayName,
-} from "utilities/activityHelpers";
-import { getPerformanceImpactDescription } from "utilities/helpers";
-
-import ShowQueryModal from "components/modals/ShowQueryModal";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import Pagination from "components/Pagination";
-import EmptyState from "components/EmptyState";
-
-import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
-import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
-import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
-import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
-import SoftwareUninstallDetailsModal, {
-  ISWUninstallDetailsParentState,
-} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-import FailedEnrollmentProfileModal, {
-  IFailedEnrollmentProfileModalProps,
-} from "components/modals/FailedEnrollmentProfileModal";
+  resolveUninstallStatus,
+  SoftwareInstallUninstallStatus,
+  SCRIPT_PACKAGE_SOURCES,
+} from "interfaces/software";
 import MdmCommandDetailsModal, {
   getIconName,
   getVerbForCommandStatus,
 } from "pages/hosts/components/CommandDetailsModal";
-import IconStatusMessage from "components/IconStatusMessage";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import paths from "router/paths";
+import activitiesAPI, {
+  IActivitiesResponse,
+} from "services/entities/activities";
+import {
+  formatMdmCommandNameForActivityItem,
+  getMdmCommandDisplayName,
+} from "utilities/activityHelpers";
+import { timeAgo } from "utilities/date_format";
+import { getPerformanceImpactDescription } from "utilities/helpers";
 
-import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
-import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
-import SoftwareDetailsModal from "./components/LibrarySoftwareDetailsModal";
-import AppStoreDetailsModal from "./components/AppStoreDetailsModal/AppStoreDetailsModal";
 import ActivityFeedFilters from "./components/ActivityFeedFilters";
+import AppStoreDetailsModal from "./components/AppStoreDetailsModal/AppStoreDetailsModal";
+import SoftwareDetailsModal from "./components/LibrarySoftwareDetailsModal";
+import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
+import GlobalActivityItem from "./GlobalActivityItem";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -156,6 +155,12 @@ const ActivityFeed = ({
     enrollmentProfileFailedDetails,
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [
+    enrollmentRejectedDetails,
+    setEnrollmentRejectedDetails,
+  ] = useState<Omit<IEnrollmentAttemptDetailsModalProps, "onDone"> | null>(
+    null
+  );
   const [mdmCommandActivityDetails, setMdmCommandActivityDetails] = useState<{
     host_uuid?: string;
     command_uuid: string;
@@ -163,6 +168,10 @@ const ActivityFeed = ({
     host_display_name?: string;
     request_type?: string;
   } | null>(null);
+  const [
+    notifyBeforePatchingDetails,
+    setNotifyBeforePatchingDetails,
+  ] = useState<IActivityDetails | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [createdAtDirection, setCreatedAtDirection] = useState("desc");
@@ -257,6 +266,7 @@ const ActivityFeed = ({
   const handleDetailsClick = ({
     type,
     details,
+    created_at,
     actor_full_name,
     fleet_initiated,
   }: IShowActivityDetailsData) => {
@@ -329,6 +339,17 @@ const ActivityFeed = ({
           command: {
             command_uuid: details?.command_uuid || "",
           },
+        });
+        break;
+      case ActivityType.NotifiedEndUserBeforePatching:
+        setNotifyBeforePatchingDetails({ ...details });
+        break;
+      case ActivityType.HostEnrollmentRejected:
+        setEnrollmentRejectedDetails({
+          hostDisplayName: details?.host_display_name,
+          hostSerial: details?.host_serial,
+          reason: details?.reason,
+          createdAt: created_at,
         });
         break;
       case ActivityType.RanCustomMdmCommand: {
@@ -437,6 +458,12 @@ const ActivityFeed = ({
           onCancel={() => setPackageInstallDetails(null)}
         />
       )}
+      {notifyBeforePatchingDetails && (
+        <NotifyBeforePatchingDetailsModal
+          details={notifyBeforePatchingDetails}
+          onCancel={() => setNotifyBeforePatchingDetails(null)}
+        />
+      )}
       {scriptPackageDetails && (
         <SoftwareScriptDetailsModal
           details={scriptPackageDetails}
@@ -511,6 +538,14 @@ const ActivityFeed = ({
         <FailedEnrollmentProfileModal
           command={enrollmentProfileFailedDetails.command}
           onDone={() => setEnrollmentProfileFailedDetails(null)}
+        />
+      )}
+      {enrollmentRejectedDetails && (
+        <EnrollmentAttemptDetailsModal
+          hostDisplayName={enrollmentRejectedDetails.hostDisplayName}
+          reason={enrollmentRejectedDetails.reason}
+          createdAt={enrollmentRejectedDetails.createdAt}
+          onDone={() => setEnrollmentRejectedDetails(null)}
         />
       )}
       {!!mdmCommandActivityDetails && (

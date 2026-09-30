@@ -1,7 +1,8 @@
+import { formatDistanceStrict } from "date-fns";
+import React from "react";
+
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import React from "react";
-import { formatDistanceStrict } from "date-fns";
 
 const baseClass = "create-linux-key-modal";
 

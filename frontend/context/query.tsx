@@ -1,8 +1,6 @@
-import React, { createContext, useReducer, ReactNode } from "react";
 import { find } from "lodash";
+import React, { createContext, useReducer, ReactNode } from "react";
 
-import { osqueryTables } from "utilities/osquery_tables";
-import { DEFAULT_QUERY } from "utilities/constants";
 import { DEFAULT_OSQUERY_TABLE, IOsQueryTable } from "interfaces/osquery_table";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { QueryLoggingOption } from "interfaces/schedulable_query";
@@ -12,6 +10,8 @@ import {
   ISelectedTargetsByType,
   ITarget,
 } from "interfaces/target";
+import { DEFAULT_QUERY } from "utilities/constants";
+import { osqueryTables } from "utilities/osquery_tables";
 
 type Props = {
   children: ReactNode;

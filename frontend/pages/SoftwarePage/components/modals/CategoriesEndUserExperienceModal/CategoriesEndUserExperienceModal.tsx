@@ -7,22 +7,21 @@
 
 import React, { useContext } from "react";
 import { useQuery } from "react-query";
-
 import { Column } from "react-table";
+
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import Modal from "components/Modal";
+import TableContainer from "components/TableContainer";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import { AppContext } from "context/app";
 import { IHeaderProps } from "interfaces/datatable_config";
 import { ISelfServiceCategory } from "interfaces/self_service_category";
 import selfServiceCategoriesAPI, {
   ISelfServiceCategoriesResponse,
 } from "services/entities/self_service_categories";
-
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import TableContainer from "components/TableContainer";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import Icon from "components/Icon";
 
 import SelfServicePreview from "../../cards/SelfServicePreview";
 import SoftwareIcon from "../../icons/SoftwareIcon";

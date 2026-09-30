@@ -1,7 +1,7 @@
 import React from "react";
 
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import { validateFormData } from "./helpers";

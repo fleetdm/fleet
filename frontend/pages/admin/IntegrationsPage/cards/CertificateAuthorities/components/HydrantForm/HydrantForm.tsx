@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react";
 
+import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
+import TooltipWrapper from "components/TooltipWrapper";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
-import InputField from "components/forms/fields/InputField";
-import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
 import {
   validateFormData,
   IHydrantFormValidation,

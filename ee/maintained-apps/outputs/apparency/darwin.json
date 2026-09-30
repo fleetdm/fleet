@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.3",
+      "version": "3.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.Apparency';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.Apparency' AND version_compare(bundle_short_version, '3.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.Apparency' AND version_compare(bundle_short_version, '3.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.mothersruin.Apparency' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.mothersruin.com/software/archives/Apparency-3.3.dmg",
+      "installer_url": "https://www.mothersruin.com/software/archives/Apparency-3.4.dmg",
       "install_script_ref": "100c1eda",
       "uninstall_script_ref": "1561977c",
-      "sha256": "9f0622d654603556861baf41e4959134e3321169a90c012909dc44057f7a3dc3",
+      "sha256": "675eadfb33589e3ce6eac88265c8651f02c2db74dac85361f2034bc956e8fc61",
       "default_categories": [
         "Developer tools"
       ]

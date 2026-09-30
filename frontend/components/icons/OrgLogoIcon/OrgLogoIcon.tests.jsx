@@ -1,7 +1,8 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import fleetAvatar from "../../../../assets/images/fleet-avatar-24x24@2x.png";
+
 import OrgLogoIcon from "./OrgLogoIcon";
 
 describe("OrgLogoIcon - component", () => {

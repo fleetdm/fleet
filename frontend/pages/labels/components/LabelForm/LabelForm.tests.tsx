@@ -1,9 +1,9 @@
-import React from "react";
-import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 import { screen, render } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
 import InputField from "components/forms/fields/InputField";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 
 import LabelForm from "./LabelForm";
 

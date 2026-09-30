@@ -1,0 +1,1 @@
+- Stopped sending AccountConfiguration commands to Apple devices during AB migration, due to it not having any effect.

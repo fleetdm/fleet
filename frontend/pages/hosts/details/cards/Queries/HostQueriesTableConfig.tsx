@@ -1,10 +1,9 @@
 import React from "react";
 
-import { IQueryStats } from "interfaces/query_stats";
-
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import { IQueryStats } from "interfaces/query_stats";
 import ReportUpdatedCell from "pages/hosts/details/cards/Queries/ReportUpdatedCell";
 
 interface IHostQueriesTableData extends Partial<IQueryStats> {

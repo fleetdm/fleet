@@ -1,0 +1,1 @@
+- Fixed false positive vulnerabilities (e.g. CVE-2014-6271) reported for the `bash` Python package, which was incorrectly matched to the GNU bash CPE.

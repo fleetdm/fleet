@@ -1,8 +1,9 @@
+import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
-import { render, screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
 import paths from "router/paths";
+import { renderWithSetup } from "test/test-utils";
+
 import HostCountCard from "./HostCountCard";
 
 describe("HostCountCard - component", () => {

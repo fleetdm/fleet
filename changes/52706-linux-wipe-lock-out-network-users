@@ -1,0 +1,2 @@
+- Fixed Linux wipe so directory-service users (SSSD/LDAP/Kerberos/AD) can't log back in while the wipe is running. The wipe now denies logins through pam_nologin, which reaches accounts that have no `/etc/shadow` entry for `passwd -l` to lock.
+- Fixed the Linux wipe being killed and CPU-throttled by fleetd. The wipe now runs in its own systemd unit instead of as a background child of `orbit.service`, so it survives a fleetd restart, isn't limited to 20% of one CPU, and logs to the journal under `fleet-wipe`.

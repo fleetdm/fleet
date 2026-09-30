@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.2",
+      "version": "2026.2.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.WebStorm';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.WebStorm' AND version_compare(bundle_short_version, '2026.2.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.WebStorm' AND version_compare(bundle_short_version, '2026.2.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.jetbrains.WebStorm' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.jetbrains.com/webstorm/WebStorm-2026.2.2-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/webstorm/WebStorm-2026.2.3-aarch64.dmg",
       "install_script_ref": "2ae71299",
       "uninstall_script_ref": "f7029679",
-      "sha256": "11d752433cc51270bdd0d2ea257c4a3bb264228477afdf1f64fce07ec2ef700b",
+      "sha256": "2184881ad41343887f7ce9a35607db4b1cc99c3d925614f5427287e24f56fa72",
       "default_categories": [
         "Developer tools"
       ]

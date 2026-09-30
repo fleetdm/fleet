@@ -1,12 +1,11 @@
 import React from "react";
 import { useQuery } from "react-query";
 
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
 import { IBootstrapPackageAggregate } from "interfaces/mdm";
 import mdmAPI from "services/entities/mdm";
-
-import DataError from "components/DataError";
-import TableContainer from "components/TableContainer";
-import EmptyState from "components/EmptyState";
 
 import {
   COLUMN_CONFIGS,

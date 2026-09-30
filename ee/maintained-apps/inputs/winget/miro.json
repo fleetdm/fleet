@@ -3,6 +3,7 @@
   "slug": "miro/windows",
   "package_identifier": "Miro.Miro",
   "unique_identifier": "Miro",
+  "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/miro_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/miro_uninstall.ps1",
   "installer_arch": "x64",

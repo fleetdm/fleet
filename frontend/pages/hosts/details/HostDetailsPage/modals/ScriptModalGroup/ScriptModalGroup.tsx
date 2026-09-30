@@ -1,23 +1,21 @@
 import React, { useCallback, useState } from "react";
 import { useQuery } from "react-query";
 
+import { notify } from "components/ToastNotification";
 import { getErrorReason, IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { IHostScript } from "interfaces/script";
 import { IUser } from "interfaces/user";
-
+import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
+import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
+import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
 import scriptsAPI, {
   IHostScriptsQueryKey,
   IHostScriptsResponse,
 } from "services/entities/scripts";
 
-import { notify } from "components/ToastNotification";
-
-import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
-import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
-import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
-import RunScriptModal from "../RunScriptModal";
 import ConfirmRunScriptModal from "../ConfirmRunScriptModal";
+import RunScriptModal from "../RunScriptModal";
 
 interface IScriptsProps {
   currentUser: IUser | null;

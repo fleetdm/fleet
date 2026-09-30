@@ -35,7 +35,7 @@ parasails.registerPage('articles', {
         this.categoryDescription = 'Learn more about how to use Fleet to accomplish your goals.';
         break;
       case 'announcements':
-        this.articleCategory = 'News';
+        this.articleCategory = 'Roadmap';
         this.categoryDescription = 'The latest announcements from Fleet.';
         break;
       case 'podcasts':

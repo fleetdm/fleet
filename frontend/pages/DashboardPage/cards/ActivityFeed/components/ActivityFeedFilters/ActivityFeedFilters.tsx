@@ -1,12 +1,11 @@
 import React from "react";
 
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import SearchField from "components/forms/fields/SearchField";
 import {
   ACTIVITY_TYPE_TO_FILTER_LABEL,
   ActivityType,
 } from "interfaces/activity";
-
-import SearchField from "components/forms/fields/SearchField";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 
 import ActivityTypeDropdown from "../ActivityTypeDropdown";
 

@@ -1,15 +1,16 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { noop } from "lodash";
+import React from "react";
+
 import {
   createMockHostAppStoreApp,
   createMockHostSoftware,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
-import { IHostAppStoreApp } from "interfaces/software";
-
 import { createMockAppStoreApp } from "__mocks__/softwareMock";
-import { noop } from "lodash";
+import { IHostAppStoreApp } from "interfaces/software";
+import { renderWithSetup } from "test/test-utils";
+
 import {
   getActionButtonState,
   HostInstallerActionCell,
@@ -616,6 +617,29 @@ describe("HostInstallerActionCell component", () => {
     expect(uninstallBtn).toHaveTextContent("Uninstall");
     expect(screen.getByTestId("trash-icon")).toBeInTheDocument();
     expect(uninstallBtn.closest("button")).not.toBeDisabled();
+  });
+
+  it('renders Update (not Install) for "skipped_install" ui_status — the label column shows "Patch skipped", but the action is still a deferred update', () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          status: "failed_install",
+          skipped_install: true,
+          ui_status: "skipped_install",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
+    expect(installBtn).toHaveTextContent("Update");
+    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(installBtn.closest("button")).not.toBeDisabled();
   });
 
   it('renders Reinstall and Uninstall for "uninstalling" ui_status', () => {

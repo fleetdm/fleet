@@ -1,13 +1,13 @@
 import React from "react";
 
+import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 
-import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
-
-import MacOSUpdateScreenshot from "../../../../../../assets/images/macos-updates-preview.png";
-import WindowsUpdateScreenshot from "../../../../../../assets/images/windows-nudge-screenshot.png";
 import IOSUpdateScreenshot from "../../../../../../assets/images/ios-updates-preview.png";
 import IPadOSUpdateScreenshot from "../../../../../../assets/images/ipados-updates-preview.png";
+import MacOSUpdateScreenshot from "../../../../../../assets/images/macos-updates-preview.png";
+import WindowsUpdateScreenshot from "../../../../../../assets/images/windows-nudge-screenshot.png";
+import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 
 const baseClass = "os-requirement-preview";
 
@@ -101,10 +101,10 @@ const EndUserOSRequirementPreview = ({
   // mismatch between the text and the image when switching between platforms. We should load the
   // image first and then the text.
   return (
-    <div className={baseClass}>
+    <Card color="grey" paddingSize="xxlarge" className={baseClass}>
       <OSRequirementDescription platform={platform} />
       <OSRequirementImage platform={platform} />
-    </div>
+    </Card>
   );
 };
 

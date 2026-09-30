@@ -1,6 +1,13 @@
 import React, { ReactNode } from "react";
 
-import { dateAgo } from "utilities/date_format";
+import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import Spinner from "components/Spinner";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import { isAndroid, isAppleDevice } from "interfaces/platform";
 import {
   IHostSoftware,
   IHostSoftwareWithUiStatus,
@@ -11,16 +18,10 @@ import {
   IAppLastInstall,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { isAndroid, isAppleDevice } from "interfaces/platform";
-import { Colors } from "styles/var/colors";
-
-import Icon from "components/Icon";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
-import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { Colors } from "styles/var/colors";
+import { dateAgo } from "utilities/date_format";
+
 import {
   getLastInstall,
   getLastUninstall,
@@ -210,6 +211,12 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     displayText: "Failed",
     tooltip: failedInstallTooltip,
   },
+  skipped_install: {
+    iconName: "error-outline",
+    iconColor: "ui-fleet-black-50",
+    displayText: "Patch skipped",
+    tooltip: () => SKIPPED_INSTALL_DETAILS,
+  },
   failed_uninstall: {
     iconName: "error",
     displayText: "Failed (uninstall)",
@@ -245,7 +252,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   update_available: {
     iconName: "error-outline",
-    iconColor: "ui-fleet-black-75",
+    iconColor: "ui-fleet-black-50",
     displayText: "Update available",
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (
@@ -259,14 +266,14 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   failed_install_update_available: {
     iconName: "error-outline", // Match update available icon and not failed install icon
-    iconColor: "ui-fleet-black-75",
+    iconColor: "ui-fleet-black-50",
     displayText: "Update available", // Shows "Update available" modal instead of "Failed" modal as of 4.82 #31663
     // Tooltip indicates failure info in host activity logs
     tooltip: failedInstallTooltip,
   },
   failed_uninstall_update_available: {
     iconName: "error-outline", // Match update available icon and not failed uninstall icon
-    iconColor: "ui-fleet-black-75",
+    iconColor: "ui-fleet-black-50",
     displayText: "Update available", // Shows "Update available" modal instead of "Failed (uninstall)" modal as of 4.82 #31663
     // Tooltip indicates failure info in host activity logs
     tooltip: failedUninstallTooltip,
@@ -524,7 +531,7 @@ const InstallStatusCell = ({
       },
       {
         condition: !isScriptPackage, // Still allows click even if no last install to see details modal
-        statuses: ["Failed", "Install (pending)", "Installed"],
+        statuses: ["Failed", "Install (pending)", "Installed", "Patch skipped"],
         onClick: onClickInstallStatus,
       },
       {
@@ -581,6 +588,7 @@ const InstallStatusCell = ({
         className={`${baseClass}__tooltip-wrapper`}
         disableTooltip={!tooltipContent}
         tipOffset={8}
+        fixedPositionStrategy
       >
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (

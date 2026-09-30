@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.1.6",
+      "version": "2.1.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.balena.etcher';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.balena.etcher' AND version_compare(bundle_short_version, '2.1.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.balena.etcher' AND version_compare(bundle_short_version, '2.1.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.balena.etcher' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/balena-io/etcher/releases/download/v2.1.6/balenaEtcher-2.1.6-arm64.dmg",
+      "installer_url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/balenaEtcher-2.1.7-arm64.dmg",
       "install_script_ref": "f638b14b",
       "uninstall_script_ref": "2b03431c",
-      "sha256": "ecf71fb5e74803ea8d7d16c54378a6a8d964e9808594b867c088222a8cfe3d2b",
+      "sha256": "7408b5c5d3382e337f27a81aec8cc122b875b47809aca9b60a5a513100292344",
       "default_categories": [
         "Developer tools"
       ]

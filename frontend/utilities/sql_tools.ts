@@ -1,12 +1,13 @@
 import { intersection, isPlainObject, uniq } from "lodash";
-import { astify } from "utilities/osquery_sql_parser";
-import { osqueryTablesAvailable } from "utilities/osquery_tables";
+
+import { TableSchemaPlatform } from "interfaces/osquery_table";
 import {
   MACADMINS_EXTENSION_TABLES,
   QUERYABLE_PLATFORMS,
   QueryablePlatform,
 } from "interfaces/platform";
-import { TableSchemaPlatform } from "interfaces/osquery_table";
+import { astify, hasNoStatement } from "utilities/osquery_sql_parser";
+import { osqueryTablesAvailable } from "utilities/osquery_tables";
 
 type IAstNode = Record<string | number | symbol, unknown>;
 
@@ -77,6 +78,12 @@ const parseSqlTables = (
   sqlString: string,
   includeVirtualTables = false
 ): string[] => {
+  // The parser rejects input with no statement so validation can flag it, but
+  // here it just means no tables are referenced yet.
+  if (hasNoStatement(sqlString)) {
+    return [];
+  }
+
   let results: string[] = [];
 
   // Tables defined via common table expression (WITH ... AS syntax) or as subselects

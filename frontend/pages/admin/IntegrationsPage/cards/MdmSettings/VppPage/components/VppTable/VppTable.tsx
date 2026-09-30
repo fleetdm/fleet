@@ -1,9 +1,8 @@
 import React, { useContext } from "react";
 
-import { IMdmVppToken } from "interfaces/mdm";
-
 import TableContainer from "components/TableContainer";
 import { AppContext } from "context/app";
+import { IMdmVppToken } from "interfaces/mdm";
 
 import { generateTableConfig } from "./VppTableConfig";
 

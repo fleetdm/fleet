@@ -7,6 +7,7 @@
 [parasails-component='docs-nav-and-search'] {
   margin-bottom: 48px;
   margin-left: -8px;
+  width: 100%;
   [purpose='docs-links'] {
     min-height: 36px;
     display: flex;
@@ -42,65 +43,27 @@
       }
     }
   }
-  width: 100%;
+
   [purpose='nav-bar-search'] {
     margin-left: 24px;
-    // Note: We're using classes here to override the default Docsearch styles;
-    button {
-      width: 100%;
-      cursor: text;
-      margin: 0;
-    }
-    .DocSearch-Button {
-      border-top-left-radius: 6px;
-      border-bottom-left-radius: 6px;
-      border-top-right-radius: 6px;
-      border-bottom-right-radius: 6px;
-      border: 1px solid @core-fleet-black-25;
-      background-color: #FFF;
-      padding: 8px 15px;
-      height: 36px;
-      margin: 0;
-      width: 220px;
-    }
-    .DocSearch-Button:hover {
-      box-shadow: none;
-      border: 1px solid @core-fleet-black-25;
-      color: @core-fleet-black-50;
-    }
-    .DocSearch-Search-Icon {
-      margin-left: 0px;
-      margin-right: 8px;
-      height: 16px;
-      width: 16px;
-      color: @core-fleet-black-50;
-      stroke-width: 3px;
-    }
-    .DocSearch-Button-Keys {
-      display: none;
-    }
-    .input-group:focus-within {
-      border: 1px solid @core-vibrant-blue;
-    }
-    .DocSearch-Button-Placeholder {
-      font-size: 16px;
-      line-height: 16px;
-      font-weight: 400;
-      padding-left: 0px;
-    }
-    [purpose='disabled-search'] {
+    [purpose='searchbar'] {
       input {
+        width: 100%;
         padding-top: 6px;
         padding-bottom: 6px;
         border: none;
-        &:focus-visible {
-          outline-color: @core-vibrant-green;
+        &:focus {
+          outline: none;
         }
         &::placeholder {
           font-size: 16px;
           line-height: 24px;
           color: #8B8FA2;
         }
+      }
+      img {
+        height: 16px;
+        margin-right: 8px;
       }
       .input-group {
         border-top-left-radius: 6px;
@@ -109,164 +72,46 @@
         border-bottom-right-radius: 6px;
         border: 1px solid @core-fleet-black-25;
         background: #FFF;
+        align-items: center;
       }
       .input-group:focus-within {
         border: 1px solid @core-vibrant-green;
       }
       .form-control {
         border-radius: 6px;
-        padding: 6px;
         height: 36px;
         margin: 0;
+        padding: 0px;
         width: 171px;
-        .docsearch-input {
-          width: 165px;
+        font-size: 16px;
+        &:focus {
+          border: none;
         }
       }
-      .docsearch-input:focus-visible {
-        outline: none;
-      }
-      .ds-input:focus {
-        outline: rgba(0, 0, 0, 0);
-      }
-      .input-group-text {
-        color: @core-fleet-black-50;
-      }
-      .form-control {
-        height: 36px;
-        padding: 0px;
-        font-size: 16px;
-      } &:focus {
-        border: none;
+      [purpose='searchbar-submit'] {
+        .searchbar-submit-btn();
+        &:focus {
+          outline: 2px solid @core-fleet-black;
+        }
       }
     }
-    img {
-      height: 16px;
-      margin-right: 8px;
-    }
-    background: #FFF;
-    &::placeholder {
-      font-size: 16px;
-      color: @core-fleet-black-50;
-    }
+
   }
   @media (max-width: 991px) {
     margin-bottom: 32px;
-    [purpose='nav-bar-search'] {
-      margin-left: 24px;
-      // Note: We're using classes here to override the default Docsearch styles;
-      button {
-        width: 100%;
-        cursor: pointer;
-        margin: 0;
-      }
-      .DocSearch-Button {
-        border-top-left-radius: 6px;
-        border-bottom-left-radius: 6px;
-        border-top-right-radius: 6px;
-        border-bottom-right-radius: 6px;
-        border: none;
-        background-color: transparent;
-        padding: 0px;
-        height: 36px;
-        margin: 0;
-        width: 16px;
-      }
-      .DocSearch-Button:hover {
-        box-shadow: none;
-        border: none;
-        color: @core-fleet-black-50;
-      }
-      .DocSearch-Search-Icon {
-        margin-left: 0px;
-        margin-right: 8px;
-        // padding: 8px 15px;
-        height: 16px;
-        width: 16px;
-        color: @core-fleet-black-75;
-        stroke-width: 3px;
-      }
-      .DocSearch-Button-Keys {
-        display: none;
-      }
-      .input-group:focus-within {
-        border: 1px solid @core-vibrant-green;
-      }
-      .DocSearch-Button-Placeholder {
-        font-size: 16px;
-        line-height: 16px;
-        font-weight: 400;
-        padding-left: 0px;
-        display: none;
-      }
-      [purpose='disabled-search'] {
-        input {
-          padding-top: 6px;
-          padding-bottom: 6px;
-          border: none;
-          }
-          &::placeholder {
-            font-size: 16px;
-            line-height: 24px;
-            color: #8B8FA2;
-          }
-        .input-group {
-          border-top-left-radius: 6px;
-          border-bottom-left-radius: 6px;
-          border-top-right-radius: 6px;
-          border-bottom-right-radius: 6px;
-          border: 1px solid @core-fleet-black-25;
-          background: #FFF;
-        }
-        .input-group:focus-within {
-          border: 1px solid @core-vibrant-green;
-        }
-        .form-control {
-          border-radius: 6px;
-          padding: 6px;
-          height: 36px;
-          margin: 0;
-          width: 100px;
-          .docsearch-input {
-            width: 65px;
-          }
-        }
-        .docsearch-input:focus-visible {
-          outline: none;
-        }
-        .ds-input:focus {
-          outline: rgba(0, 0, 0, 0);
-        }
-        .input-group-text {
-          color: @core-fleet-black-50;
-        }
-        .form-control {
-          height: 36px;
-          padding: 0px;
-          font-size: 16px;
-        } &:focus {
-          border: none;
-        }
-      }
-      img {
-        height: 16px;
-        margin-right: 8px;
-      }
-      background: none;
-      &::placeholder {
-        font-size: 16px;
-        color: @core-fleet-black-50;
-      }
-    }
-
-
-  }
-  @media (max-width: 768px) {
     [purpose='nav-link-container'] {
       max-width: calc(~'100% - 48px');
       overflow-x: scroll;
       scrollbar-width: none;
     }
+    [purpose='nav-bar-search'] {
+      [purpose='searchbar'] {
+        .form-control {
+          width: 100px;
+        }
+      }
+    }
 
   }
+
 }

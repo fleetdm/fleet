@@ -718,7 +718,8 @@ func (d *DEPService) processDeviceResponse(
 			deadline = device.MDMMigrationDeadline.String()
 		}
 		// FIXME: Move this log back to debug level after we've added/improved functionality for accessing DEP status.
-		d.logger.InfoContext(ctx, "process device response",
+		d.logger.InfoContext(
+			ctx, "process device response",
 			"serial_number", device.SerialNumber,
 			"device_assigned_by", device.DeviceAssignedBy,
 			"device_assigned_date", device.DeviceAssignedDate,
@@ -742,7 +743,8 @@ func (d *DEPService) processDeviceResponse(
 		case "deleted":
 			keepRecent(device, deletedDevices)
 		default:
-			d.logger.WarnContext(ctx, "unrecognized op_type",
+			d.logger.WarnContext(
+				ctx, "unrecognized op_type",
 				"op_type", device.OpType,
 				"serial_number", device.SerialNumber,
 			)
@@ -845,7 +847,8 @@ func (d *DEPService) processDeviceResponse(
 		d.logger.DebugContext(ctx, "no DEP hosts to add")
 	}
 
-	d.logger.InfoContext(ctx, "devices to assign DEP profiles",
+	d.logger.InfoContext(
+		ctx, "devices to assign DEP profiles",
 		"to_add", strings.Join(addedSerials, ", "),
 		"to_remove", strings.Join(deletedSerials, ", "),
 		"to_modify", strings.Join(modifiedSerials, ", "),
@@ -990,7 +993,8 @@ func (d *DEPService) processDeviceResponse(
 				// only log the error so the failure can be recorded
 				// below in UpdateHostDEPAssignProfileResponses and
 				// the proper cooldowns are applied
-				logger.ErrorContext(ctx, "assign profile",
+				logger.ErrorContext(
+					ctx, "assign profile",
 					"devices", len(serials),
 					"err", err,
 				)
@@ -1011,7 +1015,8 @@ func (d *DEPService) processDeviceResponse(
 			}
 			// We don't expect to see this but log here just in case
 			if err != nil && implicitlyFailedAssignments > 0 {
-				logger.ErrorContext(ctx,
+				logger.ErrorContext(
+					ctx,
 					"assign profile: no error was returned but some devices were not assigned a status in the response",
 					"devices", implicitlyFailedAssignments,
 				)
@@ -1086,7 +1091,7 @@ func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
 // changes, and flag the ABM token's token_invalid field whenever Apple
 // rejects the token or reports its signature as invalid.
 func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, logger *slog.Logger) *godep.Client {
-	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout())
+	httpClient := fleethttp.NewClient()
 	return godep.NewClient(storage, httpClient, godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
 		// to check for ABM terms expired, we must have an ABM token organization
 		// name and NOT a raw ABM token in the context (as the presence of a raw
@@ -1754,12 +1759,13 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	// enqueue is a single transaction, so on enqueue failure nothing was
 	// queued and the rows are removed again; if only the notification failed
 	// the command is durably queued and the rows must stay.
-	trackAndSend := func(commandType string, group deviceGroup, wrapMsg string, enqueue func() error) error {
+	trackAndSend := func(commandType, commandUUID string, group deviceGroup, wrapMsg string, enqueue func() error) error {
 		rows := make([]fleet.HostMDMCommand, 0, len(group.hostIDs))
 		for _, hostID := range group.hostIDs {
 			rows = append(rows, fleet.HostMDMCommand{
 				HostID:      hostID,
 				CommandType: commandType,
+				CommandUUID: commandUUID,
 			})
 		}
 		if err := ds.AddHostMDMCommands(ctx, rows); err != nil {
@@ -1768,7 +1774,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		err := enqueue()
 		if err != nil {
 			if _, isNotifErr := errors.AsType[*NotificationFailedError](err); !isNotifErr {
-				if rmErr := ds.RemoveHostMDMCommands(ctx, group.hostIDs, commandType); rmErr != nil {
+				if rmErr := ds.RemoveHostMDMCommands(ctx, group.hostIDs, commandType, commandUUID); rmErr != nil {
 					logger.ErrorContext(ctx, "untrack host mdm commands after enqueue failure",
 						"err", rmErr, "command_type", commandType)
 				}
@@ -1825,10 +1831,10 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 			continue
 		}
 
-		commandUUID := uuid.NewString()
-		err := trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, group,
+		commandUUID := fleet.RefetchAppsCommandUUIDPrefix + uuid.NewString()
+		err := trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, commandUUID, group,
 			"send InstalledApplicationList commands to ios and ipados devices", func() error {
-				return commander.InstalledApplicationList(ctx, group.uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, managedOnly)
+				return commander.InstalledApplicationList(ctx, group.uuids, commandUUID, managedOnly)
 			})
 		if err != nil {
 			return err
@@ -1837,10 +1843,10 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 
 	certs := groupToSend(fleet.RefetchCertsCommandUUIDPrefix)
 	if len(certs.uuids) > 0 {
-		commandUUID := uuid.NewString()
-		err := trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, certs,
+		commandUUID := fleet.RefetchCertsCommandUUIDPrefix + uuid.NewString()
+		err := trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, commandUUID, certs,
 			"send CertificateList commands to ios and ipados devices", func() error {
-				return commander.CertificateList(ctx, certs.uuids, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
+				return commander.CertificateList(ctx, certs.uuids, commandUUID)
 			})
 		if err != nil {
 			return err
@@ -1857,10 +1863,10 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 			continue
 		}
 
-		commandUUID := uuid.NewString()
-		err := trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, group,
+		commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + uuid.NewString()
+		err := trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, commandUUID, group,
 			"send DeviceInformation commands to ios and ipados devices", func() error {
-				return commander.DeviceInformation(ctx, group.uuids, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID, isPersonalEnrollment)
+				return commander.DeviceInformation(ctx, group.uuids, commandUUID, isPersonalEnrollment)
 			})
 		if err != nil {
 			return err
@@ -2166,7 +2172,8 @@ func sendSetRecoveryLockCommands(
 
 		err := send(ctx, hostUUIDs, cmdUUID)
 		if err == nil {
-			logger.InfoContext(ctx, "sent SetRecoveryLock commands",
+			logger.InfoContext(
+				ctx, "sent SetRecoveryLock commands",
 				"host_count", len(hostUUIDs),
 				"command_uuid", cmdUUID,
 			)
@@ -2177,7 +2184,8 @@ func sendSetRecoveryLockCommands(
 		// In this case, the command is already queued and will be delivered when the device
 		// checks in, so we should NOT clear the pending status (which would cause duplicates).
 		if apnsErr, ok := errors.AsType[*APNSDeliveryError](err); ok {
-			logger.WarnContext(ctx, "SetRecoveryLock commands enqueued but APNs push failed",
+			logger.WarnContext(
+				ctx, "SetRecoveryLock commands enqueued but APNs push failed",
 				"host_count", len(hostUUIDs),
 				"command_uuid", cmdUUID,
 				"error", apnsErr,
@@ -2187,12 +2195,14 @@ func sendSetRecoveryLockCommands(
 
 		// Persistence failed - reset status to NULL so hosts will be picked up again on next cron run.
 		// The password is already stored, but a new one will be generated on retry (overwrites old).
-		logger.ErrorContext(ctx, "failed to enqueue SetRecoveryLock commands",
+		logger.ErrorContext(
+			ctx, "failed to enqueue SetRecoveryLock commands",
 			"host_count", len(hostUUIDs),
 			"error", err,
 		)
 		if clearErr := ds.ClearRecoveryLockPendingStatus(ctx, hostUUIDs); clearErr != nil {
-			logger.ErrorContext(ctx, "failed to clear recovery lock pending status after enqueue failure",
+			logger.ErrorContext(
+				ctx, "failed to clear recovery lock pending status after enqueue failure",
 				"host_count", len(hostUUIDs),
 				"error", clearErr,
 			)
@@ -2202,7 +2212,8 @@ func sendSetRecoveryLockCommands(
 	}
 
 	var result *multierror.Error
-	result = multierror.Append(result,
+	result = multierror.Append(
+		result,
 		enqueue(commander.SetRecoveryLock, freshSetHostUUIDs, setCmdUUID),
 		enqueue(commander.RotateRecoveryLock, rotateHostUUIDs, rotateCmdUUID),
 	)
@@ -2237,7 +2248,8 @@ func sendClearRecoveryLockCommands(
 		var apnsErr *APNSDeliveryError
 		if errors.As(err, &apnsErr) {
 			// Command was persisted but push notification failed - log warning but don't fail.
-			logger.WarnContext(ctx, "ClearRecoveryLock commands enqueued but APNs push failed",
+			logger.WarnContext(
+				ctx, "ClearRecoveryLock commands enqueued but APNs push failed",
 				"host_count", len(hosts),
 				"command_uuid", cmdUUID,
 				"error", err,
@@ -2246,12 +2258,14 @@ func sendClearRecoveryLockCommands(
 		}
 
 		// Persistence failed - reset status to NULL so hosts will be picked up again.
-		logger.ErrorContext(ctx, "failed to enqueue ClearRecoveryLock commands",
+		logger.ErrorContext(
+			ctx, "failed to enqueue ClearRecoveryLock commands",
 			"host_count", len(hosts),
 			"error", err,
 		)
 		if clearErr := ds.ClearRecoveryLockPendingStatus(ctx, hosts); clearErr != nil {
-			logger.ErrorContext(ctx, "failed to clear recovery lock pending status after enqueue failure",
+			logger.ErrorContext(
+				ctx, "failed to clear recovery lock pending status after enqueue failure",
 				"host_count", len(hosts),
 				"error", clearErr,
 			)
@@ -2260,7 +2274,8 @@ func sendClearRecoveryLockCommands(
 		return ctxerr.Wrap(ctx, err, "enqueue ClearRecoveryLock commands")
 	}
 
-	logger.InfoContext(ctx, "sent ClearRecoveryLock commands",
+	logger.InfoContext(
+		ctx, "sent ClearRecoveryLock commands",
 		"host_count", len(hosts),
 		"command_uuid", cmdUUID,
 	)
@@ -2300,14 +2315,16 @@ func sendAutoRotationCommands(
 			if fleet.IsNotFound(err) ||
 				errors.Is(err, fleet.ErrRecoveryLockRotationPending) ||
 				errors.Is(err, fleet.ErrRecoveryLockNotEligible) {
-				logger.DebugContext(ctx, "host lost eligibility for auto-rotation",
+				logger.DebugContext(
+					ctx, "host lost eligibility for auto-rotation",
 					"host_uuid", host.HostUUID,
 					"error", err,
 				)
 				continue
 			}
 
-			logger.ErrorContext(ctx, "failed to initiate auto-rotation",
+			logger.ErrorContext(
+				ctx, "failed to initiate auto-rotation",
 				"host_uuid", host.HostUUID,
 				"error", err,
 			)
@@ -2321,7 +2338,8 @@ func sendAutoRotationCommands(
 				// Command was persisted but push notification failed - log activity and continue.
 				// The command will be retried when the device checks in.
 				logAutoRotationActivity(ctx, logger, newActivityFn, host)
-				logger.WarnContext(ctx, "auto-rotation command enqueued but APNs push failed",
+				logger.WarnContext(
+					ctx, "auto-rotation command enqueued but APNs push failed",
 					"host_uuid", host.HostUUID,
 					"command_uuid", setCmdUUID,
 					"error", apnsErr,
@@ -2330,12 +2348,14 @@ func sendAutoRotationCommands(
 			}
 
 			// Persistence failed - clear pending rotation so host can be retried
-			logger.ErrorContext(ctx, "failed to enqueue auto-rotation command",
+			logger.ErrorContext(
+				ctx, "failed to enqueue auto-rotation command",
 				"host_uuid", host.HostUUID,
 				"error", err,
 			)
 			if clearErr := ds.ClearRecoveryLockRotation(ctx, host.HostUUID); clearErr != nil {
-				logger.ErrorContext(ctx, "failed to clear pending rotation after enqueue failure",
+				logger.ErrorContext(
+					ctx, "failed to clear pending rotation after enqueue failure",
 					"host_uuid", host.HostUUID,
 					"error", clearErr,
 				)
@@ -2348,7 +2368,8 @@ func sendAutoRotationCommands(
 		// Log activity for auto-rotation (Fleet-initiated)
 		logAutoRotationActivity(ctx, logger, newActivityFn, host)
 
-		logger.DebugContext(ctx, "sent auto-rotation command",
+		logger.DebugContext(
+			ctx, "sent auto-rotation command",
 			"host_uuid", host.HostUUID,
 			"command_uuid", setCmdUUID,
 		)
@@ -2374,7 +2395,8 @@ func logAutoRotationActivity(
 		HostDisplayName: host.DisplayName,
 		FleetInitiated:  true,
 	}); err != nil {
-		logger.WarnContext(ctx, "auto-rotation: failed to create activity",
+		logger.WarnContext(
+			ctx, "auto-rotation: failed to create activity",
 			"host_uuid", host.HostUUID,
 			"err", err,
 		)

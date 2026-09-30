@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.5.1.22901",
+      "version": "7.6.0.23012",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Elgato Stream Deck' AND publisher = 'Corsair Memory, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Elgato Stream Deck' AND publisher = 'Corsair Memory, Inc.' AND version_compare(version, '7.5.1.22901') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Elgato Stream Deck' AND publisher = 'Corsair Memory, Inc.' AND version_compare(version, '7.6.0.23012') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'elgato stream deck.exe');"
       },
-      "installer_url": "https://edge.elgato.com/egc/windows/sd/Stream_Deck_7.5.1.22901.msi",
+      "installer_url": "https://edge.elgato.com/egc/windows/sd/Stream_Deck_7.6.0.23012.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "c3847e5b",
-      "sha256": "65c1c2c1709c6b95aa1ea5671d314feebe03803a1ecdb1386165c5e7c0c08556",
+      "sha256": "b380e3b43e44674c874262c0453bda6cc9a1e5a6cfad8df6fd67eec56a48cd57",
       "default_categories": [
         "Productivity"
       ],

@@ -1,7 +1,8 @@
 import sendRequest from "services";
 
-import labelsAPI, { listNamesFromSelectedLabels } from "./labels";
 import createMockHost from "../../__mocks__/hostMock";
+
+import labelsAPI, { listNamesFromSelectedLabels } from "./labels";
 
 jest.mock("services", () => ({
   __esModule: true,

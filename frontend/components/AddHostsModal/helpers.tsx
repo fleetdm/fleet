@@ -1,6 +1,7 @@
+import React from "react";
+
 import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
-import React from "react";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 // eslint-disable-next-line import/prefer-default-export

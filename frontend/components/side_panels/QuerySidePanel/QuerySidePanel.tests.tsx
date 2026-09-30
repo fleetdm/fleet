@@ -1,9 +1,10 @@
-import React from "react";
-import { noop } from "lodash";
 import { render, screen, waitFor, within } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { noop } from "lodash";
+import React from "react";
 
 import createMockOsqueryTable from "__mocks__/osqueryTableMock";
+import { renderWithSetup } from "test/test-utils";
+
 import QuerySidePanel from "./QuerySidePanel";
 
 describe("QuerySidePanel - component", () => {

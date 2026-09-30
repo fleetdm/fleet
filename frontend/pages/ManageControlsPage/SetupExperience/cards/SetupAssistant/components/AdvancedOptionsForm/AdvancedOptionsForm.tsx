@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 
-import mdmAPI from "services/entities/mdm";
-
-import TooltipWrapper from "components/TooltipWrapper";
-import Checkbox from "components/forms/fields/Checkbox";
 import Button from "components/buttons/Button";
-import { notify } from "components/ToastNotification";
 import RevealButton from "components/buttons/RevealButton";
+import Checkbox from "components/forms/fields/Checkbox";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "advanced-options-form";
 

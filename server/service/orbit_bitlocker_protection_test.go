@@ -19,11 +19,12 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 	protectionOn := fleet.BitLockerProtectionStatusOn
 
 	for _, tc := range []struct {
-		name         string
-		encrypted    *bool
-		protection   *int
-		tpmPINSet    bool
-		wantNotified bool
+		name          string
+		encrypted     *bool
+		protection    *int
+		bootProtector *bool
+		tpmPINSet     bool
+		wantNotified  bool
 	}{
 		{
 			name:         "encrypted and protection off is the case this exists for",
@@ -32,9 +33,30 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 			wantNotified: true,
 		},
 		{
-			name:       "protection on needs nothing",
+			name:          "protection on with something able to unseal at boot needs nothing",
+			encrypted:     new(true),
+			protection:    &protectionOn,
+			bootProtector: new(true),
+		},
+		{
+			name:          "protection on with nothing able to unseal at boot still needs repair",
+			encrypted:     new(true),
+			protection:    &protectionOn,
+			bootProtector: new(false),
+			wantNotified:  true,
+		},
+		{
+			// An agent that does not report protectors leaves this nil, which must not trigger a repair.
+			name:       "protection on and protectors not reported is never acted on",
 			encrypted:  new(true),
 			protection: &protectionOn,
+		},
+		{
+			// Protectors can be reported while protection status is not.
+			name:          "unknown protection status is not acted on even with no boot protector",
+			encrypted:     new(true),
+			protection:    nil,
+			bootProtector: new(false),
 		},
 		{
 			name:       "not encrypted is the encryption flow's job, not this one",
@@ -64,6 +86,7 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 			host := &fleet.Host{
 				DiskEncryptionEnabled:     tc.encrypted,
 				BitLockerProtectionStatus: tc.protection,
+				BitLockerBootProtectorSet: tc.bootProtector,
 				TPMPINSet:                 tc.tpmPINSet,
 			}
 			require.Equal(t, tc.wantNotified, shouldEnableBitLockerProtection(host))

@@ -1,18 +1,18 @@
+import { act, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
-import { screen, waitFor } from "@testing-library/react";
 
+import createMockConfig from "__mocks__/configMock";
 import createMockHost from "__mocks__/hostMock";
 import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-
+import { notify } from "components/ToastNotification";
 import { IHost } from "interfaces/host";
 import { IUser } from "interfaces/user";
-import hostAPI from "services/entities/hosts";
 import activitiesAPI from "services/entities/activities";
-import teamAPI from "services/entities/teams";
 import commandAPI from "services/entities/command";
-import { notify } from "components/ToastNotification";
+import hostAPI from "services/entities/hosts";
+import teamAPI from "services/entities/teams";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import local from "utilities/local";
 
 import HostDetailsPage, {
@@ -42,16 +42,30 @@ const mockLocation = {
 const ADMIN = createMockUser();
 const OBSERVER = createMockUser({ role: "observer", global_role: "observer" });
 
+// The server's "never" sentinel for timestamps that have not been set yet.
+const NEVER = "2000-01-01T00:00:00Z";
+
 const mockPendingWindowsHost = (status: "online" | "offline"): IHost => {
   const host = createMockHost({
     platform: "windows",
     status,
     refetch_requested: true,
     last_enrolled_at: "2000-01-01T00:00:00Z",
+    detail_updated_at: NEVER,
   });
   host.mdm.enrollment_status = "Pending";
   return host;
 };
+
+/** A host whose agent has enrolled but has not reported vitals yet, e.g. while setup experience is running. */
+const mockNeverFetchedWindowsHost = (status: "online" | "offline"): IHost =>
+  createMockHost({
+    platform: "windows",
+    status,
+    refetch_requested: true,
+    last_enrolled_at: "2026-09-23T00:00:00Z",
+    detail_updated_at: NEVER,
+  });
 
 /** An Apple host that is MDM-enrolled and online -- the only combination that
  * pings APNS alongside the refetch. */
@@ -101,11 +115,13 @@ const renderHostDetails = (overrides?: {
   currentUser?: IUser;
   isGlobalAdmin?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
+  location?: typeof mockLocation;
 }) => {
   const {
     currentUser = ADMIN,
     isGlobalAdmin = true,
     isMacMdmEnabledAndConfigured = false,
+    location = mockLocation,
   } = overrides || {};
 
   const render = createCustomRenderer({
@@ -124,7 +140,7 @@ const renderHostDetails = (overrides?: {
   return render(
     <HostDetailsPage
       router={createMockRouter()}
-      location={mockLocation}
+      location={location}
       params={{ host_id: "1" }}
     />
   );
@@ -179,6 +195,53 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
   });
 });
 
+describe("HostDetailsPage - MDM status modal Check in now", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.resetAllMocks();
+  });
+
+  it("delays the host details refetch by 5 seconds after a successful check-in", async () => {
+    stubQueries(mockAppleHost());
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      host_dep_assignment: null,
+    });
+
+    renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+      location: { ...mockLocation, query: { show_mdm_status: "true" } },
+    });
+
+    const checkInButton = await screen.findByRole("button", {
+      name: /check in now/i,
+    });
+    const callsBeforeCheckIn = (hostAPI.loadHostDetails as jest.Mock).mock.calls
+      .length;
+
+    // Fake timers only from here on, so user-event can control its own
+    // internal delays via the advanceTimers option.
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    await user.click(checkInButton);
+    expect(hostAPI.apnsPing).toHaveBeenCalledWith(1);
+
+    // No immediate refetch -- the app delays it 5s so the device has time to check in.
+    expect((hostAPI.loadHostDetails as jest.Mock).mock.calls.length).toBe(
+      callsBeforeCheckIn
+    );
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(5000);
+    });
+
+    expect(
+      (hostAPI.loadHostDetails as jest.Mock).mock.calls.length
+    ).toBeGreaterThan(callsBeforeCheckIn);
+  });
+});
+
 describe("HostDetailsPage - pending hosts", () => {
   afterEach(() => {
     jest.resetAllMocks();
@@ -229,6 +292,59 @@ describe("HostDetailsPage - pending hosts", () => {
       { timeout: 10000 }
     );
   }, 20000);
+});
+
+describe("HostDetailsPage - hosts that haven't reported vitals", () => {
+  const realNow = Date.now;
+  let elapsedMs = 0;
+  let dateNowSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    elapsedMs = 0;
+    dateNowSpy = jest
+      .spyOn(Date, "now")
+      .mockImplementation(() => realNow() + elapsedMs);
+  });
+
+  afterEach(() => {
+    dateNowSpy.mockRestore();
+    jest.resetAllMocks();
+  });
+
+  it.each([
+    {
+      name: "drops out of the online window",
+      laterStatus: "offline",
+      pollMs: 0,
+    },
+    { name: "outlasts the poll window", laterStatus: "online", pollMs: 61000 },
+  ] as const)(
+    "doesn't show a refetch error when the host $name",
+    async ({ laterStatus, pollMs }) => {
+      stubQueries(mockNeverFetchedWindowsHost("online"));
+      (hostAPI.loadHostDetails as jest.Mock)
+        .mockResolvedValueOnce({ host: mockNeverFetchedWindowsHost("online") })
+        .mockResolvedValue({ host: mockNeverFetchedWindowsHost(laterStatus) });
+
+      renderHostDetails({
+        currentUser: ADMIN,
+        isGlobalAdmin: true,
+      });
+      await screen.findByText(/fetching fresh vitals/i);
+      elapsedMs = pollMs;
+      // The spinner clears only once the next response has gone through the toast decision.
+      await waitFor(
+        () =>
+          expect(
+            screen.queryByText(/fetching fresh vitals/i)
+          ).not.toBeInTheDocument(),
+        { timeout: 5000 }
+      );
+
+      expect(notify.error).not.toHaveBeenCalled();
+    },
+    15000
+  );
 });
 
 describe("HostDetailsPage - Show MDM commands toggle", () => {
