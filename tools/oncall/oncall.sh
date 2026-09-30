@@ -95,9 +95,10 @@ prs() {
 	prs_json="$(gh pr list --limit 1000 --repo fleetdm/fleet --json id,title,author,url,createdAt,isDraft,body,assignees)"
 
 	if [ -n "$slack" ]; then
-		# slack requires &, < and > to be escaped in message text.
+		# titles are untrusted. escaping &, < and > stops them from injecting mentions
+		# or links, and replacing backticks stops them from opening a code block.
 		jq -r --argjson members "$members" "$defs"'
-			def slack_escape: gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;");
+			def slack_escape: gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;") | gsub("`"; "'"'"'");
 			def short_date:
 				(now | gmtime | .[0]) as $year
 				| .createdAt | fromdateiso8601 | gmtime
