@@ -431,6 +431,7 @@ Reference: https://fleetdm.com/pricing
 - [ ] My device page
 - [ ] Scripts
 - [ ] Software
+- [ ] Fleet-maintained apps
 - [ ] Fleet Free
 
 <table>
@@ -504,6 +505,24 @@ Reference: https://fleetdm.com/pricing
 </tr>
 
 <tr>
+<td>Fleet-maintained apps</td>
+<td>Verify Fleet-maintained apps (FMA) can be added, installed, pinned, patched, and removed (macOS & Windows).</td>
+<td>
+
+1. From Software > Add software > Fleet-maintained, add an app for macOS and one for Windows. Verify the installer downloads and the app shows in the fleet's software library with the correct version.
+2. Verify apps already in the fleet show a ✅ icon instead of an Add button in the Fleet-maintained list.
+3. From Host details (macOS & Windows) install the FMA, verify it PASSES and the installed version shows in the host's software inventory.
+4. From My device (macOS & Windows) install an FMA enabled for self-service, verify.
+5. From the app's details page select Actions > Versions, pin to an older version, and verify new installs use the pinned version. Switch back to "Automatically update to latest" and verify.
+6. From the app's details page select Actions > Deploy and choose "Patch when app is closed" or "Force patch". Verify a patch policy is created, fails on a host running an outdated version, and installs the update.
+7. From Host details (macOS & Windows) uninstall the FMA, verify.
+8. Apply `fleet_maintained_apps` (with and without a `version` pin) via GitOps, verify the apps and versions match the YAML.
+9. Verify FMA installs, uninstalls, and edits display correctly in Activity feed.
+
+</td>
+</tr>
+
+<tr>
 <td>Fleet Free</td>
 <td>Verify that product group features behave correctly on Fleet Free.</td>
 <td>
@@ -517,7 +536,7 @@ Run basic checks for the product group area while using a Fleet Free license.
    - Scripts (Add, delete, run)
    - My device page (Mac, Windows, Linux)
 - Premium features are correctly restricted or hidden:
-   - Add software
+   - Add software (including Fleet-maintained apps)
 - No UI, API, or workflow errors occur when using Free-only functionality.
 
 Reference: https://fleetdm.com/pricing
