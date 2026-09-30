@@ -717,12 +717,13 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 
 	// load host uuid and platform for the MDM tables that rely on this to be cleared.
 	type hostInfo struct {
-		UUID     string `db:"uuid"`
-		Platform string `db:"platform"`
-		TeamID   *uint  `db:"team_id"`
+		UUID          string  `db:"uuid"`
+		Platform      string  `db:"platform"`
+		TeamID        *uint   `db:"team_id"`
+		OsqueryHostID *string `db:"osquery_host_id"`
 	}
 	var hostInfos []hostInfo
-	stmt, args, err := sqlx.In(`SELECT uuid, platform, team_id FROM hosts WHERE id IN (?)`, hostIDs)
+	stmt, args, err := sqlx.In(`SELECT uuid, platform, team_id, osquery_host_id FROM hosts WHERE id IN (?) ORDER BY id`, hostIDs)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "building select statement for host uuids")
 	}
@@ -821,23 +822,32 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 
 	// Windows enrollments outlive the host so the device can relink. Touching
 	// updated_at starts the stale-enrollment retention window at deletion;
-	// otherwise an idle enrollment would be reaped within the hour. The host's
-	// fleet is kept so the device comes back to it. Empty UUIDs are skipped so
-	// never-linked enrollments keep their own clock.
-	uuidsByTeam := make(map[uint][]string)
-	var uuidsWithoutTeam []string
+	// otherwise an idle enrollment would be reaped within the hour. Empty
+	// UUIDs are skipped so never-linked enrollments keep their own clock.
+	//
+	// The fleet the device comes back to is the Windows host's: a dual-boot Mac
+	// sharing the UUID must not overwrite it. When several Windows hosts share
+	// it, the host is chosen as windowsEnrollmentBoundHostsDB binds secrets:
+	// the osquery_host_id match, else the lowest id.
+	var touchOnly []string
+	windowsOwners := make(map[string]hostInfo)
 	for _, info := range hostInfos {
-		switch {
-		case info.UUID == "":
-		case info.TeamID == nil:
-			uuidsWithoutTeam = append(uuidsWithoutTeam, info.UUID)
-		default:
-			uuidsByTeam[*info.TeamID] = append(uuidsByTeam[*info.TeamID], info.UUID)
+		if info.UUID == "" {
+			continue
+		}
+		if info.Platform != "windows" {
+			touchOnly = append(touchOnly, info.UUID)
+			continue
+		}
+		key := strings.ToLower(info.UUID)
+		_, seen := windowsOwners[key]
+		matchesIdentifier := info.OsqueryHostID != nil && strings.EqualFold(*info.OsqueryHostID, info.UUID)
+		if !seen || matchesIdentifier {
+			windowsOwners[key] = info
 		}
 	}
-	touchEnrollments := func(teamID *uint, uuids []string) error {
-		stmt, args, err := sqlx.In(
-			`UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ? WHERE host_uuid IN (?)`, teamID, uuids)
+	touchEnrollments := func(setClause string, uuids []string, setArgs ...any) error {
+		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET `+setClause+` WHERE host_uuid IN (?)`, append(setArgs, uuids)...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building touch statement for windows mdm enrollments")
 		}
@@ -846,13 +856,13 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		}
 		return nil
 	}
-	if len(uuidsWithoutTeam) > 0 {
-		if err := touchEnrollments(nil, uuidsWithoutTeam); err != nil {
+	if len(touchOnly) > 0 {
+		if err := touchEnrollments(`updated_at = CURRENT_TIMESTAMP`, touchOnly); err != nil {
 			return err
 		}
 	}
-	for teamID, uuids := range uuidsByTeam {
-		if err := touchEnrollments(&teamID, uuids); err != nil {
+	for _, owner := range windowsOwners {
+		if err := touchEnrollments(`updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ?`, []string{owner.UUID}, owner.TeamID); err != nil {
 			return err
 		}
 	}
@@ -2315,12 +2325,26 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		touchEnrollments := fmt.Sprintf(`
 			UPDATE mdm_windows_enrollments e
 			JOIN hosts h ON h.uuid = e.host_uuid AND h.uuid <> ''
-			SET e.updated_at = CURRENT_TIMESTAMP, e.deleted_host_team_id = h.team_id
+			SET e.updated_at = CURRENT_TIMESTAMP
 			WHERE h.id IN (SELECT id FROM (%s) incoming)`,
 			selectIDs,
 		)
 		if _, err := tx.ExecContext(ctx, touchEnrollments, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "touch windows mdm enrollments of incoming hosts")
+		}
+		// As in deleteHosts, the fleet comes from a Windows host, and one host decides when several share the UUID.
+		recordEnrollmentFleets := fmt.Sprintf(`
+			UPDATE mdm_windows_enrollments e
+			JOIN hosts h ON h.id = (
+				SELECT MIN(h2.id) FROM hosts h2
+				WHERE h2.uuid = e.host_uuid AND h2.platform = 'windows' AND h2.id IN (SELECT id FROM (%s) incoming)
+			)
+			SET e.deleted_host_team_id = h.team_id
+			WHERE e.host_uuid <> ''`,
+			selectIDs,
+		)
+		if _, err := tx.ExecContext(ctx, recordEnrollmentFleets, now); err != nil {
+			return ctxerr.Wrap(ctx, err, "record fleets of incoming hosts on windows mdm enrollments")
 		}
 
 		cleanupHosts := `
@@ -2653,7 +2677,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
       UPDATE
         hosts
       SET
-        team_id = IF(? AND platform = 'windows' AND orbit_node_key IS NULL AND node_key IS NULL, ?, team_id),
+        team_id = IF(? AND platform = 'windows' AND orbit_node_key IS NULL AND node_key IS NULL
+          AND EXISTS (SELECT 1 FROM host_mdm hm WHERE hm.host_id = hosts.id AND hm.enrolled = 0 AND hm.installed_from_dep = 1)
+          AND EXISTS (SELECT 1 FROM host_autopilot_devices had WHERE had.host_id = hosts.id AND had.deleted_at IS NULL), ?, team_id),
         orbit_node_key = ?,
         uuid = COALESCE(NULLIF(uuid, ''), ?),
         osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?),
