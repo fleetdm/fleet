@@ -17,8 +17,7 @@ module.exports = {
     require('assert')(sails.config.custom.usageStatisticsServiceAccountEmailAddress);
     require('assert')(sails.config.custom.usageStatisticsServiceAccountPrivateKey);
 
-    // Hardcoded to a test sheet while the format is fine-tuned. Once the format settles, this will
-    // point at the sheet everyone references.
+    // Usage statistics sheet
     const SPREADSHEET_ID = '1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI';
 
     // Organizations reported by internal, development, and load testing instances.
