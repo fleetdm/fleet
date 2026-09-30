@@ -1,0 +1,1 @@
+- Fixed Cancel and Close in live reports and policies returning to the edit page when the run was started from the details page.
