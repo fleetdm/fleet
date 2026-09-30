@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -1128,80 +1127,25 @@ func testOneTimeEnrollSecretWindowsResendMints(t *testing.T, ds *Datastore) {
 
 func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	previous, err := ds.NewTeam(ctx, &fleet.Team{Name: "deleted-host-previous-fleet"})
-	require.NoError(t, err)
-	gone, err := ds.NewTeam(ctx, &fleet.Team{Name: "deleted-host-gone-fleet"})
-	require.NoError(t, err)
-	defaultFleet, err := ds.NewTeam(ctx, &fleet.Team{Name: "deleted-host-default-fleet"})
-	require.NoError(t, err)
+	newTeam := func(name string) *uint {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "deleted-host-" + name})
+		require.NoError(t, err)
+		return &team.ID
+	}
+	previous, defaultFleet, other := newTeam("previous"), newTeam("default"), newTeam("other")
 
-	// deleteHost deletes a Windows MDM host whose enrollment survives, and returns the secret the next push would carry.
-	deleteHost := func(t *testing.T, name string, teamID *uint) (*fleet.Host, *fleet.MDMWindowsEnrolledDevice, *fleet.HostOneTimeEnrollSecret) {
+	// deleteHost deletes a Windows MDM host whose enrollment survives.
+	deleteHost := func(t *testing.T, name string, teamID *uint) (*fleet.Host, *fleet.MDMWindowsEnrolledDevice) {
 		h := newOneTimeSecretTestHost(t, ds, "windows", teamID)
 		device := insertWindowsEnrollment(t, ds, "hw-fleet-"+name, h.UUID)
 		require.NoError(t, ds.DeleteHost(ctx, h.ID))
-		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-		return h, device, liveWindowsSecret(t, ds, device.ID)
+		return h, device
 	}
-
-	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, &defaultFleet.ID))
-	for _, tc := range []struct {
-		name     string
-		teamID   *uint
-		deleteIt bool
-		want     *uint
-	}{
-		{name: "back to its fleet", teamID: &previous.ID, want: &previous.ID},
-		{name: "fleet deleted since", teamID: &gone.ID, deleteIt: true, want: &defaultFleet.ID},
-		{name: "no fleet", want: &defaultFleet.ID},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			h := newOneTimeSecretTestHost(t, ds, "windows", tc.teamID)
-			device := insertWindowsEnrollment(t, ds, "hw-fleet-"+strings.ReplaceAll(tc.name, " ", "-"), h.UUID)
-			require.NoError(t, ds.DeleteHost(ctx, h.ID))
-			if tc.deleteIt {
-				require.NoError(t, ds.DeleteTeam(ctx, *tc.teamID))
-			}
-			require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-			row := liveWindowsSecret(t, ds, device.ID)
-			require.Equal(t, tc.want, row.TeamID)
-
-			// The device re-enrolls with it and is recreated in that fleet.
-			back, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, row.TeamID, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
-			require.NoError(t, err)
-			stored, err := ds.HostLite(ctx, back.ID)
-			require.NoError(t, err)
-			require.Equal(t, tc.want, stored.TeamID)
-		})
+	// nextSecret is the secret the next push to the enrollment carries.
+	nextSecret := func(t *testing.T, enrollmentID uint) *fleet.HostOneTimeEnrollSecret {
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, enrollmentID))
+		return liveWindowsSecret(t, ds, enrollmentID)
 	}
-
-	t.Run("a pending Autopilot host moves to the secret's fleet", func(t *testing.T) {
-		// Autopilot re-creates a deleted device as a pending host in the default fleet, and orbit claims it by serial.
-		h, _, row := deleteHost(t, "autopilot", &previous.ID)
-		var pendingID uint
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			res, err := q.ExecContext(ctx, `
-				INSERT INTO hosts (hardware_serial, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested, team_id)
-				VALUES (?, 'windows', ?, ?, NULL, 1, ?)`, h.HardwareSerial, server.NeverTimestamp, server.NeverTimestamp, defaultFleet.ID)
-			if err != nil {
-				return err
-			}
-			id, _ := res.LastInsertId()
-			pendingID = uint(id) //nolint:gosec // dismiss G115
-			if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm (host_id, enrolled, installed_from_dep) VALUES (?, 0, 1)`, pendingID); err != nil {
-				return err
-			}
-			_, err = q.ExecContext(ctx, `INSERT INTO host_autopilot_devices (host_id) VALUES (?)`, pendingID)
-			return err
-		})
-		claimed, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, row.TeamID, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
-		require.NoError(t, err)
-		require.Equal(t, pendingID, claimed.ID)
-		stored, err := ds.HostLite(ctx, claimed.ID)
-		require.NoError(t, err)
-		require.Equal(t, &previous.ID, stored.TeamID)
-	})
-
 	recordedTeam := func(t *testing.T, enrollmentID uint) *uint {
 		var teamID *uint
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1209,75 +1153,92 @@ func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore)
 		})
 		return teamID
 	}
+	// sharingHost has no hostname, so it counts as an incoming host until it reports details.
 	sharingHost := func(t *testing.T, platform, hostUUID, osqueryHostID string, teamID *uint) *fleet.Host {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(), PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
-			OsqueryHostID: new(osqueryHostID), NodeKey: new("nk-" + osqueryHostID), UUID: hostUUID,
-			Hostname: "host-" + osqueryHostID, Platform: platform, TeamID: teamID,
+			OsqueryHostID: new(osqueryHostID), NodeKey: new("nk-" + osqueryHostID), UUID: hostUUID, Platform: platform, TeamID: teamID,
 		})
 		require.NoError(t, err)
 		return h
 	}
 
-	t.Run("a dual-boot Mac sharing the UUID keeps the Windows host's fleet", func(t *testing.T) {
-		macFleet, err := ds.NewTeam(ctx, &fleet.Team{Name: "deleted-host-mac-fleet"})
+	for _, tc := range []struct {
+		name          string
+		teamID        *uint
+		deleteTeam    bool
+		defaultFleet  *uint
+		wantSecretFor *uint
+	}{
+		{name: "back to its fleet", teamID: previous, wantSecretFor: previous},
+		{name: "fleet deleted since", teamID: newTeam("gone"), deleteTeam: true, defaultFleet: defaultFleet, wantSecretFor: defaultFleet},
+		{name: "no fleet", defaultFleet: defaultFleet, wantSecretFor: defaultFleet},
+		{name: "no fleet and no default fleet"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, tc.defaultFleet))
+			_, device := deleteHost(t, tc.name, tc.teamID)
+			if tc.deleteTeam {
+				require.NoError(t, ds.DeleteTeam(ctx, *tc.teamID))
+			}
+			require.Equal(t, tc.wantSecretFor, nextSecret(t, device.ID).TeamID)
+		})
+	}
+
+	t.Run("a pending Autopilot host moves to the secret's fleet", func(t *testing.T) {
+		// Autopilot re-creates a deleted device as a pending host in the default fleet, and orbit claims it by serial.
+		require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, defaultFleet))
+		h, device := deleteHost(t, "autopilot", previous)
+		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{autopilotDevice(h.HardwareSerial, "")}))
+		pending := hostIDsBySerial(t, ds, h.HardwareSerial)
+		require.Len(t, pending, 1)
+
+		row := nextSecret(t, device.ID)
+		claimed, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, row.TeamID, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 		require.NoError(t, err)
-		windows := newOneTimeSecretTestHost(t, ds, "windows", &previous.ID)
+		require.Equal(t, pending[0], claimed.ID)
+		stored, err := ds.HostLite(ctx, claimed.ID)
+		require.NoError(t, err)
+		require.Equal(t, previous, stored.TeamID)
+	})
+
+	t.Run("a dual-boot Mac sharing the UUID is not the enrollment's host", func(t *testing.T) {
+		windows := newOneTimeSecretTestHost(t, ds, "windows", previous)
 		device := insertWindowsEnrollment(t, ds, "hw-fleet-dual-boot", windows.UUID)
-		mac := sharingHost(t, "darwin", windows.UUID, "mac-"+windows.UUID, &macFleet.ID)
+		mac := sharingHost(t, "darwin", windows.UUID, "mac-"+windows.UUID, other)
 		require.NoError(t, ds.DeleteHost(ctx, windows.ID))
 
-		// The surviving Mac is not the enrollment's host, so the next secret is for the Windows host coming back.
 		enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
 		require.NoError(t, err)
 		require.Nil(t, enrolled.LinkedHostID)
-		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-		row := liveWindowsSecret(t, ds, device.ID)
+		row := nextSecret(t, device.ID)
 		require.Nil(t, row.HostID)
-		require.Equal(t, &previous.ID, row.TeamID)
+		require.Equal(t, previous, row.TeamID)
 
+		// Deleting the Mac later leaves the Windows host's fleet in place.
 		require.NoError(t, ds.DeleteHost(ctx, mac.ID))
-		require.Equal(t, &previous.ID, recordedTeam(t, device.ID))
+		require.Equal(t, previous, recordedTeam(t, device.ID))
 	})
 
-	t.Run("Windows hosts sharing the UUID record the secret's host's fleet", func(t *testing.T) {
-		// The host whose osquery_host_id is the UUID is the one a secret binds to, even when it isn't the lowest id.
-		otherFleet, err := ds.NewTeam(ctx, &fleet.Team{Name: "deleted-host-other-fleet"})
-		require.NoError(t, err)
+	// Among Windows hosts sharing the UUID, the one whose osquery_host_id is the UUID decides, as it is the one a secret binds to,
+	// even when it isn't the lowest id. Both deletion paths follow that rule.
+	sharedUUIDHosts := func(t *testing.T, name string) (first, owner *fleet.Host, device *fleet.MDMWindowsEnrolledDevice) {
 		hostUUID := strings.ToUpper(uuid.NewString())
-		first := sharingHost(t, "windows", hostUUID, "other-"+hostUUID, &otherFleet.ID)
-		owner := sharingHost(t, "windows", hostUUID, hostUUID, &previous.ID)
-		device := insertWindowsEnrollment(t, ds, "hw-fleet-shared", hostUUID)
+		sharingHost(t, "darwin", hostUUID, "mac-"+hostUUID, other)
+		first = sharingHost(t, "windows", hostUUID, "other-"+hostUUID, other)
+		owner = sharingHost(t, "windows", hostUUID, hostUUID, previous)
+		return first, owner, insertWindowsEnrollment(t, ds, "hw-fleet-"+name, hostUUID)
+	}
+	t.Run("deleting Windows hosts sharing the UUID records the secret's host's fleet", func(t *testing.T) {
+		first, owner, device := sharedUUIDHosts(t, "shared")
 		require.NoError(t, ds.DeleteHosts(ctx, []uint{first.ID, owner.ID}))
-		require.Equal(t, &previous.ID, recordedTeam(t, device.ID))
+		require.Equal(t, previous, recordedTeam(t, device.ID))
 	})
-
 	t.Run("incoming-host cleanup records the secret's host's fleet", func(t *testing.T) {
-		// Incoming hosts never reported details, so all three are cleaned up together.
-		secondFleet, err := ds.NewTeam(ctx, &fleet.Team{Name: "deleted-host-incoming-second"})
+		_, _, device := sharedUUIDHosts(t, "incoming")
+		_, err := ds.CleanupIncomingHosts(ctx, time.Now().Add(10*time.Minute))
 		require.NoError(t, err)
-		hostUUID := strings.ToUpper(uuid.NewString())
-		incoming := func(platform, osqueryHostID string, teamID *uint) {
-			_, err := ds.NewHost(ctx, &fleet.Host{
-				DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(), PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
-				OsqueryHostID: new(osqueryHostID), NodeKey: new("nk-" + osqueryHostID), UUID: hostUUID, Platform: platform, TeamID: teamID,
-			})
-			require.NoError(t, err)
-		}
-		incoming("darwin", "incoming-mac-"+hostUUID, &secondFleet.ID)
-		incoming("windows", "incoming-win-"+hostUUID, &secondFleet.ID)
-		incoming("windows", hostUUID, &previous.ID)
-		device := insertWindowsEnrollment(t, ds, "hw-fleet-incoming", hostUUID)
-
-		_, err = ds.CleanupIncomingHosts(ctx, time.Now().Add(10*time.Minute))
-		require.NoError(t, err)
-		require.Equal(t, &previous.ID, recordedTeam(t, device.ID))
-	})
-
-	t.Run("no default fleet", func(t *testing.T) {
-		require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, nil))
-		_, _, row := deleteHost(t, "no-default", nil)
-		require.Nil(t, row.TeamID)
+		require.Equal(t, previous, recordedTeam(t, device.ID))
 	})
 }
 
