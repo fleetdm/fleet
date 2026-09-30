@@ -14,6 +14,7 @@ fleet-gitops:
     - apt-get -qq update
     - apt-get install -y curl 'jq=1.6-2.1*'
   script:
+    - FLEET_URL="$(printf '%s' "$FLEET_URL" | sed 's:/*$::')"
     - >
       FLEET_VERSION="$(curl "$FLEET_URL/api/v1/fleet/version" --header "Authorization: Bearer $FLEET_API_TOKEN" --fail --silent | jq --raw-output '.version')"
     - >

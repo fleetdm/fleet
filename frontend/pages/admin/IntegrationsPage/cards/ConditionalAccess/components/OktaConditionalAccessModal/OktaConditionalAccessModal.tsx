@@ -299,7 +299,6 @@ const OktaConditionalAccessModal = ({
           >
             Identity provider (IdP) signature certificate
           </TooltipWrapper>
-          <br />
           <Button
             variant="secondary"
             onClick={onDownloadSigningCert}

@@ -986,7 +986,15 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
 
-	host.Host.GigsTotalDiskSpace, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable = svc.calculateAndroidStorageMetrics(ctx, device, true)
+	// AMAPI only sends memory events on status reports, so an enrollment payload always
+	// calculates as "not supported". On enrollment, leaving the fields zero skips the
+	// host_disks write and keeps the last measurement until the next status report, which
+	// is still written as reported.
+	if gigsTotal, gigsAvailable, percentAvailable := svc.calculateAndroidStorageMetrics(ctx, device, true); !fromEnroll || gigsAvailable >= 0 {
+		host.Host.GigsTotalDiskSpace = gigsTotal
+		host.Host.GigsDiskSpaceAvailable = gigsAvailable
+		host.Host.PercentDiskSpaceAvailable = percentAvailable
+	}
 
 	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber
 	host.Host.CPUType = device.HardwareInfo.Hardware
@@ -1286,22 +1294,15 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return 0, err
 	}
 
-	var enrollmentTokenRequest enrollmentTokenRequest
-	err := json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
+	teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(ctx, device.EnrollmentTokenData)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "unmarshilling enrollment token data")
+		return 0, err
 	}
 
-	enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "verifying enroll secret")
-	}
-
-	// If the device was previously known restore the last-known team instead of the enrollment secret's default.
-	teamID := enrollSecret.GetTeamID()
+	// If the device was previously known restore the last-known team instead of the token's default.
 	hostKey := getAndroidHostKey(device)
 	if priorTeamID, found, tlErr := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); tlErr != nil {
-		svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enroll secret", "err", tlErr)
+		svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enrollment data default", "err", tlErr)
 		ctxerr.Handle(ctx, tlErr)
 	} else if found {
 		teamID = priorTeamID
@@ -1314,7 +1315,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 
 	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable := svc.calculateAndroidStorageMetrics(ctx, device, false)
 
-	computerName, err := getComputerName(ctx, svc.fleetDS, device, nil, "", enrollmentTokenRequest.IdpUUID)
+	computerName, err := getComputerName(ctx, svc.fleetDS, device, nil, "", idpUUID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting computer name for new host")
 	}
@@ -1377,9 +1378,9 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return 0, err
 	}
 
-	if enrollmentTokenRequest.IdpUUID != "" {
-		svc.logger.InfoContext(ctx, "associating android host with idp account", "host_uuid", host.UUID, "idp_uuid", enrollmentTokenRequest.IdpUUID)
-		err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, enrollmentTokenRequest.IdpUUID)
+	if idpUUID != "" {
+		svc.logger.InfoContext(ctx, "associating android host with idp account", "host_uuid", host.UUID, "idp_uuid", idpUUID)
+		err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpUUID)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "associating host with idp account")
 		}

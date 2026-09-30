@@ -17,7 +17,7 @@ import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
-import VersionCell from "../../components/tables/VersionCell";
+import { VersionsColumnCell } from "../../components/tables/VersionCell";
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 
 import { getVulnerabilities } from "./helpers";
@@ -85,6 +85,7 @@ const getSoftwareNameCellData = (
   return {
     name: softwareTitle.name,
     displayName: softwareTitle.display_name,
+    bundleIdentifier: softwareTitle.bundle_identifier,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,
     hasInstaller: hasInstaller && !isAllTeams,
@@ -119,6 +120,7 @@ const generateTableHeaders = (
           <SoftwareNameCell
             name={nameCellData.name}
             display_name={nameCellData.displayName}
+            bundle_identifier={nameCellData.bundleIdentifier}
             source={nameCellData.source}
             path={nameCellData.path}
             router={router}
@@ -145,9 +147,7 @@ const generateTableHeaders = (
       Header: "Version",
       disableSortBy: true,
       accessor: "versions",
-      Cell: (cellProps: IVersionsCellProps) => (
-        <VersionCell versions={cellProps.cell.value} />
-      ),
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Type",

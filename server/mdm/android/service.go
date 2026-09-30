@@ -2,6 +2,7 @@ package android
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"google.golang.org/api/androidmanagement/v1"
@@ -71,6 +72,11 @@ type Service interface {
 
 	// CreateAndroidWebApp creates a new web app for the given enterprise.
 	CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error)
+
+	// GetZeroTouchConfiguration returns the DPC extras JSON for zero-touch enrollment.
+	// Creates a long-lived reusable enrollment token on first call; returns the existing one on subsequent calls.
+	// teamID is the fleet to enroll devices into; nil means "Unassigned."
+	GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*ZeroTouchConfigurationResponse, error)
 }
 
 // /////////////////////////////////////////////
@@ -107,4 +113,30 @@ type EnterpriseSignupResponse struct {
 type EnrollmentTokenResponse struct {
 	*EnrollmentToken
 	DefaultResponse
+}
+
+type ZeroTouchConfigurationResponse struct {
+	DPCExtras json.RawMessage `json:"-"`
+	Warning   string          `json:"warning,omitempty"`
+	DefaultResponse
+}
+
+func (r ZeroTouchConfigurationResponse) MarshalJSON() ([]byte, error) {
+	if len(r.DPCExtras) == 0 {
+		return json.Marshal(struct {
+			Warning string `json:"warning,omitempty"`
+		}{Warning: r.Warning})
+	}
+	// Start with DPCExtras as the base object, then merge warning if present.
+	if r.Warning == "" {
+		return r.DPCExtras, nil
+	}
+	// Merge warning into the DPC extras object.
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(r.DPCExtras, &m); err != nil {
+		return r.DPCExtras, nil
+	}
+	w, _ := json.Marshal(r.Warning)
+	m["warning"] = w
+	return json.Marshal(m)
 }

@@ -1,0 +1,1 @@
+- Fixed software with an invisible reported name rendering as a blank row in Host details > Software, the Software page, and My device > Software. Some macOS system apps (e.g. MediaRemoteUI on macOS 27) hide themselves by setting their display name to a single zero-width character, which is neither empty nor trimmable; Fleet now falls back to the bundle identifier for these.

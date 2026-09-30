@@ -18,7 +18,7 @@ if (-not $wingetPath) {
 }
 
 $args = @(
-    "--id", "9NT1R1C2HH7J"
+    "--id", "9plm9xgg6vks"
     "--source", "msstore"
     "--silent"
     "--accept-package-agreements"

@@ -1,10 +1,11 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
 
 import { createMockActivity } from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
-import { ActivityType } from "interfaces/activity";
+import { ActivityType, IActivityDetails } from "interfaces/activity";
 
 import GlobalActivityItem from ".";
 
@@ -1523,6 +1524,79 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
   });
 
+  describe("host_enrollment_rejected", () => {
+    const renderRejected = (
+      details: Partial<IActivityDetails>,
+      onDetailsClick = jest.fn()
+    ) =>
+      render(
+        <GlobalActivityItem
+          activity={createMockActivity({
+            type: ActivityType.HostEnrollmentRejected,
+            actor_full_name: "",
+            actor_id: 0,
+            fleet_initiated: true,
+            created_at: "2026-01-01T00:00:00Z",
+            details,
+          })}
+          isPremiumTier
+          onDetailsClick={onDetailsClick}
+        />
+      );
+
+    it("renders Fleet as the actor and names the host", () => {
+      renderRejected({
+        reason: "one_time_secret_spent",
+        host_display_name: "Anna's MacBook Pro",
+        host_serial: "C02ABC",
+      });
+      expect(screen.getByText("Fleet")).toBeInTheDocument();
+      expect(
+        screen.getByText(/rejected an enrollment for/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+    });
+
+    it("falls back to the serial number when there is no display name", () => {
+      renderRejected({
+        reason: "one_time_secret_spent",
+        host_serial: "C02ABC",
+      });
+      expect(screen.getByText("C02ABC")).toBeInTheDocument();
+      expect(
+        screen.getByText(/a host with serial number/i)
+      ).toBeInTheDocument();
+    });
+
+    it("falls back to 'a host' when there is no display name or serial", () => {
+      renderRejected({ reason: "something_new" });
+      expect(
+        screen.getByText(/rejected an enrollment for a host\./i)
+      ).toBeInTheDocument();
+    });
+
+    it("offers details and passes the reason and time to the handler", async () => {
+      const onDetailsClick = jest.fn();
+      renderRejected(
+        { reason: "one_time_secret_spent", host_display_name: "X" },
+        onDetailsClick
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: /show info/i }));
+
+      expect(onDetailsClick).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: ActivityType.HostEnrollmentRejected,
+          created_at: "2026-01-01T00:00:00Z",
+          details: expect.objectContaining({
+            reason: "one_time_secret_spent",
+            host_display_name: "X",
+          }),
+        })
+      );
+    });
+  });
+
   it("renders a 'fleet_enrolled' type activity with display name and serial", () => {
     const activity = createMockActivity({
       type: ActivityType.FleetEnrolled,
@@ -2815,6 +2889,142 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Asset tag")).toBeInTheDocument();
   });
 
+  describe("notified_end_user_before_patching activity", () => {
+    it("renders a single-app success sentence with 1 hour and a bold host + title", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: ["1Password"],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "notified end user 1 hour before patching 1Password on John's MacBook Pro."
+      );
+      // Bold: software title + host name.
+      const bolds = Array.from(container.querySelectorAll("strong")).map(
+        (el) => el.textContent
+      );
+      expect(bolds).toEqual(
+        expect.arrayContaining(["1Password", "John's MacBook Pro"])
+      );
+    });
+
+    it("renders three apps with Oxford comma", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: ["1Password", "Slack", "Docker Desktop"],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "1Password, Slack, and Docker Desktop on John's MacBook Pro."
+      );
+    });
+
+    it("truncates past four apps with ', and N more apps'", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: [
+            "1Password",
+            "Slack",
+            "Docker Desktop",
+            "Zoom",
+            "Chrome",
+          ],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "1Password, Slack, Docker Desktop, and 2 more apps"
+      );
+    });
+
+    it("lists the fourth app inline instead of using '1 more app'", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: ["1Password", "Slack", "Docker Desktop", "Zoom"],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "1Password, Slack, Docker Desktop, and Zoom"
+      );
+      expect(container.textContent).not.toMatch(/more app/);
+    });
+
+    it("renders 5 minutes for the reminder (time_before: 300)", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: ["1Password"],
+          status: "success",
+          time_before: 300,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "notified end user 5 minutes before patching"
+      );
+    });
+
+    it("renders the failed-to-notify sentence when status is failed", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "Josh's MacBook Pro",
+          software_titles: ["1Password"],
+          status: "failed",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "failed to notify end user 1 hour before patching 1Password on Josh's MacBook Pro."
+      );
+    });
+  });
+
   it("renders a canceled_mdm_command activity", () => {
     const activity = createMockActivity({
       type: ActivityType.CanceledMdmCommand,
@@ -2856,5 +3066,41 @@ describe("Activity Feed", () => {
         exact: false,
       })
     ).toBeInTheDocument();
+  });
+
+  describe.each([
+    ActivityType.InstalledSoftware,
+    ActivityType.UninstalledSoftware,
+    ActivityType.InstalledAppStoreApp,
+  ])("premium-only install-details gating for %s", (type) => {
+    it("hides Show details on Fleet Free", () => {
+      const activity = createMockActivity({
+        type,
+        details: {
+          software_title: "Foo Software",
+          host_display_name: "Foo Host",
+        },
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+      expect(
+        screen.queryByRole("button", { name: /show info/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows Show details on Fleet Premium", () => {
+      const activity = createMockActivity({
+        type,
+        details: {
+          software_title: "Foo Software",
+          host_display_name: "Foo Host",
+        },
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+      expect(
+        screen.getByRole("button", { name: /show info/i })
+      ).toBeInTheDocument();
+    });
   });
 });

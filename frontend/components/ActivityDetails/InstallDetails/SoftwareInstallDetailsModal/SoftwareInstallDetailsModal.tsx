@@ -36,6 +36,7 @@ import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
 
+import { isNotifyBeforePatchingSkip } from "../../NotifyBeforePatchingDetailsModal/helpers";
 import {
   INSTALL_DETAILS_STATUS_ICONS,
   SKIPPED_INSTALL_DETAILS,
@@ -133,6 +134,12 @@ export const StatusMessage = ({
   // (deferred update); collapsing it into "is installed" would hide the
   // reason the row is flagged.
   if (skippedInstall && status === "failed_install") {
+    // Notify variant appends "Fleet notifies the end user..." to
+    // pre_install_query_output; patch_when_closed doesn't.
+    const isNotifyVariant = isNotifyBeforePatchingSkip(
+      installResult.pre_install_query_output
+    );
+
     // Admin-facing pages link "policy runs again" to cadence docs; the end-user
     // "My device" flow shows plain text since the doc is admin-only.
     const skippedDetails = isMyDevicePage ? (
@@ -157,7 +164,10 @@ export const StatusMessage = ({
           <span>
             Fleet skipped install of <b>{software_title}</b> ({software_package}
             ) on {formattedHost}
-            {displayTimeStamp}. {skippedDetails}
+            {displayTimeStamp}.{" "}
+            {isNotifyVariant
+              ? "The app was open. Fleet notifies the end user 1 hour before the patch is forced."
+              : skippedDetails}
           </span>
         }
       />
@@ -338,9 +348,11 @@ export const SoftwareInstallDetailsModal = ({
     const outputs = [
       {
         label: "Pre-install query output:",
-        value: detailsFromProps.skipped_install
-          ? SKIPPED_PRE_INSTALL_OUTPUT
-          : swInstallResult?.pre_install_query_output,
+        value:
+          swInstallResult?.pre_install_query_output ||
+          (detailsFromProps.skipped_install
+            ? SKIPPED_PRE_INSTALL_OUTPUT
+            : undefined),
       },
       {
         label: "Install script output:",

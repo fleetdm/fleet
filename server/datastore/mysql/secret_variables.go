@@ -566,6 +566,12 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 				return "", ctxerr.Wrapf(ctx, err, "minting psso device registration token for host %s", enrollmentID)
 			}
 			secretValues[secretType] = token
+		case fleet.HostSecretEnrollSecret:
+			secret, err := ds.mintHostOneTimeEnrollSecret(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "minting one-time enroll secret for host %s", enrollmentID)
+			}
+			secretValues[secretType] = secret
 		default:
 			return "", ctxerr.Errorf(ctx, "unknown host secret type: %s", secretType)
 		}

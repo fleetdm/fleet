@@ -346,7 +346,7 @@ WHERE host_id = ?`, hostID)
 	return &key, nil
 }
 
-func (ds *Datastore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+func (ds *Datastore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 	// TODO: Are we sure that host id is the right way to find the archived key? Are we concerned
 	// about cases where host with the same hardware serial has been deleted and recreated? If we
 	// learn that this is a real world concern, we should consider using the hardware serial as the primary
@@ -365,7 +365,7 @@ LIMIT 1`
 
 	var key fleet.HostArchivedDiskEncryptionKey
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &key, fmt.Sprintf(sqlFmt, `WHERE host_id = ?`), host.ID)
-	if err == sql.ErrNoRows && host.HardwareSerial != "" {
+	if err == sql.ErrNoRows && host.HardwareSerial != "" && allowArchivedSerialLookup {
 		// If we didn't find a key by host ID, try to find it by hardware serial.
 		ds.logger.DebugContext(ctx, "get archived disk encryption key by host serial", "serial", host.HardwareSerial, "host_id", host.ID)
 		err = sqlx.GetContext(ctx, ds.reader(ctx), &key, fmt.Sprintf(sqlFmt, `WHERE hardware_serial = ?`), host.HardwareSerial)
@@ -509,7 +509,7 @@ ON DUPLICATE KEY UPDATE
 func (ds *Datastore) GetBitLockerPINRequest(ctx context.Context, hostID uint) (*fleet.HostBitLockerPINRequest, error) {
 	var req fleet.HostBitLockerPINRequest
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &req, `
-SELECT status, client_error, created_at FROM host_bitlocker_pin_requests WHERE host_id = ?`, hostID)
+SELECT status, client_error, created_at, updated_at FROM host_bitlocker_pin_requests WHERE host_id = ?`, hostID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ctxerr.Wrap(ctx, notFound("BitLockerPINRequest").WithID(hostID))
@@ -573,10 +573,13 @@ UPDATE host_bitlocker_pin_requests SET status = ?, pin_encrypted = NULL WHERE ho
 func (ds *Datastore) SetBitLockerPINRequestOutcome(
 	ctx context.Context, host *fleet.Host, requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string,
 ) error {
+	// The age guard matches HostBitLockerPINRequest.Expired, so an outcome the My device page has already reported as timed
+	// out cannot be accepted between the timeout and the hourly cleanup and flip the page back.
 	const stmt = `
 UPDATE host_bitlocker_pin_requests
 SET status = ?, client_error = ?, pin_encrypted = NULL
-WHERE host_id = ? AND request_uuid = ? AND status = ?`
+WHERE host_id = ? AND request_uuid = ? AND status = ?
+	AND updated_at > DATE_SUB(NOW(6), INTERVAL ? SECOND)`
 	// The id comes from the agent. Make sure it is valid.
 	requestID, err := uuid.Parse(requestUUID)
 	if err != nil {
@@ -584,7 +587,8 @@ WHERE host_id = ? AND request_uuid = ? AND status = ?`
 	}
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, stmt, outcome, clientError, host.ID, requestID[:], fleet.BitLockerPINRequestDelivered)
+		res, err := tx.ExecContext(ctx, stmt, outcome, clientError, host.ID, requestID[:], fleet.BitLockerPINRequestDelivered,
+			int(fleet.BitLockerPINResultTimeout.Seconds()))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "set bitlocker pin request outcome")
 		}
@@ -603,16 +607,20 @@ WHERE host_id = ? AND request_uuid = ? AND status = ?`
 // bitLockerPINRequestRetention is how long a finished PIN submission is kept so the My device page can show its outcome.
 const bitLockerPINRequestRetention = 24 * time.Hour
 
-// CleanupExpiredBitLockerPINRequests runs on the hourly cleanups cron. It retires submissions the agent never collected and
-// clears the enrollment flag that pointed at them. It also deletes finished submissions a day after they finish.
+// CleanupExpiredBitLockerPINRequests runs on the hourly cleanups cron. It retires submissions the agent never collected, and
+// ones it collected but never reported on, and clears the enrollment flag that pointed at them. It also deletes finished
+// submissions a day after they finish.
 func (ds *Datastore) CleanupExpiredBitLockerPINRequests(ctx context.Context) error {
+	// Collecting a PIN sets status to delivered, which moves updated_at to the collection time.
 	const expireStmt = `
 UPDATE host_bitlocker_pin_requests
 SET status = ?, pin_encrypted = NULL, client_error = ?
-WHERE status = ? AND created_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND)`
+WHERE (status = ? AND created_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND))
+	OR (status = ? AND updated_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND))`
 	if _, err := ds.writer(ctx).ExecContext(ctx, expireStmt, fleet.BitLockerPINRequestFailed, fleet.BitLockerPINRequestTimedOutError,
-		fleet.BitLockerPINRequestPending, int(fleet.BitLockerPINRequestTTL.Seconds())); err != nil {
-		return ctxerr.Wrap(ctx, err, "expire uncollected bitlocker pin requests")
+		fleet.BitLockerPINRequestPending, int(fleet.BitLockerPINRequestTTL.Seconds()),
+		fleet.BitLockerPINRequestDelivered, int(fleet.BitLockerPINResultTimeout.Seconds())); err != nil {
+		return ctxerr.Wrap(ctx, err, "expire unfinished bitlocker pin requests")
 	}
 
 	// Retiring a submission above does not touch the enrollment row, so clear the flag for any host whose submission is no

@@ -1261,13 +1261,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"policies"})
 				config += "policies:\n  - query: SELECT 1;\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "name is required")
+				require.ErrorContains(t, err, "policy name cannot be empty")
 
 				// Policy query missing
 				config = getConfig([]string{"policies"})
 				config += "policies:\n  - name: Test Policy\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "query is required")
+				require.ErrorContains(t, err, "policy query cannot be empty")
 
 				// Invalid reports
 				config = getConfig([]string{"reports"})
@@ -3467,6 +3467,290 @@ reports:
 		require.Len(t, result.Queries, 2)
 		assert.Equal(t, "ReportA", result.Queries[0].Name)
 		assert.Equal(t, "ReportB", result.Queries[1].Name)
+	})
+}
+
+func TestParseAppStoreAppsGlob(t *testing.T) {
+	t.Parallel()
+
+	t.Run("inline_and_path", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		appFile := filepath.Join(dir, "software", "from-file.yml")
+		require.NoError(t, os.MkdirAll(filepath.Dir(appFile), 0o755))
+		require.NoError(t, os.WriteFile(appFile, []byte("- app_store_id: \"222222\"\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+software:
+  app_store_apps:
+    - app_store_id: "111111"
+    - path: software/from-file.yml
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+		require.NoError(t, multiErr.ErrorOrNil())
+		require.Len(t, result.Software.AppStoreApps, 2)
+		assert.Equal(t, "111111", result.Software.AppStoreApps[0].AppStoreID)
+		assert.Equal(t, "222222", result.Software.AppStoreApps[1].AppStoreID)
+	})
+
+	t.Run("glob_expands", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		appsDir := filepath.Join(dir, "software")
+		require.NoError(t, os.MkdirAll(appsDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(appsDir, "a.yml"), []byte("- app_store_id: \"111111\"\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(appsDir, "b.yml"), []byte("- app_store_id: \"222222\"\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+software:
+  app_store_apps:
+    - paths: "software/*.yml"
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+		require.NoError(t, multiErr.ErrorOrNil())
+		require.Len(t, result.Software.AppStoreApps, 2)
+		assert.Equal(t, "111111", result.Software.AppStoreApps[0].AppStoreID)
+		assert.Equal(t, "222222", result.Software.AppStoreApps[1].AppStoreID)
+	})
+
+	t.Run("nested_references_rejected", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		appFile := filepath.Join(dir, "from-file.yml")
+		// With an identifier set, only the nested-reference check stops this applying with its glob dropped.
+		require.NoError(t, os.WriteFile(appFile, []byte("- path: nested.yml\n- app_store_id: \"333333\"\n  paths: \"*.yml\"\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+software:
+  app_store_apps:
+    - path: from-file.yml
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+		require.Error(t, multiErr.ErrorOrNil())
+		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: nested.yml")
+		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: *.yml")
+	})
+}
+
+func TestParseFleetMaintainedAppsGlob(t *testing.T) {
+	t.Parallel()
+
+	t.Run("inline_and_path", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		fmaFile := filepath.Join(dir, "software", "from-file.yml")
+		require.NoError(t, os.MkdirAll(filepath.Dir(fmaFile), 0o755))
+		require.NoError(t, os.WriteFile(fmaFile, []byte("- slug: file-app/darwin\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+software:
+  fleet_maintained_apps:
+    - slug: inline-app/darwin
+    - path: software/from-file.yml
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+		require.NoError(t, multiErr.ErrorOrNil())
+		require.Len(t, result.Software.FleetMaintainedApps, 2)
+		assert.Equal(t, "inline-app/darwin", result.Software.FleetMaintainedApps[0].Slug)
+		assert.Equal(t, "file-app/darwin", result.Software.FleetMaintainedApps[1].Slug)
+	})
+
+	t.Run("glob_expands", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		fmasDir := filepath.Join(dir, "software")
+		require.NoError(t, os.MkdirAll(fmasDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(fmasDir, "a.yml"), []byte("- slug: app-a/darwin\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(fmasDir, "b.yml"), []byte("- slug: app-b/darwin\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+software:
+  fleet_maintained_apps:
+    - paths: "software/*.yml"
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+		require.NoError(t, multiErr.ErrorOrNil())
+		require.Len(t, result.Software.FleetMaintainedApps, 2)
+		assert.Equal(t, "app-a/darwin", result.Software.FleetMaintainedApps[0].Slug)
+		assert.Equal(t, "app-b/darwin", result.Software.FleetMaintainedApps[1].Slug)
+	})
+
+	t.Run("nested_references_rejected", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		fmaFile := filepath.Join(dir, "from-file.yml")
+		// With an identifier set, only the nested-reference check stops this applying with its glob dropped.
+		require.NoError(t, os.WriteFile(fmaFile, []byte("- path: nested.yml\n- slug: nested/darwin\n  paths: \"*.yml\"\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+software:
+  fleet_maintained_apps:
+    - path: from-file.yml
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+		require.Error(t, multiErr.ErrorOrNil())
+		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: nested.yml")
+		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: *.yml")
+	})
+
+}
+
+func TestParseSoftwareFieldsBesideFileReference(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		files    map[string]string
+		software string
+	}{
+		{
+			name:  "app_store_apps beside path",
+			files: map[string]string{"from-file.yml": "- app_store_id: \"222222\"\n"},
+			software: `
+software:
+  app_store_apps:
+    - path: from-file.yml
+      self_service: true
+      labels_include_any: ["Eng"]
+`,
+		},
+		{
+			name:  "fleet_maintained_apps beside path",
+			files: map[string]string{"from-file.yml": "- slug: file-app/darwin\n"},
+			software: `
+software:
+  fleet_maintained_apps:
+    - path: from-file.yml
+      self_service: true
+      labels_include_any: ["Eng"]
+`,
+		},
+		{
+			name:  "fleet_maintained_apps beside paths glob",
+			files: map[string]string{"software/a.yml": "- slug: app-a/darwin\n"},
+			software: `
+software:
+  fleet_maintained_apps:
+    - paths: "software/*.yml"
+      self_service: true
+`,
+		},
+		{
+			// A zero value is still a value the referenced file would otherwise override.
+			name:  "zero-valued field beside path",
+			files: map[string]string{"from-file.yml": "- slug: file-app/darwin\n  self_service: true\n"},
+			software: `
+software:
+  fleet_maintained_apps:
+    - path: from-file.yml
+      self_service: false
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			for name, content := range tt.files {
+				path := filepath.Join(dir, name)
+				require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+				require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+			}
+
+			teamName := "TestTeam"
+			result := &GitOps{TeamName: &teamName}
+			multiErr := parseSoftware(yamlToRawJSON(t, tt.software), result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+			require.Error(t, multiErr.ErrorOrNil())
+			assert.Contains(t, multiErr.ErrorOrNil().Error(), "cannot set other fields")
+			assert.Contains(t, multiErr.ErrorOrNil().Error(), "self_service", "the error names the offending keys")
+		})
+	}
+}
+
+// TestGitOpsPolicyReferencesPathSourcedSoftware exercises the full GitOpsFromFile
+// pipeline (parseSoftware followed by parsePolicies) to confirm that a policy's
+// install_software.fleet_maintained_app_slug/app_store_id correctly cross-references
+// fleet_maintained_apps/app_store_apps entries that were themselves sourced from a
+// path: reference, not just inline entries.
+func TestGitOpsPolicyReferencesPathSourcedSoftware(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fleet_maintained_app_slug and app_store_id resolve", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"policies"})
+		config += `
+software:
+  fleet_maintained_apps:
+    - path: software/zoom.yml
+  app_store_apps:
+    - path: software/bear.yml
+policies:
+  - name: Install Zoom
+    query: SELECT 1;
+    install_software:
+      fleet_maintained_app_slug: zoom/darwin
+  - name: Install Bear
+    query: SELECT 1;
+    install_software:
+      app_store_id: "1016366447"
+`
+		path, basePath := createTempFile(t, "", config)
+		require.NoError(t, os.MkdirAll(filepath.Join(basePath, "software"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "zoom.yml"), []byte("- slug: zoom/darwin\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "bear.yml"), []byte("- app_store_id: \"1016366447\"\n"), 0o644))
+
+		result, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+
+		require.Len(t, result.Software.FleetMaintainedApps, 1)
+		assert.Equal(t, "zoom/darwin", result.Software.FleetMaintainedApps[0].Slug)
+		require.Len(t, result.Software.AppStoreApps, 1)
+		assert.Equal(t, "1016366447", result.Software.AppStoreApps[0].AppStoreID)
+
+		require.Len(t, result.Policies, 2)
+		assert.Equal(t, "zoom/darwin", result.Policies[0].InstallSoftware.Other.FleetMaintainedAppSlug)
+		assert.Equal(t, "1016366447", result.Policies[1].InstallSoftware.Other.AppStoreID)
+	})
+
+	t.Run("fleet_maintained_app_slug not found when sourced from path", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"policies"})
+		config += `
+software:
+  fleet_maintained_apps:
+    - path: software/zoom.yml
+policies:
+  - name: Install Zoom
+    query: SELECT 1;
+    install_software:
+      fleet_maintained_app_slug: not-zoom/darwin
+`
+		path, basePath := createTempFile(t, "", config)
+		require.NoError(t, os.MkdirAll(filepath.Join(basePath, "software"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "zoom.yml"), []byte("- slug: zoom/darwin\n"), 0o644))
+
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, `fleet_maintained_app_slug "not-zoom/darwin" not found`)
 	})
 }
 
@@ -5687,7 +5971,7 @@ policies:
     fleet_maintained_app_slug: google-chrome/darwin
     install_software: true
 `,
-			wantErrs: []string{"fleet_maintained_app_slug is only supported for patch policies"},
+			wantErrs: []string{`"fleet_maintained_app_slug" is only supported for patch policies`},
 		},
 		{
 			name: "dynamic policy with install_software true and no slug is allowed (does nothing)",
@@ -5720,7 +6004,7 @@ policies:
 	}
 }
 
-func TestGitOpsPatchWhenClosed(t *testing.T) {
+func TestGitOpsPatchPolicyOptions(t *testing.T) {
 	t.Parallel()
 
 	const fmaSoftware = `
@@ -5736,6 +6020,11 @@ software:
       pre_install_query:
         path: ./preinstall.yml
 `
+	const fmaSoftwareWindows = `
+software:
+  fleet_maintained_apps:
+    - slug: google-chrome/windows
+`
 
 	tests := []struct {
 		name     string
@@ -5743,6 +6032,8 @@ software:
 		policies string
 		// wantErrs empty means the config must apply cleanly.
 		wantErrs []string
+		// unwantedErrs are messages the config must not produce alongside wantErrs.
+		unwantedErrs []string
 		// wantCA, when set, asserts the resulting ContinuousAutomationsEnabled on the single policy.
 		wantCA *bool
 	}{
@@ -5785,7 +6076,7 @@ policies:
     continuous_automations_enabled: false
     patch_when_closed: true
 `,
-			wantErrs: []string{`"continuous_automations_enabled" must be true when "patch_when_closed" is true`},
+			wantErrs: []string{`If "patch_when_closed" is true, "continuous_automations_enabled" can't be set to false.`},
 		},
 		{
 			name:     "patch_when_closed rejects a pre_install_query on the referenced FMA",
@@ -5813,6 +6104,114 @@ policies:
 `,
 			wantCA: new(false),
 		},
+		{
+			name:     "notify_before_patching with continuous_automations omitted auto-sets it true",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    notify_before_patching: true
+`,
+			wantCA: new(true),
+		},
+		{
+			name:     "notify_before_patching with explicit continuous_automations false is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    continuous_automations_enabled: false
+    notify_before_patching: true
+`,
+			wantErrs: []string{`If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`},
+		},
+		{
+			name:     "notify_before_patching rejects a pre_install_query on the referenced FMA",
+			software: fmaSoftwareWithPreInstall,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    notify_before_patching: true
+`,
+			wantErrs: []string{`"pre_install_query" can't be set on Fleet-maintained app "google-chrome/darwin" when "notify_before_patching" is true`},
+		},
+		{
+			// PolicySpec.Verify runs during parsing, so a dry run rejects this too.
+			name:     "notify_before_patching on a dynamic policy is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome installed
+    type: dynamic
+    query: SELECT 1;
+    platform: darwin
+    notify_before_patching: true
+`,
+			wantErrs: []string{`"notify_before_patching" is only supported for patch policies`},
+		},
+		{
+			// Caught during parsing so a dry run rejects it, not just a real apply.
+			name:     "notify_before_patching together with patch_when_closed is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_when_closed: true
+    notify_before_patching: true
+`,
+			wantErrs: []string{`Only one of "patch_when_closed" or "notify_before_patching" can be set to true`},
+		},
+		{
+			// The dry run skips the policy apply, so without this check only a real apply rejects it.
+			name:     "notify_before_patching on a Windows Fleet-maintained app is rejected",
+			software: fmaSoftwareWindows,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    notify_before_patching: true
+`,
+			wantErrs: []string{`"notify_before_patching" is only available for macOS Fleet-maintained apps.`},
+		},
+		{
+			// The slug names no Fleet-maintained app, so there is no platform to judge and the missing app is the only problem worth reporting.
+			name:     "notify_before_patching on a slug missing from software reports only the missing Fleet-maintained app",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    notify_before_patching: true
+`,
+			wantErrs:     []string{`isn't specified under "software.fleet_maintained_apps."`},
+			unwantedErrs: []string{"only available for macOS Fleet-maintained apps"},
+		},
+		{
+			name:     "patch_when_closed on a Windows Fleet-maintained app still applies",
+			software: fmaSoftwareWindows,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    patch_when_closed: true
+`,
+			wantCA: new(true),
+		},
 	}
 
 	for _, tc := range tests {
@@ -5824,6 +6223,9 @@ policies:
 			if len(tc.wantErrs) > 0 {
 				for _, want := range tc.wantErrs {
 					require.ErrorContains(t, err, want)
+				}
+				for _, unwanted := range tc.unwantedErrs {
+					require.NotContains(t, err.Error(), unwanted)
 				}
 				return
 			}

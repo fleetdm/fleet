@@ -10,7 +10,9 @@ describe("Device User Banners", () => {
   const resetNonLinuxDiskEncryptKeyExpectedText = /Disk encryption: Log out of your device or restart it to safeguard your data in case your device is lost or stolen\./;
   const diskEncryptionOffExpectedText = /Disk encryption: Disk encryption is turned off\. Contact your IT admin for additional instructions\./;
   const createNewLinuxDiskEncryptKeyExpectedText = /Disk encryption: Create a new disk encryption key\. This lets your organization help you unlock your device if you forget your passphrase\./;
-  const createPINExepectedText = /Disk encryption: Create a BitLocker PIN to safeguard your data/;
+  const createPINExepectedText = /Disk encryption: Create a BitLocker PIN to protect your data/;
+  // <strong>Refetch</strong> splits the sentence, so match the run of text that follows it.
+  const refetchToClearExpectedText = /to clear this banner/;
 
   it("renders the turn on mdm banner correctly", () => {
     render(
@@ -173,6 +175,37 @@ describe("Device User Banners", () => {
       />
     );
     expect(screen.getByText(createPINExepectedText)).toBeInTheDocument();
+    // This fleetd cannot be handed the PIN, so the end user sets it themselves and has to refetch afterwards.
+    expect(screen.getByText(refetchToClearExpectedText)).toBeInTheDocument();
+  });
+
+  it("drops the refetch instruction when fleetd can set the PIN", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="windows"
+        diskEncryptionOSSetting={{
+          status: "action_required",
+          detail: "",
+          action_required: "create_pin",
+          fleetd_can_set_pin: true,
+        }}
+        diskIsEncrypted
+        diskEncryptionKeyAvailable={false}
+        mdmEnrollmentStatus="On (automatic)"
+        mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
+        connectedToFleetMdm
+        macDiskEncryptionStatus={null}
+        diskEncryptionActionRequired={null}
+        onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
+      />
+    );
+    expect(screen.getByText(createPINExepectedText)).toBeInTheDocument();
+    // Fleet clears the banner once its agent reports the PIN, so asking for a refetch would be busywork.
+    expect(screen.queryByText(refetchToClearExpectedText)).toBeNull();
   });
 
   it("asks the end user to restart when the repair is waiting on one", () => {

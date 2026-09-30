@@ -453,24 +453,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   // Status
   {
     title: "Status",
-    Header: () => {
-      const titleWithToolTip = (
-        <TooltipWrapper
-          tipContent={
-            <>
-              Only supported on hosts that run Fleet&apos;s agent: macOS,
-              Windows, Linux, and ChromeOS.
-            </>
-          }
-          className="status-header"
-          tooltipClass="host-table-header-tooltip"
-          fixedPositionStrategy
-        >
-          Status
-        </TooltipWrapper>
-      );
-      return <HeaderCell value={titleWithToolTip} disableSortBy />;
-    },
+    Header: () => <HeaderCell value="Status" disableSortBy />,
     disableSortBy: true,
     accessor: "status",
     id: "status",

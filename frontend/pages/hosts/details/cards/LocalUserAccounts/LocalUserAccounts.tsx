@@ -42,11 +42,7 @@ const LocalUserAccounts = ({
 
   if (!hostUsersEnabled) {
     return (
-      <Card
-        className={baseClass}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-      >
+      <Card className={baseClass} paddingSize="xlarge">
         <CardHeader header="Local user accounts" />
         <EmptyState
           header="User collection has been disabled"
@@ -68,11 +64,7 @@ const LocalUserAccounts = ({
   const classNames = classnames(baseClass, className);
 
   return (
-    <Card
-      className={classNames}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-    >
+    <Card className={classNames} paddingSize="xlarge">
       <>
         <CardHeader header="Local user accounts" />
         {users?.length ? (
