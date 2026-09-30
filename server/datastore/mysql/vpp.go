@@ -192,7 +192,7 @@ WHERE
 	return labels, nil
 }
 
-func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID fleet.VPPAppID) (*fleet.VPPAppStatusSummary,
+func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary,
 	error,
 ) {
 	var dest fleet.VPPAppStatusSummary
@@ -213,12 +213,9 @@ upcoming AS (
 		FROM
 			upcoming_activities ua
 			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-			JOIN hosts h ON ua.host_id = h.id
 		WHERE
 			ua.activity_type = 'vpp_app_install'
-			AND vaua.adam_id = :adam_id
-			AND vaua.platform = :platform
-			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+			AND vaua.vpp_app_team_id = :vpp_app_team_id
 	) ranked
 	WHERE rn = 1
 ),
@@ -247,6 +244,7 @@ past AS (
 			hvsi.command_uuid,
 			hvsi.verification_at,
 			hvsi.verification_failed_at,
+			hvsi.platform,
 			h.uuid AS host_uuid,
 			ROW_NUMBER() OVER (
 				PARTITION BY hvsi.host_id
@@ -256,9 +254,7 @@ past AS (
 			host_vpp_software_installs hvsi
 			JOIN hosts h ON hvsi.host_id = h.id
 		WHERE
-			hvsi.adam_id = :adam_id
-			AND hvsi.platform = :platform
-			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+			hvsi.vpp_app_team_id = :vpp_app_team_id
 			AND hvsi.removed = 0
 			AND hvsi.canceled = 0
 	) ranked
@@ -275,7 +271,7 @@ past AS (
 		-- branches. This check runs after ranking, so a host whose most recent
 		-- row lacks a command result is dropped rather than falling back to an
 		-- older row.
-		AND (ncr.id IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
+		AND (ncr.id IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (ranked.platform = 'android' AND ncr.id IS NULL))
 		AND ranked.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 )
 
@@ -298,15 +294,8 @@ SELECT
 FROM upcoming
 ) t`
 
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
-
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"adam_id":                   appID.AdamID,
-		"platform":                  appID.Platform,
-		"team_id":                   tmID,
+		"vpp_app_team_id":           vppAppTeamID,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,

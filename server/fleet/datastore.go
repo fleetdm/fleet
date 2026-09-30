@@ -3461,7 +3461,7 @@ type Datastore interface {
 
 	// GetSummaryHostVPPAppInstalls returns the VPP app install summary for the
 	// given team and VPP app adam_id.
-	GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID VPPAppID) (*VPPAppStatusSummary, error)
+	GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*VPPAppStatusSummary, error)
 
 	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
 
