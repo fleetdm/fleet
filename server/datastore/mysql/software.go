@@ -7426,12 +7426,16 @@ func (ds *Datastore) hydrateHostSoftwareAutoUpdateFields(
 		titleIDs = append(titleIDs, s.ID)
 	}
 
-	// TODO(JK): read the schedule of the instance the host is in scope for, with several instances of a title the last row read wins
+	// TODO(JK): read the schedule of the instance the host is in scope for, this reads the first-added instance
 	stmt, args, err := sqlx.In(`
 		SELECT va.title_id, vat.update_schedule_enabled AS enabled, vat.start_time, vat.end_time
 		FROM vpp_apps_teams vat
 		JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
-		WHERE vat.global_or_team_id = ? AND va.title_id IN (?) AND (vat.update_schedule_enabled = 1 OR vat.start_time != '')`,
+		WHERE vat.global_or_team_id = ? AND va.title_id IN (?) AND (vat.update_schedule_enabled = 1 OR vat.start_time != '')
+			AND vat.id = (
+				SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+				WHERE vat2.adam_id = vat.adam_id AND vat2.platform = vat.platform AND vat2.global_or_team_id = vat.global_or_team_id
+			)`,
 		teamID, titleIDs,
 	)
 	if err != nil {

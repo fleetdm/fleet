@@ -1011,19 +1011,6 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 		return ctxerr.Wrap(ctx, err, "delete software title display name")
 	}
 
-	switch appID.Platform {
-	case fleet.AndroidPlatform:
-		err := ds.DeleteAndroidAppConfiguration(ctx, appID.AdamID, globalOrTeamID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "deleting android app configuration")
-		}
-	case fleet.IOSPlatform, fleet.IPadOSPlatform:
-		err := ds.DeleteVPPAppConfiguration(ctx, appID.Platform, appID.AdamID, globalOrTeamID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "deleting vpp app configuration")
-		}
-	}
-
 	return nil
 }
 
@@ -3372,8 +3359,8 @@ LIMIT 1
 }
 
 func (ds *Datastore) GetVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error) {
-	// TODO(JK): read the configuration of a specific instance, with several instances of the app in the fleet this returns any one of them
-	const stmt = `SELECT configuration FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = ? AND configuration IS NOT NULL`
+	// TODO(JK): read the configuration of the instance being installed, this reads the first-added instance
+	const stmt = `SELECT configuration FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = ? ORDER BY id LIMIT 1`
 
 	var config []byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, adamID, teamID, platform)
@@ -3382,6 +3369,9 @@ func (ds *Datastore) GetVPPAppConfiguration(ctx context.Context, platform fleet.
 			return nil, ctxerr.Wrap(ctx, notFound("VPPAppConfiguration"))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get vpp app configuration")
+	}
+	if config == nil {
+		return nil, ctxerr.Wrap(ctx, notFound("VPPAppConfiguration"))
 	}
 
 	return config, nil

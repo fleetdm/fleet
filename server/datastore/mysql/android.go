@@ -2593,8 +2593,8 @@ LIMIT 1
 
 // GetAndroidAppConfiguration retrieves the configuration for an Android app by app ID and team
 func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error) {
-	// TODO(JK): read the configuration of a specific instance, with several instances of the app in the fleet this returns any one of them
-	stmt := `SELECT configuration FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = 'android' AND configuration IS NOT NULL`
+	// TODO(JK): read the configuration of the instance being installed, this reads the first-added instance
+	stmt := `SELECT configuration FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = 'android' ORDER BY id LIMIT 1`
 
 	var config []byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, applicationID, teamID)
@@ -2603,6 +2603,9 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, application
 			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
+	}
+	if config == nil {
+		return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
 	}
 
 	return config, nil
