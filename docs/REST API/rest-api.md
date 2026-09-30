@@ -6661,6 +6661,8 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+| source | string | query | Filters to only include software from the specified source (the **Type** column in the UI). For example, `"apps"` for macOS apps, `"programs"` for Windows apps, or `"chrome_extensions"` for Chrome-based browser extensions. |
+| extension_for | string | query | **Requires `source`**. Filters browser and IDE extensions to the specified browser or IDE. For example, `?source=chrome_extensions&extension_for=brave` for Brave extensions, or `?source=vscode_extensions&extension_for=vscode` for VS Code extensions. |
 
 On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again.
 
