@@ -3557,6 +3557,54 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 	}
 }
 
+func TestReleaseUnusedFleetdInstallSecret(t *testing.T) {
+	enrolledAt := time.Date(2026, 6, 10, 9, 36, 32, 0, time.UTC)
+	for _, tc := range []struct {
+		name                        string
+		windowsOneTimeEnrollSecrets bool
+		enrollUser                  string
+		seenOffset                  time.Duration
+		wantDeleted                 bool
+	}{
+		{name: "the linked host's fleetd is already running", windowsOneTimeEnrollSecrets: true, enrollUser: "alice@example.com",
+			seenOffset: time.Minute, wantDeleted: true},
+		{name: "a re-imaged device's old host keeps the secret for the install to come", windowsOneTimeEnrollSecrets: true,
+			enrollUser: "alice@example.com", seenOffset: -20 * 24 * time.Hour},
+		{name: "windows one-time enroll secrets disabled", enrollUser: "alice@example.com", seenOffset: time.Minute},
+		{name: "programmatic enrollment", windowsOneTimeEnrollSecrets: true, enrollUser: "device-token", seenOffset: time.Minute},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.HostLiteByIdentifierFunc = func(context.Context, string) (*fleet.HostLite, error) {
+				return &fleet.HostLite{ID: 1, SeenTime: enrolledAt.Add(tc.seenOffset)}, nil
+			}
+			ds.GetHostOrbitInfoFunc = func(context.Context, uint) (*fleet.HostOrbitInfo, error) {
+				return &fleet.HostOrbitInfo{Version: "1.63.0"}, nil
+			}
+			ds.WindowsMDMEnrollSecretUsedByOrbitFunc = func(context.Context, uint) (bool, error) {
+				return false, nil
+			}
+			var deleted []uint
+			ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc = func(ctx context.Context, enrollmentID uint) error {
+				deleted = append(deleted, enrollmentID)
+				return nil
+			}
+			cfg := config.TestConfig()
+			cfg.MDM.WindowsOneTimeEnrollSecrets = tc.windowsOneTimeEnrollSecrets
+			svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+
+			svc.(validationMiddleware).Service.(*Service).releaseUnusedFleetdInstallSecret(t.Context(), &fleet.MDMWindowsEnrolledDevice{
+				ID: 17, MDMEnrollUserID: tc.enrollUser, HostUUID: "host-1", CreatedAt: enrolledAt,
+			})
+			if tc.wantDeleted {
+				require.Equal(t, []uint{17}, deleted)
+			} else {
+				require.Empty(t, deleted)
+			}
+		})
+	}
+}
+
 // TestESPReleaseIncludesSkipUserStatusPage verifies that the ESP release
 // commands set SkipUserStatusPage=true so that subsequent user logins on an
 // already-enrolled device skip the Account setup ESP phase (#51380).

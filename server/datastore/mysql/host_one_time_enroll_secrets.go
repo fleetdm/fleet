@@ -231,6 +231,15 @@ func (ds *Datastore) QueueWindowsMDMEnrollSecretPush(
 	return queued, err
 }
 
+func (ds *Datastore) DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx context.Context, enrollmentID uint) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+		DELETE FROM host_one_time_enroll_secrets
+		WHERE mdm_windows_enrollment_id = ? AND consumed_at IS NULL AND host_id IS NULL`, enrollmentID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete unused windows one-time enroll secrets")
+	}
+	return nil
+}
+
 func (ds *Datastore) WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error) {
 	return windowsMDMEnrollSecretPushedDB(ctx, ds.reader(ctx), enrollmentID, pushLocURI)
 }
@@ -326,18 +335,6 @@ func mintWindowsMDMOneTimeEnrollSecretsDB(
 	orphanTeams, err := windowsOrphanedEnrollmentTeamsDB(ctx, tx, enrollments, boundHosts)
 	if err != nil {
 		return result, err
-	}
-	for enrollmentID, teamID := range orphanTeams {
-		if _, ok := hasLive[enrollmentID]; !ok {
-			continue
-		}
-		// A reused secret may predate the host's deletion, so it takes the fleet the host is coming back to.
-		if _, err := tx.ExecContext(ctx, `
-			UPDATE host_one_time_enroll_secrets SET team_id = ?
-			WHERE mdm_windows_enrollment_id = ? AND consumed_at IS NULL AND host_id IS NULL`,
-			teamID, enrollmentID); err != nil {
-			return result, ctxerr.Wrap(ctx, err, "set fleet on live windows one-time enroll secret")
-		}
 	}
 	for _, e := range enrollments {
 		host, known := boundHosts[e.ID]

@@ -36,6 +36,7 @@ func TestHostOneTimeEnrollSecrets(t *testing.T) {
 		{"WindowsResendMints", testOneTimeEnrollSecretWindowsResendMints},
 		{"WindowsHostBinding", testOneTimeEnrollSecretWindowsHostBinding},
 		{"WindowsDeletedHostFleet", testOneTimeEnrollSecretWindowsDeletedHostFleet},
+		{"WindowsDeleteUnusedSecrets", testOneTimeEnrollSecretWindowsDeleteUnusedSecrets},
 		{"FleetdProfileByTeamAndIdentifier", testFleetdProfileByTeamAndIdentifier},
 	}
 	for _, c := range cases {
@@ -1174,18 +1175,6 @@ func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore)
 		})
 	}
 
-	t.Run("a reused secret takes the fleet", func(t *testing.T) {
-		_, device, row := deleteHost(t, "reused", &previous.ID)
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE host_one_time_enroll_secrets SET team_id = NULL WHERE id = ?`, row.ID)
-			return err
-		})
-		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-		reused := liveWindowsSecret(t, ds, device.ID)
-		require.Equal(t, row.ID, reused.ID)
-		require.Equal(t, &previous.ID, reused.TeamID)
-	})
-
 	t.Run("a pending Autopilot host moves to the secret's fleet", func(t *testing.T) {
 		// Autopilot re-creates a deleted device as a pending host in the default fleet, and orbit claims it by serial.
 		h, _, row := deleteHost(t, "autopilot", &previous.ID)
@@ -1280,4 +1269,30 @@ func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore)
 		_, _, row := deleteHost(t, "no-default", nil)
 		require.Nil(t, row.TeamID)
 	})
+}
+
+func testOneTimeEnrollSecretWindowsDeleteUnusedSecrets(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// The secret minted for Fleet's fleetd install, before the enrollment linked to a host.
+	unused := insertWindowsEnrollment(t, ds, "hw-unused", "")
+	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, unused.ID))
+	require.NoError(t, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx, unused.ID))
+	require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, unused.ID))
+
+	// A used secret, and one bound to a host, like one an administrator resends, are kept.
+	used := insertWindowsEnrollment(t, ds, "hw-used", "")
+	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, used.ID))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_one_time_enroll_secrets SET consumed_at = NOW(6) WHERE mdm_windows_enrollment_id = ?`, used.ID)
+		return err
+	})
+	h := newOneTimeSecretTestHost(t, ds, "windows", nil)
+	bound := insertWindowsEnrollment(t, ds, "hw-bound", h.UUID)
+	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, bound.ID))
+	require.NotNil(t, liveWindowsSecret(t, ds, bound.ID).HostID)
+	for _, enrollmentID := range []uint{used.ID, bound.ID} {
+		require.NoError(t, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx, enrollmentID))
+		require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, enrollmentID))
+	}
 }
