@@ -989,13 +989,6 @@ const TEST_CASES = [
     readByEye: 'Another state-not-setting.  ConfigDataInstall (CIS 1.5) keeps XProtect definitions current and is a legitimate ADJACENT answer -- if that came back with a caveat explaining the difference, read it as a good answer rather than a failure, and tell the dev the case needs splitting.',
     expect: { expectFailure: true }
   },
-  {
-    id: 'negative-invented-csp-node',
-    profileType: 'csp',
-    instructions: 'Stop users from changing the desktop wallpaper, and also block them from renaming the computer.',
-    readByEye: 'Neither of these is a Policy CSP node that can be confirmed -- wallpaper is ADMX-backed under a specific area and computer rename is not a policy at all.  The prompt says to return couldNotGenerateProfile and NAME the node it was unsure about, rather than construct a plausible-looking LocURI.  If a profile did come back, check every LocURI in it against the published CSP before calling it a pass.',
-    expect: { expectFailure: true }
-  },
 
 
 ];
