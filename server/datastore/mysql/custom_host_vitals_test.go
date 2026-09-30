@@ -443,7 +443,7 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 				return err
 			}
 			res, err := q.ExecContext(ctx,
-				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, instance_name) VALUES (?, 'android', ?, ?, 'Default version')`,
+				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, name) VALUES (?, 'android', ?, ?, 'Default version')`,
 				appID, foobarTeam.ID, foobarTeam.ID)
 			if err != nil {
 				return err
@@ -784,7 +784,7 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 				return err
 			}
 			res, err := q.ExecContext(ctx,
-				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, instance_name) VALUES (?, 'android', ?, ?, 'Default version')`,
+				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, name) VALUES (?, 'android', ?, ?, 'Default version')`,
 				appID, ptr.UintOrNilIfZero(teamID), teamID)
 			if err != nil {
 				return err

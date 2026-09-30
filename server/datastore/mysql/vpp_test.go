@@ -850,7 +850,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	forSetup, err = ds.GetVPPAppsToInstallDuringSetupExperience(ctx, &team.ID, "darwin")
 	require.NoError(t, err)
 	require.Len(t, forSetup, 1)
-	require.ElementsMatch(t, forSetup, []string{app1.VPPAppID.AdamID})
+	require.Equal(t, app1.VPPAppID.AdamID, forSetup[0].AdamID)
 
 	// Assign an additional app
 	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
@@ -2334,6 +2334,7 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 		AdamID:            vpp1.AdamID,
 		CommandUUID:       cmdVpp1,
 		AssociatedEventID: "1",
+		VPPAppTeamID:      va1.AppTeamID,
 	})
 	require.NoError(t, err)
 
@@ -2360,6 +2361,7 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 		AdamID:            vpp2.AdamID,
 		CommandUUID:       cmdVpp2,
 		AssociatedEventID: "123",
+		VPPAppTeamID:      va2.AppTeamID,
 	})
 	require.NoError(t, err)
 
@@ -2379,6 +2381,7 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 		AdamID:            vpp1.AdamID,
 		CommandUUID:       cmdVpp3,
 		AssociatedEventID: "1",
+		VPPAppTeamID:      va1.AppTeamID,
 	})
 	require.NoError(t, err)
 
@@ -4474,7 +4477,7 @@ func testTwoAppStoreAppInstancesInOneFleet(t *testing.T, ds *Datastore) {
 		var secondInstanceID int64
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			res, err := q.ExecContext(ctx, `
-				INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, instance_name, self_service, update_schedule_enabled, start_time, end_time)
+				INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, name, self_service, update_schedule_enabled, start_time, end_time)
 				VALUES (?, 'ios', ?, ?, 'Second', 1, 1, '01:00', '03:00')`, adamID, c.hostTeamID, c.fleetID)
 			if err != nil {
 				return err

@@ -8378,7 +8378,7 @@ VALUES (?, ?, 'com.example.historydepth', 'history-depth-vpp', '1.0', 'darwin')`
 		}
 		for _, teamID := range []uint{deepTeam, breadthTeam, narrowTeam} {
 			if _, err := q.ExecContext(ctx, `
-INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id, platform, instance_name)
+INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id, platform, name)
 VALUES (?, ?, ?, 'darwin', 'Default version')`, vppAdamID, teamID, teamID); err != nil {
 				return err
 			}

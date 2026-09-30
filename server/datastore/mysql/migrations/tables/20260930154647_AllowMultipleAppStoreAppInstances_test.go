@@ -85,17 +85,17 @@ func TestUp_20260930154647(t *testing.T) {
 	applyNext(t, db)
 
 	type appStoreAppRow struct {
-		InstanceName          string  `db:"instance_name"`
+		Name                  string  `db:"name"`
 		Configuration         *string `db:"configuration"`
 		UpdateScheduleEnabled bool    `db:"update_schedule_enabled"`
 		StartTime             string  `db:"start_time"`
 		EndTime               string  `db:"end_time"`
 	}
-	const selectAppStoreApp = `SELECT instance_name, configuration, update_schedule_enabled, start_time, end_time FROM vpp_apps_teams WHERE id = ?`
+	const selectAppStoreApp = `SELECT name, configuration, update_schedule_enabled, start_time, end_time FROM vpp_apps_teams WHERE id = ?`
 
 	// read every existing app, it should be named Default version
 	var instanceNames []string
-	err = db.Select(&instanceNames, `SELECT DISTINCT instance_name FROM vpp_apps_teams`)
+	err = db.Select(&instanceNames, `SELECT DISTINCT name FROM vpp_apps_teams`)
 	require.NoError(t, err)
 	require.Equal(t, []string{"Default version"}, instanceNames)
 
@@ -168,7 +168,7 @@ func TestUp_20260930154647(t *testing.T) {
 	app = appStoreAppRow{}
 	err = db.Get(&app, selectAppStoreApp, macosInTeamA)
 	require.NoError(t, err)
-	require.Equal(t, "Default version", app.InstanceName)
+	require.Equal(t, "Default version", app.Name)
 	require.Nil(t, app.Configuration)
 	require.False(t, app.UpdateScheduleEnabled)
 
@@ -235,15 +235,15 @@ func TestUp_20260930154647(t *testing.T) {
 	require.Zero(t, droppedColumnCount)
 
 	// insert a second instance of an app on the same fleet with a new name, it should be allowed
-	execNoErr(t, db, `INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, instance_name) VALUES ('ios-team-a', 'ios', ?, ?, 'Second')`, teamA, teamA)
+	execNoErr(t, db, `INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, name) VALUES ('ios-team-a', 'ios', ?, ?, 'Second')`, teamA, teamA)
 
 	// insert the same instance name again for the same app and fleet, it should be rejected
-	_, err = db.Exec(`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, instance_name) VALUES ('ios-team-a', 'ios', ?, ?, 'Second')`, teamA, teamA)
+	_, err = db.Exec(`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, name) VALUES ('ios-team-a', 'ios', ?, ?, 'Second')`, teamA, teamA)
 	require.ErrorContains(t, err, "Duplicate entry")
 
 	// insert an app without an instance name, it should be rejected
 	_, err = db.Exec(`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id) VALUES ('ios-nothing', 'ios', ?, ?)`, teamB, teamB)
-	require.ErrorContains(t, err, "instance_name")
+	require.ErrorContains(t, err, "name")
 
 	// insert a variable link that points at both an app and a Windows profile, it should be rejected by the check
 	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_variables (vpp_app_team_id, windows_profile_uuid, fleet_variable_id) VALUES (?, 'w-profile', ?)`, iosInTeamA, hostUUIDVariableID)

@@ -3893,7 +3893,7 @@ func setupTestApp(t *testing.T, ds *Datastore, appID string) {
 
 func setupTestAppInFleet(t *testing.T, ds *Datastore, appID string, platform fleet.InstallableDevicePlatform, teamID uint) uint {
 	res, err := ds.writer(testCtx()).ExecContext(testCtx(), `
-		INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, instance_name)
+		INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, name)
 		VALUES (?, ?, ?, ?, 'Default version')
 	`, appID, platform, ptr.UintOrNilIfZero(teamID), teamID)
 	require.NoError(t, err)

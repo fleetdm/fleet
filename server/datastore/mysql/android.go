@@ -2470,12 +2470,7 @@ func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Con
 				vpp_app_team_id
 			)
 		VALUES
-			(?, ?, ?, ?, ?, ?, (
-				SELECT vat.id FROM vpp_apps_teams vat
-				JOIN hosts h ON h.id = ? AND vat.global_or_team_id = COALESCE(h.team_id, 0)
-				WHERE vat.adam_id = ? AND vat.platform = ?
-				ORDER BY vat.id LIMIT 1
-			))`
+			(?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := ds.writer(ctx).ExecContext(
 		ctx, stmt,
@@ -2485,9 +2480,7 @@ func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Con
 		false,
 		payload.AssociatedEventID,
 		fleet.AndroidPlatform,
-		payload.HostID,
-		payload.AdamID,
-		fleet.AndroidPlatform,
+		ptr.UintOrNilIfZero(payload.VPPAppTeamID),
 	)
 	return ctxerr.Wrap(ctx, err, "inserting android setup experience software install")
 }

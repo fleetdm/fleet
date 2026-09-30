@@ -11,10 +11,10 @@ func init() {
 
 func Up_20260930154647(tx *sql.Tx) error {
 	// Merge vpp_app_configurations, android_app_configurations, and software_update_schedules into vpp_apps_teams
-	if !columnExists(tx, "vpp_apps_teams", "instance_name") {
+	if !columnExists(tx, "vpp_apps_teams", "name") {
 		_, err := tx.Exec(`
 			ALTER TABLE vpp_apps_teams
-			ADD COLUMN instance_name varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+			ADD COLUMN name varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 			ADD COLUMN configuration mediumtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 			ADD COLUMN update_schedule_enabled tinyint(1) NOT NULL DEFAULT '0',
 			ADD COLUMN start_time char(5) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
@@ -29,10 +29,10 @@ func Up_20260930154647(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			ALTER TABLE vpp_apps_teams
 			DROP INDEX idx_global_or_team_id_adam_id,
-			ADD UNIQUE KEY idx_global_or_team_id_adam_id_instance_name (global_or_team_id, adam_id, platform, instance_name)
+			ADD UNIQUE KEY idx_global_or_team_id_adam_id_name (global_or_team_id, adam_id, platform, name)
 		`)
 		if err != nil {
-			return fmt.Errorf("replacing vpp_apps_teams unique key with instance_name: %w", err)
+			return fmt.Errorf("replacing vpp_apps_teams unique key with name: %w", err)
 		}
 	}
 
@@ -125,9 +125,9 @@ func Down_20260930154647(tx *sql.Tx) error {
 
 func backfillAppStoreAppInstances(tx *sql.Tx) error {
 	// Name every existing app Default version
-	_, err := tx.Exec(`UPDATE vpp_apps_teams SET instance_name = 'Default version' WHERE instance_name = ''`)
+	_, err := tx.Exec(`UPDATE vpp_apps_teams SET name = 'Default version' WHERE name = ''`)
 	if err != nil {
-		return fmt.Errorf("backfilling vpp_apps_teams instance_name: %w", err)
+		return fmt.Errorf("backfilling vpp_apps_teams name: %w", err)
 	}
 
 	// Backfill values from vpp_app_configurations

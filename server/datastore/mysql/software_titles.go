@@ -1499,6 +1499,7 @@ func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, ti
 		endTime = *config.AutoUpdateEndTime
 	}
 
+	// TODO(JK): update only the edited instance once instances can be edited separately, this writes the schedule to every instance of the title in the fleet
 	stmt := `
 UPDATE vpp_apps_teams vat
 JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
@@ -1516,6 +1517,7 @@ WHERE va.title_id = ? AND vat.global_or_team_id = ?
 }
 
 func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+	// TODO(JK): return the instance id with each row, a title with several instances returns one row per instance keyed only by title_id
 	stmt := `
 SELECT
 	vat.global_or_team_id AS team_id,

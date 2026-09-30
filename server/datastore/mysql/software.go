@@ -7426,6 +7426,7 @@ func (ds *Datastore) hydrateHostSoftwareAutoUpdateFields(
 		titleIDs = append(titleIDs, s.ID)
 	}
 
+	// TODO(JK): read the schedule of the instance the host is in scope for, with several instances of a title the last row read wins
 	stmt, args, err := sqlx.In(`
 		SELECT va.title_id, vat.update_schedule_enabled AS enabled, vat.start_time, vat.end_time
 		FROM vpp_apps_teams vat

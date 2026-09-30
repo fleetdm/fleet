@@ -843,7 +843,7 @@ ON DUPLICATE KEY UPDATE
 func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID *uint) (uint, error) {
 	stmt := `
 INSERT INTO vpp_apps_teams
-	(adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id, install_during_setup, instance_name)
+	(adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id, install_during_setup, name)
 VALUES
 	(?, ?, ?, ?, ?, ?, COALESCE(?, false), 'Default version')
 ON DUPLICATE KEY UPDATE
@@ -876,7 +876,7 @@ ON DUPLICATE KEY UPDATE
 	if insertOnDuplicateDidInsertOrUpdate(res) {
 		id, _ = res.LastInsertId()
 	} else {
-		stmt := `SELECT id FROM vpp_apps_teams WHERE adam_id = ? AND platform = ? AND global_or_team_id = ? AND instance_name = 'Default version'`
+		stmt := `SELECT id FROM vpp_apps_teams WHERE adam_id = ? AND platform = ? AND global_or_team_id = ? AND name = 'Default version'`
 		if err := sqlx.GetContext(ctx, tx, &id, stmt, appID.AdamID, appID.Platform, globalOrTmID); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "vpp app teams id")
 		}
@@ -2947,10 +2947,12 @@ FROM (
 	return applicationIDs, err
 }
 
-func (ds *Datastore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]string, error) {
+func (ds *Datastore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error) {
 	stmt := `
 SELECT
-	adam_id
+	id,
+	adam_id,
+	platform
 FROM
 	vpp_apps_teams vat
 WHERE
@@ -2963,11 +2965,11 @@ WHERE
 		tmID = *teamID
 	}
 
-	var ids []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, tmID, platform); err != nil {
+	var apps []fleet.VPPAppTeam
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, stmt, tmID, platform); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get VPP apps to install during setup experience")
 	}
-	return ids, nil
+	return apps, nil
 }
 
 type appStoreAppChanges struct {

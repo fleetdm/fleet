@@ -3189,7 +3189,7 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 	})
 	var appTeamID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, instance_name) VALUES (?, 'android', 0, 'Default version')`, appID)
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name) VALUES (?, 'android', 0, 'Default version')`, appID)
 		if err != nil {
 			return err
 		}
