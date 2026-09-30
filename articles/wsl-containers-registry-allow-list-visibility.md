@@ -1,10 +1,11 @@
-# A registry allow list for WSL containers only helps if you can see what Windows devices actually pull
+# WSL containers are now on Windows. Can you see them?
 
 *WSL containers reached general availability on September 29, with Intune controls and Defender for Endpoint visibility. Both help. Neither tells you which of your devices are running containers today.*
 
 ## Key takeaways
 
-- **Linux containers are now a supported part of the Windows attack surface.** With WSL containers generally available, developers can build and run Linux containers on Windows without a separate container engine, so expect them to appear on more devices, sooner.
+- **Linux containers are now built into Windows.** With WSL containers generally available, developers can build and run Linux containers on Windows without a separate container engine, so expect them to appear on more devices, sooner.
+
 - **Microsoft shipped two admin controls at launch.** Intune can enable or disable the feature, and a "WSL containers registry allow list" restricts image pulls to approved registries.
 - **A control is a statement of intent, not a measurement.** A device that was offline, unenrolled, or configured by hand may not match the policy you think you deployed.
 - **Defender for Endpoint adds activity visibility, not an inventory.** It surfaces process, file, and network activity from containers and ties it to the Windows host, which helps an investigation once you know where to look.
@@ -13,15 +14,17 @@
 
 <a purpose="cta-button" href="https://fleetdm.com/device-management">See how Fleet manages Windows devices</a>
 
-Microsoft's WSL containers feature went generally available on September 29. It adds a `wslc.exe` command line tool, aliased as `container.exe`, and an API for running Linux containers from native Windows applications. For IT teams, the announcement that matters most is the enterprise controls that arrived with it.
+Microsoft made [WSL containers generally available](https://blogs.windows.com/windowsdeveloper/2026/09/29/wsl-containers-now-generally-available/) on September 29, as part of [WSL 3.0.1](https://www.heise.de/en/news/WSL-Containers-are-here-Linux-containers-without-an-extra-engine-11470920.html). It adds a `wslc.exe` command line tool, aliased as `container.exe`, and an API for running Linux containers from native Windows applications. For IT teams, the announcement that matters most is the enterprise controls that arrived with it.
 
 Those controls are welcome, and they leave a question open. A policy that restricts where containers can pull from tells you what should happen. It doesn't tell you which devices are running containers right now.
 
 ## What Microsoft shipped for admins
 
-Microsoft describes two Intune settings. The first enables or disables WSL containers entirely. The second is a "WSL containers registry allow list," which limits the registries developers can pull images from. An internal registry can be allowed while a public one stays blocked.
+Microsoft's [announcement](https://blogs.windows.com/windowsdeveloper/2026/09/29/wsl-containers-now-generally-available/) describes two Intune settings. The first enables or disables WSL containers entirely. The second is a "WSL containers registry allow list," which limits the registries developers can pull images from. An internal registry can be allowed while a public one stays blocked.
 
-On the security side, Microsoft says the Defender for Endpoint plugin for WSL now covers containers. It surfaces process, file, and network activity from a container and connects that activity to the Windows host. Microsoft also notes that Docker Compose isn't supported yet, and calls it the top feature request.
+
+On the security side, Microsoft says, as [BleepingComputer reports](https://www.bleepingcomputer.com/news/microsoft/microsoft-is-rolling-out-linux-container-support-to-wsl/), that the Defender for Endpoint plugin for WSL now covers containers. It surfaces process, file, and network activity from a container and connects that activity to the Windows host. Microsoft also notes that Docker Compose isn't supported yet, and calls it the top feature request.
+
 
 ## What a policy can't tell you
 
@@ -39,7 +42,8 @@ Once a report gives you the answer, a policy can keep asking. If a device drifts
 
 ## Where this leaves you
 
-WSL containers are going to spread through engineering teams because they remove friction for developers. The Intune controls give you a way to shape that. Defender gives you a place to investigate.
+WSL containers will likely spread through engineering teams because they remove friction for developers. The Intune controls give you a way to shape that. Defender gives you a place to investigate.
+
 
 The piece in between is knowing what is actually running. Answer that while nothing is wrong, and the allow list becomes a control you can verify instead of one you hope is working.
 
@@ -47,8 +51,14 @@ The piece in between is knowing what is actually running. Answer that while noth
 
 - **Get a demo** to see Windows device state reported across your own fleet: [fleetdm.com/contact](https://fleetdm.com/contact)
 - **Read how Fleet handles device management:** [fleetdm.com/device-management](https://fleetdm.com/device-management)
-
-<meta name="articleTitle" value="A registry allow list for WSL containers only helps if you can see what Windows devices actually pull">
+## Sources
++
++- Microsoft, [WSL containers are now generally available](https://blogs.windows.com/windowsdeveloper/2026/09/29/wsl-containers-now-generally-available/).
++- Microsoft, [Implement WSLC container group policies (microsoft/WSL #40466)](https://github.com/microsoft/WSL/pull/40466).
++- BleepingComputer, [Microsoft is rolling out Linux container support to WSL](https://www.bleepingcomputer.com/news/microsoft/microsoft-is-rolling-out-linux-container-support-to-wsl/).
++- heise online, [WSL Containers are here: Linux containers without an extra engine](https://www.heise.de/en/news/WSL-Containers-are-here-Linux-containers-without-an-extra-engine-11470920.html).
++
+<meta name="articleTitle" value="WSL containers are now on Windows. Can you see them?">
 <meta name="authorFullName" value="Aube Paul">
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
