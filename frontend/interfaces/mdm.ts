@@ -271,7 +271,9 @@ export interface IHostMdmProfile {
     | MdmProfileStatus
     | MdmDDMProfileStatus
     | LinuxDiskEncryptionStatus
-    | HostAndroidCertStatus;
+    | HostAndroidCertStatus
+    // Self-service profile the host hasn't opted in to.
+    | null;
   detail: string;
   scope: ProfileScope | null;
   managed_local_account: string | null;
@@ -284,6 +286,8 @@ export interface IHostMdmProfile {
   retrying?: boolean;
   retry_count?: number;
   max_retries?: number;
+  hidden: boolean;
+  self_service: boolean;
 }
 
 // TODO - move disk encryption related types to dedicated file

@@ -895,6 +895,26 @@ const HostDetailsPage = ({
     [host?.id]
   );
 
+  const installProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.installProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
+
+  const uninstallProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.uninstallProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
+
   const resendCertificate = useCallback(
     (certificateTemplateId: number): Promise<void> => {
       if (!host?.id) {
@@ -1230,7 +1250,7 @@ const HostDetailsPage = ({
         isRecoveryLockPasswordEnabled={
           mdmConfig?.enable_recovery_lock_password ?? false
         }
-        diskEncryptionProfileStatus={diskEncryptionProfile?.status}
+        diskEncryptionProfileStatus={diskEncryptionProfile?.status ?? undefined}
         recoveryLockPasswordAvailable={
           host.mdm.os_settings?.recovery_lock_password?.password_available ??
           false
@@ -1528,6 +1548,9 @@ const HostDetailsPage = ({
       isHostTeamAdmin ||
       isHostTeamMaintainer ||
       isHostTeamTechnician);
+
+  const canManageSelfServiceProfiles =
+    !!isPremiumTier && isMacOSHost && canResendProfiles;
 
   // "My device" link points to that host's end-user My device page. The URL
   // embeds the device auth token so it acts as a credential, hence global
@@ -1891,6 +1914,10 @@ const HostDetailsPage = ({
                     rotateRecoveryLockPassword={rotateRecoveryLockPassword}
                     resendHostNameTemplate={resendHostNameTemplate}
                     onProfileResent={refetchHostDetails}
+                    isMacOSHost={isMacOSHost}
+                    canManageSelfServiceProfiles={canManageSelfServiceProfiles}
+                    installRequest={installProfile}
+                    uninstallRequest={uninstallProfile}
                     isMacOSDiskEncryptionEnforceOnly={isMacOSDiskEncryptionEnforceOnly(
                       fleetDiskEncryptionSettings
                     )}
