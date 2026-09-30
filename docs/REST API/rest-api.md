@@ -11237,7 +11237,8 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
       "resolution": "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location.",
       "platform": "darwin",
       "type": "dynamic",
-      "automation": "",
+      "calendar_events_enabled": true,
+      "conditional_access_enabled": false,
       "continuous_automations_enabled": false,
       "patch_when_closed": false,
       "notify_before_patching": false,
@@ -11260,7 +11261,6 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
       "query": "SELECT 1 FROM osquery_info WHERE 1=1;",
       "description": "If you're seeing this, mostly likely this is because someone is testing out failing policies in dogfood. You can ignore this.",
       "platform": "darwin,linux,windows",
-      "automation": "",
       "type": "dynamic",
       "patch_when_closed": false,
       "notify_before_patching": false,
@@ -11352,7 +11352,12 @@ Returns the policy specified by ID.
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
     "fleet_maintained": false,
-    "labels_include_any": ["Macs on Sonoma"],
+     "labels_include_any": [
+      { 
+        "id": 123,
+        "name": "Macs on Sonoma"
+      }
+    ],
     "patch_software": {
       "display_name": "", 
       "name": "Adobe Acrobat.app",
