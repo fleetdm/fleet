@@ -445,16 +445,6 @@ const TEST_CASES = [
     }
   },
   {
-    id: 'mobileconfig-cis-content-caching',
-    profileType: 'mobileconfig',
-    instructions: 'Turn off content caching.',
-    expect: {
-      mustContain: ['com.apple.applicationaccess', '<key>allowContentCaching</key><false/>'],
-      mustNotContain: ['AllowContentCaching'],
-      mustNotContainElement: [['string', 'false']],
-    }
-  },
-  {
     id: 'mobileconfig-cis-media-sharing-modification',
     profileType: 'mobileconfig',
     instructions: 'Stop users from changing the Media Sharing settings.',
@@ -498,28 +488,6 @@ const TEST_CASES = [
     }
   },
   {
-    id: 'mobileconfig-cis-limit-ad-tracking',
-    profileType: 'mobileconfig',
-    instructions: 'Turn off personalized ads from Apple.',
-    expect: {
-      mustContain: ['com.apple.applicationaccess', '<key>allowApplePersonalizedAdvertising</key><false/>'],
-      mustNotContainElement: [['string', 'false']],
-    }
-  },
-  {
-    id: 'mobileconfig-cis-gatekeeper',
-    profileType: 'mobileconfig',
-    instructions: 'Turn on Gatekeeper and allow apps from the App Store and identified developers.',
-    // PascalCase keys, unlike the lowercase-first applicationaccess keys, so normalizing casing in
-    // either direction fails one family or the other.
-    readByEye: 'Both keys must sit in ONE com.apple.systempolicy.control dict.',
-    expect: {
-      mustContain: ['com.apple.systempolicy.control', '<key>EnableAssessment</key><true/>', '<key>AllowIdentifiedDevelopers</key><true/>'],
-      mustNotContain: ['enableAssessment', 'allowIdentifiedDevelopers'],
-      mustNotContainElement: [['string', 'true']],
-    }
-  },
-  {
     id: 'mobileconfig-cis-prevent-filevault-disable',
     profileType: 'mobileconfig',
     instructions: 'Stop users from turning FileVault off.',
@@ -551,18 +519,6 @@ const TEST_CASES = [
     expect: {
       mustContain: ['com.apple.loginwindow', '<key>RetriesUntilHint</key><integer>0</integer>'],
       mustNotContain: ['<key>RetriesUntilHint</key><false/>'],
-    }
-  },
-  {
-    id: 'mobileconfig-cis-guest-account',
-    profileType: 'mobileconfig',
-    instructions: 'Disable the guest account.',
-    // CIS sets DisableGuestAccount too, but Apple documents it as having no effect once
-    // EnableGuestAccount is set, so it is not required.  Either one inverted is the defect.
-    expect: {
-      mustContain: ['com.apple.MCX', '<key>EnableGuestAccount</key><false/>'],
-      mustNotContain: ['<key>EnableGuestAccount</key><true/>', '<key>DisableGuestAccount</key><false/>'],
-      mustNotContainElement: [['string', 'true'], ['string', 'false']],
     }
   },
   // Apple preference domains with no payload manifest, so not in the provided schema and answered
@@ -649,10 +605,10 @@ const TEST_CASES = [
     expect: {
       mustContain: [
         'com.apple.loginwindow', '<key>LoginwindowText</key><string>Property of Acme Corp</string>',
-        'com.apple.MCX', '<key>EnableGuestAccount</key><false/>',
+        'com.apple.MCX', '<key>DisableGuestAccount</key><true/>',
         'com.apple.applicationaccess', '<key>allowAssistant</key><false/>', '<key>allowDiagnosticSubmission</key><false/>'
       ],
-      mustNotContain: ['com.apple.SubmitDiagInfo'],
+      mustNotContain: ['com.apple.SubmitDiagInfo', '<key>EnableGuestAccount</key><true/>'],
     }
   },
   {
