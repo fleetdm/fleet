@@ -180,18 +180,12 @@ func (ds *Datastore) applyQueriesInTx(
 	return nil
 }
 
-func (ds *Datastore) deleteMultipleQueryResults(ctx context.Context, queryIDs []uint) (err error) {
-	if len(queryIDs) == 0 {
-		return nil
-	}
-
-	deleteQueryResultsStmt := `DELETE FROM query_results WHERE query_id IN (?)`
-	query, args, err := sqlx.In(deleteQueryResultsStmt, queryIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building delete query_results stmt")
-	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "executing delete query_results")
+// deleteMultipleQueryResults deletes all stored results of the given queries.
+func (ds *Datastore) deleteMultipleQueryResults(ctx context.Context, queryIDs []uint) error {
+	for _, queryID := range queryIDs {
+		if err := ds.deleteQueryResults(ctx, queryID); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -657,12 +651,16 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 	return nil
 }
 
+// deleteQueryResults deletes all stored results of a query in primary key batches. A single
+// DELETE by query_id locks every row of a report (one per host at scale) while hosts keep
+// writing results for it.
 func (ds *Datastore) deleteQueryResults(ctx context.Context, queryID uint) error {
-	resultsSQL := `DELETE FROM query_results WHERE query_id = ?`
-	if _, err := ds.writer(ctx).ExecContext(ctx, resultsSQL, queryID); err != nil {
-		return ctxerr.Wrap(ctx, err, "executing delete query_results")
+	// Read from the primary so rows written since the replica last caught up are deleted too.
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &ids, `SELECT id FROM query_results WHERE query_id = ?`, queryID); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting query_results to delete")
 	}
-	return nil
+	return ds.deleteQueryResultsByID(ctx, ids, deleteQueryResultsBatchSize)
 }
 
 func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
