@@ -2921,6 +2921,8 @@ type Datastore interface {
 	// profile on every enrollment.
 	ListAppleProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*AppleProfileForReconcile, error)
 
+	GetAppleProfileForReconcile(ctx context.Context, teamID uint, profileUUID string) (*AppleProfileForReconcile, error)
+
 	// BulkGetHostLabelMemberships returns the subset of (hostID, labelID)
 	// pairs from label_membership that are present, restricted to the
 	// provided host IDs and label IDs. The outer map is keyed by host ID and
@@ -4328,6 +4330,14 @@ type Datastore interface {
 	// BulkGetHostMDMProfileOptIns returns opt-ins for the given hosts, keyed
 	// host UUID -> profile UUID set.
 	BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error)
+	// HasHostMDMProfileOptIn checks if a given host has opted in to a specific MDM profile.
+	HasHostMDMProfileOptIn(ctx context.Context, hostUUID string, profileUUID string) (bool, error)
+	// QueueHostMDMAppleProfileInstall upserts the host's profile row as a pending install (NULL status) for the
+	// reconciler to deliver.
+	QueueHostMDMAppleProfileInstall(ctx context.Context, hostUUID string, profile *AppleProfileForReconcile) error
+	// QueueHostMDMAppleProfileRemoval marks the host's profile row as a pending removal (NULL status), or deletes it
+	// if the install was never sent. It is a no-op if the host has no row for the profile.
+	QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUID, profileUUID string) error
 }
 
 type AndroidDatastore interface {

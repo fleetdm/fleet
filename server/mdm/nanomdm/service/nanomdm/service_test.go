@@ -124,3 +124,48 @@ func TestCommandAndReportResultsRotateFileVaultKeyExpansion(t *testing.T) {
 		require.Equal(t, "Error", stored[1].Status)
 	})
 }
+
+func TestCommandAndReportResultsHostSecretExpansionFailure(t *testing.T) {
+	const hostUUID = "host-uuid-1"
+	ds := new(mock.MDMAppleStore)
+	var stored []*mdm.CommandResults
+	ds.StoreCommandReportFunc = func(r *mdm.Request, report *mdm.CommandResults) error {
+		stored = append(stored, report)
+		return nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
+	ds.RetrieveNextCommandFunc = func(r *mdm.Request, skipNotNow bool) (*mdm.CommandWithSubtype, error) {
+		cmd := &mdm.CommandWithSubtype{CommandUUID: "cmd-1", Raw: []byte("<plist/>")}
+		cmd.Command.Command.RequestType = fleet.SetRecoveryLockCmdName
+		return cmd, nil
+	}
+	ds.ExpandHostSecretsFunc = func(ctx context.Context, document string, enrollmentID string) (string, error) {
+		return "", errors.New("pending recovery lock password not found")
+	}
+	ds.SetRecoveryLockFailedFunc = func(ctx context.Context, gotHostUUID, commandUUID, errorMsg string) error { return nil }
+	enrollID := &mdm.EnrollID{ID: hostUUID, Type: mdm.Device}
+	s := &Service{
+		logger:     log.NopLogger,
+		store:      ds,
+		normalizer: func(e *mdm.Enrollment) *mdm.EnrollID { return enrollID },
+	}
+
+	cmd, err := s.CommandAndReportResults(&mdm.Request{Context: t.Context()}, &mdm.CommandResults{
+		UDID:   hostUUID,
+		Status: "Idle",
+	})
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	require.True(t, ds.SetRecoveryLockFailedFuncInvoked)
+
+	// The first report is the device's Idle; the second is the failure Fleet records.
+	require.Len(t, stored, 2)
+	// nano_command_results.result is NOT NULL, so an empty body fails the insert
+	// and the command is served again on every check-in.
+	decoded, err := mdm.DecodeCommandResults(stored[1].Raw)
+	require.NoError(t, err)
+	require.Equal(t, "cmd-1", decoded.CommandUUID)
+	require.Equal(t, "Error", decoded.Status)
+	require.Len(t, decoded.ErrorChain, 1)
+	require.Contains(t, decoded.ErrorChain[0].LocalizedDescription, "pending recovery lock password not found")
+}

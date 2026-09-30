@@ -1209,6 +1209,7 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		}
 		decl.LabelsExcludeAny = excludeLabels
 	}
+	decl.Description = existing.Description
 
 	// Three states: an edit that doesn't mention the activation keeps the stored
 	// one, a null one removes it, and content replaces it. The datastore write
@@ -1934,6 +1935,7 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 		cp.LabelsExcludeAny = excludeLabels
 	}
 	cp.ProfileUUID = profileUUID
+	cp.Description = existing.Description
 
 	if _, err := svc.ds.UpdateMDMAppleConfigProfile(ctx, *cp, varNames); err != nil {
 		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
@@ -4847,6 +4849,86 @@ func (svc *Service) handleSendAPNSPing(ctx context.Context, host *fleet.Host) er
 	return nil
 }
 
+type installSelfServiceConfigurationProfileRequest struct {
+	HostID      uint   `url:"id"`
+	ProfileUUID string `url:"profile_uuid"`
+}
+
+type installSelfServiceConfigurationProfileResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r installSelfServiceConfigurationProfileResponse) Status() int {
+	return http.StatusAccepted
+}
+
+func (r installSelfServiceConfigurationProfileResponse) Error() error { return r.Err }
+
+func installSelfServiceConfigurationProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*installSelfServiceConfigurationProfileRequest)
+	err := svc.InstallSelfServiceConfigurationProfile(ctx, req.HostID, req.ProfileUUID)
+	if err != nil {
+		return installSelfServiceConfigurationProfileResponse{Err: err}, nil
+	}
+	return installSelfServiceConfigurationProfileResponse{Err: nil}, nil
+}
+
+func (svc *Service) InstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+type uninstallSelfServiceConfigurationProfileRequest struct {
+	HostID      uint   `url:"id"`
+	ProfileUUID string `url:"profile_uuid"`
+}
+
+type uninstallSelfServiceConfigurationProfileResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r uninstallSelfServiceConfigurationProfileResponse) Status() int {
+	return http.StatusAccepted
+}
+
+func (r uninstallSelfServiceConfigurationProfileResponse) Error() error { return r.Err }
+
+func uninstallSelfServiceConfigurationProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*uninstallSelfServiceConfigurationProfileRequest)
+	err := svc.UninstallSelfServiceConfigurationProfile(ctx, req.HostID, req.ProfileUUID)
+	if err != nil {
+		return uninstallSelfServiceConfigurationProfileResponse{Err: err}, nil
+	}
+	return uninstallSelfServiceConfigurationProfileResponse{Err: nil}, nil
+}
+
+func (svc *Service) UninstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+func (svc *Service) DeviceInstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+func (svc *Service) DeviceUninstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Implementation of nanomdm's CheckinAndCommandService interface
 ////////////////////////////////////////////////////////////////////////////////
@@ -5660,6 +5742,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 					}
 					if inHouseAct == nil {
 						return nil, nil
+					}
+					// Set the install as failed here, verification only runs for acknowledged installs
+					err = svc.ds.SetInHouseAppInstallAsFailed(r.Context, inHouseAct.HostID, cmdResult.CommandUUID, "")
+					if err != nil {
+						return nil, ctxerr.Wrap(r.Context, err, "set in-house app install as failed")
 					}
 					inHouseAct.FromSetupExperience = fromSetupExperience
 					if err := svc.newActivityFn(r.Context, inHouseUser, inHouseAct); err != nil {

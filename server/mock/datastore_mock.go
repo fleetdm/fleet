@@ -1656,6 +1656,8 @@ type GetAppleMDMHostForReconcileFunc func(ctx context.Context, hostUUID string) 
 
 type ListAppleProfilesForReconcileByTeamFunc func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error)
 
+type GetAppleProfileForReconcileFunc func(ctx context.Context, teamID uint, profileUUID string) (*fleet.AppleProfileForReconcile, error)
+
 type BulkGetHostLabelMembershipsFunc func(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[uint]map[uint]struct{}, error)
 
 type BulkGetHostMDMAppleProfilesByUUIDsFunc func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMAppleProfilePayload, error)
@@ -2503,6 +2505,12 @@ type SetABMTokenServerUUIDFunc func(ctx context.Context, tokenID uint, serverUUI
 type ApplyHostMDMProfileOptInChangesFunc func(ctx context.Context, changes *fleet.MDMProfileOptInChanges) error
 
 type BulkGetHostMDMProfileOptInsFunc func(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error)
+
+type HasHostMDMProfileOptInFunc func(ctx context.Context, hostUUID string, profileUUID string) (bool, error)
+
+type QueueHostMDMAppleProfileInstallFunc func(ctx context.Context, hostUUID string, profile *fleet.AppleProfileForReconcile) error
+
+type QueueHostMDMAppleProfileRemovalFunc func(ctx context.Context, hostUUID string, profileUUID string) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -4953,6 +4961,9 @@ type DataStore struct {
 	ListAppleProfilesForReconcileByTeamFunc        ListAppleProfilesForReconcileByTeamFunc
 	ListAppleProfilesForReconcileByTeamFuncInvoked bool
 
+	GetAppleProfileForReconcileFunc        GetAppleProfileForReconcileFunc
+	GetAppleProfileForReconcileFuncInvoked bool
+
 	BulkGetHostLabelMembershipsFunc        BulkGetHostLabelMembershipsFunc
 	BulkGetHostLabelMembershipsFuncInvoked bool
 
@@ -6224,6 +6235,15 @@ type DataStore struct {
 
 	BulkGetHostMDMProfileOptInsFunc        BulkGetHostMDMProfileOptInsFunc
 	BulkGetHostMDMProfileOptInsFuncInvoked bool
+
+	HasHostMDMProfileOptInFunc        HasHostMDMProfileOptInFunc
+	HasHostMDMProfileOptInFuncInvoked bool
+
+	QueueHostMDMAppleProfileInstallFunc        QueueHostMDMAppleProfileInstallFunc
+	QueueHostMDMAppleProfileInstallFuncInvoked bool
+
+	QueueHostMDMAppleProfileRemovalFunc        QueueHostMDMAppleProfileRemovalFunc
+	QueueHostMDMAppleProfileRemovalFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -11940,6 +11960,13 @@ func (s *DataStore) ListAppleProfilesForReconcileByTeam(ctx context.Context, tea
 	return s.ListAppleProfilesForReconcileByTeamFunc(ctx, teamID)
 }
 
+func (s *DataStore) GetAppleProfileForReconcile(ctx context.Context, teamID uint, profileUUID string) (*fleet.AppleProfileForReconcile, error) {
+	s.mu.Lock()
+	s.GetAppleProfileForReconcileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleProfileForReconcileFunc(ctx, teamID, profileUUID)
+}
+
 func (s *DataStore) BulkGetHostLabelMemberships(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[uint]map[uint]struct{}, error) {
 	s.mu.Lock()
 	s.BulkGetHostLabelMembershipsFuncInvoked = true
@@ -14906,4 +14933,25 @@ func (s *DataStore) BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs [
 	s.BulkGetHostMDMProfileOptInsFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkGetHostMDMProfileOptInsFunc(ctx, hostUUIDs)
+}
+
+func (s *DataStore) HasHostMDMProfileOptIn(ctx context.Context, hostUUID string, profileUUID string) (bool, error) {
+	s.mu.Lock()
+	s.HasHostMDMProfileOptInFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasHostMDMProfileOptInFunc(ctx, hostUUID, profileUUID)
+}
+
+func (s *DataStore) QueueHostMDMAppleProfileInstall(ctx context.Context, hostUUID string, profile *fleet.AppleProfileForReconcile) error {
+	s.mu.Lock()
+	s.QueueHostMDMAppleProfileInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueueHostMDMAppleProfileInstallFunc(ctx, hostUUID, profile)
+}
+
+func (s *DataStore) QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUID string, profileUUID string) error {
+	s.mu.Lock()
+	s.QueueHostMDMAppleProfileRemovalFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueueHostMDMAppleProfileRemovalFunc(ctx, hostUUID, profileUUID)
 }
