@@ -1656,7 +1656,11 @@ const HostDetailsPage = ({
               {softwareLibraryUnsupportedInfo ? (
                 <EmptyState
                   info={softwareLibraryUnsupportedInfo}
-                  header="Software library is currently not supported on this host"
+                  header={
+                    host.platform === "nixos"
+                      ? undefined
+                      : "Software library is currently not supported on this host"
+                  }
                 />
               ) : (
                 <SoftwareLibraryCard

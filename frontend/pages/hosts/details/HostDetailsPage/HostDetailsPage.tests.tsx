@@ -391,7 +391,7 @@ describe("HostDetailsPage - software library", () => {
     jest.resetAllMocks();
   });
 
-  it("shows the library as unsupported on NixOS hosts", async () => {
+  it("explains that software is installed outside of Fleet on NixOS hosts", async () => {
     const host = createMockHost({ platform: "nixos", status: "online" });
     stubQueries(host);
 
@@ -401,14 +401,14 @@ describe("HostDetailsPage - software library", () => {
 
     expect(
       await screen.findByText(
-        "Software library is currently not supported on this host"
+        /Installing software on NixOS hosts happens outside of Fleet./
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /Fleet doesn't support installing software on NixOS hosts./
+      screen.queryByText(
+        "Software library is currently not supported on this host"
       )
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
       "href",
       "https://fleetdm.com/learn-more-about/nixos-package-management"
