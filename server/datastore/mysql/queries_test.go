@@ -2017,12 +2017,18 @@ func testQueriesDiscardResultsInBatches(t *testing.T, ds *Datastore) {
 	for i := range 5 {
 		hosts = append(hosts, test.NewHost(t, ds, fmt.Sprintf("host%d", i), "", fmt.Sprintf("key%d", i), fmt.Sprintf("uuid%d", i), time.Now()))
 	}
+	const rowsPerHost = 3
 	newQueryWithResults := func(name string) *fleet.Query {
 		q := test.NewQuery(t, ds, nil, name, "SELECT 1", user.ID, true)
 		for _, h := range hosts {
-			_, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{{
-				QueryID: q.ID, HostID: h.ID, LastFetched: time.Now(), Data: new(json.RawMessage(`{"v": "1"}`)),
-			}}, fleet.DefaultMaxQueryReportRows, 0)
+			// More rows per host than the batch size, so pages end mid-host.
+			rows := make([]*fleet.ScheduledQueryResultRow, 0, rowsPerHost)
+			for range rowsPerHost {
+				rows = append(rows, &fleet.ScheduledQueryResultRow{
+					QueryID: q.ID, HostID: h.ID, LastFetched: time.Now(), Data: new(json.RawMessage(`{"v": "1"}`)),
+				})
+			}
+			_, err := ds.OverwriteQueryResultRows(ctx, rows, fleet.DefaultMaxQueryReportRows, 0)
 			require.NoError(t, err)
 		}
 		return q
@@ -2045,7 +2051,7 @@ func testQueriesDiscardResultsInBatches(t *testing.T, ds *Datastore) {
 	applied.Query = "SELECT 2"
 	require.NoError(t, ds.ApplyQueries(ctx, user.ID, []*fleet.Query{applied, appliedKept}, map[uint]struct{}{applied.ID: {}}))
 	requireResults(applied, 0)
-	requireResults(appliedKept, len(hosts))
+	requireResults(appliedKept, len(hosts)*rowsPerHost)
 
 	saved.Query = "SELECT 2"
 	require.NoError(t, ds.SaveQuery(ctx, saved, true, false))
@@ -2060,5 +2066,5 @@ func testQueriesDiscardResultsInBatches(t *testing.T, ds *Datastore) {
 	requireResults(deletedMany1, 0)
 	requireResults(deletedMany2, 0)
 
-	requireResults(untouched, len(hosts))
+	requireResults(untouched, len(hosts)*rowsPerHost)
 }
