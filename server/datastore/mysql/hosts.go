@@ -2166,7 +2166,9 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 
 func filterHostsByVulnerability(sqlstmt string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	if opt.VulnerabilityFilter != nil {
-		sqlstmt += ` AND h.id IN (
+		// The derived table lets MySQL materialize the UNION once; a bare UNION inside
+		// IN runs as a dependent subquery, re-evaluated for every host row.
+		sqlstmt += ` AND h.id IN (SELECT vh.host_id FROM (
 			SELECT hs.host_id FROM host_software hs
 			JOIN software_cve sc ON sc.software_id = hs.software_id
 			WHERE sc.cve = ?
@@ -2175,7 +2177,7 @@ func filterHostsByVulnerability(sqlstmt string, opt fleet.HostListOptions, param
 
 			SELECT hos.host_id FROM host_operating_system hos
 			JOIN operating_system_vulnerabilities osv ON osv.operating_system_id = hos.os_id
-			WHERE osv.cve = ?)`
+			WHERE osv.cve = ?) vh)`
 
 		params = append(params, opt.VulnerabilityFilter, opt.VulnerabilityFilter)
 	}
