@@ -891,6 +891,24 @@ func testExpandHostSecretsFileVaultKey(t *testing.T, ds *Datastore) {
 	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64.StdEncoding.EncodeToString(encrypted), "", new(true))
 	require.NoError(t, err)
 
+	// hosts.uuid isn't unique: a second row with the same UUID and its own key
+	duplicate, err := ds.NewHost(ctx, &fleet.Host{
+		UUID: host.UUID, Hostname: "fv-secret-duplicate.local", OsqueryHostID: new("fv-secret-duplicate"),
+		NodeKey: new("fv-secret-duplicate-node"), DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(),
+		PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
+	})
+	require.NoError(t, err)
+	otherKey, err := pkcs7.Encrypt([]byte("OTHER-KEY"), []*x509.Certificate{caCert})
+	require.NoError(t, err)
+	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, duplicate, base64.StdEncoding.EncodeToString(otherKey), "", new(true))
+	require.NoError(t, err)
+
+	_, err = ds.ExpandHostSecrets(ctx, doc, host.UUID)
+	require.True(t, fleet.IsNotFound(err), "no rotation pending: %v", err)
+
+	ok, err := ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1")
+	require.NoError(t, err)
+	require.True(t, ok)
 	expanded, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
 	require.NoError(t, err)
 	require.Equal(t, `<dict><key>Password</key><string>ABCD-&lt;&amp;&gt;-EFGH</string></dict>`, expanded)
