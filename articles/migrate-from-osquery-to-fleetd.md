@@ -305,8 +305,8 @@ In these cases, we recommend the following:
 
 
 <meta name="articleTitle" value="Migrate from osquery to fleetd">
-<meta name="authorFullName" value="Kathy">
-<meta name="authorGitHubUsername" value="GITHUB_USERNAME">
+<meta name="authorFullName" value="Ryn Satterlee">
+<meta name="authorGitHubUsername" value="rynsatterlee">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-09-30">
 <meta name="description" value="Learn how to move hosts enrolled with plain osquery to Fleet's agent (fleetd) without losing host data or configuration.">
