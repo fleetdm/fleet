@@ -9,14 +9,14 @@ import {
 } from "pages/hosts/details/helpers";
 import { renderWithSetup } from "test/test-utils";
 
-import OSSettingsResendCell from "./OSSettingsResendCell";
+import OSSettingsActionsCell from "./OSSettingsActionsCell";
 
 const noop = () => Promise.resolve();
 
-describe("OSSettingsResendCell", () => {
+describe("OSSettingsActionsCell", () => {
   it("renders a resend button when canResendProfiles is true and profile is failed", () => {
     render(
-      <OSSettingsResendCell
+      <OSSettingsActionsCell
         canResendProfiles
         canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({ status: "failed" })}
@@ -30,7 +30,7 @@ describe("OSSettingsResendCell", () => {
 
   it("renders a resend button when canResendProfiles is true and profile is verified", () => {
     render(
-      <OSSettingsResendCell
+      <OSSettingsActionsCell
         canResendProfiles
         canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({ status: "verified" })}
@@ -44,7 +44,7 @@ describe("OSSettingsResendCell", () => {
 
   it("renders a rotate button when canRotateRecoveryLockPassword is true and password status is verified", () => {
     render(
-      <OSSettingsResendCell
+      <OSSettingsActionsCell
         canResendProfiles={false}
         canRotateRecoveryLockPassword
         profile={createMockHostMdmProfile({
@@ -61,7 +61,7 @@ describe("OSSettingsResendCell", () => {
 
   it("renders a rotate button when canRotateRecoveryLockPassword is true and password status is failed", () => {
     render(
-      <OSSettingsResendCell
+      <OSSettingsActionsCell
         canResendProfiles={false}
         canRotateRecoveryLockPassword
         profile={createMockHostMdmProfile({
@@ -78,7 +78,7 @@ describe("OSSettingsResendCell", () => {
 
   it("does not render a rotate button when canRotateRecoveryLockPassword is false", () => {
     render(
-      <OSSettingsResendCell
+      <OSSettingsActionsCell
         canResendProfiles={false}
         canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({
@@ -97,7 +97,7 @@ describe("OSSettingsResendCell", () => {
 
   it("does not render a rotate button when password status is pending", () => {
     render(
-      <OSSettingsResendCell
+      <OSSettingsActionsCell
         canResendProfiles={false}
         canRotateRecoveryLockPassword
         profile={createMockHostMdmProfile({
@@ -119,7 +119,7 @@ describe("OSSettingsResendCell", () => {
       "renders a resend button when the certificate is stuck in %s (Enforcing)",
       (status) => {
         render(
-          <OSSettingsResendCell
+          <OSSettingsActionsCell
             canResendProfiles
             profile={createMockHostMdmProfile({
               platform: "android",
@@ -138,9 +138,9 @@ describe("OSSettingsResendCell", () => {
       }
     );
 
-    it("does not render a resend button when the certificate is still pending", () => {
+    it("disables the resend button when the certificate is still pending", () => {
       render(
-        <OSSettingsResendCell
+        <OSSettingsActionsCell
           canResendProfiles
           profile={createMockHostMdmProfile({
             platform: "android",
@@ -153,14 +153,12 @@ describe("OSSettingsResendCell", () => {
         />
       );
 
-      expect(
-        screen.queryByRole("button", { name: "Resend" })
-      ).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Resend" })).toBeDisabled();
     });
 
-    it("does not treat a non-certificate Android profile stuck in delivering as resendable", () => {
+    it("disables resend for a non-certificate Android profile stuck in delivering", () => {
       render(
-        <OSSettingsResendCell
+        <OSSettingsActionsCell
           canResendProfiles
           profile={createMockHostMdmProfile({
             platform: "android",
@@ -172,15 +170,13 @@ describe("OSSettingsResendCell", () => {
         />
       );
 
-      expect(
-        screen.queryByRole("button", { name: "Resend" })
-      ).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Resend" })).toBeDisabled();
     });
   });
 
   it("shows a disabled resend button with a tooltip for an Android configuration profile", async () => {
     const { user } = renderWithSetup(
-      <OSSettingsResendCell
+      <OSSettingsActionsCell
         canResendProfiles={false}
         showDisabledResendForAndroidProfile
         profile={createMockHostMdmProfile({
@@ -203,7 +199,7 @@ describe("OSSettingsResendCell", () => {
 
   it("does not show a disabled resend button when showDisabledResendForAndroidProfile is false", () => {
     render(
-      <OSSettingsResendCell
+      <OSSettingsActionsCell
         canResendProfiles={false}
         showDisabledResendForAndroidProfile={false}
         profile={createMockHostMdmProfile({
@@ -222,7 +218,7 @@ describe("OSSettingsResendCell", () => {
   describe("host name template row", () => {
     it("renders a resend button when canResendHostNameTemplate is true and status is failed", () => {
       render(
-        <OSSettingsResendCell
+        <OSSettingsActionsCell
           canResendProfiles={false}
           canResendHostNameTemplate
           profile={createMockHostMdmProfile({
@@ -241,7 +237,7 @@ describe("OSSettingsResendCell", () => {
 
     it("renders a resend button when canResendHostNameTemplate is true and status is verified", () => {
       render(
-        <OSSettingsResendCell
+        <OSSettingsActionsCell
           canResendProfiles={false}
           canResendHostNameTemplate
           profile={createMockHostMdmProfile({
@@ -260,7 +256,7 @@ describe("OSSettingsResendCell", () => {
 
     it("does not render a resend button when status is pending", () => {
       render(
-        <OSSettingsResendCell
+        <OSSettingsActionsCell
           canResendProfiles={false}
           canResendHostNameTemplate
           profile={createMockHostMdmProfile({
@@ -279,7 +275,7 @@ describe("OSSettingsResendCell", () => {
 
     it("does not render a resend button when canResendHostNameTemplate is false (e.g. device user page)", () => {
       render(
-        <OSSettingsResendCell
+        <OSSettingsActionsCell
           canResendProfiles={false}
           canResendHostNameTemplate={false}
           profile={createMockHostMdmProfile({
@@ -300,7 +296,7 @@ describe("OSSettingsResendCell", () => {
       const resendRequest = jest.fn(() => Promise.resolve());
 
       render(
-        <OSSettingsResendCell
+        <OSSettingsActionsCell
           canResendProfiles={false}
           canResendHostNameTemplate
           profile={createMockHostMdmProfile({

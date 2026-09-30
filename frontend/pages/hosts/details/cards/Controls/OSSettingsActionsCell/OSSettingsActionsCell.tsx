@@ -3,6 +3,7 @@ import { noop } from "lodash";
 import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
+import { IconNames } from "components/icons";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { getErrorReason } from "interfaces/errors";
@@ -15,7 +16,7 @@ import {
 
 import { IHostMdmProfileWithAddedStatus } from "../OSSettingsTableConfig";
 
-const baseClass = "os-settings-resend-cell";
+const baseClass = "os-settings-actions-cell";
 
 // Android config profiles (unlike certificates) are synced by the host
 // checking in with Google periodically, similarly to Apple declaration (DDM)
@@ -23,39 +24,62 @@ const baseClass = "os-settings-resend-cell";
 const ANDROID_PROFILE_NO_RESEND_TOOLTIP_MESSAGE =
   "Fleet can't resend this configuration profile. Android hosts check in for profiles periodically, rather than Fleet pushing them.";
 
+const NO_RESEND_PERMISSION_TOOLTIP_MESSAGE =
+  "You don't have permission to resend this profile.";
+
+const PROFILE_NO_RESEND_TOOLTIP_MESSAGE =
+  "Fleet can't resend this configuration profile until it's verified or failed.";
+
 interface IActionButtonProps {
-  isPending: boolean;
   className: string;
   text: string;
-  pendingText: string;
-  onClick: () => void;
+  icon: IconNames;
+  onClick?: () => void;
+  isPending?: boolean;
+  pendingText?: string;
+  disabled?: boolean;
+  tooltip?: React.ReactNode;
+  size?: "small" | "default";
 }
 
 const ActionButton = ({
-  isPending,
   className,
   text,
-  pendingText,
+  icon,
   onClick,
-}: IActionButtonProps) => {
-  return (
+  isPending = false,
+  pendingText,
+  disabled = false,
+  tooltip,
+  size = "small",
+}: IActionButtonProps) => (
+  <TooltipWrapper
+    tipContent={tooltip}
+    disableTooltip={!tooltip}
+    underline={false}
+    // Actions sit at the table's right edge; a centered tooltip can collide
+    // with it and flip sideways, so anchor the tooltip's right edge instead.
+    position="top-end"
+    showArrow
+  >
     <Button
-      disabled={isPending}
+      variant="secondary"
+      size={size}
+      icon={icon}
+      className={className}
+      disabled={disabled || isPending}
       // The row opens the details modal; don't let an action click do that too.
       onClick={(evt: React.MouseEvent) => {
         evt.stopPropagation();
-        onClick();
+        onClick?.();
       }}
-      variant="subdued"
-      className={className}
-      icon="refresh"
     >
-      {isPending ? pendingText : text}
+      {isPending && pendingText ? pendingText : text}
     </Button>
-  );
-};
+  </TooltipWrapper>
+);
 
-interface IOSSettingsResendCellProps {
+interface IOSSettingsActionsCellProps {
   canResendProfiles: boolean;
   /** Also offer Resend while the profile is "verifying" (Fleetd configuration
    * profile with one-time enroll secrets). */
@@ -66,32 +90,48 @@ interface IOSSettingsResendCellProps {
    * Android configuration profiles (which sync automatically and can't be
    * resent on demand). */
   showDisabledResendForAndroidProfile?: boolean;
+  /** The profile could be resent, but not by this user. */
+  lacksResendPermission?: boolean;
   profile: IHostMdmProfileWithAddedStatus;
   resendRequest: (profileUUID: string) => Promise<void>;
   resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>;
   rotateRecoveryLockPassword?: () => Promise<void>;
   resendHostNameTemplate?: () => Promise<void>;
-  onProfileResent?: () => void;
-  /** Fade in on row hover. Set for the table cell, not the modal footer. */
-  revealOnRowHover?: boolean;
+  onProfileResent?: () => void | Promise<unknown>;
+  /** Offer Install/Uninstall on self-service (opt-in) profiles. */
+  canManageSelfServiceProfiles?: boolean;
+  onInstall?: (profile: IHostMdmProfileWithAddedStatus) => Promise<void>;
+  /** Uninstall is confirmed in a modal owned by the caller. */
+  onClickUninstall?: (profile: IHostMdmProfileWithAddedStatus) => void;
+  /** An install/uninstall was sent and the host doesn't reflect it yet. */
+  isActionRequested?: boolean;
+  /** Full-size buttons to sit beside the details modal's footer buttons. */
+  isInModal?: boolean;
 }
 
-const OSSettingsResendCell = ({
+const OSSettingsActionsCell = ({
   canResendProfiles,
   canResendWhileVerifying = false,
   canRotateRecoveryLockPassword = false,
   canResendHostNameTemplate = false,
   showDisabledResendForAndroidProfile = false,
+  lacksResendPermission = false,
   profile,
   resendRequest,
   resendCertificateRequest,
   rotateRecoveryLockPassword,
   resendHostNameTemplate,
   onProfileResent = noop,
-  revealOnRowHover = false,
-}: IOSSettingsResendCellProps) => {
+  canManageSelfServiceProfiles = false,
+  onInstall,
+  onClickUninstall,
+  isActionRequested = false,
+  isInModal = false,
+}: IOSSettingsActionsCellProps) => {
+  const buttonSize = isInModal ? "default" : "small";
   const [isResending, setIsResending] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
 
   const isAndroidCertificate =
     profile.profile_uuid === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
@@ -148,6 +188,17 @@ const OSSettingsResendCell = ({
     setIsResending(false);
   };
 
+  const onInstallProfile = async () => {
+    if (!onInstall) return;
+    setIsInstalling(true);
+    try {
+      await onInstall(profile);
+    } catch (e) {
+      notify.error("Couldn't install. Please try again.", { response: e });
+    }
+    setIsInstalling(false);
+  };
+
   const isFailed = profile.status === "failed";
   const isVerified = profile.status === "verified";
   // Unlike Windows/Apple profiles, an Android cert can get stuck mid-delivery
@@ -173,6 +224,22 @@ const OSSettingsResendCell = ({
       (isVerifying && canResendWhileVerifying)) &&
     !isRecoveryLockRow &&
     !isHostNameRow;
+  // Disabled rather than hidden so users can tell resend exists for this profile.
+  const isSelfService = canManageSelfServiceProfiles && profile.self_service;
+  const isNotInstalled = profile.status === null;
+  const isPendingInstall =
+    profile.operation_type === "install" && profile.status === "pending";
+  // Once Install is clicked it flips to a disabled Resend until the profile lands.
+  const showInstallButton =
+    isSelfService && !!onInstall && isNotInstalled && !isActionRequested;
+  const showDisabledResendButton =
+    canResendProfiles &&
+    !showResendButton &&
+    (profile.status !== null || (isSelfService && isActionRequested)) &&
+    !isRecoveryLockRow &&
+    !isHostNameRow;
+  const showUninstallButton =
+    isSelfService && !!onClickUninstall && !isNotInstalled && !isPendingInstall;
   const showRotateButton =
     canRotateRecoveryLockPassword && (isFailed || isVerified);
   // canResendHostNameTemplate is already pre-gated on the host name row by the
@@ -180,70 +247,100 @@ const OSSettingsResendCell = ({
   const showResendHostNameButton =
     canResendHostNameTemplate && (isFailed || isVerified);
 
-  const actionClass = (
-    modifier: string,
-    pendingModifier: string,
-    isPending: boolean
-  ) =>
-    classnames(`${baseClass}__${modifier}-button`, {
-      [`${baseClass}__${pendingModifier}`]: isPending,
-      // Keep an in-flight action visible so the user sees it working.
-      "row-hover-button": revealOnRowHover && !isPending,
-    });
+  const renderPrimaryAction = () => {
+    if (showInstallButton) {
+      return (
+        <ActionButton
+          size={buttonSize}
+          className={`${baseClass}__install-button`}
+          text="Install"
+          pendingText="Installing..."
+          icon="install-self-service"
+          isPending={isInstalling}
+          disabled={isActionRequested}
+          onClick={onInstallProfile}
+        />
+      );
+    }
+    if (showResendButton || showResendHostNameButton) {
+      return (
+        <ActionButton
+          size={buttonSize}
+          className={classnames(`${baseClass}__resend-button`, {
+            [`${baseClass}__resending`]: isResending,
+          })}
+          text="Resend"
+          pendingText="Resending..."
+          icon="refresh"
+          isPending={isResending}
+          onClick={
+            showResendButton ? onResendProfile : onResendHostNameTemplate
+          }
+        />
+      );
+    }
+    if (showRotateButton) {
+      return (
+        <ActionButton
+          size={buttonSize}
+          className={classnames(`${baseClass}__rotate-button`, {
+            [`${baseClass}__rotating`]: isRotating,
+          })}
+          text="Rotate"
+          pendingText="Rotating..."
+          icon="refresh"
+          isPending={isRotating}
+          onClick={onRotatePassword}
+        />
+      );
+    }
+    if (lacksResendPermission && profile.status !== null) {
+      return (
+        <ActionButton
+          size={buttonSize}
+          className={`${baseClass}__resend-button`}
+          text="Resend"
+          icon="refresh"
+          disabled
+          tooltip={NO_RESEND_PERMISSION_TOOLTIP_MESSAGE}
+        />
+      );
+    }
+    if (showDisabledResendForAndroidProfile || showDisabledResendButton) {
+      return (
+        <ActionButton
+          size={buttonSize}
+          className={`${baseClass}__resend-button`}
+          text="Resend"
+          icon="refresh"
+          disabled
+          tooltip={
+            showDisabledResendForAndroidProfile
+              ? ANDROID_PROFILE_NO_RESEND_TOOLTIP_MESSAGE
+              : PROFILE_NO_RESEND_TOOLTIP_MESSAGE
+          }
+        />
+      );
+    }
+    return null;
+  };
 
   return (
     <div className={baseClass}>
-      {showResendButton && (
+      {renderPrimaryAction()}
+      {showUninstallButton && (
         <ActionButton
-          isPending={isResending}
-          className={actionClass("resend", "resending", isResending)}
-          text="Resend"
-          pendingText="Resending..."
-          onClick={onResendProfile}
+          size={buttonSize}
+          className={`${baseClass}__uninstall-button`}
+          text="Uninstall"
+          icon="trash"
+          // A removal is already under way.
+          disabled={isActionRequested || profile.operation_type === "remove"}
+          onClick={() => onClickUninstall?.(profile)}
         />
-      )}
-      {showRotateButton && (
-        <ActionButton
-          isPending={isRotating}
-          className={actionClass("rotate", "rotating", isRotating)}
-          text="Rotate"
-          pendingText="Rotating..."
-          onClick={onRotatePassword}
-        />
-      )}
-      {showResendHostNameButton && (
-        <ActionButton
-          isPending={isResending}
-          className={actionClass("resend", "resending", isResending)}
-          text="Resend"
-          pendingText="Resending..."
-          onClick={onResendHostNameTemplate}
-        />
-      )}
-      {showDisabledResendForAndroidProfile && (
-        <TooltipWrapper
-          underline={false}
-          tipContent={ANDROID_PROFILE_NO_RESEND_TOOLTIP_MESSAGE}
-          // This button always sits at the right edge of its row (Actions
-          // column is right-aligned). A centered "top" placement can collide
-          // with the table's right edge and flip to the side (broken-looking)
-          // rather than just shifting — anchoring the tooltip's own right
-          // edge avoids that flip, only ever falling back to top/bottom.
-          position="top-end"
-          showArrow
-        >
-          <Button
-            disabled
-            variant="subdued"
-            className={actionClass("resend", "resending", false)}
-            icon="refresh"
-          >
-            Resend
-          </Button>
-        </TooltipWrapper>
       )}
     </div>
   );
 };
 
-export default OSSettingsResendCell;
+export default OSSettingsActionsCell;

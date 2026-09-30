@@ -26221,6 +26221,67 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
+	t.Run("a command whose host secret can't be expanded doesn't block the queue", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		var setCmd string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &setCmd,
+				`SELECT pending_set_command_uuid FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
+		})
+		require.NotEmpty(t, setCmd)
+
+		// The staged password is gone by the time the device fetches the command.
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(),
+				`UPDATE host_recovery_key_passwords SET pending_encrypted_password = NULL WHERE host_uuid = ?`, host.UUID)
+			return err
+		})
+		followUp := uuid.NewString()
+		require.NoError(t, s.mdmCommander.EnqueueCommand(t.Context(), []string{host.UUID}, fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>ProfileList</string>
+	</dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+</dict>
+</plist>`, followUp)))
+
+		var delivered []string
+		cmd, err := mdmClient.Idle()
+		for i := 0; err == nil && i < 10; i++ {
+			if cmd != nil {
+				delivered = append(delivered, cmd.CommandUUID)
+				cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+			} else {
+				cmd, err = mdmClient.Idle()
+			}
+		}
+		require.NoError(t, err)
+		require.NotContains(t, delivered, setCmd)
+		require.Contains(t, delivered, followUp, "the command behind the failed one is still delivered")
+
+		var status string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &status,
+				`SELECT status FROM nano_command_results WHERE id = ? AND command_uuid = ?`, host.UUID, setCmd)
+		})
+		require.Equal(t, fleet.MDMAppleStatusError, status)
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
 	// Final cleanup: ensure recovery lock is disabled
 	s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 		"mdm": map[string]any{"enable_recovery_lock_password": false},
