@@ -15,7 +15,7 @@ export default PropTypes.shape({
 export interface IFormField<T = unknown[] | boolean | number | string> {
   error: string;
   name: string;
-  onChange: (value: unknown) => void;
+  onChange: (value: T) => void;
   value: T;
 }
 

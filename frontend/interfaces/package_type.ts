@@ -36,11 +36,15 @@ export const isFleetMaintainedPackageType = (
   return fleetMaintainedPackageTypes.includes(s as FleetMaintainedPackageType);
 };
 
-export const isIosIpadosPackageType = (s: unknown): s is IosIpadosPackageType => {
+export const isIosIpadosPackageType = (
+  s: unknown
+): s is IosIpadosPackageType => {
   return iosIpadosPackageTypes.includes(s as IosIpadosPackageType);
 };
 
-export const isScriptOnlyPackageType = (s: unknown): s is ScriptOnlyPackageType => {
+export const isScriptOnlyPackageType = (
+  s: unknown
+): s is ScriptOnlyPackageType => {
   return scriptOnlyPackageTypes.includes(s as ScriptOnlyPackageType);
 };
 
