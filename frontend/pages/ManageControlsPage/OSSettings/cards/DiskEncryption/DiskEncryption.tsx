@@ -336,22 +336,15 @@ const DiskEncryption = ({
     isEnabled: boolean,
     formFields: JSX.Element
   ) => {
-    // GitOps mode has its own tooltip on Save, so only show the MDM-required
-    // empty state when that isn't what's disabling the form
-    const mdmRequiredEmptyState =
-      gitOpsModeEnabled || isPlatformMdmEnabled[platform]
-        ? undefined
-        : MDM_REQUIRED_EMPTY_STATES[platform];
+    const mdmRequiredEmptyState = isPlatformMdmEnabled[platform]
+      ? undefined
+      : MDM_REQUIRED_EMPTY_STATES[platform];
 
     return (
       <>
         {!isTechnician &&
           (mdmRequiredEmptyState || (
-            <Card
-              className={`${baseClass}__settings-card`}
-              color="white"
-              borderRadiusSize="large"
-            >
+            <Card className={`${baseClass}__settings-card`} color="white">
               <div className={`${baseClass}__form-fields`}>{formFields}</div>
               {renderSaveButton(platform)}
             </Card>

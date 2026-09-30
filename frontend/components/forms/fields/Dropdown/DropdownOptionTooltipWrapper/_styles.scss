@@ -2,6 +2,8 @@
 // New react-select-5: ActionsDropdown.tsx, DropdownWrapper.tsx
 .Select > .Select-menu-outer,
 .actions-dropdown,
+// Inside a table the menu is portaled to document.body, escaping .actions-dropdown
+.actions-dropdown-select__menu-portal,
 .react-select__option {
   .is-disabled * {
     color: $ui-fleet-black-50;

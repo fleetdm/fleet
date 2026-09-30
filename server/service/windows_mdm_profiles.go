@@ -53,7 +53,8 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
 			ProfileName: newCP.Name,
-		}); err != nil {
+		},
+	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm windows config profile")
 	}
 
@@ -170,6 +171,10 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+		return err
+	}
+
 	existing, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -225,6 +230,7 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 		cp.LabelsExcludeAny = excludeLabels
 	}
 	cp.ProfileUUID = profileUUID
+	cp.Description = existing.Description
 
 	if _, err := svc.ds.UpdateMDMWindowsConfigProfile(ctx, *cp, usesFleetVars); err != nil {
 		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
@@ -246,7 +252,8 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
 			ProfileName: cp.Name,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edit mdm windows config profile")
 	}
 
@@ -338,6 +345,9 @@ func subjectNameHasRenewalIDMarker(data string) bool {
 }
 
 func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
+	if err := fleet.ValidateNoHostSecretVariables(contents); err != nil {
+		return nil, err
+	}
 	foundVars := variables.Find(contents)
 	if len(foundVars) == 0 {
 		return nil, nil
@@ -433,13 +443,15 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 			if !isChallenge && containsFleetVar(dataContent, fleet.FleetVarNDESSCEPChallenge) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf(
-						"Variable %q must only be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallenge.WithPrefix()),
+						"Variable %q must only be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallenge.WithPrefix(),
+					),
 				}
 			}
 			if !isServerURL && containsFleetVar(dataContent, fleet.FleetVarNDESSCEPProxyURL) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf(
-						"Variable %q must only be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix()),
+						"Variable %q must only be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix(),
+					),
 				}
 			}
 
@@ -455,13 +467,15 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 			if isChallenge && !isFleetVar(dataContent, fleet.FleetVarNDESSCEPChallenge) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf(
-						"Variable %q must be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallenge.WithPrefix()),
+						"Variable %q must be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallenge.WithPrefix(),
+					),
 				}
 			}
 			if isServerURL && !isFleetVar(dataContent, fleet.FleetVarNDESSCEPProxyURL) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf(
-						"Variable %q must be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix()),
+						"Variable %q must be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix(),
+					),
 				}
 			}
 			if isSubjectName && !subjectNameHasRenewalIDMarker(dataContent) {

@@ -1,0 +1,1 @@
+- Added support for Windows end users without local admin rights to create the BitLocker startup PIN their fleet requires. fleetd applies the PIN submitted on the My device page, replaces the volume's TPM-only protector with a TPM and PIN protector, and reports the result to Fleet. Fleet Desktop shows a Windows notification with a Create PIN button when a PIN is needed.

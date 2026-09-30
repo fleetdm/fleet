@@ -97,11 +97,7 @@ const HostCountCard = ({
 
   return (
     <div className={baseClass} data-testid="card">
-      <Card
-        className={classes}
-        borderRadiusSize="large"
-        path={notSupported ? undefined : path}
-      >
+      <Card className={classes} path={notSupported ? undefined : path}>
         {renderCard()}
       </Card>
     </div>

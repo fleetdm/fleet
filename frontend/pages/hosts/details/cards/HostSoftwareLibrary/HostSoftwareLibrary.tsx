@@ -641,6 +641,7 @@ const HostSoftwareLibrary = ({
           hostDisplayName={hostDisplayName}
           software={selectedSoftwareUpdates}
           onUpdate={onClickInstallAction}
+          disableUpdate={!userHasSWWritePermission}
           onExit={() => setSelectedSoftwareUpdates(null)}
         />
       )}
@@ -651,6 +652,7 @@ const HostSoftwareLibrary = ({
             install_uuid:
               selectedHostSWInstallDetails.software_package?.last_install
                 ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
+            skipped_install: selectedHostSWInstallDetails.skipped_install,
           }}
           hostSoftware={selectedHostSWInstallDetails}
           onCancel={() => setSelectedHostSWInstallDetails(null)}

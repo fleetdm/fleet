@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.0.8",
+      "version": "3.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nuebling.mac-mouse-fix';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nuebling.mac-mouse-fix' AND version_compare(bundle_short_version, '3.0.8') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nuebling.mac-mouse-fix' AND version_compare(bundle_short_version, '3.1.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.nuebling.mac-mouse-fix' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/noah-nuebling/mac-mouse-fix/releases/download/3.0.8/MacMouseFixApp.zip",
+      "installer_url": "https://github.com/noah-nuebling/mac-mouse-fix/releases/download/3.1.0/MacMouseFixApp.zip",
       "install_script_ref": "99b2b437",
       "uninstall_script_ref": "c7a86979",
-      "sha256": "db164e45d30b2fd02ff12635ac17c5441ebfc542faefde6bb861596a798df8ae",
+      "sha256": "afee98a91e86b287cc28c652fddefeeb02e17573af0e666d1ffa542f1025308f",
       "default_categories": [
         "Utilities"
       ]

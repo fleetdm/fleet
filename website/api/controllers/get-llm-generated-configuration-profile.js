@@ -48,6 +48,7 @@ module.exports = {
     let generatorConfiguration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({
       profileType,
       naturalLanguageInstructions,
+      useLighterResponseShape: true,
     });
     let promptConfig = generatorConfiguration.promptConfig;
     let systemPrompt = generatorConfiguration.systemPrompt;

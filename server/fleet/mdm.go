@@ -88,6 +88,11 @@ const (
 	FleetVarHostTargetOSVersion  FleetVarName = "HOST_TARGET_OS_VERSION"
 	FleetVarHostTargetOSDeadline FleetVarName = "HOST_TARGET_OS_DEADLINE"
 
+	// FleetVarPatchNotificationURL is Fleet-internal in the same way: resolved to
+	// a notification's device page URL at fetch time, and deliberately absent
+	// from FleetVarsSupportedInScripts since it carries a device auth token.
+	FleetVarPatchNotificationURL FleetVarName = "PATCH_NOTIFICATION_URL"
+
 	// FleetVarPSSODeviceRegistrationToken is the admin-facing variable placed in
 	// the RegistrationToken key of a Fleet com.apple.extensiblesso (Platform SSO
 	// v2) payload. It resolves to the FLEET_HOST_SECRET_ placeholder of the same
@@ -579,6 +584,9 @@ type HostMDMProfile struct {
 	Retrying   *bool `db:"-" json:"retrying,omitempty"`
 	RetryCount *uint `db:"-" json:"retry_count,omitempty"`
 	MaxRetries *uint `db:"-" json:"max_retries,omitempty"`
+
+	SelfService bool `db:"-" json:"self_service"`
+	Hidden      bool `db:"-" json:"hidden"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -678,6 +686,7 @@ type MDMConfigProfilePayload struct {
 	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
 	TeamID      *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"` // null for no-team
 	Name        string `json:"name" db:"name"`
+	Description string `json:"description" db:"description"`
 	Platform    string `json:"platform" db:"platform"`               // "windows", "android" or "darwin"
 	Identifier  string `json:"identifier,omitempty" db:"identifier"` // only set for macOS
 	Scope       string `json:"scope,omitempty" db:"scope"`           // only set for macOS, can be "System" or "User"
@@ -709,8 +718,9 @@ type BatchModifyMDMConfigProfilePayload struct {
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
 // a team or no-team.
 type MDMProfileBatchPayload struct {
-	Name     string `json:"name,omitempty"`
-	Contents []byte `json:"contents,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"-"`
+	Contents    []byte `json:"contents,omitempty"`
 
 	// Deprecated: Labels is the backwards-compatible way of specifying
 	// LabelsIncludeAll.
@@ -733,6 +743,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		ProfileUUID:      cp.ProfileUUID,
 		TeamID:           tid,
 		Name:             cp.Name,
+		Description:      cp.Description,
 		Platform:         "windows",
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
@@ -751,6 +762,7 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		ProfileUUID:      cp.ProfileUUID,
 		TeamID:           tid,
 		Name:             cp.Name,
+		Description:      cp.Description,
 		Identifier:       cp.Identifier,
 		Platform:         "darwin",
 		Checksum:         cp.Checksum,
@@ -772,6 +784,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		ProfileUUID:      decl.DeclarationUUID,
 		TeamID:           tid,
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Identifier:       decl.Identifier,
 		Platform:         "darwin",
 		Checksum:         []byte(decl.Token),
@@ -796,6 +809,7 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 		ProfileUUID:      cp.ProfileUUID,
 		TeamID:           tid,
 		Name:             cp.Name,
+		Description:      cp.Description,
 		Platform:         "android",
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
@@ -1248,6 +1262,45 @@ func VerifySoftwareInstallCommandUUID() string {
 	return VerifySoftwareInstallVPPPrefix + uuid.NewString()
 }
 
+// AppleMDMCommandRetentionClass identifies a set of Fleet-generated commands
+// eligible for cleanup. An empty UUIDPrefix matches any command of RequestType.
+type AppleMDMCommandRetentionClass struct {
+	RequestType string
+	UUIDPrefix  string
+}
+
+// AppleMDMShortRetentionClasses are the recurring commands the cleanup deletes
+// after the short retention window. The UUID prefixes separate Fleet's own
+// inventory chatter from customer-run commands of the same request type, which
+// fall under the standard window instead.
+var AppleMDMShortRetentionClasses = []AppleMDMCommandRetentionClass{
+	{RequestType: "DeviceInformation", UUIDPrefix: RefetchDeviceCommandUUIDPrefix},
+	{RequestType: "InstalledApplicationList", UUIDPrefix: RefetchAppsCommandUUIDPrefix},
+	{RequestType: "CertificateList", UUIDPrefix: RefetchCertsCommandUUIDPrefix},
+	{RequestType: "Settings", UUIDPrefix: DeviceNameCommandUUIDPrefix},
+	{RequestType: "InstalledApplicationList", UUIDPrefix: VerifySoftwareInstallVPPPrefix},
+	{RequestType: "DeclarativeManagement"},
+}
+
+// AppleMDMStandardRetentionRequestTypes are the request types the cleanup
+// deletes after the standard retention window. Any type not listed here or in
+// the short classes is retained indefinitely, so a new feature's commands are
+// kept until someone reviews them for deletion.
+var AppleMDMStandardRetentionRequestTypes = []string{
+	"InstallProfile", "RemoveProfile", "InstallApplication",
+	"InstallEnterpriseApplication", "DeviceConfigured", "DeviceInformation",
+	"InstalledApplicationList", "CertificateList", "ProfileList", "SecurityInfo",
+	DeviceLocationCmdName, SetRecoveryLockCmdName, VerifyRecoveryLockCmdName, SetAutoAdminPasswordCmdName,
+	"UserList",
+}
+
+// AppleMDMInactivePurgeDenylist lists request types whose deactivated queue rows
+// are still read back afterwards (lock/wipe/lost-mode status), so the inactive
+// purge must skip them even at active = 0.
+var AppleMDMInactivePurgeDenylist = []string{
+	"DeviceLock", "EraseDevice", EnableLostModeCmdName, DisableLostModeCmdName, AccountConfigurationCmdName,
+}
+
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
 	OrgName   string `json:"org_name"`
@@ -1398,6 +1451,11 @@ func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
 type HostMDMCommand struct {
 	HostID      uint   `db:"host_id"`
 	CommandType string `db:"command_type"`
+	// CommandUUID is the queued command this tracking row refers to. Empty on
+	// rows written before Fleet recorded it and by flows that have not adopted
+	// it (e.g. VPP install verification); those rows keep the pre-UUID
+	// semantics everywhere.
+	CommandUUID string `db:"command_uuid"`
 }
 
 // MDMProfileUUIDFleetVariables represents the Fleet variables used by a
@@ -1472,6 +1530,12 @@ type NanoMDMEnrollmentDetails struct {
 	HardwareAttested       bool       `db:"hardware_attested"`
 	UnlockToken            *string    `db:"unlock_token"`
 	BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
+	// EnrollmentType is the MDM enrollment channel as reported by nanomdm, e.g.
+	// "Device" or "User Enrollment (Device)".
+	EnrollmentType string `db:"enrollment_type"`
+	// Enabled is false after checkout, when last_seen_at still keeps updating.
+	// Liveness-signal callers must ignore LastMDMSeenTime in that case.
+	Enabled bool `db:"enabled"`
 }
 
 // MDM SSO initiator constants identify which enrollment flow initiated the SSO

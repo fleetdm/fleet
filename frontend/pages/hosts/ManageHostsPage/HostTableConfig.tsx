@@ -453,54 +453,32 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   // Status
   {
     title: "Status",
-    Header: () => {
-      const titleWithToolTip = (
-        <TooltipWrapper
-          tipContent={
-            <>
-              Only supported on hosts that run Fleet&apos;s agent: macOS,
-              Windows, Linux, and ChromeOS.
-            </>
-          }
-          className="status-header"
-          tooltipClass="host-table-header-tooltip"
-          fixedPositionStrategy
-        >
-          Status
-        </TooltipWrapper>
-      );
-      return <HeaderCell value={titleWithToolTip} disableSortBy />;
-    },
+    Header: () => <HeaderCell value="Status" disableSortBy />,
     disableSortBy: true,
     accessor: "status",
     id: "status",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
-      }
-
-      // Show "---" for AB and Windows Autopilot devices with Pending enrollment status
+      // Show "---" for Apple Business Manager and Windows Autopilot devices
+      // with Pending enrollment status.
       const { platform } = cellProps.row.original;
       if (
         cellProps.row.original.mdm?.enrollment_status === "Pending" &&
         (isAppleDevice(platform) || isWindows(platform))
       ) {
-        const tooltip = {
-          tooltipText: getHostStatusTooltipText(
-            DEFAULT_EMPTY_CELL_VALUE,
-            platform
-          ),
-        };
         return (
-          <StatusIndicator value={DEFAULT_EMPTY_CELL_VALUE} tooltip={tooltip} />
+          <StatusIndicator
+            value={DEFAULT_EMPTY_CELL_VALUE}
+            tooltip={{
+              tooltipText: getHostStatusTooltipText(
+                DEFAULT_EMPTY_CELL_VALUE,
+                platform
+              ),
+            }}
+          />
         );
       }
 
-      const value = cellProps.cell.value;
-      const tooltip = {
-        tooltipText: getHostStatusTooltipText(value),
-      };
-      return <StatusIndicator value={value} tooltip={tooltip} />;
+      return <StatusIndicator value={cellProps.cell.value} />;
     },
   },
   // Issues

@@ -3,19 +3,19 @@ import React from "react";
 import { isAppleDevice, isWindows } from "interfaces/platform";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
+// Only the Pending enrollment case carries tooltip copy now; online/offline
+// pills no longer explain themselves ("will respond to a live report" was
+// misleading once mobile hosts started showing real online/offline).
 export const getHostStatusTooltipText = (
   status: string,
   platform?: string
-): string => {
-  if (status === "online") {
-    return "Online hosts will respond to a live report.";
-  }
+): string | undefined => {
   if (status === DEFAULT_EMPTY_CELL_VALUE) {
     const enrollmentSource =
       platform && isWindows(platform) ? "Windows Autopilot" : "Apple Business";
     return `Device is pending enrollment in ${enrollmentSource} and status is not yet available.`;
   }
-  return "Offline hosts won't respond to a live report because they may be shut down, asleep, or not connected to the internet.";
+  return undefined;
 };
 
 export const getHostStatus = (

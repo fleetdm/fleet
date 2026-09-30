@@ -8,7 +8,6 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Role                                    | Contributor(s)
 |:----------------------------------------|:----------------------------------------------------------------------|
 | VP of IT Strategy                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
-| Solutions Consultant (SC)               | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
 | IT Support Administrator             | [Andrea Pepper](https://www.linkedin.com/in/lppepper/) _([@lppepper2](https://github.com/lppepper2))_ 
 
 
@@ -22,7 +21,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Responsibilities
 
-The IT department is directly responsible for solutions consulting, dogfooding, internal frameworks and schemas, equipment management, and internal IT support.
+The IT department is directly responsible for dogfooding, internal frameworks and schemas, equipment management, and internal IT support.
 
 
 ### Register a domain for Fleet
