@@ -123,7 +123,7 @@ OKR planning happens during the first week of the third month of every quarter.
 
 The board meeting happens in the first week of every quarter.
 
-**Two weeks prior (virtual):**
+**Two weeks prior:**
   - The CEO and CFO discuss the board meeting with the CEO's coach.
   - The CEO works on the beginning and end of their slides.
   - Once the CEO has those, the CEO asks each executive for 2-3 charts that align with the narrative in the CEO's slides.
@@ -133,11 +133,11 @@ The board meeting happens in the first week of every quarter.
 **Mock board meeting:**
   - The team holds a mock board meeting no later than the day before the board meeting.
 
-**Day of the board meeting (in-person):**
+**Day of the board meeting:**
   - Morning sync
   - Real board meeting
   - Closed sessions
-  - Dinner with the board
+  - Dinner with the board (only if it's in person)
 
 **Next board meeting location:**
   - The CEO, EA, and Head of People meet for 30 minutes to decide the location of the next board meeting and email board members.
