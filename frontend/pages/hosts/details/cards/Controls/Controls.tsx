@@ -245,6 +245,7 @@ const Controls = ({
       <>
         <DropdownWrapper
           className={`${baseClass}__filter`}
+          variant="table-filter"
           name="type-filter"
           onChange={(value) => {
             if (value?.value) {
