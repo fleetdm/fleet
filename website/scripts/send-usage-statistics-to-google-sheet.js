@@ -16,9 +16,9 @@ module.exports = {
 
     require('assert')(sails.config.custom.usageStatisticsServiceAccountEmailAddress);
     require('assert')(sails.config.custom.usageStatisticsServiceAccountPrivateKey);
+    require('assert')(sails.config.custom.usageStatisticsSpreadsheetId);
 
-    // Usage statistics sheet
-    const SPREADSHEET_ID = '1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI';
+    const SPREADSHEET_ID = sails.config.custom.usageStatisticsSpreadsheetId;
 
     // Organizations reported by internal, development, and load testing instances.
     const ORGANIZATIONS_TO_EXCLUDE = [

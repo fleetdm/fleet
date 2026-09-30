@@ -493,6 +493,7 @@ module.exports.custom = {
   // Usage statistics Google sheet:
   // usageStatisticsServiceAccountEmailAddress: '…',
   // usageStatisticsServiceAccountPrivateKey: '…',
+  // usageStatisticsSpreadsheetId: '…',
 
   // For receive-from-customer-fleet-instance webhook.
   // customerWorkspaceOneBaseUrl: '…',
