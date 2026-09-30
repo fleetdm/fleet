@@ -282,7 +282,7 @@ ${naturalLanguageInstructions}
         }
 
 
-        sails.log.warn(`[payload-type lookup] instructions: ${JSON.stringify(naturalLanguageInstructions)} | lookup returned: ${JSON.stringify(picked ? picked.payloadTypes : '(lookup failed)')} | provided: ${JSON.stringify(applePayloadTypesProvided)}`);
+        // sails.log.warn(`[payload-type lookup] instructions: ${JSON.stringify(naturalLanguageInstructions)} | lookup returned: ${JSON.stringify(picked ? picked.payloadTypes : '(lookup failed)')} | provided: ${JSON.stringify(applePayloadTypesProvided)}`);
       }
 
       if(applePayloadTypesProvided.length > 0) {
