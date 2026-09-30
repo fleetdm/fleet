@@ -228,6 +228,8 @@ If an end user wants to switch their workstation's operating system (e.g., Windo
 
 Fleet's agent (fleetd) is installed via the [NixOS module](https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/services/monitoring/orbit.nix) instead of a package generated via `fleetctl package`. The module uses osquery and Fleet Desktop from nixpkgs instead of Fleet's update server.
 
+A Fleet-maintained Nix flake for fleetd is coming soon. Learn more in the [story](https://github.com/fleetdm/fleet/issues/54457).
+
 Prerequisites:
 
 - NixOS with the `services.orbit` module. It's on `nixos-unstable`. NixOS 26.05 doesn't include it, so import the module from an unstable nixpkgs.
@@ -258,7 +260,12 @@ To enroll a NixOS host:
 
 4. Run `sudo nixos-rebuild switch`. The host appears in Fleet within a minute.
 
-If your nixpkgs packages a `fleet-orbit` version older than 1.63.0, override it with an overlay that builds the `orbit-v1.63.0` tag of the [fleetdm/fleet](https://github.com/fleetdm/fleet) repository, with `patches = [ ]` and `buildGoModule = buildGo127Module`. Apply the same Go override and vendor hash to `fleet-desktop`, which builds from the same source.
+fleetd 1.63.0 is the first version that supports NixOS. To check which `fleet-orbit` version your nixpkgs packages, run one of the following on the host:
+
+- Flakes: `nix eval --raw /etc/nixos#nixosConfigurations.<hostname>.pkgs.fleet-orbit.version` (replace `/etc/nixos` with your flake's path)
+- Channels: `nix-instantiate --eval -E '(import <nixpkgs> {}).fleet-orbit.version'`
+
+If the version is older than 1.63.0, override it with an overlay that builds the `orbit-v1.63.0` tag of the [fleetdm/fleet](https://github.com/fleetdm/fleet) repository, with `patches = [ ]` and `buildGoModule = buildGo127Module`. Apply the same Go override and vendor hash to `fleet-desktop`, which builds from the same source.
 
 On GNOME, install and enable the AppIndicator extension (`gnomeExtensions.appindicator`) to see the Fleet Desktop icon. KDE Plasma shows it without extra setup.
 
