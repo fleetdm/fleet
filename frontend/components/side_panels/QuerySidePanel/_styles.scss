@@ -1,8 +1,8 @@
 .query-side-panel {
   @include vertical-modal-layout;
 
-  .custom-link,
-  .evented-table-tag,
+  > .custom-link,
+  > .evented-table-tag,
   &__mdm-required {
     align-self: flex-start;
   }
