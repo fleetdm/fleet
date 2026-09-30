@@ -5114,6 +5114,8 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.Equal(t, uint64(2), getDeviceHostResp.Host.HostIssues.FailingPoliciesCount)
 	require.NotNil(t, getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
 	require.Equal(t, uint64(1), *getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
+	require.NotNil(t, getDeviceHostResp.Host.HostIssues.HiddenPoliciesCount)
+	require.Equal(t, uint64(1), *getDeviceHostResp.Host.HostIssues.HiddenPoliciesCount)
 	require.False(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 	// the host's policies must not leak the policy author's identity nor the
 	// raw SQL query
@@ -5144,6 +5146,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.True(t, sawHidden)
 	require.Equal(t, uint64(2), getDeviceHostResp.Host.HostIssues.FailingPoliciesCount)
 	require.Equal(t, uint64(1), *getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
+	require.Equal(t, uint64(1), *getDeviceHostResp.Host.HostIssues.HiddenPoliciesCount)
 
 	// GET `/api/_version_/fleet/device/{token}/desktop`
 	getDesktopResp := fleetDesktopResponse{}
