@@ -877,6 +877,9 @@ type Service interface {
 	Vulnerability(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (vuln *VulnerabilityWithMetadata, known bool, err error)
 	// CountVulnerabilities returns the number of vulnerabilities based on the provided options.
 	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
+	// >>> OPENFRAME(mysql-multitenancy): see Datastore.VulnerabilityHostCountsUpdatedAt.
+	VulnerabilityHostCountsUpdatedAt(ctx context.Context) (time.Time, error)
+	// <<< OPENFRAME(mysql-multitenancy)
 	// ListOSVersionsByCVE returns a list of OS versions affected by the provided CVE.
 	ListOSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableOS, updatedAt time.Time, err error)
 	// ListSoftwareByCVE returns a list of software affected by the provided CVE.

@@ -80,6 +80,27 @@ func openframeForeignTeam(ctx context.Context, teamID uint) bool {
 	return ok && pinned != teamID
 }
 
+// openframeTeamScope replaces the caller's team scope of an inventory read (software titles,
+// vulnerabilities) with this process's pinned team, so counts, versions and CVEs come only from
+// the tenant's own hosts. Unpinned it returns teamID unchanged.
+func openframeTeamScope(ctx context.Context, teamID *uint) *uint {
+	if pinned, ok := fleet.OpenframeTeamID(ctx); ok {
+		return &pinned
+	}
+	return teamID
+}
+
+// VulnerabilityHostCountsUpdatedAt returns when vulnerability host counts were last recalculated for
+// the whole instance, or the zero time if they never were. It is instance metadata, not tenant data,
+// so it is deliberately not fenced.
+func (ds *Datastore) VulnerabilityHostCountsUpdatedAt(ctx context.Context) (time.Time, error) {
+	var updatedAt sql.NullTime
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &updatedAt, `SELECT MAX(updated_at) FROM vulnerability_host_counts`); err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "reading vulnerability host counts updated_at")
+	}
+	return updatedAt.Time, nil
+}
+
 // openframeScopePolicyHosts fences a host-assignment operation to this process's pinned team: it
 // verifies the parent policy belongs to the team (NotFound otherwise) and returns the subset of
 // hostIDs in the team. When unpinned it returns hostIDs unchanged. Pass nil hostIDs to use it as a

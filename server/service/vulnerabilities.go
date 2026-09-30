@@ -71,6 +71,16 @@ func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet
 		}
 	}
 
+	// >>> OPENFRAME(mysql-multitenancy): a tenant without CVEs gets an empty page, where now() would
+	// read as "counts just computed"; report the instance's last recalculation (zero if never) instead.
+	if _, pinned := fleet.OpenframeTeamID(ctx); pinned && len(vulns) == 0 {
+		updatedAt, err = svc.VulnerabilityHostCountsUpdatedAt(ctx)
+		if err != nil {
+			return listVulnerabilitiesResponse{Err: err}, nil
+		}
+	}
+	// <<< OPENFRAME(mysql-multitenancy)
+
 	return listVulnerabilitiesResponse{
 		Vulnerabilities: vulns,
 		Meta:            meta,
@@ -119,6 +129,16 @@ func (svc *Service) CountVulnerabilities(ctx context.Context, opts fleet.VulnLis
 
 	return svc.ds.CountVulnerabilities(ctx, opts)
 }
+
+// >>> OPENFRAME(mysql-multitenancy): instance-wide recalculation time behind the empty-page counts_updated_at.
+func (svc *Service) VulnerabilityHostCountsUpdatedAt(ctx context.Context) (time.Time, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{}, fleet.ActionRead); err != nil {
+		return time.Time{}, err
+	}
+	return svc.ds.VulnerabilityHostCountsUpdatedAt(ctx)
+}
+
+// <<< OPENFRAME(mysql-multitenancy)
 
 func (svc *Service) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error) {
 	return svc.ds.IsCVEKnownToFleet(ctx, cve)

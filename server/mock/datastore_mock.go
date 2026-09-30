@@ -992,6 +992,8 @@ type VulnerabilityFunc func(ctx context.Context, cve string, teamID *uint, inclu
 
 type CountVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) (uint, error)
 
+type VulnerabilityHostCountsUpdatedAtFunc func(ctx context.Context) (time.Time, error)
+
 type UpdateVulnerabilityHostCountsFunc func(ctx context.Context, maxRoutines int) error
 
 type IsCVEKnownToFleetFunc func(ctx context.Context, cve string) (bool, error)
@@ -3580,6 +3582,9 @@ type DataStore struct {
 
 	CountVulnerabilitiesFunc        CountVulnerabilitiesFunc
 	CountVulnerabilitiesFuncInvoked bool
+
+	VulnerabilityHostCountsUpdatedAtFunc        VulnerabilityHostCountsUpdatedAtFunc
+	VulnerabilityHostCountsUpdatedAtFuncInvoked bool
 
 	UpdateVulnerabilityHostCountsFunc        UpdateVulnerabilityHostCountsFunc
 	UpdateVulnerabilityHostCountsFuncInvoked bool
@@ -8674,6 +8679,13 @@ func (s *DataStore) CountVulnerabilities(ctx context.Context, opt fleet.VulnList
 	s.CountVulnerabilitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CountVulnerabilitiesFunc(ctx, opt)
+}
+
+func (s *DataStore) VulnerabilityHostCountsUpdatedAt(ctx context.Context) (time.Time, error) {
+	s.mu.Lock()
+	s.VulnerabilityHostCountsUpdatedAtFuncInvoked = true
+	s.mu.Unlock()
+	return s.VulnerabilityHostCountsUpdatedAtFunc(ctx)
 }
 
 func (s *DataStore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error {

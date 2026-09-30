@@ -262,6 +262,15 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostsRequest)
 
+	// >>> OPENFRAME(mysql-multitenancy): resolve the filtered software/title within the pinned team only
+	// and skip the unscoped name lookups below, which would describe another tenant's software.
+	softwareTeamID := req.Opts.TeamFilter
+	pinnedTeamID, pinned := fleet.OpenframeTeamID(ctx)
+	if pinned {
+		softwareTeamID = &pinnedTeamID
+	}
+	// <<< OPENFRAME(mysql-multitenancy)
+
 	var software *fleet.Software
 	if req.Opts.SoftwareVersionIDFilter != nil || req.Opts.SoftwareIDFilter != nil {
 		var err error
@@ -271,11 +280,16 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 			id = req.Opts.SoftwareIDFilter
 		}
 
-		sw, err := svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
+		// >>> OPENFRAME(mysql-multitenancy)
+		sw, err := svc.SoftwareByID(ctx, *id, softwareTeamID, false)
+		// <<< OPENFRAME(mysql-multitenancy)
 		switch {
 		case err == nil:
 			software = sw
 
+		// >>> OPENFRAME(mysql-multitenancy)
+		case fleet.IsNotFound(err) && pinned:
+		// <<< OPENFRAME(mysql-multitenancy)
 		case fleet.IsNotFound(err):
 			// Look for lite summary data as admin
 			systemCtx := viewer.NewSystemContext(ctx)
@@ -307,6 +321,9 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 			fmt.Println("regular")
 			softwareTitle = st
 
+		// >>> OPENFRAME(mysql-multitenancy)
+		case fleet.IsNotFound(err) && pinned:
+		// <<< OPENFRAME(mysql-multitenancy)
 		case fleet.IsNotFound(err):
 			// Not found: only ID + Name as string from helper.
 			name, displayName, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID)

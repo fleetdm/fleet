@@ -1438,6 +1438,10 @@ type Datastore interface {
 	// CountVulnerabilities returns the number of unique vulnerabilities based on the provided
 	// options.
 	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
+	// >>> OPENFRAME(mysql-multitenancy): instance-wide time of the last vulnerability host-count
+	// recalculation; zero when counts were never computed — openframe/docs/mysql-multitenancy-feature.md
+	VulnerabilityHostCountsUpdatedAt(ctx context.Context) (time.Time, error)
+	// <<< OPENFRAME(mysql-multitenancy)
 	// UpdateVulnerabilityHostCounts updates hosts counts for all vulnerabilities.  maxRoutines signifies the number of
 	// goroutines to use for processing parallel database queries.
 	UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error

@@ -542,6 +542,11 @@ type SoftwareTitleListOptions struct {
 	// for install that is not supported for setup experience. It cannot be set
 	// via the query parameters.
 	ForSetupExperience bool
+
+	// >>> OPENFRAME(mysql-multitenancy): internal flag set by the datastore fence on a pinned request, never from
+	// query parameters; the vulnerable filter and CVE search then join only the pinned team's own versions.
+	OpenframePinned bool
+	// <<< OPENFRAME(mysql-multitenancy)
 }
 
 type HostSoftwareTitleListOptions struct {

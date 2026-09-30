@@ -29,6 +29,10 @@ var vulnerabilitiesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 }
 
 func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error) {
+	// >>> OPENFRAME(mysql-multitenancy): a CVE is visible only through the pinned team's host counts.
+	teamID = openframeTeamScope(ctx, teamID)
+	// <<< OPENFRAME(mysql-multitenancy)
+
 	var vuln fleet.VulnerabilityWithMetadata
 
 	eeSelectStmt := `
@@ -124,6 +128,10 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 }
 
 func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (vos []*fleet.VulnerableOS, updatedAt time.Time, err error) {
+	// >>> OPENFRAME(mysql-multitenancy): list only the pinned team's OS versions affected by the CVE.
+	teamID = openframeTeamScope(ctx, teamID)
+	// <<< OPENFRAME(mysql-multitenancy)
+
 	var teamFilter *fleet.TeamFilter
 	if teamID != nil {
 		teamFilter = &fleet.TeamFilter{TeamID: teamID}
@@ -191,6 +199,10 @@ func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *ui
 }
 
 func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint) (vs []*fleet.VulnerableSoftware, updatedAt time.Time, err error) {
+	// >>> OPENFRAME(mysql-multitenancy): list only the pinned team's software affected by the CVE.
+	teamID = openframeTeamScope(ctx, teamID)
+	// <<< OPENFRAME(mysql-multitenancy)
+
 	var args []interface{}
 	selectStmt := `
 		SELECT
@@ -264,6 +276,10 @@ var vulnerabilitiesOuterOrderKeys = common_mysql.OrderKeyAllowlist{
 }
 
 func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
+	// >>> OPENFRAME(mysql-multitenancy): list only CVEs found on the pinned team's hosts.
+	opt.TeamID = openframeTeamScope(ctx, opt.TeamID)
+	// <<< OPENFRAME(mysql-multitenancy)
+
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
 
 	selectStmt, args, err := buildListVulnerabilitiesSQL(&opt)
@@ -508,6 +524,10 @@ func buildListVulnerabilitiesLegacySQL(opt *fleet.VulnListOptions) (string, []an
 }
 
 func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) (uint, error) {
+	// >>> OPENFRAME(mysql-multitenancy): count only CVEs found on the pinned team's hosts.
+	opt.TeamID = openframeTeamScope(ctx, opt.TeamID)
+	// <<< OPENFRAME(mysql-multitenancy)
+
 	// vhc.cve is already unique within a (global_stats, team_id) scope due to
 	// the existing UNIQUE KEY (cve, team_id, global_stats), so COUNT(*) gives
 	// the same result as COUNT(DISTINCT vhc.cve) but lets the optimizer pick

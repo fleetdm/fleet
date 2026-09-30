@@ -40,6 +40,10 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		autoUpdatesGroupBy                    string
 	)
 
+	// >>> OPENFRAME(mysql-multitenancy): scope the title, its versions and counts to the pinned team.
+	teamID = openframeTeamScope(ctx, teamID)
+	// <<< OPENFRAME(mysql-multitenancy)
+
 	if teamID != nil {
 		autoUpdatesSelect = `sus.enabled as auto_update_enabled, sus.start_time as auto_update_window_start, sus.end_time as auto_update_window_end, `
 		autoUpdatesJoin = fmt.Sprintf("LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = %d", *teamID)
@@ -229,6 +233,11 @@ func (ds *Datastore) ListSoftwareTitles(
 	opt fleet.SoftwareTitleListOptions,
 	tmFilter fleet.TeamFilter,
 ) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+	// >>> OPENFRAME(mysql-multitenancy): list only titles, versions and counts of the pinned team.
+	opt.TeamID = openframeTeamScope(ctx, opt.TeamID)
+	_, opt.OpenframePinned = fleet.OpenframeTeamID(ctx)
+	// <<< OPENFRAME(mysql-multitenancy)
+
 	if opt.ListOptions.After != "" {
 		return nil, 0, nil, fleet.NewInvalidArgumentError("after", "not supported for software titles")
 	}
@@ -648,7 +657,7 @@ FROM software_titles st
 		-- for their software title. If we do want vulnerable only, then we have to
 		-- INNER JOIN because a CVE implies a specific software version.
 		{{$cveJoin := yesNo $.VulnerableOnly "INNER" "LEFT"}}
-		{{$softwareJoin = printf "%s JOIN software s ON s.title_id = st.id %[1]s JOIN software_cve scve ON s.id = scve.software_id" $cveJoin }}
+		{{$softwareJoin = printf "%[1]s JOIN software s ON s.title_id = st.id%[2]s %[1]s JOIN software_cve scve ON s.id = scve.software_id" $cveJoin (openframeTeamVersions $) }}{{/* OPENFRAME(mysql-multitenancy): pinned team's own versions only */}}
 	{{end}}
 	{{if and $.VulnerableOnly (or $.KnownExploit $.MinimumCVSS $.MaximumCVSS)}}
 		{{$softwareJoin = printf "%s INNER JOIN cve_meta cm ON scve.cve = cm.cve" $softwareJoin}}
@@ -793,6 +802,15 @@ GROUP BY
 			}
 			return *q.TeamID
 		},
+		// >>> OPENFRAME(mysql-multitenancy): on a pinned request a version counts only if the team has it, so
+		// another tenant's vulnerable version neither marks the title vulnerable nor matches a CVE search.
+		"openframeTeamVersions": func(q fleet.SoftwareTitleListOptions) string {
+			if !q.OpenframePinned || q.TeamID == nil {
+				return ""
+			}
+			return fmt.Sprintf(" AND EXISTS (SELECT 1 FROM software_host_counts shc WHERE shc.software_id = s.id AND shc.team_id = %d AND shc.global_stats = 0)", *q.TeamID)
+		},
+		// <<< OPENFRAME(mysql-multitenancy)
 	}).Parse(stmt)
 	if err != nil {
 		return "", nil, err
