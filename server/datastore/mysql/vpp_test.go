@@ -69,6 +69,7 @@ func TestVPP(t *testing.T) {
 		{"SummaryUpcomingPerHostNoDropout", testVPPSummaryUpcomingPerHostNoDropout},
 		{"AndroidAppsInScopeHostVitalsExcludeAnyLabel", testAndroidAppsInScopeHostVitalsExcludeAnyLabel},
 		{"VPPInstallLinksAppStoreAppInstance", testVPPInstallLinksAppStoreAppInstance},
+		{"TwoAppStoreAppInstancesInOneFleet", testTwoAppStoreAppInstancesInOneFleet},
 	}
 
 	for _, c := range cases {
@@ -4433,4 +4434,100 @@ func testVPPInstallLinksAppStoreAppInstance(t *testing.T, ds *Datastore) {
 	})
 	require.NotNil(t, linkedAppTeamID)
 	require.Equal(t, teamApp.AppTeamID, *linkedAppTeamID)
+}
+
+func testTwoAppStoreAppInstancesInOneFleet(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "two-instances-team"})
+	require.NoError(t, err)
+
+	const adamID = "88889999"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	tmFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	cases := []struct {
+		name       string
+		fleetID    uint
+		hostTeamID *uint
+	}{
+		{name: "no team", fleetID: 0, hostTeamID: nil},
+		{name: "team", fleetID: team.ID, hostTeamID: &team.ID},
+	}
+	for _, c := range cases {
+		t.Log(c.name)
+
+		// add the app to the fleet, then add a self-service second instance with an update schedule
+		var firstInstance *fleet.VPPApp
+		if c.fleetID == 0 {
+			firstInstance, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID, fleet.IOSPlatform, nil)
+		} else {
+			firstInstance, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+				Name:             "TwoInstancesApp",
+				AdamID:           adamID,
+				Platform:         fleet.IOSPlatform,
+				BundleIdentifier: "com.example." + adamID,
+			}, &team.ID)
+		}
+		require.NoError(t, err)
+		var secondInstanceID int64
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, `
+				INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, instance_name, self_service, update_schedule_enabled, start_time, end_time)
+				VALUES (?, 'ios', ?, ?, 'Second', 1, 1, '01:00', '03:00')`, adamID, c.hostTeamID, c.fleetID)
+			if err != nil {
+				return err
+			}
+			secondInstanceID, err = res.LastInsertId()
+			return err
+		})
+		secondAppTeamID := uint(secondInstanceID) //nolint:gosec // dismiss G115
+		titleID := firstInstance.TitleID
+		fleetID := c.fleetID
+
+		// list the fleet's titles, the app should be listed once with the first instance's self-service value
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &fleetID, AvailableForInstall: true}, tmFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 1)
+		require.Equal(t, titleID, titles[0].ID)
+		require.NotNil(t, titles[0].AppStoreApp)
+		require.NotNil(t, titles[0].AppStoreApp.SelfService)
+		require.False(t, *titles[0].AppStoreApp.SelfService)
+
+		// list only self-service titles, the app should be listed because the second instance is self-service
+		titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &fleetID, AvailableForInstall: true, SelfServiceOnly: true}, tmFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 1)
+		require.Equal(t, titleID, titles[0].ID)
+
+		// read the title, the auto-update fields should come from the first instance, which has no schedule
+		title, err := ds.SoftwareTitleByID(ctx, titleID, &fleetID, tmFilter)
+		require.NoError(t, err)
+		require.Nil(t, title.AutoUpdateEnabled)
+
+		// read the app metadata, the first instance should be returned
+		meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &fleetID, titleID)
+		require.NoError(t, err)
+		require.Equal(t, firstInstance.AppTeamID, meta.VPPAppsTeamsID)
+
+		// queue an install of the second instance, only the second instance's counts should include it
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       "two-instances-" + c.name,
+			UUID:           "two-instances-" + c.name,
+			Platform:       string(fleet.IOSPlatform),
+			HardwareSerial: "two-instances-" + c.name,
+			TeamID:         c.hostTeamID,
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+		err = ds.InsertHostVPPSoftwareInstall(ctx, host.ID, firstInstance.VPPAppID, "two-instances-cmd-"+c.name, "evt", fleet.HostSoftwareInstallOptions{VPPAppTeamID: secondAppTeamID})
+		require.NoError(t, err)
+		firstSummary, err := ds.GetSummaryHostVPPAppInstalls(ctx, firstInstance.AppTeamID)
+		require.NoError(t, err)
+		require.Equal(t, &fleet.VPPAppStatusSummary{}, firstSummary)
+		secondSummary, err := ds.GetSummaryHostVPPAppInstalls(ctx, secondAppTeamID)
+		require.NoError(t, err)
+		require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1}, secondSummary)
+	}
 }
