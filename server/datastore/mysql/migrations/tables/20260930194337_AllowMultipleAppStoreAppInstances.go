@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260930154647, Down_20260930154647)
+	MigrationClient.AddMigration(Up_20260930194337, Down_20260930194337)
 }
 
-func Up_20260930154647(tx *sql.Tx) error {
+func Up_20260930194337(tx *sql.Tx) error {
 	// Merge vpp_app_configurations, android_app_configurations, and software_update_schedules into vpp_apps_teams
 	if !columnExists(tx, "vpp_apps_teams", "name") {
 		_, err := tx.Exec(`
@@ -119,7 +119,7 @@ func Up_20260930154647(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260930154647(tx *sql.Tx) error {
+func Down_20260930194337(tx *sql.Tx) error {
 	return nil
 }
 
