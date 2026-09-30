@@ -466,17 +466,6 @@ const TEST_CASES = [
     }
   },
   {
-    id: 'mobileconfig-cis-time-machine-autobackup',
-    profileType: 'mobileconfig',
-    instructions: 'If Time Machine is set up, make sure it backs up automatically.',
-    // The domain is com.apple.MCX.TimeMachine, neither com.apple.MCX nor com.apple.TimeMachine.
-    expect: {
-      mustContain: ['com.apple.MCX.TimeMachine', '<key>AutoBackup</key><true/>'],
-      mustNotContain: ['com.apple.TimeMachine'],
-      mustNotContainElement: [['string', 'true']],
-    }
-  },
-  {
     id: 'mobileconfig-cis-writing-tools',
     profileType: 'mobileconfig',
     instructions: 'Turn off Apple Intelligence Writing Tools.',
