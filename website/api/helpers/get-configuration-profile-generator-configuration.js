@@ -637,6 +637,41 @@ ${naturalLanguageInstructions}
         }
       }
 
+      // A keyword search over every node's name and description, to catch what the lookup misses.  The
+      // lookup names about two areas however many it is asked for, and the ones it misses are those whose
+      // names sound unrelated to the request even though their descriptions use its words: "security
+      // questions for password reset" is ADMX_CredUI, "text messages backed up to the cloud" is Messaging,
+      // "enhanced anti-spoofing for Windows Hello face" is PassportForWork CSP.  So up to two of the
+      // best-scoring areas the lookup did not name are added, when they score close to the best match.
+      // Weighted by rarity, so a word that appears in hundreds of nodes ("security") counts for little.
+      const WORDS_THAT_SAY_NOTHING = ['the', 'and', 'for', 'from', 'with', 'without', 'this', 'that', 'these', 'those', 'into', 'over', 'under', 'when', 'where', 'which', 'while', 'what', 'how', 'any', 'all', 'can', 'cannot', 'not', 'only', 'also', 'than', 'then', 'them', 'they', 'their', 'there', 'here', 'has', 'have', 'had', 'was', 'were', 'been', 'being', 'are', 'its', 'let', 'allow', 'enable', 'disable', 'turn', 'off', 'set', 'setting', 'policy', 'configure', 'device', 'user', 'windows', 'microsoft', 'value', 'specify', 'whether', 'determine', 'control', 'option', 'feature', 'stop', 'people', 'machine', 'sure'];
+      let wordsOf = (text)=>{
+        return _.uniq(_.map(_.filter(String(text || '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toLowerCase().split(/[^a-z0-9]+/), (word)=>{
+          return word.length > 2;
+        }), (word)=>{ return word.replace(/(ing|ed|es|s)$/, ''); })).filter((word)=>{ return !_.contains(WORDS_THAT_SAY_NOTHING, word); });
+      };
+      let wordsByNode = _.map(nodesAProfileCanSet, (node)=>{ return {node, words: wordsOf(`${node.name} ${node.description || ''}`)}; });
+      let nodeCountByWord = _.countBy(_.flatten(_.pluck(wordsByNode, 'words')));
+      let requestWords = wordsOf(naturalLanguageInstructions);
+      let bestScoreByArea = {};
+      for (let {node, words} of wordsByNode) {
+        let score = _.sum(_.map(_.intersection(requestWords, words), (word)=>{ return Math.log(wordsByNode.length / (1 + nodeCountByWord[word])); }));
+        let areaName = node.csp === 'Policy' ? node.area : `${node.csp} CSP`;
+        bestScoreByArea[areaName] = Math.max(bestScoreByArea[areaName] || 0, score);
+      }
+      let areasBySearch = _.sortBy(Object.keys(bestScoreByArea), (areaName)=>{ return -bestScoreByArea[areaName]; });
+      let topScore = bestScoreByArea[_.first(areasBySearch)] || 0;
+      let bestScoreTheLookupFound = _.max(_.map(windowsCspAreasProvided, (areaName)=>{ return bestScoreByArea[areaName] || 0; }).concat([0]));
+      // Added only on a strong match that the lookup's own areas lack.  Every miss this fixes scores 18 or
+      // more; a vague request ("Require a password to unlock the device", 9.7) matches nothing in particular,
+      // and there the added areas were lookalikes that displaced the right node.  When the lookup already
+      // named an area holding an equally good match (speech and typing personalization, in Privacy), the
+      // additions -- TextInput, Speech -- were likewise lookalikes and won.
+      if(topScore >= 12 && bestScoreTheLookupFound < 0.9 * topScore) {
+        let areasAddedBySearch = _.filter(areasBySearch, (areaName)=>{ return !_.contains(windowsCspAreasProvided, areaName) && bestScoreByArea[areaName] >= 0.6 * topScore; }).slice(0, 2);
+        windowsCspAreasProvided = windowsCspAreasProvided.concat(areasAddedBySearch);
+      }
+
       if(windowsCspAreasProvided.length > 0) {
 
         // Rendered in area order, off a copy: windowsCspAreasProvided goes back to the caller in the order
