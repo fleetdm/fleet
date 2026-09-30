@@ -305,6 +305,7 @@ export const SOURCE_TYPE_CONVERSION = {
   yum_sources: "Package (YUM)",
   npm_packages: "Package (npm)",
   pacman_packages: "Package (pacman)",
+  nix_packages: "Package (Nix)",
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
   tgz_packages: "Package (tar)",
@@ -339,6 +340,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   rpm_packages: "linux",
   yum_sources: "linux",
   pacman_packages: "linux",
+  nix_packages: "linux",
   tgz_packages: "linux",
   npm_packages: null,
   atom_packages: null,

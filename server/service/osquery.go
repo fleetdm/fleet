@@ -2382,6 +2382,9 @@ func preProcessSoftwareResults(
 	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
 	preProcessSoftwareExtraResults(ctx, fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
+	fleetdNixPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_nix"
+	preProcessSoftwareExtraResults(ctx, fleetdNixPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
 	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
 	preProcessSoftwareExtraResults(ctx, jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
