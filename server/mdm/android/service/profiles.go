@@ -122,6 +122,14 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 		return 0, ctxerr.Wrap(ctx, err, "reconcile certificate templates")
 	}
 
+	// Profile rows are only written once the whole batch was sent, so a host can have its
+	// rows reset for redelivery (e.g. by the setup experience replacing its policy) after they
+	// were read here. Rows reset since this time are not overwritten with the stale state.
+	selectedAt, err := r.DS.GetMDMAndroidProfilesWriteTime(ctx)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get current time before listing android profiles to send")
+	}
+
 	// get the list of hosts that need to have their profiles applied
 	hostsApplicableProfiles, hostsProfsToRemove, err := r.DS.ListMDMAndroidProfilesToSend(ctx, cursor, batchSize)
 	if err != nil {
@@ -199,7 +207,7 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 		r.Logger.DebugContext(ctx, "android profile reconciler processed hosts", "host_count", hostCount, "profile_count", len(bulkHostProfs))
 	}
 
-	if err := r.DS.BulkUpsertMDMAndroidHostProfiles(ctx, bulkHostProfs); err != nil {
+	if err := r.DS.BulkUpsertMDMAndroidHostProfilesUnlessResetSince(ctx, bulkHostProfs, selectedAt); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "bulk upsert android host profiles")
 	}
 	return hostCount, nil

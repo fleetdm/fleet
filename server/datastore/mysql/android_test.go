@@ -60,6 +60,7 @@ func TestAndroid(t *testing.T) {
 		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
 		{"ResetMDMAndroidHostProfilesForRedelivery", testResetMDMAndroidHostProfilesForRedelivery},
+		{"BulkUpsertMDMAndroidHostProfilesUnlessResetSince", testBulkUpsertMDMAndroidHostProfilesUnlessResetSince},
 		{"BatchSetMDMAndroidProfiles_Associations", testBatchSetMDMAndroidProfiles_Associations},
 		{"NewAndroidHostWithIdP", testNewAndroidHostWithIdP},
 		{"AndroidBYODDetection", testAndroidBYODDetection},
@@ -4602,9 +4603,106 @@ func testResetMDMAndroidHostProfilesForRedelivery(t *testing.T, ds *Datastore) {
 	require.NotNil(t, hostProfiles[0].Status)
 	assert.Equal(t, fleet.MDMDeliveryPending, *hostProfiles[0].Status)
 
-	// A host without any profile rows is a no-op.
+	// A host that was never sent its profiles gets a reset row for each applicable one.
 	hostC, err := ds.NewAndroidHost(ctx, createAndroidHost("esid-redeliver-c"), false)
 	require.NoError(t, err)
 	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostC.Host.UUID))
-	require.Empty(t, rowsFor(hostC.Host.UUID))
+	assert.Equal(t, []profileRow{{
+		ProfileUUID:   profile.ProfileUUID,
+		OperationType: string(fleet.MDMOperationTypeInstall),
+	}}, rowsFor(hostC.Host.UUID))
+	// Resetting again is a no-op on the rows' content.
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostC.Host.UUID))
+	assert.Len(t, rowsFor(hostC.Host.UUID), 1)
+
+	// A host in a fleet without profiles gets no rows.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "redeliver-no-profiles"})
+	require.NoError(t, err)
+	hostD, err := ds.NewAndroidHost(ctx, createAndroidHost("esid-redeliver-d"), false)
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostD.Host.ID})))
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostD.Host.UUID))
+	assert.Empty(t, rowsFor(hostD.Host.UUID))
+}
+
+func testBulkUpsertMDMAndroidHostProfilesUnlessResetSince(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewAndroidHost(ctx, createAndroidHost("esid-unless-reset"), false)
+	require.NoError(t, err)
+	otherHost, err := ds.NewAndroidHost(ctx, createAndroidHost("esid-unless-reset-other"), false)
+	require.NoError(t, err)
+
+	payload := func(hostUUID, profileUUID string, status *fleet.MDMDeliveryStatus, version int) *fleet.MDMAndroidProfilePayload {
+		return &fleet.MDMAndroidProfilePayload{
+			HostUUID:                hostUUID,
+			ProfileUUID:             profileUUID,
+			ProfileName:             profileUUID,
+			Status:                  status,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: new(version),
+		}
+	}
+	const (
+		resetProfile     = fleet.MDMAndroidProfileUUIDPrefix + "reset"
+		oldNullProfile   = fleet.MDMAndroidProfileUUIDPrefix + "old-null"
+		verifiedProfile  = fleet.MDMAndroidProfileUUIDPrefix + "verified"
+		newProfile       = fleet.MDMAndroidProfileUUIDPrefix + "new"
+		otherHostProfile = fleet.MDMAndroidProfileUUIDPrefix + "other"
+	)
+	require.NoError(t, ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+		payload(host.Host.UUID, resetProfile, &fleet.MDMDeliveryVerified, 1),
+		payload(host.Host.UUID, oldNullProfile, nil, 1),
+		payload(host.Host.UUID, verifiedProfile, &fleet.MDMDeliveryVerified, 1),
+		payload(otherHost.Host.UUID, otherHostProfile, &fleet.MDMDeliveryVerified, 1),
+	}))
+	// oldNullProfile was already waiting to be sent before the writer read the rows.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_android_profiles SET updated_at = NOW(6) - INTERVAL 1 HOUR
+			WHERE profile_uuid = ?`, oldNullProfile)
+		return err
+	})
+
+	since, err := ds.GetMDMAndroidProfilesWriteTime(ctx)
+	require.NoError(t, err)
+	// The host's rows are reset after the writer read them. The other host is not reset.
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, host.Host.UUID))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_android_profiles SET updated_at = NOW(6) - INTERVAL 1 HOUR
+			WHERE profile_uuid = ?`, oldNullProfile)
+		return err
+	})
+	// verifiedProfile is verified again after the reset, so it is no longer waiting.
+	require.NoError(t, ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+		payload(host.Host.UUID, verifiedProfile, &fleet.MDMDeliveryVerified, 1),
+	}))
+
+	require.NoError(t, ds.BulkUpsertMDMAndroidHostProfilesUnlessResetSince(ctx, []*fleet.MDMAndroidProfilePayload{
+		payload(host.Host.UUID, resetProfile, &fleet.MDMDeliveryPending, 2),
+		payload(host.Host.UUID, oldNullProfile, &fleet.MDMDeliveryPending, 2),
+		payload(host.Host.UUID, verifiedProfile, &fleet.MDMDeliveryPending, 2),
+		payload(host.Host.UUID, newProfile, &fleet.MDMDeliveryPending, 2),
+		payload(otherHost.Host.UUID, otherHostProfile, &fleet.MDMDeliveryPending, 2),
+	}, since))
+
+	type row struct {
+		ProfileUUID             string  `db:"profile_uuid"`
+		Status                  *string `db:"status"`
+		IncludedInPolicyVersion *int    `db:"included_in_policy_version"`
+	}
+	var rows []row
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rows,
+			`SELECT profile_uuid, status, included_in_policy_version FROM host_mdm_android_profiles ORDER BY profile_uuid`)
+	})
+	pending := string(fleet.MDMDeliveryPending)
+	assert.ElementsMatch(t, []row{
+		// reset after since: kept as reset so it is sent again
+		{ProfileUUID: resetProfile},
+		// already waiting before since, or no longer waiting: written normally
+		{ProfileUUID: oldNullProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
+		{ProfileUUID: verifiedProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
+		{ProfileUUID: newProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
+		{ProfileUUID: otherHostProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
+	}, rows)
 }

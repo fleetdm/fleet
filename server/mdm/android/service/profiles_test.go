@@ -92,6 +92,8 @@ func TestReconcileProfiles(t *testing.T) {
 		{"MissingCustomHostVitalValueMarksProfileFailed", testMissingCustomHostVitalValueMarksProfileFailed},
 		{"ReconcileProfilesWithClientDisablesRetry", testReconcileProfilesWithClientDisablesRetry},
 		{"RejectedProfileRedeliveredAfterFixAndPolicyReset", testRejectedProfileRedeliveredAfterFixAndPolicyReset},
+		{"PolicyResetDuringBatchIsNotOverwritten", testPolicyResetDuringBatchIsNotOverwritten},
+		{"PolicyResetDuringFirstDeliveryIsNotOverwritten", testPolicyResetDuringFirstDeliveryIsNotOverwritten},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -508,6 +510,128 @@ func testRejectedProfileRedeliveredAfterFixAndPolicyReset(t *testing.T, ds fleet
 		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2), PolicyRequestUUID: new(""), DeviceRequestUUID: new("")},
 		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2)},
 	})
+}
+
+// The setup experience can replace a host's policy and reset its profile rows while the
+// reconciler is still sending the batch the host is part of. The reconciler must not overwrite
+// that reset with the state it sent before the policy was replaced.
+func testPolicyResetDuringBatchIsNotOverwritten(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	h1 := createAndroidHost(t, ds, 1)
+	h2 := createAndroidHost(t, ds, 2)
+	h1PolicyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), h1.UUID)
+
+	var version int64
+	var patchedPolicyNames []string
+	resetDuringPatch := true
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		patchedPolicyNames = append(patchedPolicyNames, policyName)
+		version++
+		policy.Version = version
+		if resetDuringPatch && policyName == h1PolicyName {
+			// the setup experience replaces h1's policy right after this patch
+			version++
+			require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, h1.UUID))
+		}
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileWithPayloadForTest("p1", `{"maximumTimeToLock": "1"}`), nil)
+	require.NoError(t, err)
+	// the hosts already had the profile; a status NULL row is what brings them into the batch
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, OperationType: fleet.MDMOperationTypeInstall},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, OperationType: fleet.MDMOperationTypeInstall},
+	})
+	require.NoError(t, err)
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_android_profiles SET updated_at = NOW(6) - INTERVAL 1 HOUR`)
+		return err
+	})
+
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Len(t, patchedPolicyNames, 2)
+
+	// h1 keeps its reset, h2 is written normally
+	rowFor := func(hostUUID string) (status *fleet.MDMDeliveryStatus, includedInPolicyVersion *int) {
+		mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+			return q.QueryRowxContext(ctx, `SELECT status, included_in_policy_version FROM host_mdm_android_profiles
+				WHERE host_uuid = ? AND profile_uuid = ?`, hostUUID, p1.ProfileUUID).Scan(&status, &includedInPolicyVersion)
+		})
+		return status, includedInPolicyVersion
+	}
+	status, included := rowFor(h1.UUID)
+	assert.Nil(t, status)
+	assert.Nil(t, included)
+	status, included = rowFor(h2.UUID)
+	require.NotNil(t, status)
+	assert.Equal(t, fleet.MDMDeliveryPending, *status)
+	assert.NotNil(t, included)
+
+	// the next run sends h1's profiles again, into the replaced policy
+	resetDuringPatch = false
+	patchedPolicyNames = nil
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{h1PolicyName}, patchedPolicyNames)
+	profs, err := ds.GetHostMDMAndroidProfiles(ctx, h1.UUID)
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.NotNil(t, profs[0].Status)
+	require.Equal(t, fleet.MDMDeliveryPending, *profs[0].Status)
+}
+
+// Same as testPolicyResetDuringBatchIsNotOverwritten, for a newly enrolled host that has no
+// profile rows yet when its policy is replaced.
+func testPolicyResetDuringFirstDeliveryIsNotOverwritten(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	h1 := createAndroidHost(t, ds, 1)
+	h1PolicyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), h1.UUID)
+
+	var version int64
+	var patchedPolicyNames []string
+	resetDuringPatch := true
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		patchedPolicyNames = append(patchedPolicyNames, policyName)
+		version++
+		policy.Version = version
+		if resetDuringPatch {
+			version++
+			require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, h1.UUID))
+		}
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+	_, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileWithPayloadForTest("p1", `{"maximumTimeToLock": "1"}`), nil)
+	require.NoError(t, err)
+
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{h1PolicyName}, patchedPolicyNames)
+
+	// nothing a status report for the replaced policy could verify
+	profs, err := ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, h1.UUID, version)
+	require.NoError(t, err)
+	require.Empty(t, profs)
+
+	// the next run sends the profiles into the replaced policy
+	resetDuringPatch = false
+	patchedPolicyNames = nil
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{h1PolicyName}, patchedPolicyNames)
+	profs, err = ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, h1.UUID, version)
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.EqualValues(t, version, *profs[0].IncludedInPolicyVersion)
 }
 
 func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
