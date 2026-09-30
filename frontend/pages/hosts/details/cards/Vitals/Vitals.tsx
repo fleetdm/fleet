@@ -13,7 +13,7 @@ import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRo
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import {
-  isBYODAccountDrivenUserEnrollment,
+  isPersonalEnrollment,
   wasBYODEnrolled,
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
@@ -795,8 +795,7 @@ const Vitals = ({
   // purpose: the cap exists because a personally-enrolled device reports few vitals
   // right now, not because of how it was once enrolled.
   const showExpandedVitals =
-    isIosOrIpadosHost &&
-    !isBYODAccountDrivenUserEnrollment(mdm?.enrollment_status ?? null);
+    isIosOrIpadosHost && !isPersonalEnrollment(mdm?.enrollment_status ?? null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(FALLBACK_COLUMN_COUNT);

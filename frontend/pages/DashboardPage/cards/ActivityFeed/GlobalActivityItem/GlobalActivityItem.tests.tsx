@@ -3104,3 +3104,38 @@ describe("Activity Feed", () => {
     });
   });
 });
+
+describe("opt-in configuration profile activities", () => {
+  const details = {
+    profile_name: "Wi-Fi",
+    host_display_name: "Foo Host",
+  };
+
+  it("renders an admin install with the actor", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledOptInConfigurationProfile,
+      details: { ...details, self_service: false },
+    });
+    const { container } = render(
+      <GlobalActivityItem activity={activity} isPremiumTier />
+    );
+    expect(screen.getByText("Test User")).toBeInTheDocument();
+    expect(container).toHaveTextContent(
+      "Test User installed the opt-in Wi-Fi profile on Foo Host."
+    );
+  });
+
+  it("renders a self-service uninstall as the end user", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UninstalledOptInConfigurationProfile,
+      details: { ...details, self_service: true },
+    });
+    const { container } = render(
+      <GlobalActivityItem activity={activity} isPremiumTier />
+    );
+    expect(screen.queryByText("Test User")).not.toBeInTheDocument();
+    expect(container).toHaveTextContent(
+      "End user uninstalled the opt-in Wi-Fi profile on Foo Host."
+    );
+  });
+});

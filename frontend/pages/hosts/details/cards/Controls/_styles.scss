@@ -34,4 +34,13 @@
       white-space: nowrap;
     }
   }
+
+  &__filter {
+    min-width: 230px;
+  }
+
+  // Room for the primary action plus the fixed Uninstall slot.
+  &--self-service .data-table-block .data-table th.actions__header {
+    width: 240px;
+  }
 }

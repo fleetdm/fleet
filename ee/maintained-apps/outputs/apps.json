@@ -4944,6 +4944,13 @@
       "description": "Lenovo Dock Manager is an application for deploying and managing firmware updates for Lenovo docks."
     },
     {
+      "name": "Lenovo SUHelper",
+      "slug": "lenovo-suhelper/windows",
+      "platform": "windows",
+      "unique_identifier": "SUHelper",
+      "description": "SUHelper is a Lenovo utility that gives IT administrators more control over how Lenovo System Update updates their devices."
+    },
+    {
       "name": "Lenovo System Update",
       "slug": "lenovo-system-update/windows",
       "platform": "windows",

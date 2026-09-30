@@ -74,6 +74,7 @@ interface IDataTableProps {
   /** Set to `true` to not display the footer section of the table */
   hideFooter?: boolean;
   onSelectSingleRow?: (value: Row) => void;
+  canClickRow?: (row: any) => boolean;
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
   /** Optional help text to render on bottom-left of the table. Hidden when table is loading and no
@@ -128,6 +129,7 @@ const DataTable = ({
   persistSelectedRows = false,
   hideFooter = false,
   onSelectSingleRow,
+  canClickRow,
   onClickRow,
   onResultsCountChange,
   renderTableHelpText,
@@ -640,7 +642,8 @@ const DataTable = ({
               const rowStyles = classnames({
                 "single-row": disableMultiRowSelect,
                 "disable-highlight": disableHighlightOnHover,
-                "clickable-row": !!onClickRow,
+                "clickable-row":
+                  !!onClickRow && (!canClickRow || canClickRow(row)),
               });
               return (
                 <tr
@@ -648,12 +651,14 @@ const DataTable = ({
                   {...row.getRowProps({
                     // @ts-ignore // TS complains about prop not existing
                     onClick: () => {
-                      (onSelectRowClick &&
-                        disableMultiRowSelect &&
-                        onSelectRowClick(row)) ||
-                        (disableMultiRowSelect &&
-                          onClickRow &&
-                          onClickRow(row));
+                      if (!canClickRow || canClickRow(row)) {
+                        (onSelectRowClick &&
+                          disableMultiRowSelect &&
+                          onSelectRowClick(row)) ||
+                          (disableMultiRowSelect &&
+                            onClickRow &&
+                            onClickRow(row));
+                      }
                     },
                     // For accessibility when tabable
                     onKeyDown: (e: KeyboardEvent) => {
@@ -663,6 +668,7 @@ const DataTable = ({
                           disableMultiRowSelect &&
                           onSelectRowClick(row)) ||
                           (disableMultiRowSelect &&
+                            (!canClickRow || canClickRow(row)) &&
                             onClickRow &&
                             onClickRow(row));
                       }
