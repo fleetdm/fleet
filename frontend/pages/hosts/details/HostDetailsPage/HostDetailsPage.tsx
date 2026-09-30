@@ -739,10 +739,12 @@ const HostDetailsPage = ({
   // forever; a missing team-level override is treated as "not disabled".
   const teamFeaturesResolved =
     !host?.team_id || teams !== undefined || isTeamsError;
+  const uptimeGloballyEnabled =
+    config?.features?.historical_data?.uptime ?? true;
   const uptimeCollectionEnabled: boolean | undefined =
     config?.features === undefined || !teamFeaturesResolved
       ? undefined
-      : (config.features.historical_data?.uptime ?? true) &&
+      : uptimeGloballyEnabled &&
         (featuresConfig?.historical_data?.uptime ?? true);
 
   useEffect(() => {
@@ -2349,6 +2351,7 @@ const HostDetailsPage = ({
             hostId={host.id}
             fleetId={host.team_id ?? undefined}
             uptimeCollectionEnabled={uptimeCollectionEnabled}
+            uptimeGloballyEnabled={uptimeGloballyEnabled}
             onExit={toggleOnlineHistoryModal}
           />
         )}
