@@ -598,7 +598,7 @@ function parseDdfPage(pageHtml) {
   let beforeFirstCodeBlock = mainHtml.indexOf('<pre') === -1 ? mainHtml : mainHtml.slice(0, mainHtml.indexOf('<pre'));
   let deprecationMatch = beforeFirstCodeBlock.match(/(?:CSP|configuration service provider|policy) is deprecated\.\s*Use\s*([\s\S]{0,200}?)\s*instead/i);
   if(deprecationMatch) {
-    return {nodes: [], deprecatedInFavorOf: decodeEntities(deprecationMatch[1].replace(/[<>]/g, '')).replace(/\s+/g, ' ').trim()};
+    return {nodes: [], deprecatedInFavorOf: decodeEntities(deprecationMatch[1].replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()};
   }
 
   let xmlBlocks = [];
