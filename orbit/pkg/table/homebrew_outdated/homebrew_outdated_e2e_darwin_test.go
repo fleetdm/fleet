@@ -3,6 +3,7 @@
 package homebrew_outdated
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -21,7 +22,13 @@ func TestGenerateE2E(t *testing.T) {
 		t.Skip("Homebrew is not installed; skipping e2e test")
 	}
 
-	outdatedOut, err := exec.Command(brewPath, "outdated", "--json=v2").Output()
+	// Same environment as production, so the test neither triggers Homebrew's
+	// full auto-update nor diverges from what ships.
+	env := brewQueryEnv(os.Environ())
+
+	outdatedCmd := exec.Command(brewPath, "outdated", "--json=v2")
+	outdatedCmd.Env = env
+	outdatedOut, err := outdatedCmd.Output()
 	require.NoError(t, err, "brew outdated should succeed")
 
 	pkgs, err := parseOutdated(outdatedOut)
@@ -37,7 +44,9 @@ func TestGenerateE2E(t *testing.T) {
 	for _, p := range pkgs {
 		names = append(names, p.name)
 	}
-	infoOut, err := exec.Command(brewPath, append([]string{"info", "--json=v2"}, names...)...).Output()
+	infoCmd := exec.Command(brewPath, append([]string{"info", "--json=v2"}, names...)...)
+	infoCmd.Env = env
+	infoOut, err := infoCmd.Output()
 	require.NoError(t, err, "brew info should succeed")
 	casks, err := parseCaskInfo(infoOut)
 	require.NoError(t, err, "real brew info output should parse")

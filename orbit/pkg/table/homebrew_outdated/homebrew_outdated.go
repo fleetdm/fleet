@@ -4,10 +4,16 @@
 package homebrew_outdated
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/osquery/osquery-go/plugin/table"
 )
@@ -64,8 +70,8 @@ type brewInfoCask struct {
 }
 
 // nameConstraints returns the deduplicated values of any `name = <x>` equality
-// constraints in the query. Non-equality operators (LIKE, etc.)
-// are ignored — osquery still applies them to the returned rows.
+// constraints in the query. Non-equality operators (LIKE, etc.) are ignored;
+// osquery still applies them to the returned rows.
 func nameConstraints(queryContext table.QueryContext) []string {
 	q, ok := queryContext.Constraints["name"]
 	if !ok {
@@ -90,27 +96,11 @@ func nameConstraints(queryContext table.QueryContext) []string {
 // error). It exists so outdatedPackages can be unit-tested without invoking brew.
 type brewRunner func(args ...string) ([]byte, error)
 
-// outdatedPackages runs `brew outdated` with the given name filter and
-// parses the result. When a name filter is supplied but the call produces no
-// parseable output, it falls back to a full scan this is because
-// brew aborts entirely (empty stdout) if any pushed-down name is not a known
-// formula/cask.
-func outdatedPackages(run brewRunner, names []string) ([]outdatedPackage, error) {
-	args := []string{"outdated", "--json=v2"}
-	if len(names) > 0 {
-		// "--" terminates option parsing so a pushed-down name beginning with "-"
-		// is treated as a package name rather than a brew option.
-		args = append(args, "--")
-		args = append(args, names...)
-	}
-	out, err := run(args...)
+// outdatedPackages runs a full `brew outdated` scan. Parseable output is used
+// even when brew exits non-zero.
+func outdatedPackages(run brewRunner) ([]outdatedPackage, error) {
+	out, err := run("outdated", "--json=v2")
 	pkgs, perr := parseOutdated(out)
-
-	if perr != nil && len(names) > 0 {
-		out, err = run("outdated", "--json=v2")
-		pkgs, perr = parseOutdated(out)
-	}
-
 	if perr != nil {
 		if err != nil {
 			return nil, fmt.Errorf("running brew outdated: %w", err)
@@ -118,6 +108,100 @@ func outdatedPackages(run brewRunner, names []string) ([]outdatedPackage, error)
 		return nil, perr
 	}
 	return pkgs, nil
+}
+
+// filterRows returns the rows whose name is in names, or all rows when names is
+// empty. Filtering here instead of pushing names down to brew lets every query
+// share the cached scan.
+func filterRows(rows []map[string]string, names []string) []map[string]string {
+	if len(names) == 0 {
+		return rows
+	}
+	want := make(map[string]struct{}, len(names))
+	for _, n := range names {
+		want[n] = struct{}{}
+	}
+	out := make([]map[string]string, 0, len(rows))
+	for _, r := range rows {
+		if _, ok := want[r["name"]]; ok {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// scanCacheTTL is how long a scan is served to later queries, so a batch of
+// policies costs one brew run instead of one per policy.
+const scanCacheTTL = 5 * time.Minute
+
+// scanCache holds the last scan. Failures are cached too so a slow or broken
+// brew is hit once per window, not once per query. Returned rows are shared and
+// must not be modified.
+type scanCache struct {
+	mu      sync.Mutex
+	key     string
+	expires time.Time
+	rows    []map[string]string
+	err     error
+}
+
+// get returns the rows cached under key (console user + Homebrew install),
+// running scan when they are missing or expired. Concurrent callers share one
+// scan.
+func (c *scanCache) get(key string, now time.Time, scan func() ([]map[string]string, error)) ([]map[string]string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.key == key && now.Before(c.expires) {
+		return c.rows, c.err
+	}
+	rows, err := scan()
+	if errors.Is(err, context.Canceled) {
+		// The caller went away; that says nothing about brew.
+		c.key = ""
+		return nil, err
+	}
+	c.key, c.expires, c.rows, c.err = key, now.Add(scanCacheTTL), rows, err
+	return rows, err
+}
+
+// maxBrewStderr caps how much of brew's stderr is included in a returned error.
+const maxBrewStderr = 1000
+
+// describeBrewError appends brew's stderr to an exit error so the table reports
+// why brew failed rather than a bare "exit status 1", from the fatal "Error:"
+// line onward when there is one. Other errors pass through.
+func describeBrewError(err error) error {
+	exitErr, ok := errors.AsType[*exec.ExitError](err)
+	if !ok {
+		return err
+	}
+	stderr := strings.TrimSpace(string(exitErr.Stderr))
+	if stderr == "" {
+		return err
+	}
+	if msg := brewErrorMessage(stderr); msg != "" {
+		stderr = msg
+	}
+	if len(stderr) > maxBrewStderr {
+		stderr = strings.ToValidUTF8(stderr[:maxBrewStderr], "") + "..."
+	}
+	return fmt.Errorf("%w: %s", err, stderr)
+}
+
+// brewErrorMessage returns stderr from the first line starting with "Error:",
+// brew's fatal-message prefix, or "" when there is none.
+func brewErrorMessage(stderr string) string {
+	for off := 0; off < len(stderr); {
+		if strings.HasPrefix(stderr[off:], "Error:") {
+			return stderr[off:]
+		}
+		nl := strings.IndexByte(stderr[off:], '\n')
+		if nl < 0 {
+			break
+		}
+		off += nl + 1
+	}
+	return ""
 }
 
 func parseOutdated(data []byte) ([]outdatedPackage, error) {
