@@ -107,6 +107,26 @@ To keep an extension on but deny it access to a site and its subdomains, use `De
 
 `*example.org` matches `example.org` and its subdomains, like `www.example.org`. Safari also supports `AllowedDomains`. If a domain is in both lists, Safari denies it.
 
+## Manage with GitOps
+
+To manage the declaration with [GitOps](https://fleetdm.com/docs/configuration/yaml-files), save the JSON file in your GitOps repository and reference it in your fleet's YAML file:
+
+```yaml
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ../lib/macos/profiles/safari-extension-blocklist.json
+```
+
+Keep `"PayloadScope": "User"` in the JSON file. Then run GitOps to apply the change.
+
+## What users see
+
+- **Turned-off extension (`AlwaysOff`):** The extension is off, and users can't turn it on.
+- **Turned-on extension (`AlwaysOn`):** The extension is on, and users can't turn it off.
+- **Managed settings:** In **Safari > Settings > Extensions**, the controls for a managed extension are greyed out. Safari also shows a note that device management configured them.
+- **Extensions without an entry:** Users keep control of them.
+
 ## Verify
 
 1. In Fleet, go to **Hosts** and select a host.
