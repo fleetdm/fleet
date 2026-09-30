@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/google/uuid"
@@ -87,6 +88,11 @@ const (
 	// their own profiles and declarations.
 	FleetVarHostTargetOSVersion  FleetVarName = "HOST_TARGET_OS_VERSION"
 	FleetVarHostTargetOSDeadline FleetVarName = "HOST_TARGET_OS_DEADLINE"
+
+	// FleetVarPatchNotificationURL is Fleet-internal in the same way: resolved to
+	// a notification's device page URL at fetch time, and deliberately absent
+	// from FleetVarsSupportedInScripts since it carries a device auth token.
+	FleetVarPatchNotificationURL FleetVarName = "PATCH_NOTIFICATION_URL"
 
 	// FleetVarPSSODeviceRegistrationToken is the admin-facing variable placed in
 	// the RegistrationToken key of a Fleet com.apple.extensiblesso (Platform SSO
@@ -579,6 +585,9 @@ type HostMDMProfile struct {
 	Retrying   *bool `db:"-" json:"retrying,omitempty"`
 	RetryCount *uint `db:"-" json:"retry_count,omitempty"`
 	MaxRetries *uint `db:"-" json:"max_retries,omitempty"`
+
+	SelfService bool `db:"-" json:"self_service"`
+	Hidden      bool `db:"-" json:"hidden"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -678,9 +687,13 @@ type MDMConfigProfilePayload struct {
 	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
 	TeamID      *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"` // null for no-team
 	Name        string `json:"name" db:"name"`
+	Description string `json:"description" db:"description"`
 	Platform    string `json:"platform" db:"platform"`               // "windows", "android" or "darwin"
 	Identifier  string `json:"identifier,omitempty" db:"identifier"` // only set for macOS
 	Scope       string `json:"scope,omitempty" db:"scope"`           // only set for macOS, can be "System" or "User"
+	// PayloadDisplayName is the name inside a .mobileconfig, which can differ
+	// from Name once an admin renames the profile. Empty for other types.
+	PayloadDisplayName string `json:"payload_display_name,omitempty" db:"-"`
 	// Checksum is the following
 	// - for Apple configuration profiles: the MD5 checksum of the profile contents
 	// - for Apple device declarations: the MD5 checksum of the profile contents and secrets updated timestamp (if profile contains secret variables)
@@ -699,8 +712,11 @@ type MDMConfigProfilePayload struct {
 // BatchModifyMDMConfigProfilePayload represents the payload for a config profile when
 // performing a batch modify operation.
 type BatchModifyMDMConfigProfilePayload struct {
-	Profile          []byte   `json:"profile,omitempty"`
+	Profile []byte `json:"profile,omitempty"`
+	Name    string `json:"name,omitempty"`
+	// DisplayName is the older spelling of Name, kept for compatibility.
 	DisplayName      string   `json:"display_name,omitempty"`
+	Description      string   `json:"description,omitempty"`
 	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
@@ -709,8 +725,12 @@ type BatchModifyMDMConfigProfilePayload struct {
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
 // a team or no-team.
 type MDMProfileBatchPayload struct {
-	Name     string `json:"name,omitempty"`
-	Contents []byte `json:"contents,omitempty"`
+	Name string `json:"name,omitempty"`
+	// DisplayName is the older spelling of Name on the public batch endpoint,
+	// kept for compatibility. The service folds it into Name.
+	DisplayName string `json:"display_name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Contents    []byte `json:"contents,omitempty"`
 
 	// Deprecated: Labels is the backwards-compatible way of specifying
 	// LabelsIncludeAll.
@@ -733,6 +753,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		ProfileUUID:      cp.ProfileUUID,
 		TeamID:           tid,
 		Name:             cp.Name,
+		Description:      cp.Description,
 		Platform:         "windows",
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
@@ -748,18 +769,20 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		tid = cp.TeamID
 	}
 	return &MDMConfigProfilePayload{
-		ProfileUUID:      cp.ProfileUUID,
-		TeamID:           tid,
-		Name:             cp.Name,
-		Identifier:       cp.Identifier,
-		Platform:         "darwin",
-		Checksum:         cp.Checksum,
-		CreatedAt:        cp.CreatedAt,
-		UploadedAt:       cp.UploadedAt,
-		Scope:            string(cp.Scope),
-		LabelsIncludeAll: cp.LabelsIncludeAll,
-		LabelsIncludeAny: cp.LabelsIncludeAny,
-		LabelsExcludeAny: cp.LabelsExcludeAny,
+		ProfileUUID:        cp.ProfileUUID,
+		TeamID:             tid,
+		Name:               cp.Name,
+		Description:        cp.Description,
+		PayloadDisplayName: PayloadDisplayNameFromMobileconfig(cp.Mobileconfig),
+		Identifier:         cp.Identifier,
+		Platform:           "darwin",
+		Checksum:           cp.Checksum,
+		CreatedAt:          cp.CreatedAt,
+		UploadedAt:         cp.UploadedAt,
+		Scope:              string(cp.Scope),
+		LabelsIncludeAll:   cp.LabelsIncludeAll,
+		LabelsIncludeAny:   cp.LabelsIncludeAny,
+		LabelsExcludeAny:   cp.LabelsExcludeAny,
 	}
 }
 
@@ -772,6 +795,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		ProfileUUID:      decl.DeclarationUUID,
 		TeamID:           tid,
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Identifier:       decl.Identifier,
 		Platform:         "darwin",
 		Checksum:         []byte(decl.Token),
@@ -796,6 +820,7 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 		ProfileUUID:      cp.ProfileUUID,
 		TeamID:           tid,
 		Name:             cp.Name,
+		Description:      cp.Description,
 		Platform:         "android",
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
@@ -1517,9 +1542,7 @@ type NanoMDMEnrollmentDetails struct {
 	UnlockToken            *string    `db:"unlock_token"`
 	BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
 	// EnrollmentType is the MDM enrollment channel as reported by nanomdm, e.g.
-	// "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven User
-	// Enrollment both produce the "On (manual - personal)" status, so the channel
-	// is the only way to tell them apart.
+	// "Device" or "User Enrollment (Device)".
 	EnrollmentType string `db:"enrollment_type"`
 	// Enabled is false after checkout, when last_seen_at still keeps updating.
 	// Liveness-signal callers must ignore LastMDMSeenTime in that case.
@@ -1635,4 +1658,35 @@ func GenerateRandom32ByteEntropyURLSafeToken() ([]byte, error) {
 	urlEncodedToken := make([]byte, base64.RawURLEncoding.EncodedLen(len(token)))
 	base64.RawURLEncoding.Encode(urlEncodedToken, token[:])
 	return urlEncodedToken, nil
+}
+
+// MDMProfileMaxDescriptionLen matches the description column on the profile
+// tables.
+const MDMProfileMaxDescriptionLen = 1023
+
+// ValidateMDMProfileName checks a profile name. It applies to every profile
+// type; derived names (PayloadDisplayName, file name) go through it too so the
+// limits are the same however the name was set.
+func ValidateMDMProfileName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return NewInvalidArgumentError("name", "Profile name can't be empty.")
+	}
+	if utf8.RuneCountInString(name) > MaxProfileNameLength {
+		return NewInvalidArgumentError("name", MaxProfileNameLengthErrMsg+".")
+	}
+	if len(ContainsPrefixVars(name, ServerSecretPrefix)) > 0 {
+		return NewInvalidArgumentError("name", "Profile name can't contain FLEET_SECRET variables.")
+	}
+	if _, reserved := mdm_types.FleetReservedProfileNames()[name]; reserved {
+		return NewInvalidArgumentError("name", fmt.Sprintf("Profile name %q is not allowed.", name))
+	}
+	return nil
+}
+
+// ValidateMDMProfileDescription checks an admin-provided profile description.
+func ValidateMDMProfileDescription(description string) error {
+	if utf8.RuneCountInString(description) > MDMProfileMaxDescriptionLen {
+		return NewInvalidArgumentError("description", fmt.Sprintf("Profile description can't be longer than %d characters.", MDMProfileMaxDescriptionLen))
+	}
+	return nil
 }

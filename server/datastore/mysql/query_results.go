@@ -92,29 +92,35 @@ const queryResultHostDisplayNameExpr = `COALESCE(
 	IF(h.hardware_model != '' AND h.hardware_serial != '', CONCAT(h.hardware_model, ' (', h.hardware_serial, ')'), '')
 )`
 
-// queryResultRowsAllowedOrderKeys are the built-in order keys for QueryResultRows.
+// queryResultRowsAllowedOrderKeys are the built-in order keys for QueryResultRows,
+// referencing columns of its materialized page derived table.
 // Any other key is treated as a result column name and sorted through the
 // sort_value column selected alongside the row, so the column name is always a
 // bound parameter and never part of the SQL text. Built-in keys take precedence
 // over result columns with the same name.
 var queryResultRowsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
-	"last_fetched": "qr.last_fetched",
-	"host_name":    queryResultHostDisplayNameExpr,
-	"host_id":      "qr.host_id",
-	"id":           "qr.id",
+	"last_fetched": "page.last_fetched",
+	"host_name":    "page.host_name",
+	"host_id":      "page.host_id",
+	"id":           "page.id",
 }
 
-const queryResultColumnOrderKey = "sort_value"
+const queryResultColumnOrderKey = "page.sort_value"
 
-// queryResultRowWithSort adds the result-column sort value to a row so sqlx has a
-// destination for it; it is never returned to callers.
-type queryResultRowWithSort struct {
-	fleet.ScheduledQueryResultRow
+// queryResultRowPage is a row of the sorted, paginated page of query result IDs.
+// sort_value is only selected so ORDER BY can reference it.
+type queryResultRowPage struct {
+	ID        uint    `db:"id"`
 	SortValue *string `db:"sort_value"`
 }
 
-// TODO(lucas): Any chance we can store hostname in the query_results table?
-// (to avoid having to left join hosts).
+// queryResultRowWithID is a query result row scanned with its ID so the page
+// order can be restored.
+type queryResultRowWithID struct {
+	fleet.ScheduledQueryResultRow
+	ID uint `db:"id"`
+}
+
 // QueryResultRows returns the query result rows for a given query.
 func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.ScheduledQueryResultRow, int, *fleet.PaginationMetadata, error) {
 	whereClause := fmt.Sprintf(`
@@ -149,30 +155,71 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 		opts.TestSecondaryOrderKey = "id"
 	}
 
-	listStmt := `
-		SELECT qr.query_id, qr.host_id, qr.last_fetched, qr.data,
-			h.hostname, h.computer_name, h.hardware_model, h.hardware_serial,
-			` + sortValueExpr + ` AS sort_value
-	` + whereClause
-	listArgs := append(append([]any{}, sortValueArgs...), whereArgs...)
+	// Sort and paginate on IDs only, then fetch the data. MySQL's filesort
+	// carries every column the query reads from qr (including qr.data read by
+	// the search filter or sort_value), and a single stored result can exceed
+	// the default 256 KiB sort_buffer_size ("Out of sort memory"). NO_MERGE
+	// keeps the derived table materialized so the sort only sees its columns.
+	pageStmt := `
+		SELECT /*+ NO_MERGE(page) */ page.id, page.sort_value FROM (
+			SELECT qr.id, qr.host_id, qr.last_fetched,
+				` + queryResultHostDisplayNameExpr + ` AS host_name,
+				` + sortValueExpr + ` AS sort_value
+			` + whereClause + `
+		) page
+	`
+	pageArgs := append(append([]any{}, sortValueArgs...), whereArgs...)
 	// Unpaginated callers expect every row; the list-options helper would
 	// otherwise silently cap them at DefaultPerPage.
 	if opts.PerPage == 0 {
 		opts.PerPage = fleet.PerPageUnlimited
 	}
-	pagedStmt, pagedArgs, err := appendListOptionsWithCursorToSQLSecure(listStmt, listArgs, &opts, allowedKeys)
+	pagedStmt, pagedArgs, err := appendListOptionsWithCursorToSQLSecure(pageStmt, pageArgs, &opts, allowedKeys)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "apply list options for query result rows")
 	}
 
 	dbReader := ds.reader(ctx)
-	var rowsWithSort []queryResultRowWithSort
-	if err := sqlx.SelectContext(ctx, dbReader, &rowsWithSort, pagedStmt, pagedArgs...); err != nil {
+	var page []queryResultRowPage
+	if err := sqlx.SelectContext(ctx, dbReader, &page, pagedStmt, pagedArgs...); err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "selecting query result rows")
 	}
-	results := make([]*fleet.ScheduledQueryResultRow, 0, len(rowsWithSort))
-	for i := range rowsWithSort {
-		results = append(results, &rowsWithSort[i].ScheduledQueryResultRow)
+	hasNextResults := opts.IncludeMetadata && len(page) > int(opts.PerPage) //nolint:gosec // dismiss G115
+	if hasNextResults {
+		page = page[:opts.PerPage]
+	}
+
+	ids := make([]uint, 0, len(page))
+	for _, p := range page {
+		ids = append(ids, p.ID)
+	}
+	rowsByID := make(map[uint]*fleet.ScheduledQueryResultRow, len(ids))
+	const idBatchSize = 10000
+	for batch := range slices.Chunk(ids, idBatchSize) {
+		stmt, args, err := sqlx.In(`
+			SELECT qr.id, qr.query_id, qr.host_id, qr.last_fetched, qr.data,
+				h.hostname, h.computer_name, h.hardware_model, h.hardware_serial
+			FROM query_results qr
+			LEFT JOIN hosts h ON (qr.host_id=h.id)
+			WHERE qr.id IN (?)
+		`, batch)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "building query result rows data statement")
+		}
+		var rows []queryResultRowWithID
+		if err := sqlx.SelectContext(ctx, dbReader, &rows, dbReader.Rebind(stmt), args...); err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "selecting query result rows data")
+		}
+		for i := range rows {
+			rowsByID[rows[i].ID] = &rows[i].ScheduledQueryResultRow
+		}
+	}
+	results := make([]*fleet.ScheduledQueryResultRow, 0, len(ids))
+	for _, id := range ids {
+		// A row can be replaced by a host check-in between the two queries.
+		if row, ok := rowsByID[id]; ok {
+			results = append(results, row)
+		}
 	}
 
 	var total int
@@ -185,10 +232,7 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 		metadata = &fleet.PaginationMetadata{
 			HasPreviousResults: opts.Page > 0,
 			TotalResults:       uint(total), //nolint:gosec // dismiss G115
-		}
-		if len(results) > int(opts.PerPage) { //nolint:gosec // dismiss G115
-			metadata.HasNextResults = true
-			results = results[:len(results)-1]
+			HasNextResults:     hasNextResults,
 		}
 	}
 
@@ -550,17 +594,19 @@ func (ds *Datastore) ListHostReports(
 		QueryID uint             `db:"query_id"`
 		Data    *json.RawMessage `db:"data"`
 	}
+	// Rank on IDs only and join data afterwards; sorting rows that carry data
+	// can exceed MySQL's sort buffer.
 	firstDataStmt, firstDataArgs, err := sqlx.In(`
-		SELECT query_id, data
+		SELECT qr.query_id, qr.data
 		FROM (
 			SELECT
-				query_id,
-				data,
+				id,
 				ROW_NUMBER() OVER (PARTITION BY query_id ORDER BY last_fetched DESC) AS rn
 			FROM query_results
 			WHERE query_id IN (?) AND host_id = ? AND has_data = 1
 		) ranked
-		WHERE rn = 1
+		JOIN query_results qr ON qr.id = ranked.id
+		WHERE ranked.rn = 1
 	`, queryIDs, hostID)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "building first data query for host reports")

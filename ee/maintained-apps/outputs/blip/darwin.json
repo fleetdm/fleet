@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.2.0",
+      "version": "1.2.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.blip.macos';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.blip.macos' AND version_compare(bundle_short_version, '1.2.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.blip.macos' AND version_compare(bundle_short_version, '1.2.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.blip.macos' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://f000.backblazeb2.com/file/push-mac/Blip-20260914015615.zip",
+      "installer_url": "https://f000.backblazeb2.com/file/push-mac/Blip-20260927200815.zip",
       "install_script_ref": "deca07af",
       "uninstall_script_ref": "527eebb1",
-      "sha256": "bbf61c1e1a7c324516feb41e6ad6c840b59081d95e7a27a77ef46acccd3bcd08",
+      "sha256": "778b777557e508d65aa91e55305397958418dd25e2ea8090aa70d3c12e04ffa2",
       "default_categories": [
         "Productivity"
       ]

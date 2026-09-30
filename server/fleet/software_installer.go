@@ -54,8 +54,9 @@ type SoftwareInstallDetails struct {
 	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
 	MaxRetries uint `json:"max_retries,omitempty"`
 
-	AppOpenQuery    string `json:"-" db:"app_open_query"`
-	PatchWhenClosed bool   `json:"-" db:"patch_when_closed"`
+	AppOpenQuery string `json:"-" db:"app_open_query"`
+	// OverridePreInstallQuery means the install needs to use AppOpenQuery as its pre-install condition.
+	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
 }
 
 type SoftwareInstallerURL struct {
@@ -471,6 +472,20 @@ func (s SoftwareInstallerStatus) IsValid() bool {
 	}
 }
 
+// HostSoftwareTitleKey identifies one software title on one host.
+type HostSoftwareTitleKey struct {
+	HostID          uint
+	SoftwareTitleID uint
+}
+
+// What a host has installed for one software title. A title can have more than one row when several
+// copies are installed.
+type HostSoftwareTitleVersion struct {
+	HostID          uint   `db:"host_id"`
+	SoftwareTitleID uint   `db:"title_id"`
+	Version         string `db:"version"`
+}
+
 // HostLastInstallData contains data for the last installation of a package on a host.
 type HostLastInstallData struct {
 	// ExecutionID is the installation ID of the package on the host.
@@ -482,6 +497,8 @@ type HostLastInstallData struct {
 	// requests the host refetch; it is used to throttle continuous policy automation
 	// re-installs (see continuousAutomationOnCooldown).
 	UpdatedAt time.Time `db:"updated_at"`
+	// OverridePreInstallQuery means the install runs the app open query as its pre-install condition
+	OverridePreInstallQuery bool `db:"override_pre_install_query"`
 }
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.
@@ -539,11 +556,17 @@ type HostSoftwareInstallerResult struct {
 	// PatchWhenClosed is set from the triggering policy; it distinguishes an empty pre-install result
 	// caused by the app being open from an ordinary pre-install-query failure.
 	PatchWhenClosed bool `json:"-" db:"patch_when_closed"`
+	// NotifyBeforePatching is set from the triggering policy and, like PatchWhenClosed, marks an
+	// empty pre-install result as the app being open rather than a query failure.
+	NotifyBeforePatching bool `json:"-" db:"notify_before_patching"`
+	// OverridePreInstallQuery means this install needs to use the app open query as its pre-install condition.
+	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
 }
 
 const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
 	SoftwareInstallerAppOpenCopy            = "The app was open\nInstall stopped"
+	SoftwareInstallerAppOpenNotifyCopy      = "The app was open\nInstall stopped\nFleet notifies the end user 1 hour before the patch is forced."
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
 	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
@@ -568,11 +591,14 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 
 	if h.PreInstallQueryOutput != nil {
 		if *h.PreInstallQueryOutput == "" {
-			// For patch-when-closed, an empty result means the app was open, not a query failure.
-			if h.PatchWhenClosed {
-				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
-			} else {
+			// An empty result means the app was open only if this attempt ran the app open query.
+			switch {
+			case !h.OverridePreInstallQuery:
 				*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+			case h.NotifyBeforePatching:
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenNotifyCopy
+			default:
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
 			}
 			return
 		}
@@ -808,6 +834,9 @@ type UpdateSoftwareInstallerPayload struct {
 	Patch *bool
 	// PatchWhenClosed skips the install while the app is open. FMA-only.
 	PatchWhenClosed *bool
+	// NotifyBeforePatching skips the install while the app is open and notifies the end user an
+	// hour before the patch is forced. FMA-only.
+	NotifyBeforePatching *bool
 	// InstallScriptEdited and UninstallScriptEdited are the values to persist, not a
 	// request of whether to change them.
 	InstallScriptEdited   bool
@@ -819,7 +848,8 @@ func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) 
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
 		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil &&
-		u.PinnedVersion == nil && u.Patch == nil && u.PatchWhenClosed == nil
+		u.PinnedVersion == nil && u.Patch == nil && u.PatchWhenClosed == nil &&
+		u.NotifyBeforePatching == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -981,6 +1011,7 @@ type PatchPolicyData struct {
 	ID                           uint   `json:"id" db:"id"`
 	Name                         string `json:"name" db:"name"`
 	PatchWhenClosed              bool   `json:"patch_when_closed" db:"patch_when_closed"`
+	NotifyBeforePatching         bool   `json:"notify_before_patching" db:"notify_before_patching"`
 	ContinuousAutomationsEnabled bool   `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
 }
 
@@ -1435,6 +1466,8 @@ type HostSoftwareInstallOptions struct {
 	// MaxSoftwareInstallAttempts total). Set by host details, self-service,
 	// and setup experience install paths.
 	WithRetries bool
+	// OverridePreInstallQuery makes the install use the app open query as its pre-install condition.
+	OverridePreInstallQuery bool
 	// DeferActivation enqueues the upcoming activity without activating it;
 	// the activity stays invisible to the host until the fleet-initiated
 	// release cron activates it within the configured per-minute budget. Set

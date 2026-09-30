@@ -51,6 +51,9 @@ func TestMDMShared(t *testing.T) {
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
 		{"TestBatchSetMDMProfilesSoftwareUpdateTracking", testBatchSetMDMProfilesSoftwareUpdateTracking},
 		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
+		{"TestMDMConfigProfilesDescription", testMDMConfigProfilesDescription},
+		{"TestMDMConfigProfileRenameShowsOnHosts", testMDMConfigProfileRenameShowsOnHosts},
+		{"TestMDMConfigProfileRenameThenDeleteShowsOnHosts", testMDMConfigProfileRenameThenDeleteShowsOnHosts},
 		{"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
 		{"TestMDMEULA", testMDMEULA},
@@ -185,7 +188,8 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "hostname", PerPage: 100},
-		})
+		},
+	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
 	require.Equal(t, appleCmdUUID, cmds[0].CommandUUID)
@@ -224,7 +228,8 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "hostname", PerPage: 100},
-		})
+		},
+	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
 	require.Equal(t, appleCmdUUID, cmds[0].CommandUUID)
@@ -1379,7 +1384,8 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 	)
 
 	// Test Case 8: Clear profiles for a specific team
-	applyAndExpect(nil, nil, nil, nil, ptr.Uint(1), nil, nil, nil, nil,
+	applyAndExpect(
+		nil, nil, nil, nil, new(uint(1)), nil, nil, nil, nil,
 		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
@@ -1399,10 +1405,11 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 
 	// we only care about declarations here, as batch-setting labels for profiles
 	// is tested elsewhere.
-	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
-		declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
-		declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
-	}, nil, nil,
+	applyAndExpect(
+		nil, nil, []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
+			declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
+		}, nil, nil,
 		nil, nil, []*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
 			declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
@@ -1411,19 +1418,21 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
-	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
-		declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
-		declForTest("D2", "D2", "foo"),
-	}, nil, nil,
+	applyAndExpect(
+		nil, nil, []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
+			declForTest("D2", "D2", "foo"),
+		}, nil, nil,
 		nil, nil, []*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
 			declForTest("D2", "D2", "foo"),
 		}, nil,
 		fleet.MDMProfilesUpdates{AppleConfigProfile: false, WindowsConfigProfile: false, AppleDeclaration: true, AndroidConfigProfile: false},
 	)
-	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
-		declForTest("D1", "D1", "foo"),
-	}, nil, nil,
+	applyAndExpect(
+		nil, nil, []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "foo"),
+		}, nil, nil,
 		nil, nil, []*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo"),
 		}, nil,
@@ -1951,6 +1960,255 @@ type anyProfile struct {
 // Scoped to only the Windows hosts present in the want map so that rows
 // belonging to hosts not in the current assertion are left untouched. This
 // prevents implicitly hiding issues for hosts the test phase doesn't check.
+
+func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	opts := fleet.ListOptions{OrderKey: "name"}
+
+	apple, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "apple",
+		Identifier:   "com.example.apple",
+		Description:  "apple desc",
+		Mobileconfig: mobileconfig.Mobileconfig("<plist/>"),
+		Scope:        fleet.PayloadScopeSystem,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, "apple desc", apple.Description)
+
+	decl := declForTest("decl", "decl", "decl")
+	decl.Description = "decl desc"
+	decl, err = ds.NewMDMAppleDeclaration(ctx, decl, nil)
+	require.NoError(t, err)
+
+	win, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:        "windows",
+		Description: "windows desc",
+		SyncML:      []byte("<Replace></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, "windows desc", win.Description)
+
+	android := androidConfigProfileForTest(t, "android", nil)
+	android.Description = "android desc"
+	android, err = ds.NewMDMAndroidConfigProfile(ctx, *android, nil)
+	require.NoError(t, err)
+	require.Equal(t, "android desc", android.Description)
+
+	gotApple, err := ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "apple desc", gotApple.Description)
+	gotDecl, err := ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+	require.NoError(t, err)
+	require.Equal(t, "decl desc", gotDecl.Description)
+	gotWin, err := ds.GetMDMWindowsConfigProfile(ctx, win.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "windows desc", gotWin.Description)
+	gotAndroid, err := ds.GetMDMAndroidConfigProfile(ctx, android.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "android desc", gotAndroid.Description)
+
+	appleListed, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, appleListed, 1)
+	require.Equal(t, "apple desc", appleListed[0].Description)
+	byIdent, err := ds.GetMDMAppleConfigProfileByTeamAndIdentifier(ctx, nil, apple.Identifier)
+	require.NoError(t, err)
+	require.Equal(t, "apple desc", byIdent.Description)
+
+	listed, _, err := ds.ListMDMConfigProfiles(ctx, nil, opts)
+	require.NoError(t, err)
+	require.Len(t, listed, 4)
+	descByName := make(map[string]string, len(listed))
+	for _, p := range listed {
+		descByName[p.Name] = p.Description
+	}
+	require.Equal(t, map[string]string{
+		"android": "android desc",
+		"apple":   "apple desc",
+		"decl":    "decl desc",
+		"windows": "windows desc",
+	}, descByName)
+
+	// backdated, since uploaded_at only has one-second precision
+	backdateProfiles := func() {
+		for _, table := range []string{
+			"mdm_apple_configuration_profiles", "mdm_apple_declarations",
+			"mdm_windows_configuration_profiles", "mdm_android_configuration_profiles",
+		} {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE `+table+` SET uploaded_at = '2020-01-01 00:00:00'`)
+				return err
+			})
+		}
+	}
+	backdateProfiles()
+	gotApple, err = ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	require.NoError(t, err)
+	gotDecl, err = ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+	require.NoError(t, err)
+	gotWin, err = ds.GetMDMWindowsConfigProfile(ctx, win.ProfileUUID)
+	require.NoError(t, err)
+	gotAndroid, err = ds.GetMDMAndroidConfigProfile(ctx, android.ProfileUUID)
+	require.NoError(t, err)
+
+	// a rename without content keeps uploaded_at and checksums too, and is
+	// checked against the other platforms' names
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: apple.ProfileUUID,
+		Identifier:  apple.Identifier,
+		Name:        "apple renamed",
+		Description: "apple desc 2",
+	}, nil)
+	require.NoError(t, err)
+	renamedApple, err := ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "apple renamed", renamedApple.Name)
+	require.Equal(t, gotApple.UploadedAt, renamedApple.UploadedAt)
+	require.Equal(t, gotApple.Checksum, renamedApple.Checksum)
+	// so is a rename that resends identical contents
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  apple.ProfileUUID,
+		Identifier:   apple.Identifier,
+		Name:         "apple renamed again",
+		Description:  "apple desc 2",
+		Mobileconfig: apple.Mobileconfig,
+		Scope:        fleet.PayloadScopeSystem,
+	}, nil)
+	require.NoError(t, err)
+	renamedApple, err = ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "apple renamed again", renamedApple.Name)
+	require.Equal(t, gotApple.UploadedAt, renamedApple.UploadedAt)
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: apple.ProfileUUID,
+		Identifier:  apple.Identifier,
+		Name:        "windows",
+	}, nil)
+	require.Error(t, err)
+	var existsErr *existsError
+	require.ErrorAs(t, err, &existsErr)
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: win.ProfileUUID,
+		Name:        "windows renamed",
+		Description: "windows desc 2",
+	}, nil)
+	require.NoError(t, err)
+	renamedWin, err := ds.GetMDMWindowsConfigProfile(ctx, win.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "windows renamed", renamedWin.Name)
+	require.Equal(t, gotWin.UploadedAt, renamedWin.UploadedAt)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: win.ProfileUUID,
+		Name:        "windows renamed again",
+		Description: "windows desc 2",
+		SyncML:      win.SyncML,
+	}, nil)
+	require.NoError(t, err)
+	renamedWin, err = ds.GetMDMWindowsConfigProfile(ctx, win.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "windows renamed again", renamedWin.Name)
+	require.Equal(t, gotWin.UploadedAt, renamedWin.UploadedAt)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: win.ProfileUUID,
+		Name:        "android",
+	}, nil)
+	require.ErrorAs(t, err, &existsErr)
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: android.ProfileUUID,
+		Name:        "android renamed",
+		Description: "android desc 2",
+	}, nil)
+	require.NoError(t, err)
+	renamedAndroid, err := ds.GetMDMAndroidConfigProfile(ctx, android.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "android renamed", renamedAndroid.Name)
+	require.Equal(t, gotAndroid.UploadedAt, renamedAndroid.UploadedAt)
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: android.ProfileUUID,
+		Name:        "decl",
+	}, nil)
+	require.ErrorAs(t, err, &existsErr)
+
+	// declarations are renamed through the upsert, which must land on the
+	// existing row (same identifier) and refuse another declaration's name
+	gotDecl.Name = "decl renamed"
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, gotDecl, nil, fleet.MDMAppleActivationKeep)
+	require.NoError(t, err)
+	renamedDecl, err := ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+	require.NoError(t, err)
+	require.Equal(t, "decl renamed", renamedDecl.Name)
+	// uploaded_at orders the hosts' DDM token, so a rename must not move it
+	require.Equal(t, gotDecl.UploadedAt, renamedDecl.UploadedAt)
+	require.Equal(t, gotDecl.Token, renamedDecl.Token)
+	otherDecl := declForTest("other decl", "other", "other")
+	otherDecl, err = ds.NewMDMAppleDeclaration(ctx, otherDecl, nil)
+	require.NoError(t, err)
+	gotDecl.Name = "other decl"
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, gotDecl, nil, fleet.MDMAppleActivationKeep)
+	require.ErrorAs(t, err, &existsErr)
+	// ...and onto another platform's name, which the INSERT's NOT EXISTS
+	// clauses don't cover on the update side of the upsert
+	for _, taken := range []string{"windows renamed again", "android renamed", "apple renamed again"} {
+		gotDecl.Name = taken
+		_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, gotDecl, nil, fleet.MDMAppleActivationKeep)
+		require.ErrorAs(t, err, &existsErr, taken)
+	}
+	gotDecl.Name = "decl renamed"
+	stillOther, err := ds.GetMDMAppleDeclaration(ctx, otherDecl.DeclarationUUID)
+	require.NoError(t, err)
+	require.Equal(t, decl.Identifier+"", renamedDecl.Identifier)
+	require.Equal(t, otherDecl.Identifier, stillOther.Identifier)
+
+	// the batch path writes the description too, and a description-only
+	// change there leaves uploaded_at alone, so nothing is re-delivered
+	bApple := generateAppleCP("batch-apple", "com.example.batch-apple", 0)
+	bApple.Description = "batch apple"
+	bDecl := declForTest("batch-decl", "batch-decl", "batch-decl")
+	bDecl.Description = "batch decl"
+	bWin := windowsConfigProfileForTest(t, "batch-windows", "./Batch")
+	bWin.Description = "batch windows"
+	bAndroid := androidConfigProfileForTest(t, "batch-android", nil)
+	bAndroid.Description = "batch android"
+	_, err = ds.BatchSetMDMProfiles(ctx, nil,
+		[]*fleet.MDMAppleConfigProfile{bApple}, []*fleet.MDMWindowsConfigProfile{bWin},
+		[]*fleet.MDMAppleDeclaration{bDecl}, []*fleet.MDMAndroidConfigProfile{bAndroid}, nil)
+	require.NoError(t, err)
+
+	listed, _, err = ds.ListMDMConfigProfiles(ctx, nil, opts)
+	require.NoError(t, err)
+	require.Len(t, listed, 4)
+	descByName = make(map[string]string, len(listed))
+	for _, p := range listed {
+		descByName[p.Name] = p.Description
+	}
+	require.Equal(t, map[string]string{
+		"batch-android": "batch android",
+		"batch-apple":   "batch apple",
+		"batch-decl":    "batch decl",
+		"batch-windows": "batch windows",
+	}, descByName)
+
+	backdateProfiles()
+	bApple.Description = "batch apple 2"
+	bDecl.Description = "batch decl 2"
+	bWin.Description = "batch windows 2"
+	bAndroid.Description = "batch android 2"
+	_, err = ds.BatchSetMDMProfiles(ctx, nil,
+		[]*fleet.MDMAppleConfigProfile{bApple}, []*fleet.MDMWindowsConfigProfile{bWin},
+		[]*fleet.MDMAppleDeclaration{bDecl}, []*fleet.MDMAndroidConfigProfile{bAndroid}, nil)
+	require.NoError(t, err)
+
+	listed, _, err = ds.ListMDMConfigProfiles(ctx, nil, opts)
+	require.NoError(t, err)
+	require.Len(t, listed, 4)
+	for _, p := range listed {
+		require.Equal(t, descByName[p.Name]+" 2", p.Description, p.Name)
+		require.Equal(t, 2020, p.UploadedAt.Year(), p.Name)
+	}
+}
+
 func cleanupStaleWindowsRemoveRows(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyProfile) {
 	// Collect the set of Windows host UUIDs in the assertion and the
 	// (profile_uuid, host_uuid) pairs that are expected as remove rows.
@@ -1974,7 +2232,8 @@ func cleanupStaleWindowsRemoveRows(t *testing.T, ds *Datastore, want map[*fleet.
 		// Only select remove rows for hosts in the current assertion's want map.
 		stmt, args, err := sqlx.In(
 			`SELECT profile_uuid, host_uuid FROM host_mdm_windows_profiles WHERE operation_type = 'remove' AND host_uuid IN (?)`,
-			wantWindowsHostUUIDs)
+			wantWindowsHostUUIDs,
+		)
 		if err != nil {
 			return err
 		}
@@ -2615,11 +2874,90 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		return team.ID, host
 	}
 
+	// One self-service profile pair per label-rule branch of the verification query: the "_opt" profile is
+	// opted in on this host, the "_noopt" one only on another host. Only the opted-in ones are expected.
+	macosSelfServiceSetup := func() (uint, *fleet.Host) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "macos-test-7",
+			OsqueryHostID: new("osquery-macos-7"),
+			NodeKey:       new("node-key-macos-7"),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 7"})
+		require.NoError(t, err)
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+		require.NoError(t, err)
+
+		includeAny, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-macos-ss-matched"})
+		require.NoError(t, err)
+		includeAll, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-macos-ss-matched"})
+		require.NoError(t, err)
+		exclude, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-macos-ss-unmatched"})
+		require.NoError(t, err)
+
+		branches := map[string][]*fleet.Label{
+			"nolabel":    nil,
+			"incall":     {includeAll},
+			"exc":        {exclude},
+			"incany":     {includeAny},
+			"incall_exc": {includeAll, exclude},
+			"incany_exc": {includeAny, exclude},
+		}
+		profiles := []*fleet.MDMAppleConfigProfile{configProfileForTest(t, "T7.1", "T7.1", "v")}
+		for branch, labels := range branches {
+			for _, suffix := range []string{"opt", "noopt"} {
+				ident := "ss_" + branch + "_" + suffix
+				profiles = append(profiles, configProfileForTest(t, ident, ident, ident, labels...))
+			}
+		}
+		_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil, nil)
+		require.NoError(t, err)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(
+				ctx,
+				`INSERT INTO label_membership (host_id, label_id) VALUES (?, ?), (?, ?)`,
+				host.ID, includeAny.ID, host.ID, includeAll.ID,
+			); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(
+				ctx,
+				`UPDATE mdm_apple_configuration_profiles SET self_service = 1 WHERE team_id = ? AND identifier LIKE 'ss\_%'`,
+				team.ID,
+			); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(
+				ctx, `
+				INSERT INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
+				SELECT ?, profile_uuid FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier LIKE '%\_opt'`,
+				host.UUID, team.ID,
+			); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(
+				ctx, `
+				INSERT INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
+				SELECT ?, profile_uuid FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier LIKE '%\_noopt'`,
+				uuid.NewString(), team.ID,
+			)
+			return err
+		})
+
+		return team.ID, host
+	}
+
 	tests := []struct {
-		name      string
-		setupFunc func() (uint, *fleet.Host)
-		wantMac   map[string]*fleet.ExpectedMDMProfile
-		os        string
+		name       string
+		setupFunc  func() (uint, *fleet.Host)
+		wantMac    map[string]*fleet.ExpectedMDMProfile
+		notWantMac []string
+		os         string
 	}{
 		{
 			name:      "macos basic team profiles no labels",
@@ -2677,8 +3015,26 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				"include_any_one_matches_prof": {Identifier: "include_any_one_matches_prof"},
 				"include_all_all_match_prof":   {Identifier: "include_all_all_match_prof"},
 				"exclude_none_match_prof":      {Identifier: "exclude_none_match_prof"},
+
 				"include_all_and_exclude_none_match_prof": {Identifier: "include_all_and_exclude_none_match_prof"},
 				"include_any_and_exclude_none_match_prof": {Identifier: "include_any_and_exclude_none_match_prof"},
+			},
+		},
+		{
+			name:      "macos self-service profiles only expected when opted in",
+			setupFunc: macosSelfServiceSetup,
+			wantMac: map[string]*fleet.ExpectedMDMProfile{
+				"T7.1":              {Identifier: "T7.1"},
+				"ss_nolabel_opt":    {Identifier: "ss_nolabel_opt"},
+				"ss_incall_opt":     {Identifier: "ss_incall_opt"},
+				"ss_exc_opt":        {Identifier: "ss_exc_opt"},
+				"ss_incany_opt":     {Identifier: "ss_incany_opt"},
+				"ss_incall_exc_opt": {Identifier: "ss_incall_exc_opt"},
+				"ss_incany_exc_opt": {Identifier: "ss_incany_exc_opt"},
+			},
+			notWantMac: []string{
+				"ss_nolabel_noopt", "ss_incall_noopt", "ss_exc_noopt",
+				"ss_incany_noopt", "ss_incall_exc_noopt", "ss_incany_exc_noopt",
 			},
 		},
 	}
@@ -2696,6 +3052,9 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 					if v.EarliestInstallDate != timeZero {
 						require.Equal(t, v.EarliestInstallDate, got[k].EarliestInstallDate)
 					}
+				}
+				for _, k := range tt.notWantMac {
+					require.NotContains(t, got, k)
 				}
 			}
 		})
@@ -3880,7 +4239,7 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 				false,
 				fleet.WellKnownMDMFleet,
 				"",
-				false,
+				fleet.PersonalEnrollmentTypeNone,
 			),
 		)
 	}
@@ -4081,7 +4440,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, connectedMac, false)
-	err = ds.SetOrUpdateMDMData(ctx, connectedMac.ID, false, true, "http://foo.com", false, "foo", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, connectedMac.ID, false, true, "http://foo.com", false, "foo", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	disconnectedWithoutCheckoutMac, err := ds.NewHost(ctx, &fleet.Host{
@@ -4093,7 +4452,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, disconnectedWithoutCheckoutMac, false)
-	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutMac.ID, false, false, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutMac.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	notConnectedWin, err := ds.NewHost(ctx, &fleet.Host{
@@ -4129,7 +4488,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, connectedWin.ID, false, true, "http://foo.com", false, "foo", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, connectedWin.ID, false, true, "http://foo.com", false, "foo", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	disconnectedWithoutCheckoutWin, err := ds.NewHost(ctx, &fleet.Host{
@@ -4155,7 +4514,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollmentDisconnectedWithoutCheckout)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutWin.ID, false, false, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutWin.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	connectedMap, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
@@ -4213,7 +4572,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		Platform:      "android",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, connectedAndroid.ID, false, true, "https://android.example.com", true, "Android", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, connectedAndroid.ID, false, true, "https://android.example.com", true, "Android", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// Android: host without MDM enrollment should not be connected
@@ -4235,7 +4594,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		Platform:      "android",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, unenrolledAndroid.ID, false, false, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, unenrolledAndroid.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	connectedMap, err = ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
@@ -4289,7 +4648,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	requireConnected(t, macH, false)
 
 	nanoEnroll(t, ds, macH, false)
-	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, true, "http://foo.com", false, "foo", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, true, "http://foo.com", false, "foo", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	requireConnected(t, macH, true)
@@ -4304,7 +4663,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	nanoEnrollUserDevice(t, ds, byodIpadH)
-	err = ds.SetOrUpdateMDMData(ctx, byodIpadH.ID, false, true, "http://foo.com", false, "foo", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, byodIpadH.ID, false, true, "http://foo.com", false, "foo", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	requireConnected(t, byodIpadH, true)
@@ -4334,15 +4693,15 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, true, "http://foo.com", false, "foo", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, true, "http://foo.com", false, "foo", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	requireConnected(t, windowsH, true)
 
 	// now simulate an un-enrollment without checkout, in this case, osquery reports the host as not-enrolled
-	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, false, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, false, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	requireConnected(t, macH, false)
@@ -4369,12 +4728,12 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 
 	requireConnected(t, androidH, false)
 
-	err = ds.SetOrUpdateMDMData(ctx, androidH.ID, false, true, "http://foo.com", false, fleet.WellKnownMDMFleet, "", false)
+	err = ds.SetOrUpdateMDMData(ctx, androidH.ID, false, true, "http://foo.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	requireConnected(t, androidH, true)
 
-	err = ds.SetOrUpdateMDMData(ctx, androidH.ID, false, false, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, androidH.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	requireConnected(t, androidH, false)
@@ -4890,7 +5249,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	host11 := newHost.Host
 
 	for _, h := range []*fleet.Host{host1, host2, host3, host4, host5, host6, host7, host8} {
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 	}
 
@@ -5154,7 +5513,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	for _, h := range []*fleet.Host{host1, host2, host3, host4, host5, host6} {
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 	}
 
@@ -5186,7 +5545,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 
 	// Windows profile removal is async now (#46993): the delete retains the profile content, and the profile-manager cron flips the
 	// surviving host rows to remove+pending and enqueues the <Delete>.
-	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 	assertHostProfileOpStatus(t, ds, host3.UUID,
 		hostProfileOpStatus{profNameToProf["W2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
@@ -5415,7 +5774,7 @@ func testDeleteTeamCancelsWindowsProfileInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, teamProfs, 0)
 
-	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 	// Host-profile rows should be remove+pending (not remove+NULL, not deleted).
 	assertHostProfileOpStatus(t, ds, host1.UUID,
@@ -6399,4 +6758,191 @@ func testGetDeviceInfoForACMERenewal(t *testing.T, ds *Datastore) {
 		{HostUUID: iOS.UUID, HardwareSerial: iOS.HardwareSerial, HardwareModel: "iPhone14,2", OSVersion: "17.5.1"},
 		{HostUUID: iPadOS.UUID, HardwareSerial: iPadOS.HardwareSerial, HardwareModel: "iPad13,1", OSVersion: "17.5.1"},
 	}, got)
+}
+
+func testMDMConfigProfileRenameShowsOnHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	apple, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "apple",
+		Identifier:   "com.example.apple",
+		Mobileconfig: mobileconfig.Mobileconfig("<plist/>"),
+		Scope:        fleet.PayloadScopeSystem,
+	}, nil)
+	require.NoError(t, err)
+	decl, err := ds.NewMDMAppleDeclaration(ctx, declForTest("decl", "decl", "decl"), nil)
+	require.NoError(t, err)
+	android := androidConfigProfileForTest(t, "android", nil)
+	android, err = ds.NewMDMAndroidConfigProfile(ctx, *android, nil)
+	require.NoError(t, err)
+
+	// each profile is installed on a host, which keeps a copy of its name
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
+			(host_uuid, profile_uuid, profile_identifier, profile_name, command_uuid, checksum, operation_type)
+			VALUES ('host-1', ?, ?, 'apple', 'cmd-1', UNHEX(MD5('x')), 'install')`,
+			apple.ProfileUUID, apple.Identifier); err != nil {
+			return err
+		}
+		if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
+			(host_uuid, declaration_uuid, declaration_identifier, declaration_name, token, operation_type)
+			VALUES ('host-1', ?, ?, 'decl', UNHEX(MD5('x')), 'install')`,
+			decl.DeclarationUUID, decl.Identifier); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_android_profiles
+			(host_uuid, profile_uuid, profile_name, operation_type)
+			VALUES ('host-1', ?, 'android', 'install')`, android.ProfileUUID)
+		return err
+	})
+
+	// renames without new contents are never resent, so host details must
+	// still show the new name
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: apple.ProfileUUID,
+		Identifier:  apple.Identifier,
+		Name:        "apple renamed",
+	}, nil)
+	require.NoError(t, err)
+	decl.Name = "decl renamed"
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, nil, fleet.MDMAppleActivationKeep)
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: android.ProfileUUID,
+		Name:        "android renamed",
+	}, nil)
+	require.NoError(t, err)
+
+	appleNames := func() []string {
+		profs, err := ds.GetHostMDMAppleProfiles(ctx, "host-1")
+		require.NoError(t, err)
+		names := make([]string, 0, len(profs))
+		for _, p := range profs {
+			names = append(names, p.Name)
+		}
+		return names
+	}
+	require.ElementsMatch(t, []string{"apple renamed", "decl renamed"}, appleNames())
+	androidProfs, err := ds.GetHostMDMAndroidProfiles(ctx, "host-1")
+	require.NoError(t, err)
+	require.Len(t, androidProfs, 1)
+	require.Equal(t, "android renamed", androidProfs[0].Name)
+
+	// a batch (GitOps) rename with unchanged contents shows on hosts too, and
+	// isn't treated as a new upload
+	before, err := ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	require.NoError(t, err)
+	batchApple := *before
+	batchApple.Name = "apple batch renamed"
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, []*fleet.MDMAppleConfigProfile{&batchApple}, nil, []*fleet.MDMAppleDeclaration{decl}, nil, nil)
+	require.NoError(t, err)
+	after, err := ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "apple batch renamed", after.Name)
+	require.Equal(t, before.UploadedAt, after.UploadedAt)
+	require.ElementsMatch(t, []string{"apple batch renamed", "decl renamed"}, appleNames())
+}
+
+func testMDMConfigProfileRenameThenDeleteShowsOnHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Installs one profile of each type on host and renames them without new
+	// contents, which leaves the host's copy of each name stale.
+	setup := func(host string, teamID *uint) (appleUUID, declUUID, androidUUID string) {
+		apple, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			Name:         "apple " + host,
+			Identifier:   "com.example.apple." + host,
+			Mobileconfig: mobileconfig.Mobileconfig("<plist/>"),
+			Scope:        fleet.PayloadScopeSystem,
+			TeamID:       teamID,
+		}, nil)
+		require.NoError(t, err)
+		decl := declForTest("decl "+host, "decl."+host, "decl")
+		decl.TeamID = teamID
+		decl, err = ds.NewMDMAppleDeclaration(ctx, decl, nil)
+		require.NoError(t, err)
+		android := androidConfigProfileForTest(t, "android "+host, nil)
+		android.TeamID = teamID
+		android, err = ds.NewMDMAndroidConfigProfile(ctx, *android, nil)
+		require.NoError(t, err)
+
+		// verified, so a deletion marks the rows for removal instead of
+		// dropping them
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
+				(host_uuid, profile_uuid, profile_identifier, profile_name, command_uuid, checksum, operation_type, status)
+				VALUES (?, ?, ?, ?, ?, UNHEX(MD5('x')), 'install', 'verified')`,
+				host, apple.ProfileUUID, apple.Identifier, apple.Name, "cmd-"+host); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
+				(host_uuid, declaration_uuid, declaration_identifier, declaration_name, token, operation_type, status)
+				VALUES (?, ?, ?, ?, UNHEX(MD5('x')), 'install', 'verified')`,
+				host, decl.DeclarationUUID, decl.Identifier, decl.Name); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_android_profiles
+				(host_uuid, profile_uuid, profile_name, operation_type, status)
+				VALUES (?, ?, ?, 'install', 'verified')`, host, android.ProfileUUID, android.Name)
+			return err
+		})
+
+		_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			ProfileUUID: apple.ProfileUUID,
+			Identifier:  apple.Identifier,
+			Name:        apple.Name + " renamed",
+			TeamID:      teamID,
+		}, nil)
+		require.NoError(t, err)
+		decl.Name += " renamed"
+		_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, nil, fleet.MDMAppleActivationKeep)
+		require.NoError(t, err)
+		_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+			ProfileUUID: android.ProfileUUID,
+			Name:        android.Name + " renamed",
+			TeamID:      teamID,
+		}, nil)
+		require.NoError(t, err)
+		return apple.ProfileUUID, decl.DeclarationUUID, android.ProfileUUID
+	}
+
+	// once the profiles are gone, the host's copy is what's shown
+	requireHostNames := func(host string) {
+		appleProfs, err := ds.GetHostMDMAppleProfiles(ctx, host)
+		require.NoError(t, err)
+		androidProfs, err := ds.GetHostMDMAndroidProfiles(ctx, host)
+		require.NoError(t, err)
+		var names []string
+		for _, p := range appleProfs {
+			names = append(names, p.Name)
+		}
+		for _, p := range androidProfs {
+			names = append(names, p.Name)
+		}
+		require.ElementsMatch(t, []string{
+			"apple " + host + " renamed", "decl " + host + " renamed", "android " + host + " renamed",
+		}, names)
+	}
+
+	// deleted one by one
+	appleUUID, declUUID, androidUUID := setup("single", nil)
+	require.NoError(t, ds.DeleteMDMAppleConfigProfile(ctx, appleUUID))
+	require.NoError(t, ds.DeleteMDMAppleDeclaration(ctx, declUUID))
+	require.NoError(t, ds.DeleteMDMAndroidConfigProfile(ctx, androidUUID))
+	requireHostNames("single")
+
+	// dropped by a batch (GitOps) run
+	batchTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "rename then batch"})
+	require.NoError(t, err)
+	setup("batch", &batchTeam.ID)
+	_, err = ds.BatchSetMDMProfiles(ctx, &batchTeam.ID, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+	requireHostNames("batch")
+
+	// deleted with their team
+	deletedTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "rename then delete team"})
+	require.NoError(t, err)
+	setup("team", &deletedTeam.ID)
+	require.NoError(t, ds.DeleteTeam(ctx, deletedTeam.ID))
+	requireHostNames("team")
 }

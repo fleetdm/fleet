@@ -18,7 +18,7 @@ interface IAddTicketDestinationModalProps {
   onSubmit: (
     integrationSubmitData: IIntegration[],
     integrationDestination: string
-  ) => void;
+  ) => void | Promise<unknown>;
   integrations: IZendeskJiraIntegrations;
   testingConnection: boolean;
 }

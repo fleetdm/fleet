@@ -28,6 +28,7 @@ type MDMAndroidConfigProfile struct {
 	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
 	TeamID           *uint                       `db:"team_id" json:"team_id" renameto:"fleet_id"`
 	Name             string                      `db:"name" json:"name"`
+	Description      string                      `db:"description" json:"description"`
 	RawJSON          []byte                      `db:"raw_json" json:"-"`
 	AutoIncrement    int64                       `db:"auto_increment" json:"auto_increment"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
@@ -64,6 +65,9 @@ var AndroidPremiumOnlyJSONKeys = map[string]string{
 func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 	if len(bytes.TrimSpace(m.RawJSON)) == 0 {
 		return errors.New("The file should include valid JSON.")
+	}
+	if strings.TrimSpace(m.Name) == "" {
+		return errors.New("Profile name can't be empty.")
 	}
 	fleetNames := mdm.FleetReservedProfileNames()
 	if _, ok := fleetNames[m.Name]; ok {
@@ -245,6 +249,7 @@ type HostMDMAndroidProfile struct {
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string             `db:"detail" json:"detail"`
+	Hidden        bool               `db:"hidden" json:"hidden"`
 }
 
 func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
@@ -257,6 +262,8 @@ func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "android",
+		Hidden:        p.Hidden,
+		SelfService:   false,
 	}
 }
 
@@ -332,9 +339,15 @@ var validAndroidWorkProfileWidgets = map[string]struct{}{
 	"WORK_PROFILE_WIDGETS_DISALLOWED":  {},
 }
 
+var validAndroidCredentialProviderPolicies = map[string]struct{}{
+	"CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED": {},
+	"CREDENTIAL_PROVIDER_ALLOWED":            {},
+}
+
 // ValidateAndroidAppConfiguration validates Android app configuration JSON.
-// Configuration must be valid JSON with only "managedConfiguration" and/or
-// "workProfileWidgets" as top-level keys. Empty configuration is not allowed.
+// Configuration must be valid JSON with only "managedConfiguration",
+// "workProfileWidgets" and/or "credentialProviderPolicy" as top-level keys.
+// Empty configuration is not allowed.
 func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	if len(config) == 0 {
 		return &BadRequestError{
@@ -343,15 +356,16 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	}
 
 	type androidAppConfig struct {
-		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-		WorkProfileWidgets   string          `json:"workProfileWidgets"`
+		ManagedConfiguration     json.RawMessage `json:"managedConfiguration"`
+		WorkProfileWidgets       string          `json:"workProfileWidgets"`
+		CredentialProviderPolicy string          `json:"credentialProviderPolicy"`
 	}
 
 	var cfg androidAppConfig
 	if err := JSONStrictDecode(bytes.NewReader(config), &cfg); err != nil {
 		if strings.Contains(err.Error(), "unknown field") {
 			return &BadRequestError{
-				Message: `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
+				Message: `Couldn't update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.`,
 			}
 		}
 
@@ -362,6 +376,10 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 
 	if _, validVal := validAndroidWorkProfileWidgets[cfg.WorkProfileWidgets]; cfg.WorkProfileWidgets != "" && !validVal {
 		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidget".`, cfg.WorkProfileWidgets)}
+	}
+
+	if _, validVal := validAndroidCredentialProviderPolicies[cfg.CredentialProviderPolicy]; cfg.CredentialProviderPolicy != "" && !validVal {
+		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "credentialProviderPolicy".`, cfg.CredentialProviderPolicy)}
 	}
 
 	if name := FindUnsupportedAndroidFleetVar(string(config)); name != "" {

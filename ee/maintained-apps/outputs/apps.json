@@ -1997,6 +1997,13 @@
       "description": "Connect Fonts is an app that manages fonts and digital assets."
     },
     {
+      "name": "Connect Fonts",
+      "slug": "connect-fonts/windows",
+      "platform": "windows",
+      "unique_identifier": "Monotype Connect",
+      "description": "Connect Fonts (Monotype Connect on Windows) is a font management platform for discovering, licensing, organizing, and activating fonts."
+    },
+    {
       "name": "Copilot",
       "slug": "copilot-money/darwin",
       "platform": "darwin",
@@ -2420,7 +2427,7 @@
       "name": "Default Folder X",
       "slug": "default-folder-x/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.stclairsoft.DefaultFolderX6",
+      "unique_identifier": "com.stclairsoft.DefaultFolderX5",
       "description": "Default Folder X is a utility to enhance the Open and Save dialogs in applications."
     },
     {
@@ -3451,6 +3458,13 @@
       "platform": "darwin",
       "unique_identifier": "org.herf.Flux",
       "description": "f.lux is a screen colour temperature controller."
+    },
+    {
+      "name": "Flycut",
+      "slug": "flycut/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.generalarcade.flycut",
+      "description": "Flycut is a clipboard manager for developers."
     },
     {
       "name": "Focusrite Control 2",
@@ -4928,6 +4942,13 @@
       "platform": "windows",
       "unique_identifier": "Lenovo Dock Manager",
       "description": "Lenovo Dock Manager is an application for deploying and managing firmware updates for Lenovo docks."
+    },
+    {
+      "name": "Lenovo SUHelper",
+      "slug": "lenovo-suhelper/windows",
+      "platform": "windows",
+      "unique_identifier": "SUHelper",
+      "description": "SUHelper is a Lenovo utility that gives IT administrators more control over how Lenovo System Update updates their devices."
     },
     {
       "name": "Lenovo System Update",
@@ -9312,6 +9333,13 @@
       "description": "VoiceInk is a voice to text app."
     },
     {
+      "name": "Vorssaint",
+      "slug": "vorssaint/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vorssaint.utils",
+      "description": "Vorssaint is a menu bar toolkit with keep-awake, system monitor and volume mixer."
+    },
+    {
       "name": "VPN Tracker 365",
       "slug": "vpn-tracker-365/darwin",
       "platform": "darwin",
@@ -9898,6 +9926,13 @@
       "platform": "windows",
       "unique_identifier": "Zoom Workplace (X64)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom for Government",
+      "slug": "zoom@government/darwin",
+      "platform": "darwin",
+      "unique_identifier": "us.zoom.xos",
+      "description": "Zoom for Government is the ZoomGov release of the Zoom video communication platform for meetings, webinars, and collaboration."
     },
     {
       "name": "Zotero",

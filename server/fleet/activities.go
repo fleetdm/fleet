@@ -1364,7 +1364,8 @@ type ActivityTypeInstalledSoftware struct {
 	CommandUUID         string  `json:"command_uuid,omitempty"`
 	FailureReason       string  `json:"failure_reason,omitempty"`
 	// SkippedInstall is set on a patch-when-closed skip (the app was open); Status is then "failed_install".
-	SkippedInstall bool `json:"skipped_install,omitempty"`
+	SkippedInstall  bool `json:"skipped_install,omitempty"`
+	PatchWhenClosed bool `json:"patch_when_closed"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1396,6 +1397,33 @@ func (a ActivityTypeInstalledSoftware) MustActivateNextUpcomingActivity() bool {
 
 func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint, string) {
 	return a.HostID, a.CommandUUID
+}
+
+type ActivityTypeNotifiedEndUserBeforePatching struct {
+	HostID                uint       `json:"host_id"`
+	HostDisplayName       string     `json:"host_display_name"`
+	PatchNotificationUUID string     `json:"patch_notification_uuid"`
+	SoftwareTitles        []string   `json:"software_titles"`
+	PolicyIDs             []uint     `json:"policy_ids"`
+	TimeBefore            int        `json:"time_before"`
+	InstallAt             *time.Time `json:"install_at"`
+	Status                string     `json:"status"`
+	ScriptExecutionID     string     `json:"script_execution_id,omitempty"`
+	// Notification script exit code. Lets the activities table render the failure
+	// reason (e.g. screen locked) without a per-row fetch of the script result.
+	ExitCode *int64 `json:"exit_code,omitempty"`
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) ActivityName() string {
+	return "notified_end_user_before_patching"
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) WasFromAutomation() bool {
+	return len(a.PolicyIDs) > 0
 }
 
 type ActivityTypeUninstalledSoftware struct {
@@ -2050,6 +2078,43 @@ func (a ActivityTypeHostBypassedConditionalAccess) ActivityName() string {
 	return "host_bypassed_conditional_access"
 }
 
+// ActivityTypeBoundHostToIdPAccount records the host <-> IdP account link an
+// MDM SSO sign-in created.
+type ActivityTypeBoundHostToIdPAccount struct {
+	HostUUID string `json:"host_uuid"`
+	// IdPEmail is the account that signed in and was not linked.
+	IdPEmail string `json:"idp_email"`
+	// ReplacedIdPEmail is the account the host was bound to beforehand, empty
+	// when it had no binding.
+	ReplacedIdPEmail string `json:"replaced_idp_email,omitempty"`
+}
+
+func (a ActivityTypeBoundHostToIdPAccount) ActivityName() string {
+	return "bound_host_to_idp_account"
+}
+
+func (a ActivityTypeBoundHostToIdPAccount) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeRefusedHostIdPAccountChange records an MDM SSO sign-in that would
+// have taken over the IdP account of a host that had already enrolled.
+type ActivityTypeRefusedHostIdPAccountChange struct {
+	HostUUID string `json:"host_uuid"`
+	// IdPEmail is the account that signed in and was not linked.
+	IdPEmail string `json:"idp_email"`
+	// ExistingIdPEmail is the account the host stays linked to.
+	ExistingIdPEmail string `json:"existing_idp_email"`
+}
+
+func (a ActivityTypeRefusedHostIdPAccountChange) ActivityName() string {
+	return "refused_host_idp_account_change"
+}
+
+func (a ActivityTypeRefusedHostIdPAccountChange) WasFromAutomation() bool {
+	return true
+}
+
 type ActivityTypeEscrowedDiskEncryptionKey struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -2679,4 +2744,36 @@ type ActivityTypeDisabledAppleBusinessOnlyEnrollment struct{}
 
 func (a ActivityTypeDisabledAppleBusinessOnlyEnrollment) ActivityName() string {
 	return "disabled_apple_business_only_enrollment"
+}
+
+type ActivityTypeInstalledOptInConfigurationProfile struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	// SelfService indicates whether the end-user or the IT admin opted in to the profile.
+	SelfService bool   `json:"self_service"`
+	ProfileName string `json:"profile_name"`
+}
+
+func (a ActivityTypeInstalledOptInConfigurationProfile) ActivityName() string {
+	return "installed_opt_in_configuration_profile"
+}
+
+func (a ActivityTypeInstalledOptInConfigurationProfile) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeUninstalledOptInConfigurationProfile struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	// SelfService indicates whether the end-user or the IT admin opted out of the profile.
+	SelfService bool   `json:"self_service"`
+	ProfileName string `json:"profile_name"`
+}
+
+func (a ActivityTypeUninstalledOptInConfigurationProfile) ActivityName() string {
+	return "uninstalled_opt_in_configuration_profile"
+}
+
+func (a ActivityTypeUninstalledOptInConfigurationProfile) HostIDs() []uint {
+	return []uint{a.HostID}
 }
