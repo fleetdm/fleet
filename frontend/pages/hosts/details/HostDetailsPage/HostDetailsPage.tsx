@@ -163,6 +163,7 @@ import {
   canShowMyDeviceButton,
   getErrorMessage,
   hasEverEnrolled,
+  hasReportedVitals,
 } from "./helpers";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
@@ -365,9 +366,12 @@ const HostDetailsPage = ({
   const [refetchStart, setRefetchStart] = useState<{
     hostId: number;
     at: number;
+    byUser: boolean;
   } | null>(null);
   const refetchStartTime =
     refetchStart?.hostId === hostIdFromURL ? refetchStart.at : null;
+  const isUserRequestedRefetch =
+    refetchStart?.hostId === hostIdFromURL && refetchStart.byUser;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -510,12 +514,19 @@ const HostDetailsPage = ({
           (hasEverEnrolled(returnedHost) || refetchStartTime !== null)
         ) {
           if (!refetchStartTime) {
-            setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
+            setRefetchStart({
+              hostId: hostIdFromURL,
+              at: Date.now(),
+              byUser: false,
+            });
           }
           setShowRefetchSpinner(true);
 
           // If Android, don't run timers/polling logic
           if (!isAndroid(returnedHost.platform)) {
+            // A host without vitals is still on its enrollment refetch, which nobody asked for, so only a Refetch click gets toasts.
+            const shouldNotify =
+              hasReportedVitals(returnedHost) || isUserRequestedRefetch;
             // Compute how long since timer started (if set)
             const totalElapsedTime = refetchStartTime
               ? Date.now() - refetchStartTime
@@ -544,16 +555,20 @@ const HostDetailsPage = ({
                   refetchExtensions();
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
-                notify.error(
-                  `This host is offline. Please try refetching host vitals later.`
-                );
+                if (shouldNotify) {
+                  notify.error(
+                    `This host is offline. Please try refetching host vitals later.`
+                  );
+                }
                 resetHostRefetchStates();
               }
             } else {
               // Total elapsed poll window exceeded (60s), stop and alert
-              notify.error(
-                `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
-              );
+              if (shouldNotify) {
+                notify.error(
+                  `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
+                );
+              }
               resetHostRefetchStates();
             }
           }
@@ -739,10 +754,12 @@ const HostDetailsPage = ({
   // forever; a missing team-level override is treated as "not disabled".
   const teamFeaturesResolved =
     !host?.team_id || teams !== undefined || isTeamsError;
+  const uptimeGloballyEnabled =
+    config?.features?.historical_data?.uptime ?? true;
   const uptimeCollectionEnabled: boolean | undefined =
     config?.features === undefined || !teamFeaturesResolved
       ? undefined
-      : (config.features.historical_data?.uptime ?? true) &&
+      : uptimeGloballyEnabled &&
         (featuresConfig?.historical_data?.uptime ?? true);
 
   useEffect(() => {
@@ -870,7 +887,11 @@ const HostDetailsPage = ({
 
       try {
         await hostAPI.refetch(host).then(() => {
-          setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
+          setRefetchStart({
+            hostId: hostIdFromURL,
+            at: Date.now(),
+            byUser: true,
+          });
           setTimeout(() => {
             refetchHostDetails();
             refetchExtensions();
@@ -1535,7 +1556,11 @@ const HostDetailsPage = ({
   // no Fleet Desktop (so no token, and no page to load) or wiped.
   const canViewMyDeviceLink =
     isGlobalAdmin &&
-    canShowMyDeviceButton(host, config?.fleet_desktop.sso_enabled ?? false);
+    canShowMyDeviceButton(
+      host,
+      config?.fleet_desktop.sso_enabled ?? false,
+      isPremiumTier
+    );
 
   const canEditCustomHostVitals =
     isGlobalAdmin ||
@@ -2349,6 +2374,7 @@ const HostDetailsPage = ({
             hostId={host.id}
             fleetId={host.team_id ?? undefined}
             uptimeCollectionEnabled={uptimeCollectionEnabled}
+            uptimeGloballyEnabled={uptimeGloballyEnabled}
             onExit={toggleOnlineHistoryModal}
           />
         )}

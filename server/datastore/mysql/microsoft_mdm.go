@@ -699,7 +699,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 		device.HostUUID,
 		device.CredentialsHash,
 		device.CredentialsAcknowledged,
-		device.ZTDRegistrationID)
+		device.ZTDRegistrationID,
+	)
 	if err != nil {
 		if IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsEnrolledDevice", device.MDMHardwareID))
@@ -976,7 +977,8 @@ func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.C
 			}
 
 			// Upsert host profile entries.
-			profileStmt := fmt.Sprintf(`
+			profileStmt := fmt.Sprintf(
+				`
 				INSERT INTO host_mdm_windows_profiles (
 					profile_uuid, host_uuid, status, operation_type,
 					detail, command_uuid, profile_name, checksum
@@ -1166,7 +1168,8 @@ func (ds *Datastore) getEnrollmentIDsByHostUUIDDB(ctx context.Context, tx sqlx.E
 	err := common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMCommandQueueBatchSize, func(batch []string) error {
 		stmt, args, err := sqlx.In(
 			`SELECT MAX(id) FROM mdm_windows_enrollments WHERE host_uuid IN (?) GROUP BY host_uuid`,
-			batch)
+			batch,
+		)
 		if err != nil {
 			return err
 		}
@@ -1479,7 +1482,8 @@ ON DUPLICATE KEY UPDATE
 		// if we received a Wipe command result, update the host's status
 		if wipeCmdUUID != "" {
 			wipeSucceeded := strings.HasPrefix(wipeCmdStatus, "2")
-			rowsAffected, err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrolledDevice.HostUUID,
+			rowsAffected, err := updateHostLockWipeStatusFromResultAndHostUUID(
+				ctx, tx, enrolledDevice.HostUUID,
 				"wipe_ref", wipeCmdUUID, wipeSucceeded, false,
 			)
 			if err != nil {
@@ -1785,7 +1789,8 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 			}
 			retried = true
 		default:
-			if _, err := tx.ExecContext(ctx, failStmt,
+			if _, err := tx.ExecContext(
+				ctx, failStmt,
 				fleet.MDMDeliveryFailed, truncateMDMWindowsProfileDetail(detail), hostUUID, profileUUID, fleet.MDMOperationTypeInstall,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "set windows host profile failed")
@@ -2129,7 +2134,8 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, nil
 	}
 
-	stmt := fmt.Sprintf(`
+	stmt := fmt.Sprintf(
+		`
 SELECT
 	CASE
 		WHEN (%s) THEN '%s'
@@ -2245,6 +2251,7 @@ SELECT
 	profile_uuid,
 	team_id,
 	name,
+	description,
 	syncml,
 	created_at,
 	uploaded_at
@@ -2270,7 +2277,8 @@ WHERE
 		switch {
 		case lbl.Exclude && lbl.RequireAll:
 			// this should never happen so log it for debugging
-			ds.logger.DebugContext(ctx, "unsupported profile label: cannot be both exclude and require all",
+			ds.logger.DebugContext(
+				ctx, "unsupported profile label: cannot be both exclude and require all",
 				"profile_uuid", lbl.ProfileUUID,
 				"label_name", lbl.LabelName,
 			)
@@ -2357,7 +2365,8 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// status rollup after commit.
 	var affectedHostUUIDs []string
 	selHostsStmt, selHostsArgs, err := sqlx.In(
-		`SELECT DISTINCT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid IN (?)`, profileUUIDs)
+		`SELECT DISTINCT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid IN (?)`, profileUUIDs,
+	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building IN for affected hosts of deleted profiles")
 	}
@@ -2782,7 +2791,8 @@ func getMDMWindowsStatusCountsProfilesOnlyDB(ctx context.Context, ds *Datastore,
 
 	// The per-host profile status bucket ('failed'|'pending'|'verifying'|'verified'|empty) is maintained in
 	// host_mdm_windows_profiles_status, so this is an O(hosts) grouped read.
-	stmt := fmt.Sprintf(`
+	stmt := fmt.Sprintf(
+		`
 SELECT
     COALESCE(hmwps.status, '') AS final_status,
     SUM(1) AS count
@@ -2819,7 +2829,8 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
 		args = append(args, *teamID)
 	}
 
-	bitlockerStatus := fmt.Sprintf(`
+	bitlockerStatus := fmt.Sprintf(
+		`
             CASE WHEN (%s) THEN
                 'bitlocker_verified'
             WHEN (%s) THEN
@@ -2841,7 +2852,8 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
 	)
 
 	// The per-host profile status bucket is read from the maintained host_mdm_windows_profiles_status rollup.
-	stmt := fmt.Sprintf(`
+	stmt := fmt.Sprintf(
+		`
 SELECT
     CASE COALESCE(hmwps.status, '')
     WHEN 'failed' THEN
@@ -2936,7 +2948,8 @@ func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, paylo
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
-		stmt := fmt.Sprintf(`
+		stmt := fmt.Sprintf(
+			`
 	    INSERT INTO host_mdm_windows_profiles (
 	      profile_uuid,
 	      host_uuid,
@@ -3186,8 +3199,8 @@ func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MD
 	profileUUID := "w" + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
-    mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at)
-(SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
+    mdm_windows_configuration_profiles (profile_uuid, team_id, name, description, syncml, uploaded_at)
+(SELECT ?, ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
@@ -3203,7 +3216,7 @@ INSERT INTO
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.Description, cp.SyncML, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):
@@ -3283,6 +3296,7 @@ INSERT INTO
 	return &fleet.MDMWindowsConfigProfile{
 		ProfileUUID: profileUUID,
 		Name:        cp.Name,
+		Description: cp.Description,
 		SyncML:      cp.SyncML,
 		TeamID:      cp.TeamID,
 	}, nil
@@ -3299,11 +3313,12 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
-			Name   string `db:"name"`
-			SyncML []byte `db:"syncml"`
+			Name        string `db:"name"`
+			Description string `db:"description"`
+			SyncML      []byte `db:"syncml"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT name, syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT name, description, syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
@@ -3327,7 +3342,7 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 			// A rename is a fresh upload even when the bytes are identical, so
 			// uploaded_at survives only a true no-op (as in the batch path).
 			const setClause = `UPDATE mdm_windows_configuration_profiles
-SET syncml = ?, name = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at)
+SET syncml = ?, name = ?, description = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at)
 WHERE profile_uuid = ?`
 
 			// A name is unique per team across all four profile tables and no index
@@ -3335,7 +3350,7 @@ WHERE profile_uuid = ?`
 			// rather than a preceding SELECT so check and write are atomic, as
 			// NewMDMWindowsConfigProfile does on insert.
 			stmt := setClause
-			args := []any{cp.SyncML, cp.Name, contentChanged || nameChanged, cp.ProfileUUID}
+			args := []any{cp.SyncML, cp.Name, cp.Description, contentChanged || nameChanged, cp.ProfileUUID}
 			if nameChanged {
 				stmt += `
 	AND NOT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?)
@@ -3401,6 +3416,18 @@ WHERE profile_uuid = ?`
 				{ProfileUUID: cp.ProfileUUID, FleetVariables: usesFleetVars},
 			}, "windows", false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profile variable associations")
+			}
+		} else if existing.Description != cp.Description {
+			// Description is not part of the checksum, so it is written without
+			// touching uploaded_at.
+			res, err := tx.ExecContext(ctx,
+				`UPDATE mdm_windows_configuration_profiles SET description = ? WHERE profile_uuid = ?`,
+				cp.Description, cp.ProfileUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "updating windows mdm config profile description")
+			}
+			if aff, _ := res.RowsAffected(); aff == 0 {
+				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
 			}
 		}
 
@@ -3577,14 +3604,15 @@ WHERE
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_windows_configuration_profiles (
-    profile_uuid, team_id, name, syncml, uploaded_at
+    profile_uuid, team_id, name, description, syncml, uploaded_at
   )
 VALUES
   -- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('` + fleet.MDMWindowsProfileUUIDPrefix + `', CONVERT(UUID() USING utf8mb4)), ?, ?, ?, CURRENT_TIMESTAMP() )
+  ( CONCAT('` + fleet.MDMWindowsProfileUUIDPrefix + `', CONVERT(UUID() USING utf8mb4)), ?, ?, ?, ?, CURRENT_TIMESTAMP() )
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(syncml = VALUES(syncml) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
   name = VALUES(name),
+  description = VALUES(description),
   syncml = VALUES(syncml)
 `
 
@@ -3716,7 +3744,7 @@ ON DUPLICATE KEY UPDATE
 
 	// insert the new profiles and the ones that have changed
 	for _, p := range incomingProfs {
-		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Name,
+		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Name, p.Description,
 			p.SyncML); err != nil {
 			return false, nil, ctxerr.Wrapf(ctx, err, "insert new/edited profile with name %q", p.Name)
 		}
@@ -3743,7 +3771,8 @@ ON DUPLICATE KEY UPDATE
 }
 
 func (ds *Datastore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
-	stmt := fmt.Sprintf(`
+	stmt := fmt.Sprintf(
+		`
 SELECT
 	hmwp.profile_uuid,
 	-- the live profile is the source of truth for the name; hmwp.profile_name is a
@@ -3757,7 +3786,8 @@ SELECT
 	COALESCE(hmwp.status, '%s') AS status,
 	COALESCE(hmwp.operation_type, '') AS operation_type,
 	COALESCE(hmwp.detail, '') AS detail,
-	hmwp.command_uuid
+	hmwp.command_uuid,
+	COALESCE(mwcp.hidden, FALSE) AS hidden
 FROM
 	host_mdm_windows_profiles hmwp
 	LEFT JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
@@ -3939,7 +3969,8 @@ func (ds *Datastore) MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Conte
 		return nil
 	}
 
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+	_, err := ds.writer(ctx).ExecContext(
+		ctx, `
 		UPDATE mdm_windows_enrollments
 		SET credentials_hash = ?
 		WHERE mdm_device_id = ?`,
@@ -3953,7 +3984,8 @@ func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.
 		return nil
 	}
 
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+	_, err := ds.writer(ctx).ExecContext(
+		ctx, `
 		UPDATE mdm_windows_enrollments
 		SET credentials_acknowledged = TRUE
 		WHERE mdm_device_id = ?`,

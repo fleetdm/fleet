@@ -312,9 +312,9 @@ func (s *integrationTestSuite) TestHostsCount() {
 	require.Equal(t, 0, resp.Count)
 
 	// set MDM information on a host
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[1].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[1].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone))
 	// also create server with MDM information, which is ignored.
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[2].ID, true, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[2].ID, true, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone))
 	var mdmID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
@@ -328,7 +328,7 @@ func (s *integrationTestSuite) TestHostsCount() {
 		HardwareModel:  "MacBook Pro",
 	})
 	require.NoError(t, err)
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), pendingMDMHost.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), pendingMDMHost.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID))
 	require.Equal(t, 1, resp.Count)
@@ -574,7 +574,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Nil(t, resp.MunkiIssue)
 
 	// set MDM information on a host
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host2.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host2.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone))
 	var mdmID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
@@ -595,7 +595,7 @@ func (s *integrationTestSuite) TestListHosts() {
 		require.NoError(t, err)
 		return err
 	})
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), pendingMDMHost.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), pendingMDMHost.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 
 	// generate aggregated stats
 	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
@@ -2206,6 +2206,16 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 	var ipadResp getHostDeviceURLResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", ipadHost.ID), nil, http.StatusOK, &ipadResp)
 	require.Equal(t, "https://fleet.example.com/device/"+ipadHost.UUID+"/self-service", ipadResp.DeviceURL)
+
+	// An iOS host assigned in Apple Business but not yet enrolled has no UUID to
+	// build the URL from.
+	pendingIOSHost := createOrbitEnrolledHost(t, "ios", "device-url-ios-pending", s.ds)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET uuid = '' WHERE id = ?`, pendingIOSHost.ID)
+		return err
+	})
+	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", pendingIOSHost.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.MyDeviceURLNotEnrolledMessage)
 
 	// Android and ChromeOS have no My device page at all, so the endpoint explains
 	// that rather than minting a URL that leads nowhere. See #48439.

@@ -70,7 +70,7 @@ func newOneTimeEnrollFixture(t *testing.T, useOneTimeEnrollSecrets bool) *oneTim
 
 	ds := new(mock.DataStore)
 	cfg := config.TestConfig()
-	cfg.Auth.UseOneTimeEnrollSecrets = useOneTimeEnrollSecrets
+	cfg.MDM.AppleOneTimeEnrollSecrets = useOneTimeEnrollSecrets
 	var logs bytes.Buffer
 	opts := &TestServerOpts{KeyValueStore: memoryKVStore(), Logger: slog.New(slog.NewTextHandler(&logs, nil))}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
@@ -169,7 +169,7 @@ func TestEnrollOrbitWithOneTimeEnrollSecret(t *testing.T) {
 		require.NotNil(t, got.OneTimeEnrollSecretID)
 		require.Equal(t, f.row.ID, *got.OneTimeEnrollSecretID)
 		require.Equal(t, f.row.TeamID, got.TeamID)
-		require.False(t, got.RejectSharedSecretForMDMHosts)
+		require.False(t, got.RejectSharedSecretForAppleMDMHosts)
 		require.Empty(t, *f.rejections)
 		require.Equal(t, 1, *f.enrolled)
 	})
@@ -215,7 +215,7 @@ func TestEnrollOrbitWithOneTimeEnrollSecret(t *testing.T) {
 			require.NoError(t, err)
 			require.Nil(t, got.OneTimeEnrollSecretID)
 			require.Equal(t, new(uint(9)), got.TeamID)
-			require.Equal(t, flag, got.RejectSharedSecretForMDMHosts)
+			require.Equal(t, flag, got.RejectSharedSecretForAppleMDMHosts)
 		}
 	})
 
@@ -297,7 +297,7 @@ func TestEnrollOsqueryWithOneTimeEnrollSecret(t *testing.T) {
 			_, err := f.svc.EnrollOsquery(f.ctx, "shared-secret", f.row.HardwareUUID, f.osqueryDetails())
 			require.NoError(t, err)
 			require.Nil(t, got.OneTimeEnrollSecretID)
-			require.Equal(t, flag, got.RejectSharedSecretForMDMHosts)
+			require.Equal(t, flag, got.RejectSharedSecretForAppleMDMHosts)
 		}
 	})
 
@@ -320,7 +320,7 @@ func TestRecordEnrollmentRejectedWithoutKeyValueStore(t *testing.T) {
 	f := newOneTimeEnrollFixture(t, true)
 	svc, ctx := newTestServiceWithConfig(t, f.ds, func() config.FleetConfig {
 		cfg := config.TestConfig()
-		cfg.Auth.UseOneTimeEnrollSecrets = true
+		cfg.MDM.AppleOneTimeEnrollSecrets = true
 		return cfg
 	}(), nil, nil, &TestServerOpts{})
 	info := f.orbitInfo()
@@ -416,7 +416,7 @@ func TestResendFleetdProfileWithOneTimeEnrollSecrets(t *testing.T) {
 	newSvc := func(t *testing.T, flag bool, status fleet.MDMDeliveryStatus) (*mock.Store, fleet.Service, context.Context) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
-		cfg.Auth.UseOneTimeEnrollSecrets = flag
+		cfg.MDM.AppleOneTimeEnrollSecrets = flag
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
 			License:             &fleet.LicenseInfo{Tier: fleet.TierPremium},
 			SkipCreateTestUsers: true,
