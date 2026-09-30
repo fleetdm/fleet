@@ -151,7 +151,7 @@ Respond in JSON with this data shape:
       configurationProfileGenerationResult = await sails.helpers.ai.prompt.with({
         systemPrompt: systemPrompt,
         prompt: configurationProfilePrompt,
-        baseModel: 'claude-sonnet-5',
+        baseModel: 'claude-sonnet-5-5',
         expectJson: true,
       })
       .intercept((err)=>{
