@@ -2698,18 +2698,23 @@ WHERE
 	return nil
 }
 
+// Without these, MySQL may evaluate a guard by materializing the whole
+// referenced table once per statement. host_mdm_actions is left out: one row
+// per host, and its ref columns are not indexed everywhere this runs.
+const deletableHostScriptResultHints = `/*+ NO_SEMIJOIN(@sesr) NO_SEMIJOIN(@hsi) NO_SEMIJOIN(@bahr) */`
+
 // deletableHostScriptResultPredicate is shared whole by the select and the
 // delete, so the re-check on the primary cannot drift from the reader's. One
-// subquery per host_mdm_actions column, so each uses its own index. created_at
-// is when the run was handed out, so updated_at is what bounds the result.
+// subquery per host_mdm_actions column. created_at is when the run was handed
+// out, so updated_at is what bounds the result.
 const deletableHostScriptResultPredicate = `(hsr.exit_code IS NOT NULL OR hsr.canceled = 1)
 	AND hsr.created_at < ? AND hsr.updated_at < ?
 	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.lock_ref = hsr.execution_id)
 	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.unlock_ref = hsr.execution_id)
 	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.wipe_ref = hsr.execution_id)
-	AND NOT EXISTS (SELECT 1 FROM setup_experience_status_results sesr WHERE sesr.script_execution_id = hsr.execution_id)
-	AND NOT EXISTS (SELECT 1 FROM host_software_installs hsi WHERE hsi.execution_id = hsr.execution_id)
-	AND NOT EXISTS (SELECT 1 FROM batch_activity_host_results bahr WHERE bahr.host_execution_id = hsr.execution_id)`
+	AND NOT EXISTS (SELECT /*+ QB_NAME(sesr) */ 1 FROM setup_experience_status_results sesr WHERE sesr.script_execution_id = hsr.execution_id)
+	AND NOT EXISTS (SELECT /*+ QB_NAME(hsi) */ 1 FROM host_software_installs hsi WHERE hsi.execution_id = hsr.execution_id)
+	AND NOT EXISTS (SELECT /*+ QB_NAME(bahr) */ 1 FROM batch_activity_host_results bahr WHERE bahr.host_execution_id = hsr.execution_id)`
 
 func (ds *Datastore) CleanupHostScriptResults(ctx context.Context, olderThan time.Time) (int64, error) {
 	const (
@@ -2719,19 +2724,19 @@ func (ds *Datastore) CleanupHostScriptResults(ctx context.Context, olderThan tim
 	return cleanupHostScriptResultsDB(ctx, ds, olderThan, batchSize, maxBatches)
 }
 
-func cleanupHostScriptResultsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
-	// Keyset cursor on the created_at index. Rows the sweep keeps are passed
-	// once per run rather than once per batch, and there can be many: a run a
-	// host never answered stays pinned forever, at the front of the index.
-	// created_at has ties, so the cursor carries the primary key too.
-	const selectStmt = `
-SELECT hsr.id, hsr.created_at
+// Keyset cursor on the created_at index. Rows the sweep keeps are passed once
+// per run rather than once per batch, and there can be many: a run a host never
+// answered stays pinned forever, at the front of the index. created_at has ties,
+// so the cursor carries the primary key too.
+const expiredHostScriptResultsStmt = `
+SELECT ` + deletableHostScriptResultHints + ` hsr.id, hsr.created_at
 FROM host_script_results hsr
 WHERE hsr.created_at >= ? AND (hsr.created_at > ? OR hsr.id > ?)
 	AND ` + deletableHostScriptResultPredicate + `
 ORDER BY hsr.created_at, hsr.id
 LIMIT ?`
 
+func cleanupHostScriptResultsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
 	type resultKey struct {
 		ID        uint      `db:"id"`
 		CreatedAt time.Time `db:"created_at"`
@@ -2743,7 +2748,7 @@ LIMIT ?`
 	hitCap := true
 	for range maxBatches {
 		var rows []resultKey
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectStmt,
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, expiredHostScriptResultsStmt,
 			last.CreatedAt, last.CreatedAt, last.ID, olderThan, olderThan, batchSize); err != nil {
 			return deleted, ctxerr.Wrap(ctx, err, "select expired host script results")
 		}
@@ -2775,13 +2780,14 @@ LIMIT ?`
 	return deleted, nil
 }
 
+const deleteExpiredHostScriptResultsStmt = `
+DELETE ` + deletableHostScriptResultHints + ` hsr FROM host_script_results hsr
+WHERE hsr.id IN (?) AND ` + deletableHostScriptResultPredicate
+
 // deleteHostScriptResultsByIDs re-checks the predicate on the primary, since a
 // row the reader selected can have been answered or referenced since.
 func deleteHostScriptResultsByIDs(ctx context.Context, q sqlx.ExecerContext, ids []uint, olderThan time.Time) (int64, error) {
-	const deleteStmt = `
-DELETE hsr FROM host_script_results hsr
-WHERE hsr.id IN (?) AND ` + deletableHostScriptResultPredicate
-	stmt, args, err := sqlx.In(deleteStmt, ids, olderThan, olderThan)
+	stmt, args, err := sqlx.In(deleteExpiredHostScriptResultsStmt, ids, olderThan, olderThan)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "build delete expired host script results")
 	}

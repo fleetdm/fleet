@@ -838,6 +838,9 @@ type Datastore interface {
 	// SetPatchNotificationAppsQueued records that this notification put the apps on
 	// the host's queue, so a later attempt doesn't queue them again.
 	SetPatchNotificationAppsQueued(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
+	// SetPatchNotificationAppsUpdatedInInventory records that the host's software inventory showed the apps
+	// on the installer's version, so the toast shows them as updated.
+	SetPatchNotificationAppsUpdatedInInventory(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
 	// ListPatchNotificationApps returns a notification's apps, with names and icons
 	// for the host's fleet.
 	ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]PatchNotificationAppDetail, error)
