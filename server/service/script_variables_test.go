@@ -435,44 +435,16 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 			require.Zero(t, calls.fetches)
 		})
 
-		t.Run("challenge failures name the cause", func(t *testing.T) {
-			cases := map[string]struct {
-				err  error
-				want string
-			}{
-				"transient": {
-					err:  scep.NewNDESTransientError("NDES admin URL returned status 503; could not retrieve the enrollment challenge password"),
-					want: "Fleet couldn't reach NDES to populate $FLEET_VAR_NDES_SCEP_CHALLENGE. NDES admin URL returned status 503",
-				},
-				"unreachable": {
-					err:  errors.New("sending request: dial tcp: connection refused"),
-					want: "Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE. sending request: dial tcp: connection refused",
-				},
-				"invalid credentials": {
-					err:  scep.NewNDESInvalidError("unexpected status code: 401"),
-					want: "Invalid NDES admin credentials. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE.",
-				},
-				"password cache full": {
-					err:  scep.NewNDESPasswordCacheFullError("the password cache is full"),
-					want: "The NDES password cache is full. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE.",
-				},
-				"insufficient permissions": {
-					err:  scep.NewNDESInsufficientPermissionsError("no enroll permission"),
-					want: "This account does not have sufficient permissions to enroll with SCEP. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE.",
-				},
-			}
-			for name, c := range cases {
-				t.Run(name, func(t *testing.T) {
-					svc, ctx, _, calls := newNDESSvc(t, ndesCA, c.err)
-					expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, "echo $FLEET_VAR_NDES_SCEP_CHALLENGE")
-					require.NoError(t, err)
-					require.Empty(t, expanded)
-					require.Contains(t, failMsg, c.want)
-					// a failed run is recorded, not retried by the expander
-					require.NotContains(t, failMsg, "will try again")
-					require.Equal(t, 1, calls.fetches)
-				})
-			}
+		// the message for each cause is covered by TestNDESChallengeErrorToDetail
+		t.Run("challenge failure is a failed run", func(t *testing.T) {
+			challengeErr := scep.NewNDESTransientError("NDES admin URL returned status 503")
+			svc, ctx, _, calls := newNDESSvc(t, ndesCA, challengeErr)
+			expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, "echo $FLEET_VAR_NDES_SCEP_CHALLENGE")
+			require.NoError(t, err)
+			require.Empty(t, expanded)
+			// scripts get the variant that doesn't promise a retry
+			require.Equal(t, scep.NDESChallengeErrorToScriptDetail(challengeErr), failMsg)
+			require.Equal(t, 1, calls.fetches)
 		})
 
 		t.Run("no challenge is consumed when the script can't run anyway", func(t *testing.T) {
