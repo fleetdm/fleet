@@ -455,6 +455,20 @@ func TestMDMProfileSpecUnmarshalJSON(t *testing.T) {
 		require.Nil(t, storedConfig.MDM.MacOSSettings.CustomSettings[0].LabelsExcludeAny) // old key should be removed
 		require.Nil(t, storedConfig.MDM.MacOSSettings.CustomSettings[1].LabelsIncludeAll) // old key should be removed
 	})
+
+	t.Run("legacy string replaces the stored spec", func(t *testing.T) {
+		// same reuse as above, with the old plain-path form of an entry
+		var storedConfig fleet.AppConfig
+		storedConfig.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{{
+			Path:             "some-profile-1",
+			Name:             "Wi-Fi",
+			Description:      "Office network",
+			LabelsIncludeAll: []string{"foo"},
+		}}
+		err := json.Unmarshal([]byte(`{"mdm": {"macos_settings": {"custom_settings": ["some-profile-2"]}}}`), &storedConfig)
+		require.NoError(t, err)
+		require.Equal(t, []fleet.MDMProfileSpec{{Path: "some-profile-2"}}, storedConfig.MDM.MacOSSettings.CustomSettings)
+	})
 }
 
 func TestMDMProfileSpecsMatch(t *testing.T) {

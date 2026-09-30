@@ -909,13 +909,9 @@ func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &backwardsCompat); err != nil {
 			return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
 		}
-		p.Path = backwardsCompat
-
-		// FIXME: equivalent of no label condition, should clear all labels slice?
-		// p.Labels = nil
-		// p.LabelsIncludeAll = nil
-		// p.LabelsIncludeAny = nil
-		// p.LabelsExcludeAny = nil
+		// replace the whole spec, as below: decoding into a reused slice
+		// element would otherwise keep its name, description and labels
+		*p = MDMProfileSpec{Path: backwardsCompat}
 		return nil
 	}
 
