@@ -20,6 +20,13 @@ var MigrationClient = newMigrationClient()
 
 func newMigrationClient() *goose.Client {
 	c := goose.New("migration_status_tables", goose.MySqlDialect{})
+	// NOTE FOR MIGRATION AUTHORS: because of out-of-order application (below),
+	// a migration cannot assume that later-numbered migrations haven't run yet
+	// — e.g. one shipped in a patch release runs after newer migrations on
+	// databases already upgraded past it. Migrations must be order-independent
+	// of concurrently in-flight migrations, and the guard helpers in this file
+	// (columnExists, indexExistsTx, ...) protect against reordering as well as
+	// retries.
 	// Migrations from 2026 onward may be applied out of order, so a migration
 	// shipped in a patch release with a timestamp older than already-applied
 	// migrations is picked up on the next `fleet prepare db` instead of
