@@ -476,7 +476,7 @@ func windowsEnrollmentBoundHostsDB(
 		return nil, nil
 	}
 
-	stmt, args, err := sqlx.In(`SELECT id, uuid, osquery_host_id FROM hosts WHERE uuid IN (?) ORDER BY id`, uuids)
+	stmt, args, err := sqlx.In(`SELECT id, uuid, osquery_host_id FROM hosts WHERE uuid IN (?) AND platform = 'windows' ORDER BY id`, uuids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build hosts lookup for windows one-time enroll secrets")
 	}

@@ -1226,6 +1226,16 @@ func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore)
 		device := insertWindowsEnrollment(t, ds, "hw-fleet-dual-boot", windows.UUID)
 		mac := sharingHost(t, "darwin", windows.UUID, "mac-"+windows.UUID, &macFleet.ID)
 		require.NoError(t, ds.DeleteHost(ctx, windows.ID))
+
+		// The surviving Mac is not the enrollment's host, so the next secret is for the Windows host coming back.
+		enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.Nil(t, enrolled.LinkedHostID)
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		row := liveWindowsSecret(t, ds, device.ID)
+		require.Nil(t, row.HostID)
+		require.Equal(t, &previous.ID, row.TeamID)
+
 		require.NoError(t, ds.DeleteHost(ctx, mac.ID))
 		require.Equal(t, &previous.ID, recordedTeam(t, device.ID))
 	})
@@ -1242,7 +1252,7 @@ func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore)
 		require.Equal(t, &previous.ID, recordedTeam(t, device.ID))
 	})
 
-	t.Run("incoming-host cleanup records the first Windows host's fleet", func(t *testing.T) {
+	t.Run("incoming-host cleanup records the secret's host's fleet", func(t *testing.T) {
 		// Incoming hosts never reported details, so all three are cleaned up together.
 		secondFleet, err := ds.NewTeam(ctx, &fleet.Team{Name: "deleted-host-incoming-second"})
 		require.NoError(t, err)
@@ -1255,8 +1265,8 @@ func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore)
 			require.NoError(t, err)
 		}
 		incoming("darwin", "incoming-mac-"+hostUUID, &secondFleet.ID)
-		incoming("windows", "incoming-win1-"+hostUUID, &previous.ID)
-		incoming("windows", "incoming-win2-"+hostUUID, &secondFleet.ID)
+		incoming("windows", "incoming-win-"+hostUUID, &secondFleet.ID)
+		incoming("windows", hostUUID, &previous.ID)
 		device := insertWindowsEnrollment(t, ds, "hw-fleet-incoming", hostUUID)
 
 		_, err = ds.CleanupIncomingHosts(ctx, time.Now().Add(10*time.Minute))
