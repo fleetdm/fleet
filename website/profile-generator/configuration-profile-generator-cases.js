@@ -214,10 +214,12 @@ const TEST_CASES = [
     instructions: 'Require a 12-character passcode with no simple passcodes, and turn on automatic checking for updates.',
     // The casing checks below all run against one document, so a model cannot pass them by being
     // self-consistently wrong: the lowercase passcode keys and the capitalized AutomaticCheckEnabled
-    // have to hold in the same profile.
+    // have to hold in the same profile.  forcePIN is not required: Apple documents that the passcode
+    // payload's presence is what makes the device ask for a passcode, so minLength and allowSimple
+    // enforce on their own.  A forcePIN that does appear still has to be cased correctly.
     readByEye: 'Two payload dicts should be present, each with its own PayloadUUID and an identifier suffix.',
     expect: {
-      mustContainElement: [['key', 'forcePIN'], ['key', 'minLength'], ['key', 'allowSimple'], ['key', 'AutomaticCheckEnabled']],
+      mustContainElement: [['key', 'minLength'], ['key', 'allowSimple'], ['key', 'AutomaticCheckEnabled']],
       mustNotContainElement: [['key', 'ForcePIN'], ['key', 'MinLength'], ['key', 'AllowSimple'], ['key', 'automaticCheckEnabled']]
     }
   },
