@@ -6564,6 +6564,9 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+| source | string | query | Filters to only include software from the specified source (the **Type** column in the UI). For example, `"apps"` for macOS apps, `"programs"` for Windows apps, or `"chrome_extensions"` for Chrome-based browser extensions. |
+| extension_for | string | query | **Requires `source`**. Filters browser and IDE extensions to the specified browser or IDE. For example, `?source=chrome_extensions&extension_for=brave` for Brave extensions, or `?source=vscode_extensions&extension_for=vscode` for VS Code extensions. |
+| ai_tool | boolean | query | If `true` or `1`, only list AI tools (for example, AI desktop apps, agent CLIs, and MCP servers). Default is `false`. |
 | macos_applications | boolean | query | If `true`, filters to only include software at the top level of the `/Applications` folder. This parameter applies only to macOS hosts, and is ignored for hosts on other platforms. Default is `false`.  |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
@@ -14436,6 +14439,9 @@ Get a list of all software.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+| source | string | query | Filters to only include software from the specified source (the **Type** column in the UI). For example, `"apps"` for macOS apps, `"programs"` for Windows apps, or `"chrome_extensions"` for Chrome-based browser extensions. |
+| extension_for | string | query | **Requires `source`**. Filters browser and IDE extensions to the specified browser or IDE. For example, `?source=chrome_extensions&extension_for=brave` for Brave extensions, or `?source=vscode_extensions&extension_for=vscode` for VS Code extensions. |
+| ai_tool | boolean | query | If `true` or `1`, only list AI tools (for example, AI desktop apps, agent CLIs, and MCP servers). Default is `false`. |
 | platform | string | query | Filters software titles available for install by platforms. `fleet_id` must be specified to filter by platform. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
 | hash_sha256 | string | query | Filters to only include custom software packages (uploaded installers) with the specified SHA-256 hash. `fleet_id` must be specified to filter by hash. This allows checking if a specific package already exists before uploading. |
 | package_name | string | query | Filters to only include custom software packages (uploaded installers) with the specified package filename. `fleet_id` must be specified to filter by package name. This allows checking if a specific package already exists before uploading. |
@@ -14566,6 +14572,9 @@ Get a list of all software versions.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+| source | string | query | Filters to only include software from the specified source (the **Type** column in the UI). For example, `"apps"` for macOS apps, `"programs"` for Windows apps, or `"chrome_extensions"` for Chrome-based browser extensions. |
+| extension_for | string | query | **Requires `source`**. Filters browser and IDE extensions to the specified browser or IDE. For example, `?source=chrome_extensions&extension_for=brave` for Brave extensions, or `?source=vscode_extensions&extension_for=vscode` for VS Code extensions. |
+| ai_tool | boolean | query | If `true` or `1`, only list AI tools (for example, AI desktop apps, agent CLIs, and MCP servers). Default is `false`. |
 | without_vulnerability_details | boolean | query | _Available in Fleet Premium_. If `true` only vulnerability name is included in response. If `false` (or omitted), adds vulnerability description, CVSS score, and other details available in Fleet Premium. See note above on performance. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
