@@ -7,6 +7,10 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 13 * * 1' # Every Monday at 8am EST (1pm UTC)
+  # TEMPORARY: for testing on the PR. Remove before merging.
+  pull_request:
+    paths:
+      - .github/workflows/oncall-community-prs.yml
 
 concurrency:
   group: ${{ github.workflow }}
