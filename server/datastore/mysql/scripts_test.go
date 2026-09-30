@@ -59,6 +59,7 @@ func TestScripts(t *testing.T) {
 		{"ScriptModificationResetsAttemptNumber", testScriptModificationResetsAttemptNumber},
 		{"NewInternalHostScriptExecutionRequest", testNewInternalHostScriptExecutionRequest},
 		{"CleanupHostScriptResults", testCleanupHostScriptResults},
+		{"CleanupHostScriptResultsQueryPlan", testCleanupHostScriptResultsQueryPlan},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3445,6 +3446,77 @@ func testNewInternalHostScriptExecutionRequest(t *testing.T, ds *Datastore) {
 	upcomingForHost3, _, err := ds.ListHostUpcomingActivities(ctx, 3, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, upcomingForHost3, 2)
+}
+
+// A materialized guard makes a batch cost what the referenced table costs, so
+// the hints have to hold under an optimizer that would otherwise choose it.
+func testCleanupHostScriptResultsQueryPlan(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	conn, err := ds.primary.Connx(ctx)
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck
+
+	// Materialization left as the only antijoin strategy.
+	_, err = conn.ExecContext(ctx, `SET SESSION optimizer_switch = 'firstmatch=off,loosescan=off,duplicateweedout=off'`)
+	require.NoError(t, err)
+
+	cutoff := time.Now().UTC()
+
+	// MySQL folds a guard away when its table, or the outer row, is a const.
+	old := cutoff.Add(-48 * time.Hour)
+	var deletableIDs []uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for range 3 {
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO host_software_installs (host_id, execution_id) VALUES (?, ?)`, 1, uuid.NewString()); err != nil {
+				return err
+			}
+			res, err := q.ExecContext(ctx, `
+				INSERT INTO host_script_results (host_id, execution_id, output, exit_code, created_at, updated_at)
+				VALUES (?, ?, '', 0, ?, ?)`, 1, uuid.NewString(), old, old)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			deletableIDs = append(deletableIDs, uint(id)) //nolint:gosec // test-only, ids fit
+		}
+		return nil
+	})
+
+	deleteStmt, deleteArgs, err := sqlx.In(deleteExpiredHostScriptResultsStmt, deletableIDs, cutoff, cutoff)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name string
+		stmt string
+		args []any
+	}{
+		{"select", expiredHostScriptResultsStmt, []any{time.Unix(0, 0).UTC(), time.Unix(0, 0).UTC(), uint(0), cutoff, cutoff, 500}},
+		{"delete", deleteStmt, deleteArgs},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var plan string
+			require.NoError(t, sqlx.GetContext(ctx, conn, &plan, "EXPLAIN FORMAT=TREE "+tc.stmt, tc.args...))
+
+			for _, alias := range []string{"sesr", "hsi", "bahr"} {
+				assert.Contains(t, plan, "lookup on "+alias, "%s must resolve by index lookup, plan was:\n%s", alias, plan)
+				assert.NotContains(t, plan, "scan on "+alias, "%s must not be materialized, plan was:\n%s", alias, plan)
+			}
+
+			// A malformed hint is a warning, not an error, and leaves the old plan.
+			var warnings []struct {
+				Level   string `db:"Level"`
+				Code    int    `db:"Code"`
+				Message string `db:"Message"`
+			}
+			require.NoError(t, sqlx.SelectContext(ctx, conn, &warnings, "SHOW WARNINGS"))
+			assert.Empty(t, warnings)
+		})
+	}
 }
 
 func testCleanupHostScriptResults(t *testing.T, ds *Datastore) {
