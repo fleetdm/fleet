@@ -76,6 +76,10 @@ module.exports = {
     for (let statistics of latestStatisticsForEachInstance) {
       let hostCountsByPlatform = {macOS: 0, Windows: 0, Linux: 0, iOS: 0, iPadOS: 0, Android: 0, ChromeOS: 0};
       for (let reportedPlatform in statistics.hostsEnrolledByOperatingSystem) {
+        // Hosts that haven't reported details yet have no platform, so they aren't counted under any platform.
+        if (!reportedPlatform) {
+          continue;
+        }
         let columnForThisPlatform = PLATFORM_COLUMNS[reportedPlatform.toLowerCase()] || 'Linux';
         for (let versionInfo of statistics.hostsEnrolledByOperatingSystem[reportedPlatform]) {
           hostCountsByPlatform[columnForThisPlatform] += versionInfo.numEnrolled || 0;
