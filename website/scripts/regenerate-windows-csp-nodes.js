@@ -502,6 +502,12 @@ function parseAreaPage(pageHtml) {
     let propertiesTableAt = _.indexOf(cells, 'Description framework properties');
     let descriptionCells = (lastLocUriCellAt !== -1 && propertiesTableAt > lastLocUriCellAt) ? cells.slice(lastLocUriCellAt + 1, propertiesTableAt) : [];
 
+    // An int node's bounds sit in the properties table as "Allowed Values | Range: | [4-16]" -- capital V,
+    // unlike the "Allowed values" heading of the enum table above -- and the label and the bracket are
+    // usually separate cells, so the next few cells are read together.
+    let allowedValuesPropertyAt = _.findIndex(cells, (cell)=>{ return cell.replace(/:$/, '') === 'Allowed Values'; });
+    let rangeMatch = allowedValuesPropertyAt === -1 ? null : cells.slice(allowedValuesPropertyAt + 1, allowedValuesPropertyAt + 4).join(' ').match(/Range:\s*(\[[^\]]+\])/);
+
     let dependsOnUri = propertyNamed('Dependency URI');
     nodes.push({
       csp: 'Policy',
@@ -516,6 +522,7 @@ function parseAreaPage(pageHtml) {
       allowedValues: _.map(allowedValues, (allowedValue)=>{
         return {value: allowedValue.value, isDefault: allowedValue.isDefault, description: allowedValue.description.join(' ')};
       }),
+      allowedRange: rangeMatch ? rangeMatch[1] : undefined,
       dependsOn: dependsOnUri ? {locUri: dependsOnUri, allowedValue: propertyNamed('Dependency Allowed Value')} : undefined,
       // Ten nodes carry this, all of them passcode policy.  Getting it wrong is a delivery failure rather
       // than a silent no-op, which makes it worth the byte it costs.

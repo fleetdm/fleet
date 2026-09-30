@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-30T13:49:01.861Z",
+  "generatedAt": "2026-09-30T21:39:25.117Z",
   "source": "https://learn.microsoft.com/en-us/windows/client-management/mdm/",
   "cspsWithoutNodeReference": [
     {
@@ -51672,6 +51672,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "17",
       "allowedValues": [],
+      "allowedRange": "[0-23]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -51687,6 +51688,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "8",
       "allowedValues": [],
+      "allowedRange": "[0-23]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -51702,6 +51704,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1000",
       "allowedValues": [],
+      "allowedRange": "[0-4294967200]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -51799,6 +51802,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "90",
       "allowedValues": [],
+      "allowedRange": "[1-999]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -51814,6 +51818,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "6",
       "allowedValues": [],
+      "allowedRange": "[0-4294967295]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -51961,6 +51966,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[1-16]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -52790,6 +52796,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "5",
       "allowedValues": [],
+      "allowedRange": "[0-1440]",
       "dependsOn": {
         "locUri": "Device/Vendor/MSFT/Policy/Config/Browser/ConfigureKioskMode",
         "allowedValue": "[1]"
@@ -54933,6 +54940,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "50",
       "allowedValues": [],
+      "allowedRange": "[0-100]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55010,6 +55018,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-50]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55053,6 +55062,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-90]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55348,6 +55358,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "120",
       "allowedValues": [],
+      "allowedRange": "[0-1380]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55424,6 +55435,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "120",
       "allowedValues": [],
+      "allowedRange": "[0-1380]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55481,6 +55493,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "8",
       "allowedValues": [],
+      "allowedRange": "[0-24]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55546,6 +55559,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-4294967295]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55627,6 +55641,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-4294967295]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55642,6 +55657,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-2592000]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55657,6 +55673,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-2592000]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55672,6 +55689,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-4294967295]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55819,6 +55837,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-4294967295]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55834,6 +55853,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-4294967295]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55849,6 +55869,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[1-100]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55864,6 +55885,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-4294967295]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55879,6 +55901,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[1-4294967295]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55894,6 +55917,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-100]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55909,6 +55933,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[1-100000]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55924,6 +55949,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[1-100000]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55939,6 +55965,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[1-100000]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55968,6 +55995,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-4294967295]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55983,6 +56011,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-100]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -55998,6 +56027,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-100]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -56696,6 +56726,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -56832,6 +56863,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -56873,6 +56905,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-730]",
       "dependsOn": {
         "locUri": "Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled",
         "allowedValue": "[0]"
@@ -56892,6 +56925,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-50]",
       "dependsOn": {
         "locUri": "Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled",
         "allowedValue": "[0]"
@@ -56938,6 +56972,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-999]",
       "dependsOn": {
         "locUri": "Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled",
         "allowedValue": "[0]"
@@ -56957,6 +56992,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-999]",
       "dependsOn": {
         "locUri": "Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled",
         "allowedValue": "[0]"
@@ -56976,6 +57012,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[1-999]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -56991,6 +57028,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "42",
       "allowedValues": [],
+      "allowedRange": "[0-999]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -57046,6 +57084,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "4",
       "allowedValues": [],
+      "allowedRange": "[4-16]",
       "dependsOn": {
         "locUri": "Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled",
         "allowedValue": "[0]"
@@ -57065,6 +57104,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-998]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -57080,6 +57120,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-128]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -57095,6 +57136,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "4294967295",
       "allowedValues": [],
+      "allowedRange": "[1-128]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -57110,6 +57152,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -57125,6 +57168,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "24",
       "allowedValues": [],
+      "allowedRange": "[0-24]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -57194,6 +57238,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "10",
       "allowedValues": [],
+      "allowedRange": "[10-1800]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -57610,6 +57655,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "20",
       "allowedValues": [],
+      "allowedRange": "[0-65535]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -58051,6 +58097,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -63979,6 +64026,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[1-1440]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -64072,6 +64120,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "2000",
       "allowedValues": [],
+      "allowedRange": "[0-10000]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -64691,6 +64740,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -64706,6 +64756,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -64818,6 +64869,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -64833,6 +64885,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -64848,6 +64901,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -64863,6 +64917,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -64878,6 +64933,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "30",
       "allowedValues": [],
+      "allowedRange": "[0-999]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -64893,6 +64949,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65022,6 +65079,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-999]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65037,6 +65095,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-599940]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65095,6 +65154,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "5",
       "allowedValues": [],
+      "allowedRange": "[0-999]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65229,6 +65289,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "99999",
       "allowedValues": [],
+      "allowedRange": "[0-99999]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65296,6 +65357,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65311,6 +65373,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-2]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65404,6 +65467,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65419,6 +65483,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65530,6 +65595,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65545,6 +65611,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65710,6 +65777,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-2]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65904,6 +65972,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65919,6 +65988,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -65986,6 +66056,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-2]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -66001,6 +66072,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -66016,6 +66088,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -66832,6 +66905,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-60]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -67023,6 +67097,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "8",
       "allowedValues": [],
+      "allowedRange": "[1-168]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -67269,6 +67344,7 @@
           "description": "Constellation - LR constellation based tracker."
         }
       ],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -68324,6 +68400,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-100]",
       "dependsOn": {
         "locUri": "./Device/Vendor/MSFT/Policy/Config/Power/EnableEnergySaver",
         "allowedValue": "[1]"
@@ -68342,6 +68419,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-100]",
       "dependsOn": {
         "locUri": "./Device/Vendor/MSFT/Policy/Config/Power/EnableEnergySaver",
         "allowedValue": "[1]"
@@ -68723,6 +68801,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-4294967295]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -68738,6 +68817,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-4294967295]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -69897,6 +69977,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-2]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -69954,6 +70035,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-2]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -70011,6 +70093,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-2]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -70958,6 +71041,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-2]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -72209,6 +72293,7 @@
           "description": "Enabling or not configuring this setting turns on search highlights in search home, and the taskbar search box (Windows 10) or the Start menu search box (Windows 11)."
         }
       ],
+      "allowedRange": "[0-1]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -72302,6 +72387,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[0-3]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -74820,6 +74906,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-365]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -74835,6 +74922,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-365]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -74850,6 +74938,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-4294967295]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -74865,6 +74954,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "30",
       "allowedValues": [],
+      "allowedRange": "[0-365]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -75973,6 +76063,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -75988,6 +76079,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76003,6 +76095,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76018,6 +76111,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76033,6 +76127,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76048,6 +76143,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76063,6 +76159,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76078,6 +76175,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76093,6 +76191,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76108,6 +76207,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76123,6 +76223,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76138,6 +76239,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76153,6 +76255,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76168,6 +76271,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76183,6 +76287,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76198,6 +76303,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76213,6 +76319,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76228,6 +76335,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[2-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -76807,6 +76915,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-2]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -77437,6 +77546,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "17",
       "allowedValues": [],
+      "allowedRange": "[0-23]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -77452,6 +77562,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "18",
       "allowedValues": [],
+      "allowedRange": "[8-18]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -77467,6 +77578,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "8",
       "allowedValues": [],
+      "allowedRange": "[0-23]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -77694,6 +77806,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "15",
       "allowedValues": [],
+      "allowedRange": "[15-180]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -77709,6 +77822,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "7",
       "allowedValues": [],
+      "allowedRange": "[2-30]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -77724,6 +77838,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "7",
       "allowedValues": [],
+      "allowedRange": "[2-30]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -77883,6 +77998,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "2",
       "allowedValues": [],
+      "allowedRange": "[0-30]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -77898,6 +78014,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[0-30]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -77913,6 +78030,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "2",
       "allowedValues": [],
+      "allowedRange": "[0-7]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -77928,6 +78046,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "7",
       "allowedValues": [],
+      "allowedRange": "[0-7]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -77995,6 +78114,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "10",
       "allowedValues": [],
+      "allowedRange": "[2-60]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78010,6 +78130,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-365]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78025,6 +78146,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-30]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78040,6 +78162,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78055,6 +78178,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-8]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78070,6 +78194,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "22",
       "allowedValues": [],
+      "allowedRange": "[1-22]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78163,6 +78288,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "14",
       "allowedValues": [],
+      "allowedRange": "[2-30]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78178,6 +78304,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "14",
       "allowedValues": [],
+      "allowedRange": "[2-30]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78193,6 +78320,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[1-3]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78208,6 +78336,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[1-3]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78223,6 +78352,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "7",
       "allowedValues": [],
+      "allowedRange": "[0-30]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78238,6 +78368,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "7",
       "allowedValues": [],
+      "allowedRange": "[0-30]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78383,6 +78514,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[1-90]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78398,6 +78530,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "2",
       "allowedValues": [],
+      "allowedRange": "[2-24]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78439,6 +78572,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[1-3]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78454,6 +78588,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[1-28]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -78713,6 +78848,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "1",
       "allowedValues": [],
+      "allowedRange": "[1-12]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -79052,6 +79188,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "4",
       "allowedValues": [],
+      "allowedRange": "[0-4]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -79391,6 +79528,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "3",
       "allowedValues": [],
+      "allowedRange": "[0-23]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -79510,6 +79648,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "35",
       "allowedValues": [],
+      "allowedRange": "[1-35]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -80677,6 +80816,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "0",
       "allowedValues": [],
+      "allowedRange": "[0-500]",
       "mustBeWrappedInAtomic": false
     },
     {
@@ -80706,6 +80846,7 @@
       "accessType": "Add, Delete, Get, Replace",
       "defaultValue": "720",
       "allowedValues": [],
+      "allowedRange": "[1-8760]",
       "mustBeWrappedInAtomic": false
     },
     {
