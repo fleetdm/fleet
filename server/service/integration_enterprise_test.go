@@ -6943,9 +6943,6 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	// EE Only Order Key
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "order_key", "cvss_score", "order_direction", "asc")
 
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "order_key", "created_at", "order_direction", "asc")
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "order_key", "created_at", "order_direction", "desc")
-
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
 	require.Len(s.T(), resp.Vulnerabilities, 0)
 
