@@ -74,11 +74,20 @@ if [[ -z "$token" ]]; then
   exit 1
 fi
 
+url="$fleet_url/api/v1/fleet/device/$token/mdm/linux/trigger_escrow"
 response="$(mktemp)"
 trap 'rm -f "$response"' EXIT
 
-status="$(curl -s -o "$response" -w '%{http_code}' --connect-timeout 5 --max-time 20 \
-  -X POST "$fleet_url/api/v1/fleet/device/$token/mdm/linux/trigger_escrow")"
+# Ubuntu Desktop doesn't include curl by default, so fall back to wget.
+if command -v curl > /dev/null; then
+  status="$(curl -s -o "$response" -w '%{http_code}' --connect-timeout 5 --max-time 20 -X POST "$url")"
+elif command -v wget > /dev/null; then
+  status="$(wget -O "$response" --content-on-error --timeout=20 --tries=1 --method=POST -S "$url" 2>&1 \
+    | awk '/^  HTTP\//{code=$2} END{print code}')"
+else
+  echo "Neither curl nor wget is installed." >&2
+  exit 1
+fi
 
 case "$status" in
   204)
@@ -100,7 +109,7 @@ echo "Failed to trigger escrow (HTTP $status): $(cat "$response")" >&2
 exit 1
 ```
 
-The script exits `0` when the prompt was triggered, when a prompt is already showing, or when Fleet already has a key for the host, so it's safe to run more than once. It exits `1` when Fleet rejects the request (for example, the disk isn't encrypted, disk encryption isn't turned on for the host's fleet, or fleetd is too old), and prints Fleet's reason.
+The script uses `curl`, or `wget` if `curl` isn't installed (Ubuntu Desktop doesn't include `curl` by default). It exits `0` when the prompt was triggered, when a prompt is already showing, or when Fleet already has a key for the host, so it's safe to run more than once. It exits `1` when Fleet rejects the request (for example, the disk isn't encrypted, disk encryption isn't turned on for the host's fleet, or fleetd is too old), and prints Fleet's reason.
 
 > The escrow prompt will pop up on the host without warning. Let end users know ahead of time so it isn't unexpected. Someone has to be logged in to the desktop to enter the passphrase.
 
