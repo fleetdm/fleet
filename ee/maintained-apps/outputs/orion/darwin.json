@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.1.2",
+      "version": "1.1.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.kagi.kagimacOS';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kagi.kagimacOS' AND version_compare(bundle_short_version, '1.1.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kagi.kagimacOS' AND version_compare(bundle_short_version, '1.1.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.kagi.kagimacOS' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.kagi.com/updates/26_0/151.zip",
+      "installer_url": "https://cdn.kagi.com/updates/26_0/152.zip",
       "install_script_ref": "9aab0e5c",
       "uninstall_script_ref": "73897848",
-      "sha256": "77a55ae66c0dfae9406856e8e1d20a10dcd06a699175f9059ea395db398f8100",
+      "sha256": "63f6f640c43fe2f857b6ac461785518decd475375fcdf1ffd470c3758623b830",
       "default_categories": [
         "Browsers"
       ]
