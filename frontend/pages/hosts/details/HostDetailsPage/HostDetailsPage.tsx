@@ -215,7 +215,7 @@ const getSoftwareLibraryUnsupportedInfo = (
   if (platform === "nixos") {
     return (
       <>
-        Fleet doesn&apos;t support installing software on NixOS hosts.{" "}
+        Installing software on NixOS hosts happens outside of Fleet.{" "}
         <CustomLink
           text="Learn more"
           url={NIXOS_PACKAGE_MANAGEMENT_LINK}
