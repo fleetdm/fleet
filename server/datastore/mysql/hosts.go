@@ -719,9 +719,10 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 	type hostInfo struct {
 		UUID     string `db:"uuid"`
 		Platform string `db:"platform"`
+		TeamID   *uint  `db:"team_id"`
 	}
 	var hostInfos []hostInfo
-	stmt, args, err := sqlx.In(`SELECT uuid, platform FROM hosts WHERE id IN (?)`, hostIDs)
+	stmt, args, err := sqlx.In(`SELECT uuid, platform, team_id FROM hosts WHERE id IN (?)`, hostIDs)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "building select statement for host uuids")
 	}
@@ -820,21 +821,39 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 
 	// Windows enrollments outlive the host so the device can relink. Touching
 	// updated_at starts the stale-enrollment retention window at deletion;
-	// otherwise an idle enrollment would be reaped within the hour. Empty
-	// UUIDs are skipped so never-linked enrollments keep their own clock.
-	linkedUUIDs := make([]string, 0, len(hostUUIDs))
-	for _, u := range hostUUIDs {
-		if u != "" {
-			linkedUUIDs = append(linkedUUIDs, u)
+	// otherwise an idle enrollment would be reaped within the hour. The host's
+	// fleet is kept so the device comes back to it. Empty UUIDs are skipped so
+	// never-linked enrollments keep their own clock.
+	uuidsByTeam := make(map[uint][]string)
+	var uuidsWithoutTeam []string
+	for _, info := range hostInfos {
+		switch {
+		case info.UUID == "":
+		case info.TeamID == nil:
+			uuidsWithoutTeam = append(uuidsWithoutTeam, info.UUID)
+		default:
+			uuidsByTeam[*info.TeamID] = append(uuidsByTeam[*info.TeamID], info.UUID)
 		}
 	}
-	if len(linkedUUIDs) > 0 {
-		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP WHERE host_uuid IN (?)`, linkedUUIDs)
+	touchEnrollments := func(teamID *uint, uuids []string) error {
+		stmt, args, err := sqlx.In(
+			`UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ? WHERE host_uuid IN (?)`, teamID, uuids)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building touch statement for windows mdm enrollments")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrapf(ctx, err, "touching windows mdm enrollments for host uuids %v", linkedUUIDs)
+			return ctxerr.Wrapf(ctx, err, "touching windows mdm enrollments for host uuids %v", uuids)
+		}
+		return nil
+	}
+	if len(uuidsWithoutTeam) > 0 {
+		if err := touchEnrollments(nil, uuidsWithoutTeam); err != nil {
+			return err
+		}
+	}
+	for teamID, uuids := range uuidsByTeam {
+		if err := touchEnrollments(&teamID, uuids); err != nil {
+			return err
 		}
 	}
 
@@ -2294,8 +2313,10 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		// selectIDs is embedded rather than expanding ids into placeholders,
 		// which a large backlog could push past MySQL's placeholder limit.
 		touchEnrollments := fmt.Sprintf(`
-			UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP
-			WHERE host_uuid IN (SELECT uuid FROM hosts WHERE uuid <> '' AND id IN (%s))`,
+			UPDATE mdm_windows_enrollments e
+			JOIN hosts h ON h.uuid = e.host_uuid AND h.uuid <> ''
+			SET e.updated_at = CURRENT_TIMESTAMP, e.deleted_host_team_id = h.team_id
+			WHERE h.id IN (SELECT id FROM (%s) incoming)`,
 			selectIDs,
 		)
 		if _, err := tx.ExecContext(ctx, touchEnrollments, now); err != nil {
@@ -2625,10 +2646,14 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 
 			refetchRequested := fleet.PlatformSupportsOsquery(enrolledHostInfo.Platform)
 
+			// A Windows one-time secret carries a fleet only when it brings back a deleted host. A pending Autopilot host it claims
+			// was re-created in the default fleet, so it moves to the secret's. team_id comes first because MySQL evaluates SET left
+			// to right, and the node key checks must see the row before this enrollment.
 			sqlUpdate := `
       UPDATE
         hosts
       SET
+        team_id = IF(? AND platform = 'windows' AND orbit_node_key IS NULL AND node_key IS NULL, ?, team_id),
         orbit_node_key = ?,
         uuid = COALESCE(NULLIF(uuid, ''), ?),
         osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?),
@@ -2638,6 +2663,8 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
         refetch_requested = ?
       WHERE id = ?`
 			args := []any{
+				enrollConfig.OneTimeEnrollSecretID != nil && teamID != nil,
+				teamID,
 				orbitNodeKey,
 				hostInfo.HardwareUUID,
 				osqueryIdentifier,

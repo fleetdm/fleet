@@ -286,7 +286,8 @@ func mintWindowsMDMOneTimeEnrollSecretsDB(
 	}
 
 	stmt, args, err := sqlx.In(
-		`SELECT id, hardware_serial, host_uuid FROM mdm_windows_enrollments WHERE id IN (?) ORDER BY id FOR UPDATE`, enrollmentIDs)
+		`SELECT id, hardware_serial, host_uuid, deleted_host_team_id FROM mdm_windows_enrollments WHERE id IN (?) ORDER BY id FOR UPDATE`,
+		enrollmentIDs)
 	if err != nil {
 		return result, ctxerr.Wrap(ctx, err, "build windows mdm enrollment lock for one-time enroll secrets")
 	}
@@ -321,6 +322,22 @@ func mintWindowsMDMOneTimeEnrollSecretsDB(
 	boundHosts, err := windowsEnrollmentBoundHostsDB(ctx, tx, enrollments)
 	if err != nil {
 		return result, err
+	}
+	orphanTeams, err := windowsOrphanedEnrollmentTeamsDB(ctx, tx, enrollments, boundHosts)
+	if err != nil {
+		return result, err
+	}
+	for enrollmentID, teamID := range orphanTeams {
+		if _, ok := hasLive[enrollmentID]; !ok {
+			continue
+		}
+		// A reused secret may predate the host's deletion, so it takes the fleet the host is coming back to.
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE host_one_time_enroll_secrets SET team_id = ?
+			WHERE mdm_windows_enrollment_id = ? AND consumed_at IS NULL AND host_id IS NULL`,
+			teamID, enrollmentID); err != nil {
+			return result, ctxerr.Wrap(ctx, err, "set fleet on live windows one-time enroll secret")
+		}
 	}
 	for _, e := range enrollments {
 		host, known := boundHosts[e.ID]
@@ -358,8 +375,8 @@ func mintWindowsMDMOneTimeEnrollSecretsDB(
 		if host, known := boundHosts[e.ID]; known {
 			hostID, hardwareUUID = &host.ID, host.UUID
 		}
-		placeholders = append(placeholders, `(?, ?, ?, NULL, 'windows', ?, ?)`)
-		insertArgs = append(insertArgs, string(tok), hostID, e.ID, hardwareUUID, serial)
+		placeholders = append(placeholders, `(?, ?, ?, ?, 'windows', ?, ?)`)
+		insertArgs = append(insertArgs, string(tok), hostID, e.ID, orphanTeams[e.ID], hardwareUUID, serial)
 	}
 	if len(placeholders) == 0 {
 		return result, nil
@@ -375,14 +392,72 @@ func mintWindowsMDMOneTimeEnrollSecretsDB(
 }
 
 type windowsEnrollmentMintRow struct {
-	ID             uint    `db:"id"`
-	HardwareSerial *string `db:"hardware_serial"`
-	HostUUID       string  `db:"host_uuid"`
+	ID                uint    `db:"id"`
+	HardwareSerial    *string `db:"hardware_serial"`
+	HostUUID          string  `db:"host_uuid"`
+	DeletedHostTeamID *uint   `db:"deleted_host_team_id"`
 }
 
 type windowsEnrollmentBoundHost struct {
 	ID   uint
 	UUID string
+}
+
+// windowsOrphanedEnrollmentTeamsDB returns the fleet each orphaned enrollment's host comes back to: one whose host_uuid names a
+// host that no longer exists. That is the fleet the host was in when it was deleted if the fleet still exists, and otherwise the
+// Windows enrollment default fleet, or no fleet when none is configured.
+func windowsOrphanedEnrollmentTeamsDB(
+	ctx context.Context, tx sqlx.ExtContext, enrollments []windowsEnrollmentMintRow, boundHosts map[uint]windowsEnrollmentBoundHost,
+) (map[uint]*uint, error) {
+	var orphans []windowsEnrollmentMintRow
+	var recordedTeamIDs []uint
+	for _, e := range enrollments {
+		if _, known := boundHosts[e.ID]; known || e.HostUUID == "" {
+			continue
+		}
+		orphans = append(orphans, e)
+		if e.DeletedHostTeamID != nil {
+			recordedTeamIDs = append(recordedTeamIDs, *e.DeletedHostTeamID)
+		}
+	}
+	if len(orphans) == 0 {
+		return nil, nil
+	}
+
+	existing := make(map[uint]struct{}, len(recordedTeamIDs))
+	if len(recordedTeamIDs) > 0 {
+		stmt, args, err := sqlx.In(`SELECT id FROM teams WHERE id IN (?)`, recordedTeamIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build lookup of deleted hosts' fleets")
+		}
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, tx, &ids, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load deleted hosts' fleets")
+		}
+		for _, id := range ids {
+			existing[id] = struct{}{}
+		}
+	}
+
+	var defaultTeamID *uint
+	if err := sqlx.GetContext(ctx, tx, &defaultTeamID, `
+		SELECT mwec.default_team_id FROM mdm_windows_enrollment_config mwec
+		JOIN teams t ON t.id = mwec.default_team_id
+		WHERE mwec.id = 1`); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, err, "load windows enrollment default fleet")
+	}
+
+	teams := make(map[uint]*uint, len(orphans))
+	for _, e := range orphans {
+		teamID := defaultTeamID
+		if e.DeletedHostTeamID != nil {
+			if _, ok := existing[*e.DeletedHostTeamID]; ok {
+				teamID = e.DeletedHostTeamID
+			}
+		}
+		teams[e.ID] = teamID
+	}
+	return teams, nil
 }
 
 // windowsEnrollmentBoundHostsDB returns, for each enrollment already linked to a host, the host row a one-time enroll secret for

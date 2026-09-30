@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -34,6 +35,7 @@ func TestHostOneTimeEnrollSecrets(t *testing.T) {
 		{"WindowsMint", testOneTimeEnrollSecretWindowsMint},
 		{"WindowsResendMints", testOneTimeEnrollSecretWindowsResendMints},
 		{"WindowsHostBinding", testOneTimeEnrollSecretWindowsHostBinding},
+		{"WindowsDeletedHostFleet", testOneTimeEnrollSecretWindowsDeletedHostFleet},
 		{"FleetdProfileByTeamAndIdentifier", testFleetdProfileByTeamAndIdentifier},
 	}
 	for _, c := range cases {
@@ -1120,5 +1122,100 @@ func testOneTimeEnrollSecretWindowsResendMints(t *testing.T, ds *Datastore) {
 			fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
 		require.NoError(t, err)
 		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, otherFailed.ID))
+	})
+}
+
+func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	previous, err := ds.NewTeam(ctx, &fleet.Team{Name: "deleted-host-previous-fleet"})
+	require.NoError(t, err)
+	gone, err := ds.NewTeam(ctx, &fleet.Team{Name: "deleted-host-gone-fleet"})
+	require.NoError(t, err)
+	defaultFleet, err := ds.NewTeam(ctx, &fleet.Team{Name: "deleted-host-default-fleet"})
+	require.NoError(t, err)
+
+	// deleteHost deletes a Windows MDM host whose enrollment survives, and returns the secret the next push would carry.
+	deleteHost := func(t *testing.T, name string, teamID *uint) (*fleet.Host, *fleet.MDMWindowsEnrolledDevice, *fleet.HostOneTimeEnrollSecret) {
+		h := newOneTimeSecretTestHost(t, ds, "windows", teamID)
+		device := insertWindowsEnrollment(t, ds, "hw-fleet-"+name, h.UUID)
+		require.NoError(t, ds.DeleteHost(ctx, h.ID))
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		return h, device, liveWindowsSecret(t, ds, device.ID)
+	}
+
+	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, &defaultFleet.ID))
+	for _, tc := range []struct {
+		name     string
+		teamID   *uint
+		deleteIt bool
+		want     *uint
+	}{
+		{name: "back to its fleet", teamID: &previous.ID, want: &previous.ID},
+		{name: "fleet deleted since", teamID: &gone.ID, deleteIt: true, want: &defaultFleet.ID},
+		{name: "no fleet", want: &defaultFleet.ID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newOneTimeSecretTestHost(t, ds, "windows", tc.teamID)
+			device := insertWindowsEnrollment(t, ds, "hw-fleet-"+strings.ReplaceAll(tc.name, " ", "-"), h.UUID)
+			require.NoError(t, ds.DeleteHost(ctx, h.ID))
+			if tc.deleteIt {
+				require.NoError(t, ds.DeleteTeam(ctx, *tc.teamID))
+			}
+			require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+			row := liveWindowsSecret(t, ds, device.ID)
+			require.Equal(t, tc.want, row.TeamID)
+
+			// The device re-enrolls with it and is recreated in that fleet.
+			back, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, row.TeamID, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+			require.NoError(t, err)
+			stored, err := ds.HostLite(ctx, back.ID)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, stored.TeamID)
+		})
+	}
+
+	t.Run("a reused secret takes the fleet", func(t *testing.T) {
+		_, device, row := deleteHost(t, "reused", &previous.ID)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_one_time_enroll_secrets SET team_id = NULL WHERE id = ?`, row.ID)
+			return err
+		})
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		reused := liveWindowsSecret(t, ds, device.ID)
+		require.Equal(t, row.ID, reused.ID)
+		require.Equal(t, &previous.ID, reused.TeamID)
+	})
+
+	t.Run("a pending Autopilot host moves to the secret's fleet", func(t *testing.T) {
+		// Autopilot re-creates a deleted device as a pending host in the default fleet, and orbit claims it by serial.
+		h, _, row := deleteHost(t, "autopilot", &previous.ID)
+		var pendingID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, `
+				INSERT INTO hosts (hardware_serial, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested, team_id)
+				VALUES (?, 'windows', ?, ?, NULL, 1, ?)`, h.HardwareSerial, server.NeverTimestamp, server.NeverTimestamp, defaultFleet.ID)
+			if err != nil {
+				return err
+			}
+			id, _ := res.LastInsertId()
+			pendingID = uint(id) //nolint:gosec // dismiss G115
+			if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm (host_id, enrolled, installed_from_dep) VALUES (?, 0, 1)`, pendingID); err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `INSERT INTO host_autopilot_devices (host_id) VALUES (?)`, pendingID)
+			return err
+		})
+		claimed, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, row.TeamID, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+		require.NoError(t, err)
+		require.Equal(t, pendingID, claimed.ID)
+		stored, err := ds.HostLite(ctx, claimed.ID)
+		require.NoError(t, err)
+		require.Equal(t, &previous.ID, stored.TeamID)
+	})
+
+	t.Run("no default fleet", func(t *testing.T) {
+		require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, nil))
+		_, _, row := deleteHost(t, "no-default", nil)
+		require.Nil(t, row.TeamID)
 	})
 }
