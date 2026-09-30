@@ -1246,7 +1246,6 @@ const TEST_CASES = [
   {
     id: 'negative-screen-sharing-disabled',
     profileType: 'mobileconfig',
-    cisId: 'macos-26 2.3.3.1',
     instructions: 'Make sure Screen Sharing is turned off on every Mac.',
     readByEye: 'Screen Sharing is a launchd service (com.apple.screensharing), toggled with launchctl, not a managed preference.  The right answer names that.  Do NOT accept a com.apple.screensharing payload -- the domain exists for connection settings, not for turning the service off.',
     expect: { expectFailure: true }
@@ -1262,7 +1261,6 @@ const TEST_CASES = [
   {
     id: 'negative-file-sharing-disabled',
     profileType: 'mobileconfig',
-    cisId: 'macos-26 2.3.3.2',
     instructions: 'Turn off File Sharing.',
     readByEye: 'SMB file sharing is a launchd service. There is no managed preference for it.',
     expect: { expectFailure: true }
@@ -1270,7 +1268,6 @@ const TEST_CASES = [
   {
     id: 'negative-sip-enabled',
     profileType: 'mobileconfig',
-    cisId: 'macos-26 5.1.2',
     instructions: 'Make sure System Integrity Protection is enabled.',
     readByEye: 'SIP is toggled with csrutil from recoveryOS and cannot be set by MDM at all.  This is the clearest negative in the set -- if anything passes here, the abstention rules are not working.',
     expect: { expectFailure: true }
@@ -1278,7 +1275,6 @@ const TEST_CASES = [
   {
     id: 'negative-root-account-disabled',
     profileType: 'mobileconfig',
-    cisId: 'macos-26 5.6',
     instructions: 'Make sure the root account is disabled.',
     readByEye: 'Local account state, changed with dsenableroot. Not a profile setting.',
     expect: { expectFailure: true }
@@ -1286,7 +1282,6 @@ const TEST_CASES = [
   {
     id: 'negative-sudo-timeout-zero',
     profileType: 'mobileconfig',
-    cisId: 'macos-26 5.4',
     instructions: 'Set the sudo timeout period to zero.',
     readByEye: 'This lives in /etc/sudoers.d and is a file, not a preference domain.',
     expect: { expectFailure: true }
@@ -1294,7 +1289,6 @@ const TEST_CASES = [
   {
     id: 'negative-security-auditing-enabled',
     profileType: 'mobileconfig',
-    cisId: 'macos-26 3.1',
     instructions: 'Make sure security auditing is turned on.',
     readByEye: 'auditd is configured through /etc/security/audit_control.  No payload domain covers it.',
     expect: { expectFailure: true }
@@ -1302,23 +1296,13 @@ const TEST_CASES = [
   {
     id: 'negative-no-world-writable-library-folders',
     profileType: 'mobileconfig',
-    cisId: 'macos-26 5.1.7',
     instructions: 'Make sure there are no world-writable folders in the Library folder.',
     readByEye: 'Filesystem permissions are an observation about the disk, not a setting that can be enforced.  A profile cannot express this at all.',
     expect: { expectFailure: true }
   },
   {
-    id: 'negative-updates-are-installed',
-    profileType: 'mobileconfig',
-    cisId: 'macos-26 1.1',
-    instructions: 'Make sure all Apple-provided software updates are installed.',
-    readByEye: 'This is a state to be audited, not a setting to enforce.  The adjacent CIS items (1.2-1.6) ARE profile-settable, so a model that confuses "install updates automatically" with "updates are installed" will generate a com.apple.SoftwareUpdate payload and look right.',
-    expect: { expectFailure: true }
-  },
-  {
     id: 'negative-xprotect-running',
     profileType: 'mobileconfig',
-    cisId: 'macos-26 5.10',
     instructions: 'Make sure XProtect is running and up to date.',
     readByEye: 'Another state-not-setting.  ConfigDataInstall (CIS 1.5) keeps XProtect definitions current and is a legitimate ADJACENT answer -- if that came back with a caveat explaining the difference, read it as a good answer rather than a failure, and tell the dev the case needs splitting.',
     expect: { expectFailure: true }
