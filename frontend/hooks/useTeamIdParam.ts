@@ -62,7 +62,7 @@ const splitQueryStringParts = (queryString: string) =>
 const joinQueryStringParts = (parts: string[]) =>
   parts.length ? `?${parts.join("&")}` : "";
 
-const rebuildQueryStringWithTeamId = (
+export const rebuildQueryStringWithTeamId = (
   queryString: string,
   newTeamId: number,
   curTeamId: number | undefined,

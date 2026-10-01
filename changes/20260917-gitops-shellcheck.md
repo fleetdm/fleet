@@ -1,0 +1,1 @@
+- Removed `!` logic and pipe to `grep -q` from gitops.sh (`!`` was failing SC2251: `This ! is not on a condition and skips errexit`; `grep -q` pipe was failing SC2337: `In pipefail mode, flags like -q, -m, or -L can cause grep to exit early, aborting the pipeline with SIGPIPE`).

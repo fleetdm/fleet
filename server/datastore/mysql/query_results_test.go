@@ -3,6 +3,8 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,11 +31,13 @@ func TestQueryResults(t *testing.T) {
 		{"MaxRows", testQueryResultRowsDoNotExceedMaxRows},
 		{"OverwriteRespectsCap", testOverwriteQueryResultRowsRespectsCap},
 		{"ListOptions", testQueryResultRowsListOptions},
+		{"LargeRows", testQueryResultRowsLargeRows},
 		{"QueryResultRows", testQueryResultRows},
 		{"QueryResultRowsFilter", testQueryResultRowsTeamFilter},
 		{"CleanupQueryResultRows", testCleanupQueryResultRows},
 		{"CleanupExcessQueryResultRows", testCleanupExcessQueryResultRows},
 		{"CleanupExcessQueryResultRowsManyQueries", testCleanupExcessQueryResultRowsManyQueries},
+		{"WritesDoNotBlockOtherHosts", testQueryResultWritesDoNotBlockOtherHosts},
 		{"ListHostReports", testListHostReports},
 	}
 	for _, c := range cases {
@@ -1013,6 +1017,72 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 	})
 }
 
+// testQueryResultWritesDoNotBlockOtherHosts verifies that the cleanup cron and other hosts'
+// writes don't wait on a host whose results write is still in flight for the same query.
+func testQueryResultWritesDoNotBlockOtherHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query := test.NewQuery(t, ds, nil, "Query", "SELECT 1", user.ID, true)
+
+	writeRow := func(ctx context.Context, hostID uint) error {
+		_, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{{
+			QueryID:     query.ID,
+			HostID:      hostID,
+			LastFetched: time.Now(),
+			Data:        new(json.RawMessage(`{"v": "1"}`)),
+		}}, fleet.DefaultMaxQueryReportRows, 0)
+		return err
+	}
+
+	hostIDs := make([]uint, 0, 10)
+	for i := range 10 {
+		host := test.NewHost(t, ds, fmt.Sprintf("host%d", i), "", fmt.Sprintf("key%d", i), fmt.Sprintf("uuid%d", i), time.Now())
+		hostIDs = append(hostIDs, host.ID)
+		require.NoError(t, writeRow(ctx, host.ID))
+	}
+	// Interleave rows of another query, as in production, so the old cleanup DELETE sweeps the
+	// query's secondary index instead of a short primary key range. The query is unsaved so the
+	// cleanup leaves its rows alone.
+	otherQuery := test.NewQuery(t, ds, nil, "Other Query", "SELECT 1", user.ID, false)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO query_results (query_id, host_id, last_fetched, data)
+			WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 1000)
+			SELECT ?, n, NOW(), '{"v": "1"}' FROM seq`, otherQuery.ID)
+		return err
+	})
+	// Rewrite all but the last host so its row is the oldest and becomes the excess row,
+	// placed after the in-flight host in index order.
+	for _, hostID := range hostIDs[:9] {
+		require.NoError(t, writeRow(ctx, hostID))
+	}
+
+	// Hold an in-flight results write for the middle host.
+	inFlightHostID := hostIDs[5]
+	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback() }()
+	var inFlightID uint
+	require.NoError(t, sqlx.GetContext(ctx, tx, &inFlightID, `SELECT id FROM query_results WHERE query_id = ? AND host_id = ?`, query.ID, inFlightHostID))
+	_, err = tx.ExecContext(ctx, `DELETE FROM query_results WHERE id = ?`, inFlightID)
+	require.NoError(t, err)
+	_, err = tx.ExecContext(ctx, `INSERT INTO query_results (query_id, host_id, last_fetched, data) VALUES (?, ?, NOW(), '{"v": "2"}')`, query.ID, inFlightHostID)
+	require.NoError(t, err)
+
+	waitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	counts, err := ds.CleanupExcessQueryResultRows(waitCtx, 9)
+	require.NoError(t, err)
+	require.Equal(t, 9, counts[query.ID])
+	require.NoError(t, writeRow(waitCtx, hostIDs[4]))
+	require.NoError(t, writeRow(waitCtx, hostIDs[6]))
+
+	require.NoError(t, tx.Rollback())
+	rows, err := ds.QueryResultRowsForHost(ctx, query.ID, hostIDs[9])
+	require.NoError(t, err)
+	require.Empty(t, rows)
+}
+
 // testCleanupExcessQueryResultRowsManyQueries verifies that CleanupExcessQueryResultRows
 // works when there are more queries than MySQL's prepared statement placeholder limit (65,535).
 func testCleanupExcessQueryResultRowsManyQueries(t *testing.T, ds *Datastore) {
@@ -1610,4 +1680,72 @@ func resultCountForQuery(t *testing.T, ds *Datastore, queryID uint) int {
 	counts, err := ds.ResultCountsForQueries(context.Background(), []uint{queryID})
 	require.NoError(t, err)
 	return counts[queryID]
+}
+
+// Rows larger than MySQL's default 256 KiB sort_buffer_size must not break
+// sorted report or host report listings.
+func testQueryResultRowsLargeRows(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query := test.NewQuery(t, ds, nil, "Large Rows Query", "SELECT 1", user.ID, true)
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hostA := test.NewHost(t, ds, "alpha.local", "192.168.1.1", "11111", "UI8XB1221", time.Now())
+	hostB := test.NewHost(t, ds, "bravo.local", "192.168.1.2", "22222", "UI8XB1222", time.Now())
+
+	big := strings.Repeat("x", 400_000)
+	base := time.Now().UTC().Truncate(time.Second)
+	_, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{{
+		QueryID: query.ID, HostID: hostA.ID, LastFetched: base,
+		Data: new(json.RawMessage(`{"name": "a", "big": "` + big + `"}`)),
+	}}, fleet.DefaultMaxQueryReportRows, 0)
+	require.NoError(t, err)
+	_, err = ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{{
+		QueryID: query.ID, HostID: hostB.ID, LastFetched: base.Add(-time.Hour),
+		Data: new(json.RawMessage(`{"name": "b", "big": ""}`)),
+	}}, fleet.DefaultMaxQueryReportRows, 0)
+	require.NoError(t, err)
+
+	names := func(rows []*fleet.ScheduledQueryResultRow) []string {
+		var out []string
+		for _, r := range rows {
+			var m map[string]string
+			require.NoError(t, json.Unmarshal(*r.Data, &m))
+			out = append(out, m["name"])
+		}
+		return out
+	}
+
+	for _, tc := range []struct {
+		name string
+		opts fleet.ListOptions
+		want []string
+	}{
+		{"default", fleet.ListOptions{}, []string{"a", "b"}},
+		{"paginated", fleet.ListOptions{PerPage: 1, IncludeMetadata: true}, []string{"a"}},
+		{"second page", fleet.ListOptions{PerPage: 1, Page: 1, IncludeMetadata: true}, []string{"b"}},
+		{"host_name desc", fleet.ListOptions{OrderKey: "host_name", OrderDirection: fleet.OrderDescending}, []string{"b", "a"}},
+		{"result column", fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending}, []string{"b", "a"}},
+		{"large result column", fleet.ListOptions{OrderKey: "big", OrderDirection: fleet.OrderDescending}, []string{"a", "b"}},
+		{"match query", fleet.ListOptions{MatchQuery: "alpha", OrderKey: "last_fetched"}, []string{"a"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rows, count, _, err := ds.QueryResultRows(ctx, query.ID, filter, tc.opts)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, names(rows))
+			if tc.opts.MatchQuery == "" {
+				assert.Equal(t, 2, count)
+			}
+			for _, r := range rows {
+				assert.Equal(t, query.ID, r.QueryID)
+				assert.True(t, r.Hostname.Valid)
+			}
+		})
+	}
+
+	reports, _, _, err := ds.ListHostReports(ctx, hostA.ID, nil, "", fleet.ListHostReportsOptions{OrderKey: "name"})
+	require.NoError(t, err)
+	require.Len(t, reports, 1)
+	assert.Equal(t, 1, reports[0].NHostResults)
+	assert.Equal(t, big, reports[0].FirstResult["big"])
 }

@@ -20,7 +20,6 @@
   .react-tooltip {
     @include tooltip-text;
     font-style: normal;
-    text-align: center;
   }
 
   @include tooltip5-arrow-styles;

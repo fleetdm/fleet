@@ -199,9 +199,8 @@ Expect pushback on scope, decomposition boundaries, or ordering. Iterate with th
 
 Before drafting any sub-issue prose, fetch and apply Fleet's writing guidance:
 - https://fleetdm.com/handbook/company/writing — general voice, tone, and structure conventions
-- https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions — AI-specific writing rules (hedging, clichés, formatting, banned phrases)
 
-Apply these to the Task and Condition of satisfaction sections, and to every other piece of prose in the spec output (summary, open questions, PR strategy).
+Apply it to the Task and Condition of satisfaction sections, and to every other piece of prose in the spec output (summary, open questions, PR strategy).
 
 ### 3.2 Render each sub-issue
 
@@ -396,7 +395,7 @@ Finally, report each created issue with its number and URL.
 - **Condition of Satisfaction** sections must group assertions by surface or scenario with bolded sub-group labels, include specific test commands with env vars, cover negative cases, and include end-to-end integration when applicable.
 
 ### Style
-- **Always** apply Fleet's writing style from https://fleetdm.com/handbook/company/writing and https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions to all prose in the spec.
+- **Always** apply Fleet's writing style from https://fleetdm.com/handbook/company/writing to all prose in the spec.
 - If you find ambiguity in the story, flag it as an open question rather than guessing.
 - Consider Fleet's multi-platform nature: does this affect macOS, Windows, Linux, iOS, Android?
 - Consider enterprise vs core: does this need license checks?

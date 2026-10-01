@@ -1,3 +1,22 @@
+## Fleet 4.92.2 (Sep 30, 2026)
+
+### Bug fixes
+
+- Fleet now retries Android Management API calls that fail because the API rate limit was exceeded (HTTP 429), waiting 60 seconds and then backing off exponentially, so user-initiated actions like lock, wipe, and custom commands are no longer dropped on a transient rate limit. Background jobs (profile delivery, device reconciliation, software jobs) still fail fast and retry on their next run.
+- Fixed software title details pages and the hosts list software status filter timing out for software with a large install history.
+- Added an hourly cleanup that deletes software install and uninstall records more than 30 days old, configurable with `server.software_install_results_retention`.
+- Improved the performance of applying scripts through GitOps on Fleet instances with a large script-run history.
+- Added an hourly cleanup that deletes script results more than 30 days old, configurable with `server.script_results_retention`.
+
+## Fleet 4.92.1 (Sep 25, 2026)
+
+### Bug fixes
+
+- Fixed GitOps re-downloading Fleet-maintained apps whose manifest carries no hash, such as 1Password, Google Chrome, Slack, Webex, and Zoom, on every run.
+- Fixed software with an invisible reported name rendering as a blank row in Host details > Software, the Software page, and My device > Software. Some macOS system apps (e.g. MediaRemoteUI on macOS 27) hide themselves by setting their display name to a single zero-width character, which is neither empty nor trimmable; Fleet now falls back to the bundle identifier for these.
+- Fixed the GitOps starter's CI jobs failing when the `FLEET_URL` secret ended in a slash.
+- Fixed macOS hosts losing their IdP username, full name, groups, and department (and dropping out of IdP-group labels) after an MDM certificate renewal or re-enrollment when the IdP user had been set manually.
+
 ## Fleet 4.92.0 (Sep 21, 2026)
 
 ### IT Admins

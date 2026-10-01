@@ -1,0 +1,1 @@
+* Fixed live query result ingestion so a host can no longer submit results for campaigns that do not target it, preventing forged rows from being streamed into other running live queries.

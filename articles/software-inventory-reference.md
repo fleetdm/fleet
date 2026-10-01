@@ -153,12 +153,27 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 - Adobe applications (Photoshop, Acrobat, Substance 3D, and others) appear under Apps. That's also where Fleet matches Adobe vulnerabilities. Learn more in the [adobe_plugins](https://github.com/fleetdm/fleet/tree/main/orbit/pkg/table/adobe_plugins) reference.
 
-## Binaries, AI tools, and other
+## AI tools
+
+Fleet's agent includes an [ai_tools](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/table/ai_tools/README.md) osquery table that inventories AI software separately from the tables above. You can query it directly, but its results don't feed software inventory yet: none of it appears on the **Software** pages, and vulnerability matching doesn't run against it.
+
+| Type | Collected on | Name | Version | Publisher | Install path | Vulnerabilities | Caveats |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| AI desktop apps | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `apps` type. Covers AI desktop apps such as ChatGPT, Claude, LM Studio, Ollama, and Jan. |
+| AI agent CLIs | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `agents` type. Covers coding-agent CLIs such as Claude Code, Cursor CLI, and aider. |
+| MCP servers | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `mcp_server` type. |
+| AI IDE plugins | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `ide_plugins` type. Covers AI coding-assistant plugins specifically, separate from the general-purpose [IDE extensions](#ide-extensions) above. |
+| Live AI and MCP sockets | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `sockets` type: locally listening ports for running AI tools, such as a local model server's API port. Not a software concept, so name, version, and publisher don't apply. |
+| Agent instruction files | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `agent_instruction` type: files such as `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, and `.windsurfrules`. Not software, so version and publisher don't apply. |
+| AI browser extensions | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `browser_extension` type, separate from the general [browser extensions](#browser-extensions) above. |
+| AI skills | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Files such as Claude Code's `SKILL.md` or a project's `.agents/skills` directory aren't inventoried as their own entities.  |
+| AI models | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't enumerate installed model weights or which model a local runner has loaded. Only the runner app or listening socket is visible, under AI desktop apps and Live AI and MCP sockets above. |
+
+## Binaries and other
 
 | Type | Collected on | Name | Version | Publisher | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Go binaries | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ When the NVD has a matching entry. | Collected from each user's `~/go/bin` directory. Needs Fleet's agent. Learn more in the [go_binaries](https://github.com/fleetdm/fleet/tree/main/orbit/pkg/table/go_binaries) reference. |
-| AI desktop apps, agent CLIs, MCP servers, and agent instruction files | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet's agent includes an [ai_tools](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/table/ai_tools/README.md) table you can report on, but its results don't feed software inventory yet. |
 | macOS widgets | macOS, as part of their app | ✅ | ✅ | ✅ | ✅ | ✅ | Collected under Apps. Widgets are WidgetKit extensions that ship inside apps that already appear there. |
 | Shortcuts and Android ringtones | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | No MDM API exposes them. |
 

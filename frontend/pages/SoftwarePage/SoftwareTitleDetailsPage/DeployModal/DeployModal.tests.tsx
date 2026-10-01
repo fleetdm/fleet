@@ -105,7 +105,83 @@ describe("DeployModal", () => {
         patch_software_title_id: 10,
         software_title_id: 10,
         patch_when_closed: false,
+        notify_before_patching: false,
         continuous_automations_enabled: false,
+      })
+    );
+  });
+
+  it("creates a Notify before patching policy when the dropdown is set on macOS", async () => {
+    const { user } = renderModal();
+
+    // Wait for the FMA app query to settle — the selector is disabled while
+    // it loads, which blocks pointer events on the dropdown.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled()
+    );
+
+    await user.click(screen.getByRole("checkbox", { name: "patch" }));
+    await user.click(screen.getByRole("radio", { name: "Force patch" }));
+    // The dropdown renders once Force patch is selected on a macOS title.
+    // react-select-5 opens the menu on the wrapper's mouseDown, not a
+    // plain click on the hidden input; using findByText waits for the
+    // option to portal in.
+    await user.click(screen.getByRole("combobox"));
+    const notifyOption = await screen.findByText("Notify before patching");
+    await user.click(notifyOption);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
+        team_id: 1,
+        type: "patch",
+        patch_software_title_id: 10,
+        software_title_id: 10,
+        patch_when_closed: false,
+        notify_before_patching: true,
+        continuous_automations_enabled: true,
+      })
+    );
+  });
+
+  it("updates an existing Force patch policy from immediate to Notify before patching", async () => {
+    const { user } = renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: false,
+          notify_before_patching: false,
+        },
+        automatic_install_policies: [
+          { id: 22, name: "Firefox up to date", type: "patch" },
+        ],
+      }),
+    });
+
+    // Wait for the FMA app query to settle before touching the dropdown.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled()
+    );
+
+    // Existing policy loads as Force patch + Patch immediately; switch to Notify.
+    // react-select-5 opens the menu on the wrapper's mouseDown, not a
+    // plain click on the hidden input; using findByText waits for the
+    // option to portal in.
+    await user.click(screen.getByRole("combobox"));
+    const notifyOption = await screen.findByText("Notify before patching");
+    await user.click(notifyOption);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
+        team_id: 1,
+        software_title_id: 10,
+        patch_when_closed: false,
+        notify_before_patching: true,
+        continuous_automations_enabled: true,
       })
     );
   });
@@ -180,6 +256,7 @@ describe("DeployModal", () => {
         team_id: 1,
         software_title_id: 10,
         patch_when_closed: false,
+        notify_before_patching: false,
         continuous_automations_enabled: false,
       })
     );
@@ -211,6 +288,7 @@ describe("DeployModal", () => {
         team_id: 1,
         software_title_id: null,
         patch_when_closed: false,
+        notify_before_patching: false,
         continuous_automations_enabled: false,
       })
     );
@@ -240,6 +318,7 @@ describe("DeployModal", () => {
         team_id: 1,
         software_title_id: 10,
         patch_when_closed: false,
+        notify_before_patching: false,
         continuous_automations_enabled: false,
       })
     );

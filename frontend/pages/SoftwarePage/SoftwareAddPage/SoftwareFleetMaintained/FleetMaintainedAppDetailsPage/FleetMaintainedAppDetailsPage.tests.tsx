@@ -53,6 +53,7 @@ describe("FleetMaintainedAppDetailsPage", () => {
         patch_software_title_id: 99,
         software_title_id: 99,
         patch_when_closed: true,
+        notify_before_patching: false,
         continuous_automations_enabled: true,
       });
     });

@@ -73,6 +73,7 @@ export interface ISoftwarePatchPolicy {
   name: string;
   patch_when_closed: boolean;
   continuous_automations_enabled: boolean;
+  notify_before_patching?: boolean;
 }
 
 export type SoftwareInstallPolicyType = "dynamic" | "patch";
@@ -363,6 +364,16 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   adobe_plugins: null,
 } as const;
 
+/** Look up an installable source's platform, normalizing the mapping's
+ * `null` entries to `undefined` so callers can treat the return as an
+ * optional `string`. */
+export const getInstallablePlatform = (
+  source?: SoftwareSource
+): string | undefined => {
+  if (!source) return undefined;
+  return INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source] ?? undefined;
+};
+
 export const SCRIPT_PACKAGE_SOURCES = [
   "sh_packages",
   "ps1_packages",
@@ -572,6 +583,7 @@ export interface ISoftwareInstallResult {
   host_display_name?: string;
   install_uuid: string;
   software_title: string;
+  software_display_name?: string | null;
   software_title_id: number;
   software_package: string;
   host_id: number;
@@ -620,11 +632,7 @@ export interface IAppLastInstall {
 interface SignatureInformation {
   installed_path: string;
   team_identifier: string;
-  /** The cdhash of a code-signed app bundle. Null for anything Fleet hashes as
-   * a plain Mach-O file, such as a Homebrew formula's executables. */
   hash_sha256: string | null;
-  executable_sha256: string | null;
-  executable_path: string | null;
 }
 export interface ISoftwareLastUninstall {
   script_execution_id: string;

@@ -173,7 +173,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		secretOpts   []fleet.DatastoreEnrollOsqueryOption
 	)
 	var oneTime *fleet.HostOneTimeEnrollSecret
-	if svc.config.Auth.UseOneTimeEnrollSecrets {
+	if svc.config.MDM.OneTimeEnrollSecretsEnabled() {
 		var err error
 		oneTime, err = svc.lookupOneTimeEnrollSecret(ctx, enrollSecret)
 		if err != nil {
@@ -195,7 +195,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 			return "", newOsqueryErrorWithInvalidNode("enroll failed")
 		}
 		enrollTeamID = secret.TeamID
-		secretOpts = append(secretOpts, fleet.WithEnrollOsqueryRejectSharedSecretForMDMHosts(svc.config.Auth.UseOneTimeEnrollSecrets))
+		secretOpts = append(secretOpts, fleet.WithEnrollOsqueryRejectSharedSecretForAppleMDMHosts(svc.config.MDM.AppleOneTimeEnrollSecrets))
 	}
 
 	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostIdentifier)
@@ -254,6 +254,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
 		fleet.WithEnrollOsqueryCreated(&hostCreated),
+		fleet.WithEnrollOsqueryRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOsquery(ctx, enrollOpts...)
 	if err != nil {
@@ -2004,9 +2005,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
-		// Force clear results for labels that do not apply to the host anymore.
+		// Discard results for labels that do not apply to the host: manual labels,
+		// labels of another team or platform, or unknown IDs. Agent-reported
+		// results must never change manual membership, and the result must be
+		// dropped rather than recorded as false: a false becomes a DELETE, which
+		// is how a host could remove itself from a manual label.
 		//
-		// There could be a timing bug where:
+		// This also covers a timing bug where:
 		// 1. Host receives a "team label" query to run (distributed/read).
 		// 2. Host is transferred to another team (all its label/policy membership are cleared).
 		// 3. Fleet receives distributed/write corresponding to (1) which includes the result for
@@ -2017,13 +2022,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 		for labelID := range labelResults {
 			if _, ok := hostLabelQueries[fmt.Sprint(labelID)]; !ok {
-				svc.logger.DebugContext(ctx, "clearing result for inapplicable label", "labelID", labelID, "hostID", host.ID)
-				labelResults[labelID] = ptr.Bool(false)
+				svc.logger.InfoContext(ctx, "discarding result for inapplicable label", "labelID", labelID, "hostID", host.ID)
+				delete(labelResults, labelID)
 			}
 		}
 
-		if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
-			logging.WithErr(ctx, err)
+		if len(labelResults) > 0 {
+			if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 	}
 
@@ -2711,6 +2718,26 @@ func (svc *Service) ingestDistributedQuery(
 		return newOsqueryError("unable to parse campaign ID: " + trimmedQuery)
 	}
 
+	// The host controls the campaign ID in the query name and IDs are sequential,
+	// so without this any enrolled host could stream forged rows into every
+	// running campaign server-wide, including other fleets' campaigns. Marking
+	// the host complete before publishing makes the check free: the same Redis
+	// commands report whether the host was still a target. The cost is that an
+	// undelivered result below must re-target the host so it retries, and that a
+	// crash between here and the publish loses this host's rows for the campaign
+	// where before it would have re-run the query. Live results are ephemeral,
+	// so that trade is accepted.
+	campaignName := strconv.Itoa(campaignID)
+	targeted, err := svc.liveQueryStore.QueryCompletedByHost(campaignName, host.ID)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "recording live query completion for host", "campaignID", campaignID, "hostID", host.ID, "err", err)
+		return newOsqueryError("record query completion: " + err.Error())
+	}
+	if !targeted {
+		svc.logger.DebugContext(ctx, "discarding live query result for campaign not targeting host", "campaignID", campaignID, "hostID", host.ID)
+		return nil
+	}
+
 	// Write the results to the pubsub store
 	res := fleet.DistributedQueryResult{
 		DistributedQueryCampaignID: uint(campaignID), //nolint:gosec // dismiss G115
@@ -2731,6 +2758,7 @@ func (svc *Service) ingestDistributedQuery(
 		var pse pubsub.Error
 		ok := errors.As(err, &pse)
 		if !ok || !pse.NoSubscriber() {
+			svc.restoreQueryTarget(ctx, campaignID, host.ID)
 			return newOsqueryError("writing results: " + err.Error())
 		}
 
@@ -2757,6 +2785,7 @@ func (svc *Service) ingestDistributedQuery(
 			// This expected error can happen if:
 			//	A. A device checked in and sent results back in between steps (1) and (2).
 			// 	B. The client stopped listening in (2) and devices continue to send results back.
+			svc.restoreQueryTarget(ctx, campaignID, host.ID)
 			return newOsqueryError(fmt.Sprintf("campaignID=%d waiting for listener", campaignID))
 		}
 
@@ -2771,16 +2800,16 @@ func (svc *Service) ingestDistributedQuery(
 			return newOsqueryError("stopping orphaned campaign: " + err.Error())
 		}
 
-		// No need to record query completion in this case
 		return newOsqueryError(fmt.Sprintf("campaignID=%d stopped", campaignID))
 	}
 
-	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(campaignID), host.ID)
-	if err != nil {
-		return newOsqueryError("record query completion: " + err.Error())
-	}
-
 	return nil
+}
+
+func (svc *Service) restoreQueryTarget(ctx context.Context, campaignID int, hostID uint) {
+	if err := svc.liveQueryStore.RestoreQueryTargetForHost(strconv.Itoa(campaignID), hostID); err != nil {
+		svc.logger.WarnContext(ctx, "restoring live query target after undelivered result", "campaignID", campaignID, "hostID", hostID, "err", err)
+	}
 }
 
 // ingestMembershipQuery records the results of label queries run by a host
@@ -3030,6 +3059,21 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			continue
 		}
 
+		// Skip an app  that's already on a patch notification the end user has seen, the notification's deadline is what
+		// installs it. If we queue a skippable install here, its skip can report after the notification is acted and its
+		// force installs are queued, and create a second notification.
+		var appHasDisplayedPatchNotification bool
+		if failingPolicyWithInstaller.OverridePreInstallQuery {
+			appHasDisplayedPatchNotification, err = svc.ds.DisplayedPatchNotificationExistsForApp(ctx, hostID, softwareInstallerTitleID_)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check whether a displayed patch notification lists this app")
+			}
+		}
+		if appHasDisplayedPatchNotification {
+			logger.DebugContext(ctx, "skipping policy automation install, the app is on a patch notification the end user has seen")
+			continue
+		}
+
 		// Throttle continuous policy automation re-installs: if this policy fired only
 		// because continuous_automations_enabled is set (not a pass→fail transition)
 		// and we already queued a successful install within the policy update interval,
@@ -3073,9 +3117,10 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			ctx, hostID,
 			installerMetadata.InstallerID,
 			fleet.HostSoftwareInstallOptions{
-				SelfService:     false,
-				PolicyID:        &policyID,
-				DeferActivation: svc.deferFleetInitiatedActivation(),
+				SelfService:             false,
+				PolicyID:                &policyID,
+				OverridePreInstallQuery: failingPolicyWithInstaller.OverridePreInstallQuery,
+				DeferActivation:         svc.deferFleetInitiatedActivation(),
 			},
 		)
 		if err != nil {

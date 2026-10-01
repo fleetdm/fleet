@@ -1,0 +1,1 @@
+* Added `path`/`paths` file-reference support to `software.fleet_maintained_apps` and `software.app_store_apps` in GitOps YAML, matching the existing support for `policies`, `labels`, `reports`, and `software.packages`.

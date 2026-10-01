@@ -38,25 +38,38 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		}
 	}
 
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	// Not retried: failures here mostly come from lock contention, which retries would add to,
+	// and the host sends fresh results on the report's next run.
+	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		// Since we assume all rows have the same queryID, take it from the first row
 		queryID := rows[0].QueryID
 		hostID := rows[0].HostID
 
-		var existingDataRows int
-		countStmt := `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ? AND has_data = 1`
-		if err := sqlx.GetContext(ctx, tx, &existingDataRows, countStmt, queryID, hostID); err != nil {
-			return ctxerr.Wrap(ctx, err, "counting existing query results for host")
+		var existing []struct {
+			ID      uint `db:"id"`
+			HasData bool `db:"has_data"`
+		}
+		selectStmt := `SELECT id, has_data FROM query_results WHERE query_id = ? AND host_id = ?`
+		if err := sqlx.SelectContext(ctx, tx, &existing, selectStmt, queryID, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting existing query results for host")
+		}
+		existingDataRows := 0
+		existingIDs := make([]uint, 0, len(existing))
+		for _, e := range existing {
+			existingIDs = append(existingIDs, e.ID)
+			if e.HasData {
+				existingDataRows++
+			}
 		}
 		if currentCount-existingDataRows+newDataRows > maxQueryReportRows {
 			res.Rejected = true
 			return nil
 		}
 
-		// Delete rows based on the specific queryID and hostID
-		deleteStmt := `DELETE FROM query_results WHERE host_id = ? AND query_id = ?`
-		if _, err := tx.ExecContext(ctx, deleteStmt, hostID, queryID); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting query results for host")
+		// Delete by primary key: a DELETE by (query_id, host_id) takes next-key locks on the
+		// secondary index, which block other hosts inserting results for the same query.
+		if err := deleteQueryResultsByID(ctx, tx, existingIDs); err != nil {
+			return err
 		}
 
 		// Insert the new rows
@@ -84,6 +97,75 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 	return res, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 }
 
+// deleteQueryResultsByID deletes query_results rows by primary key.
+func deleteQueryResultsByID(ctx context.Context, db sqlx.ExecerContext, ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(`DELETE FROM query_results WHERE id IN (?)`, ids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building delete query results by id")
+	}
+	if _, err := db.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting query results by id")
+	}
+	return nil
+}
+
+// deleteQueryResultsBatchSize is the number of query_results rows deleted per statement when
+// clearing a query's results.
+var deleteQueryResultsBatchSize = 500
+
+// Both page through a query's rows in index order with a host_id cursor, so each page is a
+// range read that never rescans rows already handled.
+const (
+	selectQueryResultsPageStmt = `
+		SELECT id, host_id FROM query_results FORCE INDEX (idx_query_id_host_id_last_fetched)
+		WHERE query_id = ? AND host_id >= ? AND id < ?
+		ORDER BY host_id LIMIT ?`
+	selectQueryResultsWithDataPageStmt = `
+		SELECT id, host_id FROM query_results FORCE INDEX (idx_query_id_has_data_host_id_last_fetched)
+		WHERE query_id = ? AND has_data = 1 AND host_id >= ? AND id < ?
+		ORDER BY host_id LIMIT ?`
+)
+
+// deleteQueryResultsBeforeID deletes a query's rows with id below beforeID (only rows with data
+// if onlyWithData), reading and deleting one page of batchSize rows at a time. Rows are deleted
+// by primary key: a range DELETE on query_id locks every row of the report, and the gaps between
+// them, while hosts keep writing results for it.
+func (ds *Datastore) deleteQueryResultsBeforeID(ctx context.Context, queryID, beforeID uint, onlyWithData bool, batchSize int) error {
+	selectStmt := selectQueryResultsPageStmt
+	if onlyWithData {
+		selectStmt = selectQueryResultsWithDataPageStmt
+	}
+	var fromHostID uint
+	for {
+		// Read from the primary: the next page must not return rows the previous one deleted.
+		var page []struct {
+			ID     uint `db:"id"`
+			HostID uint `db:"host_id"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &page, selectStmt, queryID, fromHostID, beforeID, batchSize); err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting query_results page to delete")
+		}
+		if len(page) == 0 {
+			return nil
+		}
+		ids := make([]uint, 0, len(page))
+		for _, row := range page {
+			ids = append(ids, row.ID)
+		}
+		if err := deleteQueryResultsByID(ctx, ds.writer(ctx), ids); err != nil {
+			return err
+		}
+		if len(page) < batchSize {
+			return nil
+		}
+		// The last host may have more rows past this page; its deleted rows won't match again.
+		fromHostID = page[len(page)-1].HostID
+	}
+}
+
 // queryResultHostDisplayNameExpr mirrors fleet.HostDisplayName so sorting and
 // searching by host name agree with the name shown in the report.
 const queryResultHostDisplayNameExpr = `COALESCE(
@@ -92,29 +174,35 @@ const queryResultHostDisplayNameExpr = `COALESCE(
 	IF(h.hardware_model != '' AND h.hardware_serial != '', CONCAT(h.hardware_model, ' (', h.hardware_serial, ')'), '')
 )`
 
-// queryResultRowsAllowedOrderKeys are the built-in order keys for QueryResultRows.
+// queryResultRowsAllowedOrderKeys are the built-in order keys for QueryResultRows,
+// referencing columns of its materialized page derived table.
 // Any other key is treated as a result column name and sorted through the
 // sort_value column selected alongside the row, so the column name is always a
 // bound parameter and never part of the SQL text. Built-in keys take precedence
 // over result columns with the same name.
 var queryResultRowsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
-	"last_fetched": "qr.last_fetched",
-	"host_name":    queryResultHostDisplayNameExpr,
-	"host_id":      "qr.host_id",
-	"id":           "qr.id",
+	"last_fetched": "page.last_fetched",
+	"host_name":    "page.host_name",
+	"host_id":      "page.host_id",
+	"id":           "page.id",
 }
 
-const queryResultColumnOrderKey = "sort_value"
+const queryResultColumnOrderKey = "page.sort_value"
 
-// queryResultRowWithSort adds the result-column sort value to a row so sqlx has a
-// destination for it; it is never returned to callers.
-type queryResultRowWithSort struct {
-	fleet.ScheduledQueryResultRow
+// queryResultRowPage is a row of the sorted, paginated page of query result IDs.
+// sort_value is only selected so ORDER BY can reference it.
+type queryResultRowPage struct {
+	ID        uint    `db:"id"`
 	SortValue *string `db:"sort_value"`
 }
 
-// TODO(lucas): Any chance we can store hostname in the query_results table?
-// (to avoid having to left join hosts).
+// queryResultRowWithID is a query result row scanned with its ID so the page
+// order can be restored.
+type queryResultRowWithID struct {
+	fleet.ScheduledQueryResultRow
+	ID uint `db:"id"`
+}
+
 // QueryResultRows returns the query result rows for a given query.
 func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.ScheduledQueryResultRow, int, *fleet.PaginationMetadata, error) {
 	whereClause := fmt.Sprintf(`
@@ -149,30 +237,71 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 		opts.TestSecondaryOrderKey = "id"
 	}
 
-	listStmt := `
-		SELECT qr.query_id, qr.host_id, qr.last_fetched, qr.data,
-			h.hostname, h.computer_name, h.hardware_model, h.hardware_serial,
-			` + sortValueExpr + ` AS sort_value
-	` + whereClause
-	listArgs := append(append([]any{}, sortValueArgs...), whereArgs...)
+	// Sort and paginate on IDs only, then fetch the data. MySQL's filesort
+	// carries every column the query reads from qr (including qr.data read by
+	// the search filter or sort_value), and a single stored result can exceed
+	// the default 256 KiB sort_buffer_size ("Out of sort memory"). NO_MERGE
+	// keeps the derived table materialized so the sort only sees its columns.
+	pageStmt := `
+		SELECT /*+ NO_MERGE(page) */ page.id, page.sort_value FROM (
+			SELECT qr.id, qr.host_id, qr.last_fetched,
+				` + queryResultHostDisplayNameExpr + ` AS host_name,
+				` + sortValueExpr + ` AS sort_value
+			` + whereClause + `
+		) page
+	`
+	pageArgs := append(append([]any{}, sortValueArgs...), whereArgs...)
 	// Unpaginated callers expect every row; the list-options helper would
 	// otherwise silently cap them at DefaultPerPage.
 	if opts.PerPage == 0 {
 		opts.PerPage = fleet.PerPageUnlimited
 	}
-	pagedStmt, pagedArgs, err := appendListOptionsWithCursorToSQLSecure(listStmt, listArgs, &opts, allowedKeys)
+	pagedStmt, pagedArgs, err := appendListOptionsWithCursorToSQLSecure(pageStmt, pageArgs, &opts, allowedKeys)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "apply list options for query result rows")
 	}
 
 	dbReader := ds.reader(ctx)
-	var rowsWithSort []queryResultRowWithSort
-	if err := sqlx.SelectContext(ctx, dbReader, &rowsWithSort, pagedStmt, pagedArgs...); err != nil {
+	var page []queryResultRowPage
+	if err := sqlx.SelectContext(ctx, dbReader, &page, pagedStmt, pagedArgs...); err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "selecting query result rows")
 	}
-	results := make([]*fleet.ScheduledQueryResultRow, 0, len(rowsWithSort))
-	for i := range rowsWithSort {
-		results = append(results, &rowsWithSort[i].ScheduledQueryResultRow)
+	hasNextResults := opts.IncludeMetadata && len(page) > int(opts.PerPage) //nolint:gosec // dismiss G115
+	if hasNextResults {
+		page = page[:opts.PerPage]
+	}
+
+	ids := make([]uint, 0, len(page))
+	for _, p := range page {
+		ids = append(ids, p.ID)
+	}
+	rowsByID := make(map[uint]*fleet.ScheduledQueryResultRow, len(ids))
+	const idBatchSize = 10000
+	for batch := range slices.Chunk(ids, idBatchSize) {
+		stmt, args, err := sqlx.In(`
+			SELECT qr.id, qr.query_id, qr.host_id, qr.last_fetched, qr.data,
+				h.hostname, h.computer_name, h.hardware_model, h.hardware_serial
+			FROM query_results qr
+			LEFT JOIN hosts h ON (qr.host_id=h.id)
+			WHERE qr.id IN (?)
+		`, batch)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "building query result rows data statement")
+		}
+		var rows []queryResultRowWithID
+		if err := sqlx.SelectContext(ctx, dbReader, &rows, dbReader.Rebind(stmt), args...); err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "selecting query result rows data")
+		}
+		for i := range rows {
+			rowsByID[rows[i].ID] = &rows[i].ScheduledQueryResultRow
+		}
+	}
+	results := make([]*fleet.ScheduledQueryResultRow, 0, len(ids))
+	for _, id := range ids {
+		// A row can be replaced by a host check-in between the two queries.
+		if row, ok := rowsByID[id]; ok {
+			results = append(results, row)
+		}
 	}
 
 	var total int
@@ -185,10 +314,7 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 		metadata = &fleet.PaginationMetadata{
 			HasPreviousResults: opts.Page > 0,
 			TotalResults:       uint(total), //nolint:gosec // dismiss G115
-		}
-		if len(results) > int(opts.PerPage) { //nolint:gosec // dismiss G115
-			metadata.HasNextResults = true
-			results = results[:len(results)-1]
+			HasNextResults:     hasNextResults,
 		}
 	}
 
@@ -323,24 +449,12 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 		queryCutoffs = append(queryCutoffs, batchCutoffs...)
 	}
 
-	// Delete excess rows from each query, in batches.
-	if len(queryCutoffs) > 0 {
-		for _, c := range queryCutoffs {
-			deleteStmt := `
-                DELETE FROM query_results
-                WHERE query_id = ? AND id < ? AND has_data = 1
-                LIMIT ?
-            `
-			for {
-				result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, c.QueryID, c.CutoffID, batchSize)
-				if err != nil {
-					return nil, ctxerr.Wrapf(ctx, err, "cleaning up query %d", c.QueryID)
-				}
-				rowsAffected, _ := result.RowsAffected()
-				if rowsAffected == 0 {
-					break
-				}
-			}
+	// Delete excess rows from each query, in batches. IDs are selected first and deleted by
+	// primary key: a DELETE filtered by query_id and id scans (and locks) the query's whole
+	// secondary index range, stalling every host writing results for that query.
+	for _, c := range queryCutoffs {
+		if err := ds.deleteQueryResultsBeforeID(ctx, c.QueryID, c.CutoffID, true, batchSize); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "cleaning up query %d", c.QueryID)
 		}
 	}
 
@@ -550,17 +664,19 @@ func (ds *Datastore) ListHostReports(
 		QueryID uint             `db:"query_id"`
 		Data    *json.RawMessage `db:"data"`
 	}
+	// Rank on IDs only and join data afterwards; sorting rows that carry data
+	// can exceed MySQL's sort buffer.
 	firstDataStmt, firstDataArgs, err := sqlx.In(`
-		SELECT query_id, data
+		SELECT qr.query_id, qr.data
 		FROM (
 			SELECT
-				query_id,
-				data,
+				id,
 				ROW_NUMBER() OVER (PARTITION BY query_id ORDER BY last_fetched DESC) AS rn
 			FROM query_results
 			WHERE query_id IN (?) AND host_id = ? AND has_data = 1
 		) ranked
-		WHERE rn = 1
+		JOIN query_results qr ON qr.id = ranked.id
+		WHERE ranked.rn = 1
 	`, queryIDs, hostID)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "building first data query for host reports")
