@@ -188,6 +188,7 @@ async function generateOnce(testCase) {
     let generatorConfiguration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({
       profileType: testCase.profileType,
       naturalLanguageInstructions: testCase.instructions,
+      useApplePayloadTypeLookup: true,
     });
     let rawResult = await sails.helpers.ai.prompt.with({
       systemPrompt: generatorConfiguration.systemPrompt,

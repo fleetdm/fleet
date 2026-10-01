@@ -256,11 +256,14 @@ ${naturalLanguageInstructions}
           return undefined;
         });
 
-        // Filtered against the real names rather than trusted, as the Windows lookup is.
+        // Filtered against the real names rather than trusted, as the Windows lookup is.  The index line's
+        // "(title; platforms)" is cut off first, since the model sometimes copies it: "com.apple.MCX (Time
+        // Server; macOS)" matched nothing and was dropped, and with it the request's whole schema.
         if(picked && _.isArray(picked.payloadTypes)) {
           let realEntryNames = _.uniq(_.pluck(schemaFile.entries, 'name'));
           for (let candidate of picked.payloadTypes) {
-            let matched = _.find(realEntryNames, (entryName)=>{ return entryName.toLowerCase() === String(candidate).toLowerCase(); });
+            let candidateName = String(candidate).split(' (')[0].trim();
+            let matched = _.find(realEntryNames, (entryName)=>{ return entryName.toLowerCase() === candidateName.toLowerCase(); });
             if(matched && !_.contains(ALWAYS_PROVIDED_ENTRY_NAMES, matched) && !_.contains(applePayloadTypesProvided, matched)) {
               applePayloadTypesProvided.push(matched);
             }
@@ -269,10 +272,13 @@ ${naturalLanguageInstructions}
 
         // Restrictions is Apple's catch-all -- 210 keys under a title and description that match almost no
         // request -- so the lookup passes it over for payloads whose titles sound closer (Content Caching
-        // Service over allowContentCaching, Time Server over forceAutomaticDateAndTime).  Added only when
-        // the lookup found something, so a request it found nothing for still falls back to the full schema.
+        // Service over allowContentCaching, Time Server over forceAutomaticDateAndTime).  Software Update is
+        // missed the same way: asked to install security responses and system data files, the lookup names
+        // Restrictions for allowRapidSecurityResponseInstallation and leaves out ConfigDataInstall and
+        // CriticalUpdateInstall.  Added only when the lookup found something, so a request it found nothing
+        // for still falls back to the full schema.
         if(applePayloadTypesProvided.length > 0) {
-          applePayloadTypesProvided = _.union(applePayloadTypesProvided, ['com.apple.applicationaccess']);
+          applePayloadTypesProvided = _.union(applePayloadTypesProvided, ['com.apple.applicationaccess', 'com.apple.SoftwareUpdate']);
         }
 
 
@@ -455,6 +461,8 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           'Third-party Apple payloads: https://github.com/ProfileManifests/ProfileManifests',
         ],
         rules: [
+          'A configuration profile sets preferences and restrictions. It cannot start, stop, load, or unload a system service or daemon, run a command, change a file or its permissions, or change a local account\'s state. If the only way to satisfy the request is one of those, return `couldNotGenerateProfile` and name the mechanism that does it (a script, launchctl, systemsetup).',
+          'A key that stops users changing a setting (an allow*Modification key) leaves the setting in whatever state it is already in.  When the request is to turn that setting on or off and the lock is the only documented key for it, generate the lock and say in "deliveryNotes" that it does not change the current state, naming what does (a script, launchctl, systemsetup).  Hiding a whole System Settings pane with DisabledSystemSettings is not a lock on one setting, so never use it to stand in for one.',
           // Third-party payloads.
           'If this is an attempt to change a third-party application\'s settings, use that application\'s preference domain -- com.google.Chrome, us.zoom.config and its keys must come from the ProfileManifests reference.',
           // Document shape.
@@ -477,7 +485,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           // Identifiers.
           'Take every PayloadUUID from the list of UUIDs provided with the instructions, in the order given, and never invent one.  Two dicts sharing a UUID is a profile that installs unpredictably, so use each one exactly once.',
           'PayloadIdentifier is reverse-DNS.  Each payload dict\'s identifier is the root identifier plus a distinguishing suffix, and no two identifiers in the profile are the same.',
-          'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile does.',
+          'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile actually enforces, which is not always what was asked for: a profile that only sets allowBluetoothModification is "Bluetooth Settings Locked", not "Disable Bluetooth".  PayloadDescription follows the same rule.',
           // Structure.
           'Put every key for one payload domain in a single dict inside PayloadContent.  Do not emit several dicts with the same PayloadType.',
 
@@ -516,6 +524,7 @@ This is the complete set.  A declaration type or key that does not appear here d
           'Identifier is your own reverse-DNS identifier for this declaration instance, not a copy of Type.  Copying Type conflates Apple\'s namespace with yours and collides the moment a second declaration of the same type exists.',
           'Derive Identifier from the full declaration type rather than its last component, or passcode.settings and softwareupdate.settings collapse into one identifier and silently overwrite each other.',
           'Keep Identifier to 64 bytes or fewer.  Apple\'s DeclarationBase caps it, and a longer identifier is accepted by an MDM and then rejected by the device at delivery.',
+          'A declaration file holds exactly one declaration: one JSON object with Type, Identifier, and Payload.  Never return an array or several objects.  Settings that share a declaration type go in that one Payload.  When the request needs more than one declaration type, return the "couldNotGenerateProfile" shape, name each declaration type the request needs, and say that each one must be generated and uploaded as its own file.',
         ],
       },
 
