@@ -1595,8 +1595,12 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 
 	if teamId == nil || *teamId == 0 {
 		mdmT := reflect.TypeFor[fleet.MDM]()
-		result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
-		result[jsonFieldName(mdmT, "AndroidEnabledAndConfigured")] = cmd.AppConfig.MDM.AndroidEnabledAndConfigured
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
+			result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = true
+		}
+		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
+			result[jsonFieldName(mdmT, "AndroidEnabledAndConfigured")] = true
+		}
 	}
 
 	if len(macosSettings) > 0 {
