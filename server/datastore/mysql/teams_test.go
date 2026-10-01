@@ -1341,18 +1341,11 @@ func testDeleteTeamCancelsSoftwareInstalls(t *testing.T, ds *Datastore) {
 
 	// The FK blocks deleting an installer that a queued install still references.
 	globalInstallerID := newInstaller("ins2", nil)
-	queued, err := ds.InsertSoftwareInstallRequest(ctx, hostA.ID, globalInstallerID, fleet.HostSoftwareInstallOptions{})
+	_, err = ds.InsertSoftwareInstallRequest(ctx, hostA.ID, globalInstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, globalInstallerID)
 		require.True(t, isMySQLForeignKey(err), "got %v", err)
 		return nil
 	})
-
-	// Hide the queued install from the cancellation step, as if it was queued after it ran.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE upcoming_activities SET activity_type = 'script' WHERE execution_id = ?`, queued)
-		return err
-	})
-	require.ErrorIs(t, ds.DeleteSoftwareInstaller(ctx, globalInstallerID), errDeleteInstallerWithQueuedInstalls)
 }

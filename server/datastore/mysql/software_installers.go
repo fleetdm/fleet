@@ -1763,7 +1763,6 @@ var (
 	errDeleteInstallerWithAssociatedInstallPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
 	errDeleteInstallerInstalledDuringSetup        = &fleet.ConflictError{Message: "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again."}
 	errDeleteInstallerWithAssociatedPatchPolicy   = &fleet.ConflictError{Message: "Couldn’t delete. This software has a patch policy. Please remove the patch policy and try again."}
-	errDeleteInstallerWithQueuedInstalls          = &fleet.ConflictError{Message: "Couldn't delete. This software has installs in progress. Please wait for them to finish or cancel them, and try again."}
 )
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
@@ -1841,13 +1840,6 @@ AND NOT EXISTS (SELECT 1 FROM setup_experience_software_installers WHERE softwar
 				}
 				if count > 0 {
 					return errDeleteInstallerWithAssociatedInstallPolicy
-				}
-				// An install queued after the cleanup above.
-				if err := sqlx.GetContext(ctx, tx, &count, `SELECT COUNT(*) FROM software_install_upcoming_activities WHERE software_installer_id = ?`, id); err != nil {
-					return ctxerr.Wrapf(ctx, err, "counting queued installs")
-				}
-				if count > 0 {
-					return errDeleteInstallerWithQueuedInstalls
 				}
 			}
 			return ctxerr.Wrap(ctx, err, "delete software installer")

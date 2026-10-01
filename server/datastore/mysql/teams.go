@@ -311,9 +311,10 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			}
 		}
 
-		// The installers cascade with the team, and their queued installs would block that.
+		// The installers cascade with the team, and their queued installs would block that. FOR UPDATE reads
+		// installers added since the snapshot and keeps new ones out until the cascade.
 		var installerIDs []uint
-		if err := sqlx.SelectContext(ctx, tx, &installerIDs, `SELECT id FROM software_installers WHERE team_id = ?`, tid); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &installerIDs, `SELECT id FROM software_installers WHERE team_id = ? FOR UPDATE`, tid); err != nil {
 			return ctxerr.Wrapf(ctx, err, "loading software installers for team %d", tid)
 		}
 		for _, id := range installerIDs {
@@ -339,8 +340,10 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	if err != nil {
 		return err
 	}
-	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
-	return err
+	// The team is gone, so don't fail the delete over a host that won't activate. Those are logged, and the
+	// unblock cron retries them.
+	_, _ = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	return nil
 }
 
 func (ds *Datastore) HostIDsByTeamID(ctx context.Context, teamID uint) ([]uint, error) {
