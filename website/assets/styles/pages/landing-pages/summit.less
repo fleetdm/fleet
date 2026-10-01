@@ -125,15 +125,21 @@
       line-height: @text-lineheight;
       margin-top: 4px;
     }
+    [purpose='detail-local-time'] {
+      color: #FFF;
+      font-size: 14px;
+      line-height: @text-lineheight;
+      margin-top: 4px;
+    }
   }
 
   // Panelist companies
   [purpose='panelist-companies'] {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
-    gap: 16px 40px;
-    padding: 32px 0px;
+    gap: 20px;
+    padding: 40px 0px;
     border-top: 1px solid @core-fleet-black-10;
     border-bottom: 1px solid @core-fleet-black-10;
     margin-top: -40px;// The strip reads as part of the hero, so it sits closer than a normal section.
@@ -143,23 +149,29 @@
     font-size: 12px;
     line-height: @text-lineheight;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: @core-fleet-black-50;
-    white-space: nowrap;
+    letter-spacing: 0.08em;
+    color: @core-fleet-black-75;
   }
-  [purpose='company-names'] {
+  [purpose='company-logos'] {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
+    justify-content: center;
     align-items: center;
-    gap: 12px 32px;
+    gap: 20px 48px;
+  }
+  [purpose='company-logo'] {
+    height: 32px;
+    width: auto;
+    &.short {
+      height: 24px;
+    }
   }
   [purpose='company-name'] {
-    color: @core-fleet-black-75;
+    color: @core-fleet-black-50;
     font-size: 20px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    line-height: @heading-lineheight;
+    font-weight: 800;
+    line-height: 32px;// Matches the logo height so text and logos share a center line.
   }
 
   // Sections
@@ -195,35 +207,47 @@
   [purpose='sessions'] {
     display: flex;
     flex-direction: column;
-    border-top: 1px solid @core-fleet-black-10;
   }
   [purpose='session'] {
     display: grid;
-    grid-template-columns: 112px 1fr 280px;
+    grid-template-columns: 88px minmax(0, 1fr) 320px;
     gap: 40px;
-    padding: 40px 0px;
-    border-bottom: 1px solid @core-fleet-black-10;
+    padding: 48px 0px;
+    border-top: 1px solid @core-fleet-black-25;
+  }
+  [purpose='session-number'], [purpose='session-number-inline'] {
+    font-family: 'Source Code Pro';
+    font-weight: 500;
+    color: @core-fleet-black-50;
   }
   [purpose='session-number'] {
-    padding-top: 2px;
-    p {
-      font-family: 'Roboto Mono';
-      font-size: 14px;
-      line-height: @text-lineheight;
-      text-transform: uppercase;
-      color: @core-fleet-black-50;
-    }
+    font-size: 32px;
+    line-height: 100%;
   }
   [purpose='session-content'] {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    [purpose='session-topic-row'] {
+      display: flex;
+      flex-direction: row;
+      align-items: baseline;
+      gap: 12px;
+    }
+    [purpose='session-number-inline'] {
+      display: none;
+      font-size: 20px;
+      line-height: @text-lineheight;
+    }
     h4 {
-      font-size: 14px;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
       color: @brand;
     }
     h3 {
       .title-m();
+      line-height: 130%;
     }
     p {
       .body-l();
@@ -234,6 +258,14 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+  }
+  [purpose='speakers-label'] {
+    font-family: 'Roboto Mono';
+    font-size: 12px;
+    line-height: @text-lineheight;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: @core-fleet-black-75;
   }
   [purpose='speaker'] {
     display: flex;
@@ -250,16 +282,16 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: @core-fleet-black;
-      color: #FFF;
+      background-color: @core-fleet-black-10;
+      color: @core-fleet-black-75;
       font-size: 14px;
-      font-weight: 700;
+      font-weight: 800;
     }
     [purpose='speaker-name'] {
       color: @core-fleet-black;
       font-size: 16px;
-      font-weight: 700;
-      line-height: @text-lineheight;
+      font-weight: 600;
+      line-height: 140%;
     }
     a[purpose='speaker-name'] {
       text-decoration: underline;
@@ -268,18 +300,13 @@
     [purpose='speaker-title'] {
       color: @core-fleet-black-75;
       font-size: 14px;
-      line-height: @text-lineheight;
+      line-height: 140%;
     }
     &.to-be-announced {
       [purpose='speaker-initials'] {
         background-color: transparent;
-        border: 1px dashed @core-fleet-black-25;
-        color: @core-fleet-black-50;
+        border: 1px dashed @core-fleet-black-50;
         font-size: 20px;
-        font-weight: 400;
-      }
-      [purpose='speaker-name'] {
-        color: @core-fleet-black-50;
         font-weight: 400;
       }
     }
@@ -314,22 +341,29 @@
 
   // Bottom CTA
   [purpose='bottom-cta'] {
-    text-align: center;
-    max-width: 800px;
-    margin-left: auto;
-    margin-right: auto;
     display: flex;
     flex-direction: column;
-    gap: 32px;
-    padding-bottom: 64px;
-    h1 {
-      .page-heading();
-    }
+    align-items: center;
+    gap: 20px;
+    padding: 80px 40px;
+    margin-bottom: 64px;
+    background-color: @core-fleet-black;
+    border-radius: 16px;
+    text-align: center;
     h4 {
-      margin-bottom: 16px;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      color: @core-fleet-black-25;
+    }
+    h2 {
+      .section-heading();
+      color: #FFF;
     }
     [purpose='button-row'] {
       justify-content: center;
+      gap: 16px 32px;
+      padding-top: 12px;
     }
   }
 
@@ -343,8 +377,6 @@
       flex: 0 0 auto;
     }
     [purpose='panelist-companies'] {
-      flex-direction: column;
-      align-items: flex-start;
       margin-top: -48px;
     }
     [purpose='three-column-list'] {
@@ -353,10 +385,22 @@
     [purpose='session'] {
       grid-template-columns: 1fr;
       gap: 24px;
+      padding: 32px 0px;
+    }
+    [purpose='session-number'] {
+      display: none;
+    }
+    [purpose='session-content'] {
+      [purpose='session-number-inline'] {
+        display: block;
+      }
     }
     [purpose='session-speakers'] {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
+    }
+    [purpose='speakers-label'] {
+      grid-column: ~'1 / -1';// Escaped so LESS doesn't evaluate it as division.
     }
   }
 
@@ -369,10 +413,30 @@
         font-size: 20px;
       }
     }
+    [purpose='panelist-companies'] {
+      padding: 32px 0px;
+      gap: 16px;
+    }
+    [purpose='company-logos'] {
+      gap: 16px 28px;
+    }
+    [purpose='company-logo'] {
+      height: 24px;
+      &.short {
+        height: 18px;
+      }
+    }
+    [purpose='company-name'] {
+      line-height: 24px;
+    }
     [purpose='host-card'] {
       flex-direction: column;
       align-items: flex-start;
       gap: 24px;
+    }
+    [purpose='bottom-cta'] {
+      padding: 48px 24px;
+      gap: 16px;
     }
   }
 
@@ -384,8 +448,16 @@
       grid-template-columns: 1fr;
     }
     [purpose='bottom-cta'] {
+      align-items: stretch;
+      h4 {
+        font-size: 12px;
+      }
       [purpose='button-row'] {
         flex-direction: column;
+        gap: 16px;
+      }
+      [purpose='cta-button'] {
+        align-self: stretch;
       }
     }
   }

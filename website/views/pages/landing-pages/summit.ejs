@@ -26,7 +26,7 @@
             <p purpose="detail-label">When</p>
             <p purpose="detail-value">Tuesday, November 10, 2026</p>
             <p purpose="detail-subtext">11 AM ET &bull; 8 AM PT &bull; 4 PM GMT</p>
-            <p purpose="detail-subtext" v-if="localStartTime">{{localStartTime}} your time</p>
+            <p purpose="detail-local-time" v-if="localStartTime">Your time: {{localStartTime}}</p>
           </div>
           <div purpose="event-detail">
             <p purpose="detail-label">Where</p>
@@ -47,9 +47,13 @@
 
       <div purpose="panelist-companies">
         <p purpose="panelist-companies-label">Panelists from</p>
-        <div purpose="company-names">
+        <div purpose="company-logos">
           <% for (let company of panelistCompanies) { %>
-          <span purpose="company-name"><%= company %></span>
+          <% if (company.logoSrc) { %>
+          <img purpose="company-logo" class="<%= company.isShortLogo ? 'short' : '' %>" alt="<%= company.name %>" src="<%= company.logoSrc %>">
+          <% } else { %>
+          <span purpose="company-name"><%= company.name %></span>
+          <% } %>
           <% } %>
         </div>
       </div>
@@ -81,15 +85,17 @@
         <div purpose="sessions">
           <% for (let [index, session] of sessions.entries()) { %>
           <div purpose="session">
-            <div purpose="session-number">
-              <p>Session <%= String(index + 1).padStart(2, '0') %></p>
-            </div>
+            <p purpose="session-number"><%= String(index + 1).padStart(2, '0') %></p>
             <div purpose="session-content">
-              <h4 purpose="session-topic"><%= session.topic %></h4>
+              <div purpose="session-topic-row">
+                <p purpose="session-number-inline" aria-hidden="true"><%= String(index + 1).padStart(2, '0') %></p>
+                <h4 purpose="session-topic"><%= session.topic %></h4>
+              </div>
               <h3><%= session.title %></h3>
               <p><%= session.description %></p>
             </div>
             <div purpose="session-speakers">
+              <p purpose="speakers-label">Panelists</p>
               <% for (let speaker of session.speakers) { %>
               <div purpose="speaker">
                 <% if (speaker.imageSrc) { %>
@@ -110,9 +116,7 @@
               <% if (session.moreSpeakersToBeAnnounced) { %>
               <div purpose="speaker" class="to-be-announced">
                 <div purpose="speaker-initials" aria-hidden="true">+</div>
-                <div purpose="speaker-name-and-title">
-                  <p purpose="speaker-name">More speakers coming soon</p>
-                </div>
+                <p purpose="speaker-title">More speakers coming soon</p>
               </div>
               <% } %>
             </div>
@@ -136,17 +140,15 @@
     <div purpose="page-container">
       <div purpose="page-content">
         <div purpose="bottom-cta">
-          <div>
-            <h4>Tuesday, November 10 &bull; 11 AM ET</h4>
-            <h1>Join us on LinkedIn Live</h1>
-          </div>
+          <h4>Tuesday, November 10 &bull; 11 AM ET</h4>
+          <h2>Join us on LinkedIn Live</h2>
           <div purpose="button-row">
             <% if (registrationUrl) { %>
             <a purpose="cta-button" class="btn btn-primary" href="<%= registrationUrl %>" target="_blank">Register on LinkedIn</a>
             <% } else { %>
             <a purpose="cta-button" class="btn btn-primary" href="<%= googleCalendarUrl %>" target="_blank">Add to Google Calendar</a>
             <% } %>
-            <animated-arrow-button href="#sessions">See the sessions</animated-arrow-button>
+            <animated-arrow-button arrow-color="white" text-color="white" href="#sessions">See the sessions</animated-arrow-button>
           </div>
         </div>
       </div>

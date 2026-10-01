@@ -71,7 +71,19 @@ module.exports = {
       },
     ];
 
-    let panelistCompanies = ['Thumbtack', 'Treeline', 'Sonos', 'SandboxAQ', 'Red Hat', 'Easygo', 'Proton', 'Pinterest', 'Schrödinger', 'Block'];
+    // Companies without a `logoSrc` show their name as text. Logos must be single-color #8B8FA2 to match the strip.
+    let panelistCompanies = [
+      { name: 'Thumbtack', logoSrc: '/images/logos/logo-thumbtack-197x40@2x.png' },
+      { name: 'Treeline', logoSrc: '/images/logos/logo-treeline-128x32@2x.png' },
+      { name: 'Sonos' },
+      { name: 'SandboxAQ', logoSrc: '/images/logos/logo-sandboxaq-132x24@2x.png', isShortLogo: true },
+      { name: 'Red Hat' },
+      { name: 'Easygo', logoSrc: '/images/logos/logo-easygo-107x32@2x.png' },
+      { name: 'Proton', logoSrc: '/images/logos/logo-proton-95x32@2x.png' },
+      { name: 'Pinterest' },
+      { name: 'Schrödinger', logoSrc: '/images/logos/logo-schodinger-128x32@2x.png' },
+      { name: 'Block' },
+    ];
 
     let googleCalendarUrl = 'https://calendar.google.com/calendar/render?' + new URLSearchParams({
       action: 'TEMPLATE',

@@ -10,11 +10,11 @@ parasails.registerPage('summit-page', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    // Only show the viewer's local time when it isn't already one of the listed time zones.
-    if (!['America/New_York', 'America/Los_Angeles', 'Europe/London'].includes(timeZone)) {
-      this.localStartTime = new Date(this.startsAt).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
-    }
+    let startsAt = new Date(this.startsAt);
+    // The weekday matters for viewers far enough east that the summit lands on Wednesday.
+    let weekday = startsAt.toLocaleString(undefined, { weekday: 'short' });
+    let time = startsAt.toLocaleString(undefined, { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+    this.localStartTime = weekday + ', ' + time;
   },
   mounted: async function() {
     //…
