@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -897,6 +898,14 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		require.Contains(t, raw, "<string>first</string>")
 		require.NotContains(t, raw, "<string>second</string>")
 
+		// read the title, the install should be counted under the first version only
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+			"fleet_id", fmt.Sprint(team.ID))
+		require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 2)
+		require.NotZero(t, titleResp.SoftwareTitle.AppStoreApps[0].Status.Installed)
+		require.Equal(t, &fleet.VPPAppStatusSummary{}, titleResp.SoftwareTitle.AppStoreApps[1].Status)
+
 		// delete the second version so the title has one version again
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
 			"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addResp.VersionID))
@@ -1134,10 +1143,15 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.Equal(t, "Renamed", otherVersions[0].VersionName)
 	require.True(t, otherVersions[0].SelfService)
 
-	// set a display name, then delete the second version, the first version should still show the display name
+	// set a display name and a custom icon, then delete the second version, the first version should still show both
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addDefaultResp.VersionID, DisplayName: new("Renamed app")},
 		http.StatusOK, &updateAppStoreAppResponse{})
+	iconBytes, err := os.ReadFile("testdata/icons/valid-icon.png")
+	require.NoError(t, err)
+	iconBody, iconHeaders := generateMultipartRequest(t, "icon", "icon.png", iconBytes, s.token, nil)
+	s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", titleID, team.ID),
+		iconBody.Bytes(), http.StatusOK, iconHeaders)
 
 	// delete the title with the version id of another title, the version should not be found
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNotFound,
@@ -1153,6 +1167,8 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 1)
 	require.Equal(t, addDefaultResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[0].ID)
 	require.Equal(t, "Renamed app", titleResp.SoftwareTitle.AppStoreApps[0].DisplayName)
+	_, err = s.ds.GetSoftwareTitleIcon(ctx, team.ID, titleID)
+	require.NoError(t, err)
 
 	// edit the title without a version id now that it has one version, the edit should apply to that version
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
@@ -1179,7 +1195,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 		"fleet_id", "0")
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusNotFound, "fleet_id", "0")
 
-	// delete the last version in the fleet, the display name should be deleted with it
+	// delete the last version in the fleet, the display name and icon should be deleted with it
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
 		"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addDefaultResp.VersionID))
 	_, err = s.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
@@ -1190,4 +1206,6 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 			`SELECT COUNT(*) FROM software_title_display_names WHERE team_id = ? AND software_title_id = ?`, team.ID, titleID)
 	})
 	require.Zero(t, displayNameCount)
+	_, err = s.ds.GetSoftwareTitleIcon(ctx, team.ID, titleID)
+	require.True(t, fleet.IsNotFound(err))
 }

@@ -383,6 +383,16 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// list API endpoints requires premium license
 	var listAPIEndpointsResp listAPIEndpointsResponse
 	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusPaymentRequired, &listAPIEndpointsResp)
+
+	// add, edit, and delete an App Store app version, each requires premium license
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{AppStoreID: "123", Platform: fleet.IOSPlatform, Name: "Test"},
+		http.StatusPaymentRequired, &addAppStoreAppResponse{})
+	s.DoJSON("PATCH", "/api/latest/fleet/software/titles/123/app_store_app",
+		&updateAppStoreAppRequest{VersionID: new(uint(1)), Name: new("Test")},
+		http.StatusPaymentRequired, &updateAppStoreAppResponse{})
+	s.Do("DELETE", "/api/latest/fleet/software/titles/123/available_for_install", nil, http.StatusPaymentRequired,
+		"fleet_id", "0", "version_id", "1")
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
