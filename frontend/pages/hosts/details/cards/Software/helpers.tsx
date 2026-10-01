@@ -188,7 +188,7 @@ export const compareVersions = (v1: string, v2: string): number => {
 
 // INSTALLER UTILITIES
 
-const getInstallerVersion = (software: IHostSoftware) => {
+export const getInstallerVersion = (software: IHostSoftware) => {
   if (software.software_package && software.software_package.version) {
     return software.software_package.version;
   }
@@ -463,7 +463,7 @@ const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
   "failed_install", // Failed
   "failed_script", // Failed to run (for script packages)
   "failed_uninstall", // Failed uninstall
-  "failed_install_update_available", // (Shows "Update available") Failed install with update available
+  "failed_install_update_available", // (Shows "Failed") Failed install with update available
   "failed_uninstall_update_available", // (Shows "Update available")  Failed uninstall with update available
   "skipped_install", // Patch skipped (deferred update)
   "update_available", // // Update available

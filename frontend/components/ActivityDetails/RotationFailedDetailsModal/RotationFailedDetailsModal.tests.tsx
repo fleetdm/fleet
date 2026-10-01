@@ -86,4 +86,26 @@ describe("RotationFailedDetailsModal", () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it("describes a failed disk encryption key rotation with its relative time", () => {
+    const createdAt = new Date(
+      Date.now() - 3 * 24 * 60 * 60 * 1000
+    ).toISOString();
+    renderWithSetup(
+      <RotationFailedDetailsModal
+        detail="MDMErrorDomain (12): The password is incorrect."
+        hostDisplayName="Test Mac"
+        subject="disk encryption key"
+        createdAt={createdAt}
+        onCancel={jest.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText(/failed to rotate the disk encryption key for/i)
+    ).toBeVisible();
+    expect(screen.getByText("Test Mac")).toBeVisible();
+    expect(screen.getByText(/\(3 days ago\)\./)).toBeVisible();
+    expect(screen.getByText(/Ask the end user to log out/)).toBeVisible();
+  });
 });

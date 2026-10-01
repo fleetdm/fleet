@@ -11417,6 +11417,59 @@ func TestSendAPNSPing(t *testing.T) {
 	})
 }
 
+func TestRotateFileVaultKeyResultIgnoredCases(t *testing.T) {
+	const hostUUID = "host-uuid"
+	host := &fleet.Host{ID: 1, UUID: hostUUID, Platform: "darwin"}
+
+	setup := func(lookup func(ctx context.Context, cmdUUID string) (*fleet.Host, error)) (*mock.Store, *MDMAppleCheckinAndCommandService) {
+		ds := new(mock.Store)
+		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
+			return fleet.RotateFileVaultKeyCmdName, nil
+		}
+		ds.GetHostByDiskEncryptionKeyRotationCommandFunc = lookup
+		svc := &MDMAppleCheckinAndCommandService{
+			ds:     ds,
+			logger: slog.New(slog.DiscardHandler),
+			newActivityFn: func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+				t.Fatalf("unexpected activity %s", activity.ActivityName())
+				return nil
+			},
+		}
+		return ds, svc
+	}
+	report := func(t *testing.T, svc *MDMAppleCheckinAndCommandService, status string) {
+		_, err := svc.CommandAndReportResults(
+			&mdm.Request{Context: t.Context(), EnrollID: &mdm.EnrollID{ID: hostUUID}},
+			&mdm.CommandResults{UDID: hostUUID, CommandUUID: "cmd-1", Status: status},
+		)
+		require.NoError(t, err)
+	}
+
+	t.Run("command not referenced by a key", func(t *testing.T) {
+		ds, svc := setup(func(ctx context.Context, cmdUUID string) (*fleet.Host, error) {
+			return nil, newNotFoundError()
+		})
+		report(t, svc, fleet.MDMAppleStatusError)
+		require.False(t, ds.FailHostDiskEncryptionKeyRotationFuncInvoked)
+	})
+
+	t.Run("command belongs to another host", func(t *testing.T) {
+		ds, svc := setup(func(ctx context.Context, cmdUUID string) (*fleet.Host, error) {
+			return &fleet.Host{ID: 2, UUID: "other-host"}, nil
+		})
+		report(t, svc, fleet.MDMAppleStatusError)
+		require.False(t, ds.FailHostDiskEncryptionKeyRotationFuncInvoked)
+	})
+
+	t.Run("NotNow leaves the rotation pending", func(t *testing.T) {
+		ds, svc := setup(func(ctx context.Context, cmdUUID string) (*fleet.Host, error) { return host, nil })
+		report(t, svc, fleet.MDMAppleStatusNotNow)
+		require.False(t, ds.FailHostDiskEncryptionKeyRotationFuncInvoked)
+		require.False(t, ds.ClearHostDiskEncryptionKeyRotationCommandFuncInvoked)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+	})
+}
+
 func TestRefetchCleanupRetentionOrDefault(t *testing.T) {
 	require.Equal(t, 30*24*time.Hour, refetchCleanupRetentionOrDefault(0), "disabled short tier keeps the previous 30-day reach")
 	require.Equal(t, 6*time.Hour, refetchCleanupRetentionOrDefault(6*time.Hour))
