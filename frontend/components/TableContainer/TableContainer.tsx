@@ -633,7 +633,7 @@ const TableContainer = <T,>({
                     clientFilterCount === 0 &&
                     !isLoading
                       ? () => (
-                          <h3>No items match the current search criteria.</h3>
+                          <h3>No items match the current search criteria</h3>
                         )
                       : undefined
                   }

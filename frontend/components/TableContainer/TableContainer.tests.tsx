@@ -191,7 +191,7 @@ describe("TableContainer - multi-column filter no-match overlay", () => {
     );
 
     expect(
-      await screen.findByText("No items match the current search criteria.")
+      await screen.findByText("No items match the current search criteria")
     ).toBeInTheDocument();
     // The real header must still render so the per-column filter inputs stay
     // reachable — that's the whole reason isMultiColumnFilter exists.
@@ -218,7 +218,7 @@ describe("TableContainer - multi-column filter no-match overlay", () => {
     // Zero data with no filter applied is a pre-data state, not a no-match
     // state. The overlay must stay hidden so it doesn't flash on first load.
     expect(
-      screen.queryByText("No items match the current search criteria.")
+      screen.queryByText("No items match the current search criteria")
     ).not.toBeInTheDocument();
   });
 
@@ -236,7 +236,7 @@ describe("TableContainer - multi-column filter no-match overlay", () => {
     );
 
     expect(
-      screen.queryByText("No items match the current search criteria.")
+      screen.queryByText("No items match the current search criteria")
     ).not.toBeInTheDocument();
     expect(screen.getByText("No items found")).toBeInTheDocument();
   });
