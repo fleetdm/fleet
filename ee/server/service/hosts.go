@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -760,6 +759,10 @@ func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) er
 	if !connected {
 		return &fleet.BadRequestError{Message: "Host must be enrolled in Fleet MDM to rotate the disk encryption key."}
 	}
+	// A personal enrollment profile doesn't grant the access right the command needs.
+	if host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) {
+		return &fleet.BadRequestError{Message: "Couldn't rotate disk encryption key. This command isn't available for personal hosts."}
+	}
 
 	// Escrow is the only required setting: FileVault may be turned on outside
 	// Fleet, and the escrow payload is what makes the rotated key reach Fleet.
@@ -805,19 +808,11 @@ func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) er
 		}
 	}
 
-	// The current key is the command's unlock credential. decryptable reflects
-	// the verification cron's last run, and the CA assets may have changed since,
-	// so decrypt now rather than enqueue a command that fails at delivery.
-	notDecryptableErr := fleet.NewUserMessageError(errors.New("Couldn't rotate disk encryption key. The current key is not decryptable."), http.StatusUnprocessableEntity)
+	// The current key is the command's unlock credential. If it no longer
+	// decrypts despite the flag (the CA key changed), delivery fails and marks it
+	// not decryptable, which prompts the end user to escrow a new one.
 	if key.Decryptable == nil || !*key.Decryptable {
-		return notDecryptableErr
-	}
-	certs, caKey, err := assets.CACertsAndKeyForDecryption(ctx, svc.ds)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "load CA assets to decrypt disk encryption key")
-	}
-	if plain, err := mdm.DecryptBase64CMSWithCerts(key.Base64Encrypted, caKey, certs); err != nil || len(plain) == 0 {
-		return notDecryptableErr
+		return fleet.NewUserMessageError(errors.New("Couldn't rotate disk encryption key. The current key is not decryptable."), http.StatusUnprocessableEntity)
 	}
 	caCert, err := assets.X509Cert(ctx, svc.ds, fleet.MDMAssetCACert)
 	if err != nil {

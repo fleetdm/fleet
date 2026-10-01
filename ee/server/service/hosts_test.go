@@ -377,6 +377,16 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 		var bre *fleet.BadRequestError
 		require.ErrorAs(t, e.svc.RotateDiskEncryptionKey(adminCtx(), 1), &bre)
 		require.Contains(t, bre.Message, "enrolled in Fleet MDM")
+
+		for _, status := range []string{fleet.MDMEnrollmentStatusPersonal, fleet.MDMEnrollmentStatusManualPersonal} {
+			e := setup(t)
+			e.host.MDM.EnrollmentStatus = new(status)
+			var bre *fleet.BadRequestError
+			require.ErrorAs(t, e.svc.RotateDiskEncryptionKey(adminCtx(), 1), &bre, status)
+			require.Contains(t, bre.Message, "isn't available for personal hosts")
+			require.Empty(t, e.commander.calls)
+			require.Nil(t, e.marker)
+		}
 	})
 
 	t.Run("MDM not configured", func(t *testing.T) {
@@ -396,7 +406,6 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 			{"empty key", func(e *env) { e.key.Base64Encrypted = "" }, "does not have a disk encryption key"},
 			{"decryptable unknown", func(e *env) { e.key.Decryptable = nil }, "not decryptable"},
 			{"decryptable false", func(e *env) { e.key.Decryptable = new(false) }, "not decryptable"},
-			{"cms fails", func(e *env) { e.key.Base64Encrypted = base64.StdEncoding.EncodeToString([]byte("junk")) }, "not decryptable"},
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
