@@ -164,9 +164,11 @@ If an app does not pass test criteria:
 - [Freeze the app](#freezing-an-existing-fleet-maintained-app)
 - File a bug for tracking
 
-## Editing an app's pre-install query (macOS)
+## Editing an app's pre-install query
 
-When patch when closed is on, Fleet runs the app's pre-install query (`open` in the app's output manifest) on the host before installing an update. The query returns a result only when the app is closed, so Fleet doesn't patch an app while it's open. Fleet generates this query for every macOS app. If it's wrong for an app (e.g. [#53919](https://github.com/fleetdm/fleet/issues/53919)), override it:
+When patch when closed is on, Fleet runs the app's pre-install query (`open` in the app's output manifest) on the host before installing an update. The query returns a result only when the app is closed, so Fleet doesn't patch an app while it's open. Fleet generates this query for every app. If it's wrong for an app (e.g. [#53919](https://github.com/fleetdm/fleet/issues/53919)), override it.
+
+### macOS
 
 1. In `ingesters/homebrew/ingester.go`, find the `switch input.Token` block right after `out.Queries.Open = patch_policy.GenerateOpenQuery(...)`.
 2. Add a `case` for the app's Homebrew `token` (from its input file in `inputs/homebrew/`) that sets `out.Queries.Open`. If an existing case already uses the query you need, add the token to that case instead. For example:
@@ -181,17 +183,29 @@ When patch when closed is on, Fleet runs the app's pre-install query (`open` in 
    ```
 
 3. Add a test case for the new query in `ingesters/homebrew/ingester_test.go`.
-4. Regenerate the app's output data from the root of the Fleet repo and confirm `open` changed in `outputs/<app>/darwin.json`:
+
+### Windows
+
+By default, Fleet treats a Windows app as open when a process named `<app name>.exe` is running.
+
+1. In `pkg/patch_policy/patch_policy.go`, find the `windowsOpenQueryOverrides` map.
+2. Add an entry keyed by the app's `name` (from its input file in `inputs/winget/`). The value is the condition on the lowercase process name. For example:
+
+   ```go
+   "<App name>": "IN ('<process>.exe','<other-process>.exe')",
+   ```
+
+### Publish the change
+
+1. Regenerate the app's output data from the root of the Fleet repo and confirm `open` changed in `outputs/<app>/darwin.json` or `outputs/<app>/windows.json`:
 
    ```bash
    go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
    ```
 
-5. Open a PR with the change and the regenerated output.
+2. Open a PR with the Go change and the regenerated output. Go changes need approval from [@fleetdm/go](https://github.com/orgs/fleetdm/teams/go).
 
 After the PR merges, no Fleet release is needed. Fleet servers pick up the new query the next time they auto-update Fleet-maintained apps, even when the app's version didn't change. Apps pinned to a specific version keep their current query.
-
-Windows apps don't support overrides yet. The Windows ingester generates the pre-install query from the app's name for every app.
 
 ## Freezing an existing Fleet-maintained app
 
