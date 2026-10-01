@@ -45,7 +45,7 @@ go.mod @fleetdm/go
 /orbit/ @sharon-fdm @lucasmrod
 
 # Orbit paths owned by other teams (medium risk: Sharon + Lucas + team TL/EM)
-/orbit/pkg/bitlocker/          @sharon-fdm @lucasmrod @juan-fdz-hawa
+/orbit/pkg/bitlocker/          @sharon-fdm @lucasmrod @juan-fdz-hawa @getvictor
 /orbit/pkg/luks/               @sharon-fdm @lucasmrod @ksykulev @georgekarrv
 /orbit/pkg/profiles/           @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
 /orbit/pkg/setup_experience/   @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
