@@ -152,9 +152,9 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "invalid - misspelled ApplicationPolicy field",
-			config:      json.RawMessage(`{"autoUpdatemode": "AUTO_UPDATE_HIGH_PRIORITY"}`),
+			config:      json.RawMessage(`{"autoUpdteMode": "AUTO_UPDATE_HIGH_PRIORITY"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. Unknown top-level key "autoUpdatemode".`,
+			errorMsg:    `Couldn't update configuration. Unknown top-level key "autoUpdteMode".`,
 		},
 		// Denied keys
 		{
@@ -199,7 +199,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "valid - several ApplicationPolicy fields",
-			config:      json.RawMessage(`{"managedConfiguration": {"key": "value"}, "minimumVersionCode": 42, "disabled": false, "installConstraint": [{"chargingConstraint": "CHARGING_NOT_REQUIRED"}], "delegatedScopes": ["CERT_INSTALL"]}`),
+			config:      json.RawMessage(`{"managedConfiguration": {"key": "value"}, "minimumVersionCode": 42, "disabled": false, "installConstraint": [{"chargingConstraint": "CHARGING_NOT_REQUIRED"}], "delegatedScopes": ["MANAGED_CONFIGURATIONS"]}`),
 			expectError: false,
 		},
 		{
@@ -213,6 +213,34 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			config:      json.RawMessage(`{"permissionGrants": [{"permission": 5}]}`),
 			expectError: true,
 			errorMsg:    `Couldn't update configuration. "permissionGrants.0.permission" format is wrong.`,
+		},
+		{
+			name:        "invalid - capitalized denied key",
+			config:      json.RawMessage(`{"PackageName": "com.example.other"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "packageName" and "installType" are not supported as top-level keys.`,
+		},
+		{
+			name:        "valid - capitalized ApplicationPolicy field",
+			config:      json.RawMessage(`{"ManagedConfiguration": {"key": "value"}}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - Go-only ApplicationPolicy field",
+			config:      json.RawMessage(`{"ForceSendFields": ["Disabled"]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. Unknown top-level key "ForceSendFields".`,
+		},
+		{
+			name:        "invalid - misspelled nested key",
+			config:      json.RawMessage(`{"permissionGrants": [{"permision": "android.permission.CAMERA", "policy": "GRANT"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. Unknown key "permision".`,
+		},
+		{
+			name:        "valid - arbitrary keys nested in managedConfiguration",
+			config:      json.RawMessage(`{"managedConfiguration": {"anything": {"goes": [1, {"here": true}]}}}`),
+			expectError: false,
 		},
 		{
 			name:        "valid - Fleet variable in a non-managedConfiguration field",

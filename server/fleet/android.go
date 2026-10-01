@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -347,24 +349,29 @@ var validAndroidCredentialProviderPolicies = map[string]struct{}{
 
 // androidAppConfigDeniedKeys are ApplicationPolicy fields Fleet sets itself: packageName is the
 // software title's identity and installType is how Fleet drives self-service vs. setup experience.
+// Keys are lowercased because encoding/json, which the worker uses to read stored configs, matches
+// field names case-insensitively.
 var androidAppConfigDeniedKeys = map[string]struct{}{
-	"packageName": {},
-	"installType": {},
+	"packagename": {},
+	"installtype": {},
 }
 
-// androidApplicationPolicyFields returns the JSON names of androidmanagement.ApplicationPolicy's
-// fields. Allowed keys follow the vendored google.golang.org/api version, so a field Google adds
-// later is rejected until that dependency is bumped.
+// androidApplicationPolicyFields returns the lowercased JSON names of
+// androidmanagement.ApplicationPolicy's fields. Allowed keys follow the vendored
+// google.golang.org/api version, so a field Google adds later is rejected until that dependency is
+// bumped.
 var androidApplicationPolicyFields = sync.OnceValue(func() map[string]struct{} {
 	fields := make(map[string]struct{})
 	for field := range reflect.TypeFor[androidmanagement.ApplicationPolicy]().Fields() {
 		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if name != "" && name != "-" {
-			fields[name] = struct{}{}
+			fields[strings.ToLower(name)] = struct{}{}
 		}
 	}
 	return fields
 })
+
+var unknownJSONFieldRegexp = regexp.MustCompile(`unknown field ("(?:[^"\\]|\\.)*")`)
 
 // ValidateAndroidAppConfiguration validates Android app configuration JSON.
 // Configuration must be a valid JSON object whose top-level keys are
@@ -386,7 +393,7 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 
 	keys := slices.Sorted(maps.Keys(topLevel))
 	for _, key := range keys {
-		if _, denied := androidAppConfigDeniedKeys[key]; denied {
+		if _, denied := androidAppConfigDeniedKeys[strings.ToLower(key)]; denied {
 			return &BadRequestError{
 				Message: `Couldn't update configuration. "packageName" and "installType" are not supported as top-level keys.`,
 			}
@@ -394,15 +401,21 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	}
 	allowedFields := androidApplicationPolicyFields()
 	for _, key := range keys {
-		if _, ok := allowedFields[key]; !ok {
+		if _, ok := allowedFields[strings.ToLower(key)]; !ok {
 			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. Unknown top-level key %q.", key)}
 		}
 	}
 
+	// managedConfiguration is a RawMessage, so the strict decode leaves app-defined keys alone.
 	var cfg androidmanagement.ApplicationPolicy
-	if err := jsondecode.Unmarshal(config, &cfg); err != nil {
+	if err := JSONStrictDecode(bytes.NewReader(config), &cfg); err != nil {
 		if fieldPath := jsondecode.FieldPath(err); jsondecode.IsTypeError(err) && fieldPath != "" {
 			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q format is wrong.", fieldPath)}
+		}
+		if m := unknownJSONFieldRegexp.FindStringSubmatch(err.Error()); m != nil {
+			if name, uerr := strconv.Unquote(m[1]); uerr == nil {
+				return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. Unknown key %q.", name)}
+			}
 		}
 		return &BadRequestError{
 			Message: "Couldn't update configuration. Invalid JSON.",
