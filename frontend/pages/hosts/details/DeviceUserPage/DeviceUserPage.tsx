@@ -1009,6 +1009,7 @@ const DeviceUserPage = ({
                     canManageSelfServiceProfiles={
                       isPremiumTier && host.platform === "darwin"
                     }
+                    isPremiumTier={isPremiumTier}
                     installRequest={installProfile}
                     uninstallRequest={uninstallProfile}
                     router={router}

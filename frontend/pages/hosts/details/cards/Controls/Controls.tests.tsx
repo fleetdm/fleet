@@ -587,4 +587,14 @@ describe("Controls card", () => {
       )
     ).toBeInTheDocument();
   });
+  it("hides the hidden profile toggle on fleet free", async () => {
+    renderControls({
+      isDeviceUser: true,
+      isPremiumTier: false,
+      controls: [control({ profile_uuid: "a", status: "verified" })],
+    });
+    expect(
+      screen.queryByRole("switch", { name: "Show hidden profiles" })
+    ).not.toBeInTheDocument();
+  });
 });
