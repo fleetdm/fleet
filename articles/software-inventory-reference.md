@@ -177,6 +177,48 @@ Fleet's agent includes an [ai_tools](https://github.com/fleetdm/fleet/blob/main/
 | macOS widgets | macOS, as part of their app | ✅ | ✅ | ✅ | ✅ | ✅ | Collected under Apps. Widgets are WidgetKit extensions that ship inside apps that already appear there. |
 | Shortcuts and Android ringtones | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | No MDM API exposes them. |
 
+## API filter values
+
+Use these values with the `source` and `extension_for` filters on the [List software](https://fleetdm.com/docs/rest-api/rest-api#list-software), [List software versions](https://fleetdm.com/docs/rest-api/rest-api#list-software-versions), [Get host's software](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-software), and [Get host's software by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-software-by-fleet-desktop-token) endpoints.
+
+| `source` | Software |
+| --- | --- |
+| `adobe_plugins` | Adobe plugins |
+| `android_apps` | Android apps |
+| `apps` | macOS apps |
+| `chocolatey_packages` | Chocolatey packages |
+| `chrome_extensions` | Chromium-based browser extensions |
+| `deb_packages` | Debian packages |
+| `firefox_addons` | Firefox add-ons |
+| `go_binaries` | Go binaries |
+| `homebrew_packages` | Homebrew packages |
+| `ie_extensions` | Internet Explorer extensions |
+| `ios_apps` | iOS apps |
+| `ipados_apps` | iPadOS apps |
+| `jetbrains_plugins` | JetBrains IDE plugins |
+| `npm_packages` | npm packages |
+| `pacman_packages` | pacman packages |
+| `pkg_packages` | macOS packages (`.pkg`) |
+| `portage_packages` | Portage packages |
+| `programs` | Windows apps |
+| `ps1_packages` | Script-only packages (Windows) |
+| `py_packages` | Script-only packages (macOS and Linux) |
+| `python_packages` | Python packages |
+| `rpm_packages` | RPM packages |
+| `safari_extensions` | Safari extensions |
+| `sh_packages` | Script-only packages (macOS and Linux) |
+| `tgz_packages` | tar packages |
+| `vscode_extensions` | VS Code-based IDE extensions |
+
+`extension_for` narrows a browser or IDE extension source to specific browsers or IDEs:
+
+| `source` | `extension_for` |
+| --- | --- |
+| `chrome_extensions` | `chrome`, `chromium`, `brave`, `edge`, `edge_beta`, `opera`, `yandex` |
+| `firefox_addons` | `firefox` |
+| `vscode_extensions` | `vscode`, `vscode_insiders`, `vscodium`, `vscodium_insiders`, `cursor`, `windsurf`, `trae` |
+| `jetbrains_plugins` | `CLion`, `DataGrip`, `GoLand`, `IntelliJIdea`, `IntelliJIdeaCommunityEdition`, `PhpStorm`, `PyCharm`, `PyCharmCommunityEdition`, `ReSharper`, `Rider`, `RubyMine`, `RustRover`, `WebStorm` |
+
 ## Data collected
 
 The tables above list what Fleet stores for each software type. Two things apply to every type:
