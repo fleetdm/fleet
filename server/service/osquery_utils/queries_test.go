@@ -3051,6 +3051,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
+	orbitNodeKey := "orbit-node-key"
 	host := &fleet.Host{ID: 1, UUID: "mdm-windows-hw-uuid"}
 
 	returnEnrollmentsUpdated := true
@@ -3132,6 +3133,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		expectError                                          string
 		mdmEnrollUserID                                      string
 		mdmEnrollNotInOOBE                                   bool
+		plainOsquery                                         bool
 		returnSCIMUser                                       bool
 		expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
 		expectUpdateMDMInstalledFromDEPFuncInvoked           bool
@@ -3183,6 +3185,18 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 			expectReplaceHostDeviceMappingFuncInvoked:            true,
 			expectDeleteUnusedSecretsFuncInvoked:                 true,
 		},
+		{
+			// Without fleetd, the secret is still needed by the fleetd install Fleet sends.
+			name: "device enrolled by fleetie@example.com runs plain osquery",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+			},
+			mdmEnrollUserID: "fleetie@example.com",
+			plainOsquery:    true,
+			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
+			expectReplaceHostDeviceMappingFuncInvoked:            true,
+			expectScimUserByUserNameOrEmailFuncInvoked:           true,
+		},
 	}
 
 	resetInvocationFlags := func() {
@@ -3206,6 +3220,10 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 				baseEnrolledDeviceToReturn.MDMEnrollUserID = "a1b2c3d4e5f6g7h8i9j0"
 			}
 			baseEnrolledDeviceToReturn.MDMNotInOOBE = tc.mdmEnrollNotInOOBE
+			host.OrbitNodeKey = &orbitNodeKey
+			if tc.plainOsquery {
+				host.OrbitNodeKey = nil
+			}
 
 			// If no updates were done no further actions should be taken. This generic case covers this behavior.
 			if tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked {

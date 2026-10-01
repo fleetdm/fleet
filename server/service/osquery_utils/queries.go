@@ -3509,7 +3509,10 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 	if len(rows) > 1 {
 		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
 	}
-	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, rows[0]["data"], true)
+	// Plain osquery reports the device ID too, so only an orbit node key proves fleetd is on the device.
+	// Covers edge case where plain osquery is enrolled in Fleet when end user enrolls in MDM.
+	fleetdOnDevice := host.OrbitNodeKey != nil && *host.OrbitNodeKey != ""
+	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, rows[0]["data"], fleetdOnDevice)
 	return err
 }
 
