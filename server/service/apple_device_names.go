@@ -201,7 +201,7 @@ func ReconcileHostDeviceNames(
 			}
 			logger.InfoContext(ctx, "host name template resolves past the device name limit, not sending command",
 				"host_uuid", host.HostUUID, "resolved_bytes", len(resolved))
-		case resolved == host.ComputerName:
+		case resolved == host.ComputerName && host.NameReportedSinceEnrollment:
 			// The device already carries the resolved name; no command needed.
 			// On a write error, log and move on rather than aborting the batch.
 			if err := ds.SetHostDeviceNameStatus(ctx, host.HostUUID, fleet.MDMDeliveryVerified, nil, resolved, ""); err != nil {

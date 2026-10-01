@@ -133,9 +133,11 @@ func (ds *Datastore) ListHostsPendingDeviceNameCommand(ctx context.Context, limi
 			h.hardware_serial,
 			h.platform,
 			h.computer_name,
+			COALESCE(h.detail_updated_at > nd.authenticate_at, 0) AS name_reported_since_enrollment,
 			h.team_id
 		FROM host_mdm_apple_device_names hmadn
 		JOIN hosts h ON h.uuid = hmadn.host_uuid
+		LEFT JOIN nano_devices nd ON nd.id = h.uuid
 		WHERE hmadn.status IS NULL
 		LIMIT ?`
 
