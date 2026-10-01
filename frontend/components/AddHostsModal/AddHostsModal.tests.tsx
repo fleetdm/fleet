@@ -5,7 +5,11 @@ import React from "react";
 import createMockConfig from "__mocks__/configMock";
 import { createCustomRenderer } from "test/test-utils";
 
-import AddHostsModal from "./AddHostsModal";
+import AddHostsModal, {
+  APPLE_AND_WINDOWS_AUTO_ENROLLING_HOSTS,
+  APPLE_AUTO_ENROLLING_HOSTS,
+  WINDOWS_AUTO_ENROLLING_HOSTS,
+} from "./AddHostsModal";
 
 const ENROLL_SECRET = "abcdefg12345678";
 
@@ -398,21 +402,16 @@ describe("AddHostsModal", () => {
   });
 
   describe("no enroll secret state with one-time enroll secrets on", () => {
-    const APPLE_HOSTS =
-      "Apple hosts that automatically enroll via Automated Device Enrollment (ADE)";
-    const WINDOWS_HOSTS =
-      "Windows hosts that automatically enroll via Microsoft Entra ID or Autopilot";
-
     it.each([
       {
         name: "Apple only",
         auth: { mdm_apple_one_time_enroll_secrets: true },
-        hosts: APPLE_HOSTS,
+        hosts: APPLE_AUTO_ENROLLING_HOSTS,
       },
       {
         name: "Windows only",
         auth: { mdm_windows_one_time_enroll_secrets: true },
-        hosts: WINDOWS_HOSTS,
+        hosts: WINDOWS_AUTO_ENROLLING_HOSTS,
       },
       {
         name: "Apple and Windows",
@@ -420,8 +419,7 @@ describe("AddHostsModal", () => {
           mdm_apple_one_time_enroll_secrets: true,
           mdm_windows_one_time_enroll_secrets: true,
         },
-        hosts:
-          "hosts that automatically enroll via Apple's Automated Device Enrollment (ADE), Microsoft Entra ID, or Autopilot",
+        hosts: APPLE_AND_WINDOWS_AUTO_ENROLLING_HOSTS,
       },
     ])("names the hosts that can still enroll ($name)", ({ auth, hosts }) => {
       const render = createCustomRenderer({

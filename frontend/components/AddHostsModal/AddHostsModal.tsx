@@ -11,6 +11,14 @@ import PlatformWrapper from "./PlatformWrapper/PlatformWrapper";
 
 const baseClass = "add-hosts-modal";
 
+// The hosts that can still enroll without an enroll secret, by which one-time enroll secrets are on.
+export const APPLE_AUTO_ENROLLING_HOSTS =
+  "Apple hosts that automatically enroll via Automated Device Enrollment (ADE)";
+export const WINDOWS_AUTO_ENROLLING_HOSTS =
+  "Windows hosts that automatically enroll via Microsoft Entra ID or Autopilot";
+export const APPLE_AND_WINDOWS_AUTO_ENROLLING_HOSTS =
+  "hosts that automatically enroll via Apple's Automated Device Enrollment (ADE), Microsoft Entra ID, or Autopilot";
+
 interface IAddHostsModal {
   currentTeamName?: string;
   enrollSecret?: string;
@@ -61,14 +69,11 @@ const AddHostsModal = ({
         ?.mdm_windows_one_time_enroll_secrets;
       let autoEnrollingHosts = "";
       if (appleOneTimeSecrets && windowsOneTimeSecrets) {
-        autoEnrollingHosts =
-          "hosts that automatically enroll via Apple's Automated Device Enrollment (ADE), Microsoft Entra ID, or Autopilot";
+        autoEnrollingHosts = APPLE_AND_WINDOWS_AUTO_ENROLLING_HOSTS;
       } else if (appleOneTimeSecrets) {
-        autoEnrollingHosts =
-          "Apple hosts that automatically enroll via Automated Device Enrollment (ADE)";
+        autoEnrollingHosts = APPLE_AUTO_ENROLLING_HOSTS;
       } else if (windowsOneTimeSecrets) {
-        autoEnrollingHosts =
-          "Windows hosts that automatically enroll via Microsoft Entra ID or Autopilot";
+        autoEnrollingHosts = WINDOWS_AUTO_ENROLLING_HOSTS;
       }
       return (
         <>
