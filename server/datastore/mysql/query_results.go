@@ -38,25 +38,38 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		}
 	}
 
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	// Not retried: failures here mostly come from lock contention, which retries would add to,
+	// and the host sends fresh results on the report's next run.
+	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		// Since we assume all rows have the same queryID, take it from the first row
 		queryID := rows[0].QueryID
 		hostID := rows[0].HostID
 
-		var existingDataRows int
-		countStmt := `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ? AND has_data = 1`
-		if err := sqlx.GetContext(ctx, tx, &existingDataRows, countStmt, queryID, hostID); err != nil {
-			return ctxerr.Wrap(ctx, err, "counting existing query results for host")
+		var existing []struct {
+			ID      uint `db:"id"`
+			HasData bool `db:"has_data"`
+		}
+		selectStmt := `SELECT id, has_data FROM query_results WHERE query_id = ? AND host_id = ?`
+		if err := sqlx.SelectContext(ctx, tx, &existing, selectStmt, queryID, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting existing query results for host")
+		}
+		existingDataRows := 0
+		existingIDs := make([]uint, 0, len(existing))
+		for _, e := range existing {
+			existingIDs = append(existingIDs, e.ID)
+			if e.HasData {
+				existingDataRows++
+			}
 		}
 		if currentCount-existingDataRows+newDataRows > maxQueryReportRows {
 			res.Rejected = true
 			return nil
 		}
 
-		// Delete rows based on the specific queryID and hostID
-		deleteStmt := `DELETE FROM query_results WHERE host_id = ? AND query_id = ?`
-		if _, err := tx.ExecContext(ctx, deleteStmt, hostID, queryID); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting query results for host")
+		// Delete by primary key: a DELETE by (query_id, host_id) takes next-key locks on the
+		// secondary index, which block other hosts inserting results for the same query.
+		if err := deleteQueryResultsByID(ctx, tx, existingIDs); err != nil {
+			return err
 		}
 
 		// Insert the new rows
@@ -82,6 +95,75 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 	})
 
 	return res, ctxerr.Wrap(ctx, err, "overwriting query result rows")
+}
+
+// deleteQueryResultsByID deletes query_results rows by primary key.
+func deleteQueryResultsByID(ctx context.Context, db sqlx.ExecerContext, ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(`DELETE FROM query_results WHERE id IN (?)`, ids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building delete query results by id")
+	}
+	if _, err := db.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting query results by id")
+	}
+	return nil
+}
+
+// deleteQueryResultsBatchSize is the number of query_results rows deleted per statement when
+// clearing a query's results.
+var deleteQueryResultsBatchSize = 500
+
+// Both page through a query's rows in index order with a host_id cursor, so each page is a
+// range read that never rescans rows already handled.
+const (
+	selectQueryResultsPageStmt = `
+		SELECT id, host_id FROM query_results FORCE INDEX (idx_query_id_host_id_last_fetched)
+		WHERE query_id = ? AND host_id >= ? AND id < ?
+		ORDER BY host_id LIMIT ?`
+	selectQueryResultsWithDataPageStmt = `
+		SELECT id, host_id FROM query_results FORCE INDEX (idx_query_id_has_data_host_id_last_fetched)
+		WHERE query_id = ? AND has_data = 1 AND host_id >= ? AND id < ?
+		ORDER BY host_id LIMIT ?`
+)
+
+// deleteQueryResultsBeforeID deletes a query's rows with id below beforeID (only rows with data
+// if onlyWithData), reading and deleting one page of batchSize rows at a time. Rows are deleted
+// by primary key: a range DELETE on query_id locks every row of the report, and the gaps between
+// them, while hosts keep writing results for it.
+func (ds *Datastore) deleteQueryResultsBeforeID(ctx context.Context, queryID, beforeID uint, onlyWithData bool, batchSize int) error {
+	selectStmt := selectQueryResultsPageStmt
+	if onlyWithData {
+		selectStmt = selectQueryResultsWithDataPageStmt
+	}
+	var fromHostID uint
+	for {
+		// Read from the primary: the next page must not return rows the previous one deleted.
+		var page []struct {
+			ID     uint `db:"id"`
+			HostID uint `db:"host_id"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &page, selectStmt, queryID, fromHostID, beforeID, batchSize); err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting query_results page to delete")
+		}
+		if len(page) == 0 {
+			return nil
+		}
+		ids := make([]uint, 0, len(page))
+		for _, row := range page {
+			ids = append(ids, row.ID)
+		}
+		if err := deleteQueryResultsByID(ctx, ds.writer(ctx), ids); err != nil {
+			return err
+		}
+		if len(page) < batchSize {
+			return nil
+		}
+		// The last host may have more rows past this page; its deleted rows won't match again.
+		fromHostID = page[len(page)-1].HostID
+	}
 }
 
 // queryResultHostDisplayNameExpr mirrors fleet.HostDisplayName so sorting and
@@ -367,24 +449,12 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 		queryCutoffs = append(queryCutoffs, batchCutoffs...)
 	}
 
-	// Delete excess rows from each query, in batches.
-	if len(queryCutoffs) > 0 {
-		for _, c := range queryCutoffs {
-			deleteStmt := `
-                DELETE FROM query_results
-                WHERE query_id = ? AND id < ? AND has_data = 1
-                LIMIT ?
-            `
-			for {
-				result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, c.QueryID, c.CutoffID, batchSize)
-				if err != nil {
-					return nil, ctxerr.Wrapf(ctx, err, "cleaning up query %d", c.QueryID)
-				}
-				rowsAffected, _ := result.RowsAffected()
-				if rowsAffected == 0 {
-					break
-				}
-			}
+	// Delete excess rows from each query, in batches. IDs are selected first and deleted by
+	// primary key: a DELETE filtered by query_id and id scans (and locks) the query's whole
+	// secondary index range, stalling every host writing results for that query.
+	for _, c := range queryCutoffs {
+		if err := ds.deleteQueryResultsBeforeID(ctx, c.QueryID, c.CutoffID, true, batchSize); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "cleaning up query %d", c.QueryID)
 		}
 	}
 
