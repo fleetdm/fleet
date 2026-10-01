@@ -94,13 +94,34 @@ func TestResolveTeamFromEnrollmentData(t *testing.T) {
 		assert.Empty(t, idpUUID)
 	})
 
+	t.Run("QR enrollment with fleet_id and idp_uuid returns both", func(t *testing.T) {
+		fleetDS.Store.TeamExistsFunc = func(_ context.Context, id uint) (bool, error) {
+			return true, nil
+		}
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(t.Context(), `{"fleet_id": 3, "idp_uuid": "some-uuid"}`)
+		require.NoError(t, err)
+		require.NotNil(t, teamID)
+		assert.Equal(t, uint(3), *teamID)
+		assert.Equal(t, "some-uuid", idpUUID)
+	})
+
+	t.Run("QR enrollment with non-existent fleet_id keeps idp_uuid", func(t *testing.T) {
+		fleetDS.Store.TeamExistsFunc = func(_ context.Context, id uint) (bool, error) {
+			return false, nil
+		}
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(t.Context(), `{"fleet_id": 99, "idp_uuid": "some-uuid"}`)
+		require.NoError(t, err)
+		assert.Nil(t, teamID)
+		assert.Equal(t, "some-uuid", idpUUID)
+	})
+
 	t.Run("malformed JSON returns error", func(t *testing.T) {
 		_, _, err := svc.resolveTeamFromEnrollmentData(t.Context(), `not valid json`)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unmarshalling enrollment token data")
 	})
 
-	t.Run("QR enrollment with enroll secret falls back to existing flow", func(t *testing.T) {
+	t.Run("legacy QR enrollment with enroll secret falls back to verifying the secret", func(t *testing.T) {
 		expectedTeamID := uint(5)
 		fleetDS.Store.VerifyEnrollSecretFunc = func(_ context.Context, secret string) (*fleet.EnrollSecret, error) {
 			assert.Equal(t, "test-secret", secret)

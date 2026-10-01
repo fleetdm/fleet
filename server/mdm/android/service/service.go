@@ -522,7 +522,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 type enrollmentTokenRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 	FullyManaged bool   `query:"fully_managed"`
-	IdpUUID      string // resolved from the session; carried in the token, never read from the request
+	IdpUUID      string // only read when decoding legacy token additionalData; never read from the request
 	IdpSessionID string // from the BYOD IdP cookie, if any
 }
 
@@ -617,7 +617,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	// Verify the enroll secret before anything that could reveal server
 	// configuration state, so callers without a valid secret always get the
 	// same response.
-	_, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
+	verifiedSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	switch {
 	case fleet.IsNotFound(err):
 		return nil, fleet.NewAuthFailedError("invalid secret")
@@ -676,12 +676,14 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
-	enrollmentTokenRequest, err := json.Marshal(enrollmentTokenRequest{
-		EnrollSecret: enrollSecret,
-		IdpUUID:      idpUUID,
+	// Embed the resolved fleet rather than the secret, so rotating the secret before the device
+	// finishes enrolling doesn't affect where it lands.
+	additionalData, err := json.Marshal(teamEnrollmentRequest{
+		TeamID:  verifiedSecret.GetTeamID(),
+		IdpUUID: idpUUID,
 	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "marshalling enrollment token request")
+		return nil, ctxerr.Wrap(ctx, err, "marshalling enrollment token additional data")
 	}
 
 	personalUsageSetting := "PERSONAL_USAGE_ALLOWED"
@@ -692,7 +694,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	token := &androidmanagement.EnrollmentToken{
 		// Default duration is 1 hour
 
-		AdditionalData:     string(enrollmentTokenRequest),
+		AdditionalData:     string(additionalData),
 		AllowPersonalUsage: personalUsageSetting,
 		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID),
 		OneTimeOnly:        true,
