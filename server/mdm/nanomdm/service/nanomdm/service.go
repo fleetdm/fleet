@@ -339,6 +339,20 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		cmd.Raw = []byte(hostExpanded)
 	}
 
+	// RotateFileVaultKey is device-only, so UDID is the host UUID.
+	if cmd.Command.Command.RequestType == fleet.RotateFileVaultKeyCmdName {
+		hostExpanded, didError := expandHostSecrets(string(cmd.Raw), func(hostUUID string, errorMsg string) {
+			if storeErr := s.store.SetDiskEncryptionKeyRotationFailed(r.Context, hostUUID, cmd.CommandUUID, errorMsg); storeErr != nil {
+				logger.Info("level", "error", "msg", "setting disk encryption key rotation failed", "err", storeErr)
+			}
+		})
+		if didError {
+			return nil, nil
+		}
+
+		cmd.Raw = []byte(hostExpanded)
+	}
+
 	// Expand host-scoped secrets for ClearPasscode commands.
 	if cmd.Command.Command.RequestType == fleet.AppleMDMCommandTypeClearPasscode {
 		hostExpanded, didError := expandHostSecrets(string(cmd.Raw), func(hostUUID string, errorMsg string) {

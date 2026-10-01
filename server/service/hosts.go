@@ -4124,6 +4124,16 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
+	// Same rule the rotate endpoint uses, so a marker it would replace isn't
+	// reported as pending.
+	var rotationPending bool
+	if key != nil && key.RotationCommandUUID != nil {
+		rotationPending, err = svc.ds.IsHostDiskEncryptionKeyRotationInProgress(ctx, host.ID, host.UUID, *key.RotationCommandUUID,
+			fleet.DiskEncryptionKeyRotationStaleAfter)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking pending disk encryption key rotation")
+		}
+	}
 	// The archived fallback exists for macOS, where re-enrollment clears the
 	// current row while the archived FileVault key is still valid. On Linux the
 	// current row is authoritative: it only goes missing once the verify query
@@ -4163,6 +4173,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			svc.logger.InfoContext(ctx, "decrypted current host disk encryption key", "host_id", host.ID)
 			key.Decryptable = ptr.Bool(true)
 			key.DecryptedValue = decrypted
+			key.RotationPending = rotationPending
 
 			return key, nil // Return the decrypted key immediately if successful.
 		}
@@ -4188,6 +4199,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 				Decryptable:         ptr.Bool(true),
 				DecryptedValue:      decrypted,
 				UpdatedAt:           archivedKey.CreatedAt,
+				RotationPending:     rotationPending,
 			}
 		}
 	}
@@ -4930,6 +4942,36 @@ func rotateRecoveryLockPasswordEndpoint(ctx context.Context, request any, svc fl
 }
 
 func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Rotate Host Disk Encryption Key
+////////////////////////////////////////////////////////////////////////////////
+
+type rotateDiskEncryptionKeyRequest struct {
+	HostID uint `url:"id"`
+}
+
+type rotateDiskEncryptionKeyResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r rotateDiskEncryptionKeyResponse) Error() error { return r.Err }
+
+func rotateDiskEncryptionKeyEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*rotateDiskEncryptionKeyRequest)
+	if err := svc.RotateDiskEncryptionKey(ctx, req.HostID); err != nil {
+		return rotateDiskEncryptionKeyResponse{Err: err}, nil
+	}
+	return rotateDiskEncryptionKeyResponse{}, nil
+}
+
+func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

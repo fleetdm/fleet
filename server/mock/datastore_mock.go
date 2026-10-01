@@ -964,6 +964,20 @@ type GetHostArchivedDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.
 
 type IsHostDiskEncryptionKeyArchivedFunc func(ctx context.Context, hostID uint) (bool, error)
 
+type SetHostDiskEncryptionKeyRotationCommandFunc func(ctx context.Context, hostID uint, cmdUUID string) (bool, error)
+
+type ClearHostDiskEncryptionKeyRotationCommandFunc func(ctx context.Context, hostID uint, cmdUUID string) error
+
+type ClearStaleHostDiskEncryptionKeyRotationCommandFunc func(ctx context.Context, hostID uint, cmdUUID string, olderThan time.Duration) (bool, error)
+
+type FailHostDiskEncryptionKeyRotationFunc func(ctx context.Context, hostID uint, cmdUUID string) (bool, error)
+
+type GetHostByDiskEncryptionKeyRotationCommandFunc func(ctx context.Context, cmdUUID string) (*fleet.Host, error)
+
+type ReplaceHostDiskEncryptionKeyBlobFunc func(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error
+
+type IsHostDiskEncryptionKeyRotationInProgressFunc func(ctx context.Context, hostID uint, hostUUID string, cmdUUID string, staleAfter time.Duration) (bool, error)
+
 type GetHostEscrowStateFunc func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error)
 
 type MarkEscrowSentToAgentFunc func(ctx context.Context, hostID uint) error
@@ -3926,6 +3940,27 @@ type DataStore struct {
 
 	IsHostDiskEncryptionKeyArchivedFunc        IsHostDiskEncryptionKeyArchivedFunc
 	IsHostDiskEncryptionKeyArchivedFuncInvoked bool
+
+	SetHostDiskEncryptionKeyRotationCommandFunc        SetHostDiskEncryptionKeyRotationCommandFunc
+	SetHostDiskEncryptionKeyRotationCommandFuncInvoked bool
+
+	ClearHostDiskEncryptionKeyRotationCommandFunc        ClearHostDiskEncryptionKeyRotationCommandFunc
+	ClearHostDiskEncryptionKeyRotationCommandFuncInvoked bool
+
+	ClearStaleHostDiskEncryptionKeyRotationCommandFunc        ClearStaleHostDiskEncryptionKeyRotationCommandFunc
+	ClearStaleHostDiskEncryptionKeyRotationCommandFuncInvoked bool
+
+	FailHostDiskEncryptionKeyRotationFunc        FailHostDiskEncryptionKeyRotationFunc
+	FailHostDiskEncryptionKeyRotationFuncInvoked bool
+
+	GetHostByDiskEncryptionKeyRotationCommandFunc        GetHostByDiskEncryptionKeyRotationCommandFunc
+	GetHostByDiskEncryptionKeyRotationCommandFuncInvoked bool
+
+	ReplaceHostDiskEncryptionKeyBlobFunc        ReplaceHostDiskEncryptionKeyBlobFunc
+	ReplaceHostDiskEncryptionKeyBlobFuncInvoked bool
+
+	IsHostDiskEncryptionKeyRotationInProgressFunc        IsHostDiskEncryptionKeyRotationInProgressFunc
+	IsHostDiskEncryptionKeyRotationInProgressFuncInvoked bool
 
 	GetHostEscrowStateFunc        GetHostEscrowStateFunc
 	GetHostEscrowStateFuncInvoked bool
@@ -9546,6 +9581,55 @@ func (s *DataStore) IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID 
 	s.IsHostDiskEncryptionKeyArchivedFuncInvoked = true
 	s.mu.Unlock()
 	return s.IsHostDiskEncryptionKeyArchivedFunc(ctx, hostID)
+}
+
+func (s *DataStore) SetHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string) (bool, error) {
+	s.mu.Lock()
+	s.SetHostDiskEncryptionKeyRotationCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostDiskEncryptionKeyRotationCommandFunc(ctx, hostID, cmdUUID)
+}
+
+func (s *DataStore) ClearHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string) error {
+	s.mu.Lock()
+	s.ClearHostDiskEncryptionKeyRotationCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearHostDiskEncryptionKeyRotationCommandFunc(ctx, hostID, cmdUUID)
+}
+
+func (s *DataStore) ClearStaleHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string, olderThan time.Duration) (bool, error) {
+	s.mu.Lock()
+	s.ClearStaleHostDiskEncryptionKeyRotationCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearStaleHostDiskEncryptionKeyRotationCommandFunc(ctx, hostID, cmdUUID, olderThan)
+}
+
+func (s *DataStore) FailHostDiskEncryptionKeyRotation(ctx context.Context, hostID uint, cmdUUID string) (bool, error) {
+	s.mu.Lock()
+	s.FailHostDiskEncryptionKeyRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.FailHostDiskEncryptionKeyRotationFunc(ctx, hostID, cmdUUID)
+}
+
+func (s *DataStore) GetHostByDiskEncryptionKeyRotationCommand(ctx context.Context, cmdUUID string) (*fleet.Host, error) {
+	s.mu.Lock()
+	s.GetHostByDiskEncryptionKeyRotationCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostByDiskEncryptionKeyRotationCommandFunc(ctx, cmdUUID)
+}
+
+func (s *DataStore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error {
+	s.mu.Lock()
+	s.ReplaceHostDiskEncryptionKeyBlobFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceHostDiskEncryptionKeyBlobFunc(ctx, hostID, currentBase64Encrypted, newBase64Encrypted)
+}
+
+func (s *DataStore) IsHostDiskEncryptionKeyRotationInProgress(ctx context.Context, hostID uint, hostUUID string, cmdUUID string, staleAfter time.Duration) (bool, error) {
+	s.mu.Lock()
+	s.IsHostDiskEncryptionKeyRotationInProgressFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsHostDiskEncryptionKeyRotationInProgressFunc(ctx, hostID, hostUUID, cmdUUID, staleAfter)
 }
 
 func (s *DataStore) GetHostEscrowState(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {

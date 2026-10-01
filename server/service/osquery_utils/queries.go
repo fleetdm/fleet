@@ -1,6 +1,7 @@
 package osquery_utils
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -28,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -3296,12 +3298,58 @@ func directIngestDiskEncryptionKeyFileDarwin(
 		return nil
 	}
 
+	return storeDarwinDiskEncryptionKey(ctx, logger, host, ds, base64Key, decryptable)
+}
+
+func storeDarwinDiskEncryptionKey(
+	ctx context.Context,
+	logger *slog.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	base64Key string,
+	decryptable *bool,
+) error {
+	if base64Key != "" {
+		existing, err := ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "get existing disk encryption key")
+		}
+		if existing != nil && existing.Decryptable != nil && *existing.Decryptable &&
+			existing.Base64Encrypted != "" && existing.Base64Encrypted != base64Key {
+			// After a rotation, the key Fleet stored from the command reply and the
+			// on-disk FileVaultPRK.dat are separate CMS envelopes of the same key, so
+			// compare plaintext before treating the report as a new key.
+			same, err := sameDecryptedDiskEncryptionKey(ctx, ds, existing.Base64Encrypted, base64Key)
+			if err != nil {
+				logger.WarnContext(ctx, "comparing disk encryption key plaintext", "host_id", host.ID, "err", err)
+			} else if same {
+				return ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, existing.Base64Encrypted, base64Key)
+			}
+		}
+	}
+
 	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
 	if err != nil {
 		return err
 	}
 	host.DiskEncryptionKeyEscrowed = archived
 	return nil
+}
+
+func sameDecryptedDiskEncryptionKey(ctx context.Context, ds fleet.Datastore, a, b string) (bool, error) {
+	certs, key, err := assets.CACertsAndKeyForDecryption(ctx, ds)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load CA assets")
+	}
+	plainA, err := mdm.DecryptBase64CMSWithCerts(a, key, certs)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "decrypt stored key")
+	}
+	plainB, err := mdm.DecryptBase64CMSWithCerts(b, key, certs)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "decrypt reported key")
+	}
+	return len(plainA) > 0 && bytes.Equal(plainA, plainB), nil
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -3381,12 +3429,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		return nil
 	}
 
-	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
-	if err != nil {
-		return err
-	}
-	host.DiskEncryptionKeyEscrowed = archived
-	return nil
+	return storeDarwinDiskEncryptionKey(ctx, logger, host, ds, base64Key, decryptable)
 }
 
 func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {

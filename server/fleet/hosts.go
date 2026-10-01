@@ -2099,7 +2099,15 @@ type HostDiskEncryptionKey struct {
 	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue      string    `json:"key" db:"-"`
 	ClientError         string    `json:"-" db:"client_error"`
+	RotationCommandUUID *string   `json:"-" db:"rotation_command_uuid"`
+	RotationPending     bool      `json:"rotation_pending" db:"-"`
 }
+
+// DiskEncryptionKeyRotationStaleAfter is how long a pending FileVault key rotation
+// whose command is no longer queued still counts as in progress. A marker is set
+// before its command is enqueued and cleared after its result is handled, so a
+// fresh one can look finished without being so.
+const DiskEncryptionKeyRotationStaleAfter = time.Minute
 
 type HostArchivedDiskEncryptionKey struct {
 	HostID              uint      `json:"-" db:"host_id"`

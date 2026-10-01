@@ -380,6 +380,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeViewedHostRecoveryLockPassword{},
 		fleet.ActivityTypeSetHostRecoveryLockPassword{},
 		fleet.ActivityTypeRotatedHostRecoveryLockPassword{},
+		fleet.ActivityTypeRotatedDiskEncryptionKey{},
+		fleet.ActivityTypeFailedToRotateDiskEncryptionKey{},
 		fleet.ActivityTypeCreatedManagedLocalAccount{},
 		fleet.ActivityTypeViewedManagedLocalAccount{},
 		fleet.ActivityTypeEnabledManagedLocalAccount{},

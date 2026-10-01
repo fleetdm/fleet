@@ -41,6 +41,8 @@ type ExpandHostSecretsFunc func(ctx context.Context, document string, enrollment
 
 type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error
 
+type SetDiskEncryptionKeyRotationFailedFunc func(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error
+
 type RetrievePushInfoFunc func(ctx context.Context, ids []string) (map[string]*mdm.Push, error)
 
 type IsPushCertStaleFunc func(ctx context.Context, topic string, staleToken string) (bool, error)
@@ -116,6 +118,9 @@ type MDMAppleStore struct {
 
 	SetRecoveryLockFailedFunc        SetRecoveryLockFailedFunc
 	SetRecoveryLockFailedFuncInvoked bool
+
+	SetDiskEncryptionKeyRotationFailedFunc        SetDiskEncryptionKeyRotationFailedFunc
+	SetDiskEncryptionKeyRotationFailedFuncInvoked bool
 
 	RetrievePushInfoFunc        RetrievePushInfoFunc
 	RetrievePushInfoFuncInvoked bool
@@ -263,6 +268,13 @@ func (fs *MDMAppleStore) SetRecoveryLockFailed(ctx context.Context, hostUUID str
 	fs.SetRecoveryLockFailedFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.SetRecoveryLockFailedFunc(ctx, hostUUID, commandUUID, errorMsg)
+}
+
+func (fs *MDMAppleStore) SetDiskEncryptionKeyRotationFailed(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error {
+	fs.mu.Lock()
+	fs.SetDiskEncryptionKeyRotationFailedFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.SetDiskEncryptionKeyRotationFailedFunc(ctx, hostUUID, commandUUID, errorMsg)
 }
 
 func (fs *MDMAppleStore) RetrievePushInfo(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {
