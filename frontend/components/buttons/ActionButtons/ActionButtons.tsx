@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button";
@@ -7,9 +7,6 @@ import DropdownButton from "components/buttons/DropdownButton";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
-import { AppContext } from "context/app";
-import { isGitOpsModeEnabledFor } from "hooks/useGitOpsMode";
-import { IGitOpsExceptions } from "interfaces/config";
 
 // TODO - there are two `IActionButtonProps` in the codebase, one specifically used in
 // TableContainer. Disambiguate these names or combine into a single abstraction.
@@ -21,9 +18,7 @@ export interface IActionButtonProps {
   iconName?: IconNames;
   hideAction?: boolean;
   gitOpsModeCompatible?: boolean;
-  /** Checked against the GitOps mode exceptions. When the entity is excepted, the
-   * action stays enabled in GitOps mode. Omit for actions no exception covers. */
-  entityType?: keyof IGitOpsExceptions;
+  disabled?: boolean;
 }
 
 interface IProps {
@@ -32,7 +27,6 @@ interface IProps {
 }
 
 const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
-  const { config } = useContext(AppContext);
   const primaryActions: IActionButtonProps[] = [];
   const secondaryActions: IActionButtonProps[] = [];
 
@@ -46,16 +40,6 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
       : secondaryActions.push(action);
   });
 
-  // The dropdown is the narrow-viewport rendering of the same secondary actions,
-  // so it has to reach the same GitOps decision the tooltip wrapper makes for the
-  // buttons. DropdownButton renders plain options, hence the explicit disabled.
-  const dropdownOptions = secondaryActions.map((action) => ({
-    ...action,
-    disabled:
-      !!action.gitOpsModeCompatible &&
-      isGitOpsModeEnabledFor(config, action.entityType),
-  }));
-
   return (
     <div
       className={`${baseClass}__action-buttons action-buttons action-buttons__wrapper`}
@@ -64,7 +48,9 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
         {primaryActions.map(
           (action) =>
             !action.hideAction && (
-              <Button onClick={action.onClick}>{action.label}</Button>
+              <Button onClick={action.onClick} disabled={action.disabled}>
+                {action.label}
+              </Button>
             )
         )}
       </div>
@@ -73,32 +59,21 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
           className={`${baseClass}__action-buttons--secondary-buttons action-buttons__secondary-buttons`}
         >
           {secondaryActions.map((action) => {
-            if (action.gitOpsModeCompatible) {
-              return (
-                <GitOpsModeTooltipWrapper
-                  entityType={action.entityType}
-                  renderChildren={(disableChildren) => (
-                    <Button
-                      variant={action.buttonVariant}
-                      onClick={action.onClick}
-                      disabled={disableChildren}
-                      icon={action.iconName}
-                    >
-                      {action.label}
-                    </Button>
-                  )}
-                />
-              );
-            }
-            return (
+            const button = (
               <Button
                 variant={action.buttonVariant}
                 onClick={action.onClick}
+                disabled={action.disabled}
                 icon={action.iconName}
               >
                 {action.label}
               </Button>
             );
+            // A GitOps-compatible action is only disabled by GitOps mode, so explain it.
+            if (action.gitOpsModeCompatible && action.disabled) {
+              return <GitOpsModeTooltipWrapper renderChildren={() => button} />;
+            }
+            return button;
           })}
         </div>
         <div
@@ -106,7 +81,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
         >
           <DropdownButton
             showCaret={false}
-            options={dropdownOptions}
+            options={secondaryActions}
             variant="secondary"
           >
             More options <Icon name="more" />
