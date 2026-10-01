@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260925160004, Down_20260925160004)
+	MigrationClient.AddMigration(Up_20260925180004, Down_20260925180004)
 }
 
-func Up_20260925160004(tx *sql.Tx) error {
+func Up_20260925180004(tx *sql.Tx) error {
 	// Reference guards the cleanup checks before deleting a command: index each
 	// command-UUID column so the probe is a lookup instead of a table scan. The
 	// install tables' existing verification index is on an expression and can't
@@ -47,6 +47,6 @@ func Up_20260925160004(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260925160004(tx *sql.Tx) error {
+func Down_20260925180004(tx *sql.Tx) error {
 	return nil
 }
