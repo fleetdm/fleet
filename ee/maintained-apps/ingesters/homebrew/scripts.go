@@ -772,12 +772,19 @@ for (var i = 0; i < apps.count; i++) {
 }
 ids.join("\n")'
   local running_ids
+  local list_status
   if [[ $EUID -eq 0 ]]; then
     local console_uid
     console_uid=$(id -u "$console_user")
     running_ids=$(/bin/launchctl asuser "$console_uid" sudo -u "$console_user" osascript -l JavaScript -e "$list_script" 2>/dev/null)
+    list_status=$?
   else
     running_ids=$(osascript -l JavaScript -e "$list_script" 2>/dev/null)
+    list_status=$?
+  fi
+  if [[ $list_status -ne 0 ]]; then
+    echo "Failed to list running applications; skipping quitting applications matching '$pattern'."
+    return
   fi
 
   local regex
