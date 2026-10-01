@@ -49,7 +49,7 @@ class ProfileGeneratorSummaryReporter extends Mocha.reporters.Spec {
         '\n  ==== Profile generator summary ====\n\n' +
         (lines.length ? lines.join('\n') : '    (no generations ran)') + '\n' +
         `    ${'total'.padEnd(22)} ${String(totalRan).padStart(4)} ran   ${String(totalPassed).padStart(4)} passed   ${percent(totalPassed, totalRan).padStart(6)} success rate\n\n` +
-        '  Note: Android is not implemented in the profile generator yet, Android profiles should be generated using Claude Code.\n' +
+        '  Note: Android is not implemented in the profile generator yet, Android profiles should be generated using Claude Code.\n'
       );
     });
   }
