@@ -1,8 +1,8 @@
 # New research: AI helps Mac admins ship changes quickly, but rollback often takes days
 
-_"Apple in the Enterprise" shows Mac administration has become an engineering discipline, while legacy device management infrastructure struggles to keep pace_
+_"Apple in the enterprise" shows Mac administration has become an engineering discipline, while legacy device management infrastructure struggles to keep pace_
 
-Fleet surveyed more than 250 enterprise IT practitioners who manage Apple devices for [_Apple in the Enterprise_](https://fleetdm.com/pdfs/Apple-in-the-Enterprise.pdf). Mac admins now use AI to write scripts, troubleshoot problems, and author configuration profiles, and most of them deploy that output to production. Few of them can undo a bad change quickly.
+Fleet surveyed more than 250 enterprise IT practitioners who manage Apple devices for [_Apple in the enterprise_](https://fleetdm.com/pdfs/Apple-in-the-enterprise.pdf). Mac admins now use AI to write scripts, troubleshoot problems, and author configuration profiles, and most of them deploy that output to production. Few of them can undo a bad change quickly.
 
 ## Highlights
 
@@ -23,7 +23,7 @@ The report recommends moving device configuration into code. Some teams already 
 
 ## Read the report
 
-<a purpose="cta-button" href="/pdfs/Apple-in-the-Enterprise.pdf" download="Apple-in-the-Enterprise.pdf">Download the report</a>
+<a purpose="cta-button" href="/pdfs/Apple-in-the-enterprise.pdf" download="Apple-in-the-enterprise.pdf">Download the report</a>
 
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Allen Houchins">
