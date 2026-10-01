@@ -36,10 +36,7 @@ Normally, only an authorized reseller can register devices in the zero-touch por
 
 ## Step 5: Verify
 
-After a device is factory reset or unboxed and connected to a network:
-
-1. Android Device Policy installs automatically.
-2. The device enrolls to Fleet and appears on the **Hosts** page.
+After a device is factory reset or unboxed and connected to a network: The device enrolls to Fleet and appears on the **Hosts** page.
 
 All zero-touch-enrolled hosts enroll to the **Unassigned** fleet. Enrolling to a specific fleet is [coming soon](https://github.com/fleetdm/fleet/issues/51479).
 
