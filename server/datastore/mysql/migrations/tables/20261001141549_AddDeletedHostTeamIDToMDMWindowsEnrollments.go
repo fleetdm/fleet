@@ -9,7 +9,7 @@ func init() {
 	MigrationClient.AddMigration(Up_20261001141549, Down_20261001141549)
 }
 
-// Up_20260930193017 records the fleet of a Windows MDM host when it is deleted, so the one-time enroll secret Fleet pushes to its
+// Up_20261001141549 records the fleet of a Windows MDM host when it is deleted, so the one-time enroll secret Fleet pushes to its
 // enrollment brings it back to that fleet.
 func Up_20261001141549(tx *sql.Tx) error {
 	if !columnExists(tx, "mdm_windows_enrollments", "deleted_host_team_id") {

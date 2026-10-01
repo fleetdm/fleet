@@ -3218,7 +3218,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 				require.Equal(t, false, ds.ReplaceHostDeviceMappingFuncInvoked)
 				require.Equal(t, false, ds.ScimUserByUserNameOrEmailFuncInvoked)
 				require.Equal(t, false, ds.DeleteHostSCIMUserMappingFuncInvoked)
-				require.Equal(t, false, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked)
+				require.False(t, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked)
 			}
 
 			// Run the actual defined testcase
