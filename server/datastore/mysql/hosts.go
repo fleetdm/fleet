@@ -825,9 +825,7 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 	// updated_at starts the stale-enrollment retention window at deletion;
 	// otherwise an idle enrollment would be reaped within the hour. Empty
 	// UUIDs are skipped so never-linked enrollments keep their own clock.
-	//
-	// The fleet the device comes back to is the Windows host's: a dual-boot Mac
-	// sharing the UUID must not overwrite it.
+	// The fleet the device comes back to is the Windows host's.
 	var (
 		touchOnly    []string
 		windowsHosts []windowsEnrollmentFleetHost
@@ -2351,10 +2349,8 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		// selectIDs is embedded rather than expanding ids into placeholders,
 		// which a large backlog could push past MySQL's placeholder limit.
 		touchEnrollments := fmt.Sprintf(`
-			UPDATE mdm_windows_enrollments e
-			JOIN hosts h ON h.uuid = e.host_uuid AND h.uuid <> ''
-			SET e.updated_at = CURRENT_TIMESTAMP
-			WHERE h.id IN (SELECT id FROM (%s) incoming)`,
+			UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP
+			WHERE host_uuid IN (SELECT uuid FROM hosts WHERE uuid <> '' AND id IN (%s))`,
 			selectIDs,
 		)
 		if _, err := tx.ExecContext(ctx, touchEnrollments, now); err != nil {
@@ -2511,6 +2507,8 @@ type enrolledHostInfo struct {
 	NodeKeySet bool
 	// Platform is the OS of the host.
 	Platform string
+	// PendingAutopilot indicates the host is a pending Windows Autopilot host that no orbit has enrolled into yet.
+	PendingAutopilot bool
 }
 
 // Attempts to find the matching host ID by osqueryID, host UUID or serial
@@ -2620,6 +2618,8 @@ func matchHostDuringEnrollment(
 		LastEnrolledAt: rows[0].LastEnrolledAt,
 		NodeKeySet:     rows[0].NodeKeySet,
 		Platform:       rows[0].Platform,
+		// Priority 2 on a Windows row is the Autopilot serial match.
+		PendingAutopilot: rows[0].Priority == 2 && rows[0].Platform == "windows" && !rows[0].NodeKeySet,
 	}, nil
 }
 
@@ -2695,15 +2695,17 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			refetchRequested := fleet.PlatformSupportsOsquery(enrolledHostInfo.Platform)
 
 			// A Windows one-time secret carries a fleet only when it brings back a deleted host. A pending Autopilot host it claims
-			// was re-created in the default fleet, so it moves to the secret's. team_id comes first because MySQL evaluates SET left
-			// to right, and the node key checks must see the row before this enrollment.
+			// was re-created in the default fleet, so it moves to the secret's.
+			if enrollConfig.OneTimeEnrollSecretID != nil && teamID != nil && enrolledHostInfo.PendingAutopilot {
+				if _, err := tx.ExecContext(ctx, `UPDATE hosts SET team_id = ? WHERE id = ?`, teamID, enrolledHostInfo.ID); err != nil {
+					return ctxerr.Wrap(ctx, err, "orbit enroll error moving pending autopilot host to the secret's fleet")
+				}
+			}
+
 			sqlUpdate := `
       UPDATE
         hosts
       SET
-        team_id = IF(? AND platform = 'windows' AND orbit_node_key IS NULL AND node_key IS NULL
-          AND EXISTS (SELECT 1 FROM host_mdm hm WHERE hm.host_id = hosts.id AND hm.enrolled = 0 AND hm.installed_from_dep = 1)
-          AND EXISTS (SELECT 1 FROM host_autopilot_devices had WHERE had.host_id = hosts.id AND had.deleted_at IS NULL), ?, team_id),
         orbit_node_key = ?,
         uuid = COALESCE(NULLIF(uuid, ''), ?),
         osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?),
@@ -2713,8 +2715,6 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
         refetch_requested = ?
       WHERE id = ?`
 			args := []any{
-				enrollConfig.OneTimeEnrollSecretID != nil && teamID != nil,
-				teamID,
 				orbitNodeKey,
 				hostInfo.HardwareUUID,
 				osqueryIdentifier,
