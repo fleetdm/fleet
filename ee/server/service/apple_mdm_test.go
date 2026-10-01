@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -1052,4 +1054,146 @@ func TestReleaseABDevicesDeleteAssignmentErrorIsNonFatal(t *testing.T) {
 	require.Len(t, resp, 1)
 	require.Equal(t, string(fleet.ABReleaseDeviceStatusSuccess), resp[0].Status)
 	require.True(t, ds.DeleteHostDEPAssignmentsFuncInvoked)
+}
+
+func TestHandleSelfServiceConfigurationProfile(t *testing.T) {
+	ctx := context.Background()
+	macHost := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin", LabelUpdatedAt: time.Now()}
+	selfService := func() *fleet.AppleProfileForReconcile {
+		return &fleet.AppleProfileForReconcile{ProfileUUID: "prof-uuid", ProfileName: "SS", SelfService: true}
+	}
+
+	cases := []struct {
+		name      string
+		uninstall bool
+		host      *fleet.Host
+		optedIn   bool
+		profile   *fleet.AppleProfileForReconcile
+		members   []uint
+		queueErr  error
+		wantErr   error
+	}{
+		{name: "install non-macOS", host: &fleet.Host{UUID: "h", Platform: "windows"}, wantErr: &fleet.BadRequestError{}},
+		{name: "install already opted in", host: macHost, optedIn: true, profile: selfService(), wantErr: &fleet.ConflictError{}},
+		{name: "install profile not found", host: macHost, wantErr: &fleet.BadRequestError{}},
+		{name: "install not self-service", host: macHost, profile: &fleet.AppleProfileForReconcile{ProfileUUID: "prof-uuid"}, wantErr: &fleet.BadRequestError{}},
+		{
+			name: "install label not satisfied", host: macHost,
+			profile: func() *fleet.AppleProfileForReconcile {
+				p := selfService()
+				p.IncludeMode = fleet.AppleProfileIncludeAll
+				p.IncludeLabels = []fleet.AppleProfileLabelRef{{LabelID: new(uint(10)), LabelMembershipType: int(fleet.LabelMembershipTypeManual)}}
+				return p
+			}(),
+			wantErr: &fleet.BadRequestError{},
+		},
+		{
+			name: "install broken label", host: macHost,
+			profile: func() *fleet.AppleProfileForReconcile {
+				p := selfService()
+				p.IncludeMode = fleet.AppleProfileIncludeAll
+				p.IncludeLabels = []fleet.AppleProfileLabelRef{{LabelID: nil}}
+				return p
+			}(),
+			wantErr: &fleet.BadRequestError{},
+		},
+		{
+			name: "install label satisfied", host: macHost, members: []uint{10},
+			profile: func() *fleet.AppleProfileForReconcile {
+				p := selfService()
+				p.IncludeMode = fleet.AppleProfileIncludeAll
+				p.IncludeLabels = []fleet.AppleProfileLabelRef{{LabelID: new(uint(10)), LabelMembershipType: int(fleet.LabelMembershipTypeManual)}}
+				return p
+			}(),
+		},
+		{
+			name: "install unknown dynamic label membership", host: macHost,
+			profile: func() *fleet.AppleProfileForReconcile {
+				p := selfService()
+				p.ExcludeLabels = []fleet.AppleProfileLabelRef{{LabelID: new(uint(11)), CreatedAt: macHost.LabelUpdatedAt.Add(time.Hour)}}
+				return p
+			}(),
+			wantErr: &fleet.BadRequestError{},
+		},
+		{name: "install", host: macHost, profile: selfService()},
+		{name: "install queue failure is not fatal", host: macHost, profile: selfService(), queueErr: errors.New("boom")},
+		{name: "uninstall non-macOS", uninstall: true, host: &fleet.Host{UUID: "h", Platform: "ios"}, wantErr: &fleet.BadRequestError{}},
+		{name: "uninstall not opted in", uninstall: true, host: macHost, profile: selfService(), wantErr: &notFoundError{}},
+		{name: "uninstall profile not found", uninstall: true, host: macHost, optedIn: true, wantErr: &fleet.BadRequestError{}},
+		{name: "uninstall not self-service", uninstall: true, host: macHost, optedIn: true, profile: &fleet.AppleProfileForReconcile{ProfileUUID: "prof-uuid"}, wantErr: &fleet.BadRequestError{}},
+		{
+			name: "uninstall broken label", uninstall: true, host: macHost, optedIn: true,
+			profile: func() *fleet.AppleProfileForReconcile {
+				p := selfService()
+				p.ExcludeLabels = []fleet.AppleProfileLabelRef{{LabelID: nil}}
+				return p
+			}(),
+			wantErr: &fleet.BadRequestError{},
+		},
+		{name: "uninstall", uninstall: true, host: macHost, optedIn: true, profile: selfService()},
+		{name: "uninstall queue failure is not fatal", uninstall: true, host: macHost, optedIn: true, profile: selfService(), queueErr: errors.New("boom")},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc := newTestService(t, ds)
+			ds.HasHostMDMProfileOptInFunc = func(ctx context.Context, hostUUID, profileUUID string) (bool, error) {
+				return c.optedIn, nil
+			}
+			ds.GetAppleProfileForReconcileFunc = func(ctx context.Context, teamID uint, profileUUID string) (*fleet.AppleProfileForReconcile, error) {
+				return c.profile, nil
+			}
+			ds.BulkGetHostLabelMembershipsFunc = func(ctx context.Context, hostIDs, labelIDs []uint) (map[uint]map[uint]struct{}, error) {
+				m := map[uint]struct{}{}
+				for _, id := range c.members {
+					m[id] = struct{}{}
+				}
+				return map[uint]map[uint]struct{}{c.host.ID: m}, nil
+			}
+			var applied *fleet.MDMProfileOptInChanges
+			ds.ApplyHostMDMProfileOptInChangesFunc = func(ctx context.Context, changes *fleet.MDMProfileOptInChanges) error {
+				applied = changes
+				return nil
+			}
+			var queuedInstall *fleet.AppleProfileForReconcile
+			ds.QueueHostMDMAppleProfileInstallFunc = func(ctx context.Context, hostUUID string, profile *fleet.AppleProfileForReconcile) error {
+				require.Equal(t, macHost.UUID, hostUUID)
+				queuedInstall = profile
+				return c.queueErr
+			}
+			var queuedRemoval string
+			ds.QueueHostMDMAppleProfileRemovalFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+				require.Equal(t, macHost.UUID, hostUUID)
+				queuedRemoval = profileUUID
+				return c.queueErr
+			}
+
+			handle := svc.handleInstallSelfServiceConfigurationProfile
+			if c.uninstall {
+				handle = svc.handleUninstallSelfServiceConfigurationProfile
+			}
+			name, err := handle(ctx, c.host, "prof-uuid")
+
+			if c.wantErr != nil {
+				require.ErrorAs(t, err, reflect.New(reflect.TypeOf(c.wantErr)).Interface())
+				require.Nil(t, applied)
+				require.False(t, ds.QueueHostMDMAppleProfileInstallFuncInvoked)
+				require.False(t, ds.QueueHostMDMAppleProfileRemovalFuncInvoked)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, "SS", name)
+			want := []fleet.HostProfileUUID{{HostUUID: macHost.UUID, ProfileUUID: "prof-uuid"}}
+			if c.uninstall {
+				require.Equal(t, &fleet.MDMProfileOptInChanges{Purge: want}, applied)
+				require.Equal(t, "prof-uuid", queuedRemoval)
+				require.False(t, ds.QueueHostMDMAppleProfileInstallFuncInvoked)
+			} else {
+				require.Equal(t, &fleet.MDMProfileOptInChanges{Add: want}, applied)
+				require.Same(t, c.profile, queuedInstall)
+				require.False(t, ds.QueueHostMDMAppleProfileRemovalFuncInvoked)
+			}
+		})
+	}
 }

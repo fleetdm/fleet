@@ -11,7 +11,10 @@ import {
   IHostSoftware,
   IVPPHostSoftware,
 } from "interfaces/software";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import VersionCell, {
+  VersionsColumnCell,
+} from "pages/SoftwarePage/components/tables/VersionCell";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import HostInstallerActionCell from "../../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 import { installStatusSortType } from "../../../helpers";
@@ -23,10 +26,6 @@ type ITableStringCellProps = IStringCellProps<IDeviceSoftwareWithUiStatus>;
 type IStatusCellProps = CellProps<
   IDeviceSoftwareWithUiStatus,
   IDeviceSoftwareWithUiStatus["ui_status"]
->;
-type IVersionsCellProps = CellProps<
-  IDeviceSoftwareWithUiStatus,
-  IDeviceSoftwareWithUiStatus["installed_versions"]
 >;
 type IAvailableVersionCellProps = CellProps<
   IDeviceSoftwareWithUiStatus,
@@ -83,7 +82,10 @@ export const generateSoftwareTableHeaders = ({
       Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
       ),
-      accessor: "name",
+      id: "name",
+      // Client-side sort: the key must be the string the cell renders.
+      accessor: (originalRow) =>
+        getDisplayedSoftwareName(originalRow.name, originalRow.display_name),
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
@@ -133,9 +135,7 @@ export const generateSoftwareTableHeaders = ({
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
-      Cell: (cellProps: IVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
-      },
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Available version",
@@ -148,7 +148,10 @@ export const generateSoftwareTableHeaders = ({
         const installerData =
           softwareTitle.software_package ?? softwareTitle.app_store_app;
         return (
-          <VersionCell versions={[{ version: installerData?.version || "" }]} />
+          <VersionCell
+            versions={[{ version: installerData?.version || "" }]}
+            source={cellProps.row.original.source}
+          />
         );
       },
     },

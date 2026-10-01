@@ -788,6 +788,17 @@ func (svc *Service) InitSSOCallback(
 		return nil, "", ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
 	}
 
+	// Only after the signature checked out, so an attacker can't burn assertion
+	// IDs with forged responses. This is what stops a captured response from
+	// being replayed, in particular on the IdP-initiated path where there is no
+	// single-use session to reject it.
+	if err := svc.ssoSessionStore.ConsumeAssertion(auth.AssertionID(), auth.AssertionNotOnOrAfter()); err != nil {
+		if errors.Is(err, sso.ErrAssertionAlreadyUsed) {
+			return nil, "", ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
+		}
+		return nil, "", ctxerr.Wrap(ctx, err, "consume saml assertion")
+	}
+
 	return auth, redirectURL, nil
 }
 

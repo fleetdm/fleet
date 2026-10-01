@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "1.0.0.22",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'SUHelper %' AND publisher = 'Lenovo';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'SUHelper %' AND publisher = 'Lenovo' AND version_compare(version, '1.0.0.22') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'lenovo suhelper.exe');"
+      },
+      "installer_url": "https://download.lenovo.com/pccbbs/thinkvantage_en/metroapps/Vantage/LenovoCommercialVantage_20.2506.39.0_v17.zip",
+      "install_script_ref": "4f29389b",
+      "uninstall_script_ref": "c8e30c13",
+      "sha256": "3abb0020a010dbc692c488392ddf4fcde4ecd4985dcf22a7c9c2059f63abc9d0",
+      "default_categories": [
+        "Utilities"
+      ]
+    }
+  ],
+  "refs": {
+    "4f29389b": "# SUHelper ships inside a large Lenovo Commercial Vantage zip. This script extracts\n# only SystemUpdate\\SUHelperSetup.exe (an Inno Setup installer) and runs it silently.\n\n$zipFilePath = \"${env:INSTALLER_PATH}\"\n$extractPath = Join-Path $env:TEMP \"SUHelperInstall\"\n\ntry {\n    if (Test-Path $extractPath) { Remove-Item -Path $extractPath -Recurse -Force }\n    New-Item -ItemType Directory -Path $extractPath | Out-Null\n\n    Add-Type -AssemblyName System.IO.Compression.FileSystem\n    $zip = [System.IO.Compression.ZipFile]::OpenRead($zipFilePath)\n    try {\n        $entry = $zip.Entries | Where-Object { $_.FullName -eq 'SystemUpdate/SUHelperSetup.exe' } | Select-Object -First 1\n        if (-not $entry) { Write-Host \"SUHelperSetup.exe not found in the zip.\"; Exit 1 }\n        $setupPath = Join-Path $extractPath \"SUHelperSetup.exe\"\n        [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $setupPath, $true)\n    } finally {\n        $zip.Dispose()\n    }\n\n    $process = Start-Process -FilePath $setupPath `\n        -ArgumentList \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\" `\n        -PassThru -Wait\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n\n    Remove-Item -Path $extractPath -Recurse -Force -ErrorAction SilentlyContinue\n\n    # 3010 (reboot required) and 1641 (reboot initiated) are successful installs.\n    if ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\n    Exit $exitCode\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "c8e30c13": "$softwareName = \"SUHelper\"\n$publisher = \"Lenovo\"\n$uninstallArgs = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\nfunction Get-SUHelperEntry {\n    Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |\n        Where-Object { $_.DisplayName -like \"$softwareName *\" -and $_.Publisher -eq $publisher } |\n        Select-Object -First 1\n}\n\ntry {\n    $key = Get-SUHelperEntry\n\n    if (-not $key) { Write-Host \"Uninstall entry not found for '$softwareName'.\"; Exit 0 }\n\n    $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n    if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n        $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n    } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n        $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n    } elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n        $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n    }\n\n    Write-Host \"Uninstall command: $uninstallCommand\"; Write-Host \"Uninstall args: $uninstallArgs\"\n    $process = Start-Process -FilePath $uninstallCommand -ArgumentList $uninstallArgs -PassThru -Wait\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    # The Inno uninstaller relaunches itself from %TEMP%, so the process above exits before removal finishes.\n    $elapsed = 0\n    while ((Get-SUHelperEntry) -and ($elapsed -lt 120)) {\n        Start-Sleep -Seconds 3\n        $elapsed += 3\n    }\n    if (Get-SUHelperEntry) { Write-Host \"SUHelper is still registered after ${elapsed}s.\"; Exit 1 }\n} catch { Write-Host \"Error: $_\"; Exit 1 }\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n"
+  }
+}

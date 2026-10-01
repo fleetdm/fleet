@@ -1,0 +1,1 @@
+- Improved Apple MDM profile reconciler to drain up to 2k max hosts per tick, to further reduce DB write load.

@@ -409,6 +409,29 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 	}
 }
 
+func TestAppConfigCopyIdPIntrospection(t *testing.T) {
+	c := &AppConfig{}
+	c.Integrations.CertificatesIdPIntrospectionURLs = optjson.SetSlice([]string{"https://company.okta.com/oauth2/v1/introspect"})
+	c.Integrations.CertificatesIdPClientIDs = optjson.SetSlice([]string{"abc"})
+
+	clone := c.Copy()
+	require.NotNil(t, clone)
+	require.Equal(t, c.Integrations.CertificatesIdPIntrospectionURLs, clone.Integrations.CertificatesIdPIntrospectionURLs)
+	require.Equal(t, c.Integrations.CertificatesIdPClientIDs, clone.Integrations.CertificatesIdPClientIDs)
+
+	// A shallow copy aliases the backing arrays and surfaces as an intermittent race, not a clean failure.
+	c.Integrations.CertificatesIdPIntrospectionURLs.Value[0] = "https://other.example.com/introspect"
+	c.Integrations.CertificatesIdPClientIDs.Value[0] = "mutated"
+	require.Equal(t, []string{"https://company.okta.com/oauth2/v1/introspect"}, clone.Integrations.CertificatesIdPIntrospectionURLs.Value)
+	require.Equal(t, []string{"abc"}, clone.Integrations.CertificatesIdPClientIDs.Value)
+
+	// An unset list stays unset rather than becoming an empty one.
+	unset := (&AppConfig{}).Copy()
+	require.NotNil(t, unset)
+	require.False(t, unset.Integrations.CertificatesIdPIntrospectionURLs.Set)
+	require.Nil(t, unset.Integrations.CertificatesIdPIntrospectionURLs.Value)
+}
+
 func TestFeaturesCopy(t *testing.T) {
 	t.Run("nil receiver", func(t *testing.T) {
 		var f *Features
@@ -1325,5 +1348,25 @@ func TestFleetDesktopBrowserUrl(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, c.want, base.JoinPath("/device/abc123").String())
 		})
+	}
+}
+
+func TestGetEffectiveQueryReportCap(t *testing.T) {
+	cases := []struct {
+		configCap int
+		hostCount int
+		want      int
+	}{
+		{0, 0, DefaultMaxQueryReportRows},
+		{0, 500, DefaultMaxQueryReportRows},
+		{0, 1000, DefaultMaxQueryReportRows},
+		{0, 1001, 1001},
+		{0, 100_000, 100_000},
+		{5000, 100, 5000},
+		{5000, 6000, 6000},
+	}
+	for _, c := range cases {
+		s := ServerSettings{QueryReportCap: c.configCap}
+		require.Equal(t, c.want, s.GetEffectiveQueryReportCap(c.hostCount), "cap=%d hosts=%d", c.configCap, c.hostCount)
 	}
 }

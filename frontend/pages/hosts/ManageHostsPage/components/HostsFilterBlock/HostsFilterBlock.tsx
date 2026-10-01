@@ -22,7 +22,10 @@ import {
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
-import { SoftwareAggregateStatus } from "interfaces/software";
+import {
+  formatSoftwareVersion,
+  SoftwareAggregateStatus,
+} from "interfaces/software";
 import { abmIssueTooltip } from "pages/DashboardPage/cards/ABMIssueHosts/ABMIssueHosts";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import {
@@ -80,6 +83,8 @@ interface IHostsFilterBlockProps {
       name: string;
       display_name?: string;
       version?: string;
+      release?: string;
+      source?: string;
     } | null;
     mdmSolutionDetails: IMdmSolution | null;
     osSettingsStatus?: MdmProfileStatus;
@@ -354,7 +359,7 @@ const HostsFilterBlock = ({
     const { name, display_name, version } = softwareDetails;
     let label = getDisplayedSoftwareName(name, display_name);
     if (version) {
-      label += ` ${version}`;
+      label += ` ${formatSoftwareVersion({ ...softwareDetails, version })}`;
     }
 
     const clearParams = [
@@ -698,7 +703,8 @@ const HostsFilterBlock = ({
     const renderFilterPill = () => {
       switch (true) {
         // backend allows for pill combos (label + low disk space) OR
-        // (label + mdm solution) OR (label + mdm enrollment status)
+        // (label + mdm solution) OR (label + mdm enrollment status) OR
+        // (label + os settings) OR (label + disk encryption)
         case showSelectedLabel && !!lowDiskSpaceHosts:
           return (
             <>
@@ -722,6 +728,12 @@ const HostsFilterBlock = ({
           return (
             <>
               {renderLabelFilterPill()} {renderOsSettingsBlock()}
+            </>
+          );
+        case showSelectedLabel && !!diskEncryptionStatus:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderDiskEncryptionStatusBlock()}
             </>
           );
         case showSelectedLabel:

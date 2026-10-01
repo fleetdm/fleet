@@ -6,7 +6,7 @@ import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCe
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { formatSoftwareType, IHostSoftware } from "interfaces/software";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import { VersionsColumnCell } from "pages/SoftwarePage/components/tables/VersionCell";
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 
@@ -37,11 +37,18 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, display_name, source, icon_url } = cellProps.row.original;
+        const {
+          name,
+          display_name,
+          bundle_identifier,
+          source,
+          icon_url,
+        } = cellProps.row.original;
         return (
           <SoftwareNameCell
             name={name}
             display_name={display_name}
+            bundle_identifier={bundle_identifier}
             source={source}
             iconUrl={icon_url}
             pageContext="deviceUser"
@@ -58,9 +65,7 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
-      Cell: (cellProps: IInstalledVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
-      },
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Type",

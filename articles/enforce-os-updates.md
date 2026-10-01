@@ -163,7 +163,6 @@ Support depends on how the Android host is managed:
 - **OEMConfig hosts (Knox Service Plugin, Zebra, etc.)**: not supported. Fleet doesn't support [OEMConfig](https://support.google.com/work/android/answer/9388447?hl=en).
 - **[Android Open Source (AOSP)](https://source.android.com/) hosts**: not supported. Fleet's Android MDM runs on the [Android Management API](https://developers.google.com/android/management), which requires Google Mobile Services. Hosts without Google Mobile Services, like Huawei devices and other China-market Android, can't enroll in Fleet at all.
 
-
 ## Linux
 
 Linux doesn't have a Fleet-managed OS update setting or an MDM protocol. Instead, use a [policy](https://fleetdm.com/docs/configuration/yaml-files#policies) to find hosts that are out of date and a [script](https://fleetdm.com/guides/scripts) to update them. Fleet runs the script automatically on every host that fails the policy.

@@ -14,6 +14,7 @@ import { ILabelSummary } from "interfaces/label";
 import { SoftwareCategory } from "interfaces/software";
 import AdvancedOptionsFields from "pages/SoftwarePage/components/forms/AdvancedOptionsFields";
 import {
+  EndUserExperience,
   PatchOption,
   SoftwareDeploySelector,
 } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
@@ -63,6 +64,7 @@ export interface IFleetMaintainedAppFormData {
   forceInstall: boolean;
   patch: boolean;
   patchOption: PatchOption;
+  endUserExperience: EndUserExperience;
   installScript: string;
   preInstallQuery?: string;
   postInstallScript?: string;
@@ -88,6 +90,7 @@ interface IFleetAppDetailsFormProps {
   onCancel: () => void;
   onSubmit: (formData: IFleetMaintainedAppFormData) => void;
   softwareTitleId?: number;
+  platform?: string;
 }
 
 const FleetAppDetailsForm = ({
@@ -99,12 +102,14 @@ const FleetAppDetailsForm = ({
   onCancel,
   onSubmit,
   softwareTitleId,
+  platform,
 }: IFleetAppDetailsFormProps) => {
   const [formData, setFormData] = useState<IFleetMaintainedAppFormData>({
     selfService: false,
     forceInstall: false,
     patch: false,
     patchOption: "closed",
+    endUserExperience: "immediate",
     preInstallQuery: "",
     installScript: defaultInstallScript,
     postInstallScript: defaultPostInstallScript,
@@ -205,6 +210,8 @@ const FleetAppDetailsForm = ({
             forceInstall={formData.forceInstall}
             patch={formData.patch}
             patchOption={formData.patchOption}
+            platform={platform}
+            endUserExperience={formData.endUserExperience}
             onToggleForceInstall={(forceInstall) =>
               setFormData((prevData) => ({ ...prevData, forceInstall }))
             }
@@ -213,6 +220,9 @@ const FleetAppDetailsForm = ({
             }
             onSelectPatchOption={(patchOption) =>
               setFormData((prevData) => ({ ...prevData, patchOption }))
+            }
+            onSelectEndUserExperience={(endUserExperience) =>
+              setFormData((prevData) => ({ ...prevData, endUserExperience }))
             }
             disabled={disableChildren}
           />
@@ -287,8 +297,11 @@ const FleetAppDetailsForm = ({
             onChangeUninstallScript={onChangeUninstallScript}
             gitopsCompatible
             gitOpsModeEnabled={gitOpsModeEnabled}
-            patchWhenClosed={
-              formData.patch && formData.patchOption === "closed"
+            preInstallQueryLocked={
+              formData.patch &&
+              (formData.patchOption === "closed" ||
+                (formData.patchOption === "force" &&
+                  formData.endUserExperience === "notify"))
             }
           />
         )}

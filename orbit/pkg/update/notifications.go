@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
@@ -481,6 +482,10 @@ type DiskEncryptionKeySetter interface {
 	SetOrUpdateDiskEncryptionProtection(outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error
 	// GetServerCapabilities reports what the server supports.
 	GetServerCapabilities() fleet.CapabilityMap
+	// GetDiskEncryptionPINDetails collects the startup PIN the end user submitted. It hands out each PIN only once.
+	GetDiskEncryptionPINDetails() (pin, requestUUID string, err error)
+	// SetDiskEncryptionPINResult reports whether the PIN collected with requestUUID was applied.
+	SetDiskEncryptionPINResult(requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string) error
 }
 
 // execEncryptVolumeFunc handles the encryption of a volume identified by its
@@ -514,6 +519,16 @@ type execRotateRecoveryKeyFunc func(volumeID string) (string, error)
 
 // execResumeConversionFunc resumes a conversion that is paused on the volume.
 type execResumeConversionFunc func(volumeID string) error
+
+// execSetTPMAndPINProtectorFunc applies an end user's startup PIN to the volume. A failure is a *bitlocker.PINError.
+type execSetTPMAndPINProtectorFunc func(volumeID, pin string) error
+
+// pinOutcome is what the agent reports back for a collected startup PIN.
+type pinOutcome struct {
+	requestUUID string
+	outcome     fleet.BitLockerPINRequestStatus
+	clientError string
+}
 
 type windowsMDMBitlockerConfigReceiver struct {
 	// Frequency is the minimum amount of time that must pass between two
@@ -553,6 +568,13 @@ type windowsMDMBitlockerConfigReceiver struct {
 	execAddTPMProtectorFn        execAddTPMProtectorFunc
 	execEnableProtectionFn       execEnableProtectionFunc
 
+	// execSetTPMAndPINProtectorFn applies the end user's startup PIN.
+	execSetTPMAndPINProtectorFn execSetTPMAndPINProtectorFunc
+
+	// heldPINOutcome is a PIN outcome the server has not accepted yet. It is retried on later polls until the server
+	// records it or no longer wants it. It does not survive a restart.
+	heldPINOutcome *pinOutcome
+
 	// restartPendingFn reports whether a restart is staged. Overridden in tests.
 	restartPendingFn func() (bool, error)
 
@@ -577,6 +599,7 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 		execHasRecoveryPasswordFn:    comWorker.HasRecoveryPassword,
 		execAddTPMProtectorFn:        comWorker.AddTPMProtector,
 		execEnableProtectionFn:       comWorker.EnableProtection,
+		execSetTPMAndPINProtectorFn:  comWorker.SetTPMAndPINProtector,
 	}
 }
 
@@ -584,6 +607,13 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 // server set the "EnforceBitLockerEncryption" flag to true, executes the command
 // to attempt BitlockerEncryption (or not, if the device is a Windows Server).
 func (w *windowsMDMBitlockerConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
+	// Before the branches below, which return early: the server times a collected PIN out an hour after the agent took it,
+	// so try to resend it.
+	if w.mu.TryLock() {
+		w.retryHeldPINOutcome()
+		w.mu.Unlock()
+	}
+
 	if cfg.Notifications.EnforceBitLockerEncryption {
 		if w.mu.TryLock() {
 			defer w.mu.Unlock()
@@ -601,12 +631,80 @@ func (w *windowsMDMBitlockerConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 		return nil
 	}
 
+	// A PIN can only be applied to a protected, fully encrypted volume, so it waits until neither branch above applies.
 	if w.mu.TryLock() {
 		defer w.mu.Unlock()
 		w.retryHeldRecoveryKeyEscrow()
+		if cfg.Notifications.BitLockerPINRequestPending {
+			w.attemptSetBitLockerPIN()
+		}
 	}
 
 	return nil
+}
+
+// attemptSetBitLockerPIN collects the startup PIN the end user submitted from the My device page, applies it, and
+// reports the outcome. Collecting is destructive, so every path after it reports, which is also how the waiting page
+// learns why a PIN could not be set.
+func (w *windowsMDMBitlockerConfigReceiver) attemptSetBitLockerPIN() {
+	pin, requestUUID, err := w.EncryptionResult.GetDiskEncryptionPINDetails()
+	if err != nil {
+		if client.IsNotFoundErr(err) {
+			log.Debug().Msg("no BitLocker startup PIN left to collect")
+			return
+		}
+		log.Error().Err(err).Msg("could not collect the BitLocker startup PIN, will retry")
+		return
+	}
+
+	outcome := pinOutcome{requestUUID: requestUUID, outcome: fleet.BitLockerPINRequestSet}
+	if err := w.setBitLockerPIN(pin); err != nil {
+		log.Error().Err(err).Msg("could not set the BitLocker startup PIN")
+		outcome.outcome = fleet.BitLockerPINRequestFailed
+		outcome.clientError = bitlocker.PINReasonNotFinished
+		if pinErr, ok := errors.AsType[*bitlocker.PINError](err); ok {
+			outcome.clientError = pinErr.Reason
+		}
+	} else {
+		log.Info().Msg("set the BitLocker startup PIN")
+	}
+	w.reportPINOutcome(outcome)
+}
+
+func (w *windowsMDMBitlockerConfigReceiver) setBitLockerPIN(pin string) error {
+	// Checking for server here is defense in depth, just in case the flow gets here.
+	isServer, err := IsRunningOnWindowsServer()
+	if err != nil {
+		return fmt.Errorf("checking if the host is a Windows server: %w", err)
+	}
+	if isServer {
+		return &bitlocker.PINError{Reason: bitlocker.PINReasonWindowsServer}
+	}
+	return w.execSetTPMAndPINProtectorFn("C:", pin)
+}
+
+// reportPINOutcome sends a PIN outcome to the server, holding it for a later poll when the server cannot be reached.
+func (w *windowsMDMBitlockerConfigReceiver) reportPINOutcome(outcome pinOutcome) {
+	err := w.EncryptionResult.SetDiskEncryptionPINResult(outcome.requestUUID, outcome.outcome, outcome.clientError)
+	switch {
+	case err == nil:
+		w.heldPINOutcome = nil
+	case client.IsNotFoundErr(err):
+		// The submission was settled or superseded, so the server will never accept this outcome.
+		log.Warn().Err(err).Msgf("Fleet no longer expects the BitLocker PIN outcome %q, dropping it", outcome.outcome)
+		w.heldPINOutcome = nil
+	default:
+		log.Error().Err(err).Msgf("could not report the BitLocker PIN outcome %q to Fleet, will retry", outcome.outcome)
+		w.heldPINOutcome = &outcome
+	}
+}
+
+func (w *windowsMDMBitlockerConfigReceiver) retryHeldPINOutcome() {
+	if w.heldPINOutcome == nil {
+		return
+	}
+	log.Info().Msgf("retrying the held BitLocker PIN outcome %q", w.heldPINOutcome.outcome)
+	w.reportPINOutcome(*w.heldPINOutcome)
 }
 
 // retryHeldRecoveryKeyEscrow sends a recovery key that a repair rotated but could not escrow, when the server is no longer

@@ -14,6 +14,7 @@ import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -670,7 +671,17 @@ const EditQueryForm = ({
                 value={lastEditedQueryFrequency}
                 label="Interval"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-                helpText="This is how often your report collects data."
+                helpText={
+                  <>
+                    Hosts report at fixed times (e.g., on the hour for a 1-hour
+                    interval).{" "}
+                    <CustomLink
+                      url="https://fleetdm.com/guides/reports#schedule-a-report"
+                      text="Learn more"
+                      newTab
+                    />
+                  </>
+                }
               />
               <Slider
                 onChange={() =>
@@ -811,19 +822,6 @@ const EditQueryForm = ({
           <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
             {hasSavePermissions && (
               <>
-                {isExistingQuery && (
-                  <GitOpsModeTooltipWrapper
-                    renderChildren={(disableChildren) => (
-                      <Button
-                        variant="secondary"
-                        onClick={toggleSaveAsNewQueryModal}
-                        disabled={disableSaveFormErrors || disableChildren}
-                      >
-                        Save as new
-                      </Button>
-                    )}
-                  />
-                )}
                 <div className={`${baseClass}__button-wrap--save-query-button`}>
                   <GitOpsModeTooltipWrapper
                     tipOffset={8}
@@ -843,6 +841,19 @@ const EditQueryForm = ({
                     )}
                   />
                 </div>
+                {isExistingQuery && (
+                  <GitOpsModeTooltipWrapper
+                    renderChildren={(disableChildren) => (
+                      <Button
+                        variant="secondary"
+                        onClick={toggleSaveAsNewQueryModal}
+                        disabled={disableSaveFormErrors || disableChildren}
+                      >
+                        Save as new
+                      </Button>
+                    )}
+                  />
+                )}
               </>
             )}
             <TooltipWrapper
