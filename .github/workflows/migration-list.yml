@@ -29,7 +29,7 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          ./tools/migration-list/migration-list.sh -b "origin/$BASE_REF" > migration_list.txt 2>&1
+          ./tools/migration-list/migration-list.sh -b "origin/$BASE_REF" > migration_list.txt
           cat migration_list.txt
 
       - name: Comment on PR
@@ -49,6 +49,6 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## Migration list\n\n\`\`\`\n${output}\n\`\`\``
+              body: `## Migration list\n\nPlease check that each new migration comes after every migration from earlier releases and before every migration that ships in a later release than the one this PR targets.\n\n\`\`\`\n${output}\n\`\`\``
             });
             console.log('Posted comment with migration list');

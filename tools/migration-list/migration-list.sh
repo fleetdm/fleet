@@ -10,8 +10,8 @@
 #   -h  show this help
 #
 # Compares releases oldest first, then origin/main, then HEAD with -b. Releases are fleet-vX.Y.Z tags, or origin/rc-minor-fleet-vX.Y.Z /
-# origin/rc-patch-fleet-vX.Y.Z branches for versions not tagged yet. Labels are the ref names without origin/.
-# Rows added or renamed in HEAD are marked with <-- NEW, and other rows whose label differs from the row above with <--
+# origin/rc-patch-fleet-vX.Y.Z branches for versions not tagged yet, labeled with their version. origin/main is labeled main.
+# Rows added or renamed in HEAD are marked with <-- NEW, and other rows whose label differs from the last row not marked NEW with <--
 
 set -euo pipefail
 
@@ -46,14 +46,14 @@ fi
 work_dir=$(mktemp -d)
 trap 'rm -r "$work_dir"' EXIT
 
-# Write one "label ref" line per release, oldest first, where the label is the ref without origin/. A tag replaces the RC branch of the same version.
+# Write one "version ref" line per release, oldest first. A tag replaces the RC branch of the same version.
 {
   # List release tags as "1 4.92.2 fleet-v4.92.2", the leading 1 sorts tags before RC branches of the same version
   git tag -l 'fleet-v*.*.*' | grep -E '^fleet-v[0-9]+\.[0-9]+\.[0-9]+$' | sed -E 's/^fleet-v(.*)$/\1 &/' | sed 's/^/1 /'
   # List RC branches as "2 4.93.0 origin/rc-minor-fleet-v4.93.0"
   git branch -r --format='%(refname:short)' | grep -E '^origin/rc-(minor|patch)-fleet-v[0-9]+\.[0-9]+\.[0-9]+$' | sed -E 's/^.*-fleet-v(.*)$/\1 &/' | sed 's/^/2 /'
-# Sort by version then tag first, keep the first ref per version, print it as "label ref" and keep the newest releases
-} | sort -k2,2V -k1,1n | awk '!seen[$2]++ { label = $3; sub(/^origin\//, "", label); print label " " $3 }' | tail -n "$release_count" > "$work_dir/releases"
+# Sort by version then tag first, keep the first ref per version, print it as "version ref" and keep the newest releases
+} | sort -k2,2V -k1,1n | awk '!seen[$2]++ { print $2 " " $3 }' | tail -n "$release_count" > "$work_dir/releases"
 
 echo "main origin/main" >> "$work_dir/releases"
 touch "$work_dir/new_numbers"
@@ -97,15 +97,19 @@ awk 'FILENAME == ARGV[1] { if (!($1 in first)) first[$1] = $2; next } { print $1
   FILENAME == ARGV[1] { new[$1] = 1; next }
   { rows++; number[rows] = $1; label[rows] = $2; if (length($2) > width) width = length($2) }
   END {
-    # Pad labels to the longest one, mark rows in new_numbers with <-- NEW, and other rows whose label differs from the row above with <--
+    # Pad labels to the longest one, mark rows in new_numbers with <-- NEW, and other rows whose label differs from the last row not in new_numbers with <--
+    previous = ""
     for (i = 1; i <= rows; i++) {
       if (new[number[i]]) {
         printf "%s - %-*s  <-- NEW\n", number[i], width, label[i]
-      } else if (i > 1 && label[i] != label[i - 1]) {
+        continue
+      }
+      if (previous != "" && label[i] != previous) {
         printf "%s - %-*s  <--\n", number[i], width, label[i]
       } else {
         printf "%s - %s\n", number[i], label[i]
       }
+      previous = label[i]
     }
   }
 ' "$work_dir/new_numbers" -
