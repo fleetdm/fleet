@@ -43,9 +43,6 @@ go.mod @fleetdm/go
 /server/api_endpoints/api_endpoints.yml @rachaelshaw # « API endpoint display names in the Fleet UI (API-only users)
 /ee/server/ @fleetdm/go
 /orbit/ @sharon-fdm @lucasmrod
-/client/ @sharon-fdm @lucasmrod
-/pkg/fleethttp/ @sharon-fdm @lucasmrod
-/pkg/retry/ @sharon-fdm @lucasmrod
 
 # Orbit paths owned by other teams (medium risk: Sharon + Lucas + team TL/EM)
 /orbit/pkg/bitlocker/          @sharon-fdm @lucasmrod @juan-fdz-hawa
