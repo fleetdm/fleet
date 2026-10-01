@@ -1090,6 +1090,7 @@ const HostDetailsPage = ({
             hostDisplayName: host?.display_name || details?.host_display_name,
             hostSerial: details?.host_serial,
             reason: details?.reason,
+            platform: details?.platform,
             createdAt: created_at,
           });
           break;
@@ -2309,6 +2310,7 @@ const HostDetailsPage = ({
             <EnrollmentAttemptDetailsModal
               hostDisplayName={enrollmentRejectedDetails.hostDisplayName}
               reason={enrollmentRejectedDetails.reason}
+              platform={enrollmentRejectedDetails.platform}
               createdAt={enrollmentRejectedDetails.createdAt}
               onDone={() => setEnrollmentRejectedDetails(null)}
             />
