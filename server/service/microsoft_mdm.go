@@ -2843,11 +2843,20 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 					break
 				}
 			}
+			var softwareDisplayName *string
+			if softwareTitleID != 0 {
+				dn, dnErr := svc.ds.GetSoftwareTitleDisplayName(ctx, host.TeamID, softwareTitleID)
+				if dnErr != nil {
+					svc.logger.WarnContext(ctx, "failed to look up software display name for canceled setup experience timeout activity", "err", dnErr)
+				}
+				softwareDisplayName = dn
+			}
 			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
-				HostID:          host.ID,
-				HostDisplayName: host.DisplayName(),
-				SoftwareTitle:   softwareTitle,
-				SoftwareTitleID: softwareTitleID,
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       softwareTitle,
+				SoftwareDisplayName: softwareDisplayName,
+				SoftwareTitleID:     softwareTitleID,
 			}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "creating canceled setup experience activity on timeout")
 			}
