@@ -6,7 +6,7 @@ Connect Fleet to the Android zero-touch portal so that company-owned Android dev
 
 > Zero-touch enrollment requires devices purchased from an [authorized zero-touch reseller](https://androidenterprisepartners.withgoogle.com/devices/) and claimed to your organization's [zero-touch customer account](https://enterprise.google.com/android/zero-touch/customers). You also need [Android MDM turned on](https://fleetdm.com/guides/android-mdm-setup) in Fleet.
 
-## Copy DPC extras
+## Step 1: Copy DPC extras
 
 1. In Fleet, head to **Settings > Integrations > Mobile device management (MDM)**.
 2. Under **Android zero-touch**, select **Setup**.
