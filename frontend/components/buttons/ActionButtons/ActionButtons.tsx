@@ -48,7 +48,11 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
         {primaryActions.map(
           (action) =>
             !action.hideAction && (
-              <Button onClick={action.onClick} disabled={action.disabled}>
+              <Button
+                key={action.label}
+                onClick={action.onClick}
+                disabled={action.disabled}
+              >
                 {action.label}
               </Button>
             )
@@ -61,6 +65,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
           {secondaryActions.map((action) => {
             const button = (
               <Button
+                key={action.label}
                 variant={action.buttonVariant}
                 onClick={action.onClick}
                 disabled={action.disabled}
@@ -71,7 +76,12 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
             );
             // A GitOps-compatible action is only disabled by GitOps mode, so explain it.
             if (action.gitOpsModeCompatible && action.disabled) {
-              return <GitOpsModeTooltipWrapper renderChildren={() => button} />;
+              return (
+                <GitOpsModeTooltipWrapper
+                  key={action.label}
+                  renderChildren={() => button}
+                />
+              );
             }
             return button;
           })}
