@@ -615,7 +615,7 @@ const ProfileFormPage = ({
   } = useContext(AppContext);
   const { gitOpsModeEnabled } = useGitOpsMode();
 
-  const { currentTeamName, teamIdForApi } = useTeamIdParam({
+  const { currentTeamName, teamIdForApi, userTeams } = useTeamIdParam({
     location,
     router,
     includeAllTeams: false,
@@ -666,15 +666,27 @@ const ProfileFormPage = ({
     profileTeamId !== undefined &&
     teamId !== undefined &&
     profileTeamId !== teamId;
+  // useTeamIdParam sends the user back from a fleet they can't manage, so
+  // following the profile there would bounce between the two forever.
+  const canManageProfileFleet =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    !!userTeams?.some((team) => team.id === profileTeamId);
   useEffect(() => {
-    if (isWrongFleet) {
+    if (isWrongFleet && canManageProfileFleet) {
       router.replace(
         getPathWithQueryParams(location.pathname, {
           fleet_id: profileTeamId,
         })
       );
     }
-  }, [isWrongFleet, location.pathname, profileTeamId, router]);
+  }, [
+    isWrongFleet,
+    canManageProfileFleet,
+    location.pathname,
+    profileTeamId,
+    router,
+  ]);
 
   // The roles useTeamIdParam allows above; anyone else has no fleet to land
   // on and would otherwise wait on a spinner.
@@ -689,6 +701,11 @@ const ProfileFormPage = ({
     }
     if (teamId === undefined) {
       return <Spinner />;
+    }
+    if (isWrongFleet && !canManageProfileFleet) {
+      return (
+        <DataError description="You don't have permission to edit this profile." />
+      );
     }
     if (
       profileUUID &&

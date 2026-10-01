@@ -553,6 +553,37 @@ describe("ProfileFormPage", () => {
     expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
   });
 
+  it("refuses a profile in a fleet the user can't manage instead of following it", async () => {
+    // an admin of Workstations who is only a technician of Servers
+    mockUseTeamIdParam.mockReturnValue({
+      currentTeamId: 1,
+      currentTeamName: "Workstations",
+      teamIdForApi: 1,
+      userTeams: [createMockTeamSummary({ id: 1, name: "Workstations" })],
+      handleTeamChange: jest.fn(),
+    });
+    jest
+      .spyOn(configProfileAPI, "getConfigProfile")
+      .mockResolvedValue({ ...existingProfile, team_id: 3 });
+
+    const { router } = renderPage(
+      existingProfile.profile_uuid,
+      makeRenderer({
+        isPremiumTier: true,
+        isGlobalAdmin: false,
+        isAnyTeamMaintainerOrTeamAdmin: true,
+        currentTeam: createMockTeamSummary({ id: 1, name: "Workstations" }),
+      }),
+      { fleet_id: "3" }
+    );
+
+    expect(
+      await screen.findByText("You don't have permission to edit this profile.")
+    ).toBeInTheDocument();
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+  });
+
   it("uploads a picked file and names the profile after it", async () => {
     const { user } = renderPage();
 
