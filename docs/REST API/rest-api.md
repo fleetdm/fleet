@@ -8439,7 +8439,7 @@ Generates a name and description for a configuration profile using AI.
 | Name                          | Type   | In   | Description                                         |
 | ----------------------------- | ------ | --   | --------------------------------------------------- |
 | natural_language_instructions | string | body | **Required.** What the profile should enforce.      |
-| platform                      | string | body | **Required.** One of `macos`, `windows`, `android`. |
+| platform                      | string | body | **Required.** One of `apple`, `windows`, `android`. |
 
 #### Example response
 
@@ -8467,7 +8467,7 @@ Generates configuration profile content using AI.
 | Name                          | Type   | In   | Description                                         |
 | ----------------------------- | ------ | --   | --------------------------------------------------- |
 | natural_language_instructions | string | body | **Required.** What the profile should enforce.      |
-| platform                      | string | body | **Required.** One of `macos`, `windows`, `android`. |
+| platform                      | string | body | **Required.** One of `apple`, `windows`, `android`. |
 
 #### Example response
 
