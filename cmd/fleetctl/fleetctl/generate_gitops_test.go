@@ -3079,6 +3079,53 @@ func TestGenerateControlsDiskEncryption(t *testing.T) {
 	})
 }
 
+// These are org-level settings, so they belong only in the file holding the global controls:
+// default.yml on Free, unassigned.yml on Premium.
+func TestGenerateControlsMDMEnabledAndConfigured(t *testing.T) {
+	cases := []struct {
+		name       string
+		isFree     bool
+		teamID     *uint
+		mdmEnabled bool
+		wantEmit   bool
+	}{
+		{name: "free global, MDM on", isFree: true, teamID: nil, mdmEnabled: true, wantEmit: true},
+		{name: "free global, MDM off", isFree: true, teamID: nil, mdmEnabled: false, wantEmit: true},
+		{name: "premium unassigned, MDM on", teamID: new(uint(0)), mdmEnabled: true, wantEmit: true},
+		{name: "premium unassigned, MDM off", teamID: new(uint(0)), mdmEnabled: false, wantEmit: true},
+		{name: "premium fleet, MDM on", teamID: new(uint(1)), mdmEnabled: true, wantEmit: false},
+		{name: "premium fleet, MDM off", teamID: new(uint(1)), mdmEnabled: false, wantEmit: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &MockClient{IsFree: tc.isFree}
+			appConfig, err := client.GetAppConfig()
+			require.NoError(t, err)
+			appConfig.MDM.WindowsEnabledAndConfigured = tc.mdmEnabled
+			appConfig.MDM.AndroidEnabledAndConfigured = tc.mdmEnabled
+			cmd := &GenerateGitopsCommand{
+				Client:       client,
+				CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+				Messages:     Messages{},
+				FilesToWrite: make(map[string]any),
+				AppConfig:    appConfig,
+				ScriptList:   make(map[uint]string),
+			}
+
+			controls, err := cmd.generateControls(tc.teamID, "some_team", &fleet.TeamMDM{})
+			require.NoError(t, err)
+
+			for _, key := range []string{"windows_enabled_and_configured", "android_enabled_and_configured"} {
+				if tc.wantEmit {
+					assert.Equal(t, tc.mdmEnabled, controls[key], key)
+				} else {
+					assert.NotContains(t, controls, key)
+				}
+			}
+		})
+	}
+}
+
 func TestGenerateMDMVPPTokens(t *testing.T) {
 	tests := []struct {
 		name      string
