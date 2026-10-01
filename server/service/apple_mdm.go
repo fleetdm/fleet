@@ -73,7 +73,7 @@ const (
 	// Shared with the batch/GitOps path so the same mistake reads the same way.
 	ActivationUnsupportedProfileErrorMsg    = "Activations are only supported for declaration (DDM) profiles."
 	ActivationUnsupportedManagementErrorMsg = "Activations are only supported for configuration declarations (com.apple.configuration.)."
-	SelfServiceUnsupportedProfileErrorMsg   = "Couldn't add. self_service is only supported for .mobileconfig profiles."
+	SelfServiceUnsupportedProfileErrorMsg   = "self_service is only supported for .mobileconfig profiles."
 	ActivationEmptyFileErrorMsg             = "Activation must contain a declaration. To remove the activation, send an empty activation field."
 	ActivationConflictingPartsErrorMsg      = "Send either an activation file to replace it or an empty activation field to remove it, not both."
 	ActivationsDisabledErrorMsg             = "Custom activations aren't available. Set FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS=1 on the Fleet server to turn them on."
@@ -282,7 +282,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	if err := fleet.ValidateMDMProfileDescription(description); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	if err := validateProfileDeployFlags(ctx, selfService, hidden, true); err != nil {
+	if err := validateProfileDeployFlags(ctx, selfService, hidden, true, "Couldn't add. "); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	cp, varNames, teamName, err := svc.parseAndValidateAppleConfigProfile(ctx, teamID, name, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
@@ -996,7 +996,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	if err := fleet.ValidateMDMProfileDescription(description); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	if err := validateProfileDeployFlags(ctx, false, hidden, false); err != nil {
+	if err := validateProfileDeployFlags(ctx, false, hidden, false, "Couldn't add. "); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
@@ -1207,7 +1207,7 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		}
 		newDescription = *description
 	}
-	_, newHidden, err := resolveProfileDeployFlags(ctx, false, existing.Hidden, nil, hidden, false)
+	_, newHidden, err := resolveProfileDeployFlags(ctx, false, existing.Hidden, nil, hidden, false, "Couldn't edit. ")
 	if err != nil {
 		return err
 	}
@@ -1974,7 +1974,7 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 		}
 		newDescription = *description
 	}
-	newSelfService, newHidden, err := resolveProfileDeployFlags(ctx, existing.SelfService, existing.Hidden, selfService, hidden, true)
+	newSelfService, newHidden, err := resolveProfileDeployFlags(ctx, existing.SelfService, existing.Hidden, selfService, hidden, true, "Couldn't edit. ")
 	if err != nil {
 		return err
 	}

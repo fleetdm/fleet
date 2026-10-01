@@ -1824,7 +1824,7 @@ func decodeProfileDeployFields(form *multipart.Form) (selfService, hidden *bool,
 
 // validateProfileDeployFlags enforces the self-service / hidden rules shared by
 // create, update, and batch. isAppleConfigProfile is true only for .mobileconfig.
-func validateProfileDeployFlags(ctx context.Context, selfService, hidden bool, isAppleConfigProfile bool) error {
+func validateProfileDeployFlags(ctx context.Context, selfService, hidden bool, isAppleConfigProfile bool, errPrefix string) error {
 	if !selfService && !hidden {
 		return nil
 	}
@@ -1832,10 +1832,10 @@ func validateProfileDeployFlags(ctx context.Context, selfService, hidden bool, i
 		return fleet.NewInvalidArgumentError("self_service", ErrMissingLicense.Error())
 	}
 	if selfService && !isAppleConfigProfile {
-		return fleet.NewInvalidArgumentError("self_service", SelfServiceUnsupportedProfileErrorMsg)
+		return fleet.NewInvalidArgumentError("self_service", errPrefix+SelfServiceUnsupportedProfileErrorMsg)
 	}
 	if selfService && hidden {
-		return fleet.NewInvalidArgumentError("hidden", "Couldn't add. hidden requires self_service to be false.")
+		return fleet.NewInvalidArgumentError("hidden", errPrefix+"hidden requires self_service to be false.")
 	}
 	return nil
 }
@@ -1843,7 +1843,7 @@ func validateProfileDeployFlags(ctx context.Context, selfService, hidden bool, i
 // resolveProfileDeployFlags applies the requested flags over the stored ones,
 // validating the result only when a flag was provided so edits that don't touch
 // them keep working (e.g. after a license downgrade).
-func resolveProfileDeployFlags(ctx context.Context, curSelfService, curHidden bool, selfService, hidden *bool, isAppleConfigProfile bool) (bool, bool, error) {
+func resolveProfileDeployFlags(ctx context.Context, curSelfService, curHidden bool, selfService, hidden *bool, isAppleConfigProfile bool, errPrefix string) (bool, bool, error) {
 	if selfService == nil && hidden == nil {
 		return curSelfService, curHidden, nil
 	}
@@ -1853,7 +1853,7 @@ func resolveProfileDeployFlags(ctx context.Context, curSelfService, curHidden bo
 	if hidden != nil {
 		curHidden = *hidden
 	}
-	return curSelfService, curHidden, validateProfileDeployFlags(ctx, curSelfService, curHidden, isAppleConfigProfile)
+	return curSelfService, curHidden, validateProfileDeployFlags(ctx, curSelfService, curHidden, isAppleConfigProfile, errPrefix)
 }
 
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -2279,7 +2279,7 @@ func (svc *Service) NewMDMSelfServiceUnsupportedProfile(ctx context.Context, tea
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
-	return fleet.NewInvalidArgumentError("self_service", SelfServiceUnsupportedProfileErrorMsg)
+	return fleet.NewInvalidArgumentError("self_service", "Couldn't add. "+SelfServiceUnsupportedProfileErrorMsg)
 }
 
 func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error {
@@ -2359,7 +2359,7 @@ func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID stri
 		if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 			return ctxerr.Wrap(ctx, err)
 		}
-		return fleet.NewInvalidArgumentError("self_service", SelfServiceUnsupportedProfileErrorMsg)
+		return fleet.NewInvalidArgumentError("self_service", "Couldn't edit. "+SelfServiceUnsupportedProfileErrorMsg)
 	}
 
 	switch {
@@ -2387,7 +2387,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	if err := fleet.ValidateMDMProfileDescription(description); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	if err := validateProfileDeployFlags(ctx, false, hidden, false); err != nil {
+	if err := validateProfileDeployFlags(ctx, false, hidden, false, "Couldn't add. "); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	cp, teamName, err := svc.parseAndValidateAndroidConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
@@ -2560,7 +2560,7 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 		}
 		newDescription = *description
 	}
-	_, newHidden, err := resolveProfileDeployFlags(ctx, false, existing.Hidden, nil, hidden, false)
+	_, newHidden, err := resolveProfileDeployFlags(ctx, false, existing.Hidden, nil, hidden, false, "Couldn't edit. ")
 	if err != nil {
 		return err
 	}
@@ -2901,7 +2901,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		labels = append(labels, profiles[i].LabelsIncludeAny...)
 		labels = append(labels, profiles[i].LabelsExcludeAny...)
 
-		if err := validateProfileDeployFlags(ctx, profiles[i].SelfService, profiles[i].Hidden, isMobileconfigContents(profiles[i].Contents)); err != nil {
+		if err := validateProfileDeployFlags(ctx, profiles[i].SelfService, profiles[i].Hidden, isMobileconfigContents(profiles[i].Contents), "Couldn't edit configuration_profiles. "); err != nil {
 			return ctxerr.Wrap(ctx, err, "validating profile deploy flags")
 		}
 	}

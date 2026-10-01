@@ -402,7 +402,7 @@ WHERE profile_uuid = ? AND identifier = ?` + nameGuard
 		}
 
 		if !existing.SelfService && cp.SelfService {
-			if err := seedSelfServiceOptInsDB(ctx, tx, []string{cp.ProfileUUID}); err != nil {
+			if err := seedSelfServiceProfileOptInsDB(ctx, tx, []string{cp.ProfileUUID}); err != nil {
 				return err
 			}
 		}
@@ -2990,10 +2990,10 @@ func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, p
 	})
 }
 
-// seedSelfServiceOptInsDB opts in every host that has the profiles installed.
+// seedSelfServiceProfileOptInsDB opts in every host that has the profiles installed.
 // It must run in the same transaction that flips the profiles to self-service,
 // or the reconciler could observe self-service without opt-ins and remove them.
-func seedSelfServiceOptInsDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
+func seedSelfServiceProfileOptInsDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
 	if len(profileUUIDs) == 0 {
 		return nil
 	}
@@ -3175,7 +3175,7 @@ ON DUPLICATE KEY UPDATE
 
 		updatedDB = updatedDB || didInsertOrUpdate
 	}
-	if err := seedSelfServiceOptInsDB(ctx, tx, flippedToSelfService); err != nil {
+	if err := seedSelfServiceProfileOptInsDB(ctx, tx, flippedToSelfService); err != nil {
 		return false, err
 	}
 

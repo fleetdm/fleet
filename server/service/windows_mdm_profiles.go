@@ -29,7 +29,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	if err := fleet.ValidateMDMProfileDescription(description); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	if err := validateProfileDeployFlags(ctx, false, hidden, false); err != nil {
+	if err := validateProfileDeployFlags(ctx, false, hidden, false, "Couldn't add. "); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	cp, usesFleetVars, teamName, err := svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't add. ")
@@ -223,7 +223,7 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 		}
 		newDescription = *description
 	}
-	_, newHidden, err := resolveProfileDeployFlags(ctx, false, existing.Hidden, nil, hidden, false)
+	_, newHidden, err := resolveProfileDeployFlags(ctx, false, existing.Hidden, nil, hidden, false, "Couldn't edit. ")
 	if err != nil {
 		return err
 	}

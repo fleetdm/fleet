@@ -6026,10 +6026,10 @@ func TestValidateProfileDeployFlags(t *testing.T) {
 	free := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierFree})
 	premium := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
-	require.NoError(t, validateProfileDeployFlags(free, false, false, true))
-	require.ErrorContains(t, validateProfileDeployFlags(free, false, true, false), ErrMissingLicense.Error())
-	require.NoError(t, validateProfileDeployFlags(premium, true, false, true))
-	require.NoError(t, validateProfileDeployFlags(premium, false, true, false))
-	require.ErrorContains(t, validateProfileDeployFlags(premium, true, false, false), "only supported for .mobileconfig")
-	require.ErrorContains(t, validateProfileDeployFlags(premium, true, true, true), "hidden requires self_service to be false")
+	require.NoError(t, validateProfileDeployFlags(free, false, false, true, ""), "false for hidde and self service on apple profile should not fail on free")
+	require.ErrorContains(t, validateProfileDeployFlags(free, false, true, false, ""), ErrMissingLicense.Error(), "self service on free tier should fail")
+	require.NoError(t, validateProfileDeployFlags(premium, true, false, true, ""), "self service on premium tier should succeed")
+	require.NoError(t, validateProfileDeployFlags(premium, false, true, false, ""), "hidden on premium tier should succeed")
+	require.ErrorContains(t, validateProfileDeployFlags(premium, true, false, false, ""), "only supported for .mobileconfig", "self service for non-apple profile should fail")
+	require.ErrorContains(t, validateProfileDeployFlags(premium, true, true, true, "Couldn't edit. "), "Couldn't edit. hidden requires self_service to be false", "self service and hidden both true should fail")
 }
