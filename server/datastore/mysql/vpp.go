@@ -34,8 +34,8 @@ func (ds *Datastore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, team
 	return versions[0], nil
 }
 
-func (ds *Datastore) GetVPPAppVersionsByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
-	return ds.getVPPAppVersionsByTeamAndTitleID(ctx, teamID, titleID, false)
+func (ds *Datastore) GetVPPAppVersionsByTeamAndTitleID(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
+	return ds.getVPPAppVersionsByTeamAndTitleID(ctx, &teamID, titleID, false)
 }
 
 func (ds *Datastore) getVPPAppVersionsByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, onlyFirstAdded bool) ([]*fleet.VPPAppStoreApp, error) {
@@ -69,14 +69,6 @@ ORDER BY vat.id`
 	if teamID != nil {
 		args = append(args, *teamID)
 		teamFilter = "AND vat.global_or_team_id = ?"
-	} else {
-		// List only the versions in the fleet of the first-added version so versions from different fleets don't mix
-		args = append(args, titleID)
-		teamFilter = `AND vat.global_or_team_id = (
-	SELECT vat2.global_or_team_id FROM vpp_apps_teams vat2
-	JOIN vpp_apps vap2 ON vap2.adam_id = vat2.adam_id AND vap2.platform = vat2.platform
-	WHERE vap2.title_id = ? ORDER BY vat2.id LIMIT 1
-)`
 	}
 
 	if onlyFirstAdded {
@@ -552,7 +544,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			if vppToken != nil {
 				tokenID = &vppToken.ID
 			}
-			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, tokenID)
+			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, tokenID, nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
 			}
@@ -673,12 +665,7 @@ WHERE
 	return true, title, nil
 }
 
-func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
-	versionName := app.VersionName
-	if versionName == "" {
-		versionName = fleet.DefaultAppStoreAppVersionName
-	}
-
+func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*fleet.VPPApp, error) {
 	var vppTokenID *uint
 	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {
@@ -708,42 +695,9 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPApps transaction")
 		}
 
-		var vppAppTeamID uint
-		if app.AppTeamID != 0 {
-			err = sqlx.GetContext(ctx, tx, &vppAppTeamID,
-				`SELECT id FROM vpp_apps_teams WHERE id = ? AND adam_id = ? AND platform = ? AND global_or_team_id = ?`,
-				app.AppTeamID, app.AdamID, app.Platform, ptr.ValOrZero(teamID))
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam get app store app version")
-			}
-		}
-		if vppAppTeamID != 0 {
-			// Update the edited version by id so its name can change
-			_, err = tx.ExecContext(ctx, `
-UPDATE vpp_apps_teams SET
-	self_service = ?,
-	install_during_setup = COALESCE(?, install_during_setup),
-	name = ?,
-	update_schedule_enabled = COALESCE(?, update_schedule_enabled),
-	start_time = IF(? = '', start_time, ?),
-	end_time = IF(? = '', end_time, ?)
-WHERE id = ?`,
-				app.SelfService, app.InstallDuringSetup, versionName, app.AutoUpdateEnabled,
-				ptr.ValOrZero(app.AutoUpdateStartTime), ptr.ValOrZero(app.AutoUpdateStartTime),
-				ptr.ValOrZero(app.AutoUpdateEndTime), ptr.ValOrZero(app.AutoUpdateEndTime), vppAppTeamID)
-			if err != nil {
-				if IsDuplicate(err) {
-					return ctxerr.Wrap(ctx, fleet.ConflictError{
-						Message: fmt.Sprintf("Couldn't edit. A version named %q already exists for this app in this fleet.", versionName),
-					}, "renaming app store app version")
-				}
-				return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam update app store app version")
-			}
-		} else {
-			vppAppTeamID, err = insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID, vppTokenID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
-			}
+		vppAppTeamID, err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID, vppTokenID, existingVPPAppTeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
 		}
 
 		err = ds.checkSoftwareConflictsForVPPApp(ctx, tx, teamID, teamName, app.VPPAppID)
@@ -908,15 +862,20 @@ ON DUPLICATE KEY UPDATE
 	return ctxerr.Wrap(ctx, err, "insert VPP apps")
 }
 
-func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID *uint) (uint, error) {
+func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID *uint, existingVPPAppTeamID *uint) (uint, error) {
+	// Pass the existing id to update that version on the primary key so its name can change, a NULL id inserts a new version or updates the one with the same name
 	stmt := `
 INSERT INTO vpp_apps_teams
-	(adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id, install_during_setup, name)
+	(id, adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id, install_during_setup, name)
 VALUES
-	(?, ?, ?, ?, ?, ?, COALESCE(?, false), ?)
+	(?, ?, ?, ?, ?, ?, ?, COALESCE(?, false), ?)
 ON DUPLICATE KEY UPDATE
 	self_service = VALUES(self_service),
-	install_during_setup = COALESCE(?, install_during_setup)
+	install_during_setup = COALESCE(?, install_during_setup),
+	name = VALUES(name),
+	update_schedule_enabled = COALESCE(?, update_schedule_enabled),
+	start_time = IF(? = '', start_time, ?),
+	end_time = IF(? = '', end_time, ?)
 `
 
 	var globalOrTmID uint
@@ -933,7 +892,16 @@ ON DUPLICATE KEY UPDATE
 		versionName = fleet.DefaultAppStoreAppVersionName
 	}
 
-	res, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID, appID.InstallDuringSetup, versionName, appID.InstallDuringSetup)
+	// Write the maintenance window only when automatic updates are turned on, the update skips empty times
+	var startTime, endTime string
+	if ptr.ValOrZero(appID.AutoUpdateEnabled) {
+		startTime = ptr.ValOrZero(appID.AutoUpdateStartTime)
+		endTime = ptr.ValOrZero(appID.AutoUpdateEndTime)
+	}
+
+	res, err := tx.ExecContext(ctx, stmt,
+		existingVPPAppTeamID, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID, appID.InstallDuringSetup, versionName,
+		appID.InstallDuringSetup, appID.AutoUpdateEnabled, startTime, startTime, endTime, endTime)
 	if err != nil {
 		if IsDuplicate(err) {
 			err = &existsError{
@@ -943,6 +911,10 @@ ON DUPLICATE KEY UPDATE
 			}
 		}
 		return 0, ctxerr.Wrap(ctx, err, "inserting app store app")
+	}
+
+	if existingVPPAppTeamID != nil {
+		return *existingVPPAppTeamID, nil
 	}
 
 	var id int64
@@ -3485,17 +3457,21 @@ func (ds *Datastore) BulkGetVPPAppConfigurationsTx(ctx context.Context, tx sqlx.
 }
 
 func (ds *Datastore) bulkGetVPPAppConfigurations(ctx context.Context, q sqlx.QueryerContext, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
-	// TODO(JK): key the configurations by instance, with several instances of an app in the fleet the map keeps the last one read
+	// TODO(JK): read the configuration of the version the host is in scope for, this reads the first-added version of each app
 	if len(adamIDs) == 0 {
 		return nil, nil
 	}
 
 	const bulkGetStmt = `
 SELECT
-	adam_id AS application_id,
-	configuration
-FROM vpp_apps_teams
-WHERE adam_id IN (?) AND global_or_team_id = ? AND platform = ? AND configuration IS NOT NULL
+	vat.adam_id AS application_id,
+	vat.configuration
+FROM vpp_apps_teams vat
+WHERE vat.adam_id IN (?) AND vat.global_or_team_id = ? AND vat.platform = ? AND vat.configuration IS NOT NULL
+	AND vat.id = (
+		SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+		WHERE vat2.adam_id = vat.adam_id AND vat2.platform = vat.platform AND vat2.global_or_team_id = vat.global_or_team_id
+	)
 `
 
 	stmt, args, err := sqlx.In(bulkGetStmt, adamIDs, teamID, platform)

@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -807,21 +808,31 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	if appID.VersionName == "" {
 		appID.VersionName = fleet.DefaultAppStoreAppVersionName
 	}
+	if utf8.RuneCountInString(appID.VersionName) > fleet.MaxAppStoreAppVersionNameLength {
+		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("Couldn't add. The version name can't be longer than %d characters.", fleet.MaxAppStoreAppVersionNameLength))
+	}
+
+	// Check if an existing version uses this name
 	existingVersionNames, err := svc.ds.GetVPPAppVersionNames(ctx, teamID, appID.VPPAppID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing app store app versions")
 	}
+
 	// Compare names without case to match the collation of the unique key on the version name
-	if slices.ContainsFunc(existingVersionNames, func(name string) bool { return strings.EqualFold(name, appID.VersionName) }) {
+	if slices.ContainsFunc(existingVersionNames, func(name string) bool {
+		return strings.EqualFold(name, appID.VersionName)
+	}) {
 		return nil, ctxerr.Wrap(ctx, fleet.ConflictError{
 			Message: fmt.Sprintf("Couldn't add. A version named %q already exists for this app in the %s fleet.", appID.VersionName, teamName),
 		}, "adding app store app version")
 	}
+
 	if appID.Platform == fleet.MacOSPlatform && len(existingVersionNames) > 0 {
 		return nil, ctxerr.Wrap(ctx, fleet.ConflictError{
 			Message: fmt.Sprintf("Couldn't add. macOS App Store apps can only have one version in the %s fleet.", teamName),
 		}, "adding app store app version")
 	}
+
 	if len(existingVersionNames) >= fleet.MaxAppStoreAppVersions {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("Couldn't add. An app can have at most %d versions per fleet.", fleet.MaxAppStoreAppVersions),
@@ -1014,7 +1025,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 	}
 
-	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID)
+	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID, nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "writing VPP app to db")
 	}
@@ -1253,10 +1264,11 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
-	versions, err := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, teamID, titleID)
+	versions, err := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, ptr.ValOrZero(teamID), titleID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
 	}
+	// Require a version id when the app has more than one version so an edit can't change the wrong version
 	if payload.VersionID == nil && len(versions) > 1 {
 		return nil, nil, &fleet.BadRequestError{Message: "Couldn't edit. version_id is required when the app has more than one version in this fleet."}
 	}
@@ -1277,6 +1289,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		if versionName == "" {
 			return nil, nil, fleet.NewInvalidArgumentError("name", "Couldn't edit. The version name can't be empty.")
 		}
+		if utf8.RuneCountInString(versionName) > fleet.MaxAppStoreAppVersionNameLength {
+			return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("Couldn't edit. The version name can't be longer than %d characters.", fleet.MaxAppStoreAppVersionNameLength))
+		}
 		for _, version := range versions {
 			if version.VPPAppsTeamsID != meta.VPPAppsTeamsID && strings.EqualFold(version.VersionName, versionName) {
 				return nil, nil, ctxerr.Wrap(ctx, fleet.ConflictError{
@@ -1284,13 +1299,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 				}, "renaming app store app version")
 			}
 		}
-	}
-
-	// Write the maintenance window only when automatic updates are turned on, the update skips empty times
-	var autoUpdateStartTime, autoUpdateEndTime *string
-	if payload.AutoUpdateEnabled != nil && *payload.AutoUpdateEnabled {
-		autoUpdateStartTime = payload.AutoUpdateStartTime
-		autoUpdateEndTime = payload.AutoUpdateEndTime
 	}
 
 	if payload.DisplayName != nil && *payload.DisplayName != meta.DisplayName {
@@ -1328,15 +1336,14 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			VPPAppID: fleet.VPPAppID{
 				AdamID: meta.AdamID, Platform: meta.Platform,
 			},
-			AppTeamID:           meta.VPPAppsTeamsID,
 			VersionName:         versionName,
 			SelfService:         selfServiceVal,
 			ValidatedLabels:     validatedLabels,
 			DisplayName:         payload.DisplayName,
 			Configuration:       datastoreConfig,
 			AutoUpdateEnabled:   payload.AutoUpdateEnabled,
-			AutoUpdateStartTime: autoUpdateStartTime,
-			AutoUpdateEndTime:   autoUpdateEndTime,
+			AutoUpdateStartTime: payload.AutoUpdateStartTime,
+			AutoUpdateEndTime:   payload.AutoUpdateEndTime,
 		},
 		TeamID:           teamID,
 		TitleID:          titleID,
@@ -1418,7 +1425,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	// Update the app
-	insertedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID)
+	insertedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID, &meta.VPPAppsTeamsID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
 	}
@@ -1478,7 +1485,8 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		Configuration:       payload.Configuration,
 	}
 
-	updatedVersions, err := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, teamID, titleID)
+	// Read the edited version again so the response and the activity show its stored values
+	updatedVersions, err := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, ptr.ValOrZero(teamID), titleID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting updated app metadata")
 	}

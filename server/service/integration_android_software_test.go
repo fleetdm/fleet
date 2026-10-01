@@ -417,7 +417,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", appWithConfigResp.TitleID), &getSoftwareTitleRequest{
 		ID:     appWithConfigResp.TitleID,
 		TeamID: nil,
-	}, http.StatusOK, &titleWithConfigResp)
+	}, http.StatusOK, &titleWithConfigResp, "fleet_id", "0")
 
 	require.Contains(t, string(titleWithConfigResp.SoftwareTitle.AppStoreApp.Configuration), "workProfileWidgets")
 
@@ -1432,7 +1432,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfigFleetVariables() {
 	var titleResp getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID),
 		&getSoftwareTitleRequest{ID: addResp.TitleID},
-		http.StatusOK, &titleResp,
+		http.StatusOK, &titleResp, "fleet_id", "0",
 	)
 	require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), "$FLEET_VAR_HOST_UUID")
 	require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), "${FLEET_VAR_HOST_HARDWARE_SERIAL}")

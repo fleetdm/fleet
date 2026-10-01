@@ -280,8 +280,9 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		}
 
 		// add VPP app data if needed
-		if software.VPPAppsCount > 0 {
-			versions, err := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, teamID, id)
+		// Skip App Store apps when no fleet is given, their versions and settings are set per fleet
+		if software.VPPAppsCount > 0 && teamID != nil {
+			versions, err := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, *teamID, id)
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
 			}

@@ -19719,7 +19719,7 @@ func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
 				Platform: fleet.MacOSPlatform,
 			},
 		},
-	}, &team.ID)
+	}, &team.ID, nil)
 	require.NoError(t, err)
 
 	resp := getHostSoftwareResponse{}
@@ -19763,7 +19763,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	require.NoError(t, err)
 
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
 	require.NoError(t, err)
 
 	var respListTitles listSoftwareTitlesResponse
@@ -23074,7 +23074,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 				},
 			},
 		},
-	}, &t1.ID)
+	}, &t1.ID, nil)
 	require.NoError(t, err)
 
 	// Create an Apple configuration profile, a Windows profile and a declaration on t1 that references l1t1.
@@ -27143,7 +27143,7 @@ func (s *integrationMDMTestSuite) TestInstallAllSelfServiceSoftware() {
 				SelfService:     true,
 				ValidatedLabels: labels,
 			},
-		}, teamID)
+		}, teamID, nil)
 		require.NoError(t, err)
 		return app.TitleID
 	}

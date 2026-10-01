@@ -20023,7 +20023,7 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 				Platform: fleet.MacOSPlatform,
 			},
 		},
-	}, &team.ID)
+	}, &team.ID, nil)
 	require.NoError(t, err)
 
 	pkgPayload := &fleet.UploadSoftwareInstallerPayload{
@@ -20230,7 +20230,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 				Platform: fleet.MacOSPlatform,
 			},
 		},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 	// Get software title ID of the uploaded VPP app.
 	resp = listSoftwareTitlesResponse{}
@@ -29160,7 +29160,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	vppApp, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform}},
-	}, &teamID)
+	}, &teamID, nil)
 	require.NoError(t, err)
 
 	// Get the software title.

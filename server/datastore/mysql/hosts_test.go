@@ -10569,7 +10569,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "com.app.deletehosts",
 		LatestVersion:    "1.0.0",
 	}
-	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &team.ID)
+	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &team.ID, nil)
 	require.NoError(t, err)
 
 	cmdUUID := uuid.NewString()

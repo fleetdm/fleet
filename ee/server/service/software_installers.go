@@ -1223,7 +1223,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 
 	// metaInstaller is fully hydrated (incl. the title-level icon) which the per-package reads below lack.
 	metaInstaller, errInstaller := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
-	versionsVPP, errVPP := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, teamID, titleID)
+	versionsVPP, errVPP := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, *teamID, titleID)
 	metaInHouse, errInHouse := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 
 	switch {
@@ -1308,8 +1308,9 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, titleID uint
 			return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope")
 		}
 		// Skip the uninstall on hosts that another version of the app still targets
+		// TODO(JK) #53639: send the configuration of the earliest-added remaining version to hosts where this version was in effect, link their installs to that version, and uninstall once without re-sends when every version is deleted
 		var versions []*fleet.VPPAppStoreApp
-		versions, err = svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, teamID, titleID)
+		versions, err = svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, ptr.ValOrZero(teamID), titleID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete app store app: getting versions of the app")
 		}

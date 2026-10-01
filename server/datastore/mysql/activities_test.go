@@ -230,7 +230,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Name: "vpp_no_team_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: "b3",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil, nil)
 	require.NoError(t, err)
 
 	// install the VPP app on h1
@@ -706,19 +706,19 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: "vpp1",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil, nil)
 	require.NoError(t, err)
 	vppApp2 := &fleet.VPPApp{
 		Name: "vpp_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp2", Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: "vpp2",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp2, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp2, nil, nil)
 	require.NoError(t, err)
 	vppApp1IOS := &fleet.VPPApp{
 		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.IOSPlatform}},
 		BundleIdentifier: "vpp1",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1IOS, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1IOS, nil, nil)
 	require.NoError(t, err)
 
 	// create a software installer that can be installed later
@@ -1198,7 +1198,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: "vpp1",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil, nil)
 	require.NoError(t, err)
 
 	installer1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)

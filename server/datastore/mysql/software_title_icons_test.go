@@ -368,7 +368,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 				},
 				BundleIdentifier: "foo.bundle.id",
 			}
-			vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, &teamID)
+			vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, &teamID, nil)
 			require.NoError(t, err)
 
 			var vppAppsTitleIds []struct {
@@ -807,7 +807,7 @@ func testDeleteIconsAssociatedWithTitlesWithoutInstallers(t *testing.T, ds *Data
 					},
 					BundleIdentifier: "foo.bundle.id",
 				}
-				_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, &teamID)
+				_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, &teamID, nil)
 				require.NoError(t, err)
 
 				var vppAppsTitleIds []struct {

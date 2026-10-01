@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -874,6 +875,32 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		require.Equal(t, []string{cancelDev.SerialNumber}, got.SerialNumbers)
 		require.Empty(t, got.ClientUserIds, "device-enrolled host must disassociate by serial, not clientUserId")
 	})
+
+	t.Run("install with two versions carries the first-added version's Configuration", func(t *testing.T) {
+		titleID := titleIDFor(adamMulti, fleet.IOSPlatform)
+		const firstCfg = `<dict><key>K</key><string>first</string></dict>`
+		const secondCfg = `<dict><key>K</key><string>second</string></dict>`
+
+		// set the first version's configuration, then add a second version with another configuration
+		s.DoJSON("PATCH",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+			&updateAppStoreAppRequest{TeamID: &team.ID, Configuration: asJSONString(firstCfg)},
+			http.StatusOK, &updateAppStoreAppResponse{})
+		var addResp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID: &team.ID, AppStoreID: adamMulti, Platform: fleet.IOSPlatform, Name: "Second",
+			Configuration: asJSONString(secondCfg),
+		}, http.StatusOK, &addResp)
+
+		// install on the iOS host, the command should carry the first version's configuration
+		raw := string(installAndCaptureCmd(t, iosHost, iosDev, titleID, app2Installed))
+		require.Contains(t, raw, "<string>first</string>")
+		require.NotContains(t, raw, "<string>second</string>")
+
+		// delete the second version so the title has one version again
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
+			"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addResp.VersionID))
+	})
 }
 
 func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
@@ -1035,6 +1062,19 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addTestResp.VersionID, Name: new("  ")}, http.StatusUnprocessableEntity)
 
+	// add and rename a version to a 256 character name, both requests should be rejected with the length limit
+	longName := strings.Repeat("a", fleet.MaxAppStoreAppVersionNameLength+1)
+	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: iosAdamID,
+		Platform:   fleet.IOSPlatform,
+		Name:       longName,
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "can't be longer than 255 characters")
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addTestResp.VersionID, Name: &longName}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "can't be longer than 255 characters")
+
 	// edit the second version's name, configuration, and auto updates, only the second version should change
 	const editedTestPlist = `<dict><key>ServerURL</key><string>https://edited-test.example.com</string></dict>`
 	var updResp updateAppStoreAppResponse
@@ -1073,15 +1113,14 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.NoError(t, json.Unmarshal(secondVersion.Configuration, &gotTestPlist))
 	require.Equal(t, editedTestPlist, gotTestPlist)
 
-	// get the title without a fleet, only the versions in the fleet of the first-added version should be listed
+	// get the title without a fleet, no App Store app versions should be returned
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp)
-	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 2)
-	require.Equal(t, addDefaultResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[0].ID)
-	require.Equal(t, addTestResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[1].ID)
+	require.Nil(t, titleResp.SoftwareTitle.AppStoreApps)
+	require.Nil(t, titleResp.SoftwareTitle.AppStoreApp)
 
 	// rename the other fleet's only version, then apply GitOps with the app, the fleet should have one version with the new name
-	otherVersions, err := s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, &otherTeam.ID, titleID)
+	otherVersions, err := s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, otherTeam.ID, titleID)
 	require.NoError(t, err)
 	require.Len(t, otherVersions, 1)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
@@ -1089,7 +1128,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 		batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, SelfService: true}}},
 		http.StatusOK, &batchAssociateAppStoreAppsResponse{}, "fleet_name", otherTeam.Name)
-	otherVersions, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, &otherTeam.ID, titleID)
+	otherVersions, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, otherTeam.ID, titleID)
 	require.NoError(t, err)
 	require.Len(t, otherVersions, 1)
 	require.Equal(t, "Renamed", otherVersions[0].VersionName)

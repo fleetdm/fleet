@@ -156,6 +156,8 @@ const (
 	DefaultAppStoreAppVersionName = "Default version"
 	// MaxAppStoreAppVersions is the most versions an App Store app can have on one fleet.
 	MaxAppStoreAppVersions = 10
+	// MaxAppStoreAppVersionNameLength is the most characters a version name can have, the size of its column.
+	MaxAppStoreAppVersionNameLength = 255
 )
 
 // AppStoreAppVersion is one version of an App Store app on a fleet, as returned in the app_store_apps list of a software title.

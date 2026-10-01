@@ -1860,7 +1860,7 @@ type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, title
 
 type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error)
 
-type GetVPPAppVersionsByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.VPPAppStoreApp, error)
+type GetVPPAppVersionsByTeamAndTitleIDFunc func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error)
 
 type MapAdamIDsPendingInstallFunc func(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
@@ -1942,7 +1942,7 @@ type GetVPPAppsFunc func(ctx context.Context, teamID *uint) ([]fleet.VPPAppRespo
 
 type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) (bool, error)
 
-type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
+type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*fleet.VPPApp, error)
 
 type GetVPPAppVersionNamesFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID) ([]string, error)
 
@@ -12654,7 +12654,7 @@ func (s *DataStore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamI
 	return s.GetVPPAppMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID)
 }
 
-func (s *DataStore) GetVPPAppVersionsByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
+func (s *DataStore) GetVPPAppVersionsByTeamAndTitleID(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
 	s.mu.Lock()
 	s.GetVPPAppVersionsByTeamAndTitleIDFuncInvoked = true
 	s.mu.Unlock()
@@ -12941,11 +12941,11 @@ func (s *DataStore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []f
 	return s.SetTeamVPPAppsFunc(ctx, teamID, appIDs, appStoreAppIDsToTitleIDs)
 }
 
-func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*fleet.VPPApp, error) {
 	s.mu.Lock()
 	s.InsertVPPAppWithTeamFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
+	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID, existingVPPAppTeamID)
 }
 
 func (s *DataStore) GetVPPAppVersionNames(ctx context.Context, teamID *uint, appID fleet.VPPAppID) ([]string, error) {

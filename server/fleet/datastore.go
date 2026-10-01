@@ -3404,7 +3404,7 @@ type Datastore interface {
 	// specified team and title ids. With more than one version on the team it returns the first-added one.
 	GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPAppStoreApp, error)
 	// GetVPPAppVersionsByTeamAndTitleID returns every version of the VPP app for the specified team and title ids, first-added first.
-	GetVPPAppVersionsByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*VPPAppStoreApp, error)
+	GetVPPAppVersionsByTeamAndTitleID(ctx context.Context, teamID uint, titleID uint) ([]*VPPAppStoreApp, error)
 
 	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
 	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
@@ -3534,7 +3534,9 @@ type Datastore interface {
 	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[VPPAppID]VPPAppTeam, error)
 	GetVPPApps(ctx context.Context, teamID *uint) ([]VPPAppResponse, error)
 	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) (bool, error)
-	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
+	// InsertVPPAppWithTeam writes the VPP app version to the team. A non-nil existingVPPAppTeamID updates that version by id,
+	// nil inserts the version or updates the one with the same name.
+	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*VPPApp, error)
 	// GetVPPAppVersionNames returns the names of the versions of the VPP app on the team, first-added first.
 	GetVPPAppVersionNames(ctx context.Context, teamID *uint, appID VPPAppID) ([]string, error)
 	GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]VPPAppTeam, error)
