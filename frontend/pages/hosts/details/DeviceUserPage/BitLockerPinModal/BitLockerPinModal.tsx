@@ -7,7 +7,7 @@ import ModalFooter from "components/ModalFooter";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import { getErrorReason } from "interfaces/errors";
-import { IDUPDetails, IOSSettings } from "interfaces/host";
+import { IDeviceDiskEncryptionSetting } from "interfaces/host";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 
 const baseClass = "bit-locker-pin-modal";
@@ -17,8 +17,8 @@ const PIN_MIN_LENGTH = 6;
 const PIN_MAX_LENGTH = 20;
 const PRINTABLE_ASCII = /^[ -~]+$/;
 
-/** The agent checks in every 30 seconds, so a host that is awake answers well inside this. */
-export const POLL_INTERVAL_MS = 3000;
+/** How long the modal waits for the agent. Agent checks in every 30 seconds, so a host that is awake answers well
+ * inside this. The page keeps polling afterwards, so giving up here only ends the wait on screen. */
 export const POLL_TIMEOUT_MS = 90000;
 
 const CONTACT_ADMIN = "Try again or contact your IT admin.";
@@ -61,36 +61,44 @@ const validateBitLockerPinForm = ({
   return errors;
 };
 
-type PINOutcome =
-  | { status: "set" }
-  | { status: "failed"; error: string }
-  /** The modal stopped waiting. The agent can still collect and apply the PIN. */
-  | { status: "waiting" };
-
 interface IBitLockerPinModalProps {
   deviceAuthToken: string;
-  /** Refetches the device's host details and resolves with the fresh response. */
-  onPollHost: () => Promise<IDUPDetails | undefined>;
+  /** Disk encryption from the page's host query, which polls while a submission is in the agent's hands. */
+  diskEncryption?: IDeviceDiskEncryptionSetting;
+  /** When that query last succeeded. */
+  dataUpdatedAt: number;
+  /** Whether an answer is still owed. The page fetches on the way into a wait and polls until it is over. */
+  onWaitingChange: (isWaiting: boolean) => void;
   onExit: () => void;
 }
 
 const BitLockerPinModal = ({
   deviceAuthToken,
-  onPollHost,
+  diskEncryption,
+  dataUpdatedAt,
+  onWaitingChange,
   onExit,
 }: IBitLockerPinModalProps) => {
   // The submit button lives in a ModalFooter outside the <form>, so it reaches the form's onSubmit through this id.
   const formId = useId();
 
-  // Polling outlives a render, and it must stop when the end user closes the modal mid-wait.
-  const isOpen = useRef(true);
-  useEffect(() => {
-    return () => {
-      isOpen.current = false;
-    };
-  }, []);
+  /** When the PIN was handed to Fleet, and the cutoff for data this modal will read. Null once the wait is over. */
+  const [submittedAt, setSubmittedAt] = useState<number | null>(null);
+  const isWaiting = submittedAt !== null;
 
-  const [isWaitingForAgent, setIsWaitingForAgent] = useState(false);
+  // The page builds these inline, so they are different functions on every render, and it renders on every poll.
+  // Reading them from refs keeps them out of the effects below, where onExit would restart the deadline before it
+  // could fire and onWaitingChange would ask for a fetch each time.
+  const onExitRef = useRef(onExit);
+  const onWaitingChangeRef = useRef(onWaitingChange);
+  useEffect(() => {
+    onExitRef.current = onExit;
+    onWaitingChangeRef.current = onWaitingChange;
+  });
+
+  useEffect(() => {
+    onWaitingChangeRef.current(isWaiting);
+  }, [isWaiting]);
 
   const {
     formData,
@@ -107,45 +115,6 @@ const BitLockerPinModal = ({
     skipTrim: ["pin", "confirmPin"],
   });
 
-  /** Waits for the agent to report on the PIN. "waiting" means the modal gave up first, not that the PIN was refused. */
-  const waitForAgent = async (): Promise<PINOutcome> => {
-    const deadline = Date.now() + POLL_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise((resolve) => {
-        setTimeout(resolve, POLL_INTERVAL_MS);
-      });
-      if (!isOpen.current) {
-        return { status: "waiting" };
-      }
-
-      let diskEncryption: IOSSettings["disk_encryption"] | undefined;
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const details = await onPollHost();
-        diskEncryption = details?.host.mdm.os_settings?.disk_encryption;
-      } catch {
-        // A blip on one poll says nothing about the PIN, so keep waiting.
-      }
-
-      // The agent's own report is checked first: a host can stop asking for a PIN for reasons unrelated to this
-      // submission.
-      if (diskEncryption?.pin_request?.status === "failed") {
-        return { status: "failed", error: diskEncryption.pin_request.error };
-      }
-      // Success is the agent's report, or osquery already seeing the PIN.
-      if (
-        diskEncryption &&
-        (diskEncryption.pin_request?.status === "set" ||
-          diskEncryption.status === "verified" ||
-          diskEncryption.status === "verifying")
-      ) {
-        return { status: "set" };
-      }
-    }
-    return { status: "waiting" };
-  };
-
   const onValidSubmit = async ({ pin }: IBitLockerPinFormData) => {
     try {
       await diskEncryptionAPI.submitBitLockerPIN(deviceAuthToken, pin);
@@ -154,28 +123,48 @@ const BitLockerPinModal = ({
       notify.error(couldNotSetPIN(getErrorReason(e)), { response: e });
       return;
     }
-
-    setIsWaitingForAgent(true);
-    const outcome = await waitForAgent();
-    if (!isOpen.current) {
-      return;
-    }
-    setIsWaitingForAgent(false);
-
-    if (outcome.status === "failed") {
-      notify.error(couldNotSetPIN(outcome.error));
-      return;
-    }
-    if (outcome.status === "set") {
-      notify.success("Successfully created PIN.");
-    } else {
-      // Leaving the form open would invite a second PIN that supersedes the one the agent is still collecting.
-      notify.error(STILL_WORKING);
-    }
-    onExit();
+    setSubmittedAt(Date.now());
   };
 
-  const isDisabled = isSubmitting || isWaitingForAgent;
+  // Read the agent's answer out of the page's data. Only data fetched after the submit counts.
+  useEffect(() => {
+    if (submittedAt === null || dataUpdatedAt <= submittedAt) {
+      return;
+    }
+    // The agent's own report is checked first: a host can stop asking for a PIN for reasons unrelated to this
+    // submission.
+    if (diskEncryption?.pin_request?.status === "failed") {
+      setSubmittedAt(null);
+      notify.error(couldNotSetPIN(diskEncryption.pin_request.error));
+      return;
+    }
+    // Success is the agent's report, or osquery already seeing the PIN. Only verified and verifying require it.
+    if (
+      diskEncryption?.pin_request?.status === "set" ||
+      diskEncryption?.status === "verified" ||
+      diskEncryption?.status === "verifying"
+    ) {
+      setSubmittedAt(null);
+      notify.success("Successfully created PIN.");
+      onExitRef.current();
+    }
+  }, [submittedAt, dataUpdatedAt, diskEncryption]);
+
+  // Stop waiting on screen after the deadline. The request stays collectable for far longer, so this is not a failure.
+  useEffect(() => {
+    if (submittedAt === null) {
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      setSubmittedAt(null);
+      // Leaving the form open would invite a second PIN that supersedes the one the agent is still collecting.
+      notify.error(STILL_WORKING);
+      onExitRef.current();
+    }, POLL_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [submittedAt]);
+
+  const isDisabled = isSubmitting || isWaiting;
 
   return (
     <Modal title="Create PIN" onExit={onExit} className={baseClass}>

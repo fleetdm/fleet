@@ -152,16 +152,30 @@ type DatastoreEnrollOrbitConfig struct {
 	OrbitNodeKey string
 	TeamID       *uint
 	IdentityCert *types.HostIdentityCertificate
+
 	// OneTimeEnrollSecretID is set when the agent presented a one-time enroll
 	// secret; the enrollment consumes it for the orbit plane.
 	OneTimeEnrollSecretID *uint
-	// RejectSharedSecretForMDMHosts refuses a shared enroll secret that would
+	// RejectSharedSecretForAppleMDMHosts refuses a shared enroll secret that would
 	// claim an Apple host enrolled in Fleet MDM or assigned to Fleet in ABM.
-	RejectSharedSecretForMDMHosts bool
+	RejectSharedSecretForAppleMDMHosts bool
+	// RejectSharedSecretForWindowsMDMHosts refuses a shared enroll secret that would claim a Windows host enrolled in Fleet MDM.
+	RejectSharedSecretForWindowsMDMHosts bool
+
+	// Created, when non-nil, is set to true if enrollment inserted a new hosts row.
+	Created *bool
 }
 
 // DatastoreEnrollOrbitOption is a functional option for configuring datastore Orbit enrollment
 type DatastoreEnrollOrbitOption func(*DatastoreEnrollOrbitConfig)
+
+// WithEnrollOrbitCreated sets *created to true when enrollment inserts a new hosts row
+// rather than re-enrolling an existing one.
+func WithEnrollOrbitCreated(created *bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.Created = created
+	}
+}
 
 // WithEnrollOrbitMDMEnabled sets the MDM enabled flag for datastore Orbit enrollment
 func WithEnrollOrbitMDMEnabled(enabled bool) DatastoreEnrollOrbitOption {
@@ -203,9 +217,15 @@ func WithEnrollOrbitOneTimeEnrollSecret(id uint) DatastoreEnrollOrbitOption {
 	}
 }
 
-func WithEnrollOrbitRejectSharedSecretForMDMHosts(reject bool) DatastoreEnrollOrbitOption {
+func WithEnrollOrbitRejectSharedSecretForAppleMDMHosts(reject bool) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
-		c.RejectSharedSecretForMDMHosts = reject
+		c.RejectSharedSecretForAppleMDMHosts = reject
+	}
+}
+
+func WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(reject bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.RejectSharedSecretForWindowsMDMHosts = reject
 	}
 }
 

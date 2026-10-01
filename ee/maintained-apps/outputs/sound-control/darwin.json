@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.3.3",
+      "version": "3.4.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.staticz.SoundControl';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.staticz.SoundControl' AND version_compare(bundle_short_version, '3.3.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.staticz.SoundControl' AND version_compare(bundle_short_version, '3.4.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.staticz.SoundControl' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://s3.amazonaws.com/staticz.net/downloads/soundcontrol/SoundControl_3.3.3.dmg",
+      "installer_url": "https://s3.amazonaws.com/staticz.net/downloads/soundcontrol/SoundControl_3.4.0.dmg",
       "install_script_ref": "38e884b0",
       "uninstall_script_ref": "ac2cb8e7",
-      "sha256": "0d00495d22ae5e5bd25b29647023a124a02c85cb1005e9da5973a7c083f54aa9",
+      "sha256": "7df63fe4c0821541c665c5547a422bbc3bb08f120ffaffe4a3119f6d2bfd6300",
       "default_categories": [
         "Productivity"
       ]

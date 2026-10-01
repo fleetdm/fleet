@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.16.0",
+      "version": "2.17.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'co.podzim.boltai-mobile';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.podzim.boltai-mobile' AND version_compare(bundle_short_version, '2.16.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.podzim.boltai-mobile' AND version_compare(bundle_short_version, '2.17.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'co.podzim.boltai-mobile' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://updates.boltai.com/dmg/BoltAI-2.16.0.dmg",
+      "installer_url": "https://updates.boltai.com/dmg/BoltAI-2.17.2.dmg",
       "install_script_ref": "e49188bd",
       "uninstall_script_ref": "3269c40d",
-      "sha256": "a40bbe13c0256eea7b68d55728279eef1293cb939058b106fd79d2fb5e528ee8",
+      "sha256": "a4e88f7bc235a9a4cf4ca325ea601ea46d1998559cf314957a18f9777a706e6f",
       "default_categories": [
         "Communication"
       ]

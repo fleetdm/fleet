@@ -2,7 +2,11 @@ import { flatMap } from "lodash";
 import { Row } from "react-table";
 
 import { IconNames } from "components/icons";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+import {
+  isBYODAccountDrivenUserEnrollment,
+  isBYODManualEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
 import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
 import {
   IHostSoftware,
@@ -521,12 +525,15 @@ export const getSoftwareSubheader = ({
   isMyDevicePage,
 }: IGetSoftwareSubheader): string => {
   if (isIPadOrIPhone(platform)) {
-    if (hostMdmEnrollmentStatus === "On (manual - personal)") {
+    if (isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus)) {
       return isMyDevicePage
         ? "Software installed on your work profile (Managed Apple Account)."
         : "Software installed on work profile (Managed Apple Account).";
     }
-    if (hostMdmEnrollmentStatus === "On (manual)") {
+    if (
+      hostMdmEnrollmentStatus === "On (manual)" ||
+      isBYODManualEnrollment(hostMdmEnrollmentStatus)
+    ) {
       return "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included.";
     }
   }

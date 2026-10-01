@@ -30,12 +30,16 @@ import {
   VppInstallDetailsModal,
   IVppInstallDetails,
 } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+import NotifyBeforePatchingDetailsModal from "components/ActivityDetails/NotifyBeforePatchingDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import BackButton from "components/BackButton";
 import CustomLink from "components/CustomLink/CustomLink";
 import EmptyState from "components/EmptyState";
 import IconStatusMessage from "components/IconStatusMessage";
 import MainContent, { IMainContentConfig } from "components/MainContent";
+import EnrollmentAttemptDetailsModal, {
+  IEnrollmentAttemptDetailsModalProps,
+} from "components/modals/EnrollmentAttemptDetailsModal";
 import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
@@ -44,7 +48,11 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
-import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
+import {
+  ActivityType,
+  IActivityDetails,
+  IHostUpcomingActivity,
+} from "interfaces/activity";
 import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
@@ -155,6 +163,8 @@ import {
   canShowMyDeviceButton,
   getErrorMessage,
   hasEverEnrolled,
+  getCanManageSelfServiceProfiles,
+  hasReportedVitals,
 } from "./helpers";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
@@ -338,6 +348,16 @@ const HostDetailsPage = ({
     enrollmentProfileFailedDetails,
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [
+    notifyBeforePatchingDetails,
+    setNotifyBeforePatchingDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    enrollmentRejectedDetails,
+    setEnrollmentRejectedDetails,
+  ] = useState<Omit<IEnrollmentAttemptDetailsModalProps, "onDone"> | null>(
+    null
+  );
   const [rotationFailedDetails, setRotationFailedDetails] = useState<{
     detail: string;
     hostDisplayName: string;
@@ -347,9 +367,12 @@ const HostDetailsPage = ({
   const [refetchStart, setRefetchStart] = useState<{
     hostId: number;
     at: number;
+    byUser: boolean;
   } | null>(null);
   const refetchStartTime =
     refetchStart?.hostId === hostIdFromURL ? refetchStart.at : null;
+  const isUserRequestedRefetch =
+    refetchStart?.hostId === hostIdFromURL && refetchStart.byUser;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -492,12 +515,19 @@ const HostDetailsPage = ({
           (hasEverEnrolled(returnedHost) || refetchStartTime !== null)
         ) {
           if (!refetchStartTime) {
-            setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
+            setRefetchStart({
+              hostId: hostIdFromURL,
+              at: Date.now(),
+              byUser: false,
+            });
           }
           setShowRefetchSpinner(true);
 
           // If Android, don't run timers/polling logic
           if (!isAndroid(returnedHost.platform)) {
+            // A host without vitals is still on its enrollment refetch, which nobody asked for, so only a Refetch click gets toasts.
+            const shouldNotify =
+              hasReportedVitals(returnedHost) || isUserRequestedRefetch;
             // Compute how long since timer started (if set)
             const totalElapsedTime = refetchStartTime
               ? Date.now() - refetchStartTime
@@ -526,16 +556,20 @@ const HostDetailsPage = ({
                   refetchExtensions();
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
-                notify.error(
-                  `This host is offline. Please try refetching host vitals later.`
-                );
+                if (shouldNotify) {
+                  notify.error(
+                    `This host is offline. Please try refetching host vitals later.`
+                  );
+                }
                 resetHostRefetchStates();
               }
             } else {
               // Total elapsed poll window exceeded (60s), stop and alert
-              notify.error(
-                `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
-              );
+              if (shouldNotify) {
+                notify.error(
+                  `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
+                );
+              }
               resetHostRefetchStates();
             }
           }
@@ -721,10 +755,12 @@ const HostDetailsPage = ({
   // forever; a missing team-level override is treated as "not disabled".
   const teamFeaturesResolved =
     !host?.team_id || teams !== undefined || isTeamsError;
+  const uptimeGloballyEnabled =
+    config?.features?.historical_data?.uptime ?? true;
   const uptimeCollectionEnabled: boolean | undefined =
     config?.features === undefined || !teamFeaturesResolved
       ? undefined
-      : (config.features.historical_data?.uptime ?? true) &&
+      : uptimeGloballyEnabled &&
         (featuresConfig?.historical_data?.uptime ?? true);
 
   useEffect(() => {
@@ -852,7 +888,11 @@ const HostDetailsPage = ({
 
       try {
         await hostAPI.refetch(host).then(() => {
-          setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
+          setRefetchStart({
+            hostId: hostIdFromURL,
+            at: Date.now(),
+            byUser: true,
+          });
           setTimeout(() => {
             refetchHostDetails();
             refetchExtensions();
@@ -873,6 +913,26 @@ const HostDetailsPage = ({
         return Promise.resolve();
       }
       return hostAPI.resendProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
+
+  const installProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.installProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
+
+  const uninstallProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.uninstallProfile(host.id, profileUUID);
     },
     [host?.id]
   );
@@ -910,6 +970,7 @@ const HostDetailsPage = ({
     ({
       type,
       details,
+      created_at,
       actor_full_name,
       fleet_initiated,
     }: IShowActivityDetailsData) => {
@@ -1010,6 +1071,14 @@ const HostDetailsPage = ({
             },
           });
           break;
+        case ActivityType.HostEnrollmentRejected:
+          setEnrollmentRejectedDetails({
+            hostDisplayName: host?.display_name || details?.host_display_name,
+            hostSerial: details?.host_serial,
+            reason: details?.reason,
+            createdAt: created_at,
+          });
+          break;
         case ActivityType.RanCustomMdmCommand: {
           const resolvedHostUuid = details?.host_uuid ?? host?.uuid;
           if (!details?.command_uuid || !resolvedHostUuid) {
@@ -1022,6 +1091,12 @@ const HostDetailsPage = ({
           });
           break;
         }
+        case ActivityType.NotifiedEndUserBeforePatching:
+          setNotifyBeforePatchingDetails({
+            ...details,
+            host_display_name: host?.display_name || details?.host_display_name,
+          });
+          break;
         default: // do nothing
       }
     },
@@ -1201,6 +1276,9 @@ const HostDetailsPage = ({
         recoveryLockPasswordAvailable={
           host.mdm.os_settings?.recovery_lock_password?.password_available ??
           false
+        }
+        recoveryLockPasswordStatus={
+          host.mdm.os_settings?.recovery_lock_password?.status
         }
         isManagedLocalAccountEnabled={
           host.platform === "windows"
@@ -1493,13 +1571,23 @@ const HostDetailsPage = ({
       isHostTeamMaintainer ||
       isHostTeamTechnician);
 
+  const canManageSelfServiceProfiles = getCanManageSelfServiceProfiles(
+    isPremiumTier,
+    isMacOSHost,
+    canResendProfiles
+  );
+
   // "My device" link points to that host's end-user My device page. The URL
   // embeds the device auth token so it acts as a credential, hence global
   // admin only. Also hide it on hosts that have no live end-user surface —
   // no Fleet Desktop (so no token, and no page to load) or wiped.
   const canViewMyDeviceLink =
     isGlobalAdmin &&
-    canShowMyDeviceButton(host, config?.fleet_desktop.sso_enabled ?? false);
+    canShowMyDeviceButton(
+      host,
+      config?.fleet_desktop.sso_enabled ?? false,
+      isPremiumTier
+    );
 
   const canEditCustomHostVitals =
     isGlobalAdmin ||
@@ -1855,6 +1943,10 @@ const HostDetailsPage = ({
                     rotateRecoveryLockPassword={rotateRecoveryLockPassword}
                     resendHostNameTemplate={resendHostNameTemplate}
                     onProfileResent={refetchHostDetails}
+                    isMacOSHost={isMacOSHost}
+                    canManageSelfServiceProfiles={canManageSelfServiceProfiles}
+                    installRequest={installProfile}
+                    uninstallRequest={uninstallProfile}
                     isMacOSDiskEncryptionEnforceOnly={isMacOSDiskEncryptionEnforceOnly(
                       fleetDiskEncryptionSettings
                     )}
@@ -1922,6 +2014,9 @@ const HostDetailsPage = ({
               onCancel={() => setShowDeleteHostModal(false)}
               onSubmit={onDestroyHost}
               hostName={host?.display_name}
+              platform={host?.platform}
+              isMdmEnrolledInFleet={!!host?.mdm?.connected_to_fleet}
+              mdmEnrollmentStatus={host?.mdm?.enrollment_status}
               isUpdating={isUpdating}
             />
           )}
@@ -2079,6 +2174,12 @@ const HostDetailsPage = ({
               onCancel={onCancelSoftwareInstallDetailsModal}
             />
           )}
+          {notifyBeforePatchingDetails && (
+            <NotifyBeforePatchingDetailsModal
+              details={notifyBeforePatchingDetails}
+              onCancel={() => setNotifyBeforePatchingDetails(null)}
+            />
+          )}
           {scriptPackageDetails && (
             <SoftwareScriptDetailsModal
               details={scriptPackageDetails}
@@ -2179,6 +2280,14 @@ const HostDetailsPage = ({
             <FailedEnrollmentProfileModal
               command={enrollmentProfileFailedDetails.command}
               onDone={() => setEnrollmentProfileFailedDetails(null)}
+            />
+          )}
+          {enrollmentRejectedDetails && (
+            <EnrollmentAttemptDetailsModal
+              hostDisplayName={enrollmentRejectedDetails.hostDisplayName}
+              reason={enrollmentRejectedDetails.reason}
+              createdAt={enrollmentRejectedDetails.createdAt}
+              onDone={() => setEnrollmentRejectedDetails(null)}
             />
           )}
           {showLockHostModal && (
@@ -2296,6 +2405,7 @@ const HostDetailsPage = ({
             hostId={host.id}
             fleetId={host.team_id ?? undefined}
             uptimeCollectionEnabled={uptimeCollectionEnabled}
+            uptimeGloballyEnabled={uptimeGloballyEnabled}
             onExit={toggleOnlineHistoryModal}
           />
         )}

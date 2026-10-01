@@ -182,6 +182,7 @@ func TestModifyAppConfigHostExpiryWindow(t *testing.T) {
 			var invalid *fleet.InvalidArgumentError
 			require.ErrorAs(t, err, &invalid)
 			require.Contains(t, fmt.Sprintf("%+v", invalid.Errors), "host_expiry_settings.host_expiry_window")
+			require.ErrorContains(t, err, "When enabling host expiry, host expiry window must be a positive number.")
 			require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
 		})
 	}
@@ -4216,32 +4217,40 @@ func TestWindowsEnableManagedLocalAccountKeyIsNotAliased(t *testing.T) {
 }
 
 func TestAuthSettings(t *testing.T) {
-	newSvc := func(t *testing.T, useOneTimeEnrollSecrets bool) (fleet.Service, context.Context) {
+	newSvc := func(t *testing.T, useOneTimeEnrollSecrets, windowsOneTimeEnrollSecrets bool) (fleet.Service, context.Context) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
-		cfg.Auth.UseOneTimeEnrollSecrets = useOneTimeEnrollSecrets
+		cfg.MDM.AppleOneTimeEnrollSecrets = useOneTimeEnrollSecrets
+		cfg.MDM.WindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
 		return newTestServiceWithConfig(t, ds, cfg, nil, nil)
 	}
 
 	t.Run("omitted when the flag is off", func(t *testing.T) {
-		svc, ctx := newSvc(t, false)
+		svc, ctx := newSvc(t, false, false)
 		settings, err := svc.AuthSettings(test.UserContext(ctx, test.UserAdmin))
 		require.NoError(t, err)
 		require.Nil(t, settings)
 	})
 
 	t.Run("reported when the flag is on, to any user who can read the config", func(t *testing.T) {
-		svc, ctx := newSvc(t, true)
+		svc, ctx := newSvc(t, true, false)
 		for _, user := range []*fleet.User{test.UserAdmin, test.UserObserver} {
 			settings, err := svc.AuthSettings(test.UserContext(ctx, user))
 			require.NoError(t, err)
 			require.NotNil(t, settings)
-			require.True(t, settings.UseOneTimeEnrollSecrets)
+			require.True(t, settings.MDMAppleOneTimeEnrollSecrets)
 		}
 	})
 
+	t.Run("reported when only the Windows flag is on", func(t *testing.T) {
+		svc, ctx := newSvc(t, false, true)
+		settings, err := svc.AuthSettings(test.UserContext(ctx, test.UserAdmin))
+		require.NoError(t, err)
+		require.Equal(t, &fleet.AuthSettings{MDMWindowsOneTimeEnrollSecrets: true}, settings)
+	})
+
 	t.Run("requires an authenticated user", func(t *testing.T) {
-		svc, ctx := newSvc(t, true)
+		svc, ctx := newSvc(t, true, false)
 		_, err := svc.AuthSettings(ctx)
 		require.Error(t, err)
 	})

@@ -1,0 +1,1 @@
+- Fixed Windows and Linux setup experience skipping the install of a Fleet-maintained app whose patch policy has an install automation (**Patch when app is closed** or **Force patch**). A patch policy passes on hosts that don't have the app, so it's no longer used to decide whether to skip the install.

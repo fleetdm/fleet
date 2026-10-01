@@ -1,0 +1,1 @@
+- Fixed end users getting an "MDM features aren't turned on" error when resending a Windows configuration profile from **My device** on Fleet instances without Apple MDM.

@@ -626,10 +626,17 @@ func TestMakeEndpointRequestSizeOverride(t *testing.T) {
 			expectedLimit: 10,
 		},
 		{
+			desc:          "Global can never override route limit",
+			globalDefault: 10,
+			routeLimit:    5,
+			expectedLimit: 5,
+		},
+		{
 			desc:          "Override lower than resolved default: default wins",
 			globalDefault: 10,
-			overrides:     map[string]int64{path: 5},
-			expectedLimit: 10,
+			routeLimit:    5,
+			overrides:     map[string]int64{path: 3},
+			expectedLimit: 5,
 		},
 		{
 			desc:          "Override higher than resolved default: override wins",

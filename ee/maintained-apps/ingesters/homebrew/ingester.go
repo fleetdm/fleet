@@ -356,6 +356,14 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	}
 
 	out.Queries.Open = patch_policy.GenerateOpenQuery("darwin", out.UniqueIdentifier, "")
+	switch input.Token {
+	case "google-chrome", "microsoft-edge", "brave-browser", "vivaldi", "opera", "arc", "comet":
+		// Also match the executable in the browser's code sign clone, macOS reports a running Chromium browser there after the browser updates itself while open.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
+			out.UniqueIdentifier,
+		)
+	}
 
 	return out, nil
 }

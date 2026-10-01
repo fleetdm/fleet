@@ -59,8 +59,8 @@ The best way to learn Fleet is by building with it! [Request a workshop](https:/
 Thanks to everyone who shared what they are building.
 
 <meta name="articleTitle" value="Fleet news: September 2026">
-<meta name="authorFullName" value="Allen Houchins">
-<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="authorFullName" value="Aube Paul">
+<meta name="authorGitHubUsername" value="robinedev">
 <meta name="publishedOn" value="2026-09-01">
 <meta name="category" value="newsletter">
 <meta name="description" value="What shipped in Fleet 4.90.0, what's planned for 4.92.0, upcoming Apple and GitOps workshops, and August's best guides and customer stories.">
