@@ -65,7 +65,9 @@ func (svc *Service) resolveTeamFromEnrollmentData(ctx context.Context, enrollmen
 	}
 	enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, etReq.EnrollSecret)
 	if err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err, "verifying enroll secret")
+		// The IdP UUID is still returned so re-enrollment can keep the IdP association when the
+		// secret has since been deleted.
+		return nil, etReq.IdpUUID, ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 	return enrollSecret.GetTeamID(), etReq.IdpUUID, nil
 }

@@ -424,10 +424,11 @@ func TestPubSubEnrollment(t *testing.T) {
 		}
 
 		// The secret the token was issued from may have been rotated since; it must not matter.
+		mockDS.VerifyEnrollSecretFuncInvoked = false
 		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-			t.Fatal("enroll secret must not be looked up when the token carries fleet_id")
-			return nil, nil
+			return nil, common_mysql.NotFound("enroll secret")
 		}
+		// No recorded last team, so the token's fleet is what gets applied.
 		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
 			return nil, false, nil
 		}
@@ -456,7 +457,35 @@ func TestPubSubEnrollment(t *testing.T) {
 
 		require.NotNil(t, capturedTeamID)
 		require.Equal(t, teamID, *capturedTeamID)
+		require.False(t, mockDS.VerifyEnrollSecretFuncInvoked)
 		require.False(t, mockDS.NewAndroidHostFuncInvoked)
+	})
+
+	t.Run("re-enrollment with malformed token data fails without updating the host", func(t *testing.T) {
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{
+				Host: &fleet.Host{ID: 26, UUID: "EXISTING-HOST-MALFORMED"},
+				Device: &android.Device{
+					HostID:               26,
+					DeviceID:             "malformed-device",
+					EnterpriseSpecificID: new("EXISTING-HOST-MALFORMED"),
+				},
+			}, nil
+		}
+		mockDS.UpdateAndroidHostFuncInvoked = false
+
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("test-malformed-reenroll"),
+			EnrollmentTokenData: "not json",
+		})
+		err := svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+		require.ErrorContains(t, err, "unmarshalling enrollment token data")
+		require.False(t, mockDS.UpdateAndroidHostFuncInvoked)
 	})
 
 	t.Run("re-enrollment with legacy token whose enroll secret was deleted keeps the team", func(t *testing.T) {
@@ -505,8 +534,16 @@ func TestPubSubEnrollment(t *testing.T) {
 			return nil
 		}
 
+		var capturedIdpUUID string
+		mockDS.AssociateHostMDMIdPAccountFuncInvoked = false
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			capturedIdpUUID = accountUUID
+			return nil
+		}
+
 		enrollmentToken := enrollmentTokenRequest{
 			EnrollSecret: "deleted-secret", // legacy payload, issued before tokens carried fleet_id
+			IdpUUID:      "legacy-idp-uuid",
 		}
 		enrollTokenData, err := json.Marshal(enrollmentToken)
 		require.NoError(t, err)
@@ -522,6 +559,8 @@ func TestPubSubEnrollment(t *testing.T) {
 		// Host should keep its original team since enroll secret was not found.
 		require.NotNil(t, capturedTeamID)
 		require.Equal(t, originalTeamID, *capturedTeamID)
+		require.True(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
+		require.Equal(t, "legacy-idp-uuid", capturedIdpUUID)
 	})
 
 	t.Run("re-enrollment restores prior team from android_devices", func(t *testing.T) {
