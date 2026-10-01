@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260922041729, Down_20260922041729)
+	MigrationClient.AddMigration(Up_20260925160001, Down_20260925160001)
 }
 
-func Up_20260922041729(tx *sql.Tx) error {
+func Up_20260925160001(tx *sql.Tx) error {
 	const table = "nano_command_results"
 
 	// The retention sweep scans by (status, updated_at); the single-column status
@@ -33,6 +33,6 @@ func Up_20260922041729(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260922041729(tx *sql.Tx) error {
+func Down_20260925160001(tx *sql.Tx) error {
 	return nil
 }
