@@ -34,7 +34,7 @@ To automatically apply the configuration to new devices your organization purcha
 
 Normally, only an authorized reseller can register devices in the zero-touch portal. If you want to test zero-touch enrollment with devices you already own, you can submit [Google's device registration form](https://docs.google.com/forms/d/1zQGYyNcK1B5Q2FGF3b95Oqvs9dSAIW-lmQc_nCcc7Y8/viewform?edit_requested=true) with the device's IMEI or serial number. Google will add the device under the **OEM Test Reseller** in your portal. From there, apply your configuration as described above.
 
-## Verify
+## Step 5: Verify
 
 After a device is factory reset or unboxed and connected to a network:
 
