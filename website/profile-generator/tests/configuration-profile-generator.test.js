@@ -93,7 +93,7 @@ describe('configuration profile generator', function() {
 
           for (let repeatIdx = 0; repeatIdx < REPEATS; repeatIdx++) {
 
-            it(`#${repeatIdx + 1}`, async function() {
+            let test = it(`#${repeatIdx + 1}`, async function() {
 
               // Never a rejected promise: a generation that throws resolves to its error instead, since a
               // repeat that blew up before its own test got to await it would otherwise take down the
@@ -160,6 +160,8 @@ describe('configuration profile generator', function() {
               assert(elapsedMs <= MAX_ELAPSED_MS, `generated a passing profile, but took ${elapsedMs}ms, over the ${MAX_ELAPSED_MS}ms budget`);
 
             });
+            // Read by summary-reporter.js for the per-profile-type tally.
+            test.profileType = profileType;
           }
         });
       }

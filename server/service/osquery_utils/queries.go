@@ -246,25 +246,25 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
-		// Fleet requires the DisplayVersion as well as the UBR (4th part of the version number) to
-		// correctly map OS vulnerabilities to hosts. The UBR is not available in the os_version table.
-		// The full version number is available in the `kernel_info` table, but there is a Win10 bug
-		// which is reporting an incorrect build number (3rd part), so we query the Windows registry for the UBR
-		// here instead.  To note, osquery 5.12.0 will have the UBR in the os_version table.
-
-		// display_version is not available in some versions of
-		// Windows (Server 2019). By including it using a JOIN it can
-		// return no rows and the query will still succeed
+		// Fleet requires the DisplayVersion as well as the UBR (4th part of the version
+		// number) to correctly map OS vulnerabilities to hosts. kernel_info.version also
+		// carries the UBR, but some Windows 10 releases misreport the build number (3rd
+		// part) there, so it is only the fallback.
+		//
+		// Windows Server 2012 and 2012 R2 predate the UBR and report no value for it, so
+		// they take that fallback. The revision is cast before it is compared because it
+		// reads back as 0 or "" on those releases, and "" must not be appended: a zero
+		// revision would make every fixed build in a security bulletin compare as newer
+		// than the host, reporting every CVE in it.
+		//
+		// display_version is not available in some versions of Windows (Server 2019). By
+		// including it using a JOIN it can return no rows and the query will still succeed.
+		Description: "Reads the update build revision (UBR) from `os_version.revision`, which requires osquery 5.12.1 or later. Windows Server 2012 and 2012 R2 have no UBR and fall back to the `kernel_info` version.",
 		Query: `
 		WITH display_version_table AS (
 			SELECT data as display_version
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-		),
-		ubr_table AS (
-			SELECT data AS ubr
-			FROM registry
-			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
 		),
 		installation_type_table AS (
 			SELECT data AS installation_type
@@ -274,15 +274,13 @@ var hostDetailQueries = map[string]DetailQuery{
 		SELECT
 			os.name,
 			COALESCE(d.display_version, '') AS display_version,
-			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
-		LEFT JOIN
-			ubr_table u
 		LEFT JOIN
 			installation_type_table it`,
 		Platforms: []string{"windows"},
@@ -706,46 +704,39 @@ var extraDetailQueries = map[string]DetailQuery{
 	"os_windows": {
 		// This query is used to populate the `operating_systems` and `host_operating_system`
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
-		// `os_version_windows` detail queries above.
-		// See above description for the `os_version_windows` detail query.
+		// `os_version_windows` detail queries above. See os_version_windows for why the
+		// UBR comes from os_version.revision and why it is cast before being compared.
 		//
-		// DisplayVersion doesn't exist on all versions of Windows (Server 2019).
-		// To prevent the query from failing in those cases, we join
-		// the values in when they exist, alternatively the column is
-		// just empty.
+		// DisplayVersion doesn't exist on all versions of Windows (Server 2019). To prevent
+		// the query from failing in those cases, we join the values in when they exist,
+		// alternatively the column is just empty.
+		Description: "Reads the update build revision (UBR) from `os_version.revision`, which requires osquery 5.12.1 or later. Windows Server 2012 and 2012 R2 have no UBR and fall back to the `kernel_info` version.",
 		Query: `
-	WITH display_version_table AS (
-		SELECT data as display_version
-		FROM registry
-		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-	),
-	ubr_table AS (
-	SELECT data AS ubr
-	FROM registry
-	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
-	),
-	installation_type_table AS (
-	SELECT data AS installation_type
-	FROM registry
-	WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
-	)
-	SELECT
-		os.name,
-		os.platform,
-		os.arch,
-		k.version as kernel_version,
-		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
-		COALESCE(d.display_version, '') AS display_version,
-		COALESCE(it.installation_type, '') AS installation_type
-	FROM
-		os_version os,
-		kernel_info k
-	LEFT JOIN
-		display_version_table d
-	LEFT JOIN
-		ubr_table u
-	LEFT JOIN
-		installation_type_table it`,
+		WITH display_version_table AS (
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		installation_type_table AS (
+			SELECT data AS installation_type
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
+		)
+		SELECT
+			os.name,
+			os.platform,
+			os.arch,
+			k.version as kernel_version,
+			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
+			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(it.installation_type, '') AS installation_type
+		FROM
+			os_version os,
+			kernel_info k
+		LEFT JOIN
+			display_version_table d
+		LEFT JOIN
+			installation_type_table it`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
