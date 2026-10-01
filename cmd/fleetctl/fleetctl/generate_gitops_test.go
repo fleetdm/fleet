@@ -3090,9 +3090,9 @@ func TestGenerateControlsMDMEnabledAndConfigured(t *testing.T) {
 		wantEmit   bool
 	}{
 		{name: "free global, MDM on", isFree: true, teamID: nil, mdmEnabled: true, wantEmit: true},
-		{name: "free global, MDM off", isFree: true, teamID: nil, mdmEnabled: false, wantEmit: true},
+		{name: "free global, MDM off", isFree: true, teamID: nil, mdmEnabled: false, wantEmit: false},
 		{name: "premium unassigned, MDM on", teamID: new(uint(0)), mdmEnabled: true, wantEmit: true},
-		{name: "premium unassigned, MDM off", teamID: new(uint(0)), mdmEnabled: false, wantEmit: true},
+		{name: "premium unassigned, MDM off", teamID: new(uint(0)), mdmEnabled: false, wantEmit: false},
 		{name: "premium fleet, MDM on", teamID: new(uint(1)), mdmEnabled: true, wantEmit: false},
 		{name: "premium fleet, MDM off", teamID: new(uint(1)), mdmEnabled: false, wantEmit: false},
 	}
@@ -3117,7 +3117,7 @@ func TestGenerateControlsMDMEnabledAndConfigured(t *testing.T) {
 
 			for _, key := range []string{"windows_enabled_and_configured", "android_enabled_and_configured"} {
 				if tc.wantEmit {
-					assert.Equal(t, tc.mdmEnabled, controls[key], key)
+					assert.Equal(t, true, controls[key], key)
 				} else {
 					assert.NotContains(t, controls, key)
 				}
