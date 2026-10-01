@@ -20,9 +20,6 @@ func setupReenrollMocks(t *testing.T, mockDS *AndroidMockDS, existingHost *fleet
 	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
 	}
-	mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-		return &fleet.EnrollSecret{Secret: "global"}, nil
-	}
 	mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
 		if existingHost == nil {
 			return nil, common_mysql.NotFound("android host")
@@ -55,7 +52,7 @@ func setupReenrollMocks(t *testing.T, mockDS *AndroidMockDS, existingHost *fleet
 func enrollmentMessageForSecret(t *testing.T, name string, ownership string) *android.PubSubMessage {
 	t.Helper()
 
-	enrollTokenData, err := json.Marshal(enrollmentTokenRequest{EnrollSecret: "global"})
+	enrollTokenData, err := json.Marshal(teamEnrollmentRequest{})
 	require.NoError(t, err)
 	return createEnrollmentMessage(t, androidmanagement.Device{
 		Name:                createAndroidDeviceId(name),

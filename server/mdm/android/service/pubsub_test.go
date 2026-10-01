@@ -45,25 +45,10 @@ func createAndroidService(t *testing.T, opts ...ServiceOption) (android.Service,
 func TestPubSubEnrollment(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
 
-	globalSecret := "global"
-	teamSecret := "team"
 	teamID := uint(1)
 
-	mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-		switch secret {
-		case globalSecret:
-			return &fleet.EnrollSecret{
-				Secret: globalSecret,
-				TeamID: nil,
-			}, nil
-		case teamSecret:
-			return &fleet.EnrollSecret{
-				Secret: teamSecret,
-				TeamID: &teamID, // Remember to create the team in each test that uses it.
-			}, nil
-		}
-
-		return nil, common_mysql.NotFound("enroll secret")
+	mockDS.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) {
+		return id == teamID, nil
 	}
 
 	mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
@@ -80,9 +65,7 @@ func TestPubSubEnrollment(t *testing.T) {
 				}, nil
 			}
 
-			enrollmentToken := enrollmentTokenRequest{
-				EnrollSecret: "invalid",
-			}
+			enrollmentToken := teamEnrollmentRequest{}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)
 			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
@@ -105,9 +88,7 @@ func TestPubSubEnrollment(t *testing.T) {
 				}, nil
 			}
 
-			enrollmentToken := enrollmentTokenRequest{
-				EnrollSecret: "invalid",
-			}
+			enrollmentToken := teamEnrollmentRequest{}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)
 			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
@@ -119,7 +100,7 @@ func TestPubSubEnrollment(t *testing.T) {
 			require.Equal(t, "Authentication failed", err.Error())
 		})
 
-		t.Run("if enroll secret is invalid", func(t *testing.T) {
+		t.Run("if enrollment token data is malformed", func(t *testing.T) {
 			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{
 					MDM: fleet.MDM{
@@ -128,22 +109,17 @@ func TestPubSubEnrollment(t *testing.T) {
 				}, nil
 			}
 
-			enrollmentToken := enrollmentTokenRequest{
-				EnrollSecret: "invalid",
-			}
-			enrollTokenData, err := json.Marshal(enrollmentToken)
-			require.NoError(t, err)
 			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
 				Name:                createAndroidDeviceId("test-android"),
-				EnrollmentTokenData: string(enrollTokenData),
+				EnrollmentTokenData: "not json",
 			})
-			err = svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
-			require.Error(t, err)
+			err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
+			require.ErrorContains(t, err, "unmarshalling enrollment token data")
 		})
 	})
 
 	t.Run("successfully enrolls", func(t *testing.T) {
-		t.Run("device into a team with valid enroll secret", func(t *testing.T) {
+		t.Run("device into the fleet from the enrollment token", func(t *testing.T) {
 			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{
 					MDM: fleet.MDM{
@@ -154,11 +130,13 @@ func TestPubSubEnrollment(t *testing.T) {
 
 			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
 				require.False(t, companyOwned)
+				require.NotNil(t, host.TeamID)
+				require.Equal(t, teamID, *host.TeamID)
 				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
 
-			enrollmentToken := enrollmentTokenRequest{
-				EnrollSecret: "global",
+			enrollmentToken := teamEnrollmentRequest{
+				TeamID: &teamID,
 			}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)
@@ -193,9 +171,8 @@ func TestPubSubEnrollment(t *testing.T) {
 				return nil
 			}
 
-			enrollmentToken := enrollmentTokenRequest{
-				EnrollSecret: "global",
-				IdpUUID:      "mock-id",
+			enrollmentToken := teamEnrollmentRequest{
+				IdpUUID: "mock-id",
 			}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)
@@ -239,9 +216,8 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 
 			idpUUID := "test-idp-uuid"
-			enrollmentToken := enrollmentTokenRequest{
-				EnrollSecret: "global",
-				IdpUUID:      idpUUID,
+			enrollmentToken := teamEnrollmentRequest{
+				IdpUUID: idpUUID,
 			}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)
@@ -285,7 +261,7 @@ func TestPubSubEnrollment(t *testing.T) {
 				return nil
 			}
 
-			enrollmentToken := enrollmentTokenRequest{EnrollSecret: "global"}
+			enrollmentToken := teamEnrollmentRequest{}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)
 			deviceInfo := androidmanagement.Device{
@@ -335,9 +311,8 @@ func TestPubSubEnrollment(t *testing.T) {
 				return nil
 			}
 
-			enrollmentToken := enrollmentTokenRequest{
-				EnrollSecret: "global",
-				IdpUUID:      "mock-id",
+			enrollmentToken := teamEnrollmentRequest{
+				IdpUUID: "mock-id",
 			}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)
@@ -405,9 +380,8 @@ func TestPubSubEnrollment(t *testing.T) {
 			return nil
 		}
 
-		enrollmentToken := enrollmentTokenRequest{
-			EnrollSecret: "global",
-			IdpUUID:      "new-user-idp-uuid",
+		enrollmentToken := teamEnrollmentRequest{
+			IdpUUID: "new-user-idp-uuid",
 		}
 		enrollTokenData, err := json.Marshal(enrollmentToken)
 		require.NoError(t, err)
@@ -426,7 +400,66 @@ func TestPubSubEnrollment(t *testing.T) {
 		require.False(t, mockDS.NewAndroidHostFuncInvoked)
 	})
 
-	t.Run("re-enrollment with rotated enroll secret does not panic", func(t *testing.T) {
+	t.Run("re-enrollment takes the fleet from the token without looking up the enroll secret", func(t *testing.T) {
+		mockDS.NewAndroidHostFuncInvoked = false
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		const existingHostUUID = "EXISTING-HOST-FLEET-ID"
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{
+				Host: &fleet.Host{
+					ID:   25,
+					UUID: existingHostUUID,
+				},
+				Device: &android.Device{
+					HostID:               25,
+					DeviceID:             "fleet-id-device",
+					EnterpriseSpecificID: new(existingHostUUID),
+				},
+			}, nil
+		}
+
+		// The secret the token was issued from may have been rotated since; it must not matter.
+		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+			t.Fatal("enroll secret must not be looked up when the token carries fleet_id")
+			return nil, nil
+		}
+		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
+			return nil, false, nil
+		}
+
+		var capturedTeamID *uint
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			capturedTeamID = host.TeamID
+			return nil
+		}
+		mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
+			return nil
+		}
+		mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+
+		enrollTokenData, err := json.Marshal(teamEnrollmentRequest{TeamID: &teamID})
+		require.NoError(t, err)
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("test-fleet-id-reenroll"),
+			EnrollmentTokenData: string(enrollTokenData),
+		})
+
+		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		require.NotNil(t, capturedTeamID)
+		require.Equal(t, teamID, *capturedTeamID)
+		require.False(t, mockDS.NewAndroidHostFuncInvoked)
+	})
+
+	t.Run("re-enrollment with legacy token whose enroll secret was deleted keeps the team", func(t *testing.T) {
 		mockDS.NewAndroidHostFuncInvoked = false
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{
@@ -473,7 +506,7 @@ func TestPubSubEnrollment(t *testing.T) {
 		}
 
 		enrollmentToken := enrollmentTokenRequest{
-			EnrollSecret: "deleted-secret",
+			EnrollSecret: "deleted-secret", // legacy payload, issued before tokens carried fleet_id
 		}
 		enrollTokenData, err := json.Marshal(enrollmentToken)
 		require.NoError(t, err)
@@ -514,11 +547,8 @@ func TestPubSubEnrollment(t *testing.T) {
 			}, nil
 		}
 
-		// Enroll secret points to team 1 (the default).
+		// Enrollment token points to team 1 (the default).
 		defaultTeamID := uint(1)
-		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-			return &fleet.EnrollSecret{Secret: secret, TeamID: &defaultTeamID}, nil
-		}
 
 		// Prior team from android_devices is team 19 (admin transferred).
 		priorTeamID := uint(19)
@@ -538,8 +568,8 @@ func TestPubSubEnrollment(t *testing.T) {
 			return nil
 		}
 
-		enrollmentToken := enrollmentTokenRequest{
-			EnrollSecret: "team-secret",
+		enrollmentToken := teamEnrollmentRequest{
+			TeamID: &defaultTeamID,
 		}
 		enrollTokenData, err := json.Marshal(enrollmentToken)
 		require.NoError(t, err)
@@ -551,7 +581,7 @@ func TestPubSubEnrollment(t *testing.T) {
 		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
 		require.NoError(t, err)
 
-		// Should use the prior team (19), not the enroll secret's team (1).
+		// Should use the prior team (19), not the enrollment token's team (1).
 		require.NotNil(t, capturedTeamID)
 		require.Equal(t, priorTeamID, *capturedTeamID)
 	})
@@ -1841,10 +1871,6 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			return nil, common_mysql.NotFound("android host")
 		}
 
-		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-			return &fleet.EnrollSecret{Secret: secret}, nil
-		}
-
 		mockDS.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
 			return &fleet.MDMIdPAccount{
 				UUID:     uuid,
@@ -1867,9 +1893,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			return nil
 		}
 
-		enrollmentToken := enrollmentTokenRequest{
-			EnrollSecret: "global",
-			IdpUUID:      "jane-idp-uuid",
+		enrollmentToken := teamEnrollmentRequest{
+			IdpUUID: "jane-idp-uuid",
 		}
 		enrollTokenData, err := json.Marshal(enrollmentToken)
 		require.NoError(t, err)
@@ -1901,10 +1926,6 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			return nil, common_mysql.NotFound("android host")
 		}
 
-		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-			return &fleet.EnrollSecret{Secret: secret}, nil
-		}
-
 		mockDS.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
 			return &fleet.MDMIdPAccount{
 				UUID:     uuid,
@@ -1927,9 +1948,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			return nil
 		}
 
-		enrollmentToken := enrollmentTokenRequest{
-			EnrollSecret: "global",
-			IdpUUID:      "empty-name-uuid",
+		enrollmentToken := teamEnrollmentRequest{
+			IdpUUID: "empty-name-uuid",
 		}
 		enrollTokenData, err := json.Marshal(enrollmentToken)
 		require.NoError(t, err)
@@ -1960,10 +1980,6 @@ func TestAndroidStorageExtraction(t *testing.T) {
 
 	mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
 		return nil, common_mysql.NotFound("android host lite mock")
-	}
-
-	mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-		return &fleet.EnrollSecret{Secret: "global"}, nil
 	}
 
 	var createdHost *fleet.AndroidHost
@@ -2009,7 +2025,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 
 		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
 			Name:                createAndroidDeviceId("storage-test"),
-			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+			EnrollmentTokenData: `{"fleet_id": null}`,
 		})
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
@@ -2031,7 +2047,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 
 		enrollmentMessage := createEnrollmentMessageWithoutMeasuredEvents(t, androidmanagement.Device{
 			Name:                createAndroidDeviceId("work-profile-test"),
-			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+			EnrollmentTokenData: `{"fleet_id": null}`,
 		})
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
@@ -2074,7 +2090,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		// A re-enrollment payload carries no memory events at all.
 		enrollmentMessage := createEnrollmentMessageWithoutMemoryEvents(t, androidmanagement.Device{
 			Name:                createAndroidDeviceId("reenroll-test"),
-			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+			EnrollmentTokenData: `{"fleet_id": null}`,
 			HardwareInfo:        &androidmanagement.HardwareInfo{EnterpriseSpecificId: esid},
 		})
 
@@ -2114,7 +2130,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 
 		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
 			Name:                createAndroidDeviceId("reenroll-measured"),
-			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+			EnrollmentTokenData: `{"fleet_id": null}`,
 			HardwareInfo:        &androidmanagement.HardwareInfo{EnterpriseSpecificId: esid},
 		})
 
@@ -2132,7 +2148,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 
 		enrollmentMessage := createEnrollmentMessageWithMultipleExternalDetectedEvents(t, androidmanagement.Device{
 			Name:                createAndroidDeviceId("multiple-external-test"),
-			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+			EnrollmentTokenData: `{"fleet_id": null}`,
 		})
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
@@ -2974,9 +2990,6 @@ func TestPubSubStatusReportHostDeletedFromFleet(t *testing.T) {
 		}
 		return nil, common_mysql.NotFound("android host lite mock")
 	}
-	mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-		return &fleet.EnrollSecret{Secret: "global"}, nil
-	}
 	mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
 		createdHost = host
 		return host, nil
@@ -3000,7 +3013,7 @@ func TestPubSubStatusReportHostDeletedFromFleet(t *testing.T) {
 	// without it, enrollHost would fail to unmarshal and never exercise the fix.
 	device := androidmanagement.Device{
 		Name:                createAndroidDeviceId("deleted-from-fleet"),
-		EnrollmentTokenData: `{"enroll_secret": "global"}`,
+		EnrollmentTokenData: `{"fleet_id": null}`,
 		HardwareInfo: &androidmanagement.HardwareInfo{
 			EnterpriseSpecificId: strings.ToUpper(uuid.New().String()),
 			Brand:                "TestBrand",
@@ -3533,9 +3546,6 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
 	}
-	mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-		return &fleet.EnrollSecret{Secret: "global"}, nil
-	}
 	// Existing host: AndroidHostLite returns a real host so enrollHost falls into the updateHost (fromEnroll=true) branch instead of
 	// NewAndroidHost. AppliedPolicyID is seeded with the prior cycle's host-specific policy id so the regression check below
 	// (re-enroll must reset it) has something stale to clear.
@@ -3584,7 +3594,7 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 		return nil
 	}
 
-	enrollmentToken := enrollmentTokenRequest{EnrollSecret: "global"}
+	enrollmentToken := teamEnrollmentRequest{}
 	enrollTokenData, err := json.Marshal(enrollmentToken)
 	require.NoError(t, err)
 	// createEnrollmentMessage unconditionally overwrites HardwareInfo (brand/model/hardware) and, for COBO ownership, adds

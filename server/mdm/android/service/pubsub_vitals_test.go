@@ -396,8 +396,6 @@ func TestUpdateHostPersistsVitals(t *testing.T) {
 // payload already carries the vitals, so a freshly enrolled host must not have
 // to wait for its first status report to show them.
 func TestEnrollmentPersistsVitals(t *testing.T) {
-	const enrollSecret = "global"
-
 	cases := []struct {
 		name              string
 		ownership         string
@@ -432,9 +430,6 @@ func TestEnrollmentPersistsVitals(t *testing.T) {
 			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
 			}
-			mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-				return &fleet.EnrollSecret{Secret: enrollSecret}, nil
-			}
 			mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
 				return nil, common_mysql.NotFound("android host lite")
 			}
@@ -453,7 +448,7 @@ func TestEnrollmentPersistsVitals(t *testing.T) {
 				return nil
 			}
 
-			enrollTokenData, err := json.Marshal(enrollmentTokenRequest{EnrollSecret: enrollSecret})
+			enrollTokenData, err := json.Marshal(teamEnrollmentRequest{})
 			require.NoError(t, err)
 			message := createEnrollmentMessage(t, androidmanagement.Device{
 				Name:                createAndroidDeviceId("vitals-enroll"),
