@@ -68,6 +68,10 @@ describe("PlatformTabs", () => {
     expect(
       screen.getByText(/Android updates are coming soon/i)
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Learn how/i })).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/learn-more-about/android-os-updates"
+    );
   });
 
   it("does not render the target dropdown on the Linux tab", () => {
@@ -80,7 +84,7 @@ describe("PlatformTabs", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Learn how/i })).toHaveAttribute(
       "href",
-      "https://fleetdm.com/guides/enforce-os-updates#linux"
+      "https://fleetdm.com/learn-more-about/linux-os-updates"
     );
   });
 

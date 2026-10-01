@@ -1343,6 +1343,8 @@ module.exports.routes = {
   'GET /learn-more-about/s3-bootstrap-package': '/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket',
   'GET /learn-more-about/available-os-update-versions': '/guides/enforce-os-updates#available-macos-ios-and-ipados-versions',
   'GET /learn-more-about/apple-available-os-updates': '/guides/enforce-os-updates#available-macos-ios-and-ipados-versions',
+  'GET /learn-more-about/linux-os-updates': '/guides/enforce-os-updates#linux',
+  'GET /learn-more-about/android-os-updates': '/guides/enforce-os-updates#android',
   'GET /learn-more-about/policy-automation-install-software': '/guides/automatic-software-install-in-fleet',
   'GET /learn-more-about/query-templates-for-automatic-install-software': '/guides/automatic-software-install-in-fleet#templates-for-policy-queries',
   'GET /learn-more-about/exe-install-scripts': '/guides/exe-install-scripts',

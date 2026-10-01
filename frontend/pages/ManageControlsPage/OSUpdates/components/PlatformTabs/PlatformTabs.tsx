@@ -199,7 +199,7 @@ const PlatformTabs = ({
                   Linux OS updates are enforced with a policy that checks the OS
                   version and a script that installs updates.{" "}
                   <CustomLink
-                    url="https://fleetdm.com/guides/enforce-os-updates#linux"
+                    url="https://fleetdm.com/learn-more-about/linux-os-updates"
                     text="Learn how"
                     newTab
                   />
@@ -262,7 +262,7 @@ const PlatformTabs = ({
                   Currently Android OS updates are controlled with a
                   configuration profile.{" "}
                   <CustomLink
-                    url="https://fleetdm.com/guides/enforce-os-updates#android"
+                    url="https://fleetdm.com/learn-more-about/android-os-updates"
                     text="Learn how"
                     newTab
                   />
