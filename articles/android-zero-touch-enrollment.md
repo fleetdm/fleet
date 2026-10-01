@@ -22,7 +22,7 @@ Connect Fleet to the Android zero-touch portal so that company-owned Android dev
 6. Fill in your **Company name**, **Support email address**, and **Support phone number**.
 7. Select **Add**.
 
-## Apply the configuration to devices
+## Step 3: Apply the configuration to devices
 
 Devices claimed by your reseller appear under **Devices** in the zero-touch portal. Each device shows its current **Configuration** (or "None" if unassigned).
 
