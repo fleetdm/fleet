@@ -68,7 +68,8 @@ type Options struct {
 	// DisableSetupExperience disables setup experience for Linux hosts
 	DisableSetupExperience bool
 	// BypassEndUserAuth configures fleetd to skip end-user authentication during enrollment by not
-	// advertising the end-user auth capability to the Fleet server.
+	// advertising the end-user auth capability to the Fleet server. On Windows it sets the default of the
+	// BYPASS_END_USER_AUTH MSI property, which can be overridden at install time.
 	BypassEndUserAuth bool
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string
@@ -133,9 +134,6 @@ type Options struct {
 	EndUserEmail string
 	// EnableEUATokenProperty is a boolean indicating whether to enable EUA_TOKEN property in Windows MSI package.
 	EnableEUATokenProperty bool
-	// EnableBypassEndUserAuthProperty is a boolean indicating whether to enable BYPASS_END_USER_AUTH property in Windows MSI
-	// package. When enabled, BypassEndUserAuth only sets the property's default value.
-	EnableBypassEndUserAuthProperty bool
 	// DisableKeystore disables the use of the keychain on macOS and Credentials Manager on Windows
 	DisableKeystore bool
 	// OsqueryDB is the directory to use for the osquery database.

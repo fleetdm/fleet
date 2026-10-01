@@ -11,9 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBypassEndUserAuthTemplates verifies the --bypass-end-user-auth switch is wired into the generated Linux env file
-// and Windows MSI service environment when enabled, and absent when not, plus the Windows BYPASS_END_USER_AUTH MSI property.
-// macOS is intentionally excluded.
+// TestBypassEndUserAuthTemplates verifies the --bypass-end-user-auth switch is wired into the generated Linux env file, and
+// sets the default of the Windows BYPASS_END_USER_AUTH MSI property. macOS is intentionally excluded.
 func TestBypassEndUserAuthTemplates(t *testing.T) {
 	baseOpt := Options{
 		FleetURL:        "https://fleet.example.com",
@@ -40,14 +39,6 @@ func TestBypassEndUserAuthTemplates(t *testing.T) {
 		assert.NotContains(t, render(t, envTemplate, false), "ORBIT_BYPASS_END_USER_AUTH")
 	})
 
-	t.Run("windows msi service environment", func(t *testing.T) {
-		opt := baseOpt
-		opt.BypassEndUserAuth = true
-		assert.Contains(t, windowsServiceEnvironment(t, opt), "ORBIT_BYPASS_END_USER_AUTH=true")
-		opt.BypassEndUserAuth = false
-		assert.NotContains(t, windowsServiceEnvironment(t, opt), "ORBIT_BYPASS_END_USER_AUTH=true")
-	})
-
 	t.Run("windows msi BYPASS_END_USER_AUTH property", func(t *testing.T) {
 		propertyRe := regexp.MustCompile(`<Property Id="BYPASS_END_USER_AUTH" Value="([^"]*)" Secure="yes"/>`)
 		for _, tc := range []struct {
@@ -60,7 +51,6 @@ func TestBypassEndUserAuthTemplates(t *testing.T) {
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				opt := baseOpt
-				opt.EnableBypassEndUserAuthProperty = true
 				opt.BypassEndUserAuth = tc.bypass
 
 				var buf bytes.Buffer
@@ -72,21 +62,9 @@ func TestBypassEndUserAuthTemplates(t *testing.T) {
 				_, err := strconv.ParseBool(match[1])
 				require.NoError(t, err)
 
-				entries := windowsServiceEnvironment(t, opt)
-				assert.Contains(t, entries, "ORBIT_BYPASS_END_USER_AUTH=[BYPASS_END_USER_AUTH]")
-				assert.NotContains(t, entries, "ORBIT_BYPASS_END_USER_AUTH=true")
+				assert.Contains(t, windowsServiceEnvironment(t, opt), "ORBIT_BYPASS_END_USER_AUTH=[BYPASS_END_USER_AUTH]")
 			})
 		}
-
-		t.Run("property absent when disabled", func(t *testing.T) {
-			opt := baseOpt
-			opt.BypassEndUserAuth = true
-
-			var buf bytes.Buffer
-			require.NoError(t, windowsWixTemplate.Execute(&buf, opt))
-			assert.NotContains(t, buf.String(), "BYPASS_END_USER_AUTH\"")
-			assert.NotContains(t, buf.String(), "[BYPASS_END_USER_AUTH]")
-		})
 	})
 
 	// Guard the deliberate macOS exclusion: the flag must never leak into the launchd plist.
