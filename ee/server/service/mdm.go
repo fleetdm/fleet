@@ -1028,7 +1028,7 @@ func (svc *Service) bindHostToIdPAccountFromSSO(ctx context.Context, hostUUID st
 		return nil
 	}
 
-	previousEmail := svc.idPAccountEmailForActivity(ctx, previousAcctUUID)
+	previousEmail := shared_mdm.IdPAccountEmailForActivity(ctx, svc.ds, svc.logger, previousAcctUUID)
 
 	var act fleet.ActivityDetails
 	if !replaceExisting && previousAcctUUID != "" {
@@ -1052,23 +1052,6 @@ func (svc *Service) bindHostToIdPAccountFromSSO(ctx context.Context, hostUUID st
 			"err", err, "host_uuid", hostUUID, "activity", act.ActivityName())
 	}
 	return nil
-}
-
-// idPAccountEmailForActivity resolves an account UUID for a binding activity,
-// returning an empty string when there is none or it cannot be read.
-func (svc *Service) idPAccountEmailForActivity(ctx context.Context, acctUUID string) string {
-	if acctUUID == "" {
-		return ""
-	}
-	acct, err := svc.ds.GetMDMIdPAccountByUUID(ctx, acctUUID)
-	switch {
-	case err == nil && acct != nil:
-		return acct.Email
-	case err != nil && !fleet.IsNotFound(err):
-		svc.logger.ErrorContext(ctx, "get idp account for binding activity",
-			"err", err, "account_uuid", acctUUID)
-	}
-	return ""
 }
 
 // deviceSSOErrorURL sends the end user back to the device page they came from,

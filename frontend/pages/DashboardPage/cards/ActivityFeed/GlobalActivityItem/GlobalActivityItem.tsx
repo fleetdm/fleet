@@ -2179,6 +2179,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  unboundHostFromIdpAccount: (activity: IActivity) => {
+    return (
+      <>
+        unlinked <b>{activity.details?.host_uuid}</b> from the identity provider
+        account <b>{activity.details?.idp_email}</b>.
+      </>
+    );
+  },
   boundHostToIdpAccount: (activity: IActivity) => {
     return (
       <>
@@ -2997,6 +3005,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.BoundHostToIdpAccount: {
       return TAGGED_TEMPLATES.boundHostToIdpAccount(activity);
+    }
+    case ActivityType.UnboundHostFromIdpAccount: {
+      return TAGGED_TEMPLATES.unboundHostFromIdpAccount(activity);
     }
     case ActivityType.RefusedHostIdpAccountChange: {
       return TAGGED_TEMPLATES.refusedHostIdpAccountChange(activity);

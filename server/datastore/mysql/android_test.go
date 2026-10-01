@@ -3430,7 +3430,7 @@ func testNewAndroidHostWithIdP(t *testing.T, ds *Datastore) {
 	require.NotZero(t, result.Host.ID)
 
 	// associate host with IdP account, triggering reconciliation
-	err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
 	require.NoError(t, err)
 
 	// host_emails table has IdP email
@@ -3440,7 +3440,7 @@ func testNewAndroidHostWithIdP(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "john.doe@example.com", emails[0])
 
 	// is reconciliation idempotent?
-	err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
 	require.NoError(t, err)
 
 	// still only one email (no duplicates)
