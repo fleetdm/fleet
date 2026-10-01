@@ -3213,6 +3213,34 @@ func TestPubSubCommand(t *testing.T) {
 		require.Contains(t, err.Error(), "simulated transient DB connection drop", "wrapped error must preserve the original cause")
 	})
 
+	t.Run("WIPE+ack transient host lookup failure bubbles error so Pub/Sub retries", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-wipe-lookup-transient",
+			HostUUID:      "host-uuid-wipe-lookup-transient",
+			OperationName: "enterprises/E/devices/D/operations/wipe-lookup-transient",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			t.Fatalf("the command must stay pending when the host lookup fails transiently")
+			return nil
+		}
+		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return nil, errors.New("simulated transient DB connection drop")
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+		err := svc.ProcessPubSubPush(t.Context(), validToken, msg)
+		require.Error(t, err, "transient lookup failure must bubble so Pub/Sub retries")
+		require.Contains(t, err.Error(), "simulated transient DB connection drop")
+		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+	})
+
 	for _, tc := range []struct {
 		name         string
 		status       android.MDMAndroidCommandStatus
