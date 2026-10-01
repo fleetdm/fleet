@@ -2676,7 +2676,6 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------- |
 | enable_failing_policies_webhook   | boolean | Whether or not the failing policies webhook is enabled.                                                             |
 | destination_url                   | string  | The URL to deliver the webhook requests to.                                                                         |
-| policy_ids                        | array   | List of policy IDs to enable failing policies webhook.                                                              |
 | host_batch_size                   | integer | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
 
 <br/>
