@@ -187,7 +187,7 @@ When patch when closed is on, Fleet runs the app's pre-install query (`open` in 
    go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
    ```
 
-5. Open a PR with the Go change and the regenerated output. Go changes need approval from [@fleetdm/go](https://github.com/orgs/fleetdm/teams/go).
+5. Open a PR with the change and the regenerated output.
 
 After the PR merges, no Fleet release is needed. Fleet servers pick up the new query the next time they auto-update Fleet-maintained apps, even when the app's version didn't change. Apps pinned to a specific version keep their current query.
 
