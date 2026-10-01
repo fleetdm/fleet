@@ -1,8 +1,8 @@
 # New research: Mac admins ship AI-written changes at machine speed, but rollback often takes days
 
-_Fleet's "Apple in the enterprise" field report shows Mac administration has become an engineering discipline, while legacy device management infrastructure struggles to keep pace_
+_Fleet's "Apple in the Enterprise" field report shows Mac administration has become an engineering discipline, while legacy device management infrastructure struggles to keep pace_
 
-Fleet surveyed more than 250 enterprise IT practitioners who manage Apple devices for [_Apple in the enterprise: A Fleet field report_](https://fleetdm.com/pdfs/apple-in-the-enterprise-a-fleet-field-report-2026.pdf). Mac admins now use AI to write scripts, troubleshoot problems, and author configuration profiles, and most of them deploy that output to production. Few of them can undo a bad change quickly.
+Fleet surveyed more than 250 enterprise IT practitioners who manage Apple devices for [_Apple in the Enterprise: A Fleet field report_](https://fleetdm.com/pdfs/apple-in-the-Enterprise-a-fleet-field-report-2026.pdf). Mac admins now use AI to write scripts, troubleshoot problems, and author configuration profiles, and most of them deploy that output to production. Few of them can undo a bad change quickly.
 
 ## Highlights
 
@@ -23,9 +23,9 @@ The report recommends moving device configuration into code. Some teams already 
 
 ## Read the report
 
-<object :class="[[isIpadOS || bowser.ios ? 'd-none' : 'd-sm-block d-none']]" purpose="embedded-document" data="/pdfs/apple-in-the-enterprise-a-fleet-field-report-2026.pdf" type="application/pdf">
+<object :class="[[isIpadOS || bowser.ios ? 'd-none' : 'd-sm-block d-none']]" purpose="embedded-document" data="/pdfs/apple-in-the-Enterprise-a-fleet-field-report-2026.pdf" type="application/pdf">
 </object>
-<a :class="[[isIpadOS || bowser.ios ? 'd-block' : 'd-sm-none d-block']]" href="/pdfs/apple-in-the-enterprise-a-fleet-field-report-2026.pdf" target="_blank">Read the report</a>
+<a :class="[[isIpadOS || bowser.ios ? 'd-block' : 'd-sm-none d-block']]" href="/pdfs/apple-in-the-Enterprise-a-fleet-field-report-2026.pdf" target="_blank">Read the report</a>
 
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Allen Houchins">
