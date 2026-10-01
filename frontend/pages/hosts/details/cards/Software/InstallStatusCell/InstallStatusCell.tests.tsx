@@ -552,7 +552,7 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
-  it("renders 'Failed' with failure tooltip for failed_install_update_available (#52017)", async () => {
+  it("renders 'Failed' with failure tooltip for failed_install_update_available", async () => {
     const onShowInstallDetails = jest.fn();
     const { user } = renderWithSetup(
       <InstallStatusCell

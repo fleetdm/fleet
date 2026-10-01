@@ -420,8 +420,7 @@ export const SoftwareInstallDetailsModal = ({
 
   // True when inventory has a version strictly older than the installer version
   // (i.e. ui_status is `failed_install_update_available`). In that case the row
-  // now reads "Failed" and must open to the failure, not an "is installed"
-  // override (#52017).
+  // reads "Failed" and must open to the failure, not an "is installed" override.
   const installerVersion = hostSoftware
     ? getInstallerVersion(hostSoftware)
     : null;
@@ -439,10 +438,10 @@ export const SoftwareInstallDetailsModal = ({
 
   // Used only for overriding failed_install/failed_uninstall -> "is installed."
   // - Admin Host -> Software: override only when inventory is on the installer
-  //   version — if an update is still available (#52017) the row says "Failed"
-  //   and the modal must mirror that. Otherwise keep #31663's installed override.
-  // - My device: never override — the end user just triggered Update and needs
-  //   to see the failure + Details + Retry (#52017).
+  //   version. If an update is still available the row says "Failed" and the
+  //   modal must mirror that; otherwise keep the installed override.
+  // - My device: never override. The end user just triggered Update and needs
+  //   to see the failure + Details + Retry.
   // - Activity feed: never override (always show the failure).
   const canOverrideFailureWithInstalled =
     openedFromHostSoftwarePage && !deviceAuthToken

@@ -610,12 +610,12 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
     });
 
-    // #52017: a failed_install with an available update now reads "Failed" in
-    // the cell on both admin and self-service surfaces, so the admin modal
-    // must also surface the failure instead of overriding to "is installed."
-    // The #31663 override still applies when inventory matches the installer
-    // version (no update available) — covered elsewhere.
-    it("on admin, does not override a failed install to 'is installed' when the host reports an older installed version with an update available (#52017)", async () => {
+    // A failed_install with an available update reads "Failed" in the cell on
+    // both admin and self-service surfaces, so the admin modal must also
+    // surface the failure instead of overriding to "is installed." The
+    // installed-override still applies when inventory matches the installer
+    // version (no update available); that case is covered elsewhere.
+    it("on admin, does not override a failed install to 'is installed' when the host reports an older installed version with an update available", async () => {
       mockServer.use(getSoftwareInstallHandlerOnlyPreInstallOutput);
       const renderWithServer = createCustomRenderer({ withBackendMock: true });
 

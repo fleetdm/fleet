@@ -266,7 +266,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   failed_install_update_available: {
     iconName: "error",
-    displayText: "Failed", // Opens Install details modal (#52017)
+    displayText: "Failed", // Opens Install details modal
     tooltip: failedInstallTooltip,
   },
   failed_uninstall_update_available: {

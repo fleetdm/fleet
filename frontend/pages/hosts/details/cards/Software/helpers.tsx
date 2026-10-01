@@ -463,7 +463,7 @@ const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
   "failed_install", // Failed
   "failed_script", // Failed to run (for script packages)
   "failed_uninstall", // Failed uninstall
-  "failed_install_update_available", // (Shows "Failed") Failed install with update available (#52017)
+  "failed_install_update_available", // (Shows "Failed") Failed install with update available
   "failed_uninstall_update_available", // (Shows "Update available")  Failed uninstall with update available
   "skipped_install", // Patch skipped (deferred update)
   "update_available", // // Update available

@@ -75,7 +75,7 @@ describe("Self-service - UpdateSoftwareItem component", () => {
     // Spinner should exist (by role or other query, depending on how your Spinner renders)
   });
 
-  it("shows install failed status with a red error icon and 'Retry' primary button (#52017, #52815)", async () => {
+  it("shows install failed status with a red error icon and 'Retry' primary button", async () => {
     const handleShowDetails = jest.fn();
 
     const software: IDeviceSoftwareWithUiStatus = {
