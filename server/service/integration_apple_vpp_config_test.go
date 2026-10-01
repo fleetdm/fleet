@@ -1027,6 +1027,14 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addTestResp.VersionID, Name: new(fleet.DefaultAppStoreAppVersionName)}, http.StatusConflict)
 
+	// rename the second version to the first version's name in a different case, the request should conflict
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addTestResp.VersionID, Name: new("DEFAULT VERSION")}, http.StatusConflict)
+
+	// rename the second version to a blank name, the request should be rejected
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addTestResp.VersionID, Name: new("  ")}, http.StatusUnprocessableEntity)
+
 	// edit the second version's name, configuration, and auto updates, only the second version should change
 	const editedTestPlist = `<dict><key>ServerURL</key><string>https://edited-test.example.com</string></dict>`
 	var updResp updateAppStoreAppResponse
@@ -1072,7 +1080,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.Equal(t, addDefaultResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[0].ID)
 	require.Equal(t, addTestResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[1].ID)
 
-	// rename the other fleet's only version, then apply GitOps with the app, the renamed version should be kept without adding another
+	// rename the other fleet's only version, then apply GitOps with the app, the fleet should have one version with the new name
 	otherVersions, err := s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, &otherTeam.ID, titleID)
 	require.NoError(t, err)
 	require.Len(t, otherVersions, 1)
@@ -1087,10 +1095,15 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.Equal(t, "Renamed", otherVersions[0].VersionName)
 	require.True(t, otherVersions[0].SelfService)
 
-	// set a display name, then delete the second version, the display name should be kept for the first version
+	// set a display name, then delete the second version, the first version should still show the display name
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addDefaultResp.VersionID, DisplayName: new("Renamed app")},
 		http.StatusOK, &updateAppStoreAppResponse{})
+
+	// delete the title with the version id of another title, the version should not be found
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNotFound,
+		"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addIPadOSResp.VersionID))
+
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
 		"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addTestResp.VersionID))
 	require.Equal(t, "Staging", lastActivityVersionName(fleet.ActivityDeletedAppStoreApp{}.ActivityName()))

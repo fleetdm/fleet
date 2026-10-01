@@ -1260,17 +1260,15 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if payload.VersionID == nil && len(versions) > 1 {
 		return nil, nil, &fleet.BadRequestError{Message: "Couldn't edit. version_id is required when the app has more than one version in this fleet."}
 	}
-	meta := versions[0]
-	if payload.VersionID != nil {
-		meta = nil
-		for _, version := range versions {
-			if version.VPPAppsTeamsID == *payload.VersionID {
-				meta = version
-			}
+	var meta *fleet.VPPAppStoreApp
+	for _, version := range versions {
+		if payload.VersionID == nil || version.VPPAppsTeamsID == *payload.VersionID {
+			meta = version
+			break
 		}
-		if meta == nil {
-			return nil, nil, ctxerr.Wrapf(ctx, &notFoundError{}, "app store app version %d does not belong to this title and team", *payload.VersionID)
-		}
+	}
+	if meta == nil {
+		return nil, nil, ctxerr.Wrapf(ctx, &notFoundError{}, "app store app version %d does not belong to this title and team", ptr.ValOrZero(payload.VersionID))
 	}
 
 	versionName := meta.VersionName

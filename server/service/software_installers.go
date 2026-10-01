@@ -560,7 +560,7 @@ type deleteSoftwareInstallerRequest struct {
 	TeamID *uint `query:"team_id" renameto:"fleet_id"`
 	// InstallerID deletes one package; omitted deletes all of the title's packages.
 	InstallerID *uint `query:"installer_id,optional"`
-	// VersionID deletes one App Store app version; omitted deletes all of the title's versions.
+	// VersionID deletes one App Store app version, omitting it deletes every version of the title.
 	VersionID *uint `query:"version_id,optional"`
 	TitleID   uint  `url:"title_id"`
 }

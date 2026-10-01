@@ -4637,7 +4637,7 @@ func testAppStoreAppVersionsEditAndDelete(t *testing.T, ds *Datastore) {
 		require.NotNil(t, act)
 		require.Equal(t, "Renamed", act.VersionName)
 
-		// delete the second version, only the first version should be left
+		// delete the second version, the first version should be the only one returned
 		err = ds.DeleteVPPAppFromTeam(ctx, &fleetID, secondVersion.VPPAppID, &secondVersion.AppTeamID)
 		require.NoError(t, err)
 		versions, err = ds.GetVPPAppVersionsByTeamAndTitleID(ctx, &fleetID, secondVersion.TitleID)

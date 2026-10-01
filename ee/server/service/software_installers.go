@@ -1223,7 +1223,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 
 	// metaInstaller is fully hydrated (incl. the title-level icon) which the per-package reads below lack.
 	metaInstaller, errInstaller := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
-	metaVPP, errVPP := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	versionsVPP, errVPP := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, teamID, titleID)
 	metaInHouse, errInHouse := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 
 	switch {
@@ -1254,22 +1254,9 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 	}
 
 	if appStoreAppVersionID != nil {
-		if metaVPP == nil {
-			return ctxerr.Wrapf(ctx, &notFoundError{}, "app store app version %d does not belong to this title and team", *appStoreAppVersionID)
-		}
-		versions, err := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, teamID, titleID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting app store app versions")
-		}
-		for _, version := range versions {
+		for _, version := range versionsVPP {
 			if version.VPPAppsTeamsID == *appStoreAppVersionID {
-				var remainingVersions []*fleet.VPPAppStoreApp
-				for _, otherVersion := range versions {
-					if otherVersion.VPPAppsTeamsID != version.VPPAppsTeamsID {
-						remainingVersions = append(remainingVersions, otherVersion)
-					}
-				}
-				return svc.deleteVPPApp(ctx, teamID, version, remainingVersions)
+				return svc.deleteVPPApp(ctx, teamID, titleID, version)
 			}
 		}
 		return ctxerr.Wrapf(ctx, &notFoundError{}, "app store app version %d does not belong to this title and team", *appStoreAppVersionID)
@@ -1291,13 +1278,9 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 			}
 		}
 		return nil
-	case metaVPP != nil:
-		versions, err := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, teamID, titleID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting app store app versions to delete")
-		}
-		for i, version := range versions {
-			err = svc.deleteVPPApp(ctx, teamID, version, versions[i+1:])
+	case len(versionsVPP) > 0:
+		for _, version := range versionsVPP {
+			err := svc.deleteVPPApp(ctx, teamID, titleID, version)
 			if err != nil {
 				return err
 			}
@@ -1309,7 +1292,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 	return ctxerr.Wrap(ctx, &notFoundError{}, "getting software installer")
 }
 
-func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.VPPAppStoreApp, remainingVersions []*fleet.VPPAppStoreApp) error {
+func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, titleID uint, meta *fleet.VPPAppStoreApp) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return fleet.ErrNoContext
@@ -1324,14 +1307,22 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope")
 		}
-		// Skip the uninstall on hosts that a remaining version of the app still targets
-		for _, remainingVersion := range remainingVersions {
-			var remainingHosts map[string]string
-			remainingHosts, err = svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, remainingVersion.VPPAppsTeamsID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope of remaining versions")
+		// Skip the uninstall on hosts that another version of the app still targets
+		var versions []*fleet.VPPAppStoreApp
+		versions, err = svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, teamID, titleID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete app store app: getting versions of the app")
+		}
+		for _, otherVersion := range versions {
+			if otherVersion.VPPAppsTeamsID == meta.VPPAppsTeamsID {
+				continue
 			}
-			for hostUUID := range remainingHosts {
+			var otherVersionHosts map[string]string
+			otherVersionHosts, err = svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, otherVersion.VPPAppsTeamsID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope of other versions")
+			}
+			for hostUUID := range otherVersionHosts {
 				delete(hosts, hostUUID)
 			}
 		}

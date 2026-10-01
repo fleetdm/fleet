@@ -166,11 +166,9 @@ ORDER BY vat.id`
 			app.Configuration = configuration
 		}
 
-		if teamID != nil {
-			app.AutomaticInstallPolicies = policies
-			if iconURL != nil {
-				app.IconURL = iconURL
-			}
+		app.AutomaticInstallPolicies = policies
+		if iconURL != nil {
+			app.IconURL = iconURL
 		}
 	}
 
