@@ -351,6 +351,11 @@ func NewGithubClient() *http.Client {
 	cli := NewClient(WithNoTimeout())
 	githubToken := os.Getenv("NETWORK_TEST_GITHUB_TOKEN")
 	if githubToken == "" {
+		// Internal only, not a supported Fleet server setting. The generate-cve
+		// workflow in fleetdm/vulnerabilities sets it to the job's GITHUB_TOKEN:
+		// that runner's IP is shared with other Actions jobs, so the anonymous
+		// limit of 60 requests an hour can run out before the CVE generator
+		// finds the latest release.
 		githubToken = os.Getenv("FLEET_VULNERABILITIES_GITHUB_TOKEN")
 	}
 	if githubToken != "" {

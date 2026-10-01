@@ -3395,17 +3395,6 @@ in your Fleet). Setting this to true will cause Fleet to skip both processes.
     disable_win_os_vulnerabilities: true
   ```
 
-### FLEET_VULNERABILITIES_GITHUB_TOKEN
-
-A GitHub token that Fleet uses to authenticate requests to the GitHub API when downloading vulnerability data streams. Unauthenticated requests are limited to 60 per hour per IP address, which can run out when many clients share an address.
-
-Leave this unset unless you're hitting GitHub rate limits. The data streams are public, so no token is required. Fleet sends the token only to `api.github.com`, never to download hosts or custom URLs like `cpe_database_url`. Fleet never uses `GITHUB_TOKEN` or `GH_TOKEN` from the environment.
-
-This setting is only available as an environment variable.
-
-- Default value: `""`
-- Environment variable: `FLEET_VULNERABILITIES_GITHUB_TOKEN`
-
 ## GeoIP
 
 ### database_path
