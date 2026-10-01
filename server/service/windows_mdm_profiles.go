@@ -21,15 +21,19 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
-func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMWindowsConfigProfile, error) {
+func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, description string) (*fleet.MDMWindowsConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	if err := fleet.ValidateMDMProfileDescription(description); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
 	cp, usesFleetVars, teamName, err := svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't add. ")
 	if err != nil {
 		return nil, err
 	}
+	cp.Description = description
 
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, *cp, usesFleetVars)
 	if err != nil {
@@ -116,6 +120,11 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 		err := &fleet.BadRequestError{Message: errPrefix + msg}
 		return nil, nil, "", ctxerr.Wrap(ctx, err, "validate profile")
 	}
+	// After ValidateUserProvided, which keeps its own 400s for reserved and
+	// empty names; this adds the limits shared with the other profile types.
+	if err := fleet.ValidateMDMProfileName(cp.Name); err != nil {
+		return nil, nil, "", ctxerr.Wrap(ctx, err)
+	}
 
 	if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
 		return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
@@ -162,10 +171,10 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 
 // updateMDMWindowsConfigProfile implements the Windows branch of
 // UpdateMDMConfigProfile. A Windows .xml carries no identifier, so the profile is
-// keyed by UUID here and the uploaded file's name replaces the stored one. The
-// rename is in place, unlike GitOps, which matches on name and so treats a rename
-// as delete-then-insert.
-func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
+// keyed by UUID here. An empty profileName keeps the stored name; a nil
+// description keeps the stored description. The rename is in place, unlike
+// GitOps, which matches on name and so treats a rename as delete-then-insert.
+func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, description *string) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -199,12 +208,22 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 		}
 	}
 
+	name := existing.Name
+	if profileName != "" {
+		name = profileName
+	}
+	newDescription := existing.Description
+	if description != nil {
+		if err := fleet.ValidateMDMProfileDescription(*description); err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		newDescription = *description
+	}
+
 	var cp *fleet.MDMWindowsConfigProfile
 	var usesFleetVars []fleet.FleetVarName
 	if len(profile) > 0 {
-		// A blank or whitespace-only name must be rejected on update as well as
-		// create, so don't silently fall back to the existing name.
-		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't edit. ")
+		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't edit. ")
 		if err != nil {
 			return err
 		}
@@ -217,8 +236,13 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "validating labels")
 		}
+		if name != existing.Name {
+			if err := fleet.ValidateMDMProfileName(name); err != nil {
+				return ctxerr.Wrap(ctx, err)
+			}
+		}
 		cp = &fleet.MDMWindowsConfigProfile{
-			Name:   existing.Name,
+			Name:   name,
 			TeamID: existing.TeamID,
 		}
 		switch labelsMembershipMode {
@@ -230,11 +254,11 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 		cp.LabelsExcludeAny = excludeLabels
 	}
 	cp.ProfileUUID = profileUUID
-	cp.Description = existing.Description
+	cp.Description = newDescription
 
 	if _, err := svc.ds.UpdateMDMWindowsConfigProfile(ctx, *cp, usesFleetVars); err != nil {
 		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
-			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).WithStatus(http.StatusConflict)
+			err = fleet.NewInvalidArgumentError("profile", SameProfileNameEditErrorMsg).WithStatus(http.StatusConflict)
 		}
 		return ctxerr.Wrap(ctx, err)
 	}

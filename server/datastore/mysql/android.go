@@ -966,10 +966,14 @@ func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID
 }
 
 // UpdateMDMAndroidConfigProfile updates an existing profile's contents (if
-// cp.RawJSON is non-empty) and/or label targeting in place. cp.Name must
-// match the existing profile's -- name is an Android profile's only
-// identity, so it never changes on this path.
+// cp.RawJSON is non-empty), name, description and/or label targeting in
+// place, keyed by cp.ProfileUUID so a rename keeps the same row.
 func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
+	var teamID uint
+	if cp.TeamID != nil {
+		teamID = *cp.TeamID
+	}
+
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
 			Name        string `db:"name"`
@@ -983,9 +987,21 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			}
 			return ctxerr.Wrap(ctx, err, "get existing android config profile")
 		}
-		if existing.Name != cp.Name {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: "The new profile's name must match the existing profile's name.",
+		if cp.Name == "" {
+			cp.Name = existing.Name
+		}
+
+		nameChanged := existing.Name != cp.Name
+		nameGuard := ""
+		var nameGuardArgs []any
+		if nameChanged {
+			nameGuard, nameGuardArgs = profileRenameGuard(androidProfileNameTables.profileTable, cp.Name, teamID)
+		}
+		nameExists := func() error {
+			return ctxerr.Wrap(ctx, &existsError{
+				ResourceType: "MDMAndroidConfigProfile.Name",
+				Identifier:   cp.Name,
+				TeamID:       cp.TeamID,
 			})
 		}
 
@@ -995,12 +1011,19 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			// the pre-update raw_json (SET evaluates left to right), and the
 			// parameter must be CAST to JSON -- a json column never equals a
 			// bare string.
-			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(raw_json = CAST(? AS JSON), uploaded_at, CURRENT_TIMESTAMP()), raw_json = ?, description = ? WHERE profile_uuid = ? AND name = ?`
-			res, err := tx.ExecContext(ctx, stmt, cp.RawJSON, cp.RawJSON, cp.Description, cp.ProfileUUID, cp.Name)
+			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(raw_json = CAST(? AS JSON), uploaded_at, CURRENT_TIMESTAMP()), raw_json = ?, name = ?, description = ? WHERE profile_uuid = ?` + nameGuard
+			args := append([]any{cp.RawJSON, cp.RawJSON, cp.Name, cp.Description, cp.ProfileUUID}, nameGuardArgs...)
+			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
+				if IsDuplicate(err) {
+					return nameExists()
+				}
 				return ctxerr.Wrap(ctx, err, "updating android mdm config profile contents")
 			}
 			if aff, _ := res.RowsAffected(); aff == 0 {
+				if nameChanged {
+					return nameExists()
+				}
 				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
 			}
 
@@ -1013,16 +1036,24 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			}, "android", false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating android profile variable associations")
 			}
-		} else if existing.Description != cp.Description {
-			// Description is not part of the checksum, so it is written without
-			// touching uploaded_at.
-			res, err := tx.ExecContext(ctx,
-				`UPDATE mdm_android_configuration_profiles SET description = ? WHERE profile_uuid = ?`,
-				cp.Description, cp.ProfileUUID)
+		} else if nameChanged || existing.Description != cp.Description {
+			// Name and description are not part of the checksum, so they are
+			// written without touching uploaded_at.
+			stmt := `UPDATE mdm_android_configuration_profiles SET name = ?, description = ? WHERE profile_uuid = ?` + nameGuard
+			args := append([]any{cp.Name, cp.Description, cp.ProfileUUID}, nameGuardArgs...)
+			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "updating android mdm config profile description")
+				if IsDuplicate(err) {
+					return nameExists()
+				}
+				return ctxerr.Wrap(ctx, err, "updating android mdm config profile metadata")
 			}
+			// A rename blocked by the guard matches no row; the profile
+			// existed at the SELECT above.
 			if aff, _ := res.RowsAffected(); aff == 0 {
+				if nameChanged {
+					return nameExists()
+				}
 				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
 			}
 		}
@@ -1069,6 +1100,9 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 
 func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, androidProfileNameTables, "p.profile_uuid = ?", profileUUID); err != nil {
+			return err
+		}
 		stmt := `DELETE FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`
 		res, err := tx.ExecContext(ctx, stmt, profileUUID)
 		if err != nil {
@@ -2088,7 +2122,9 @@ func (ds *Datastore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID str
 		`
 SELECT
 	hmap.profile_uuid,
-	hmap.profile_name AS name,
+	-- the profile's name, since the host's copy isn't updated on a rename;
+	-- the copy is only read once the profile is deleted, which refreshes it
+	COALESCE(macp.name, hmap.profile_name) AS name,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
 	-- profile is effectively pending. This is consistent with all our
@@ -2156,6 +2192,9 @@ func (ds *Datastore) deleteAllAndroidProfiles(ctx context.Context, tx sqlx.ExtCo
 	var teamID uint
 	if tmID != nil {
 		teamID = *tmID
+	}
+	if err := snapshotProfileNamesForDeletionDB(ctx, tx, androidProfileNameTables, "p.team_id = ?", teamID); err != nil {
+		return 0, err
 	}
 	res, err := tx.ExecContext(ctx, `DELETE FROM mdm_android_configuration_profiles WHERE team_id = ?`, teamID)
 	if err != nil {
@@ -2230,6 +2269,9 @@ WHERE
   profile_uuid IN (?)
 `
 	if len(deletedProfileUUIDs) > 0 {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, androidProfileNameTables, "p.profile_uuid IN (?)", deletedProfileUUIDs); err != nil {
+			return false, err
+		}
 		var result sql.Result
 		stmt, args, err = sqlx.In(deleteProfilesNotInList, deletedProfileUUIDs)
 		if err != nil {

@@ -2616,6 +2616,10 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 
+	// MDMWindowsGetEnrolledDeviceByID returns the Windows MDM enrollment with the given row id, for resolving the enrollment
+	// a one-time enroll secret was minted for.
+	MDMWindowsGetEnrolledDeviceByID(ctx context.Context, enrollmentID uint) (*MDMWindowsEnrolledDevice, error)
+
 	// MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName returns the most recent MDMWindowsEnrolledDevice whose host_uuid
 	// has not yet been populated (i.e. osquery's directIngestMDMDeviceIDWindows has not run since enrollment) and whose
 	// device_name matches the given computer name. Used as a fallback when MDMWindowsGetEnrolledDeviceWithHostUUID can't
@@ -2730,6 +2734,10 @@ type Datastore interface {
 	// DeleteMDMWindowsConfigProfileByTeamAndName deletes the Windows MDM profile corresponding to
 	// the specified team ID (or no team if nil) and profile name.
 	DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error
+
+	// ListMDMWindowsConfigProfilesByName returns the Windows MDM profile with this name in every team, with a nil TeamID for no
+	// team. Only the UUID, team, and name are loaded.
+	ListMDMWindowsConfigProfilesByName(ctx context.Context, name string) ([]*MDMWindowsConfigProfile, error)
 
 	// GetHostMDMWindowsProfiles returns the MDM profile information for the specified Windows host UUID.
 	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
@@ -3808,6 +3816,29 @@ type Datastore interface {
 	// The enrollmentID (typically UDID) is used to look up host-specific secrets
 	// like recovery lock passwords.
 	ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error)
+
+	// GetLiveWindowsMDMOneTimeEnrollSecret returns the unconsumed one-time enroll secret minted for the Windows MDM enrollment,
+	// or "" when there is none, which is the normal state for a host that already runs fleetd. Windows identifies its subject by
+	// enrollment rather than by host UUID, because the host may not exist yet when the secret is minted.
+	GetLiveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error)
+
+	// WindowsMDMEnrollSecretUsedByOrbit reports whether orbit has enrolled with a one-time enroll secret minted for the Windows MDM
+	// enrollment, which means fleetd is installed on the device.
+	WindowsMDMEnrollSecretUsedByOrbit(ctx context.Context, enrollmentID uint) (bool, error)
+
+	// MintWindowsMDMOneTimeEnrollSecret makes sure the Windows MDM enrollment has a live one-time enroll secret, reusing an
+	// unconsumed one. Called when Fleet is about to install fleetd on the device. Returns a NotFound error for an unknown enrollment.
+	MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) error
+
+	// QueueWindowsMDMEnrollSecretPush makes sure the Windows MDM enrollment has a live one-time enroll secret, reusing an unconsumed
+	// one, and queues pushCmd, which delivers it, plus installCmd when not nil, in one transaction. It does nothing and returns false
+	// when WindowsMDMEnrollSecretPushed reports the live secret as pushed.
+	QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd, installCmd *MDMWindowsCommand) (bool, error)
+
+	// WindowsMDMEnrollSecretPushed reports whether a push of the Windows MDM enrollment's live one-time enroll secret, a command
+	// targeting pushLocURI queued since the secret was minted, is still pending or was delivered successfully. It is false when the
+	// enrollment has no live secret, or when the last push failed on the device.
+	WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Custom host vitals
