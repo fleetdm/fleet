@@ -23,9 +23,7 @@ The report recommends moving device configuration into code. Some teams already 
 
 ## Read the report
 
-<object :class="[[isIpadOS || bowser.ios ? 'd-none' : 'd-sm-block d-none']]" purpose="embedded-document" data="/pdfs/Apple-in-the-Enterprise-A-Fleet-Field-Report.pdf" type="application/pdf">
-</object>
-<a :class="[[isIpadOS || bowser.ios ? 'd-block' : 'd-sm-none d-block']]" href="/pdfs/Apple-in-the-Enterprise-A-Fleet-Field-Report.pdf" target="_blank">Read the report</a>
+<a purpose="cta-button" href="/pdfs/Apple-in-the-Enterprise-A-Fleet-Field-Report.pdf" download="Apple-in-the-Enterprise-A-Fleet-Field-Report.pdf">Download the report</a>
 
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Allen Houchins">
