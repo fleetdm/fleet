@@ -49,8 +49,6 @@ controls:
   name_template: iPad $FLEET_VAR_HOST_HARDWARE_SERIAL
   scripts:
   - path: "../lib/team-a-👍/scripts/Script B.ps1"
-  windows_require_bitlocker_pin: false
-  windows_enabled_and_configured: true
   windows_settings:
     enable_disk_encryption: true
     require_bitlocker_pin: false

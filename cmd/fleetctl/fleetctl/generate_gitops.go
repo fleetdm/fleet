@@ -298,20 +298,6 @@ type GenerateGitopsCommand struct {
 	ScriptList   map[uint]string
 }
 
-var (
-	emptyVal      = regexp.MustCompile(`(?m):\s*(null|""|\[\]|\{\})\s*$`)
-	emptyControls = regexp.MustCompile(`(?m)^controls:\s*\{\}\s*$`)
-)
-
-func replaceEmptyGitOpsValues(b []byte) []byte {
-	// Preserve an empty controls map: GitOps requires controls to be an object,
-	// whereas the generic empty-value rewrite would turn it into YAML null.
-	b = emptyControls.ReplaceAll(b, []byte("controls: ___GITOPS_EMPTY_CONTROLS___"))
-	// Replace any other empty values with a blank.
-	b = emptyVal.ReplaceAll(b, []byte(":"))
-	return bytes.ReplaceAll(b, []byte("controls: ___GITOPS_EMPTY_CONTROLS___"), []byte("controls: {}"))
-}
-
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "generate-gitops",
@@ -592,12 +578,15 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate controls.
-		controls, err := cmd.generateControls(teamToProcess.ID, teamFileName, &mdmConfig)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for %s: %s\n", teamFileName, err)
-			return ErrGeneric
+		// Only do this on the global team if we're on the free tier.
+		if teamToProcess.ID != nil || !cmd.AppConfig.License.IsPremium() {
+			controls, err := cmd.generateControls(teamToProcess.ID, teamFileName, &mdmConfig)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for %s: %s\n", teamFileName, err)
+				return ErrGeneric
+			}
+			cmd.FilesToWrite[fileName].(map[string]interface{})["controls"] = controls
 		}
-		cmd.FilesToWrite[fileName].(map[string]any)["controls"] = controls
 
 		// Generate software.
 		if team != nil {
@@ -687,6 +676,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		return nil
 	}
 
+	emptyVal := regexp.MustCompile(`(?m):\s*(null|""|\[\]|\{\})\s*$`)
 	softwareVersion := regexp.MustCompile(`(?m)^([ \t]+version: )([^"\n].*)$`)
 	// Add comments to the result.
 	for path, fileToWrite := range cmd.FilesToWrite {
@@ -708,7 +698,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 					)
 				}
 			}
-			b = replaceEmptyGitOpsValues(b)
+			// Replace any empty values with a blank.
+			b = emptyVal.ReplaceAll(b, []byte(":"))
 			// Unescape any unicode chars added by the YAML marshaler.
 			b = unescapeUnicodeU8(b)
 			// Keep software versions quoted so YAML treats them as strings (e.g. "10.0" must not become a float).
@@ -1558,15 +1549,6 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			windowsSettings[jsonFieldName(windowsSettingsT, "RequireBitLockerPIN")] = cmd.AppConfig.MDM.WindowsSettings.RequireBitLockerPIN.Value
 			linuxSettings[jsonFieldName(linuxSettingsT, "EnableEscrowDiskEncryptionKey")] = cmd.AppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
 		}
-		if teamId == nil || *teamId == 0 {
-			if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
-				result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
-			}
-
-			if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
-				result["android_enabled_and_configured"] = cmd.AppConfig.MDM.AndroidEnabledAndConfigured
-			}
-		}
 
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
 			// See if the team has macOS bootstrap package configured.
@@ -1609,6 +1591,12 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		if len(linuxSettings) > 0 {
 			result[jsonFieldName(t, "LinuxSettings")] = linuxSettings
 		}
+	}
+
+	if teamId == nil || *teamId == 0 {
+		mdmT := reflect.TypeFor[fleet.MDM]()
+		result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
+		result[jsonFieldName(mdmT, "AndroidEnabledAndConfigured")] = cmd.AppConfig.MDM.AndroidEnabledAndConfigured
 	}
 
 	if len(macosSettings) > 0 {
