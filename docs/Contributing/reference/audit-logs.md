@@ -2892,61 +2892,6 @@ This activity contains the following field:
 }
 ```
 
-## bound_host_to_idp_account
-
-Generated when a host is linked to an identity provider (IdP) account, or its linked account is replaced, during enrollment or end user authentication.
-
-This activity contains the following fields:
-- "host_uuid": UUID of the host.
-- "idp_email": Email of the IdP account the host is now linked to.
-- "replaced_idp_email": Email of the IdP account the host was linked to before. Omitted if the host had no linked account.
-
-#### Example
-
-```json
-{
-	"host_uuid": "C8D90CC1-0C2A-52D4-A6F4-DF55522A740F",
-	"idp_email": "anna@example.com",
-	"replaced_idp_email": "bob@example.com"
-}
-```
-
-## unbound_host_from_idp_account
-
-Generated when a host's link to an identity provider (IdP) account is removed, for example when the host re-enrolls without end user authentication.
-
-This activity contains the following fields:
-- "host_uuid": UUID of the host.
-- "idp_email": Email of the IdP account the host was linked to.
-
-#### Example
-
-```json
-{
-	"host_uuid": "C8D90CC1-0C2A-52D4-A6F4-DF55522A740F",
-	"idp_email": "anna@example.com"
-}
-```
-
-## refused_host_idp_account_change
-
-Generated when an end user authentication sign-in would have replaced the identity provider (IdP) account of a host that has already enrolled. The host keeps its existing account.
-
-This activity contains the following fields:
-- "host_uuid": UUID of the host.
-- "idp_email": Email of the IdP account that signed in.
-- "existing_idp_email": Email of the IdP account the host stays linked to.
-
-#### Example
-
-```json
-{
-	"host_uuid": "C8D90CC1-0C2A-52D4-A6F4-DF55522A740F",
-	"idp_email": "bob@example.com",
-	"existing_idp_email": "anna@example.com"
-}
-```
-
 ## escrowed_disk_encryption_key
 
 Generated when a disk encryption key is escrowed.
@@ -2961,6 +2906,23 @@ This activity contains the following fields:
 {
 	"host_id": 123,
 	"host_display_name": "PWNED-VM-123"
+}
+```
+
+## unbound_host_from_idp_account
+
+Generated when a host's link to an identity provider (IdP) account is removed, for example when the host re-enrolls without end user authentication. Fleet records this activity, so it does not include a user.
+
+This activity contains the following fields:
+- "host_uuid": Hardware UUID of the host.
+- "idp_email": Email of the IdP account the host was linked to.
+
+#### Example
+
+```json
+{
+	"host_uuid": "C8D90CC1-0C2A-52D4-A6F4-DF55522A740F",
+	"idp_email": "anna@example.com"
 }
 ```
 
