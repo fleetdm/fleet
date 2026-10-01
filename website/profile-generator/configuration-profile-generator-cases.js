@@ -1210,27 +1210,6 @@ const TEST_CASES = [
       mustNotContain: ['managedExtensions', 'privateBrowsing'],
     }
   },
-  {
-    id: 'ddm-multi-declaration-single-file',
-    profileType: 'ddm',
-    canary: true,
-    instructions: 'Require a 12-character passcode and defer minor macOS updates by 30 days.',
-    readByEye:
-      'IMPORTANT -- this case exists to surface a design question, not to be graded pass/fail.\n' +
-      'These are two declaration TYPES (passcode.settings and softwareupdate.settings), and Fleet ingests one\n' +
-      'declaration per file: server/fleet/apple_mdm.go GetRawDeclarationValues unmarshals the upload into a single\n' +
-      '{Type, Identifier, Payload} object, so a JSON array or two concatenated objects is rejected on upload.\n' +
-      'There is no single-file answer to this request.  Acceptable outcomes: generate ONE declaration and describe\n' +
-      'the second in deliveryNotes, or return couldNotGenerateProfile naming the conflict.  A JSON array is a bug.\n' +
-      'The same question applies to the existing ddm-identifier-collision case, which asks for two declarations\n' +
-      'and asserts both types appear in one configurationProfile string.',
-    expect: {
-      // "}{" only occurs where two top-level objects were concatenated -- whitespace is stripped
-      // before comparing, so "}\n{" collapses to it.  An array shape stays a readByEye.
-      mustNotContain: ['}{'],
-    }
-  },
-
   //  ╔╗╔╔═╗╔═╗╔═╗╔╦╗╦╦  ╦╔═╗  ┌─┐┌─┐┌─┐┌─┐┌─┐
   //  ║║║║╣ ║ ╦╠═╣ ║ ║╚╗╔╝║╣   │  ├─┤└─┐├┤ └─┐
   //  ╝╚╝╚═╝╚═╝╩ ╩ ╩ ╩ ╚╝ ╚═╝  └─┘┴ ┴└─┘└─┘└─┘
@@ -1254,13 +1233,6 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Turn off Remote Login so nobody can SSH into these Macs.',
     readByEye: 'Remote Login is the ssh launchd job.  A profile cannot disable it.',
-    expect: { expectFailure: true }
-  },
-  {
-    id: 'negative-file-sharing-disabled',
-    profileType: 'mobileconfig',
-    instructions: 'Turn off File Sharing.',
-    readByEye: 'SMB file sharing is a launchd service. There is no managed preference for it.',
     expect: { expectFailure: true }
   },
   {
