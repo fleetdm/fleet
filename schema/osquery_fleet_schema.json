@@ -254,7 +254,7 @@
       },
       {
         "name": "identifier",
-        "description": "Unique identifier varying by type: MCP server name, plugin ID (`publisher.name`), agent binary, bundle ID, socket service, or instruction tool. Populated for all types.",
+        "description": "Unique identifier varying by type: MCP server name, plugin ID (`publisher.name`), agent binary, Fleet's name for the app (e.g. `claude-desktop`; the bundle ID is in `detail`), socket service, instruction tool, or browser extension ID. Populated for all types.",
         "type": "text",
         "required": false
       },
