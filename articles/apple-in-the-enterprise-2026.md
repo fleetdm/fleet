@@ -1,4 +1,4 @@
-# New research: AI helps Mac admins ship changes more quickly, but rollback often takes days
+# New research: AI helps Mac admins ship changes quickly, but rollback often takes days
 
 _"Apple in the Enterprise: A Fleet Field Report" shows Mac administration has become an engineering discipline, while legacy device management infrastructure struggles to keep pace_
 
@@ -29,5 +29,5 @@ The report recommends moving device configuration into code. Some teams already 
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-10-07">
-<meta name="articleTitle" value="New research: AI helps Mac admins ship changes more quickly, but rollback often takes days">
+<meta name="articleTitle" value="New research: AI helps Mac admins ship changes quickly, but rollback often takes days">
 <meta name="description" value="Fleet surveyed 250+ enterprise Mac admins. 86% deploy AI-written changes to production, but 69% can't roll back a bad change within an hour.">
