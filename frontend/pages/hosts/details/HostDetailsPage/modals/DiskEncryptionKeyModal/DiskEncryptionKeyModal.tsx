@@ -25,7 +25,7 @@ export const ESCROW_OFF_TOOLTIP =
 interface IDiskEncryptionKeyModal {
   platform: HostPlatform;
   hostId: number;
-  /** The viewer may rotate this host's key and the host has a verified key to rotate. */
+  /** The viewer may rotate this host's key, and the host has a verified key and isn't personally enrolled. */
   canRotateKey: boolean;
   isEscrowEnabled: boolean;
   onCancel: () => void;
