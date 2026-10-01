@@ -2207,6 +2207,16 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", ipadHost.ID), nil, http.StatusOK, &ipadResp)
 	require.Equal(t, "https://fleet.example.com/device/"+ipadHost.UUID+"/self-service", ipadResp.DeviceURL)
 
+	// An iOS host assigned in Apple Business but not yet enrolled has no UUID to
+	// build the URL from.
+	pendingIOSHost := createOrbitEnrolledHost(t, "ios", "device-url-ios-pending", s.ds)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET uuid = '' WHERE id = ?`, pendingIOSHost.ID)
+		return err
+	})
+	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", pendingIOSHost.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.MyDeviceURLNotEnrolledMessage)
+
 	// Android and ChromeOS have no My device page at all, so the endpoint explains
 	// that rather than minting a URL that leads nowhere. See #48439.
 	for _, platform := range []string{"android", "chrome", "CrOS"} {

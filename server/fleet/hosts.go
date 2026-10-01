@@ -135,12 +135,13 @@ func IsPlaceholderHardwareSerial(serial string) bool {
 type MDMEnrollStatus string
 
 const (
-	MDMEnrollStatusManual     = MDMEnrollStatus("manual")
-	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
-	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
-	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
-	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual", "automatic" and "personal"
-	MDMEnrollStatusPersonal   = MDMEnrollStatus("personal")
+	MDMEnrollStatusManual         = MDMEnrollStatus("manual")
+	MDMEnrollStatusAutomatic      = MDMEnrollStatus("automatic")
+	MDMEnrollStatusPending        = MDMEnrollStatus("pending")
+	MDMEnrollStatusUnenrolled     = MDMEnrollStatus("unenrolled")
+	MDMEnrollStatusEnrolled       = MDMEnrollStatus("enrolled") // combination of "manual", "automatic", "personal" and "manual-personal"
+	MDMEnrollStatusPersonal       = MDMEnrollStatus("personal")
+	MDMEnrollStatusManualPersonal = MDMEnrollStatus("manual-personal")
 )
 
 // OSSettingsStatus defines the possible statuses of the host's OS settings, which is derived from the
@@ -538,6 +539,13 @@ type Host struct {
 	// for every other platform, or when a given field wasn't reported by a
 	// particular status report.
 	HostMDMAndroidDeviceVitals
+}
+
+func (h *Host) EffectiveTeamID() uint {
+	if h.TeamID == nil {
+		return 0
+	}
+	return *h.TeamID
 }
 
 type HostForeignVitalGroup struct {
@@ -1267,6 +1275,7 @@ func (h *HostLite) DisplayName() string {
 type HostIssues struct {
 	FailingPoliciesCount         uint64  `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
 	FailingUnhiddenPoliciesCount *uint64 `json:"failing_unhidden_policies_count,omitempty" db:"-" csv:"-"`
+	HiddenPoliciesCount          *uint64 `json:"hidden_policies_count,omitempty" db:"-" csv:"-"`
 	CriticalVulnerabilitiesCount *uint64 `json:"critical_vulnerabilities_count,omitempty" db:"critical_vulnerabilities_count" csv:"-"` // We set it to nil if the license is not premium
 	TotalIssuesCount             uint64  `json:"total_issues_count" db:"total_issues_count" csv:"issues"`                              // when exporting in CSV, we want that value as the "issues" column
 }
@@ -1921,12 +1930,13 @@ type AggregatedMunkiIssue struct {
 }
 
 type AggregatedMDMStatus struct {
-	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
-	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
-	EnrolledPersonalHostsCount  int `json:"enrolled_personal_hosts_count" db:"enrolled_personal_hosts_count"`
-	PendingHostsCount           int `json:"pending_hosts_count" db:"pending_hosts_count"`
-	UnenrolledHostsCount        int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
-	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
+	EnrolledManualHostsCount         int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
+	EnrolledAutomatedHostsCount      int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
+	EnrolledPersonalHostsCount       int `json:"enrolled_personal_hosts_count" db:"enrolled_personal_hosts_count"`
+	EnrolledManualPersonalHostsCount int `json:"enrolled_manual_personal_hosts_count" db:"enrolled_manual_personal_hosts_count"`
+	PendingHostsCount                int `json:"pending_hosts_count" db:"pending_hosts_count"`
+	UnenrolledHostsCount             int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
+	HostsCount                       int `json:"hosts_count" db:"hosts_count"`
 }
 
 // AggregatedMDMData contains aggregated data from mdm installations.
@@ -2089,7 +2099,15 @@ type HostDiskEncryptionKey struct {
 	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue      string    `json:"key" db:"-"`
 	ClientError         string    `json:"-" db:"client_error"`
+	RotationCommandUUID *string   `json:"-" db:"rotation_command_uuid"`
+	RotationPending     bool      `json:"rotation_pending" db:"-"`
 }
+
+// DiskEncryptionKeyRotationStaleAfter is how long a pending FileVault key rotation
+// whose command is no longer queued still counts as in progress. A marker is set
+// before its command is enqueued and cleared after its result is handled, so a
+// fresh one can look finished without being so.
+const DiskEncryptionKeyRotationStaleAfter = time.Minute
 
 type HostArchivedDiskEncryptionKey struct {
 	HostID              uint      `json:"-" db:"host_id"`

@@ -105,6 +105,8 @@ type Options struct {
 	// ClientCertificate is the client TLS certificate to use to authenticate
 	// to the update server.
 	ClientCertificate *tls.Certificate
+	// SkipCrossArchExecCheck skips the exec check for other-architecture targets (packaging).
+	SkipCrossArchExecCheck bool
 }
 
 // Targets is a map of target name and its tracking information.
@@ -685,7 +687,7 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 			containsArch = true
 		}
 	}
-	if !containsArch && strings.HasSuffix(os.Args[0], "fleetctl") {
+	if !containsArch && u.opt.SkipCrossArchExecCheck {
 		// Nothing to do, we can't reliably execute a
 		// cross-architecture binary. This happens when cross-building
 		// packages

@@ -39,9 +39,12 @@ func (s *Service) authenticateWithACMEEnrollment(ctx context.Context, identifier
 // common authentication logic for both AuthenticateNewAccountMessage and AuthenticateMessageFromAccount, only
 // one of createNewAccount or otherRequest must be non-nil.
 func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_http.JWSRequestContainer, createNewAccount *api_http.CreateNewAccountRequest, otherRequest types.AccountAuthenticatedRequest) error {
-	var err error
+	// The enrollment must be validated before the nonce so we can properly signal an invalid/nonexistent enrollment
+	enrollment, err := s.authenticateWithACMEEnrollment(ctx, message.Identifier)
+	if err != nil {
+		return err
+	}
 
-	// consume the nonce as first validation
 	nonce := message.JWS.Signatures[0].Protected.Nonce
 	nonceValid, err := s.nonces.Consume(ctx, nonce)
 	if !nonceValid || err != nil {
@@ -92,12 +95,6 @@ func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_ht
 	if message.JWSHeaderURL != expectedURL {
 		err = types.UnauthorizedError("invalid url in JWS protected header")
 		return ctxerr.Wrap(ctx, err)
-	}
-
-	// authenticate the enrollment identifier from the path
-	enrollment, err := s.authenticateWithACMEEnrollment(ctx, message.Identifier)
-	if err != nil {
-		return err
 	}
 
 	webKeyToVerify := message.Key

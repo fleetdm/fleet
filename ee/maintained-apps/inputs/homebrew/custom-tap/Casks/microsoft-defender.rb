@@ -11,7 +11,7 @@ cask "microsoft-defender" do
     skip "Microsoft's download link always serves the latest build with no parseable version feed; bump manually"
   end
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   pkg "wdav.pkg",
       choices: [

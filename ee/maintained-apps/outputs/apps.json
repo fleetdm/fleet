@@ -2427,7 +2427,7 @@
       "name": "Default Folder X",
       "slug": "default-folder-x/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.stclairsoft.DefaultFolderX6",
+      "unique_identifier": "com.stclairsoft.DefaultFolderX5",
       "description": "Default Folder X is a utility to enhance the Open and Save dialogs in applications."
     },
     {
@@ -4942,6 +4942,13 @@
       "platform": "windows",
       "unique_identifier": "Lenovo Dock Manager",
       "description": "Lenovo Dock Manager is an application for deploying and managing firmware updates for Lenovo docks."
+    },
+    {
+      "name": "Lenovo SUHelper",
+      "slug": "lenovo-suhelper/windows",
+      "platform": "windows",
+      "unique_identifier": "SUHelper",
+      "description": "SUHelper is a Lenovo utility that gives IT administrators more control over how Lenovo System Update updates their devices."
     },
     {
       "name": "Lenovo System Update",
@@ -9919,6 +9926,13 @@
       "platform": "windows",
       "unique_identifier": "Zoom Workplace (X64)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom for Government",
+      "slug": "zoom@government/darwin",
+      "platform": "darwin",
+      "unique_identifier": "us.zoom.xos",
+      "description": "Zoom for Government is the ZoomGov release of the Zoom video communication platform for meetings, webinars, and collaboration."
     },
     {
       "name": "Zotero",

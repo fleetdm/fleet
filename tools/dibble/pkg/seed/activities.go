@@ -335,6 +335,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeAddedBootstrapPackage{},
 		fleet.ActivityTypeDeletedBootstrapPackage{},
 		fleet.ActivityTypeFailedEnrollmentProfileRenewal{},
+		fleet.ActivityTypeInstalledOptInConfigurationProfile{},
+		fleet.ActivityTypeUninstalledOptInConfigurationProfile{},
 	},
 	CategoryScripts: {
 		fleet.ActivityTypeRanScript{},
@@ -378,6 +380,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeViewedHostRecoveryLockPassword{},
 		fleet.ActivityTypeSetHostRecoveryLockPassword{},
 		fleet.ActivityTypeRotatedHostRecoveryLockPassword{},
+		fleet.ActivityTypeRotatedDiskEncryptionKey{},
+		fleet.ActivityTypeFailedToRotateDiskEncryptionKey{},
 		fleet.ActivityTypeCreatedManagedLocalAccount{},
 		fleet.ActivityTypeViewedManagedLocalAccount{},
 		fleet.ActivityTypeEnabledManagedLocalAccount{},

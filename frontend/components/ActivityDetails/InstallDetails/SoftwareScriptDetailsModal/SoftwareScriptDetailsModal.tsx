@@ -28,6 +28,7 @@ import {
   ISoftwareScriptResult,
   ISoftwareInstallResults,
 } from "interfaces/software";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import deviceUserAPI from "services/entities/device_user";
 import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -72,10 +73,15 @@ export const StatusMessage = ({
     host_display_name,
     software_package,
     software_title,
+    software_display_name,
     status,
     updated_at,
     created_at,
   } = installResult;
+  const displayedTitle = getDisplayedSoftwareName(
+    software_title,
+    software_display_name
+  );
 
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
@@ -95,7 +101,7 @@ export const StatusMessage = ({
   const renderStatusCopy = () => {
     const prefix = (
       <>
-        Fleet {getScriptDetailsStatusPredicate(status)} <b>{software_title}</b>
+        Fleet {getScriptDetailsStatusPredicate(status)} <b>{displayedTitle}</b>
       </>
     );
 
