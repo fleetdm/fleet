@@ -2749,12 +2749,10 @@ func TestGetESPCommands(t *testing.T) {
 	})
 
 	t.Run("pending with host UUID transitions to active", func(t *testing.T) {
-		// On orbit link, the enrollment moves to Active and a single
-		// InstallationState=3 advances the ESP to account setup. The
-		// release comes later, via ServerHasFinishedProvisioning.
+		// On orbit link, the enrollment moves to Active and a single InstallationState=3 advances the ESP to
+		// account setup. The release comes later, via ServerHasFinishedProvisioning.
 		//
-		// DevDetail linking can set HostUUID on any message, so the
-		// transition is not gated to session start.
+		// DevDetail linking can set HostUUID on any message, so the transition is not gated to session start.
 		for _, tc := range []struct {
 			name string
 			msg  *fleet.SyncML

@@ -5091,26 +5091,12 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		assert.True(t, foundInternalCmdID, "expected to find the DevDetail Get among response commands")
 	})
 
-	t.Run("unlinked enrollment mid-session: no Get", func(t *testing.T) {
-		svc, _, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
-
-		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "2", ""), RequestAuthStateTrusted)
-		require.NoError(t, err)
-		assert.True(t, hasGetForDevDetailSerial(cmds), "MsgID 2 still opens the session")
-
-		cmds, err = svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "3", ""), RequestAuthStateTrusted)
-		require.NoError(t, err)
-		assert.False(t, hasGetForDevDetailSerial(cmds), "the Get is sent once per session, not on every message")
-	})
-
 	t.Run("challenged session: Get goes out on the first trusted message", func(t *testing.T) {
 		svc, _, _, ctx := newSvc(t)
 		svc.keyValueStore = memoryKVStore()
 		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 
-		// Real devices: MsgID 1 is challenged, MsgID 2 is the first
-		// trusted message, and MsgID 3 acks it.
+		// Real devices: MsgID 1 is challenged, MsgID 2 is the first trusted message, and MsgID 3 acks it.
 		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "1", ""), RequestAuthStateChallenge)
 		require.NoError(t, err)
 		assert.False(t, hasGetForDevDetailSerial(cmds), "a challenge response carries only the auth status")
@@ -5122,20 +5108,6 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		cmds, err = svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "3", ""), RequestAuthStateTrusted)
 		require.NoError(t, err)
 		assert.False(t, hasGetForDevDetailSerial(cmds))
-	})
-
-	t.Run("Results with SMBIOS serial link the host mid-session", func(t *testing.T) {
-		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
-		stubLink(t, ds, true)
-
-		// The reply to the session-start Get arrives mid-session.
-		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "3", serialResults(testSerial)), RequestAuthStateTrusted)
-		require.NoError(t, err)
-		assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
-		assert.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
-		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID)
-		assert.False(t, hasGetForDevDetailSerial(cmds), "no Get once linked")
 	})
 
 	t.Run("already-linked enrollment: no Get and no host lookup", func(t *testing.T) {
@@ -5151,16 +5123,21 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	})
 
 	t.Run("Results with SMBIOS serial trigger linkage and skip the redundant Get", func(t *testing.T) {
-		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
-		stubLink(t, ds, true)
+		// Real devices answer the session-start Get mid-session (MsgID 3); linking is not gated to session start.
+		for _, msgID := range []string{"1", "3"} {
+			t.Run("MsgID "+msgID, func(t *testing.T) {
+				svc, ds, _, ctx := newSvc(t)
+				enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
+				stubLink(t, ds, true)
 
-		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
-		require.NoError(t, err)
-		assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
-		assert.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
-		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "linkage should update in-memory HostUUID")
-		assert.False(t, hasGetForDevDetailSerial(cmds), "after successful linkage, no further Get should be injected")
+				cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, msgID, serialResults(testSerial)), RequestAuthStateTrusted)
+				require.NoError(t, err)
+				assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+				assert.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+				assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "linkage should update in-memory HostUUID")
+				assert.False(t, hasGetForDevDetailSerial(cmds), "after successful linkage, no further Get should be injected")
+			})
+		}
 	})
 
 	t.Run("serial claims a host already held by other hardware: refused", func(t *testing.T) {

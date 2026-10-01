@@ -1834,10 +1834,9 @@ func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, en
 		ctxerr.Handle(ctx, err)
 		return false
 	}
-	// Linking is keyed on the host UUID, and a pending Autopilot host has
-	// none until fleetd enrolls and supplies one. The enrollment stays
-	// unlinked, so this path runs again on every message. Wait for the
-	// UUID instead of proceeding.
+	// Linking is keyed on the host UUID, and a pending Autopilot host has none until fleetd enrolls and supplies
+	// one. The enrollment stays unlinked, so this path runs again on every message. Wait for the UUID instead of
+	// proceeding.
 	if host.UUID == "" {
 		svc.logger.DebugContext(ctx, "windows mdm: autopilot host has no uuid yet, deferring link until fleetd enrolls",
 			"device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
@@ -1962,11 +1961,10 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 		responseCmds = append(responseCmds, ackMsg)
 	}
 
-	// If this enrollment isn't linked yet, try to link it by its Autopilot
-	// ZTDID, or by a DevDetail SMBIOSSerialNumber Result in this message
-	// (the reply to the Get sent at the start of this session). On
-	// success, enrolledDevice.HostUUID is updated in memory so ESP
-	// coordination and saveResponse in this request see the linked state.
+	// If this enrollment isn't linked yet, try to link it by its Autopilot ZTDID, or by a DevDetail
+	// SMBIOSSerialNumber Result in this message (the reply to the Get sent at the start of this session). On
+	// success, enrolledDevice.HostUUID is updated in memory so ESP coordination and saveResponse in this request
+	// see the linked state.
 	if enrolledDevice.HostUUID == "" {
 		svc.tryLinkUnlinkedEnrollmentFromDevDetail(ctx, enrolledDevice, reqMsg)
 	}
@@ -2320,9 +2318,8 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 	providerID := syncml.DocProvisioningAppProviderID
 
 	if device.HostUUID == "" {
-		// Resending on every message keeps the session open: the device
-		// acks each batch, and the session only ends on a response with
-		// no commands.
+		// Resending on every message keeps the session open: the device acks each batch, and the session only
+		// ends on a response with no commands.
 		if !isOMADMSessionStart(reqMsg) {
 			return nil, nil
 		}
@@ -2877,15 +2874,12 @@ func espUserReleaseLocURI(provID string) string {
 // finalize's Replace and each retry).
 const espReleaseAttemptCmdIDPrefix = "esp-release-"
 
-// isOMADMSessionStart reports whether reqMsg opens an OMA-DM session: device
-// MsgID 1 (auth) or 2 (trusted request). The device acks message N's commands
-// in message N+1, so a command re-sent on every message keeps the session
-// open. Commands that are re-sent until device state changes (ESP holds,
-// DevDetail Get, release retry) use this, since that state changes between
-// sessions, not between messages.
+// isOMADMSessionStart reports whether reqMsg opens an OMA-DM session: device MsgID 1 (auth) or 2 (trusted request). The
+// device acks message N's commands in message N+1, so a command re-sent on every message keeps the session open.
+// Commands that are re-sent until device state changes (ESP holds, DevDetail Get, release retry) use this, since that
+// state changes between sessions, not between messages.
 //
-// Defaults to true for a nil message or an unparseable MsgID: sending too
-// often beats never sending.
+// Defaults to true for a nil message or an unparseable MsgID: sending too often beats never sending.
 func isOMADMSessionStart(reqMsg *fleet.SyncML) bool {
 	if reqMsg == nil {
 		return true
@@ -2939,8 +2933,7 @@ func (svc *Service) handleESPUserReleaseRetry(ctx context.Context, device *fleet
 		return nil, nil
 
 	case !isOMADMSessionStart(reqMsg):
-		// The last attempt failed, but retry only at the start of the
-		// next session (see isOMADMSessionStart).
+		// The last attempt failed, but retry only at the start of the next session (see isOMADMSessionStart).
 		return nil, nil
 
 	default:
