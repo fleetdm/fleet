@@ -173,14 +173,18 @@ When patch when closed is on, Fleet runs the app's pre-install query (`open` in 
 1. In `ingesters/homebrew/ingester.go`, find the `switch input.Token` block right after `out.Queries.Open = patch_policy.GenerateOpenQuery(...)`.
 2. Add a `case` for the app's Homebrew `token` (from its input file in `inputs/homebrew/`) that sets `out.Queries.Open`. If an existing case already uses the query you need, add the token to that case instead. For example:
 
+   For example, this case makes Chromium browsers count as open when they run from the code sign clone macOS uses after the browser updates itself:
+
    ```go
-   case "<token>":
-   	// Explain why the generated query doesn't work for this app.
+   case "google-chrome", "microsoft-edge", "brave-browser", "vivaldi", "opera", "arc", "comet":
+   	// Also match the executable in the browser's code sign clone, macOS reports a running Chromium browser there after the browser updates itself while open.
    	out.Queries.Open = fmt.Sprintf(
-   		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON ... WHERE a.bundle_identifier = '%s' ...);",
+   		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
    		out.UniqueIdentifier,
    	)
    ```
+
+   `out.UniqueIdentifier` is the app's bundle ID. Escape `%` as `%%` because the query goes through `fmt.Sprintf`.
 
 3. Add a test case for the new query in `ingesters/homebrew/ingester_test.go`.
 
@@ -196,13 +200,17 @@ To match different process names, add an entry to the `windowsOpenQueryOverrides
 
 To replace the whole query, set `out.Queries.Open` in `ingesters/winget/ingester.go`, right after `out.Queries.Open = patch_policy.GenerateOpenQuery("windows", "", out.Name)`. Use a `switch input.Slug` block, like the macOS ingester. If there isn't one yet, add it. For example:
 
+For example, this matches any process running from an app's install directory instead of a single process name:
+
 ```go
 switch input.Slug {
-case "<slug>":
-	// Explain why the generated query doesn't work for this app.
-	out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (...);"
+case "example-app/windows":
+	// The app runs several helper processes with unrelated names, so match on its install directory instead.
+	out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(path) LIKE 'c:\program files\example app\%');`
 }
 ```
+
+Use a raw string (backticks) so the backslashes in Windows paths don't need escaping.
 
 Add a test case for the new query in `ingesters/winget/ingester_test.go`.
 
