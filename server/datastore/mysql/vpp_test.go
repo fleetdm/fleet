@@ -968,7 +968,7 @@ func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
 
 	// create an entry for the global team
 	barApp, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "bar", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b2", Name: "Bar"}, nil, nil)
+		&fleet.VPPApp{AdamID: "bar", Platform: fleet.MacOSPlatform, BundleIdentifier: "b2", Name: "Bar"}, nil, nil)
 	require.NoError(t, err)
 	barTitleID := barApp.TitleID
 	// not found providing the team id
