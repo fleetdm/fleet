@@ -2989,10 +2989,22 @@ func (ds *Datastore) batchSetMDMAppleProfilesDB(
 SELECT
   identifier,
   profile_uuid,
+  name,
   mobileconfig,
   secrets_updated_at
 FROM
   mdm_apple_configuration_profiles
+WHERE
+  team_id = ? AND
+  identifier IN (?)
+`
+
+	// a placeholder no real profile is named, unique per profile
+	const moveRenamedProfilesAside = `
+UPDATE
+  mdm_apple_configuration_profiles
+SET
+  name = CONCAT('fleet-renaming-', profile_uuid)
 WHERE
   team_id = ? AND
   identifier IN (?)
@@ -3122,6 +3134,26 @@ ON DUPLICATE KEY UPDATE
 		// cancel installs of the deleted profiles immediately
 		if err := cancelAppleHostInstallsForDeletedMDMProfiles(ctx, tx, deletedProfileUUIDs); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "cancel installs of deleted profiles")
+		}
+	}
+
+	// The upserts below run one at a time in map order and (team_id, name) is
+	// unique, so a chain or swap of names would fail unless each profile
+	// happened to be renamed after the one holding its new name. Moving the
+	// renamed ones aside first makes any order work.
+	var renamedIdents []string
+	for _, p := range existingProfiles {
+		if newP := incomingProfs[p.Identifier]; newP != nil && newP.Name != p.Name {
+			renamedIdents = append(renamedIdents, p.Identifier)
+		}
+	}
+	if len(renamedIdents) > 0 {
+		stmt, args, err = sqlx.In(moveRenamedProfilesAside, profTeamID, renamedIdents)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "build statement to move renamed profiles aside")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "move renamed profiles aside")
 		}
 	}
 
