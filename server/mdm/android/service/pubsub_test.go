@@ -33,18 +33,36 @@ import (
 var testBrandTestSerialHashed = "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfea4f11f31c96c6f052b0"
 
 func createAndroidService(t *testing.T, opts ...ServiceOption) (android.Service, *AndroidMockDS) {
+	return createAndroidServiceWithActivity(t, noopNewActivity, opts...)
+}
+
+func createAndroidServiceWithActivity(t *testing.T, newActivity fleet.NewActivityFunc, opts ...ServiceOption) (android.Service, *AndroidMockDS) {
 	androidAPIClient := android_mock.Client{}
 	androidAPIClient.InitCommonMocks()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	mockDS := InitCommonDSMocks()
-	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, noopNewActivity, config.AndroidAgentConfig{}, opts...)
+	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, newActivity, config.AndroidAgentConfig{}, opts...)
 	require.NoError(t, err)
 
 	return svc, mockDS
 }
 
+func withIdPAccountEmails(t *testing.T, mockDS *AndroidMockDS) {
+	prev := mockDS.GetMDMIdPAccountByUUIDFunc
+	t.Cleanup(func() { mockDS.GetMDMIdPAccountByUUIDFunc = prev })
+	mockDS.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+		return &fleet.MDMIdPAccount{UUID: uuid, Email: uuid + "@example.com"}, nil
+	}
+}
+
 func TestPubSubEnrollment(t *testing.T) {
-	svc, mockDS := createAndroidService(t)
+	var linkActivities []fleet.ActivityTypeBoundHostToIdPAccount
+	svc, mockDS := createAndroidServiceWithActivity(t, func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+		if bound, ok := act.(fleet.ActivityTypeBoundHostToIdPAccount); ok {
+			linkActivities = append(linkActivities, bound)
+		}
+		return nil
+	})
 
 	globalSecret := "global"
 	teamSecret := "team"
@@ -187,12 +205,16 @@ func TestPubSubEnrollment(t *testing.T) {
 				require.False(t, companyOwned)
 				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
+			var linkedHostUUID string
 			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+				linkedHostUUID = hostUUID
 				return "", nil
 			}
 			mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 				return nil
 			}
+			withIdPAccountEmails(t, mockDS)
+			linkActivities = nil
 
 			enrollmentToken := enrollmentTokenRequest{
 				EnrollSecret: "global",
@@ -210,6 +232,11 @@ func TestPubSubEnrollment(t *testing.T) {
 			require.True(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
 			require.True(t, mockDS.NewAndroidHostFuncInvoked)
 			require.True(t, mockDS.MaybeAssociateHostWithScimUserFuncInvoked)
+			require.NotEmpty(t, linkedHostUUID)
+			require.Equal(t, []fleet.ActivityTypeBoundHostToIdPAccount{{
+				HostUUID: linkedHostUUID,
+				IdPEmail: "mock-id@example.com",
+			}}, linkActivities)
 		})
 
 		t.Run("associates scim user with correct host ID after idp association", func(t *testing.T) {
@@ -403,8 +430,10 @@ func TestPubSubEnrollment(t *testing.T) {
 		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
 			capturedHostUUID = hostUUID
 			capturedIdpUUID = accountUUID
-			return "", nil
+			return "old-user-idp-uuid", nil
 		}
+		withIdPAccountEmails(t, mockDS)
+		linkActivities = nil
 
 		enrollmentToken := enrollmentTokenRequest{
 			EnrollSecret: "global",
@@ -425,6 +454,11 @@ func TestPubSubEnrollment(t *testing.T) {
 		require.Equal(t, "new-user-idp-uuid", capturedIdpUUID)
 		// Re-enrollment should update, not create a new host
 		require.False(t, mockDS.NewAndroidHostFuncInvoked)
+		require.Equal(t, []fleet.ActivityTypeBoundHostToIdPAccount{{
+			HostUUID:         existingHostUUID,
+			IdPEmail:         "new-user-idp-uuid@example.com",
+			ReplacedIdPEmail: "old-user-idp-uuid@example.com",
+		}}, linkActivities)
 	})
 
 	t.Run("re-enrollment with rotated enroll secret does not panic", func(t *testing.T) {
