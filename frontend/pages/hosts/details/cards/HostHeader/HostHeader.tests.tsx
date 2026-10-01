@@ -1,11 +1,13 @@
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
 
 import { renderWithSetup } from "test/test-utils";
-import { internationalTimeFormat } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import HostHeader from "./HostHeader";
+import { internationalTimeFormat } from "utilities/helpers";
+
 import { HostMdmDeviceStatusUIState } from "../../helpers";
+
+import HostHeader from "./HostHeader";
 
 const renderActionDropdown = jest.fn(() => <div data-testid="dropdown" />);
 

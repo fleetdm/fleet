@@ -175,7 +175,7 @@ In the Google Admin console:
 
 4. Select **Actions > Delete** to delete the host from Fleet.
 
-> Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) for details.
+> Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts and Android hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) and the [Android MDM setup guide](https://fleetdm.com/guides/android-mdm-setup#re-enrolling-android-hosts) for details.
 
 > The unenroll action on Android hosts sends a wipe command via the Android Management API. [Learn more](https://fleedtdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm)
 
@@ -359,7 +359,7 @@ To use mTLS use the [AutoSelectCertificateForUrls policy](https://chromeenterpri
 
 `Applies only to Fleet Premium`
 
-Host identity certificates allow Fleet's agent (fleetd) to use hardware-backed client certificates for authentication to the Fleet server. All fleetd requests (except `/api/fleet/orbit/ping` and [Fleet Desktop](https://github.com/fleetdm/fleet/blob/2b33a445e9bfce808cebe31f8fef91058e8635e3/docs/Contributing/product-groups/orchestration/tpm-backed-http-signing.md#fleet-desktop-authentication) requests) to the Fleet server will include an HTTP message signature for enhanced security.
+Host identity certificates allow Fleet's agent (fleetd) to use hardware-backed client certificates for authentication to the Fleet server. All fleetd requests (except `/api/fleet/orbit/ping` and [Fleet Desktop](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/authentication/tpm-backed-http-signing.md#fleet-desktop-authentication) requests) to the Fleet server will include an HTTP message signature for enhanced security.
 
 This feature uses the host's TPM (Trusted Platform Module) to generate and store cryptographic keys, providing strong hardware-based authentication.
 

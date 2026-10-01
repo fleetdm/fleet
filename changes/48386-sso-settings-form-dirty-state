@@ -1,0 +1,2 @@
+- Fixed the unsaved changes prompt appearing when switching tabs on the SSO settings page after a field had been edited and then returned to its original value.
+- Updated the forms on the Authentication (SSO) settings page to follow Fleet's form validation patterns, so errors surface on the field being edited instead of on fields that haven't been filled in yet.

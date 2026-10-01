@@ -1,14 +1,14 @@
+import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
-import { screen, waitFor } from "@testing-library/react";
-
-import { createCustomRenderer } from "test/test-utils";
-import createMockUser from "__mocks__/userMock";
 import createMockQuery from "__mocks__/queryMock";
-
+import createMockUser from "__mocks__/userMock";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
-import QueriesTable, { IQueriesTableProps } from "./QueriesTable";
+import { createCustomRenderer } from "test/test-utils";
+
 import { enhanceQuery } from "../../ManageQueriesPage";
+
+import QueriesTable, { IQueriesTableProps } from "./QueriesTable";
 
 const testRawGlobalQueries: ISchedulableQuery[] = [
   {

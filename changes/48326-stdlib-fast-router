@@ -1,0 +1,1 @@
+- Reduced Fleet server CPU spent on HTTP route matching. Requests are now matched by a path trie in front of the existing router, instead of testing a regular expression against each route in registration order.

@@ -13,7 +13,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/text/unicode/norm"
@@ -566,6 +568,18 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 				return "", ctxerr.Wrapf(ctx, err, "minting psso device registration token for host %s", enrollmentID)
 			}
 			secretValues[secretType] = token
+		case fleet.HostSecretFileVaultKey:
+			key, err := ds.getHostDiskEncryptionKeyDecrypted(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting disk encryption key for host %s", enrollmentID)
+			}
+			secretValues[secretType] = key
+		case fleet.HostSecretEnrollSecret:
+			secret, err := ds.mintHostOneTimeEnrollSecret(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "minting one-time enroll secret for host %s", enrollmentID)
+			}
+			secretValues[secretType] = secret
 		default:
 			return "", ctxerr.Errorf(ctx, "unknown host secret type: %s", secretType)
 		}
@@ -622,6 +636,37 @@ func (ds *Datastore) mintPSSODeviceRegistrationToken(ctx context.Context, hostUU
 		return "", ctxerr.Wrap(ctx, err, "minting psso device registration token")
 	}
 	return token, nil
+}
+
+func (ds *Datastore) getHostDiskEncryptionKeyDecrypted(ctx context.Context, hostUUID string) (string, error) {
+	var encrypted string
+	// Primary, so the device is sent the key as it is now rather than as a lagging replica has it.
+	// Only the host with a pending rotation qualifies: hosts.uuid isn't unique, and the key is
+	// only ever sent to authorize a rotation Fleet requested.
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &encrypted, `
+SELECT hdek.base64_encrypted
+FROM host_disk_encryption_keys hdek
+JOIN hosts h ON h.id = hdek.host_id
+WHERE h.uuid = ? AND hdek.base64_encrypted != '' AND hdek.rotation_command_uuid IS NOT NULL`, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage("for host "+hostUUID))
+		}
+		return "", ctxerr.Wrap(ctx, err, "getting encrypted disk encryption key")
+	}
+
+	certs, key, err := assets.CACertsAndKeyForDecryption(ctx, ds)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "loading CA assets to decrypt disk encryption key")
+	}
+	plain, err := mdm.DecryptBase64CMSWithCerts(encrypted, key, certs)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decrypting disk encryption key")
+	}
+	if len(plain) == 0 {
+		return "", ctxerr.New(ctx, "decrypted disk encryption key is empty")
+	}
+	return string(plain), nil
 }
 
 // getHostRecoveryLockPasswordDecrypted retrieves and decrypts the recovery lock password for a host.

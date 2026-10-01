@@ -1,10 +1,10 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
-import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
 import { createMockHostScript } from "__mocks__/scriptMock";
+import createMockUser from "__mocks__/userMock";
+import { createCustomRenderer } from "test/test-utils";
 
 import RunScriptModal from "./RunScriptModal";
 

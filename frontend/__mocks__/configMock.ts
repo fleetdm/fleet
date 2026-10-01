@@ -16,6 +16,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   enabled_and_configured: true,
   android_enabled_and_configured: false,
   apple_require_hardware_attestation: false,
+  only_allow_apple_business_enrollment: false,
   macos_updates: {
     minimum_version: "",
     deadline: "",

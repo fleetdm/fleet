@@ -5,15 +5,15 @@ import React, {
   useState,
 } from "react";
 
-import { AppContext } from "context/app";
-import { syntaxHighlight } from "utilities/helpers";
-import validURL from "components/forms/validators/valid_url";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
-import Slider from "components/forms/fields/Slider";
 import InputField from "components/forms/fields/InputField";
-import paths from "router/paths";
+import Slider from "components/forms/fields/Slider";
+import validURL from "components/forms/validators/valid_url";
 import InfoBanner from "components/InfoBanner/InfoBanner";
+import { AppContext } from "context/app";
+import paths from "router/paths";
+import { syntaxHighlight } from "utilities/helpers";
 
 import { IAutomationFormHandle } from "../../types";
 

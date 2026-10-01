@@ -5,36 +5,33 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import { LEARN_MORE_ABOUT_BASE_LINK, PRIMO_TOOLTIP } from "utilities/constants";
-import { getGitOpsModeTipContent } from "utilities/helpers";
-
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import TableDataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import PageDescription from "components/PageDescription";
+import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
-import { ITeam as IFleet } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
-import usersAPI, { IGetMeResponse } from "services/entities/users";
+import { ITeam as IFleet } from "interfaces/team";
 import teamsAPI, {
   ILoadTeamsResponse,
   ITeamFormData as IFleetFormData,
 } from "services/entities/teams";
-
-import TableContainer from "components/TableContainer";
-import TableDataError from "components/DataError";
-import TableCount from "components/TableContainer/TableCount";
-import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
-import EmptyState from "components/EmptyState";
-import PageDescription from "components/PageDescription";
-import { notify } from "components/ToastNotification";
-import TooltipWrapper from "components/TooltipWrapper";
+import usersAPI, { IGetMeResponse } from "services/entities/users";
+import { LEARN_MORE_ABOUT_BASE_LINK, PRIMO_TOOLTIP } from "utilities/constants";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import CreateFleetModal from "./components/CreateFleetModal";
 import DeleteFleetModal from "./components/DeleteFleetModal";
 import RenameFleetModal from "./components/RenameFleetModal";
-
 import { generateTableHeaders, generateDataSet } from "./FleetTableConfig";
 
 const baseClass = "manage-fleets";

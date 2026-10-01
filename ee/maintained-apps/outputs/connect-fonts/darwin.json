@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "28.1.7",
+      "version": "28.1.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.extensis.SuitcaseFusion';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.extensis.SuitcaseFusion' AND version_compare(bundle_short_version, '28.1.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.extensis.SuitcaseFusion' AND version_compare(bundle_short_version, '28.1.8') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.extensis.SuitcaseFusion' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://bin.extensis.com/ConnectFonts-M-28-1-7.dmg",
+      "installer_url": "https://bin.extensis.com/ConnectFonts-M-28-1-8.dmg",
       "install_script_ref": "79f2982d",
       "uninstall_script_ref": "655abb96",
-      "sha256": "3fed92dfb13f59f9efbe195bd9a551587185979977386805d7496f77d38a9c31",
+      "sha256": "b3c9a9e67ded1a290575427b80fba365486ca08baa677b8a3711803255741b11",
       "default_categories": [
         "Productivity"
       ]

@@ -1,8 +1,8 @@
 import React from "react";
 
-import InfoBanner from "components/InfoBanner/InfoBanner";
-import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import Button from "components/buttons/Button";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
+import InfoBanner from "components/InfoBanner/InfoBanner";
 
 const baseClass = "api-key-display";
 
@@ -21,10 +21,11 @@ const ApiKeyDisplay = ({
     <>
       <h1>{newUserName}</h1>
       <div className={baseClass}>
-        <div className={`${baseClass}__api-key-label`}>
-          <b>API key</b>
-        </div>
-        <InputFieldHiddenContent value={apiKey} name="api-key" />
+        <InputFieldHiddenContent
+          value={apiKey}
+          name="api-key"
+          label="API key"
+        />
         <InfoBanner color="yellow">
           Please make a note of this API key since it is the only time you will
           be able to view it.

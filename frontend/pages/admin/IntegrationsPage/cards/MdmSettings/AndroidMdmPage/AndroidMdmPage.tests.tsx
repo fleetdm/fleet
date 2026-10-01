@@ -1,10 +1,9 @@
+import { screen } from "@testing-library/react";
 import React from "react";
 
-import { screen } from "@testing-library/react";
-
-import { createMockRouter, createCustomRenderer } from "test/test-utils";
 import { createMockConfig } from "__mocks__/configMock";
 import mdmAndroidAPI from "services/entities/mdm_android";
+import { createMockRouter, createCustomRenderer } from "test/test-utils";
 
 import AndroidMdmPage from "./AndroidMdmPage";
 

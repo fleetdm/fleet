@@ -295,6 +295,12 @@ If the user is later reactivated in the IdP, Fleet will automatically recreate t
 
 No manual intervention is required. This applies only to SSO-authenticated users. API-only and password-authenticated users are not affected.
 
+Fleet deletes the account instead of marking it inactive. Fleet has no deactivated user state, so a deprovisioned user no longer appears in **Settings > Users** or in the response from the [list users](https://fleetdm.com/docs/rest-api/rest-api#list-users) endpoint.
+
+Fleet records each deprovisioning as a `deleted_user` activity in the [audit log](https://fleetdm.com/docs/using-fleet/audit-logs). Fleet is the author of this activity, not the admin who configured SCIM.
+
+Using a compliance tool that reviews access by reading Fleet's user list? Treat a user's absence from the list as deprovisioning. The audit log has the record of when it happened.
+
 
 ## Email two-factor authentication (2FA)
 

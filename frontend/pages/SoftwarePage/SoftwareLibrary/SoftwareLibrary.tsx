@@ -1,19 +1,19 @@
 /**
  software/library Library tab — fleet-managed software available for installation
  */
-import React from "react";
-import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
-import { omit } from "lodash";
 
+import { omit } from "lodash";
+import React from "react";
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
+
+import TableDataError from "components/DataError";
+import Spinner from "components/Spinner";
 import PATHS from "router/paths";
 import softwareAPI, {
   ISoftwareTitlesQueryKey,
   ISoftwareTitlesResponse,
 } from "services/entities/software";
-
-import Spinner from "components/Spinner";
-import TableDataError from "components/DataError";
 
 import SoftwareLibraryTable from "./SoftwareLibraryTable";
 

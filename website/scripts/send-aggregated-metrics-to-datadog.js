@@ -555,6 +555,64 @@ module.exports = {
       }],
       tags: [`configured:false`],
     });
+    // Third-party integrations
+    let thirdPartyIntegrationBooleanMetrics = [
+      {statistic: 'anyVulnerabilitiesWebhookEnabled', metric: 'usage_statistics.vulnerabilities_webhook', tag: 'enabled'},
+      {statistic: 'anyFailingPoliciesWebhookEnabled', metric: 'usage_statistics.failing_policies_webhook', tag: 'enabled'},
+      {statistic: 'anyHostActivitiesWebhookEnabled', metric: 'usage_statistics.host_activities_webhook', tag: 'enabled'},
+      {statistic: 'globalActivityWebhookEnabled', metric: 'usage_statistics.global_activity_webhook', tag: 'enabled'},
+      {statistic: 'ticketDestinationConfigured', metric: 'usage_statistics.ticket_destination_configured', tag: 'configured'},
+      {statistic: 'ssoConfiguredFleetUsers', metric: 'usage_statistics.sso_fleet_users_configured', tag: 'configured'},
+      {statistic: 'ssoConfiguredEndUsers', metric: 'usage_statistics.sso_end_users_configured', tag: 'configured'},
+      {statistic: 'accountProvisioningConfigured', metric: 'usage_statistics.account_provisioning_configured', tag: 'configured'},
+      {statistic: 'idpSCIMConfigured', metric: 'usage_statistics.idp_scim_configured', tag: 'configured'},
+      {statistic: 'idpGoogleWorkspaceConfigured', metric: 'usage_statistics.idp_google_workspace_configured', tag: 'configured'},
+      {statistic: 'certificateAuthorityConfigured', metric: 'usage_statistics.certificate_authority_configured', tag: 'configured'},
+    ];
+    for(let booleanMetric of thirdPartyIntegrationBooleanMetrics) {
+      let numberOfInstancesWithThisStatisticTrue = _.where(latestStatisticsReportedByReleasedFleetVersions, {[booleanMetric.statistic]: true}).length;
+      metricsToReport.push({
+        metric: booleanMetric.metric,
+        type: 3,
+        points: [{
+          timestamp: timestampForTheseMetrics,
+          value: numberOfInstancesWithThisStatisticTrue
+        }],
+        tags: [`${booleanMetric.tag}:true`],
+      });
+      metricsToReport.push({
+        metric: booleanMetric.metric,
+        type: 3,
+        points: [{
+          timestamp: timestampForTheseMetrics,
+          value: numberOfInstancesToReport - numberOfInstancesWithThisStatisticTrue
+        }],
+        tags: [`${booleanMetric.tag}:false`],
+      });
+    }
+    // Log destinations
+    let logDestinationMetrics = [
+      {statistic: 'resultLogDestination', metric: 'usage_statistics.result_log_destination'},
+      {statistic: 'statusLogDestination', metric: 'usage_statistics.status_log_destination'},
+      {statistic: 'auditLogDestination', metric: 'usage_statistics.audit_log_destination'},
+    ];
+    for(let logDestinationMetric of logDestinationMetrics) {
+      let statisticsByLogDestination = _.groupBy(latestStatisticsReportedByReleasedFleetVersions, (statistics)=>{
+        // Snapshots from Fleet versions that predate this statistic have no value for it.
+        return statistics[logDestinationMetric.statistic] || 'unknown';
+      });
+      for(let destination in statisticsByLogDestination) {
+        metricsToReport.push({
+          metric: logDestinationMetric.metric,
+          type: 3,
+          points: [{
+            timestamp: timestampForTheseMetrics,
+            value: statisticsByLogDestination[destination].length
+          }],
+          tags: [`destination:${destination}`],
+        });
+      }
+    }
 
 
     //
@@ -1095,6 +1153,40 @@ module.exports = {
         value: highestNumberOfQueries
       }],
     });
+
+    // numThirdPartyIntegrations
+    let thirdPartyIntegrationStatistics = [
+      'gitOpsModeEnabled',
+      'hostsStatusWebHookEnabled',
+      'maintenanceWindowsConfigured',
+      'ticketDestinationConfigured',
+      'ssoConfiguredFleetUsers',
+      'ssoConfiguredEndUsers',
+      'idpSCIMConfigured',
+      'idpGoogleWorkspaceConfigured',
+      'certificateAuthorityConfigured',
+      'oktaConditionalAccessConfigured',
+      'entraConditionalAccessConfigured',
+      'globalActivityWebhookEnabled',
+    ];
+    let numThirdPartyIntegrationsForEachInstance = _.map(latestStatisticsReportedByReleasedFleetVersions, (statistics)=>{
+      return _.filter(thirdPartyIntegrationStatistics, (statistic)=>{
+        return statistics[statistic] === true;
+      }).length;
+    });
+    let numberOfInstancesByNumThirdPartyIntegrations = _.countBy(numThirdPartyIntegrationsForEachInstance);
+    for(let numIntegrations in numberOfInstancesByNumThirdPartyIntegrations) {
+      metricsToReport.push({
+        metric: 'usage_statistics.num_third_party_integrations',
+        type: 3,
+        points: [{
+          timestamp: timestampForTheseMetrics,
+          value: numberOfInstancesByNumThirdPartyIntegrations[numIntegrations]
+        }],
+        tags: [`num_integrations:${numIntegrations}`],
+      });
+    }
+
 
 
     // Break the metrics into smaller arrays to ensure we don't exceed Datadog's 512 kb request body limit.

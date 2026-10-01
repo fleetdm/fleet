@@ -393,7 +393,8 @@ SELECT
 	status,
 	detail,
 	operation_type,
-	certificate_template_id
+	certificate_template_id,
+	retry_count
 FROM host_certificate_templates
 WHERE host_uuid = ?`
 

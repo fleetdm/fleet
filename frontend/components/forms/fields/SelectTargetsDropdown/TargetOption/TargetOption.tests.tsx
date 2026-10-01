@@ -1,9 +1,10 @@
-import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import { createMockLabel } from "__mocks__/labelsMock";
 import createMockHost from "__mocks__/hostMock";
+import { createMockLabel } from "__mocks__/labelsMock";
+
 import TargetOption from "./TargetOption";
 
 describe("TargetOption - component", () => {

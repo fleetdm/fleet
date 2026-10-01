@@ -4,7 +4,7 @@ Deploying Windows configurations profiles (aka Configuration Service Providers (
 
 This guide will help you understand the building blocks to crafting CSPs of varying complexity – from simple payloads to more complex ones that involve modification of ADMX underpinnings.
 
-> In Fleet, Windows CSPs are called [**Custom OS settings**](https://fleetdm.com/guides/custom-os-settings).
+> In Fleet, Windows CSPs are called ["configuration profiles**](https://fleetdm.com/guides/custom-os-settings).
 
 ## ADMX
 
@@ -275,11 +275,11 @@ Intune uses Windows [CSPs](https://learn.microsoft.com/en-us/windows/client-mana
 > For example, querying the `EnableFirewall` policy yields:  
 >
 > ```powershell
-> NodeUri       : ./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall
-> ExpectedValue : -1
+> NodeUri: ./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall
+> ExpectedValue: -1
 >
-> NodeUri       : ./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall
-> ExpectedValue : -1
+> NodeUri: ./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall
+> ExpectedValue: -1
 > ```
 >
 > In these edge cases, you’ll need to verify the actual runtime state (e.g. via `Get‑NetFirewallProfile`) to ensure whether the setting is active.

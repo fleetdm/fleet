@@ -23,15 +23,14 @@ import Select, {
   ValueContainerProps,
 } from "react-select-5";
 
-import { COLORS } from "styles/var/colors";
-import { PADDING } from "styles/var/padding";
-
-import FormField from "components/forms/FormField";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
-import TooltipWrapper from "components/TooltipWrapper";
+import FormField from "components/forms/FormField";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
 import { TooltipContent } from "interfaces/dropdownOption";
+import { COLORS } from "styles/var/colors";
+import { PADDING } from "styles/var/padding";
 
 interface CustomOptionProps
   extends Omit<OptionProps<CustomOptionType, false>, "data"> {
@@ -304,12 +303,19 @@ export const generateCustomDropdownStyles = (
       maxHeight: maxMenuHeight != null ? `${maxMenuHeight}px` : "none",
       ...(nowrapMenu && { width: "fit-content" }),
     }),
-    valueContainer: (provided) => ({
+    valueContainer: (provided, state) => ({
       ...provided,
       padding: 0,
-      display: "flex",
-      gap: PADDING["pad-small"],
-      flexWrap: "nowrap", // This ensures the value is on a single line and truncated
+      // Searchable dropdowns keep react-select's grid so the input overlays the
+      // placeholder/value and the caret sits at the left edge instead of after
+      // the text. Flex + nowrap keeps the non-searchable value on one line.
+      ...(state.selectProps.isSearchable
+        ? { display: "grid" }
+        : ({
+            display: "flex",
+            gap: PADDING["pad-small"],
+            flexWrap: "nowrap",
+          } as const)),
     }),
     option: (provided, state) => ({
       ...provided,

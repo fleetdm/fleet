@@ -17,7 +17,9 @@ create := "create" # only for labels right now
 write_host_label := "write_host_label"
 cancel_host_activity := "cancel_host_activity"
 transfer_host := "transfer_host"
+delete_host := "delete_host"
 clear_passcode := "clear_passcode"
+rotate_disk_encryption_key := "rotate_disk_encryption_key"
 resend := "resend" # only for profiles, and to a single host
 read_secrets := "read_secrets"
 write_members := "write_members"
@@ -361,6 +363,13 @@ allow {
 	action == transfer_host
 }
 
+# Global admin, maintainers, technicians, and gitops can delete hosts.
+allow {
+	object.type == "host"
+	subject.global_role == [admin, maintainer, technician, gitops][_]
+	action == delete_host
+}
+
 # Global admin and maintainers can cancel activities on a host.
 allow {
 	object.type == "host"
@@ -406,6 +415,13 @@ allow {
 	object.type == "host"
 	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
 	action == transfer_host
+}
+
+# Team admins, maintainers, technicians, and gitops can delete hosts of their own team.
+allow {
+	object.type == "host"
+	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+	action == delete_host
 }
 
 # Team admins and maintainers can cancel activities on a host of their own team.
@@ -1103,6 +1119,22 @@ allow {
   object.is_apple_mobile == false
   team_role(subject, object.team_id) == [admin, maintainer][_]
   action == clear_passcode
+}
+
+# Global admins and maintainers can rotate a host's disk encryption key (not gitops,
+# as this is not something that relates to fleetctl gitops).
+allow {
+  object.type == "mdm_command"
+  subject.global_role == [admin, maintainer][_]
+  action == rotate_disk_encryption_key
+}
+
+# Team admins and maintainers can rotate the disk encryption key of their teams' hosts.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_command"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == rotate_disk_encryption_key
 }
 
 # Global admins, maintainers, technicians, observers and observer_plus can read MDM commands.

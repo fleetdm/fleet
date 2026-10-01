@@ -100,6 +100,7 @@ $base-class: "button";
 
 .#{$base-class} {
   @include button-pad-8px-16px;
+  box-sizing: border-box;
   transition: color 150ms ease-in-out, background 150ms ease-in-out,
     top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
   position: relative;
@@ -136,6 +137,21 @@ $base-class: "button";
     display: flex;
     flex-direction: row;
     align-items: center;
+  }
+
+  // `loadingText` puts the spinner beside a visible label, so this spinner is inline and takes the variant's own text color.
+  .children-wrapper--loading-text {
+    gap: $pad-xsmall;
+
+    .loading-spinner {
+      .background {
+        display: none;
+      }
+
+      .path {
+        stroke: currentColor;
+      }
+    }
   }
 
   &--default {

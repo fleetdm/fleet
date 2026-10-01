@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.4.0",
+      "version": "1.4.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.aerolite.Applite';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.aerolite.Applite' AND version_compare(bundle_short_version, '1.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.aerolite.Applite' AND version_compare(bundle_short_version, '1.4.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'dev.aerolite.Applite' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/milanvarady/Applite/releases/download/v1.4.0/Applite.dmg",
+      "installer_url": "https://github.com/milanvarady/Applite/releases/download/v1.4.2/Applite.dmg",
       "install_script_ref": "a42af61a",
       "uninstall_script_ref": "ef83f643",
-      "sha256": "5344b3c868a80eb9b4ce6734f35c18e13b1c4ed1559038ddec8e271257abdeab",
+      "sha256": "94955981298a61ae2d3094c04e2089eefa70d2ceb0099ef2ce0c9ab0af4e6306",
       "default_categories": [
         "Productivity"
       ]

@@ -2,19 +2,19 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import PATHS from "router/paths";
 
-import { secondsToDhms } from "utilities/helpers";
-import {
-  isGlobalAdmin,
-  isGlobalMaintainer,
-  isTeamAdmin,
-  isTeamMaintainer,
-  isTeamObserver,
-  isOnlyObserver,
-} from "utilities/permissions/permissions";
-import { getPathWithQueryParams } from "utilities/url";
-
+import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import Icon from "components/Icon";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
+import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
+import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
+import Tag from "components/Tag";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   isScheduledQueryablePlatform,
   ScheduledQueryablePlatform,
@@ -26,19 +26,17 @@ import {
 } from "interfaces/schedulable_query";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
-
-import Icon from "components/Icon";
-import Checkbox from "components/forms/fields/Checkbox";
-import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
-import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
-import TooltipWrapper from "components/TooltipWrapper";
-import Tag from "components/Tag";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import PATHS from "router/paths";
+import { secondsToDhms } from "utilities/helpers";
+import {
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
+  isOnlyObserver,
+} from "utilities/permissions/permissions";
+import { getPathWithQueryParams } from "utilities/url";
 
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 

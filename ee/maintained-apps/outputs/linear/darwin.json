@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.32.3",
+      "version": "1.32.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear' AND version_compare(bundle_short_version, '1.32.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear' AND version_compare(bundle_short_version, '1.32.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.linear' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://releases.linear.app/Linear-1.32.3-universal.dmg",
+      "installer_url": "https://releases.linear.app/Linear-1.32.4-universal.dmg",
       "install_script_ref": "cfaa1646",
       "uninstall_script_ref": "934dc9bd",
-      "sha256": "0d664688317a0fef824bbd1f0fd8bf361f8ebedeb680557d66f03f1b2756080b",
+      "sha256": "bae1078fabf5b72d884c3bbba4235117e92070adcba407cdc30afb3933f14d31",
       "default_categories": [
         "Developer tools"
       ]

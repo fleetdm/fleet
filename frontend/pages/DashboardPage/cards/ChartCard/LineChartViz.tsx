@@ -1,3 +1,4 @@
+import { format, parseISO } from "date-fns";
 import React, { useCallback } from "react";
 import {
   LineChart,
@@ -8,7 +9,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { format, parseISO } from "date-fns";
 
 import { IFormattedDataPoint } from "interfaces/charts";
 

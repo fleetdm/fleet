@@ -4,7 +4,7 @@ To turn on macOS, iOS, and iPadOS MDM features, follow the instructions on this 
 
 To use automatic enrollment (aka zero-touch) features on macOS, iOS, and iPadOS, follow instructions to connect Fleet with Apple Business (AB).
 
-To turn on Windows MDM features, head to this [Windows MDM setup article](https://fleetdm.com/guides/windows-mdm-setup).
+To turn on MDM features on other platforms, head to the [Windows MDM setup](https://fleetdm.com/guides/windows-mdm-setup) or [Android MDM setup](https://fleetdm.com/guides/android-mdm-setup) guides. Migrating from another MDM solution? See the [macOS](https://fleetdm.com/guides/mdm-migration), [Windows](https://fleetdm.com/guides/windows-mdm-setup#automatic-windows-mdm-migration), and [Android BYOD](https://fleetdm.com/guides/android-byod-mdm-migration) migration guides.
 
 ## Turn on Apple MDM
 
@@ -58,7 +58,8 @@ How to connect Fleet to AB:
 2. Under **Apple Business (AB)**, select **Add AB**.
 3. Select **Download public key** to download a public key for AB.
 4. Sign in to [Apple Business](https://business.apple.com). If your organization doesn't have an account, create one.
-5. Select **Devices > Management** and select **Add** at the bottom of list.
+5. Select **Devices > Management Services**, then select **Add** next to **Device Management Services** (or **Set Up** if this is your first device management service).
+6. Select **Connect external device management** and select **Continue**.
 7. Enter a name for the server such as "Fleet" and upload the public key downloaded in step 3 and select **Next**.
 8. Download the service token and select **Done**.
 9. In the **Default Device Assignment** section, assign the newly created server as the default for your Macs, iPhones, and iPads. Then select **Save**.
@@ -80,7 +81,9 @@ When one of your uploaded AB tokens has expired or is within 30 days of expiring
 6. Select the **Actions > Renew** for the token.
 7. Upload the token (.p7m file) downloaded in step 3.
 
-### Hosts that automatically enroll will be assigned to a default fleet. You can configure the default fleet for macOS, iOS, and iPadOS hosts:
+### Set a default fleet for hosts that automatically enroll
+
+Hosts that automatically enroll are assigned to a default fleet. To configure the default fleet for macOS, iOS, and iPadOS hosts:
 
 1. Create a fleet, if you have not already, following [this guide](https://fleetdm.com/guides/fleets).
 2. Navigate to the **Settings > Integrations > MDM** page and select **Edit** under **Apple Business (AB)**.

@@ -569,6 +569,53 @@ func TestEnrollmentProfileNewEnrollmentSubjectOUMarker(t *testing.T) {
 	})
 }
 
+// Every enrollment profile must declare the com.apple.mdm.token server capability, otherwise the
+// device never sends the GetToken check-in that Fleet answers for com.apple.maid.
+// We know we can easily add capabilities on a renewing profile, so we enforce it for all types.
+func TestEnrollmentProfileServerCapabilities(t *testing.T) {
+	const tokenCapability = "com.apple.mdm.token" // nolint:gosec // not a credential
+
+	requireTokenCapability := func(t *testing.T, profile []byte) {
+		t.Helper()
+
+		var parsed struct {
+			PayloadContent []struct {
+				PayloadType        string
+				ServerCapabilities []string
+			}
+		}
+		require.NoError(t, plist.Unmarshal(profile, &parsed))
+
+		var found bool
+		for _, payload := range parsed.PayloadContent {
+			if payload.PayloadType != "com.apple.mdm" {
+				continue
+			}
+			found = true
+			require.Contains(t, payload.ServerCapabilities, tokenCapability)
+		}
+		require.True(t, found, "no com.apple.mdm payload in profile")
+	}
+
+	t.Run("standard enrollment", func(t *testing.T) {
+		profile, err := GenerateEnrollmentProfileMobileconfig("Fleet", "https://example.com", "chal", "com.foo.bar", MDMAccessRightAll, true)
+		require.NoError(t, err)
+		requireTokenCapability(t, profile)
+	})
+
+	t.Run("account-driven enrollment", func(t *testing.T) {
+		profile, err := GenerateAccountDrivenEnrollmentProfileMobileconfig("Fleet", "https://example.com", "chal", "com.foo.bar", "user@example.com", true)
+		require.NoError(t, err)
+		requireTokenCapability(t, profile)
+	})
+
+	t.Run("ACME enrollment", func(t *testing.T) {
+		profile, err := GenerateACMEEnrollmentProfileMobileconfig("Fleet", "https://example.com", "acme-ident", "SERIAL123", "com.foo.bar", MDMAccessRightAll, true)
+		require.NoError(t, err)
+		requireTokenCapability(t, profile)
+	})
+}
+
 func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

@@ -129,7 +129,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	status := r.URL.Query().Get("status")
 	switch fleet.HostStatus(status) {
-	case fleet.StatusNew, fleet.StatusOnline, fleet.StatusOffline, fleet.StatusMIA, fleet.StatusMissing:
+	case fleet.StatusNew, fleet.StatusOnline, fleet.StatusOffline, fleet.StatusMIA, fleet.StatusMissing, fleet.StatusEnrolled:
 		hopt.StatusFilter = fleet.HostStatus(status)
 	case "":
 		// No error when unset
@@ -393,7 +393,8 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	enrollmentStatus := r.URL.Query().Get("mdm_enrollment_status")
 	switch fleet.MDMEnrollStatus(enrollmentStatus) {
 	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic, fleet.MDMEnrollStatusPersonal,
-		fleet.MDMEnrollStatusPending, fleet.MDMEnrollStatusUnenrolled, fleet.MDMEnrollStatusEnrolled:
+		fleet.MDMEnrollStatusManualPersonal, fleet.MDMEnrollStatusPending, fleet.MDMEnrollStatusUnenrolled,
+		fleet.MDMEnrollStatusEnrolled:
 		hopt.MDMEnrollmentStatusFilter = fleet.MDMEnrollStatus(enrollmentStatus)
 	case "":
 		// No error when unset

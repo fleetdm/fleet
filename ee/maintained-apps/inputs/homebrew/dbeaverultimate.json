@@ -4,6 +4,5 @@
   "token": "dbeaverultimate",
   "installer_format": "dmg",
   "slug": "dbeaverultimate/darwin",
-  "default_categories": ["Developer tools"],
-  "frozen": true
+  "default_categories": ["Developer tools"]
 }

@@ -1,19 +1,17 @@
-import React, { useContext, useState } from "react";
-import { isEmpty } from "lodash";
 import { AxiosResponse } from "axios";
+import { isEmpty } from "lodash";
+import React, { useContext, useState } from "react";
 
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
-
-import { AppContext } from "context/app";
+import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { notify } from "components/ToastNotification";
-
+import { AppContext } from "context/app";
+import { IApiError } from "interfaces/errors";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
-import { IApiError } from "interfaces/errors";
 
-import InputField from "components/forms/fields/InputField";
-import Button from "components/buttons/Button";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "windows-target-form";

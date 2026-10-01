@@ -1,8 +1,8 @@
+import React from "react";
+
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
-import React from "react";
 import { IScriptBatchSummaryV2 } from "services/entities/scripts";
-
 import { isDateTimePast } from "utilities/helpers";
 
 export const SCRIPT_UPLOADER_EMPTY_STATE_TEXT = (

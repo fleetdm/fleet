@@ -36,20 +36,21 @@ parasails.registerPage('basic-handbook', {
     window.addEventListener('scroll', this.handleScrollingInHandbook);
 
     // Algolia DocSearch
-    if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: 'Search the handbook...',
-        debug: false,
-        clickAnalytics: true,
-        searchParameters: {
-          facetFilters: ['section:handbook']
-        },
-      });
-    }
+    // Note: this is disabled while we test sending users to Google search
+    // if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
+    //   docsearch({
+    //     appId: 'NZXAYZXDGH',
+    //     apiKey: this.algoliaPublicKey,
+    //     indexName: 'fleetdm',
+    //     container: '#docsearch-query',
+    //     placeholder: 'Search the handbook...',
+    //     debug: false,
+    //     clickAnalytics: true,
+    //     searchParameters: {
+    //       facetFilters: ['section:handbook']
+    //     },
+    //   });
+    // }
 
     // Handle hashes in urls when coming from an external page.
     if(window.location.hash){

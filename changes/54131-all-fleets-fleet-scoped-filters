@@ -1,0 +1,1 @@
+- Fixed the Hosts page showing only "No fleet" hosts under "All fleets" for OS settings, disk encryption, and bootstrap package status filters by clearing those filters when switching to "All fleets" from the fleet dropdown or the command palette. The software status filter is now also cleared from the URL on that switch.
