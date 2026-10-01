@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/sqlx/reflectx"
 )
 
 func init() {
@@ -45,39 +46,33 @@ func failOrphanedSoftwareInstalls(tx *sql.Tx, increment incrementCountFn) error 
 	const exitCode = -4
 	const output = "Installer no longer exists on the server."
 
+	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 	var lastID uint
 	for {
-		rows, err := tx.Query(`SELECT id, uninstall, execution_id `+orphanedSoftwareInstallsFrom+`
-			AND id > ? ORDER BY id LIMIT ?`, lastID, orphanedBatchSize)
-		if err != nil {
+		var batch []struct {
+			ID          uint   `db:"id"`
+			Uninstall   bool   `db:"uninstall"`
+			ExecutionID string `db:"execution_id"`
+		}
+		if err := txx.Select(&batch, `SELECT id, uninstall, execution_id `+orphanedSoftwareInstallsFrom+`
+			AND id > ? ORDER BY id LIMIT ?`, lastID, orphanedBatchSize); err != nil {
 			return fmt.Errorf("selecting orphaned software installs after id %d: %w", lastID, err)
+		}
+		if len(batch) == 0 {
+			return nil
 		}
 		var installIDs, uninstallIDs []uint
 		var uninstallExecIDs []string
-		for rows.Next() {
-			var id uint
-			var uninstall bool
-			var execID string
-			if err := rows.Scan(&id, &uninstall, &execID); err != nil {
-				rows.Close()
-				return fmt.Errorf("scanning orphaned software install: %w", err)
-			}
-			if uninstall {
-				uninstallIDs = append(uninstallIDs, id)
-				uninstallExecIDs = append(uninstallExecIDs, execID)
+		for _, r := range batch {
+			if r.Uninstall {
+				uninstallIDs = append(uninstallIDs, r.ID)
+				uninstallExecIDs = append(uninstallExecIDs, r.ExecutionID)
 			} else {
-				installIDs = append(installIDs, id)
+				installIDs = append(installIDs, r.ID)
 			}
-			lastID = id
 			increment()
 		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return fmt.Errorf("reading orphaned software installs: %w", err)
-		}
-		if len(installIDs) == 0 && len(uninstallIDs) == 0 {
-			return nil
-		}
+		lastID = batch[len(batch)-1].ID
 
 		if len(installIDs) > 0 {
 			if err := execIn(tx, `UPDATE host_software_installs SET install_script_exit_code = ?, install_script_output = ?
