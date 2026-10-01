@@ -267,7 +267,7 @@ function extractKeys(payloadKeys, depth, alreadyVisited) {
       gloss: gloss(payloadKey),
       // Capped well short of a gloss: com.apple.applicationaccess alone has ~250 keys, and at this length
       // it still renders to ~25KB.
-      description: payloadKey.content ? squash(payloadKey.content, 100) : undefined,
+      description: payloadKey.content ? wholeSentences(payloadKey.content, 150, _.without(_.pluck(payloadKeys, 'key'), payloadKey.key)) : undefined,
     };
     let nested = extractKeys(payloadKey.subkeys, depth + 1, alreadyVisited);
     if(nested.length > 0) {
@@ -363,6 +363,44 @@ function sentencesMatching(content, regExp, maxLength) {
     }
   }
   return squash((kept.length > 0 ? kept : [_.first(sentences)]).join(' '), maxLength);
+}
+
+
+/**
+ * Keep the leading sentences of `content` that fit in `maxLength`, dropping the first one that does not
+ * rather than cutting it.
+ *
+ * A description cut mid-sentence can say something the full text does not.  minLength's "This value is
+ * independent of the value for minComplexChars" became "This value is independent of the value for…",
+ * which reads as independent of every other key, and the generator stopped adding forcePIN alongside it.
+ * Only a first sentence that is too long on its own is cut, since dropping it would leave nothing.
+ *
+ * A later sentence naming a sibling key is kept too, up to twice `maxLength`, because that is where Apple
+ * writes dependencies: enforcedSoftwareUpdateDelay's third sentence says forceDelayedSoftwareUpdates uses
+ * its value, and without it the generator set the delay and left the switch that enables it unset.
+ *
+ * @param  {String} content
+ * @param  {Number} maxLength
+ * @param  {Array} siblingKeyNames
+ * @returns {String}
+ */
+function wholeSentences(content, maxLength, siblingKeyNames) {
+  let sentences = squash(content, Number.MAX_SAFE_INTEGER).split(/(?<=\.)\s+/);
+  let kept = [_.first(sentences)];
+  let idx = 1;
+  for (; idx < sentences.length; idx++) {
+    if(kept.concat(sentences[idx]).join(' ').length > maxLength) {
+      break;
+    }
+    kept.push(sentences[idx]);
+  }
+  for (let sentence of sentences.slice(idx)) {
+    let namesASibling = _.any(siblingKeyNames || [], (keyName)=>{ return new RegExp(`\\b${_.escapeRegExp(keyName)}\\b`).test(sentence); });
+    if(namesASibling && kept.concat(sentence).join(' ').length <= maxLength * 2) {
+      kept.push(sentence);
+    }
+  }
+  return squash(kept.join(' '), kept.length === 1 ? maxLength : maxLength * 2);
 }
 
 

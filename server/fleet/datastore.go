@@ -806,6 +806,11 @@ type Datastore interface {
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
 	SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (name, displayName string, err error)
+	// GetSoftwareTitleDisplayName returns the per-team "Software name" override for
+	// a software title, or nil if none is set. Used to stamp the override onto
+	// install/uninstall/cancel activity records at creation time so later renames
+	// don't retroactively change past activities.
+	GetSoftwareTitleDisplayName(ctx context.Context, teamID *uint, titleID uint) (*string, error)
 	UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error
 	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config SoftwareAutoUpdateConfig) error
 	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
@@ -817,9 +822,9 @@ type Datastore interface {
 	// InsertSoftwareUninstallRequest tracks a new request to uninstall the provided
 	// software installer on the host. executionID is the script execution ID corresponding to uninstall script
 	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error
-	// GetDetailsForUninstallFromExecutionID returns details from a software uninstall execution needed to create the corresponding activity
-	// Non-error returns are software title name and whether the uninstall was self-service, respectively
-	GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error)
+	// GetDetailsForUninstallFromExecutionID returns details from a software uninstall execution needed to create the corresponding activity.
+	// Non-error returns are: software title name, per-team display name override (nil when none is set), and whether the uninstall was self-service.
+	GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, *string, bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Patch notifications
@@ -838,6 +843,9 @@ type Datastore interface {
 	// SetPatchNotificationAppsQueued records that this notification put the apps on
 	// the host's queue, so a later attempt doesn't queue them again.
 	SetPatchNotificationAppsQueued(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
+	// SetPatchNotificationAppsUpdatedInInventory records that the host's software inventory showed the apps
+	// on the installer's version, so the toast shows them as updated.
+	SetPatchNotificationAppsUpdatedInInventory(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
 	// ListPatchNotificationApps returns a notification's apps, with names and icons
 	// for the host's fleet.
 	ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]PatchNotificationAppDetail, error)
@@ -1472,6 +1480,30 @@ type Datastore interface {
 	// IsHostDiskEncryptionKeyArchived returns true if there is a disk encryption key archived
 	// for the given host ID.
 	IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error)
+	// SetHostDiskEncryptionKeyRotationCommand records cmdUUID as the host's pending FileVault key rotation. It
+	// returns false without writing when a rotation is already pending, so the in-progress check is atomic with
+	// the write.
+	SetHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string) (bool, error)
+	// ClearHostDiskEncryptionKeyRotationCommand clears the pending rotation only if it still points at cmdUUID, so
+	// a late result for a superseded command is a no-op.
+	ClearHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string) error
+	// ClearStaleHostDiskEncryptionKeyRotationCommand clears the pending rotation cmdUUID only if it was requested
+	// more than olderThan ago. It returns false when nothing was cleared.
+	ClearStaleHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string, olderThan time.Duration) (bool, error)
+	// FailHostDiskEncryptionKeyRotation clears the pending rotation cmdUUID and marks the stored key as not
+	// decryptable, which prompts the end user to regenerate it through Escrow Buddy. It returns false when cmdUUID
+	// is not the host's pending rotation.
+	FailHostDiskEncryptionKeyRotation(ctx context.Context, hostID uint, cmdUUID string) (bool, error)
+	// GetHostByDiskEncryptionKeyRotationCommand returns the host whose pending FileVault key rotation is cmdUUID,
+	// or a not found error.
+	GetHostByDiskEncryptionKeyRotationCommand(ctx context.Context, cmdUUID string) (*Host, error)
+	// ReplaceHostDiskEncryptionKeyBlob swaps the stored ciphertext for another encryption of the same key, only if
+	// the stored ciphertext is still currentBase64Encrypted. It leaves decryptable and updated_at unchanged and does
+	// not archive the blob.
+	ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error
+	// IsHostDiskEncryptionKeyRotationInProgress reports whether the host's pending FileVault key rotation cmdUUID
+	// is still queued with no terminal result, or was requested less than staleAfter ago.
+	IsHostDiskEncryptionKeyRotationInProgress(ctx context.Context, hostID uint, hostUUID, cmdUUID string, staleAfter time.Duration) (bool, error)
 	// GetHostEscrowState reports whether a LUKS escrow request is queued and how long ago the agent
 	// last showed activity on one in flight. No row means the zero state.
 	GetHostEscrowState(ctx context.Context, hostID uint) (*HostEscrowState, error)
@@ -2613,6 +2645,10 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 
+	// MDMWindowsGetEnrolledDeviceByID returns the Windows MDM enrollment with the given row id, for resolving the enrollment
+	// a one-time enroll secret was minted for.
+	MDMWindowsGetEnrolledDeviceByID(ctx context.Context, enrollmentID uint) (*MDMWindowsEnrolledDevice, error)
+
 	// MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName returns the most recent MDMWindowsEnrolledDevice whose host_uuid
 	// has not yet been populated (i.e. osquery's directIngestMDMDeviceIDWindows has not run since enrollment) and whose
 	// device_name matches the given computer name. Used as a fallback when MDMWindowsGetEnrolledDeviceWithHostUUID can't
@@ -2727,6 +2763,10 @@ type Datastore interface {
 	// DeleteMDMWindowsConfigProfileByTeamAndName deletes the Windows MDM profile corresponding to
 	// the specified team ID (or no team if nil) and profile name.
 	DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error
+
+	// ListMDMWindowsConfigProfilesByName returns the Windows MDM profile with this name in every team, with a nil TeamID for no
+	// team. Only the UUID, team, and name are loaded.
+	ListMDMWindowsConfigProfilesByName(ctx context.Context, name string) ([]*MDMWindowsConfigProfile, error)
 
 	// GetHostMDMWindowsProfiles returns the MDM profile information for the specified Windows host UUID.
 	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
@@ -3805,6 +3845,29 @@ type Datastore interface {
 	// The enrollmentID (typically UDID) is used to look up host-specific secrets
 	// like recovery lock passwords.
 	ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error)
+
+	// GetLiveWindowsMDMOneTimeEnrollSecret returns the unconsumed one-time enroll secret minted for the Windows MDM enrollment,
+	// or "" when there is none, which is the normal state for a host that already runs fleetd. Windows identifies its subject by
+	// enrollment rather than by host UUID, because the host may not exist yet when the secret is minted.
+	GetLiveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error)
+
+	// WindowsMDMEnrollSecretUsedByOrbit reports whether orbit has enrolled with a one-time enroll secret minted for the Windows MDM
+	// enrollment, which means fleetd is installed on the device.
+	WindowsMDMEnrollSecretUsedByOrbit(ctx context.Context, enrollmentID uint) (bool, error)
+
+	// MintWindowsMDMOneTimeEnrollSecret makes sure the Windows MDM enrollment has a live one-time enroll secret, reusing an
+	// unconsumed one. Called when Fleet is about to install fleetd on the device. Returns a NotFound error for an unknown enrollment.
+	MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) error
+
+	// QueueWindowsMDMEnrollSecretPush makes sure the Windows MDM enrollment has a live one-time enroll secret, reusing an unconsumed
+	// one, and queues pushCmd, which delivers it, plus installCmd when not nil, in one transaction. It does nothing and returns false
+	// when WindowsMDMEnrollSecretPushed reports the live secret as pushed.
+	QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd, installCmd *MDMWindowsCommand) (bool, error)
+
+	// WindowsMDMEnrollSecretPushed reports whether a push of the Windows MDM enrollment's live one-time enroll secret, a command
+	// targeting pushLocURI queued since the secret was minted, is still pending or was delivered successfully. It is false when the
+	// enrollment has no live secret, or when the last push failed on the device.
+	WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Custom host vitals

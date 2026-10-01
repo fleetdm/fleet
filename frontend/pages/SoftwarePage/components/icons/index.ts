@@ -2348,6 +2348,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   zettlr: Zettlr,
   zight: Zight,
+  "zoom for government": Zoom,
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,

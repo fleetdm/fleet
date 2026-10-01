@@ -197,6 +197,7 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		return nil, fmt.Errorf("failed to create local metadata store: %w", err)
 	}
 	updateOpt.LocalStore = localStore
+	updateOpt.SkipCrossArchExecCheck = true
 
 	updater, err := update.NewUpdater(updateOpt)
 	if err != nil {

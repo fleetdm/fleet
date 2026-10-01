@@ -66,6 +66,9 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 	if len(bytes.TrimSpace(m.RawJSON)) == 0 {
 		return errors.New("The file should include valid JSON.")
 	}
+	if strings.TrimSpace(m.Name) == "" {
+		return errors.New("Profile name can't be empty.")
+	}
 	fleetNames := mdm.FleetReservedProfileNames()
 	if _, ok := fleetNames[m.Name]; ok {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
