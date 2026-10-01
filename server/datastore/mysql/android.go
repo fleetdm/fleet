@@ -2560,8 +2560,8 @@ WHERE
 // HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
 // identified by application_id and global_or_team_id is different from the existing one. This
 // is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
-func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error) {
-	const stmt = `
+func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error) {
+	stmt := `
 SELECT
 	COALESCE(CAST(? AS JSON) != CAST(configuration AS JSON), ?) AS has_changed
 FROM
@@ -2570,8 +2570,6 @@ WHERE
 	adam_id = ? AND
 	global_or_team_id = ? AND
 	platform = 'android'
-ORDER BY id
-LIMIT 1
 `
 
 	newConfigStr := string(newConfig)
@@ -2579,8 +2577,15 @@ LIMIT 1
 		newConfigStr = "{}" // consider an empty config as an empty JSON for comparison's sake
 	}
 
+	args := []any{newConfigStr, len(newConfig) > 0, applicationID, teamID}
+	if vppAppTeamID != nil {
+		stmt += ` AND id = ?`
+		args = append(args, *vppAppTeamID)
+	}
+	stmt += ` ORDER BY id LIMIT 1`
+
 	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, len(newConfig) > 0, applicationID, teamID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// old config does not exist, so old one is changed if not empty

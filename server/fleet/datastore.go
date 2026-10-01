@@ -3401,8 +3401,10 @@ type Datastore interface {
 
 	GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPApp, error)
 	// GetVPPAppMetadataByTeamAndTitleID returns the VPP app corresponding to the
-	// specified team and title ids.
+	// specified team and title ids. With more than one version on the team it returns the first-added one.
 	GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPAppStoreApp, error)
+	// GetVPPAppVersionsByTeamAndTitleID returns every version of the VPP app for the specified team and title ids, first-added first.
+	GetVPPAppVersionsByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*VPPAppStoreApp, error)
 
 	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
 	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
@@ -3450,8 +3452,8 @@ type Datastore interface {
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
 
 	// DeleteVPPAppFromTeam deletes the VPP app corresponding to the adamID from
-	// the provided team.
-	DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appID VPPAppID) error
+	// the provided team. A non-nil vppAppTeamID deletes only that version, nil deletes every version.
+	DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appID VPPAppID, vppAppTeamID *uint) error
 
 	GetAndroidAppsInScopeForHost(ctx context.Context, hostID uint) (applicationIDs []string, err error)
 
@@ -3533,6 +3535,8 @@ type Datastore interface {
 	GetVPPApps(ctx context.Context, teamID *uint) ([]VPPAppResponse, error)
 	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) (bool, error)
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
+	// GetVPPAppVersionNames returns the names of the versions of the VPP app on the team, first-added first.
+	GetVPPAppVersionNames(ctx context.Context, teamID *uint, appID VPPAppID) ([]string, error)
 	GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]VPPAppTeam, error)
 
 	// GetAllVPPApps returns all the VPP apps in Fleet, across all teams.
@@ -3914,7 +3918,8 @@ type Datastore interface {
 	// GetAndroidAppConfiguration retrieves the configuration for an Android app by application ID and team
 	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error)
 	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error)
-	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error)
+	// HasAndroidAppConfigurationChanged compares newConfig with the configuration of the version with vppAppTeamID, or of the first-added version when vppAppTeamID is nil.
+	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error)
 
 	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error
 

@@ -511,8 +511,6 @@ type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint, teamI
 
 type InstallSoftwareTitleFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
-type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error
-
 type GetVPPTokenIfCanInstallVPPAppsFunc func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error)
 
 type InstallVPPAppPostValidationFunc func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error)
@@ -535,7 +533,7 @@ type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, host *fleet.
 
 type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error)
 
-type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, string, error)
+type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (*fleet.VPPApp, error)
 
 type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error)
 
@@ -879,7 +877,7 @@ type UploadSoftwareInstallerFunc func(ctx context.Context, payload *fleet.Upload
 
 type UpdateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
 
-type DeleteSoftwareInstallerFunc func(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error
+type DeleteSoftwareInstallerFunc func(ctx context.Context, titleID uint, teamID *uint, installerID *uint, appStoreAppVersionID *uint) error
 
 type GenerateSoftwareInstallerTokenFunc func(ctx context.Context, alt string, titleID uint, teamID *uint, installerID *uint) (string, error)
 
@@ -1772,9 +1770,6 @@ type Service struct {
 
 	InstallSoftwareTitleFunc        InstallSoftwareTitleFunc
 	InstallSoftwareTitleFuncInvoked bool
-
-	UpdateSoftwareTitleAutoUpdateConfigFunc        UpdateSoftwareTitleAutoUpdateConfigFunc
-	UpdateSoftwareTitleAutoUpdateConfigFuncInvoked bool
 
 	GetVPPTokenIfCanInstallVPPAppsFunc        GetVPPTokenIfCanInstallVPPAppsFunc
 	GetVPPTokenIfCanInstallVPPAppsFuncInvoked bool
@@ -4280,13 +4275,6 @@ func (s *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwar
 	return s.InstallSoftwareTitleFunc(ctx, hostID, softwareTitleID)
 }
 
-func (s *Service) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error {
-	s.mu.Lock()
-	s.UpdateSoftwareTitleAutoUpdateConfigFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateSoftwareTitleAutoUpdateConfigFunc(ctx, titleID, teamID, config)
-}
-
 func (s *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
 	s.mu.Lock()
 	s.GetVPPTokenIfCanInstallVPPAppsFuncInvoked = true
@@ -4364,7 +4352,7 @@ func (s *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet.V
 	return s.GetAppStoreAppsFunc(ctx, teamID)
 }
 
-func (s *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, string, error) {
+func (s *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (*fleet.VPPApp, error) {
 	s.mu.Lock()
 	s.AddAppStoreAppFuncInvoked = true
 	s.mu.Unlock()
@@ -5568,11 +5556,11 @@ func (s *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.Up
 	return s.UpdateSoftwareInstallerFunc(ctx, payload)
 }
 
-func (s *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error {
+func (s *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint, appStoreAppVersionID *uint) error {
 	s.mu.Lock()
 	s.DeleteSoftwareInstallerFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteSoftwareInstallerFunc(ctx, titleID, teamID, installerID)
+	return s.DeleteSoftwareInstallerFunc(ctx, titleID, teamID, installerID, appStoreAppVersionID)
 }
 
 func (s *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint, installerID *uint) (string, error) {

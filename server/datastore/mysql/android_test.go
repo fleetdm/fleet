@@ -4110,7 +4110,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 
 	// Delete app, should delete configuration
-	require.NoError(t, ds.DeleteVPPAppFromTeam(ctx, &team1.ID, app1.VPPAppID))
+	require.NoError(t, ds.DeleteVPPAppFromTeam(ctx, &team1.ID, app1.VPPAppID, nil))
 	_, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
 	require.ErrorContains(t, err, "not found")
 	_, err = ds.GetAndroidAppConfiguration(ctx, app1.AdamID, team1.ID)
@@ -4196,7 +4196,7 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			got, err := ds.HasAndroidAppConfigurationChanged(ctx, c.compareAppID, 0, json.RawMessage(c.newConfig))
+			got, err := ds.HasAndroidAppConfigurationChanged(ctx, c.compareAppID, 0, nil, json.RawMessage(c.newConfig))
 			require.NoError(t, err)
 			require.Equal(t, c.changed, got)
 		})

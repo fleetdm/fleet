@@ -7904,7 +7904,7 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 	// delete both installers
 	err = ds.DeleteSoftwareInstaller(ctx, installerTm1)
 	require.NoError(t, err)
-	err = ds.DeleteVPPAppFromTeam(ctx, &team1.ID, vppTm1.VPPAppID)
+	err = ds.DeleteVPPAppFromTeam(ctx, &team1.ID, vppTm1.VPPAppID, nil)
 	require.NoError(t, err)
 
 	// listing the host's software (including available for install) should now
