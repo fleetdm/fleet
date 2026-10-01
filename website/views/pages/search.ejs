@@ -1,0 +1,54 @@
+<div id="search" v-cloak>
+  <div purpose="page-container" class="container-fluid">
+    <% /* Note: v-pre keeps Vue from compiling this server-rendered content when parasails
+    mounts on #search — otherwise a query or result containing {{…}} would be evaluated
+    as a Vue expression. */ %>
+    <div purpose="page-content" v-pre>
+      <h1>Search fleetdm.com</h1>
+      <form purpose="search-page-form" action="/search" method="GET">
+        <div purpose="searchbar" class="d-flex">
+          <div class="input-group d-flex flex-nowrap">
+            <div class="input-group-prepend">
+              <span class="input-group-text border-0 bg-transparent pr-0">
+                <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+              </span>
+            </div>
+            <div class="form-control border-0">
+              <input type="text" name="q" id="search-page-input" placeholder="Search" aria-label="Search" value="<%= searchQuery %>" autofocus/>
+            </div>
+            <button type="submit" aria-label="Search" class="input-group-append d-flex align-items-center" purpose="searchbar-submit">⏎</button>
+          </div>
+        </div>
+      </form>
+      <% if (searchFailed) { %>
+      <div purpose="search-message">
+        <p>Search is temporarily unavailable. You can <a href="https://www.google.com/search?q=<%= encodeURIComponent('site:fleetdm.com '+searchQuery) %>" target="_blank" rel="noopener">search fleetdm.com on Google</a> instead.</p>
+      </div>
+      <% } else if (searchQuery && searchResults.length === 0) { %>
+      <div purpose="search-message">
+        <p>No results for “<%= searchQuery %>”. Try different keywords, or <a href="https://www.google.com/search?q=<%= encodeURIComponent('site:fleetdm.com '+searchQuery) %>" target="_blank" rel="noopener">search fleetdm.com on Google</a>.</p>
+      </div>
+      <% } else if (searchResults.length > 0) { %>
+      <p purpose="results-count">About <%= formattedTotalResults %> results</p>
+      <div purpose="search-results">
+        <% for (let result of searchResults) { %>
+        <div purpose="search-result">
+          <p purpose="result-path"><%= result.displayPath %></p>
+          <a purpose="result-title" href="<%= result.url %>"><%= result.title %></a>
+          <p purpose="result-snippet"><%= result.snippet %></p>
+        </div>
+        <% } %>
+      </div>
+      <div purpose="pagination">
+        <% if (currentPage > 1) { %>
+        <a purpose="pagination-link" href="/search?q=<%= encodeURIComponent(searchQuery) %>&page=<%= currentPage - 1 %>">&larr; Previous</a>
+        <% } %>
+        <% if (hasMoreResults) { %>
+        <a purpose="pagination-link" href="/search?q=<%= encodeURIComponent(searchQuery) %>&page=<%= currentPage + 1 %>">Next &rarr;</a>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

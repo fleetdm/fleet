@@ -48,6 +48,7 @@ module.exports.policies = {
   'view-software-management': true,
   'deliver-mdm-demo-email': true,
   'view-support': true,
+  'view-search': true,
   'view-integrations': true,
   'deliver-talk-to-us-form-submission': true,
   'get-human-interpretation-from-osquery-sql': true,
