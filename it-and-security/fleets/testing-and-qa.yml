@@ -88,6 +88,10 @@ controls:
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
   # macOS policies
+  # Windows policies
+  - path: ../lib/windows/policies/cis-windows-11-firewall-domain-profile.yml
+  - path: ../lib/windows/policies/cis-windows-11-firewall-private-profile.yml
+  - path: ../lib/windows/policies/cis-windows-11-firewall-public-profile.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
