@@ -108,8 +108,24 @@ describe('configuration profile generator', function() {
 
               // In every failure message, because a profile written from the wrong part of the schema and one
               // written badly from the right part look identical: the first is a lookup problem, the second a
-              // prompt problem.
-              let whatTheLookupProvided = describeWhatTheLookupProvided(profileType, {windowsCspAreasProvided, applePayloadTypesProvided});
+              // prompt problem.  DDM has no lookup -- its whole schema always goes in -- so there is nothing to
+              // say for it.
+              let whatTheLookupProvided = '';
+              if(profileType === 'csp') {
+                let areas = windowsCspAreasProvided || [];
+                whatTheLookupProvided = `\n\nCSP areas provided: ${areas.length > 0 ? areas.join(', ') : '(none -- generated without the node reference)'}`;
+              } else if(profileType === 'mobileconfig') {
+                let payloadTypes = applePayloadTypesProvided || [];
+                whatTheLookupProvided = `\n\nPayload types provided: ${payloadTypes.length > 0 ? payloadTypes.join(', ') : '(none -- generated from the full schema, without key descriptions)'}`;
+              }
+
+              // The profile goes in the failure message rather than to stdout: a failure you cannot see is a
+              // failure you cannot act on, and mocha only shows what the assertion carried.
+              let generationForFailureMessage =
+                `\n\nprofileFilename: ${rawResult.profileFilename}` +
+                `\ndeliveryNotes: ${JSON.stringify(rawResult.deliveryNotes)}` +
+                `\n\n${rawResult.configurationProfile}\n\n` +
+                `settingsEnforced:\n${util.inspect(rawResult.settingsEnforced, { depth: 4, colors: false })}\n`;
 
               // Mirrors the action's own acceptance test: an abstention, or a response missing any
               // required key, is not a usable profile.
@@ -126,7 +142,7 @@ describe('configuration profile generator', function() {
                   'expected this request to be refused, but a profile was generated' +
                   (testCase.readByEye ? `\n\nNote on this case: ${testCase.readByEye}` : '') +
                   whatTheLookupProvided +
-                  describeGeneration(rawResult)
+                  generationForFailureMessage
                 );
                 return;
               }
@@ -143,13 +159,11 @@ describe('configuration profile generator', function() {
               let checkFailures = checkExpectations(expectations, generatedProfile);
               assert.strictEqual(
                 checkFailures.length, 0,
-                // The profile goes in the message rather than to stdout: a failure you cannot see is a
-                // failure you cannot act on, and mocha only shows what the assertion carried.
                 `${testCase.canary ? 'CANARY -- ' : ''}${checkFailures.length} check(s) failed:\n` +
                 checkFailures.map((checkFailure)=>{ return `  - ${checkFailure}`; }).join('\n') +
                 (testCase.readByEye ? `\n\nNote on this case: ${testCase.readByEye}` : '') +
                 whatTheLookupProvided +
-                describeGeneration(rawResult)
+                generationForFailureMessage
               );
 
               // Passing the assertions is not the same as being right -- the checks are substrings, and the
@@ -215,42 +229,4 @@ async function generateOnce(testCase) {
   } catch (err) {
     return { unexpectedError: err, elapsedMs: Date.now() - startedAt };
   }
-}
-
-
-/**
- * Say which part of the schema the lookup in front of the generator chose to show it.
- *
- * DDM has no lookup -- its whole schema always goes in -- so there is nothing to say for it.
- *
- * @param  {String} profileType
- * @param  {Dictionary} lookupResults  {windowsCspAreasProvided, applePayloadTypesProvided}
- * @returns {String}  a line to append to a failure message, or '' when there is no lookup
- */
-function describeWhatTheLookupProvided(profileType, {windowsCspAreasProvided, applePayloadTypesProvided}) {
-  if(profileType === 'csp') {
-    let areas = windowsCspAreasProvided || [];
-    return `\n\nCSP areas provided: ${areas.length > 0 ? areas.join(', ') : '(none -- generated without the node reference)'}`;
-  }
-  if(profileType === 'mobileconfig') {
-    let payloadTypes = applePayloadTypesProvided || [];
-    return `\n\nPayload types provided: ${payloadTypes.length > 0 ? payloadTypes.join(', ') : '(none -- generated from the full schema, without key descriptions)'}`;
-  }
-  return '';
-}
-
-
-/**
- * The generated profile, as it goes at the end of a failure message.
- *
- * @param  {Dictionary} rawResult
- * @returns {String}
- */
-function describeGeneration(rawResult) {
-  return (
-    `\n\nprofileFilename: ${rawResult.profileFilename}` +
-    `\ndeliveryNotes: ${JSON.stringify(rawResult.deliveryNotes)}` +
-    `\n\n${rawResult.configurationProfile}\n\n` +
-    `settingsEnforced:\n${util.inspect(rawResult.settingsEnforced, { depth: 4, colors: false })}\n`
-  );
 }
