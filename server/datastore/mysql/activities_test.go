@@ -2887,7 +2887,8 @@ func testActivateDeletedInstallerShowsPlaceholder(t *testing.T, ds *Datastore) {
 	activityID, _ := res.LastInsertId()
 
 	siuaStmt := `INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id, policy_id, software_title_id) VALUES (?, ?, NULL, NULL)`
-	_, err = ds.writer(ctx).ExecContext(ctx, siuaStmt, activityID, installerID)
+	// NULL installer reference, as left by a delete before the FK became RESTRICT
+	_, err = ds.writer(ctx).ExecContext(ctx, siuaStmt, activityID, nil)
 	require.NoError(t, err)
 
 	deleteStmt := `DELETE FROM software_installers WHERE id = ?`

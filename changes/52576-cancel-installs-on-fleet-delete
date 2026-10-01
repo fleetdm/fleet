@@ -1,0 +1,1 @@
+* Fixed software installs being stranded in the queue when the fleet holding their installer was deleted. Queued and in-flight installs are now canceled first, and Fleet now rejects deleting an installer that still has installs referencing it.
