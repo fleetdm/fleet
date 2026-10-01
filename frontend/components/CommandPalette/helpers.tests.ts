@@ -427,6 +427,27 @@ describe("CommandPalette helpers", () => {
       );
     });
 
+    it("shows which fleet Add profile lands on from All fleets", () => {
+      const availableTeams = [
+        { id: -1, name: "All fleets" },
+        { id: 3, name: "Servers" },
+        { id: 5, name: "Workstations" },
+      ];
+      const fromAllFleets = buildPaletteItems({
+        ...BASE_CONTEXT,
+        availableTeams,
+      }).find((i) => i.id === "add-profile");
+      expect(fromAllFleets?.teamName).toBe("Workstations");
+
+      const fromFleet = buildPaletteItems({
+        ...BASE_CONTEXT,
+        availableTeams,
+        hasTeamSelected: true,
+        currentTeam: { id: 3, name: "Servers" },
+      }).find((i) => i.id === "add-profile");
+      expect(fromFleet?.teamName).toBeUndefined();
+    });
+
     it.each([
       [
         "users who aren't admins or maintainers",
@@ -445,6 +466,18 @@ describe("CommandPalette helpers", () => {
               enabled_and_configured: false,
               windows_enabled_and_configured: false,
               android_enabled_and_configured: false,
+            },
+          }),
+        },
+      ],
+      [
+        "everyone in GitOps mode",
+        {
+          config: createMockConfig({
+            gitops: {
+              ...createMockConfig().gitops,
+              gitops_mode_enabled: true,
+              repository_url: "https://github.com/fleetdm/fleet-config",
             },
           }),
         },

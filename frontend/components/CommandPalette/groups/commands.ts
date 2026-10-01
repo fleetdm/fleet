@@ -34,6 +34,7 @@ const buildCommandsItems = (
     hasTeamOrUnassigned,
     isGitOpsMode,
     switchesFromUnassigned,
+    switchesFromAllFleets,
     defaultDestination,
   } = derived;
 
@@ -199,14 +200,18 @@ const buildCommandsItems = (
             ],
           },
           // Same gate as the profiles card's "Add profile": current-fleet
-          // admins and maintainers, once some MDM is on.
-          ...(canAddConfigurationProfile && isAnyMDMConfigured(config?.mdm)
+          // admins and maintainers, once some MDM is on. Hidden in GitOps
+          // mode, where the page can't be submitted.
+          ...(canAddConfigurationProfile &&
+          !isGitOpsMode &&
+          isAnyMDMConfigured(config?.mdm)
             ? [
                 {
                   id: "add-profile",
                   label: "Add profile",
                   group: "Commands" as const,
                   path: withTeamId(paths.CONTROLS_CUSTOM_SETTINGS_NEW),
+                  teamName: switchesFromAllFleets,
                   keywords: [
                     "create profile",
                     "new profile",
