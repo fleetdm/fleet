@@ -188,12 +188,23 @@ When patch when closed is on, Fleet runs the app's pre-install query (`open` in 
 
 By default, Fleet treats a Windows app as open when a process named `<app name>.exe` is running.
 
-1. In `pkg/patch_policy/patch_policy.go`, find the `windowsOpenQueryOverrides` map.
-2. Add an entry keyed by the app's `name` (from its input file in `inputs/winget/`). The value is the condition on the lowercase process name. For example:
+To match different process names, add an entry to the `windowsOpenQueryOverrides` map in `pkg/patch_policy/patch_policy.go`. The key is the app's `name` (from its input file in `inputs/winget/`). The value is the condition on the lowercase process name, which Fleet puts into `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) <value>);`. For example:
 
-   ```go
-   "<App name>": "IN ('<process>.exe','<other-process>.exe')",
-   ```
+```go
+"<App name>": "IN ('<process>.exe','<other-process>.exe')",
+```
+
+To replace the whole query, set `out.Queries.Open` in `ingesters/winget/ingester.go`, right after `out.Queries.Open = patch_policy.GenerateOpenQuery("windows", "", out.Name)`. Use a `switch input.Slug` block, like the macOS ingester. If there isn't one yet, add it. For example:
+
+```go
+switch input.Slug {
+case "<slug>":
+	// Explain why the generated query doesn't work for this app.
+	out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (...);"
+}
+```
+
+Add a test case for the new query in `ingesters/winget/ingester_test.go`.
 
 ### Publish the change
 
