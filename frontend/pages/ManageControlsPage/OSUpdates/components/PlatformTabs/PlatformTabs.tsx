@@ -63,6 +63,7 @@ const PlatformTabs = ({
   const platformByIndex: OSUpdatesTargetPlatform[] = [
     "darwin",
     "windows",
+    "linux",
     "ios",
     "ipados",
     "android",
@@ -128,6 +129,9 @@ const PlatformTabs = ({
             <Tab key="Windows" data-text="Windows">
               <TabText showCheck={isWindowsConfigured}>Windows</TabText>
             </Tab>
+            <Tab key="Linux" data-text="Linux">
+              Linux
+            </Tab>
             <Tab key="iOS" data-text="iOS">
               <TabText showCheck={isIOSConfigured}>iOS</TabText>
             </Tab>
@@ -187,6 +191,23 @@ const PlatformTabs = ({
               windowsMdmEmptyState
             )}
           </TabPanel>
+          <TabPanel className={`${baseClass}__tab-panel--empty`}>
+            <EmptyState
+              header="Enforce Linux OS updates with a policy and script"
+              info={
+                <>
+                  Linux OS updates are enforced with a policy that checks the OS
+                  version and a script that installs updates.{" "}
+                  <CustomLink
+                    url="https://fleetdm.com/guides/enforce-os-updates#linux"
+                    text="Learn how"
+                    newTab
+                  />
+                </>
+              }
+              variant="form"
+            />
+          </TabPanel>
           <TabPanel
             className={`${baseClass}__tab-panel${
               isAppleMdmEnabled ? "" : "--empty"
@@ -241,7 +262,7 @@ const PlatformTabs = ({
                   Currently Android OS updates are controlled with a
                   configuration profile.{" "}
                   <CustomLink
-                    url="https://fleetdm.com/guides/enforce-os-updates"
+                    url="https://fleetdm.com/guides/enforce-os-updates#android"
                     text="Learn how"
                     newTab
                   />

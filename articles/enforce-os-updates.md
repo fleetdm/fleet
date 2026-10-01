@@ -6,7 +6,9 @@ In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hos
 
 For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://sofa.macadmins.io/). The update will only be enforced if you use a version in that list.
 
-For Android hosts, you can enforce OS updates using a configuration profile with the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. This setting is only supported on fully-managed Android hosts (not BYO). Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
+For Android hosts, you can enforce OS updates using a configuration profile. See [Android](#android) below for which management types support this.
+
+For Linux hosts, you can enforce OS updates using a policy and a script. See [Linux](#linux) below.
 
 ## Fleet-managed OS updates vs. custom profiles
 
@@ -150,6 +152,65 @@ Upload a custom Windows XML profile targeting the [Update CSP](https://learn.mic
 
 See Microsoft's [Update CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) for all available settings.
 
+### Android
+
+Upload a custom Android configuration profile using the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
+
+Support depends on how the Android host is managed:
+
+- **Company-owned (fully-managed) hosts**: supported. `systemUpdate` controls the whole device, and Android only exposes it on fully-managed hosts.
+- **Personal (BYOD) hosts**: not supported. Android has no work profile equivalent of `systemUpdate`, since the setting applies to the whole device rather than just the work profile.
+- **OEMConfig hosts (Knox Service Plugin, Zebra, etc.)**: not supported. Fleet doesn't support [OEMConfig](https://support.google.com/work/android/answer/9388447?hl=en).
+- **[Android Open Source (AOSP)](https://source.android.com/) hosts**: not supported. Fleet's Android MDM runs on the [Android Management API](https://developers.google.com/android/management), which requires Google Mobile Services. Hosts without Google Mobile Services, like Huawei devices and other China-market Android, can't enroll in Fleet at all.
+
+
+## Linux
+
+Linux doesn't have a Fleet-managed OS update setting or an MDM protocol. Instead, use a [policy](https://fleetdm.com/docs/configuration/yaml-files#policies) to find hosts that are out of date and a [script](https://fleetdm.com/guides/scripts) to update them. Fleet runs the script automatically on every host that fails the policy.
+
+### Prerequisites
+
+- Hosts run fleetd with scripts enabled. See the [Scripts guide](https://fleetdm.com/guides/scripts).
+- Hosts use systemd. The script runs the package manager in a systemd unit so it isn't interrupted if the script times out.
+
+### Step 1: Add the policy
+
+Add the [Operating system up to date (Linux)](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/policies/latest-linux.yml) policy. It compares each host's OS version to the latest release of its distribution, which is pinned in the policy's query.
+
+The policy supports:
+
+- Ubuntu
+- Debian
+- Fedora
+- Red Hat Enterprise Linux, Rocky Linux, and AlmaLinux
+- NixOS
+- openSUSE Leap
+- AMD Ryzen AI Developer Platform
+
+Rolling-release distributions (Arch and openSUSE Tumbleweed) and distributions without a rule always pass.
+
+> **Note:** The latest versions are written into the policy's query. Update them whenever a distribution ships a new release.
+
+### Step 2: Add the script
+
+Add the [update-linux-os.sh](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/update-linux-os.sh) script. It installs all pending package updates (`apt-get upgrade` on Debian-based hosts and `dnf upgrade` on Fedora and Red Hat-based hosts), and never removes packages or upgrades to a new release (for example, Ubuntu 24.04 to 26.04, or Fedora 43 to 44).
+
+### Step 3: Run the script when the policy fails
+
+In your GitOps YAML, add the script to the policy with `run_script` and turn on `continuous_automations_enabled` so Fleet retries when an update is deferred:
+
+```yaml
+policies:
+  - name: Operating system up to date (Linux)
+    platform: linux
+    run_script:
+      path: ../scripts/update-linux-os.sh
+    continuous_automations_enabled: true
+```
+
+See the [GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#policies) for all policy options.
+
+
 ## Apple (macOS, iOS, and iPadOS) end user experience
 
 On macOS hosts, when a minimum version is enforced, end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes and then every 10 minutes.
@@ -202,9 +263,10 @@ If an end user was on vacation when the deadline passed, the end user is given a
 
 Fleet enforces OS updates for [quality and feature updates](https://github.com/fleetdm/fleet/blob/ca865af01312728997ea6526c548246ab98955fb/ee/server/service/mdm_profiles.go#L106). Microsoft provides documentation on [types of Windows updates](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
 
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-08-10">
 <meta name="articleTitle" value="Enforce OS updates">
-<meta name="description" value="Learn how to manage OS updates on macOS, Windows, iOS, and iPadOS hosts">
+<meta name="description" value="Learn how to manage OS updates on macOS, Windows, iOS, iPadOS, Android, and Linux hosts.">

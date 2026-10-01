@@ -23,7 +23,11 @@ import TargetSection from "./components/TargetSection";
 
 export type OSUpdatesSupportedPlatform = ApplePlatform | "windows";
 
-export type OSUpdatesTargetPlatform = OSUpdatesSupportedPlatform | "android"; // used for displaying "coming soon" messaging
+// "android" and "linux" only display empty-state messaging
+export type OSUpdatesTargetPlatform =
+  | OSUpdatesSupportedPlatform
+  | "android"
+  | "linux";
 
 const baseClass = "os-updates";
 

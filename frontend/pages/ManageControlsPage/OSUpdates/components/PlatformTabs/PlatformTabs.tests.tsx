@@ -31,7 +31,7 @@ const defaultProps = {
 
 describe("PlatformTabs", () => {
   // Only the Apple forms offer a target to choose; Windows is always deadline
-  // driven and Android isn't supported yet. The tabs decide which form each
+  // driven, and Android and Linux only show an empty state. The tabs decide which form each
   // platform gets, so the dropdown must not leak into the other two.
   it("renders the target dropdown on the macOS tab", () => {
     render(<PlatformTabs {...defaultProps} selectedPlatform="darwin" />);
@@ -68,6 +68,20 @@ describe("PlatformTabs", () => {
     expect(
       screen.getByText(/Android updates are coming soon/i)
     ).toBeInTheDocument();
+  });
+
+  it("does not render the target dropdown on the Linux tab", () => {
+    render(<PlatformTabs {...defaultProps} selectedPlatform="linux" />);
+
+    expect(screen.getByRole("tab", { name: /Linux/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Target/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Enforce Linux OS updates with a policy and script/i)
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Learn how/i })).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/guides/enforce-os-updates#linux"
+    );
   });
 
   it("shows the Windows tab with an empty state when Windows MDM isn't enabled", () => {
