@@ -3896,6 +3896,28 @@ Hosts that already enrolled before end user authentication was enabled are alway
     allow_orbit_end_user_auth_bypass: false
   ```
 
+### mdm.windows_one_time_enroll_secrets
+
+When enabled, Fleet installs fleetd on Windows hosts that turn on MDM (Microsoft Entra, Windows Autopilot, or **Settings > Accounts > Access work or school**) with a one-time enroll secret for that device instead of the global or fleet-level enroll secret. This keeps the shared enroll secret off the device.
+
+Fleet delivers the secret on the fleetd install command and through the Fleet-managed "Fleetd enroll secret" configuration profile. Orbit and osquery can each use the secret once, and the second one has to enroll within 60 minutes of the first.
+
+- Recovery: a host that has to enroll again, for example because its node key was deleted, needs a new one-time enroll secret. To issue one, resend the "Fleetd enroll secret" profile from **Host details > OS settings**. fleetd picks it up at the host's next MDM check-in, without a reinstall or restart (requires fleetd v1.63.0). Hosts with an older fleetd need fleetd reinstalled instead. End users can't resend this profile from the **My device** page.
+- Deleted hosts: if a Windows host enrolled in Fleet MDM is deleted in Fleet, Fleet sends it a new one-time enroll secret at its next MDM check-in, so the host enrolls again without an admin.
+- Shared enroll secrets: Fleet doesn't let a global or fleet-level enroll secret enroll fleetd as a Windows host that is enrolled in Fleet MDM or registered in Windows Autopilot. This includes a deleted host whose device is still enrolled in Fleet MDM. Refused attempts are recorded as `host_enrollment_rejected` activities.
+- Re-imaged devices: Fleet isn't notified when MDM is turned off on a device (re-imaged, disconnected in **Settings > Accounts > Access work or school**, or unenrolled with a script), so Fleet still treats the device as enrolled, even after you delete its host. Such a device can't enroll fleetd with a package. To bring it back, enroll it in MDM again with Windows Autopilot, Microsoft Entra, or **Settings > Accounts > Access work or school**. Fleet then replaces the old enrollment and installs fleetd with a one-time enroll secret. If the device can't enroll in MDM again, delete its host in Fleet. Fleet removes the old enrollment after the `mdm.windows_enrollment_retention` period (30 days by default), and fleetd can then enroll with a package.
+- Reserved names: custom configuration profiles can't be named "Fleetd enroll secret". Custom configuration profiles and MDM commands can't use `$FLEET_HOST_SECRET_` variables.
+
+When you turn this setting off, Fleet removes the "Fleetd enroll secret" profiles and stops accepting the one-time enroll secrets it delivered. Secrets that weren't used yet work again if you turn the setting back on. Hosts that enrolled with a one-time enroll secret can't enroll again, for example after losing their node key, until you turn the setting back on or reinstall fleetd with a package built with a global or fleet-level enroll secret.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_WINDOWS_ONE_TIME_ENROLL_SECRETS`
+- Config file format:
+  ```yaml
+  mdm:
+    windows_one_time_enroll_secrets: true
+  ```
+
 ### fleet_allow_bootstrap_package_during_migration
 
 When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.
