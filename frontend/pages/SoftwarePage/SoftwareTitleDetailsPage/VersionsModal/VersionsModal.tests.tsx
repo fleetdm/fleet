@@ -1,15 +1,14 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
 import {
   createMockSoftwareTitle,
   createMockSoftwarePackage,
 } from "__mocks__/softwareMock";
+import { notify } from "components/ToastNotification";
 import { ISoftwarePackage } from "interfaces/software";
 import softwareAPI from "services/entities/software";
-
-import { notify } from "components/ToastNotification";
+import { createCustomRenderer } from "test/test-utils";
 
 import VersionsModal from "./VersionsModal";
 

@@ -1,9 +1,8 @@
 import React from "react";
 
+import CustomLink from "components/CustomLink";
 import { getErrorReason } from "interfaces/errors";
 import { FLEET_GUIDES_BASE_LINK } from "utilities/constants";
-
-import CustomLink from "components/CustomLink";
 
 const DEFAULT_ERROR_MESSAGE = "Unable to update Windows MDM. Please try again.";
 

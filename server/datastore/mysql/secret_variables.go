@@ -566,6 +566,12 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 				return "", ctxerr.Wrapf(ctx, err, "minting psso device registration token for host %s", enrollmentID)
 			}
 			secretValues[secretType] = token
+		case fleet.HostSecretEnrollSecret:
+			secret, err := ds.mintHostOneTimeEnrollSecret(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "minting one-time enroll secret for host %s", enrollmentID)
+			}
+			secretValues[secretType] = secret
 		default:
 			return "", ctxerr.Errorf(ctx, "unknown host secret type: %s", secretType)
 		}
@@ -637,6 +643,10 @@ func (ds *Datastore) getHostRecoveryLockPasswordDecrypted(ctx context.Context, h
 		return "", ctxerr.Wrap(ctx, err, "getting encrypted recovery lock password")
 	}
 
+	if len(encryptedPassword) == 0 {
+		return "", ctxerr.New(ctx, "encrypted recovery lock password is missing")
+	}
+
 	password, err := decrypt(encryptedPassword, ds.serverPrivateKey)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "decrypting recovery lock password")
@@ -657,6 +667,10 @@ func (ds *Datastore) getHostRecoveryLockPendingPasswordDecrypted(ctx context.Con
 				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
 		}
 		return "", ctxerr.Wrap(ctx, err, "getting encrypted pending recovery lock password")
+	}
+
+	if len(encryptedPassword) == 0 {
+		return "", ctxerr.New(ctx, "encrypted pending recovery lock password is missing")
 	}
 
 	password, err := decrypt(encryptedPassword, ds.serverPrivateKey)

@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.BrickLink.Studio';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.BrickLink.Studio' AND version_compare(bundle_short_version, '2.26.8_1') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.BrickLink.Studio');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.BrickLink.Studio' AND a.bundle_executable != '');"
       },
       "installer_url": "https://studio.download.bricklink.info/Studio2.0/Archive/2.26.8_1/Studio+2.0.pkg",
       "install_script_ref": "59096fcd",

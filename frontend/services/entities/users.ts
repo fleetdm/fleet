@@ -1,9 +1,9 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
-import helpers from "utilities/helpers";
-import { buildQueryStringFromParams } from "utilities/url";
 
+import { IApiEndpointRef } from "interfaces/api_endpoint";
+import { IUserSettings } from "interfaces/config";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
+import { ITeamSummary, INewTeamUser } from "interfaces/team";
 import {
   ICreateUserFormData,
   IResetPasswordForm,
@@ -11,10 +11,10 @@ import {
   IUser,
   ICreateUserWithInvitationFormData,
 } from "interfaces/user";
-import { ITeamSummary, INewTeamUser } from "interfaces/team";
-import { IApiEndpointRef } from "interfaces/api_endpoint";
-import type { IRegistrationFormData } from "interfaces/registration_form_data";
-import { IUserSettings } from "interfaces/config";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
+import helpers from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export interface ISortOption {
   id: number;

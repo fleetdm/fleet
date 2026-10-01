@@ -1,8 +1,9 @@
 import React, { useCallback } from "react";
 
-import { IApiEndpointRef } from "interfaces/api_endpoint";
 import Radio from "components/forms/fields/Radio";
 import TooltipWrapper from "components/TooltipWrapper";
+import { IApiEndpointRef } from "interfaces/api_endpoint";
+
 import ApiEndpointSelectorTable from "../ApiEndpointSelectorTable";
 
 const baseClass = "api-access-section";
@@ -18,6 +19,7 @@ interface IApiAccessSectionProps {
   selectedEndpoints: IApiEndpointRef[];
   onEndpointSelectionChange: (endpoints: IApiEndpointRef[]) => void;
   error?: string | null;
+  disabled?: boolean;
 }
 
 const ApiAccessSection = ({
@@ -26,6 +28,7 @@ const ApiAccessSection = ({
   selectedEndpoints,
   onEndpointSelectionChange,
   error,
+  disabled,
 }: IApiAccessSectionProps) => {
   const handleAccessTypeChange = useCallback(
     (value: string) => {
@@ -46,6 +49,7 @@ const ApiAccessSection = ({
           value={ApiAccessType.AllEndpoints}
           name="api-access-type"
           onChange={handleAccessTypeChange}
+          disabled={disabled}
         />
         <Radio
           className={`${baseClass}__radio-input`}
@@ -55,6 +59,7 @@ const ApiAccessSection = ({
           value={ApiAccessType.SpecificEndpoints}
           name="api-access-type"
           onChange={handleAccessTypeChange}
+          disabled={disabled}
         />
       </div>
       {isSpecificEndpoints && (
@@ -69,6 +74,7 @@ const ApiAccessSection = ({
           <ApiEndpointSelectorTable
             selectedEndpoints={selectedEndpoints}
             onSelectionChange={onEndpointSelectionChange}
+            disabled={disabled}
           />
           {error && (
             <div className="form-field__label form-field__label--error">

@@ -2,23 +2,23 @@ import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { browserHistory, InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
 
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-import hqrAPI, { IGetHQRResponse } from "services/entities/host_query_report";
-import queryAPI from "services/entities/queries";
+import BackButton from "components/BackButton";
+import Button from "components/buttons/Button";
+import MainContent from "components/MainContent";
+import ShowQueryModal from "components/modals/ShowQueryModal";
+import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
 import {
   IGetQueryResponse,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import PATHS from "router/paths";
+import hqrAPI, { IGetHQRResponse } from "services/entities/host_query_report";
+import queryAPI from "services/entities/queries";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
-import Button from "components/buttons/Button";
-import BackButton from "components/BackButton";
-import MainContent from "components/MainContent";
-import ShowQueryModal from "components/modals/ShowQueryModal";
-import Spinner from "components/Spinner";
 import HQRTable from "./HQRTable";
 
 const baseClass = "host-query-report";

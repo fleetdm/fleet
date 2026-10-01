@@ -50,6 +50,22 @@ module.exports.custom = {
   **************************************************************************/
   rememberMeCookieMaxAge: 30*24*60*60*1000, // 30 days
 
+
+
+  /**************************************************************************
+  *                                                                         *
+  * SSO configuration                                                       *
+  *                                                                         *
+  **************************************************************************/
+  // ssoIssuer: '…', // « The issuer URL of your organization's SSO instance
+  // ssoClientId: '…', // « The client ID for the SSO application that has been created for app.
+  // ssoClientSecret: '…', //« The client secret for the SSO application that has been created for this app.
+  //--------------------------------------------------------------------------
+  // /\  Configure these to replace the built-in authentication with SSO.
+  // ||
+  //--------------------------------------------------------------------------
+
+
   /**************************************************************************
   *                                                                         *
   * Automated email configuration                                           *

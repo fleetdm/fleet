@@ -1,7 +1,8 @@
+import { trimEnd, upperFirst } from "lodash";
 import React from "react";
+
 import { getErrorReason } from "interfaces/errors";
 import { IHostSoftware, IVPPHostSoftware } from "interfaces/software";
-import { trimEnd, upperFirst } from "lodash";
 
 const INSTALL_SOFTWARE_ERROR_PREFIX = "Couldn't install.";
 const DEFAULT_INSTALL_ERROR_MESSAGE = `${INSTALL_SOFTWARE_ERROR_PREFIX} Please try again.`;

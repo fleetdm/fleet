@@ -59,13 +59,6 @@ export function InitCA(depotPath: string, params: scep$0.InitCAParams): $Cancell
 }
 
 /**
- * LanIP returns the host's primary LAN IPv4 for building SCEP URLs.
- */
-export function LanIP(): $CancellablePromise<string> {
-    return $Call.ByID(3752712981);
-}
-
-/**
  * ProfileDepotInfo reads a profile's resolved depot CA identity in one call.
  */
 export function ProfileDepotInfo(p: settings$0.ScepProfile): $CancellablePromise<scep$0.DepotInfo> {

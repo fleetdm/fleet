@@ -1,12 +1,12 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   ColumnType,
   IQueryTableColumn,
   TableSchemaPlatform,
 } from "interfaces/osquery_table";
-import TooltipWrapper from "components/TooltipWrapper";
 import { buildQueryStringFromParams } from "utilities/url";
 
 interface IColumnListItemProps {

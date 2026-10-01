@@ -115,7 +115,8 @@ func backfillScriptEditedFlags(tx *sql.Tx, increment incrementCountFn) error {
 			increment()
 			// a row changed after the hash map was generated may be carrying a script
 			// Fleet published later, which the map can't contain, so a miss proves
-			// nothing. Leave it at the default and let it follow the manifest.
+			// nothing. Setting the flag would make the cron keep this script instead
+			// of the manifest's on every later run, so it stays at the default.
 			if row.ChangedAfterHashMap {
 				continue
 			}

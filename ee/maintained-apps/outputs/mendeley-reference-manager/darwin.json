@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.elsevier.mendeley';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.elsevier.mendeley' AND version_compare(bundle_short_version, '2.149.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.elsevier.mendeley');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.elsevier.mendeley' AND a.bundle_executable != '');"
       },
       "installer_url": "https://static.mendeley.com/bin/desktop/mendeley-reference-manager-2.149.0-universal.dmg",
       "install_script_ref": "be90d0c1",

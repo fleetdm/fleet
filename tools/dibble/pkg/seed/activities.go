@@ -312,6 +312,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityCreatedCustomVariable{},
 		fleet.ActivityDeletedCustomVariable{},
 		fleet.ActivityEditedSetupExperienceSoftware{},
+		fleet.ActivityTypeEnabledAppleBusinessOnlyEnrollment{},
+		fleet.ActivityTypeDisabledAppleBusinessOnlyEnrollment{},
 	},
 	CategoryProfiles: {
 		fleet.ActivityTypeCreatedMacosProfile{},
@@ -333,6 +335,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeAddedBootstrapPackage{},
 		fleet.ActivityTypeDeletedBootstrapPackage{},
 		fleet.ActivityTypeFailedEnrollmentProfileRenewal{},
+		fleet.ActivityTypeInstalledOptInConfigurationProfile{},
+		fleet.ActivityTypeUninstalledOptInConfigurationProfile{},
 	},
 	CategoryScripts: {
 		fleet.ActivityTypeRanScript{},
@@ -383,6 +387,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeRotatedManagedLocalAccountPassword{},
 		fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{},
 		fleet.ActivityTypeHostBypassedConditionalAccess{},
+		fleet.ActivityTypeBoundHostToIdPAccount{},
+		fleet.ActivityTypeRefusedHostIdPAccountChange{},
 		fleet.ActivityTypeClearedPasscode{},
 		fleet.ActivityTypeEditedHostIdpData{},
 	},

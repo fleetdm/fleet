@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankinsoft.osx.mysql';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankinsoft.osx.mysql' AND version_compare(bundle_short_version, '2026.238') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.hankinsoft.osx.mysql');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.hankinsoft.osx.mysql' AND a.bundle_executable != '');"
       },
       "installer_url": "https://d3fwkemdw8spx3.cloudfront.net/mysql/SQLProMySQL.2026.238.app.zip",
       "install_script_ref": "335ab740",

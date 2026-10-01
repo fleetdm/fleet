@@ -1,16 +1,15 @@
 import React, { useState } from "react";
-import useDeepEffect from "hooks/useDeepEffect";
 
-import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 import Button from "components/buttons/Button";
-
-import { IQuery } from "interfaces/query";
-import { IScheduledQuery } from "interfaces/scheduled_query";
-import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
 import PackQueriesTable from "components/queries/PackQueriesTable";
+import useDeepEffect from "hooks/useDeepEffect";
+import { IQuery } from "interfaces/query";
+import { IScheduledQuery } from "interfaces/scheduled_query";
+import { ITarget, ITargetsAPIResponse } from "interfaces/target";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 const baseClass = "edit-pack-form";
 

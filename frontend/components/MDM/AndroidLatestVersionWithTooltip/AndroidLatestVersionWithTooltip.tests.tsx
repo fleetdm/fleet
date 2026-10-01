@@ -1,5 +1,6 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
+
 import { renderWithSetup } from "test/test-utils";
 import { ANDROID_PLAY_STORE_URL } from "utilities/constants";
 

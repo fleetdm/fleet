@@ -62,7 +62,7 @@ export function ScepTab({
 
   useEffect(() => {
     api.scepBinaryStatus().then(setBinary).catch(() => setBinary(null));
-    api.scepLanIp().then(setLanIp).catch(() => setLanIp(""));
+    api.lanIp().then(setLanIp).catch(() => setLanIp(""));
   }, []);
 
   const depotSig = useMemo(() => profiles.map((p) => `${p.id}:${p.depot_path}`).join("|"), [profiles]);

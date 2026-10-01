@@ -1,17 +1,18 @@
 import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
+
+import CustomLink from "components/CustomLink";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import CustomLink from "components/CustomLink";
 import { SUPPORT_LINK } from "utilities/constants";
 
-import EndUserOSRequirementPreview from "../EndUserOSRequirementPreview";
-import WindowsTargetForm from "../WindowsTargetForm";
 import {
   OSUpdatesSupportedPlatform,
   OSUpdatesTargetPlatform,
 } from "../../OSUpdates";
 import AppleOSTargetForm from "../AppleOSTargetForm";
+import EndUserOSRequirementPreview from "../EndUserOSRequirementPreview";
+import WindowsTargetForm from "../WindowsTargetForm";
 
 const baseClass = "platform-tabs";
 

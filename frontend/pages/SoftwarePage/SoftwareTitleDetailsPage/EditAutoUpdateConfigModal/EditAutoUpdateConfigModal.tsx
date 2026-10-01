@@ -1,23 +1,19 @@
-import React, { useState } from "react";
 import classnames from "classnames";
-import { ISoftwareTitleDetails, IAppStoreApp } from "interfaces/software";
-import { ILabelSummary } from "interfaces/label";
-
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 
-import useGitOpsMode from "hooks/useGitOpsMode";
-
-import softwareAPI from "services/entities/software";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
-
-import { notify } from "components/ToastNotification";
+import Button from "components/buttons/Button";
 import Card from "components/Card";
+import Checkbox from "components/forms/fields/Checkbox";
+import InputField from "components/forms/fields/InputField";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
-import Checkbox from "components/forms/fields/Checkbox";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
+import { notify } from "components/ToastNotification";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { ILabelSummary } from "interfaces/label";
+import { ISoftwareTitleDetails, IAppStoreApp } from "interfaces/software";
 import {
   CUSTOM_TARGET_OPTIONS,
   generateSelectedLabels,
@@ -26,10 +22,8 @@ import {
   generateHelpText,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
-
-import InputField from "components/forms/fields/InputField";
-import Button from "components/buttons/Button";
-
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import {
@@ -195,7 +189,7 @@ const EditAutoUpdateConfigModal = ({
     (formValidation.windowLength?.message ? "Latest start time" : undefined);
 
   const updateWindowLabel = formValidation.windowLength?.message || (
-    <>Update window (host&rsquo;s local time)</>
+    <>Update window (host local time)</>
   );
   const updateWindowLabelClass = classnames("form-field__label", {
     "form-field__label--error": !!formValidation.windowLength?.message,
@@ -205,7 +199,7 @@ const EditAutoUpdateConfigModal = ({
     <Modal className={baseClass} title="Schedule auto updates" onExit={onExit}>
       <div className={formClassNames}>
         <div className={`${formClass}__form-frame`}>
-          <Card paddingSize="medium" borderRadiusSize="medium">
+          <Card paddingSize="medium">
             <div className={`${formClass}__auto-update-config`}>
               <div className={`form-field`}>
                 <div className="form-field__label">Auto updates</div>
@@ -273,7 +267,7 @@ const EditAutoUpdateConfigModal = ({
               )}
             </div>
           </Card>
-          <Card paddingSize="medium" borderRadiusSize="medium">
+          <Card paddingSize="medium">
             <DropdownTargetLabelSelector
               selectedTargetType={formData.targetType}
               selectedCustomTarget={formData.customTarget}

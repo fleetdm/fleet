@@ -1,10 +1,9 @@
 import React from "react";
 
-import { IPolicy } from "interfaces/policy";
-
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
+import { IPolicy } from "interfaces/policy";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "patch-automation-cta";

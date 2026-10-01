@@ -1,0 +1,1 @@
+- Fixed Orbit so a downloaded software installer is always saved using only the base of the server-supplied filename.

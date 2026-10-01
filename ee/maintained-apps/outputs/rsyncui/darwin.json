@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.0.3",
+      "version": "3.0.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'no.blogspot.RsyncUI';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'no.blogspot.RsyncUI' AND version_compare(bundle_short_version, '3.0.3') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'no.blogspot.RsyncUI');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'no.blogspot.RsyncUI' AND version_compare(bundle_short_version, '3.0.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'no.blogspot.RsyncUI' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/rsyncOSX/RsyncUI/releases/download/v3.0.3/RsyncUI.3.0.3.dmg",
+      "installer_url": "https://github.com/rsyncOSX/RsyncUI/releases/download/v3.0.5/RsyncUI.3.0.5.dmg",
       "install_script_ref": "1130510a",
       "uninstall_script_ref": "71459de0",
-      "sha256": "4269916fb8603bc7b3c399debdc81e1805747a930c18287d9944d32eb2ce2598",
+      "sha256": "7f665eab2d90b07f1cf2f64aa7dea892c22849f59815a92853d2b9098708b06d",
       "default_categories": [
         "Productivity"
       ]

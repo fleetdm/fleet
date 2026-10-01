@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
+	"encoding/json/v2"
 	"encoding/pem"
 	"log/slog"
 	"net/http"
@@ -19,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-json-experiment/json"
 	"software.sslmate.com/src/go-pkcs12"
 )
 

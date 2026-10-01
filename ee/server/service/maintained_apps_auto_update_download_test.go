@@ -39,6 +39,7 @@ type fakeManifestServer struct {
 	install       string // install script ref body (default "echo install")
 	uninstall     string // uninstall script ref body (default "echo uninstall")
 	upgradeCode   string // manifest upgrade_code (default empty)
+	open          string // manifest open query (default empty)
 	installerPath string // path the installer is served from (default "/installer.pkg")
 	manifestHits  int
 	installerHits int
@@ -67,7 +68,7 @@ func newFakeManifestServerWithInstaller(t *testing.T, installerPath string) *fak
 				UpgradeCode:        f.upgradeCode,
 				InstallScriptRef:   "i",
 				UninstallScriptRef: "u",
-				Queries:            ma.FMAQueries{Exists: "SELECT 1", Patched: "SELECT 2"},
+				Queries:            ma.FMAQueries{Exists: "SELECT 1", Patched: "SELECT 2", Open: f.open},
 				DefaultCategories:  []string{"Browsers"},
 			}},
 			Refs: map[string]string{"i": f.install, "u": f.uninstall},
@@ -139,8 +140,8 @@ func baseDownloadStoreWithEditedScripts(t *testing.T, activeVersion string, acti
 		return false, "", nil
 	}
 	// No recoverable metadata by default (byte-dedup path).
-	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) ([]string, string, error) {
-		return nil, "", nil
+	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) (fleet.CachedInstallerMetadata, error) {
+		return fleet.CachedInstallerMetadata{}, nil
 	}
 	// After the insert, the new version is the newest cached one.
 	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
@@ -157,7 +158,7 @@ func baseDownloadStoreWithEditedScripts(t *testing.T, activeVersion string, acti
 	// By default the active installer has no custom scripts to carry forward, so the
 	// cron keeps the manifest scripts. nil signals "nothing to preserve". Tests that
 	// exercise custom-script carry-forward override this.
-	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 		return nil, nil
 	}
 	return ds
@@ -289,6 +290,54 @@ func TestAutoUpdateNoCheckHashMarksCachedVersionCurrent(t *testing.T) {
 	require.Equal(t, uint(7), activatedInstallerID)
 }
 
+func TestAutoUpdateNoCheckHashCachedVersionWithChangedOpenQueryRefreshesTheInstaller(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	downloadedHash := srv.sha
+	srv.sha = noCheckHash
+	srv.open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'new');"
+	ds := baseDownloadStore(t, testFMALatest, 9)
+	// Cache the manifest's version under the bytes the download returns, with an older open query on the active installer.
+	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+		return true, downloadedHash, nil
+	}
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 9, Version: testFMALatest}}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID:     9,
+			Version:         testFMALatest,
+			InstallScript:   srv.install,
+			UninstallScript: srv.uninstall,
+			PatchQuery:      "SELECT 2",
+			AppOpenQuery:    "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'old');",
+			Extension:       "pkg",
+		}, nil
+	}
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		t.Fatal("must not insert a version that is already cached")
+		return 0, nil
+	}
+	var gotInstallerID uint
+	var gotVersion string
+	var gotAppOpenQuery string
+	ds.UpdateInstallerScriptsAndQueriesFunc = func(ctx context.Context, installerID uint, version string, installScript string, uninstallScript string, patchQuery string, appOpenQuery string) error {
+		gotInstallerID = installerID
+		gotVersion = version
+		gotAppOpenQuery = appOpenQuery
+		return nil
+	}
+
+	// Run the cron, the active installer should get the manifest's new open query.
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	require.Equal(t, 1, srv.installerHits)
+	require.True(t, ds.UpdateInstallerScriptsAndQueriesFuncInvoked)
+	require.Equal(t, uint(9), gotInstallerID)
+	require.Equal(t, testFMALatest, gotVersion)
+	require.Equal(t, srv.open, gotAppOpenQuery)
+	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
+}
+
 func TestAutoUpdateCaretMajorExceededSkipsDownload(t *testing.T) {
 	srv := newFakeManifestServer(t)
 	ds := baseDownloadStore(t, "147.0.5", 8)
@@ -328,8 +377,8 @@ func TestAutoUpdateFetchesManifestOncePerSlug(t *testing.T) {
 	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
 		return false, "", nil
 	}
-	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) ([]string, string, error) {
-		return nil, "", nil
+	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) (fleet.CachedInstallerMetadata, error) {
+		return fleet.CachedInstallerMetadata{}, nil
 	}
 	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 		return 13, nil
@@ -344,7 +393,7 @@ func TestAutoUpdateFetchesManifestOncePerSlug(t *testing.T) {
 	ds.MarkFleetMaintainedAppVersionCurrentFunc = func(ctx context.Context, installerID uint) error {
 		return nil
 	}
-	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 		return nil, nil
 	}
 
@@ -380,8 +429,8 @@ func TestAutoUpdateSubstitutesUninstallScript(t *testing.T) {
 	srv := newFakeManifestServer(t)
 	srv.uninstall = "msiexec /x $PACKAGE_ID /qn"
 	ds := baseDownloadStore(t, "149.0.0", 9)
-	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) ([]string, string, error) {
-		return []string{"ABC"}, "", nil
+	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) (fleet.CachedInstallerMetadata, error) {
+		return fleet.CachedInstallerMetadata{PackageIDs: []string{"ABC"}, Filename: "cached-installer.msi", Extension: "msi"}, nil
 	}
 	var gotPayload *fleet.UploadSoftwareInstallerPayload
 	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
@@ -394,6 +443,9 @@ func TestAutoUpdateSubstitutesUninstallScript(t *testing.T) {
 	require.NotNil(t, gotPayload)
 	require.NotContains(t, gotPayload.UninstallScript, "$PACKAGE_ID", "placeholder must be substituted")
 	require.Contains(t, gotPayload.UninstallScript, "ABC")
+	// The file was never downloaded, so these come off the same-content row.
+	require.Equal(t, "cached-installer.msi", gotPayload.Filename)
+	require.Equal(t, "msi", gotPayload.Extension)
 }
 
 // [6] A caret pin with a "latest" manifest must not early-return before the real
@@ -436,7 +488,7 @@ func TestAutoUpdateUnsubstitutedUninstallSkipsInsert(t *testing.T) {
 func TestAutoUpdatePreservesEditedScripts(t *testing.T) {
 	newFakeManifestServer(t)
 	ds := baseDownloadStoreWithEditedScripts(t, "149.0.0", 9, true, true)
-	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 		return &fleet.SoftwareInstaller{
 			InstallScript:         "echo CUSTOM install",
 			UninstallScript:       "echo CUSTOM uninstall",
@@ -464,7 +516,7 @@ func TestAutoUpdateAdoptsManifestScriptsWhenNotEdited(t *testing.T) {
 	ds := baseDownloadStore(t, "149.0.0", 9)
 	// The active installer is always read, but neither flag is set on it, so its
 	// scripts lose to the manifest.
-	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 		return &fleet.SoftwareInstaller{
 			InstallScript:   "echo STALE install",
 			UninstallScript: "echo STALE uninstall",
@@ -489,7 +541,7 @@ func TestAutoUpdatePicksUpEditsMadeDuringDownload(t *testing.T) {
 	// The candidate says unedited and the active installer says otherwise, which is an
 	// admin editing the script while the installer downloaded.
 	ds := baseDownloadStore(t, "149.0.0", 9)
-	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 		return &fleet.SoftwareInstaller{
 			InstallScript:       "echo JUST EDITED",
 			UninstallScript:     "echo uninstall",

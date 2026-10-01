@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "16.0.0",
+      "version": "16.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Graphviz' AND publisher = 'Graphviz';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Graphviz' AND publisher = 'Graphviz' AND version_compare(version, '16.0.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Graphviz' AND publisher = 'Graphviz' AND version_compare(version, '16.1.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'graphviz.exe');"
       },
-      "installer_url": "https://gitlab.com/api/v4/projects/4207231/packages/generic/graphviz-releases/16.0.0/windows_10_cmake_Release_graphviz-install-16.0.0-win64.exe",
+      "installer_url": "https://gitlab.com/api/v4/projects/4207231/packages/generic/graphviz-releases/16.1.0/windows_10_cmake_Release_graphviz-install-16.1.0-win64.exe",
       "install_script_ref": "8456d4ce",
       "uninstall_script_ref": "f6831952",
-      "sha256": "f76ee29cd7a21040dc147f4ba7642dc1ff6202486b313866da46668bd2576f6d",
+      "sha256": "46f3b8b412a79915cf8e08bdce6542401bd9efca98ce282f3c5c5b56211e1761",
       "default_categories": [
         "Developer tools"
       ]

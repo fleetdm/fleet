@@ -78,7 +78,7 @@ func DownloadEPSSFeed(vulnPath string) error {
 	}
 	path := filepath.Join(vulnPath, strings.TrimSuffix(epssFilename, ".gz"))
 
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	err = download.DownloadAndExtract(client, u, path)
 	if err != nil {
 		return fmt.Errorf("download %s: %w", u, err)
@@ -179,7 +179,7 @@ func DownloadCISAKnownExploitsFeed(vulnPath string, cisaKnownExploitsURL string)
 		return err
 	}
 
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	err = download.Download(client, u, path)
 	if err != nil {
 		return fmt.Errorf("download cisa known exploits: %w", err)

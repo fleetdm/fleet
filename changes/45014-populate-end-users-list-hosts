@@ -1,0 +1,1 @@
+- Added a `populate_end_users` query parameter to the "List hosts" API endpoint, which includes each host's end users, with their identity provider (IdP) details and other emails, in the response.

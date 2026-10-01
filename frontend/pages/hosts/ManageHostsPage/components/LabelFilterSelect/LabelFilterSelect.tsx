@@ -1,3 +1,4 @@
+import classnames from "classnames";
 import React, { useMemo, useRef, useState } from "react";
 import Select, {
   GroupBase,
@@ -5,8 +6,10 @@ import Select, {
   components,
   MenuProps,
 } from "react-select-5";
-import classnames from "classnames";
 
+import Icon from "components/Icon";
+import Spinner from "components/Spinner";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { ILabel } from "interfaces/label";
 import {
   hasPlatformTypeIcon,
@@ -14,12 +17,11 @@ import {
   PLATFORM_LABEL_DISPLAY_NAMES,
   PLATFORM_TYPE_ICONS,
 } from "utilities/constants";
-import Icon from "components/Icon";
-import Spinner from "components/Spinner";
 
-import CustomLabelGroupHeading from "../CustomLabelGroupHeading";
-import { createDropdownOptions, IEmptyOption, IGroupOption } from "./helpers";
 import CustomDropdownIndicator from "../CustomDropdownIndicator";
+import CustomLabelGroupHeading from "../CustomLabelGroupHeading";
+
+import { createDropdownOptions, IEmptyOption, IGroupOption } from "./helpers";
 
 // Extending the react-select module to add custom props we need for our custom
 // group heading. More info here:
@@ -67,7 +69,11 @@ const formatOptionLabel = (data: ILabel | IEmptyOption) => {
           className="option-icon"
         />
       )}
-      <span>{displayText}</span>
+      <TooltipTruncatedText
+        className="option-label__text"
+        value={displayText}
+        fixedPositionStrategy
+      />
     </div>
   );
 };

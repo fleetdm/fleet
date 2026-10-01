@@ -1,17 +1,15 @@
 import React, { useState } from "react";
 
-import { IWebhookActivities } from "interfaces/webhook";
-
-import Modal from "components/Modal";
-import validURL from "components/forms/validators/valid_url";
-import Slider from "components/forms/fields/Slider";
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
-
-import useGitOpsMode from "hooks/useGitOpsMode";
-import { syntaxHighlight } from "utilities/helpers";
 import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import Slider from "components/forms/fields/Slider";
+import validURL from "components/forms/validators/valid_url";
+import Modal from "components/Modal";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IWebhookActivities } from "interfaces/webhook";
+import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "activity-feed-automations-modal";
 

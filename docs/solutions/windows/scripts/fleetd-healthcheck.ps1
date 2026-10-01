@@ -197,6 +197,16 @@ if ($SvcCim -and $SvcCim.PathName) {
   Fail "Could not read service ImagePath/arguments"
   $OverallExit = 1
 }
+# fleetd is configured through the service's per-service Environment (REG_MULTI_SZ) value
+$SvcEnv = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\Fleet osquery' -Name Environment -ErrorAction SilentlyContinue).Environment
+if ($SvcEnv) {
+  Log "    Environment:"
+  foreach ($Entry in $SvcEnv) {
+    Log ("      " + ($Entry -replace '(?i)^(ORBIT_(?!\w*_PATH=)\w*(?:SECRET|PASSWORD|TOKEN|KEY)\w*=).*', '$1<redacted>'))
+  }
+} else {
+  Info "No per-service Environment value (legacy install configured via ImagePath arguments)"
+}
 
 # ==============================================================================
 # 5. ORBIT VERSION

@@ -411,52 +411,51 @@ func (ds *Datastore) NewQuery(
 		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 
-	result, err := ds.writer(ctx).ExecContext(
-		ctx,
-		queryStatement,
-		query.Name,
-		query.Description,
-		query.Query,
-		query.Saved,
-		query.AuthorID,
-		query.ObserverCanRun,
-		query.TeamID,
-		query.TeamIDStr(),
-		query.Platform,
-		query.MinOsqueryVersion,
-		query.Interval,
-		query.AutomationsEnabled,
-		query.Logging,
-		query.DiscardData,
-		query.CreatedAt,
-		query.UpdatedAt,
-	)
-
-	if err != nil && IsDuplicate(err) {
-		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", query.Name))
-	} else if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating new Query")
-	}
-
-	id, _ := result.LastInsertId()
-	query.ID = uint(id) //nolint:gosec // dismiss G115
-	query.Packs = []fleet.Pack{}
-
-	if err := ds.updateQueryLabels(ctx, query); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "saving labels for query")
-	}
-
-	return query, nil
-}
-
-func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) error {
+	// Insert the query and its labels in a single transaction. A scheduled
+	// query with no query_labels rows targets every host, so committing the
+	// query row before its labels would briefly expose a label-scoped query
+	// to all hosts polling for their config.
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return ds.updateQueryLabelsInTx(ctx, []*fleet.Query{query}, tx)
+		result, err := tx.ExecContext(
+			ctx,
+			queryStatement,
+			query.Name,
+			query.Description,
+			query.Query,
+			query.Saved,
+			query.AuthorID,
+			query.ObserverCanRun,
+			query.TeamID,
+			query.TeamIDStr(),
+			query.Platform,
+			query.MinOsqueryVersion,
+			query.Interval,
+			query.AutomationsEnabled,
+			query.Logging,
+			query.DiscardData,
+			query.CreatedAt,
+			query.UpdatedAt,
+		)
+		if err != nil && IsDuplicate(err) {
+			return ctxerr.Wrap(ctx, alreadyExists("Query", query.Name))
+		} else if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating new Query")
+		}
+
+		id, _ := result.LastInsertId()
+		query.ID = uint(id) //nolint:gosec // dismiss G115
+
+		if err := ds.updateQueryLabelsInTx(ctx, []*fleet.Query{query}, tx); err != nil {
+			return ctxerr.Wrap(ctx, err, "saving labels for query")
+		}
+		return nil
 	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating query labels")
+		return nil, err
 	}
-	return nil
+	query.Packs = []fleet.Pack{}
+
+	return query, nil
 }
 
 // updateQueryLabelsInTx replaces the LabelsIncludeAny and LabelsIncludeAll
@@ -599,33 +598,45 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 			discard_data		= ?
 		WHERE id = ?
 	`
-	result, err := ds.writer(ctx).ExecContext(
-		ctx,
-		updateSQL,
-		q.Name,
-		q.Description,
-		q.Query,
-		q.AuthorID,
-		q.Saved,
-		q.ObserverCanRun,
-		q.TeamID,
-		q.TeamIDStr(),
-		q.Platform,
-		q.MinOsqueryVersion,
-		q.Interval,
-		q.AutomationsEnabled,
-		q.Logging,
-		q.DiscardData,
-		q.ID)
+	// Update the query and its labels in a single transaction so a
+	// label-scoped query is never observable without its labels (see NewQuery).
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		result, err := tx.ExecContext(
+			ctx,
+			updateSQL,
+			q.Name,
+			q.Description,
+			q.Query,
+			q.AuthorID,
+			q.Saved,
+			q.ObserverCanRun,
+			q.TeamID,
+			q.TeamIDStr(),
+			q.Platform,
+			q.MinOsqueryVersion,
+			q.Interval,
+			q.AutomationsEnabled,
+			q.Logging,
+			q.DiscardData,
+			q.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating query")
+		}
+		rows, err := result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rows affected updating query")
+		}
+		if rows == 0 {
+			return ctxerr.Wrap(ctx, notFound("Report").WithID(q.ID))
+		}
+
+		if err := ds.updateQueryLabelsInTx(ctx, []*fleet.Query{q}, tx); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating query labels")
+		}
+		return nil
+	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating query")
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "rows affected updating query")
-	}
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("Report").WithID(q.ID))
+		return err
 	}
 
 	if shouldDeleteStats {
@@ -641,10 +652,6 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		if err := ds.deleteQueryResults(ctx, q.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting query_results")
 		}
-	}
-
-	if err := ds.updateQueryLabels(ctx, q); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating query labels")
 	}
 
 	return nil
@@ -1041,6 +1048,36 @@ func loadLabelsForQueries(ctx context.Context, db sqlx.QueryerContext, queries [
 	}
 
 	return nil
+}
+
+// LabelScopedScheduledQueryScopes returns which report scopes contain saved,
+// scheduled queries with label scoping (query_labels rows). The join
+// deliberately mirrors only the broad shape of ListScheduledQueriesForAgents
+// (saved + scheduled): for the config ETag mode selection that consumes
+// this, over-matching is the safe direction (a scope needlessly in per-host
+// mode only costs optimization), so the narrower automations/logging filters
+// are intentionally omitted.
+func (ds *Datastore) LabelScopedScheduledQueryScopes(ctx context.Context) (fleet.ConfigETagLabelScopes, error) {
+	stmt := `
+		SELECT DISTINCT q.team_id
+		FROM query_labels ql
+		JOIN queries q ON q.id = ql.query_id
+		WHERE q.saved AND q.schedule_interval > 0
+	`
+	var teamIDs []sql.NullInt64
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs, stmt); err != nil {
+		return fleet.ConfigETagLabelScopes{}, ctxerr.Wrap(ctx, err, "listing label scoped scheduled query scopes")
+	}
+
+	var scopes fleet.ConfigETagLabelScopes
+	for _, teamID := range teamIDs {
+		if !teamID.Valid {
+			scopes.Global = true
+		} else {
+			scopes.TeamIDs = append(scopes.TeamIDs, uint(teamID.Int64)) //nolint:gosec // team IDs are small positive ints
+		}
+	}
+	return scopes, nil
 }
 
 func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {

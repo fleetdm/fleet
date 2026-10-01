@@ -1,6 +1,7 @@
-import React from "react";
-import { COLORS, Colors } from "styles/var/colors";
 import { uniqueId } from "lodash";
+import React from "react";
+
+import { COLORS, Colors } from "styles/var/colors";
 
 interface ICheckboxProps {
   color?: Colors;

@@ -1,12 +1,13 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+
+import { HostStatus } from "interfaces/host";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
   MdmProfileStatus,
 } from "interfaces/mdm";
-import { HostStatus } from "interfaces/host";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import {
   buildQueryStringFromParams,
   getLabelParam,

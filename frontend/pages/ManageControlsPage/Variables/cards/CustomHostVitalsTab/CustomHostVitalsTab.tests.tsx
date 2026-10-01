@@ -1,13 +1,13 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
+import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
   createMockRouter,
   baseUrl,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
 
 import CustomHostVitalsTab, {
   CUSTOM_HOST_VITALS_PAGE_SIZE,

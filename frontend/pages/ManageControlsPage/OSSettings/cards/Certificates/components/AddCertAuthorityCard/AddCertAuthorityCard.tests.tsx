@@ -1,8 +1,8 @@
+import { screen } from "@testing-library/react";
 import React from "react";
 
-import { screen } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import PATHS from "router/paths";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import AddCertAuthorityCard from "./AddCertAuthorityCard";
 

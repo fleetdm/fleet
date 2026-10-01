@@ -6,10 +6,8 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/certserial"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/devicesso"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -22,23 +20,6 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/go-kit/kit/endpoint"
 )
-
-// extractCertSerialFromHeader extracts certificate serial from X-Client-Cert-Serial
-// header (set by load balancer during mTLS) for iOS/iPadOS device authentication.
-func extractCertSerialFromHeader(ctx context.Context, r *http.Request) context.Context {
-	serialStr := r.Header.Get("X-Client-Cert-Serial")
-	if serialStr == "" {
-		return ctx
-	}
-
-	serial, err := strconv.ParseUint(serialStr, 10, 64)
-	if err != nil {
-		// Force cert auth on parse error instead of falling back to token auth.
-		return certserial.NewContext(ctx, 0)
-	}
-
-	return certserial.NewContext(ctx, serial)
-}
 
 // extractDeviceSSOSessionFromCookie stashes the Fleet Desktop device SSO session
 // ID in the context.
@@ -87,21 +68,15 @@ func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.E
 		var debug bool
 		var authnMethod authz_ctx.AuthenticationMethod
 
-		if certSerial, ok := certserial.FromContext(ctx); ok {
-			// Header presence signals cert auth intent, even if serial is invalid.
-			host, debug, err = svc.AuthenticateDeviceByCertificate(ctx, certSerial, identifier)
-			authnMethod = authz_ctx.AuthnDeviceCertificate
+		// Try token auth first (hot path for Fleet Desktop).
+		host, debug, err = svc.AuthenticateDevice(ctx, identifier)
+		if err == nil {
+			authnMethod = authz_ctx.AuthnDeviceToken
 		} else {
-			// Try token auth first (hot path for Fleet Desktop).
-			host, debug, err = svc.AuthenticateDevice(ctx, identifier)
-			if err == nil {
-				authnMethod = authz_ctx.AuthnDeviceToken
-			} else {
-				// Fallback to UUID auth for iOS/iPadOS self-service via URL.
-				// The identifier (from {token}) is treated as the device UUID.
-				host, debug, err = svc.AuthenticateIDeviceByURL(ctx, identifier)
-				authnMethod = authz_ctx.AuthnDeviceURL
-			}
+			// Fallback to UUID auth for iOS/iPadOS self-service via URL.
+			// The identifier (from {token}) is treated as the device UUID.
+			host, debug, err = svc.AuthenticateIDeviceByURL(ctx, identifier)
+			authnMethod = authz_ctx.AuthnDeviceURL
 		}
 
 		if err != nil {
@@ -137,9 +112,30 @@ func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.E
 	return middleware_log.Logged(authDeviceFunc)
 }
 
+// DeviceAuthMiddleware authenticates a device token for endpoints owned by a
+// bounded context. Those contexts can't read the host that authenticatedDevice
+// leaves in hostctx, since it's a *fleet.Host, so the endpoint passed below
+// sits between the two: it takes the host's ID and hands it to onHost, which
+// stores it however the context wants. That keeps this signature free of any
+// bounded context's types, and their contexts free of fleet ones.
+func DeviceAuthMiddleware(
+	svc fleet.Service,
+	logger *slog.Logger,
+	onHost func(ctx context.Context, hostID uint) context.Context,
+) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return authenticatedDevice(svc, logger, func(ctx context.Context, request any) (any, error) {
+			if host, ok := hostctx.FromContext(ctx); ok {
+				ctx = onHost(ctx, host.ID)
+			}
+			return next(ctx, request)
+		})
+	}
+}
+
 // requireDeviceSSOSession enforces the Fleet Desktop SSO gate. It runs after
-// authenticatedDevice, so it applies however the host was identified: token,
-// client certificate or device UUID in the URL.
+// authenticatedDevice, so it applies however the host was identified: token or
+// device UUID in the URL.
 //
 // Rejections count toward the device routes' error limiter like any other
 // failure. A browser only sees one before it starts the SSO flow, so sustained
@@ -165,6 +161,13 @@ func requireDeviceSSOSession(svc fleet.Service) endpoint.Middleware {
 func getDeviceAuthToken(r interface{}) (string, error) {
 	if dat, ok := r.(interface{ deviceAuthToken() string }); ok {
 		return dat.deviceAuthToken(), nil
+	}
+	// Go qualifies an unexported method name by the package declaring the
+	// interface, so a request type from another package can't satisfy the
+	// assertion above no matter how it spells the method. Bounded contexts
+	// define their own request types, so they implement the exported name.
+	if dat, ok := r.(interface{ DeviceAuthToken() string }); ok {
+		return dat.DeviceAuthToken(), nil
 	}
 	return "", fleet.NewAuthRequiredError("request type does not implement deviceAuthToken method. This is likely a Fleet programmer error.")
 }

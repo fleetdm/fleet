@@ -1,0 +1,1 @@
+- Improved logging and error handling on SCEP endpoints so clients always get a properly formatted response

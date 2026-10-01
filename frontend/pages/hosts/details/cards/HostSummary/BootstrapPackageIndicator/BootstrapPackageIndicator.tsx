@@ -1,10 +1,9 @@
 import React from "react";
 
-import { BootstrapPackageStatus } from "interfaces/mdm";
-
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
+import { BootstrapPackageStatus } from "interfaces/mdm";
 
 const baseClass = "bootstrap-package-indicator";
 

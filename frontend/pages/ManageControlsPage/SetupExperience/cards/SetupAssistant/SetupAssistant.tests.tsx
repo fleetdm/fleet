@@ -1,16 +1,16 @@
-import React from "react";
-import { http, HttpResponse } from "msw";
 import { screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import React from "react";
 
+import { createMockMdmConfig } from "__mocks__/configMock";
+import { createGetConfigHandler } from "test/handlers/config-handlers";
+import { createGetTeamHandler } from "test/handlers/team-handlers";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   createMockRouter,
 } from "test/test-utils";
-import { createGetConfigHandler } from "test/handlers/config-handlers";
-import { createGetTeamHandler } from "test/handlers/team-handlers";
-import { createMockMdmConfig } from "__mocks__/configMock";
 
 import SetupAssistant from "./SetupAssistant";
 

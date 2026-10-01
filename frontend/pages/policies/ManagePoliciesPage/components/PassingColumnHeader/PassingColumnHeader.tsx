@@ -1,6 +1,7 @@
+import React from "react";
+
 import POLICY_STATUS_TO_INDICATOR_PARAMS from "components/policies/helpers";
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
-import React from "react";
 
 interface IPassingColumnHeaderProps {
   isPassing: boolean;

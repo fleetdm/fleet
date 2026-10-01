@@ -22,6 +22,28 @@ func (m *model) HandleStateChange(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.workflowState = NormalMode
 		m.applyFilter()         // Initialize filter state
 		m.adjustViewForCursor() // Ensure view is properly initialized
+		// Headless run: select every issue and/or kick off a workflow immediately
+		// (e.g. `gm project apple -aw demo`) instead of waiting for keyboard input.
+		if m.autoSelectAll {
+			m.selected = make(map[int]struct{})
+			for i := range m.choices {
+				m.selected[i] = struct{}{}
+			}
+			m.selectedCount = len(m.selected)
+		}
+		if m.autoWorkflow != "" {
+			wt, ok := resolveWorkflow(m.autoWorkflow)
+			if !ok {
+				m.errorMessage = fmt.Sprintf("unknown workflow %q for --workflow", m.autoWorkflow)
+				return m, nil
+			}
+			if len(m.selected) == 0 {
+				m.errorMessage = "no issues selected for --workflow (pass --all-issues or select issues)"
+				return m, nil
+			}
+			m.workflowType = wt
+			return m, m.executeWorkflow()
+		}
 		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -108,30 +130,25 @@ func (m *model) HandleStateChange(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Update overall progress
 			completedTasks := 0
+			failedTasks := 0
 			for _, task := range m.tasks {
-				if task.Status == TaskSuccess {
+				switch task.Status {
+				case TaskSuccess:
 					completedTasks++
+				case TaskError:
+					failedTasks++
 				}
 			}
-			overallPercent := float64(completedTasks) / float64(len(m.tasks))
+			// Failed tasks are finished too; the summary reports them separately.
+			overallPercent := float64(completedTasks+failedTasks) / float64(len(m.tasks))
 			cmds = append(cmds, m.overallProgress.SetPercent(overallPercent))
-
-			// Check if we have an error
-			if msg.status.State == "error" {
-				m.workflowState = WorkflowComplete
-				m.errorMessage = fmt.Sprintf("Task %d failed", msg.status.Index)
-				// Channel will be closed by AsyncManager
-				m.statusChan = nil
-			} else if completedTasks == len(m.tasks) {
-				// All tasks completed successfully
-				m.workflowState = WorkflowComplete
-				// Channel will be closed by AsyncManager
-				m.statusChan = nil
-			} else {
-				// Continue listening for more status updates
-				cmds = append(cmds, m.listenForAsyncStatus())
+			if failedTasks > 0 {
+				m.errorMessage = fmt.Sprintf("%d task(s) failed, see dgm.log for details", failedTasks)
 			}
 		}
+		// Keep draining the channel until AsyncManager closes it: it keeps going after a failed
+		// action, and stopping here would leave it blocked on its next send.
+		cmds = append(cmds, m.listenForAsyncStatus())
 	case taskUpdateMsg:
 		if msg.taskID < len(m.tasks) {
 			m.tasks[msg.taskID].Progress = msg.progress

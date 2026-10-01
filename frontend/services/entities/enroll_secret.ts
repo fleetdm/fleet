@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import specAPI from "services/entities/spec";
-import teamsAPI from "services/entities/teams";
 
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import specAPI from "services/entities/spec";
+import teamsAPI from "services/entities/teams";
 
 export default {
   getGlobalEnrollSecrets: () => {

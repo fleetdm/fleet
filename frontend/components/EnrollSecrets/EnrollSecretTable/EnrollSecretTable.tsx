@@ -1,6 +1,7 @@
 import React from "react";
 
 import { IEnrollSecret } from "interfaces/enroll_secret";
+
 import EnrollSecretRow from "./EnrollSecretRow";
 
 const baseClass = "enroll-secrets";
