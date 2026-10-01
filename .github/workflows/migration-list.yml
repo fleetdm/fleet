@@ -29,7 +29,7 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          ./tools/migration-list/migration-list.sh -b "origin/$BASE_REF" > migration_list.txt
+          ./tools/migration-list/migration-list.sh -b "origin/$BASE_REF" > migration_list.txt 2>&1
           cat migration_list.txt
 
       - name: Comment on PR
