@@ -203,6 +203,340 @@ const TEST_CASES = [
       mustNotContain: ['<SyncML', '<?xml'],
     }
   },
+  {
+    id: 'csp-cis-cortana-above-lock',
+    profileType: 'csp',
+    instructions: 'Stop people from using Cortana while the machine is locked.',
+    expect: {
+      mustContain: ['Policy/Config/AboveLock/AllowCortanaAboveLock'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+      mustNotContain: ['Policy/Result/', 'Experience/AllowCortana', '<SyncML', '<?xml'],
+    }
+  },
+  {
+    id: 'csp-cis-lock-screen-camera',
+    profileType: 'csp',
+    instructions: 'Do not let the camera be used from the lock screen.',
+    // CIS checks Camera/AllowCamera for this, but that disables the camera everywhere.  The node that
+    // does only what was asked is the ADMX-backed DeviceLock/PreventEnablingLockScreenCamera.
+    expect: {
+      mustContain: ['Policy/Config/DeviceLock/PreventEnablingLockScreenCamera', '<![CDATA[', '<enabled/>'],
+      mustContainElement: [['Format', 'chr']],
+      mustNotContainElement: [['Format', 'int'], ['Format', 'bool']],
+      mustNotContain: ['Camera/AllowCamera', '&lt;enabled/&gt;'],
+    }
+  },
+  {
+    id: 'csp-cis-cortana-off',
+    profileType: 'csp',
+    instructions: 'Turn Cortana off completely.',
+    expect: {
+      mustContain: ['Policy/Config/Experience/AllowCortana'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+      mustNotContain: ['AboveLock/AllowCortanaAboveLock'],
+    }
+  },
+  {
+    id: 'csp-cis-telemetry-basic',
+    profileType: 'csp',
+    instructions: 'Set Windows diagnostic data to the basic level.',
+    // Unlike csp-telemetry, which asks for the minimum (0, Security), this names a level, so 0 is wrong.
+    expect: {
+      mustContain: ['Policy/Config/System/AllowTelemetry'],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Format', 'bool'], ['Data', '0'], ['Data', '3']],
+    }
+  },
+  {
+    id: 'csp-cis-insecure-guest-logons',
+    profileType: 'csp',
+    instructions: 'Block unauthenticated guest connections to SMB file shares.',
+    expect: {
+      mustContain: ['Policy/Config/LanmanWorkstation/EnableInsecureGuestLogons'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+    }
+  },
+  {
+    id: 'csp-cis-guest-account-status',
+    profileType: 'csp',
+    instructions: 'Disable the built-in Guest account.',
+    expect: {
+      mustContain: ['Policy/Config/LocalPoliciesSecurityOptions/Accounts_EnableGuestAccountStatus'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+    }
+  },
+  {
+    id: 'csp-cis-input-personalization',
+    profileType: 'csp',
+    instructions: 'Turn off speech, inking and typing personalization so nothing is sent to Microsoft for it.',
+    expect: {
+      mustContain: ['Policy/Config/Privacy/AllowInputPersonalization'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+    }
+  },
+  {
+    id: 'csp-cis-index-encrypted-items',
+    profileType: 'csp',
+    instructions: 'Stop Windows Search from indexing encrypted files.',
+    expect: {
+      mustContain: ['Policy/Config/Search/AllowIndexingEncryptedStoresOrItems'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+    }
+  },
+  {
+    id: 'csp-cis-notify-malicious',
+    profileType: 'csp',
+    instructions: 'Warn users when Windows detects they have typed their work password into a malicious site.',
+    expect: {
+      mustContain: ['Policy/Config/WebThreatDefense/NotifyMalicious'],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Format', 'bool']],
+      mustNotContain: ['WebThreatDefense/NotifyPasswordReuse', 'WebThreatDefense/NotifyUnsafeApp'],
+    }
+  },
+  {
+    id: 'csp-cis-wifi-sense',
+    profileType: 'csp',
+    instructions: 'Do not let devices connect automatically to Wi-Fi Sense hotspots.',
+    expect: {
+      mustContain: ['Policy/Config/Wifi/AllowAutoConnectToWiFiSenseHotspots'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+    }
+  },
+  {
+    id: 'csp-cis-widgets',
+    profileType: 'csp',
+    instructions: 'Turn off the Widgets feed on the taskbar.',
+    expect: {
+      mustContain: ['Policy/Config/NewsAndInterests/AllowNewsAndInterests'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+    }
+  },
+  {
+    id: 'csp-cis-online-tips',
+    profileType: 'csp',
+    instructions: 'Stop the Settings app from downloading tips and help content from the internet.',
+    expect: {
+      mustContain: ['Policy/Config/Settings/AllowOnlineTips'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+    }
+  },
+  {
+    id: 'csp-cis-message-sync',
+    profileType: 'csp',
+    instructions: 'Stop text messages being backed up and synced to the cloud, and do not let users turn that back on.',
+    expect: {
+      mustContain: ['Policy/Config/Messaging/AllowMessageSync'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+    }
+  },
+  {
+    id: 'csp-cis-behavior-monitoring',
+    profileType: 'csp',
+    instructions: 'Make sure Defender behavior monitoring is turned on.',
+    expect: {
+      mustContain: ['Policy/Config/Defender/AllowBehaviorMonitoring'],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Format', 'bool']],
+      mustNotContain: ['MSFT/Defender/Configuration/'],
+    }
+  },
+  {
+    id: 'csp-cis-audit-credential-validation',
+    profileType: 'csp',
+    instructions: 'Audit credential validation for both successes and failures.',
+    expect: {
+      mustContain: ['Policy/Config/Audit/AccountLogon_AuditCredentialValidation'],
+      mustContainElement: [['Format', 'int'], ['Data', '3']],
+      mustNotContainElement: [['Format', 'bool'], ['Data', '1'], ['Data', '2']],
+    }
+  },
+  {
+    id: 'csp-cis-hvci',
+    profileType: 'csp',
+    instructions: 'Turn on memory integrity and lock it with UEFI so it cannot be switched off remotely.',
+    expect: {
+      mustContain: ['Policy/Config/VirtualizationBasedTechnology/HypervisorEnforcedCodeIntegrity'],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Format', 'bool'], ['Data', '2']],
+    }
+  },
+  {
+    id: 'csp-cis-defer-quality-updates-zero',
+    profileType: 'csp',
+    instructions: 'Do not delay quality updates at all -- install them as soon as they are released.',
+    expect: {
+      mustContain: ['Policy/Config/Update/DeferQualityUpdatesPeriodInDays'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+      mustNotContain: ['DeferFeatureUpdatesPeriodInDays'],
+    }
+  },
+  {
+    id: 'csp-cis-defender-hide-exclusions',
+    profileType: 'csp',
+    instructions: 'Hide the list of Defender scan exclusions from people signed in to the machine.',
+    expect: {
+      mustContain: ['MSFT/Defender/Configuration/HideExclusionsFromLocalUsers'],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Format', 'bool']],
+      mustNotContain: ['Policy/Config/Defender/HideExclusionsFromLocalUsers', 'Policy/Result/'],
+    }
+  },
+  {
+    id: 'csp-cis-defender-file-hash',
+    profileType: 'csp',
+    instructions: 'Have Defender compute file hashes for every file it scans.',
+    expect: {
+      mustContain: ['MSFT/Defender/Configuration/EnableFileHashComputation'],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Format', 'bool']],
+      mustNotContain: ['Policy/Config/Defender/EnableFileHashComputation'],
+    }
+  },
+  {
+    id: 'csp-cis-firewall-domain-inbound-block',
+    profileType: 'csp',
+    instructions: 'On the domain network profile, block inbound connections that do not match a rule.',
+    // No ban on <Format>bool</Format>: a default action only applies with the firewall on, so an
+    // EnableFirewall (bool) alongside it is a legitimate dependency.
+    expect: {
+      mustContain: ['MSFT/Firewall/MdmStore/DomainProfile/DefaultInboundAction'],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContain: ['Policy/Config/Firewall', 'PrivateProfile/DefaultInboundAction', 'PublicProfile/DefaultInboundAction', '<Data>false</Data>'],
+    }
+  },
+  {
+    id: 'csp-cis-firewall-ipsec-merge-bool',
+    profileType: 'csp',
+    instructions: 'On the public network profile, stop locally defined IPsec rules from being merged with the ones we push.',
+    // AllowLocalPolicyMerge is the lookalike: it governs firewall rules, not connection security rules.
+    expect: {
+      mustContain: ['MSFT/Firewall/MdmStore/PublicProfile/AllowLocalIpsecPolicyMerge'],
+      mustContainElement: [['Format', 'bool'], ['Data', 'false']],
+      mustNotContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContain: ['PublicProfile/AllowLocalPolicyMerge', 'Policy/Config/Firewall'],
+    }
+  },
+  {
+    id: 'csp-cis-passport-anti-spoofing',
+    profileType: 'csp',
+    instructions: 'Require enhanced anti-spoofing for Windows Hello face recognition.',
+    expect: {
+      mustContain: ['MSFT/PassportForWork/Biometrics/FacialFeaturesUseEnhancedAntiSpoofing'],
+      mustContainElement: [['Format', 'bool'], ['Data', 'true']],
+      mustNotContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContain: ['Policy/Config/PassportForWork'],
+    }
+  },
+  {
+    id: 'csp-cis-admx-include-cmdline',
+    profileType: 'csp',
+    instructions: 'Record the full command line in process creation events.',
+    expect: {
+      mustContain: ['Policy/Config/ADMX_AuditSettings/IncludeCmdLine', '<![CDATA[', '<enabled/>'],
+      mustContainElement: [['Format', 'chr']],
+      mustNotContainElement: [['Format', 'int'], ['Format', 'bool'], ['Data', '1']],
+      mustNotContain: ['&lt;enabled/&gt;', '<data id='],
+    }
+  },
+  {
+    id: 'csp-cis-admx-credui-security-questions',
+    profileType: 'csp',
+    instructions: 'Stop local accounts from being able to set security questions for password reset.',
+    expect: {
+      mustContain: ['Policy/Config/ADMX_CredUI/NoLocalPasswordResetQuestions', '<![CDATA[', '<enabled/>'],
+      mustContainElement: [['Format', 'chr']],
+      mustNotContainElement: [['Format', 'int'], ['Format', 'bool']],
+      mustNotContain: ['&lt;enabled/&gt;', '<data id='],
+    }
+  },
+  {
+    id: 'csp-cis-admx-powershell-script-block-logging',
+    profileType: 'csp',
+    instructions: 'Turn on PowerShell script block logging.',
+    expect: {
+      mustContain: ['Policy/Config/WindowsPowerShell/TurnOnPowerShellScriptBlockLogging', '<![CDATA[', '<enabled/>'],
+      mustContainElement: [['Format', 'chr']],
+      mustNotContainElement: [['Format', 'int'], ['Format', 'bool']],
+      mustNotContain: ['ADMX_PowerShell', 'ADMX_WindowsPowerShell', '<data id='],
+    }
+  },
+  {
+    id: 'csp-atomic-requested-multi-setting',
+    profileType: 'csp',
+    instructions: 'Disable the camera, turn off Cortana, and block Wi-Fi Sense auto-connect. Apply all three together as a single all-or-nothing transaction.',
+    readByEye: 'Exactly one <Atomic>, not nested inside another, with all three commands inside it.',
+    expect: {
+      mustContain: ['<Atomic>', 'Policy/Config/Camera/AllowCamera', 'Policy/Config/Experience/AllowCortana', 'Policy/Config/Wifi/AllowAutoConnectToWiFiSenseHotspots'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool'], ['Data', '1']],
+      mustNotContain: [
+        '</Atomic><Replace>', '</Atomic><Add>', '</Atomic><Exec>', '</Atomic><Atomic>',
+        '</Replace><Atomic>', '</Add><Atomic>', '<Atomic><Atomic>',
+        '<SyncML', '<?xml'
+      ],
+    }
+  },
+  {
+    id: 'csp-multi-setting-no-atomic-requested',
+    profileType: 'csp',
+    instructions: 'Turn off Cortana, block Wi-Fi Sense auto-connect, and stop Windows Search from indexing encrypted files.',
+    readByEye: 'Three bare top-level commands is the expected answer, but one <Atomic> wrapping all three is also legal.  A mix is not: if <Atomic> appears at all, confirm nothing sits outside it.',
+    expect: {
+      mustContain: [
+        'Policy/Config/Experience/AllowCortana',
+        'Policy/Config/Wifi/AllowAutoConnectToWiFiSenseHotspots',
+        'Policy/Config/Search/AllowIndexingEncryptedStoresOrItems'
+      ],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool'], ['Data', '1']],
+      mustNotContain: [
+        '</Atomic><Replace>', '</Atomic><Add>', '</Atomic><Exec>', '</Atomic><Atomic>',
+        '</Replace><Atomic>', '</Add><Atomic>', '<Atomic><Atomic>',
+        '<SyncML', '<?xml'
+      ],
+    }
+  },
+  {
+    id: 'csp-multi-setting-mixed-formats',
+    profileType: 'csp',
+    instructions: 'Turn off Cortana, require enhanced anti-spoofing for Windows Hello face recognition, and turn on PowerShell script block logging.',
+    readByEye: '<Meta> children must be used consistently across all three items.',
+    expect: {
+      mustContain: [
+        'Policy/Config/Experience/AllowCortana',
+        'MSFT/PassportForWork/Biometrics/FacialFeaturesUseEnhancedAntiSpoofing',
+        'Policy/Config/WindowsPowerShell/TurnOnPowerShellScriptBlockLogging',
+        '<![CDATA[', '<enabled/>'
+      ],
+      mustContainElement: [['Format', 'int'], ['Format', 'bool'], ['Format', 'chr'], ['Data', '0'], ['Data', 'true']],
+      mustNotContain: ['ADMX_PowerShell', 'Policy/Config/PassportForWork', '<SyncML'],
+    }
+  },
+  {
+    id: 'csp-wifi-hex-ssid',
+    profileType: 'csp',
+    instructions: 'Add a wifi profile for the network "CorpNet" using WPA2 Enterprise.',
+    readByEye: 'The embedded <WLANProfile> must be on ONE line inside the CDATA.',
+    expect: {
+      mustContain: ['WiFi/Profile/CorpNet/WlanXml', '<![CDATA['],
+      mustContainElement: [['name', 'CorpNet'], ['hex', '436F72704E6574'], ['authentication', 'WPA2'], ['useOneX', 'true']],
+      mustNotContainElement: [['authentication', 'WPA2PSK'], ['name', 'corpnet'], ['name', 'CORPNET']],
+      mustNotContain: ['&lt;WLANProfile', '<SyncML'],
+      mustNotContainOutsideCdata: ['<?xml'],
+    }
+  },
 
   //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
   //  ║║║║ ║╠╩╗║║  ║╣ ║  ║║║╠╣ ║║ ╦

@@ -287,9 +287,12 @@ func (svc *Service) AuthSettings(ctx context.Context) (*fleet.AuthSettings, erro
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	if !svc.config.MDM.AppleOneTimeEnrollSecrets {
+	if !svc.config.MDM.OneTimeEnrollSecretsEnabled() {
 		// Like Partnerships, omit the whole object while nothing in it is enabled.
 		return nil, nil
 	}
-	return &fleet.AuthSettings{MDMAppleOneTimeEnrollSecrets: true}, nil
+	return &fleet.AuthSettings{
+		MDMAppleOneTimeEnrollSecrets:   svc.config.MDM.AppleOneTimeEnrollSecrets,
+		MDMWindowsOneTimeEnrollSecrets: svc.config.MDM.WindowsOneTimeEnrollSecrets,
+	}, nil
 }
