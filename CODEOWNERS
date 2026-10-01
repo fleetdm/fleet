@@ -42,7 +42,7 @@ go.mod @fleetdm/go
 /server/ @fleetdm/go
 /server/api_endpoints/api_endpoints.yml @rachaelshaw # « API endpoint display names in the Fleet UI (API-only users)
 /ee/server/ @fleetdm/go
-/orbit/ @fleetdm/go @sharon-fdm @lucasmrod
+/orbit/ @sharon-fdm @lucasmrod
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.
