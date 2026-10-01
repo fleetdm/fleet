@@ -55,6 +55,7 @@ type MDMAppleCommandIssuer interface {
 	RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error
 	ClearPasscode(ctx context.Context, hostUUID []string, cmdUUID string) error
+	RotateFileVaultKey(ctx context.Context, hostUUID, cmdUUID string, replyCertDER []byte) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -305,6 +306,18 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 
 // payloadDisplayNameRegex is used to extract PayloadDisplayName values from raw XML content
 var payloadDisplayNameRegex = regexp.MustCompile(`<key>PayloadDisplayName</key>\s*<string>([^<]*)</string>`)
+
+// PayloadDisplayNameFromMobileconfig returns the top-level PayloadDisplayName
+// of a raw .mobileconfig, or "" when it can't be parsed (for example a stored
+// profile whose <data> still holds an unexpanded secret). A regex won't do:
+// nested payloads carry their own PayloadDisplayName and often come first.
+func PayloadDisplayNameFromMobileconfig(raw []byte) string {
+	parsed, err := mobileconfig.Mobileconfig(raw).ParseConfigProfile()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(parsed.PayloadDisplayName)
+}
 
 // ValidateNoSecretsInProfileName checks if PayloadDisplayName contains FLEET_SECRET_ variables
 // in the raw XML content of a profile.
@@ -1796,6 +1809,7 @@ const (
 	VerifyRecoveryLockCmdName   = "VerifyRecoveryLock"
 	AccountConfigurationCmdName = "AccountConfiguration"
 	SetAutoAdminPasswordCmdName = "SetAutoAdminPassword"
+	RotateFileVaultKeyCmdName   = "RotateFileVaultKey"
 )
 
 // CancelableAppleMDMRequestTypes are the request types of Apple MDM commands

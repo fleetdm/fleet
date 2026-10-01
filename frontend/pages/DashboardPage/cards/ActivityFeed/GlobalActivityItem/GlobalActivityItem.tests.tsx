@@ -982,6 +982,63 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Marsh's Macbook Air")).toBeInTheDocument();
   });
 
+  it("renders a 'rotated_disk_encryption_key' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RotatedDiskEncryptionKey,
+      details: { host_display_name: "Alex's Macbook Air" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("triggered rotation of the disk encryption key for", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alex's Macbook Air")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /show info/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a 'failed_to_rotate_disk_encryption_key' activity from Fleet with details", async () => {
+    const onDetailsClick = jest.fn();
+    const activity = createMockActivity({
+      type: ActivityType.FailedToRotateDiskEncryptionKey,
+      fleet_initiated: true,
+      created_at: "2026-01-01T00:00:00Z",
+      details: {
+        host_display_name: "Marsh's Macbook Air",
+        detail: "MDMErrorDomain (12): The password is incorrect.",
+      },
+    });
+    render(
+      <GlobalActivityItem
+        activity={activity}
+        isPremiumTier
+        onDetailsClick={onDetailsClick}
+      />
+    );
+
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(
+      screen.getByText("failed to rotate the disk encryption key for", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Marsh's Macbook Air")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /show info/i }));
+    expect(onDetailsClick).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: ActivityType.FailedToRotateDiskEncryptionKey,
+        created_at: "2026-01-01T00:00:00Z",
+        details: expect.objectContaining({
+          detail: "MDMErrorDomain (12): The password is incorrect.",
+        }),
+      })
+    );
+  });
+
   it("renders an 'enabled_recovery_lock_passwords' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.EnabledRecoveryLockPasswords,
@@ -2277,6 +2334,170 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText("Fleet")).toBeInTheDocument();
     expect(screen.getByText(/failed to install/)).toBeInTheDocument();
+  });
+
+  it("shows software_display_name over software_title for installed_software", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for uninstalled_software", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UninstalledSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+        status: "uninstalled",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
+  });
+
+  it("falls back to software_title when software_display_name is absent", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        host_display_name: "Foo Host",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Firefox")).toBeInTheDocument();
+  });
+
+  it("shows software_display_name over software_title for installed_app_store_app", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Logic Pro",
+        software_display_name: "Logic Pro (approved)",
+        host_display_name: "Foo Host",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Logic Pro (approved)")).toBeInTheDocument();
+    expect(screen.queryByText("Logic Pro")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for canceled_install_software", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CanceledInstallSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for canceled_uninstall_software", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CanceledUninstallSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for canceled_install_app_store_app", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CanceledInstallAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Logic Pro",
+        software_display_name: "Logic Pro (approved)",
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Logic Pro (approved)")).toBeInTheDocument();
+    expect(screen.queryByText("Logic Pro")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for edited_app_store_app", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Logic Pro",
+        software_display_name: "Logic Pro (approved)",
+        platform: "darwin",
+        team_name: "Workstations",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Logic Pro (approved)")).toBeInTheDocument();
+    expect(screen.queryByText("Logic Pro")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for deleted_app_store_app", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Logic Pro",
+        software_display_name: "Logic Pro (approved)",
+        platform: "darwin",
+        team_name: "Workstations",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Logic Pro (approved)")).toBeInTheDocument();
+    expect(screen.queryByText("Logic Pro")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for canceled_setup_experience", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CanceledSetupExperience,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
   });
 
   it("renders script package ran status in InstalledSoftware activity", () => {

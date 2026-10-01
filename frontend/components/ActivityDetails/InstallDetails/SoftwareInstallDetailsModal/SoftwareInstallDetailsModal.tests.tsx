@@ -4,6 +4,7 @@ import React from "react";
 
 import {
   createMockHostSoftware,
+  createMockHostSoftwarePackage,
   DEFAULT_INSTALLED_VERSION,
 } from "__mocks__/hostMock";
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
@@ -607,6 +608,39 @@ describe("SoftwareInstallDetailsModal", () => {
         await screen.findByRole("button", { name: /Details/i })
       ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    });
+
+    // A failed_install with an available update reads "Failed" in the cell on
+    // both admin and self-service surfaces, so the admin modal must also
+    // surface the failure instead of overriding to "is installed." The
+    // installed-override still applies when inventory matches the installer
+    // version (no update available); that case is covered elsewhere.
+    it("on admin, does not override a failed install to 'is installed' when the host reports an older installed version with an update available", async () => {
+      mockServer.use(getSoftwareInstallHandlerOnlyPreInstallOutput);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={createMockHostSoftware({
+            id: 99,
+            name: "CoolApp",
+            software_package: createMockHostSoftwarePackage({
+              version: "2.0.0",
+            }),
+            installed_versions: [
+              { ...DEFAULT_INSTALLED_VERSION, version: "1.0.0" },
+            ],
+          })}
+          onCancel={noop}
+        />
+      );
+
+      expect(await screen.findByText(/failed to install/)).toBeInTheDocument();
+      expect(screen.queryByText(/is installed\./i)).not.toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: /Details/i })
+      ).toBeInTheDocument();
     });
 
     it("renders the patch-skipped message even when the host reports the app as installed (skip beats the installed-override)", async () => {

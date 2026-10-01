@@ -2617,6 +2617,11 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					return err
 				}
 			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
+				if err := rejectSharedSecretForMDMManagedWindowsHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform, fleet.EnrollmentPlaneOrbit); err != nil {
+					return err
+				}
+			}
 
 			refetchRequested := fleet.PlatformSupportsOsquery(enrolledHostInfo.Platform)
 
@@ -2667,6 +2672,11 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil {
 				return ctxerr.New(ctx, fmt.Sprintf("orbit host identity cert with identifier %s already belongs to another host with host id: %d",
 					hostInfo.OsqueryIdentifier, *enrollConfig.IdentityCert.HostID))
+			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
+				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hostInfo.HardwareUUID); err != nil {
+					return err
+				}
 			}
 
 			// Use the canonical "never" sentinel (2000-01-01 UTC) so CleanupExpiredHostsBatch does not immediately delete it.
@@ -2837,6 +2847,11 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				return ctxerr.New(ctx, fmt.Sprintf("host identity cert with identifier %s already belongs to another host with host id: %d",
 					osqueryHostID, *enrollConfig.IdentityCert.HostID))
 			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
+				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hardwareUUID); err != nil {
+					return err
+				}
+			}
 
 			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
 			// so that the frontend automatically starts background checks to update the page whenever
@@ -2897,6 +2912,11 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {
 				if err := rejectSharedSecretForMDMManagedAppleHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
+					return err
+				}
+			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
+				if err := rejectSharedSecretForMDMManagedWindowsHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform, fleet.EnrollmentPlaneOsquery); err != nil {
 					return err
 				}
 			}
