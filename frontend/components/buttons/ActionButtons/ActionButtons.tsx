@@ -18,6 +18,7 @@ export interface IActionButtonProps {
   iconName?: IconNames;
   hideAction?: boolean;
   gitOpsModeCompatible?: boolean;
+  disabled?: boolean;
 }
 
 interface IProps {
@@ -47,7 +48,13 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
         {primaryActions.map(
           (action) =>
             !action.hideAction && (
-              <Button onClick={action.onClick}>{action.label}</Button>
+              <Button
+                key={action.label}
+                onClick={action.onClick}
+                disabled={action.disabled}
+              >
+                {action.label}
+              </Button>
             )
         )}
       </div>
@@ -56,31 +63,27 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
           className={`${baseClass}__action-buttons--secondary-buttons action-buttons__secondary-buttons`}
         >
           {secondaryActions.map((action) => {
-            if (action.gitOpsModeCompatible) {
-              return (
-                <GitOpsModeTooltipWrapper
-                  renderChildren={(disableChildren) => (
-                    <Button
-                      variant={action.buttonVariant}
-                      onClick={action.onClick}
-                      disabled={disableChildren}
-                      icon={action.iconName}
-                    >
-                      {action.label}
-                    </Button>
-                  )}
-                />
-              );
-            }
-            return (
+            const button = (
               <Button
+                key={action.label}
                 variant={action.buttonVariant}
                 onClick={action.onClick}
+                disabled={action.disabled}
                 icon={action.iconName}
               >
                 {action.label}
               </Button>
             );
+            // A GitOps-compatible action is only disabled by GitOps mode, so explain it.
+            if (action.gitOpsModeCompatible && action.disabled) {
+              return (
+                <GitOpsModeTooltipWrapper
+                  key={action.label}
+                  renderChildren={() => button}
+                />
+              );
+            }
+            return button;
           })}
         </div>
         <div

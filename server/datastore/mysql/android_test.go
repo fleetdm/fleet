@@ -979,16 +979,15 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.JSONEq(t, string(newRawJSON), string(stored.RawJSON))
 
-	// mismatched name is rejected -- Android profiles have no separate
-	// identifier field, so name is the only identity a profile has. This is
-	// the only layer this can be tested at: the service layer never exposes
-	// a way for a client to submit a different name on an edit.
-	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+	// a different name renames the profile in place, keyed by UUID
+	renamed, err := ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
 		ProfileUUID: initial.ProfileUUID,
 		Name:        "A Different Name",
 		RawJSON:     newRawJSON,
 	}, nil)
-	require.ErrorContains(t, err, "must match the existing profile's name")
+	require.NoError(t, err)
+	require.Equal(t, initial.ProfileUUID, renamed.ProfileUUID)
+	require.Equal(t, "A Different Name", renamed.Name)
 
 	// updating a nonexistent profile returns a not-found error
 	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{

@@ -710,6 +710,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		"host_id":%d,
 		"host_platform":"darwin",
 		"self_service":false,
+		"software_display_name":null,
 		"software_title":"foo",
 		"status":"pending_install"
 	}`, app1.AdamID, h1.DisplayName(), h1.ID), string(*acts[0].Details))
@@ -726,6 +727,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		"host_id":%d,
 		"host_platform":"darwin",
 		"self_service":true,
+		"software_display_name":null,
 		"software_title":"vpp_app_2",
 		"status":"pending_install"
 	}`, app2.AdamID, h2.DisplayName(), h2.ID), string(*acts[0].Details))

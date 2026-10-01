@@ -1,0 +1,1 @@
+- Fixed slow responses from GET /api/v1/fleet/vulnerabilities when sorting by "created_at" (the "Detected" column) on large deployments.

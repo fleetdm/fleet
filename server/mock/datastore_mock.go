@@ -546,6 +546,8 @@ type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFi
 
 type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (name string, displayName string, err error)
 
+type GetSoftwareTitleDisplayNameFunc func(ctx context.Context, teamID *uint, titleID uint) (*string, error)
+
 type UpdateSoftwareTitleNameFunc func(ctx context.Context, id uint, name string) error
 
 type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error
@@ -556,7 +558,7 @@ type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, sof
 
 type InsertSoftwareUninstallRequestFunc func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error
 
-type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executionID string) (string, bool, error)
+type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executionID string) (string, *string, bool, error)
 
 type PatchNotificationExistsForAppFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
 
@@ -1532,6 +1534,8 @@ type ClearMDMWindowsManagedLocalAccountRotationRequestFunc func(ctx context.Cont
 
 type MDMWindowsGetEnrolledDeviceWithHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
+type MDMWindowsGetEnrolledDeviceByIDFunc func(ctx context.Context, enrollmentID uint) (*fleet.MDMWindowsEnrolledDevice, error)
+
 type MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc func(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error)
 
 type WindowsHostLiteByHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.HostLite, error)
@@ -1587,6 +1591,8 @@ type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string
 type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
 type DeleteMDMWindowsConfigProfileByTeamAndNameFunc func(ctx context.Context, teamID *uint, profileName string) error
+
+type ListMDMWindowsConfigProfilesByNameFunc func(ctx context.Context, name string) ([]*fleet.MDMWindowsConfigProfile, error)
 
 type GetHostMDMWindowsProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error)
 
@@ -2085,6 +2091,16 @@ type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (strin
 type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document string) (string, *time.Time, error)
 
 type ExpandHostSecretsFunc func(ctx context.Context, document string, enrollmentID string) (string, error)
+
+type GetLiveWindowsMDMOneTimeEnrollSecretFunc func(ctx context.Context, enrollmentID uint) (string, error)
+
+type WindowsMDMEnrollSecretUsedByOrbitFunc func(ctx context.Context, enrollmentID uint) (bool, error)
+
+type MintWindowsMDMOneTimeEnrollSecretFunc func(ctx context.Context, enrollmentID uint) error
+
+type QueueWindowsMDMEnrollSecretPushFunc func(ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd *fleet.MDMWindowsCommand, installCmd *fleet.MDMWindowsCommand) (bool, error)
+
+type WindowsMDMEnrollSecretPushedFunc func(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error)
 
 type CreateCustomHostVitalFunc func(ctx context.Context, name string) (fleet.CustomHostVital, error)
 
@@ -3297,6 +3313,9 @@ type DataStore struct {
 
 	SoftwareTitleNameForHostFilterFunc        SoftwareTitleNameForHostFilterFunc
 	SoftwareTitleNameForHostFilterFuncInvoked bool
+
+	GetSoftwareTitleDisplayNameFunc        GetSoftwareTitleDisplayNameFunc
+	GetSoftwareTitleDisplayNameFuncInvoked bool
 
 	UpdateSoftwareTitleNameFunc        UpdateSoftwareTitleNameFunc
 	UpdateSoftwareTitleNameFuncInvoked bool
@@ -4777,6 +4796,9 @@ type DataStore struct {
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFunc        MDMWindowsGetEnrolledDeviceWithHostUUIDFunc
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked bool
 
+	MDMWindowsGetEnrolledDeviceByIDFunc        MDMWindowsGetEnrolledDeviceByIDFunc
+	MDMWindowsGetEnrolledDeviceByIDFuncInvoked bool
+
 	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc
 	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked bool
 
@@ -4860,6 +4882,9 @@ type DataStore struct {
 
 	DeleteMDMWindowsConfigProfileByTeamAndNameFunc        DeleteMDMWindowsConfigProfileByTeamAndNameFunc
 	DeleteMDMWindowsConfigProfileByTeamAndNameFuncInvoked bool
+
+	ListMDMWindowsConfigProfilesByNameFunc        ListMDMWindowsConfigProfilesByNameFunc
+	ListMDMWindowsConfigProfilesByNameFuncInvoked bool
 
 	GetHostMDMWindowsProfilesFunc        GetHostMDMWindowsProfilesFunc
 	GetHostMDMWindowsProfilesFuncInvoked bool
@@ -5607,6 +5632,21 @@ type DataStore struct {
 
 	ExpandHostSecretsFunc        ExpandHostSecretsFunc
 	ExpandHostSecretsFuncInvoked bool
+
+	GetLiveWindowsMDMOneTimeEnrollSecretFunc        GetLiveWindowsMDMOneTimeEnrollSecretFunc
+	GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked bool
+
+	WindowsMDMEnrollSecretUsedByOrbitFunc        WindowsMDMEnrollSecretUsedByOrbitFunc
+	WindowsMDMEnrollSecretUsedByOrbitFuncInvoked bool
+
+	MintWindowsMDMOneTimeEnrollSecretFunc        MintWindowsMDMOneTimeEnrollSecretFunc
+	MintWindowsMDMOneTimeEnrollSecretFuncInvoked bool
+
+	QueueWindowsMDMEnrollSecretPushFunc        QueueWindowsMDMEnrollSecretPushFunc
+	QueueWindowsMDMEnrollSecretPushFuncInvoked bool
+
+	WindowsMDMEnrollSecretPushedFunc        WindowsMDMEnrollSecretPushedFunc
+	WindowsMDMEnrollSecretPushedFuncInvoked bool
 
 	CreateCustomHostVitalFunc        CreateCustomHostVitalFunc
 	CreateCustomHostVitalFuncInvoked bool
@@ -8080,6 +8120,13 @@ func (s *DataStore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint,
 	return s.SoftwareTitleNameForHostFilterFunc(ctx, id, teamID, tmFilter)
 }
 
+func (s *DataStore) GetSoftwareTitleDisplayName(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+	s.mu.Lock()
+	s.GetSoftwareTitleDisplayNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareTitleDisplayNameFunc(ctx, teamID, titleID)
+}
+
 func (s *DataStore) UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error {
 	s.mu.Lock()
 	s.UpdateSoftwareTitleNameFuncInvoked = true
@@ -8115,7 +8162,7 @@ func (s *DataStore) InsertSoftwareUninstallRequest(ctx context.Context, executio
 	return s.InsertSoftwareUninstallRequestFunc(ctx, executionID, hostID, softwareInstallerID, selfService)
 }
 
-func (s *DataStore) GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error) {
+func (s *DataStore) GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, *string, bool, error) {
 	s.mu.Lock()
 	s.GetDetailsForUninstallFromExecutionIDFuncInvoked = true
 	s.mu.Unlock()
@@ -11531,6 +11578,13 @@ func (s *DataStore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context,
 	return s.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) MDMWindowsGetEnrolledDeviceByID(ctx context.Context, enrollmentID uint) (*fleet.MDMWindowsEnrolledDevice, error) {
+	s.mu.Lock()
+	s.MDMWindowsGetEnrolledDeviceByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsGetEnrolledDeviceByIDFunc(ctx, enrollmentID)
+}
+
 func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	s.mu.Lock()
 	s.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked = true
@@ -11725,6 +11779,13 @@ func (s *DataStore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Conte
 	s.DeleteMDMWindowsConfigProfileByTeamAndNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMWindowsConfigProfileByTeamAndNameFunc(ctx, teamID, profileName)
+}
+
+func (s *DataStore) ListMDMWindowsConfigProfilesByName(ctx context.Context, name string) ([]*fleet.MDMWindowsConfigProfile, error) {
+	s.mu.Lock()
+	s.ListMDMWindowsConfigProfilesByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMWindowsConfigProfilesByNameFunc(ctx, name)
 }
 
 func (s *DataStore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
@@ -13468,6 +13529,41 @@ func (s *DataStore) ExpandHostSecrets(ctx context.Context, document string, enro
 	s.ExpandHostSecretsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ExpandHostSecretsFunc(ctx, document, enrollmentID)
+}
+
+func (s *DataStore) GetLiveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error) {
+	s.mu.Lock()
+	s.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetLiveWindowsMDMOneTimeEnrollSecretFunc(ctx, enrollmentID)
+}
+
+func (s *DataStore) WindowsMDMEnrollSecretUsedByOrbit(ctx context.Context, enrollmentID uint) (bool, error) {
+	s.mu.Lock()
+	s.WindowsMDMEnrollSecretUsedByOrbitFuncInvoked = true
+	s.mu.Unlock()
+	return s.WindowsMDMEnrollSecretUsedByOrbitFunc(ctx, enrollmentID)
+}
+
+func (s *DataStore) MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) error {
+	s.mu.Lock()
+	s.MintWindowsMDMOneTimeEnrollSecretFuncInvoked = true
+	s.mu.Unlock()
+	return s.MintWindowsMDMOneTimeEnrollSecretFunc(ctx, enrollmentID)
+}
+
+func (s *DataStore) QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd *fleet.MDMWindowsCommand, installCmd *fleet.MDMWindowsCommand) (bool, error) {
+	s.mu.Lock()
+	s.QueueWindowsMDMEnrollSecretPushFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueueWindowsMDMEnrollSecretPushFunc(ctx, enrollmentID, mdmDeviceID, pushCmd, installCmd)
+}
+
+func (s *DataStore) WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error) {
+	s.mu.Lock()
+	s.WindowsMDMEnrollSecretPushedFuncInvoked = true
+	s.mu.Unlock()
+	return s.WindowsMDMEnrollSecretPushedFunc(ctx, enrollmentID, pushLocURI)
 }
 
 func (s *DataStore) CreateCustomHostVital(ctx context.Context, name string) (fleet.CustomHostVital, error) {

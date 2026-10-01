@@ -583,6 +583,7 @@ export interface ISoftwareInstallResult {
   host_display_name?: string;
   install_uuid: string;
   software_title: string;
+  software_display_name?: string | null;
   software_title_id: number;
   software_package: string;
   host_id: number;

@@ -447,6 +447,21 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Empty(t, resp.Header.Get("Location"))
 	})
 
+	t.Run("unknown identifier without nonce", func(t *testing.T) {
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
+		badIdentifier := "no-such-identifier"
+		jwsBody := buildJWS(t, privateKey, "", "", s.newAccountURL(badIdentifier), nil)
+		acctResp, acmeErr, resp := s.createAccount(t, badIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.Nil(t, acctResp)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "error/enrollmentNotFound")
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
 	t.Run("revoked enrollment", func(t *testing.T) {
 		enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
@@ -813,6 +828,27 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 		require.NotNil(t, acmeErr)
 		require.Contains(t, acmeErr.Type, "badNonce")
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("unknown identifier with invalid nonce", func(t *testing.T) {
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
+		badIdentifier := "no-such-identifier"
+		accountURL := s.server.URL + "/api/mdm/acme/" + badIdentifier + "/accounts/1"
+		payload := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "permanent-identifier", "value": "serial"},
+			},
+		}
+		jwsBody := buildJWS(t, privateKey, "bad-nonce-value", accountURL, s.newOrderURL(badIdentifier), payload)
+		orderResp, acmeErr, resp := s.createOrder(t, badIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.Nil(t, orderResp)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "enrollmentNotFound")
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
 		require.Empty(t, resp.Header.Get("Location"))
 	})
 }

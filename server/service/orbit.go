@@ -233,7 +233,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		secretOpts   []fleet.DatastoreEnrollOrbitOption
 	)
 	var oneTime *fleet.HostOneTimeEnrollSecret
-	if svc.config.MDM.AppleOneTimeEnrollSecrets {
+	if svc.config.MDM.OneTimeEnrollSecretsEnabled() {
 		var err error
 		oneTime, err = svc.lookupOneTimeEnrollSecret(ctx, enrollSecret)
 		if err != nil {
@@ -393,6 +393,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		fleet.WithEnrollOrbitTeamID(enrollTeamID),
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
 		fleet.WithEnrollOrbitCreated(&hostCreated),
+		fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOrbit(ctx, enrollOpts...)
 	if err != nil {
@@ -444,7 +445,11 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		}
 	}
 
-	if euaDeviceID != "" {
+	if enrollmentID := oneTime.WindowsEnrollmentID(); enrollmentID != nil {
+		// The secret was minted for a specific Windows MDM enrollment and delivered only over that enrollment's own MDM
+		// channel, so presenting it identifies the enrollment outright. Prefer it since it is the best trust path.
+		svc.linkWindowsEnrollmentFromOneTimeSecret(ctx, host, *enrollmentID)
+	} else if euaDeviceID != "" {
 		// LinkWindowsHostMDMEnrollment performs the full post-link bookkeeping: SCIM user mapping, plus IdP device mapping, the DEP flag,
 		// and the Windows enrollment default fleet assignment for newly created hosts.
 		if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, euaDeviceID); err != nil {
@@ -1524,7 +1529,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 
 		switch action {
 		case "uninstall":
-			softwareTitleName, selfService, err := svc.ds.GetDetailsForUninstallFromExecutionID(ctx, hsr.ExecutionID)
+			softwareTitleName, softwareDisplayName, selfService, err := svc.ds.GetDetailsForUninstallFromExecutionID(ctx, hsr.ExecutionID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "get software title from execution ID")
 			}
@@ -1536,12 +1541,13 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				ctx,
 				user,
 				fleet.ActivityTypeUninstalledSoftware{
-					HostID:          host.ID,
-					HostDisplayName: host.DisplayName(),
-					SoftwareTitle:   softwareTitleName,
-					ExecutionID:     hsr.ExecutionID,
-					Status:          activityStatus,
-					SelfService:     selfService,
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					SoftwareTitle:       softwareTitleName,
+					SoftwareDisplayName: softwareDisplayName,
+					ExecutionID:         hsr.ExecutionID,
+					Status:              activityStatus,
+					SelfService:         selfService,
 				},
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
@@ -2411,6 +2417,14 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			}
 		}
 
+		var softwareDisplayName *string
+		if hsi.SoftwareTitleID != nil {
+			dn, dnErr := svc.ds.GetSoftwareTitleDisplayName(ctx, host.TeamID, *hsi.SoftwareTitleID)
+			if dnErr != nil {
+				svc.logger.WarnContext(ctx, "failed to look up software display name for install activity", "err", dnErr)
+			}
+			softwareDisplayName = dn
+		}
 		if err := svc.NewActivity(
 			ctx,
 			user,
@@ -2418,6 +2432,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       hsi.SoftwareTitle,
+				SoftwareDisplayName: softwareDisplayName,
 				SoftwarePackage:     hsi.SoftwarePackage,
 				HashSHA256:          hsi.HashSHA256,
 				InstallUUID:         result.InstallUUID,

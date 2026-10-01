@@ -9928,6 +9928,13 @@
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     },
     {
+      "name": "Zoom for Government",
+      "slug": "zoom@government/darwin",
+      "platform": "darwin",
+      "unique_identifier": "us.zoom.xos",
+      "description": "Zoom for Government is the ZoomGov release of the Zoom video communication platform for meetings, webinars, and collaboration."
+    },
+    {
       "name": "Zotero",
       "slug": "zotero/darwin",
       "platform": "darwin",
