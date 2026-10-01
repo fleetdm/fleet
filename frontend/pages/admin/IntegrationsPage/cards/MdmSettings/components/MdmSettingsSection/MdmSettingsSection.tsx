@@ -1,17 +1,16 @@
+import { AxiosError } from "axios";
 import React from "react";
 import { InjectedRouter } from "react-router";
-import { AxiosError } from "axios";
 
-import PATHS from "router/paths";
-import { IMdmApple } from "interfaces/mdm";
-
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import Spinner from "components/Spinner";
+import { IMdmApple } from "interfaces/mdm";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import PATHS from "router/paths";
 
+import AndroidMdmCard from "./AndroidMdmCard";
 import AppleMdmCard from "./AppleMdmCard";
 import WindowsMdmCard from "./WindowsMdmCard";
-import AndroidMdmCard from "./AndroidMdmCard";
 
 const baseClass = "mdm-settings-section";
 

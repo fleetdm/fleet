@@ -137,6 +137,49 @@ POST /api/v1/fleet/hosts/:id/clear_passcode
 fleetctl mdm clear-passcode --host $HOST_IDENTIFIER
 ```
 
+## Cancel a pending command
+
+
+If you accidentally send a lock, wipe, clear passcode, or lost mode command to an Apple host, you can cancel the pending command via **Host details > Activity > Upcoming > MDM commands**, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#cancel-hosts-pending-mdm-command).
+
+The following MDM commands can be canceled:
+
+| Command | Platform | Apple request type | Triggered by |
+|---|---|---|---|
+| Lock (macOS) | macOS | `DeviceLock` | **Actions > Lock** |
+| Lock (iOS/iPadOS) | iOS/iPadOS | `EnableLostMode` | **Actions > Lock** |
+| Wipe | macOS, iOS/iPadOS | `EraseDevice` | **Actions > Wipe** |
+| Clear passcode | iOS/iPadOS | `ClearPasscode` | **Actions > Clear passcode** |
+
+Configuration profile installations and other MDM command types cannot be canceled.
+
+Lock on Windows and Linux, and wipe on Linux run as scripts, not MDM commands. You can cancel them the same way: **Host details > Activity > Upcoming**, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#cancel-hosts-upcoming-activity).
+
+Wipe on Windows and lock, wipe, and clear passcode on Android aren't cancelable.
+
+### Cancel from the UI
+
+1. Navigate to the **Hosts** page and open the host's **Host details** page.
+2. In the **Activity** card, select the **Upcoming** tab.
+3. Eligible pending commands show a **Cancel** button. Click it.
+4. A confirmation modal appears showing the command type. Confirm to cancel.
+5. The command disappears from the Upcoming list. A `canceled_mdm_command` activity is logged in the host's activity feed and the global activity feed, recording the command type, host, and the user who canceled it.
+
+### Cancel using the REST API
+
+```http
+DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid
+```
+Returns 204 No Content on success. The command_uuid can be obtained from the [List MDM commands](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands) endpoint.
+
+**Authorization**: Global admins, maintainers, and the GitOps role can cancel commands. Observers and technicians receive 403 Forbidden.
+
+### What happens when you cancel
+
+- The command is deactivated in Fleet's MDM command queue and disappears from command listings. The canceled_mdm_command activity entry is the audit record.
+- `NotNow`-deferred commands remain cancelable — only terminal results (acknowledged or errored) block cancellation.
+- **Self-heal behavior**: Apple's MDM protocol cannot retract a command that a device has already fetched. If a device acknowledges a lock or wipe command after you canceled it, Fleet restores the host's state as if the command was never canceled — the host reports locked or wiped, and for `DeviceLock`, the unlock PIN is recovered so `POST /hosts/:id/unlock` returns it. If the device returns an `Error` result (command didn't run), no restore occurs.
+
 ## Lock and wipe using `fleetctl`
 
 You can lock, unlock, and wipe hosts using Fleet's command-line tool `fleetctl`:

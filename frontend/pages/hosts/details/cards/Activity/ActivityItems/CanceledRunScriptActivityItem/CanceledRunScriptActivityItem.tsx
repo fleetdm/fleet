@@ -1,8 +1,7 @@
 import React from "react";
 
-import { formatScriptNameForActivityItem } from "utilities/helpers";
-
 import ActivityItem from "components/ActivityItem";
+import { formatScriptNameForActivityItem } from "utilities/helpers";
 
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 

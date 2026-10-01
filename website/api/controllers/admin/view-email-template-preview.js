@@ -248,15 +248,43 @@ module.exports = {
       return err;
     });
 
+
     if (raw) {
       // Respond with raw, rendered HTML for this email:
       throw {sendRawHtmlInstead: sampleHtml};
     } else {
+
+      let isTemplateANewsletter = false;
+      let isTemplateLatestNewsletter = false;
+      if(_.startsWith(template, 'newsletter/')){
+        // If we're veiwing a newsletter email template, set the isTemplateANewsletter flag to true (To show the admin a button that sends them a test email)
+        isTemplateANewsletter = true;
+        // We'll also check to see if this is the latest newsletter email template to determine whether or not to show the admin a "Send newsletter to subscribers" button.
+
+        let markdownEmailPaths = await sails.helpers.fs.ls.with({
+          dir: path.join(sails.config.paths.views, 'emails/newsletter'),
+          depth: 99,
+          includeDirs: false,
+          includeSymlinks: false,
+        });
+        markdownEmailPaths = markdownEmailPaths.map((templatePath)=>{
+          let relativePath = path.relative(path.join(sails.config.paths.views, 'emails/'), templatePath);
+          let extension = path.extname(relativePath);
+          return relativePath.split(extension)[0];
+        });
+        markdownEmailPaths = markdownEmailPaths.sort();
+        if(markdownEmailPaths[markdownEmailPaths.length - 1] === template) {
+          isTemplateLatestNewsletter = true;
+        }
+      }
+
       // Respond with the previewer page for this email:
       return {
         sampleHtml,
         template,
         fakeData,
+        isTemplateANewsletter,
+        isTemplateLatestNewsletter,
       };
     }
 

@@ -1,17 +1,17 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { IPolicy } from "interfaces/policy";
+import createMockConfig from "__mocks__/configMock";
+import createMockUser from "__mocks__/userMock";
 import { ILabelPolicy } from "interfaces/label";
+import { IPolicy } from "interfaces/policy";
+import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
   baseUrl,
   createMockRouter,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
-import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
 
 import PolicyDetailsPage, { getLabelModalData } from "./PolicyDetailsPage";
 

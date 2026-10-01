@@ -1,8 +1,10 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import React from "react";
+
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
 import { ISoftwareScriptResult } from "interfaces/software";
+import { renderWithSetup } from "test/test-utils";
+
 import { StatusMessage, ModalButtons } from "./SoftwareScriptDetailsModal";
 
 describe("SoftwareScriptDetailsModal - StatusMessage component", () => {

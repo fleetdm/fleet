@@ -135,3 +135,32 @@ func TestFleetErrFromAMAPI(t *testing.T) {
 		})
 	}
 }
+
+// TestNotFoundErrorUnwrapForm pins the two properties the HTTP layer depends on.
+// The status mapping is decided by a type switch on ctxerr.Cause, which walks
+// errors.Unwrap to the root, so this type must not be transparent to errors.Unwrap
+// while remaining traversable by errors.Is/As. See #52547.
+func TestNotFoundErrorUnwrapForm(t *testing.T) {
+	amapiErr := &googleapi.Error{Code: http.StatusNotFound, Message: "device is gone"}
+	mapped := FleetErrFromAMAPI(amapiErr)
+	require.Error(t, mapped)
+
+	nfErr, ok := mapped.(*notFoundError)
+	require.True(t, ok, "a 404 must map to *notFoundError")
+
+	require.NoError(t, errors.Unwrap(mapped),
+		"notFoundError must not implement the single-error Unwrap: ctxerr.Cause would walk past it and the response would be a 500")
+
+	var target *googleapi.Error
+	require.ErrorAs(t, mapped, &target, "errors.As must still reach the AMAPI error")
+	require.NotNil(t, target)
+	assert.Equal(t, http.StatusNotFound, target.Code)
+
+	assert.Equal(t, "device is gone", nfErr.Error(), "the client-facing message is the AMAPI message")
+	assert.Contains(t, nfErr.Internal(), "404", "the full AMAPI error is kept for logging only")
+
+	// A mapped error with no cause must not panic or produce a slice of one nil.
+	bare := &notFoundError{message: "gone"}
+	assert.Nil(t, bare.Unwrap())
+	assert.Empty(t, bare.Internal())
+}

@@ -264,13 +264,12 @@ func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
 			errContains: "Declaration profile can't include status subscription type.",
 		},
 		{
-			name:        "managed app configuration not allowed",
-			declType:    "com.apple.configuration.app.managed",
-			wantErr:     true,
-			errContains: "Declaration profile can't include software management types. To manage software, please use the Software tab.",
+			name:     "managed app configuration allowed",
+			declType: "com.apple.configuration.app.managed",
+			wantErr:  false,
 		},
 		{
-			name:        "managed app configuration not allowed",
+			name:        "package configuration not allowed",
 			declType:    "com.apple.configuration.package",
 			wantErr:     true,
 			errContains: "Declaration profile can't include software management types. To manage software, please use the Software tab.",

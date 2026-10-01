@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
 import classnames from "classnames";
+import React, { useMemo } from "react";
 
 import { IconNames, ICON_MAP } from "components/icons";
 import { Colors } from "styles/var/colors";

@@ -1,8 +1,7 @@
 import React from "react";
 
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
-
 import ActivityItem from "components/ActivityItem";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 

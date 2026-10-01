@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.2.4.0",
+      "version": "3.2.6.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'GIMP %' AND publisher = 'The GIMP Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'GIMP %' AND publisher = 'The GIMP Team' AND version_compare(version, '3.2.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'GIMP %' AND publisher = 'The GIMP Team' AND version_compare(version, '3.2.6.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gimp.exe');"
       },
-      "installer_url": "https://download.gimp.org/gimp/v3.2/windows/gimp-3.2.4-setup.exe",
+      "installer_url": "https://download.gimp.org/gimp/v3.2/windows/gimp-3.2.6-setup.exe",
       "install_script_ref": "7e5269bc",
       "uninstall_script_ref": "79fb181d",
-      "sha256": "ec31d757dd82831d201ffcf47ffeac4175df739e0c02d5122e89aeeadfb988cc",
+      "sha256": "9337cccbc01d4098ee7a3dab215b3afbe6ece99c5287c92441d6f12cf541ebca",
       "default_categories": [
         "Productivity"
       ]

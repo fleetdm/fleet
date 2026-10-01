@@ -9,8 +9,8 @@ func (c *Client) ApplyMicrosoftGraphCredentials(creds []fleet.MicrosoftGraphCred
 	return c.authenticatedRequest(req, "PUT", "/api/latest/fleet/microsoft_graph_credentials", &responseBody)
 }
 
-// GetMicrosoftGraphCredentials returns the stored credentials with their per-tenant sync status. Client secrets come back masked.
-func (c *Client) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error) {
+// GetMicrosoftGraphCredentials returns the stored credentials with their per-tenant sync status.
+func (c *Client) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 	var responseBody listMicrosoftGraphCredentialsResponse
 	err := c.authenticatedRequest(nil, "GET", "/api/latest/fleet/microsoft_graph_credentials", &responseBody)
 	return responseBody.MicrosoftGraphCredentials, err

@@ -31,6 +31,7 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "mdmAndroidEnabled": false,
   "numHostsFleetMDMEnrolledMacOS": 999,
   "numHostsFleetMDMEnrolledWindows": 999,
+  "numHostsABMPending": 999,
   "numMDMAppleProfiles": 999,
   "numMDMWindowsProfiles": 999,
   "numMDMAppleDeclarations": 999,
@@ -54,9 +55,9 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "entraConditionalAccessConfigured": true,
   "conditionalAccessBypassDisabled": false,
   "conditionalAccessEnabled": true,
-  "numHostsFleetDesktopEnabled": 999,
   "numFleetsManagedAdminAccountEnabled": 999,
   "anyFleetRecoveryLockPasswordEnabled": true,
+  "fleetDesktopSSOEnabled": false,
   "gitOpsModeEnabled": true,
   "gitOpsModeExceptions": [
     "labels",

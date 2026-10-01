@@ -1,7 +1,7 @@
 .policy-automations-list {
   max-width: 600px;
   border: 1px solid $ui-fleet-black-10;
-  border-radius: 8px;
+  border-radius: $border-radius-large;
   font-size: $x-small;
 
   &__row {
@@ -43,7 +43,7 @@
     height: 40px;
     padding: 0 $pad-large;
     border: 1px solid $ui-fleet-black-10;
-    border-radius: 8px;
+    border-radius: $border-radius-large;
     font-size: $x-small;
     color: $ui-fleet-black-50;
   }

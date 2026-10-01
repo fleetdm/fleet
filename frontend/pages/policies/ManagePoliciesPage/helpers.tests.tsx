@@ -1,11 +1,12 @@
 import React from "react";
+
+import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
+import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
 import {
   getInstallSoftwareErrorMessage,
   getRunScriptErrorMessage,
   getAutomationsForPolicy,
 } from "./helpers";
-import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
-import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
 
 describe("getInstallSoftwareErrorMessage", () => {
   const mockFormData: IInstallSoftwareFormData = [

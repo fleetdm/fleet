@@ -1,6 +1,7 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
+
 import DataTable from "./DataTable";
 
 const DEFAULT_PAGE_SIZE = 20;

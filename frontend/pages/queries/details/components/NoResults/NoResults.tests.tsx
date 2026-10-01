@@ -1,5 +1,5 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import NoResults from "./NoResults";
 
@@ -72,6 +72,27 @@ describe("NoResults", () => {
       ).toBeInTheDocument();
       expect(screen.queryByText(/Add an/)).not.toBeInTheDocument();
       expect(screen.queryByText("live report")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("collecting results", () => {
+    it("says 'about' only once before the check-back time", () => {
+      render(
+        <NoResults
+          {...baseProps}
+          queryInterval={12 * 60 * 60}
+          queryUpdatedAt={new Date().toISOString()}
+        />
+      );
+
+      expect(screen.getByText("Collecting results...")).toBeInTheDocument();
+      // check-back time is estimated to the next fixed wall-clock checkpoint
+      // (not a fixed 12 hours from now), so only assert the single "about"
+      expect(
+        screen.getByText(/Results expected in about .+ if hosts are online/)
+      ).toBeInTheDocument();
+      // regression test for https://github.com/fleetdm/fleet/issues/52241
+      expect(screen.queryByText(/about about/)).not.toBeInTheDocument();
     });
   });
 

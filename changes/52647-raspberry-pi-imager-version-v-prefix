@@ -1,0 +1,1 @@
+- Fixed Fleet Desktop showing a phantom "Update" button for the Raspberry Pi Imager Fleet-maintained app by aligning its catalog version with the "v" prefix macOS reports in `bundle_short_version`.

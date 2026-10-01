@@ -92,6 +92,32 @@ export interface ILabelSummary {
   label_type: LabelType;
 }
 
+/** Osquery platform mapped to its built-in label's name. */
+export const PLATFORM_NAME_TO_LABEL_NAME = {
+  darwin: "macOS",
+  windows: "MS Windows",
+  linux: "All Linux",
+  chrome: "chrome",
+  ios: "iOS",
+  ipados: "iPadOS",
+  android: "Android",
+} as const;
+
+/**
+ * Finds the built-in label for a platform in a labels summary, for linking to
+ * the hosts page filtered to that platform. A user-created label with the same
+ * name never matches.
+ */
+export const getBuiltinPlatformLabelId = (
+  labels: ILabelSummary[] | undefined,
+  platform: keyof typeof PLATFORM_NAME_TO_LABEL_NAME
+): number | undefined =>
+  labels?.find(
+    (label) =>
+      label.label_type === "builtin" &&
+      label.name === PLATFORM_NAME_TO_LABEL_NAME[platform]
+  )?.id;
+
 export interface ILabelSoftwareTitle {
   id: number;
   name: string;

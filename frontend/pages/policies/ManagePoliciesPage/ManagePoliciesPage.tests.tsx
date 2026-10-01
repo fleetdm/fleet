@@ -1,16 +1,16 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
+import createMockConfig from "__mocks__/configMock";
+import createMockPolicy from "__mocks__/policyMock";
+import createMockUser from "__mocks__/userMock";
+import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
   createMockRouter,
   baseUrl,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
-import createMockConfig from "__mocks__/configMock";
-import createMockUser from "__mocks__/userMock";
-import createMockPolicy from "__mocks__/policyMock";
 
 import ManagePoliciesPage from "./ManagePoliciesPage";
 

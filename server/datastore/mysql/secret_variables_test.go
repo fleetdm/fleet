@@ -377,7 +377,7 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, unlock_token, authenticate, platform) VALUES (?, ?, 'fake-auth', 'ios')`, hostMDM.UUID, unlockToken)
 			require.NoError(t, err)
-			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, last_seen_at) VALUES (?, ?, 'Device', 'fake-topic', 'fake-push-magic', 'fake-token-hex', NOW())`, hostMDM.UUID, hostMDM.UUID)
+			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex) VALUES (?, ?, 'Device', 'fake-topic', 'fake-push-magic', 'fake-token-hex')`, hostMDM.UUID, hostMDM.UUID)
 			return err
 		})
 

@@ -1,29 +1,28 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
+import React, { useCallback, useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
+import BackButton from "components/BackButton";
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
 import { AppContext } from "context/app";
 import { IMdmVppToken } from "interfaces/mdm";
+import PATHS from "router/paths";
 import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
 
-import BackButton from "components/BackButton";
-import MainContent from "components/MainContent";
-import Button from "components/buttons/Button";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import PageDescription from "components/PageDescription";
-import EmptyState from "components/EmptyState";
-
 import AddVppModal from "./components/AddVppModal";
-import RenewVppModal from "./components/RenewVppModal";
 import DeleteVppModal from "./components/DeleteVppModal";
-import VppTable from "./components/VppTable";
 import EditTeamsVppModal from "./components/EditTeamsVppModal";
+import RenewVppModal from "./components/RenewVppModal";
+import VppTable from "./components/VppTable";
 
 const baseClass = "vpp-page";
 

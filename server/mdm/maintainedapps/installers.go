@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/version"
 )
 
 // InstallerTimeout is the timeout duration for downloading and adding a maintained app.
@@ -32,6 +33,11 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 	if err != nil {
 		return nil, "", ctxerr.Wrapf(ctx, err, "creating request for URL %s", installerURL)
 	}
+	// Vendor CDNs disagree on which clients to allow: some Cloudflare-fronted
+	// hosts 403 a User-Agent that starts with "Go-http-client", while Akamai
+	// (downloads.tableau.com) 403s any User-Agent without a known HTTP library
+	// token. Leading with fleet/<version> and keeping the Go token satisfies both.
+	req.Header.Set("User-Agent", installerUserAgent())
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -60,6 +66,10 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 	}
 
 	return tfr, FilenameFromResponse(resp), nil
+}
+
+func installerUserAgent() string {
+	return "fleet/" + version.Version().Version + " Go-http-client/1.1"
 }
 
 func FilenameFromResponse(resp *http.Response) string {

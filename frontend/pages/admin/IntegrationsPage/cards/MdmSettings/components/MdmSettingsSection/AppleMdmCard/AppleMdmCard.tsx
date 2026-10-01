@@ -1,9 +1,10 @@
+import { AxiosError } from "axios";
 import React from "react";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
-import { AxiosError } from "axios";
 import { IMdmApple } from "interfaces/mdm";
+
 import SectionCard from "../../SectionCard";
 
 const baseClass = "apple-mdm-card";

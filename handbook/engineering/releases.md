@@ -44,8 +44,8 @@ During the release candidate period, the release candidate is deployed to our QA
 
 At the same time as the Fleet server RC, a fleetd release candidate branch is also created at `rc-minor-fleetd-v1.x.x` from `main`, where `1.x.x` is the next minor version after the last released fleetd version (fleetd versioning is separate from Fleet server versioning). No additional feature work is merged into the RC branch without EM and QA approval.
 
-1. Create the release candidate branch from `main` and push it.
-2. Create a release QA issue for the fleetd release.
+1. Create the release candidate branch from `main` and push it. Pushing the branch triggers the [create fleetd release QA issue](https://github.com/fleetdm/fleet/actions/workflows/create-fleetd-release-qa-issue.yml) GitHub Action, which creates the [Release QA (fleetd)](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/release-qa-fleetd.md) issue on the release board.
+2. Confirm the release QA issue was created. If it wasn't, run the workflow manually from the release candidate branch, or create the issue from the template.
 3. Announce the release candidate in Slack.
 
 The same cherry-pick policy applies as for the Fleet server RC. To merge a bug fix into the fleetd release candidate, follow the same process described in [Merge unreleased bug fixes into the release candidate](#merge-unreleased-bug-fixes-into-the-release-candidate).
@@ -65,6 +65,8 @@ Only merge unreleased bug fixes during the release candidate period to minimize 
 4. Create a pull request from your new branch to the release candidate. 
 
 This process ensures your bug fix is included in `main` for future releases, as well as the release candidate branch for the pending release.
+
+> If unreleased bugs are still open 2 business days before the release due date, contact the release ritual DRI and request they push the target release date. Set the new date by estimating how long the remaining bug fixes will take, then adding 2 business days for smoke and load testing. Communicate the new date in the [#help-releases thread](#discuss-release-dates) for the release.
 
 If there is partially merged feature work when the release candidate is created, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work into the release candidate, as determined by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals), the release candidate [feature merge exception process](#request-release-candidate-feature-merge-exception) may be followed.
 
@@ -178,11 +180,11 @@ Immediately after publishing a new release of Fleet or fleetd, close out the ass
 
 1. **Update product group boards**: In GitHub Projects, go to each product group board tracking the current release and filter by the current milestone.
 
-2. **Move user stories to drafting board**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label. These items will move back to the product drafting board.
+2. **Move user stories to the intake & outtake board**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label. These items will move back to the 🦢📨🎉 Product design intake & outtake board.
 
 3. **Confirm and close**: Make sure that all items with the `story` label have left the "Ready for release" column. Select all remaining items in the "Ready for release" column and move them to the "Closed" column. This will close the related GitHub issues.
 
-4. **Confirm and celebrate**: Open the [Drafting](https://github.com/orgs/fleetdm/projects/67) board. Filter by the current milestone and move all stories to the "Confirm and celebrate" column. Product will close the issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals). [Engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) (`~engineering-initiated` label) can be closed without confirm and celebrate.
+4. **Confirm and celebrate**: Open the [🦢📨🎉 Product design intake & outtake](https://github.com/orgs/fleetdm/projects/67) board. Filter by the current milestone and move all stories to the "Confirm and celebrate" column. Product will close the issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals). [Engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) (`~engineering-initiated` label) can be closed without confirm and celebrate.
 
 5. **Close GitHub milestone**: Visit [GitHub's milestone page](https://github.com/fleetdm/fleet/milestones) and close the current milestone.
 
@@ -214,7 +216,7 @@ Some of our code does not go through a scheduled release process and is released
 In these cases there are two differences in our pull request process:
 
 - QA is done before merging the code change to the main branch.
-- Tickets are not moved to "Ready for release". Bugs are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
+- Tickets are not moved to "Ready for release". Bugs are closed, and user stories are moved to the 🦢📨🎉 Product design intake & outtake board's "Confirm and celebrate" column.
 
 
 ## Server and agent compatibility

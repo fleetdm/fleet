@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
@@ -74,6 +75,10 @@ type softwareWorkerArgs struct {
 }
 
 func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) error {
+	// Jobs run one at a time on a worker shared with other job types, and failed jobs are retried by the
+	// worker, so fail fast on AMAPI quota errors instead of waiting them out here.
+	ctx = androidmgmt.WithoutRetry(ctx)
+
 	var args softwareWorkerArgs
 	if err := json.Unmarshal(argsJSON, &args); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
@@ -524,8 +529,9 @@ func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
 	for _, appID := range appIDs {
 		var androidAppConfig struct {
-			ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-			WorkProfileWidgets   string          `json:"workProfileWidgets"`
+			ManagedConfiguration     json.RawMessage `json:"managedConfiguration"`
+			WorkProfileWidgets       string          `json:"workProfileWidgets"`
+			CredentialProviderPolicy string          `json:"credentialProviderPolicy"`
 		}
 		if config := configsByAppID[appID]; config != nil {
 			if err := json.Unmarshal(config, &androidAppConfig); err != nil {
@@ -537,12 +543,14 @@ func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 			// config.
 			androidAppConfig.ManagedConfiguration = json.RawMessage{}
 			androidAppConfig.WorkProfileWidgets = "WORK_PROFILE_WIDGETS_UNSPECIFIED"
+			androidAppConfig.CredentialProviderPolicy = "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"
 		}
 		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
-			PackageName:          appID,
-			InstallType:          installType,
-			ManagedConfiguration: googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
-			WorkProfileWidgets:   androidAppConfig.WorkProfileWidgets,
+			PackageName:              appID,
+			InstallType:              installType,
+			ManagedConfiguration:     googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
+			WorkProfileWidgets:       androidAppConfig.WorkProfileWidgets,
+			CredentialProviderPolicy: androidAppConfig.CredentialProviderPolicy,
 		})
 	}
 	return appPolicies, nil

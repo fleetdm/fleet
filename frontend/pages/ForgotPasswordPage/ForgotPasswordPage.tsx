@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { InjectedRouter } from "react-router";
+
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import AuthenticationNav from "components/AuthenticationNav";
+import CustomLink from "components/CustomLink";
+import ForgotPasswordForm, {
+  IForgotPasswordFormData,
+} from "components/forms/ForgotPasswordForm/ForgotPasswordForm";
+import { notify } from "components/ToastNotification";
 import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 import formatErrorResponse from "utilities/format_error_response";
-
-// @ts-ignore
-import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
-import AuthenticationNav from "components/AuthenticationNav";
-import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import CustomLink from "components/CustomLink";
 
 interface IForgotPasswordPage {
   router: InjectedRouter;
@@ -16,28 +18,19 @@ interface IForgotPasswordPage {
 
 const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
   const [email, setEmail] = useState("");
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [isLoading, setIsLoading] = useState(false);
 
   const baseClass = "forgot-password";
 
-  useEffect(() => {
-    setErrors({});
-  }, []);
-
-  const handleSubmit = async (formData: { email: string }) => {
-    setIsLoading(true);
+  const handleSubmit = async (formData: IForgotPasswordFormData) => {
     try {
       await usersAPI.forgotPassword(formData);
-
       setEmail(formData.email);
-      setErrors({});
     } catch (response) {
-      const errorObject = formatErrorResponse(response);
       setEmail("");
-      setErrors(errorObject);
-    } finally {
-      setIsLoading(false);
+      const { base } = formatErrorResponse(response);
+      notify.error(base || "Couldn't send the reset email. Try again.", {
+        response,
+      });
     }
   };
 
@@ -63,14 +56,7 @@ const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
       );
     }
 
-    return (
-      <ForgotPasswordForm
-        handleSubmit={handleSubmit}
-        onChangeFunc={() => setErrors({})}
-        serverErrors={errors}
-        isLoading={isLoading}
-      />
-    );
+    return <ForgotPasswordForm handleSubmit={handleSubmit} />;
   };
 
   return (

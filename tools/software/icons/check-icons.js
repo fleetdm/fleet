@@ -36,6 +36,7 @@ const MAX_BYTES = 16 * 1024;
 const SMALL_SOURCE_ALLOWLIST = new Set([
   "Gnupg.png",
   "SonicwallNetextender.png",
+  "MicrosoftOleDbDriver19.png",
 ]);
 
 const STRICT = process.argv.includes("--strict");

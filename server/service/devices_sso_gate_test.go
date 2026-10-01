@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/certserial"
 	"github.com/fleetdm/fleet/v4/server/contexts/devicesso"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
@@ -19,9 +18,6 @@ import (
 func newDeviceSSOGateTestService(host *fleet.Host) *svcmock.Service {
 	svc := new(svcmock.Service)
 	svc.AuthenticateDeviceFunc = func(ctx context.Context, token string) (*fleet.Host, bool, error) {
-		return host, false, nil
-	}
-	svc.AuthenticateDeviceByCertificateFunc = func(ctx context.Context, serial uint64, uuid string) (*fleet.Host, bool, error) {
 		return host, false, nil
 	}
 	svc.AuthenticateIDeviceByURLFunc = func(ctx context.Context, uuid string) (*fleet.Host, bool, error) {
@@ -61,25 +57,8 @@ func TestAuthenticatedDeviceSSOGate(t *testing.T) {
 		require.Equal(t, host, gotHost)
 	})
 
-	// iOS/iPadOS reach the device API by client certificate or by device UUID in
-	// the URL rather than by rotating token; the gate runs after host resolution
-	// so it has to cover all three.
-	t.Run("gate covers certificate authentication", func(t *testing.T) {
-		svc := newDeviceSSOGateTestService(host)
-		svc.RequireDeviceSSOSessionFunc = func(ctx context.Context, host *fleet.Host, sessionID string) error {
-			return ssoRequired
-		}
-
-		mw := gatedDeviceChain(svc, func(ctx context.Context, request any) (any, error) {
-			return "success", nil
-		})
-
-		ctx := certserial.NewContext(t.Context(), 1234)
-		_, err := mw(ctx, mockDeviceAuthRequest{Token: host.UUID})
-		require.ErrorIs(t, err, ssoRequired)
-		require.True(t, svc.AuthenticateDeviceByCertificateFuncInvoked)
-	})
-
+	// iOS/iPadOS reach the device API by UUID in the URL, not by rotating token.
+	// The gate runs after host resolution, so it covers both.
 	t.Run("gate covers device URL authentication", func(t *testing.T) {
 		svc := newDeviceSSOGateTestService(host)
 		svc.AuthenticateDeviceFunc = func(ctx context.Context, token string) (*fleet.Host, bool, error) {

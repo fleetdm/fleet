@@ -1,13 +1,13 @@
-import React from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "react-query";
 import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
+import React from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
 
-import { AppContext, IAppContext, initialState } from "context/app";
 import { createMockTeamSummary } from "__mocks__/teamMock";
+import { AppContext, IAppContext, initialState } from "context/app";
 import { ILabelPolicy, ILabelSummary } from "interfaces/label";
 import labelsAPI from "services/entities/labels";
+import mockServer from "test/mock-server";
 
 import usePolicyLabelTargets from "./usePolicyLabelTargets";
 

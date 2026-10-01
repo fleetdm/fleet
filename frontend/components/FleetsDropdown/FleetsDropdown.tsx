@@ -1,3 +1,4 @@
+import classnames from "classnames";
 import React, {
   useContext,
   useEffect,
@@ -6,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { browserHistory } from "react-router";
 import Select, {
   components,
   GroupBase,
@@ -14,15 +16,10 @@ import Select, {
   SelectInstance,
   StylesConfig,
 } from "react-select-5";
-import { browserHistory } from "react-router";
-import classnames from "classnames";
 
-import { COLORS } from "styles/var/colors";
-import { PADDING } from "styles/var/padding";
-
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import { AppContext } from "context/app";
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
@@ -30,9 +27,10 @@ import {
   APP_CONTEXT_NO_TEAM_ID,
   ITeamSummary,
 } from "interfaces/team";
-
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import PATHS from "router/paths";
+import { COLORS } from "styles/var/colors";
+import { PADDING } from "styles/var/padding";
+import { getPathWithQueryParams } from "utilities/url";
 
 declare module "react-select-5/dist/declarations/src/Select" {
   // Generic parameter *names* must match react-select's own Props interface
@@ -167,13 +165,7 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
     // Stop Enter/Space from bubbling to SelectContainer, which would treat
     // them as "select highlighted option" alongside the button's own click.
     // Escape/Tab/Arrow still bubble so react-select's close/focus work.
-    // preventDefault on Enter — Fleet Button's handleKeyDown already
-    // synthesizes onClick from Enter, so without preventDefault the browser
-    // would ALSO synthesize a native click and fire onClickAddFleet twice.
-    if (event.key === "Enter") {
-      event.preventDefault();
-      event.stopPropagation();
-    } else if (event.key === " ") {
+    if (event.key === "Enter" || event.key === " ") {
       event.stopPropagation();
     }
   };

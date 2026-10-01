@@ -1,10 +1,9 @@
 import React from "react";
 
-import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
-
-import { SoftwareInstallPolicyTypeSet } from "interfaces/software";
 import Tag from "components/Tag";
+import TooltipWrapper from "components/TooltipWrapper";
+import { SoftwareInstallPolicyTypeSet } from "interfaces/software";
 
 const baseClass = "software-install-policy-badges";
 

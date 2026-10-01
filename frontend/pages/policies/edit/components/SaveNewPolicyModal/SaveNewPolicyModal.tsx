@@ -1,3 +1,5 @@
+import classNames from "classnames";
+import { size } from "lodash";
 import React, {
   useState,
   useContext,
@@ -6,39 +8,34 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { size } from "lodash";
-import classNames from "classnames";
 import { useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { PolicyContext } from "context/policy";
-import { IPlatformSelector } from "hooks/usePlatformSelector";
-import { IConfig } from "interfaces/config";
-import { IPolicy, IPolicyFormData } from "interfaces/policy";
-import { CommaSeparatedPlatformString } from "interfaces/platform";
-import { ITeamConfig } from "interfaces/team";
-import useDeepEffect from "hooks/useDeepEffect";
-import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
-
-import configAPI from "services/entities/config";
-import teamPoliciesAPI from "services/entities/team_policies";
-import teamsAPI from "services/entities/teams";
-
-import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox";
-import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
+import Checkbox from "components/forms/fields/Checkbox";
+import InputField from "components/forms/fields/InputField";
+import Icon from "components/Icon";
 import Modal from "components/Modal";
 import { TargetLabelSelector } from "components/TargetLabelSelector";
-import Icon from "components/Icon";
-
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { PolicyContext } from "context/policy";
+import useDeepEffect from "hooks/useDeepEffect";
+import { IPlatformSelector } from "hooks/usePlatformSelector";
+import { IConfig } from "interfaces/config";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
+import { IPolicy, IPolicyFormData } from "interfaces/policy";
+import { ITeamConfig } from "interfaces/team";
 import PolicyAutomationsFields, {
   IPolicyAutomationsFieldsHandle,
 } from "pages/policies/components/PolicyAutomationsFields";
-import { usePolicyLabelTargets } from "pages/policies/hooks";
 import { POLICY_TARGET_EMPTY_STATE_DESCRIPTION } from "pages/policies/constants";
+import { usePolicyLabelTargets } from "pages/policies/hooks";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import teamPoliciesAPI from "services/entities/team_policies";
+import teamsAPI from "services/entities/teams";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 export interface ISaveNewPolicyModalProps {
   baseClass: string;
@@ -110,12 +107,14 @@ const SaveNewPolicyModal = ({
     lastEditedQueryDescription,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    lastEditedQueryHidden,
     setLastEditedQueryName,
     setLastEditedQueryPlatform,
     // TODO: Keep last edited query platform from resetting when cancelling out of modal and clicking save again
     setLastEditedQueryDescription,
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
   } = useContext(PolicyContext);
 
   const [errors, setErrors] = useState<{ [key: string]: string }>(
@@ -131,6 +130,13 @@ const SaveNewPolicyModal = ({
 
   const [showAutomations, setShowAutomations] = useState(false);
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
+  const [conditionalAccessOn, setConditionalAccessOn] = useState(false);
+
+  useEffect(() => {
+    if (conditionalAccessOn) {
+      setLastEditedQueryHidden(false);
+    }
+  }, [conditionalAccessOn, setLastEditedQueryHidden]);
 
   const newPolicyStub = useMemo(
     () =>
@@ -198,6 +204,7 @@ const SaveNewPolicyModal = ({
     };
     if (isPremiumTier) {
       Object.assign(payload, getLabelsPayload());
+      payload.hidden = lastEditedQueryHidden;
     }
 
     // The create endpoint deliberately ignores automation fields (see the
@@ -387,6 +394,7 @@ const SaveNewPolicyModal = ({
               globalConfig={globalConfig}
               fleetName={fleetName}
               selectedPlatforms={platformSelector.getSelectedPlatforms()}
+              onConditionalAccessChange={setConditionalAccessOn}
             />
           </div>
         ) : (
@@ -419,6 +427,26 @@ const SaveNewPolicyModal = ({
                 }
               >
                 Critical
+              </TooltipWrapper>
+            </Checkbox>
+          </div>
+        )}
+        {isPremiumTier && (
+          <div className="hidden-checkbox-wrapper">
+            <Checkbox
+              name="hidden-policy"
+              onChange={(value: boolean) => setLastEditedQueryHidden(value)}
+              value={lastEditedQueryHidden}
+              disabled={disableForm || conditionalAccessOn}
+            >
+              <TooltipWrapper
+                tipContent={
+                  conditionalAccessOn
+                    ? "This setting is not compatible with the conditional access automation."
+                    : "Does not require action from the end user and is hidden in Fleet Desktop."
+                }
+              >
+                Hide from end user
               </TooltipWrapper>
             </Checkbox>
           </div>

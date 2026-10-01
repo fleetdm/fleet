@@ -1,3 +1,4 @@
+import classnames from "classnames";
 import React, { useContext, useEffect, useRef, useState } from "react";
 import Select, {
   components,
@@ -7,17 +8,14 @@ import Select, {
   StylesConfig,
 } from "react-select-5";
 
-import { PADDING } from "styles/var/padding";
-import { COLORS } from "styles/var/colors";
-import classnames from "classnames";
-
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { IconNames } from "components/icons";
-
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
+import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 import TableLayoutContext from "components/TableContainer/TableLayoutContext";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { COLORS } from "styles/var/colors";
+import { PADDING } from "styles/var/padding";
 
 const baseClass = "actions-dropdown";
 

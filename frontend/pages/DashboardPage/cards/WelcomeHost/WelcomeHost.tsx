@@ -1,18 +1,18 @@
 import React, { useState } from "react";
-import PATHS from "router/paths";
 import { useQuery } from "react-query";
-import { timeAgo } from "utilities/date_format";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Icon from "components/Icon/Icon";
+import Modal from "components/Modal";
+import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { IHost, IHostResponse } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
+import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
+import { timeAgo } from "utilities/date_format";
 
-import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
-import Icon from "components/Icon/Icon";
-import CustomLink from "components/CustomLink";
 import LaptopMac from "../../../../../assets/images/laptop-mac.png";
 import SlackButton from "../../../../../assets/images/slack-button-get-help.png";
 
@@ -37,6 +37,15 @@ const WelcomeHost = ({
   const [showRefetchLoadingSpinner, setShowRefetchLoadingSpinner] = useState(
     false
   );
+
+  /**
+   * Hides refetch spinner and resets refetch timer,
+   * ensuring no stale timeout triggers on new requests.
+   */
+  const resetHostRefetchStates = () => {
+    setShowRefetchLoadingSpinner(false);
+    setRefetchStartTime(null);
+  };
 
   const {
     isLoading: isLoadingHost,
@@ -66,7 +75,7 @@ const WelcomeHost = ({
                 fullyReloadHost();
               }, 1000);
             } else {
-              setShowRefetchLoadingSpinner(false);
+              resetHostRefetchStates();
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
@@ -79,13 +88,13 @@ const WelcomeHost = ({
                 notify.error(
                   `This host is offline. Please try refetching host vitals later.`
                 );
-                setShowRefetchLoadingSpinner(false);
+                resetHostRefetchStates();
               }
             } else {
               notify.error(
                 `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
               );
-              setShowRefetchLoadingSpinner(false);
+              resetHostRefetchStates();
             }
           }
         }
@@ -110,7 +119,7 @@ const WelcomeHost = ({
         notify.error(`Host "${host.display_name}" refetch error`, {
           response: error,
         });
-        setShowRefetchLoadingSpinner(false);
+        resetHostRefetchStates();
       }
     }
   };

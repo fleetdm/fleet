@@ -1,12 +1,11 @@
 import React from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
-import { FLEET_WEBSITE_URL } from "utilities/constants";
-
-import SideNav from "pages/admin/components/SideNav";
 import CustomLink from "components/CustomLink";
 import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
+import SideNav from "pages/admin/components/SideNav";
+import { FLEET_WEBSITE_URL } from "utilities/constants";
 
 import useScriptNavItems from "./ScriptsNavItems";
 

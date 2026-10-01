@@ -6,6 +6,9 @@ const DEFAULT_ERROR_MESSAGE = "Couldn’t add. Please try again.";
 
 const generateDuplicateMessage = (msg: string) => {
   const orgName = msg.split("'")[1];
+  if (!orgName) {
+    return "Couldn't add. A VPP connection already exists for this organization unit.";
+  }
   return (
     <>
       Couldn&apos;t add. There&apos;s already a VPP connection for the{" "}

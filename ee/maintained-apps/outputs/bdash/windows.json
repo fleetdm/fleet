@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.35.1",
+      "version": "1.35.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Bdash %' AND publisher = 'Kazuhito Hokamura';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Bdash %' AND publisher = 'Kazuhito Hokamura' AND version_compare(version, '1.35.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Bdash %' AND publisher = 'Kazuhito Hokamura' AND version_compare(version, '1.35.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'bdash.exe');"
       },
-      "installer_url": "https://github.com/bdash-app/bdash/releases/download/v1.35.1/Bdash-Setup-1.35.1.exe",
+      "installer_url": "https://github.com/bdash-app/bdash/releases/download/v1.35.2/Bdash-Setup-1.35.2.exe",
       "install_script_ref": "174c0b07",
       "uninstall_script_ref": "ebe0c55b",
-      "sha256": "25d117cb4658efed68387b7d8928ddd63982c8807eb2fe363ebbc38227a33fae",
+      "sha256": "230c07c7f1938f0cea9ec6803df3878e417700db8c97ee8c3418f6c6480ee5fe",
       "default_categories": [
         "Productivity"
       ]
