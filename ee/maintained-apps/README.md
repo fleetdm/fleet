@@ -166,65 +166,52 @@ If an app does not pass test criteria:
 
 ## Editing an app's pre-install query
 
-When patch when closed is on, Fleet runs the app's pre-install query (`open` in the app's output manifest) on the host before installing an update. The query returns a result only when the app is closed, so Fleet doesn't patch an app while it's open. Fleet generates this query for every app. If it's wrong for an app (e.g. [#53919](https://github.com/fleetdm/fleet/issues/53919)), override it.
+With patch when closed on, Fleet runs the app's `open` query before an update and installs only if it returns a result (app is closed). To override the generated query:
 
 ### macOS
 
-1. In `ingesters/homebrew/ingester.go`, find the `switch input.Token` block right after `out.Queries.Open = patch_policy.GenerateOpenQuery(...)`.
-2. Add a `case` for the app's Homebrew `token` (from its input file in `inputs/homebrew/`) that sets `out.Queries.Open`. If an existing case already uses the query you need, add the token to that case instead. For example:
+In `ingesters/homebrew/ingester.go`, add a `case` for the app's `token` to the `switch input.Token` block after `GenerateOpenQuery`. Escape `%` as `%%`.
 
-   For example, this case makes Chromium browsers count as open when they run from the code sign clone macOS uses after the browser updates itself:
+```go
+case "google-chrome", "microsoft-edge", "brave-browser", "vivaldi", "opera", "arc", "comet":
+	out.Queries.Open = fmt.Sprintf(
+		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
+		out.UniqueIdentifier,
+	)
+```
 
-   ```go
-   case "google-chrome", "microsoft-edge", "brave-browser", "vivaldi", "opera", "arc", "comet":
-   	// Also match the executable in the browser's code sign clone, macOS reports a running Chromium browser there after the browser updates itself while open.
-   	out.Queries.Open = fmt.Sprintf(
-   		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
-   		out.UniqueIdentifier,
-   	)
-   ```
-
-   `out.UniqueIdentifier` is the app's bundle ID. Escape `%` as `%%` because the query goes through `fmt.Sprintf`.
-
-3. Add a test case for the new query in `ingesters/homebrew/ingester_test.go`.
+Add a test in `ingesters/homebrew/ingester_test.go`.
 
 ### Windows
 
-By default, Fleet treats a Windows app as open when a process named `<app name>.exe` is running.
+The default query checks for a running `<app name>.exe`.
 
-To match different process names, add an entry to the `windowsOpenQueryOverrides` map in `pkg/patch_policy/patch_policy.go`. The key is the app's `name` (from its input file in `inputs/winget/`). The value is the condition on the lowercase process name, which Fleet puts into `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) <value>);`. For example:
+To match other process names, add the app's `name` to `windowsOpenQueryOverrides` in `pkg/patch_policy/patch_policy.go`. The value replaces `<value>` in `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) <value>);`.
 
 ```go
-"<App name>": "IN ('<process>.exe','<other-process>.exe')",
+"7-zip": "IN ('7zfm.exe','7zg.exe')",
 ```
 
-To replace the whole query, set `out.Queries.Open` in `ingesters/winget/ingester.go`, right after `out.Queries.Open = patch_policy.GenerateOpenQuery("windows", "", out.Name)`. Use a `switch input.Slug` block, like the macOS ingester. If there isn't one yet, add it. For example:
-
-For example, this matches any process running from an app's install directory instead of a single process name:
+To replace the whole query, set `out.Queries.Open` in `ingesters/winget/ingester.go` after `GenerateOpenQuery`, in a `switch input.Slug` block (add one if it doesn't exist). Add a test in `ingesters/winget/ingester_test.go`.
 
 ```go
 switch input.Slug {
 case "example-app/windows":
-	// The app runs several helper processes with unrelated names, so match on its install directory instead.
 	out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(path) LIKE 'c:\program files\example app\%');`
 }
 ```
 
-Use a raw string (backticks) so the backslashes in Windows paths don't need escaping.
+### Publish
 
-Add a test case for the new query in `ingesters/winget/ingester_test.go`.
-
-### Publish the change
-
-1. Regenerate the app's output data from the root of the Fleet repo and confirm `open` changed in `outputs/<app>/darwin.json` or `outputs/<app>/windows.json`:
+1. Regenerate the output and confirm `open` changed:
 
    ```bash
    go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
    ```
 
-2. Open a PR with the Go change and the regenerated output. Go changes need approval from [@fleetdm/go](https://github.com/orgs/fleetdm/teams/go).
+2. Open a PR. Go changes need [@fleetdm/go](https://github.com/orgs/fleetdm/teams/go) approval.
 
-After the PR merges, no Fleet release is needed. Fleet servers pick up the new query the next time they auto-update Fleet-maintained apps, even when the app's version didn't change. Apps pinned to a specific version keep their current query.
+No Fleet release needed. Fleet servers pick up the new query on the next FMA auto-update, except for apps pinned to a specific version.
 
 ## Freezing an existing Fleet-maintained app
 
