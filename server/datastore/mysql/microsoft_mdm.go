@@ -89,7 +89,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		host_uuid,
 		-- A subquery rather than a join, so hosts sharing a UUID do not multiply the row.
 		(SELECT h.id FROM hosts h WHERE h.uuid = mdm_windows_enrollments.host_uuid AND mdm_windows_enrollments.host_uuid != ''
-			ORDER BY h.id LIMIT 1) AS linked_host_id
+			AND h.platform = 'windows' ORDER BY h.id LIMIT 1) AS linked_host_id
 		FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
@@ -501,11 +501,15 @@ func (ds *Datastore) MDMWindowsConflictingEnrollmentHardwareID(ctx context.Conte
 // GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments.
 // Returns (nil, "") when no default is configured (including when the referenced fleet was deleted, which nulls the FK).
 func (ds *Datastore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (*uint, string, error) {
+	return getWindowsEnrollmentDefaultFleetDB(ctx, ds.reader(ctx))
+}
+
+func getWindowsEnrollmentDefaultFleetDB(ctx context.Context, q sqlx.QueryerContext) (*uint, string, error) {
 	var row struct {
 		TeamID   *uint   `db:"default_team_id"`
 		TeamName *string `db:"team_name"`
 	}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, `
+	err := sqlx.GetContext(ctx, q, &row, `
 		SELECT mwec.default_team_id, t.name AS team_name
 		FROM mdm_windows_enrollment_config mwec
 		LEFT JOIN teams t ON t.id = mwec.default_team_id
