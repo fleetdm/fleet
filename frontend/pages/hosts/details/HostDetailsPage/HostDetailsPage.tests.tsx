@@ -459,4 +459,20 @@ describe("HostDetailsPage - disk encryption key rotation", () => {
       screen.queryByRole("button", { name: "Rotate key" })
     ).not.toBeInTheDocument();
   });
+
+  it("doesn't offer Rotate key on a personal host", async () => {
+    const host = mockMacWithKey(true);
+    host.mdm.enrollment_status = "On (personal)";
+    stubQueries(host);
+    const { user } = renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+    });
+
+    await openDiskEncryptionKeyModal(user);
+
+    expect(
+      screen.queryByRole("button", { name: "Rotate key" })
+    ).not.toBeInTheDocument();
+  });
 });

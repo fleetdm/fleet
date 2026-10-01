@@ -68,6 +68,7 @@ import { IListSort } from "interfaces/list_options";
 import {
   canTriggerAPNSPing,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  isPersonalEnrollment,
 } from "interfaces/mdm";
 import {
   isAppleDevice,
@@ -2118,7 +2119,8 @@ const HostDetailsPage = ({
               canRotateKey={
                 isPremiumTier &&
                 isAdminOrMaintainer &&
-                host.mdm.encryption_key_available
+                host.mdm.encryption_key_available &&
+                !isPersonalEnrollment(host.mdm.enrollment_status)
               }
               isEscrowEnabled={fleetDiskEncryptionSettings.macOSEscrowEnabled}
               onCancel={() => setShowDiskEncryptionModal(false)}
