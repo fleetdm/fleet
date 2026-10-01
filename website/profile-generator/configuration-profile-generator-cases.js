@@ -1161,8 +1161,8 @@ const TEST_CASES = [
     id: 'ddm-intelligence-nested-apps',
     profileType: 'ddm',
     canary: true,
-    instructions: 'Leave Apple Intelligence on generally, but turn off the Mail summary and the Safari summary features.',
-    readByEye: 'These two live in the nested Apps dictionary -- Apps.Mail.AllowSummary and Apps.Safari.AllowSummary -- not at the top level of the payload.  A flat AllowMailSummary key is an unknown key that enforces nothing.  Also confirm the top-level Allow* keys were NOT set, since the request explicitly leaves the rest on.',
+    instructions: 'Turn off Apple Intelligence summaries in Mail and Safari.',
+    readByEye: 'These two live in the nested Apps dictionary -- Apps.Mail.AllowSummary and Apps.Safari.AllowSummary -- not at the top level of the payload.  A flat AllowMailSummary key is an unknown key that enforces nothing.  Also confirm no top-level Allow* keys were set, since only the two summaries were asked for.',
     expect: {
       mustContain: ['com.apple.configuration.intelligence.settings', 'Apps', 'Mail', 'Safari', 'AllowSummary'],
       mustNotContain: ['AllowMailSummary', 'AllowSafariSummary', 'AllowWritingTools', 'AllowGenmoji'],
@@ -1252,7 +1252,6 @@ const TEST_CASES = [
   {
     id: 'negative-remote-login-disabled',
     profileType: 'mobileconfig',
-    cisId: 'macos-26 2.3.3.4',
     instructions: 'Turn off Remote Login so nobody can SSH into these Macs.',
     readByEye: 'Remote Login is the ssh launchd job.  A profile cannot disable it.',
     expect: { expectFailure: true }
@@ -1302,8 +1301,8 @@ const TEST_CASES = [
   {
     id: 'negative-xprotect-running',
     profileType: 'mobileconfig',
-    instructions: 'Make sure XProtect is running and up to date.',
-    readByEye: 'Another state-not-setting.  ConfigDataInstall (CIS 1.5) keeps XProtect definitions current and is a legitimate ADJACENT answer -- if that came back with a caveat explaining the difference, read it as a good answer rather than a failure, and tell the dev the case needs splitting.',
+    instructions: 'Make sure XProtect is running.',
+    readByEye: 'Another state-not-setting.  ConfigDataInstall (CIS 1.5) keeps XProtect definitions current but does not make XProtect run, so a profile carrying only that key answers a different request.',
     expect: { expectFailure: true }
   },
 
