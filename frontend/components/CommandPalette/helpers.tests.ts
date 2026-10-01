@@ -35,6 +35,7 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   canManageReportAutomations: true,
   canEditCustomVariable: true,
   canAddSoftware: true,
+  canAddConfigurationProfile: true,
   isAdminOrMaintainer: true,
   isTechnician: false,
   isPremiumTier: true,
@@ -418,7 +419,7 @@ describe("CommandPalette helpers", () => {
     it("shows Add profile to admins and maintainers once some MDM is on", () => {
       const items = buildPaletteItems({
         ...BASE_CONTEXT,
-        isAdminOrMaintainer: true,
+        canAddConfigurationProfile: true,
       });
       const addProfile = items.find((i) => i.id === "add-profile");
       expect(addProfile?.path).toContain(
@@ -429,7 +430,11 @@ describe("CommandPalette helpers", () => {
     it.each([
       [
         "users who aren't admins or maintainers",
-        { isAdminOrMaintainer: false },
+        { canAddConfigurationProfile: false, isAdminOrMaintainer: false },
+      ],
+      [
+        "an admin elsewhere who is a technician of the current fleet",
+        { canAddConfigurationProfile: false, isAdminOrMaintainer: true },
       ],
       [
         "everyone when no MDM is on",

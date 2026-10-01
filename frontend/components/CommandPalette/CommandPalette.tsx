@@ -152,6 +152,14 @@ const CommandPalette = (): JSX.Element | null => {
     !!isTeamAdmin ||
     !!isTeamMaintainer;
 
+  // Mirrors the Configuration profiles card: "Add profile" is for admins and
+  // maintainers of the current fleet, not its technicians.
+  const canAddConfigurationProfile =
+    !!isGlobalAdmin ||
+    !!isGlobalMaintainer ||
+    !!isTeamAdmin ||
+    !!isTeamMaintainer;
+
   // Admin/maintainer-only Controls sub-items (Certificates, Passwords, Host
   // names). Technicians can reach Controls (canAccessControls) but not these,
   // so gate them on the positive admin/maintainer role rather than
@@ -446,6 +454,7 @@ const CommandPalette = (): JSX.Element | null => {
         canManageHostActivityAutomations,
         canEditCustomVariable,
         canAddSoftware,
+        canAddConfigurationProfile,
         isAdminOrMaintainer,
         isTechnician,
         isPremiumTier,
@@ -484,6 +493,7 @@ const CommandPalette = (): JSX.Element | null => {
       canManageHostActivityAutomations,
       canEditCustomVariable,
       canAddSoftware,
+      canAddConfigurationProfile,
       isAdminOrMaintainer,
       isTechnician,
       isPremiumTier,

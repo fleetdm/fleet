@@ -320,6 +320,24 @@ describe("ProfileFormPage", () => {
     );
   });
 
+  it("goes back without a request when nothing changed", async () => {
+    const successSpy = jest.spyOn(notify, "success");
+    const { user, router } = renderPage(existingProfile.profile_uuid);
+    expect(await screen.findByText("Edit profile")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByLabelText("Name")).toHaveValue("Existing Windows")
+    );
+
+    await user.click(screen.getByRole("button", { name: "Update profile" }));
+
+    await waitFor(() => expect(router.push).toHaveBeenCalledTimes(1));
+    expect(router.push).toHaveBeenCalledWith(
+      "/controls/os-settings/configuration-profiles"
+    );
+    expect(mdmAPI.updateProfile).not.toHaveBeenCalled();
+    expect(successSpy).not.toHaveBeenCalled();
+  });
+
   it("sends a replacement file when the contents change and keeps the name", async () => {
     const { user } = renderPage(existingProfile.profile_uuid);
     expect(await screen.findByText("Edit profile")).toBeInTheDocument();
@@ -477,6 +495,26 @@ describe("ProfileFormPage", () => {
     );
   });
 
+  it("sends SyncML behind an XML declaration as Windows", async () => {
+    const { user } = renderPage(
+      undefined,
+      makeRenderer({}, false, {
+        ...mdmConfig,
+        enabled_and_configured: false,
+        windows_enabled_and_configured: true,
+        android_enabled_and_configured: false,
+      })
+    );
+
+    setContents(`<?xml version="1.0" encoding="UTF-8"?>\n${WINDOWS_XML}`);
+    expect(screen.getByText("Windows")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Add profile" }));
+    await waitFor(() => expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1));
+    const args = jest.mocked(mdmAPI.uploadProfile).mock.calls[0][0];
+    expect(args.file.name).toBe("New profile.xml");
+  });
+
   it("follows the profile's fleet when the URL names a different one", async () => {
     mockUseTeamIdParam.mockReturnValue({
       currentTeamId: 1,
@@ -534,6 +572,55 @@ describe("ProfileFormPage", () => {
     expect(args.file.name).toBe("Firewall.xml");
     // a picked file already carries a name, so no default is looked up
     expect(mdmAPI.getProfiles).not.toHaveBeenCalled();
+  });
+
+  it("types a picked file the contents can't type by its extension", async () => {
+    const { user } = renderPage();
+    setContents("not a profile");
+    await user.click(screen.getByRole("button", { name: "Add profile" }));
+    expect(
+      await screen.findByText(/^Paste a .mobileconfig, declaration/)
+    ).toBeInTheDocument();
+
+    await user.upload(
+      screen.getByLabelText("Upload a profile"),
+      fileWithText("$FLEET_SECRET_PROFILE", "Secret.xml")
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText("Profile contents")).toHaveValue(
+        "$FLEET_SECRET_PROFILE"
+      )
+    );
+    expect(
+      screen.queryByText(/^Paste a .mobileconfig, declaration/)
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Windows")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Add profile" }));
+    await waitFor(() => expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1));
+    const args = jest.mocked(mdmAPI.uploadProfile).mock.calls[0][0];
+    expect(args.file.name).toBe("Secret.xml");
+  });
+
+  it("stops typing contents by the picked file once they're edited", async () => {
+    const { user } = renderPage();
+
+    await user.upload(
+      screen.getByLabelText("Upload a profile"),
+      fileWithText("$FLEET_SECRET_PROFILE", "Secret.xml")
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText("Profile contents")).toHaveValue(
+        "$FLEET_SECRET_PROFILE"
+      )
+    );
+    setContents("$FLEET_SECRET_OTHER");
+
+    await user.click(screen.getByRole("button", { name: "Add profile" }));
+    expect(
+      await screen.findByText(/^Paste a .mobileconfig, declaration/)
+    ).toBeInTheDocument();
+    expect(mdmAPI.uploadProfile).not.toHaveBeenCalled();
   });
 
   it("rejects a replacement file of another type", async () => {

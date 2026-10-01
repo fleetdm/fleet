@@ -4,6 +4,7 @@ import { IApiError } from "interfaces/errors";
 import { IMdmProfile } from "interfaces/mdm";
 
 import {
+  contentTypeForExtension,
   DEFAULT_EDIT_ERROR_MESSAGE,
   DEFAULT_ERROR_MESSAGE,
   generateCustomTargetLabelKey,
@@ -200,13 +201,33 @@ describe("detectProfileContentType", () => {
   });
 
   it("follows the server's rules for ambiguous text", () => {
-    // an XML declaration is read as a plist, so this isn't Windows
-    expect(detectProfileContentType('<?xml version="1.0"?><Replace/>')).toBe(
+    // SyncML behind an XML declaration is Windows, which the server rejects
+    // with an error that names the declaration
+    expect(detectProfileContentType('<?xml version="1.0"?>\n<Replace/>')).toBe(
+      "windows"
+    );
+    // a plist with a comment after its declaration stays a mobileconfig
+    expect(
+      detectProfileContentType(
+        '<?xml version="1.0"?><!-- exported --><!DOCTYPE plist PUBLIC "x" "y"><plist version="1.0"/>'
+      )
+    ).toBe("mobileconfig");
+    // any other XML declaration is read as a plist
+    expect(detectProfileContentType('<?xml version="1.0"?><foo/>')).toBe(
       "mobileconfig"
     );
     // SyncML has to start with a command or a comment
     expect(detectProfileContentType("<!-- firewall --><Add/>")).toBe("windows");
+    expect(detectProfileContentType("<Exec><Item/></Exec>")).toBe("windows");
     expect(detectProfileContentType("<SyncML><Replace/></SyncML>")).toBeNull();
+    // JSON a secret placeholder keeps from parsing is a declaration
+    expect(
+      detectProfileContentType(
+        '{"Type": "com.apple.configuration.passcode.settings", "Payload": $FLEET_SECRET_PASSCODE}'
+      )
+    ).toBe("declaration");
+    // a lone placeholder says nothing about the type
+    expect(detectProfileContentType("$FLEET_SECRET_PROFILE")).toBeNull();
     // only a top-level Apple Type makes a declaration
     expect(
       detectProfileContentType(
@@ -215,6 +236,13 @@ describe("detectProfileContentType", () => {
     ).toBe("android");
     expect(detectProfileContentType("{not json")).toBeNull();
     expect(detectProfileContentType("[]")).toBeNull();
+  });
+
+  it("types an uploaded file by its extension as the server does", () => {
+    expect(contentTypeForExtension("mobileconfig")).toBe("mobileconfig");
+    expect(contentTypeForExtension("xml")).toBe("windows");
+    expect(contentTypeForExtension("json")).toBe("declaration");
+    expect(contentTypeForExtension("txt")).toBeNull();
   });
 
   it("accepts uppercase file extensions", async () => {

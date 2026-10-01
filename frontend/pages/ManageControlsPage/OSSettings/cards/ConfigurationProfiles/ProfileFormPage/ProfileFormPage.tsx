@@ -48,6 +48,7 @@ import { getPathWithQueryParams } from "utilities/url";
 
 import {
   ADD_PROFILE_ACCEPT,
+  contentTypeForExtension,
   detectProfileContentType,
   editorModeForContentType,
   generateCustomTargetLabelKey,
@@ -116,6 +117,12 @@ const initialFormDataFor = (editing?: IEditedProfile): IProfileFormData => {
   };
 };
 
+interface IUploadedFile {
+  name: string;
+  /** The type its extension implies, used when the contents don't say. */
+  type: ProfileContentType | null;
+}
+
 interface IProfileFormProps {
   router: InjectedRouter;
   teamId: number;
@@ -142,9 +149,14 @@ const ProfileForm = ({
   const [initialFormData] = useState(() => initialFormDataFor(editing));
   // The uploaded file only seeds the editor; its name is what the server
   // derives a profile name from when the admin leaves Name empty.
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<IUploadedFile | null>(null);
   const [serverErrors, setServerErrors] = useState<IFormErrors | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // An uploaded file the contents can't type, like a lone secret placeholder,
+  // goes by its extension, as the server routes it.
+  const detectContentType = (contents: string) =>
+    detectProfileContentType(contents) ?? uploadedFile?.type ?? null;
 
   const validate = (data: IProfileFormData): IFormErrors => {
     const errors: IFormErrors = {};
@@ -155,7 +167,7 @@ const ProfileForm = ({
     }
     if (!data.contents.trim()) {
       errors.contents = "Upload or paste a profile";
-    } else if (!isEdit && !detectProfileContentType(data.contents)) {
+    } else if (!isEdit && !detectContentType(data.contents)) {
       errors.contents = UNRECOGNIZED_CONTENTS_ERROR;
     }
     if (
@@ -200,7 +212,7 @@ const ProfileForm = ({
   // add page is typed by what it looks like.
   const contentType: ProfileContentType | null = profile
     ? profileContentTypeFor(profile)
-    : detectProfileContentType(formData.contents);
+    : detectContentType(formData.contents);
   const hasContents = formData.contents.trim() !== "";
 
   // Same gate as the profiles list; this page is also reachable by URL and
@@ -251,7 +263,13 @@ const ProfileForm = ({
     }
     try {
       commitFields({ contents: await file.text() });
-      setUploadedFileName(details.name);
+      setUploadedFile({
+        name: details.name,
+        type: contentTypeForExtension(details.ext),
+      });
+      // commitFields validated without the file's type, so a stale error can
+      // survive it; submit checks the new contents again.
+      clearFieldError("contents");
     } catch (e) {
       notify.error("Couldn't read the file. Please try again.", {
         response: e,
@@ -266,10 +284,10 @@ const ProfileForm = ({
   };
 
   // Typed or pasted contents are no longer the uploaded file, so the derived
-  // name shouldn't come from it.
+  // name and type shouldn't come from it.
   const onContentsChange = (value: string) => {
     setField("contents", value);
-    setUploadedFileName(null);
+    setUploadedFile(null);
   };
 
   const buildFile = (
@@ -277,7 +295,7 @@ const ProfileForm = ({
     pastedName = PASTED_PROFILE_DEFAULT_NAME
   ) => {
     const ext = contentType ? PROFILE_CONTENT_TYPE_EXTENSION[contentType] : "";
-    const fileName = uploadedFileName ?? pastedName;
+    const fileName = uploadedFile?.name ?? pastedName;
     return new File([contents], `${fileName}.${ext}`, { type: "text/plain" });
   };
 
@@ -285,7 +303,7 @@ const ProfileForm = ({
   // pasted one gets the next free default. On failure the server's
   // duplicate-name error still applies.
   const getPastedName = async (name: string) => {
-    if (name || uploadedFileName || contentType === "mobileconfig") {
+    if (name || uploadedFile || contentType === "mobileconfig") {
       return undefined;
     }
     try {
@@ -299,6 +317,12 @@ const ProfileForm = ({
   // Receives the form data trimmed, except the contents.
   const onValidSubmit = async (data: IProfileFormData) => {
     if (gitOpsModeEnabled) {
+      return;
+    }
+    // A PATCH with nothing in it still logs an edit, and for Android marks
+    // the profile pending on hosts.
+    if (profile && !hasChanges) {
+      router.push(listPath);
       return;
     }
     try {

@@ -16,8 +16,8 @@ const buildCommandsItems = (
     canWrite,
     canEditCustomVariable,
     canAddSoftware,
+    canAddConfigurationProfile,
     config,
-    isAdminOrMaintainer,
     isTechnician,
     isPremiumTier,
     isPrimoMode,
@@ -198,9 +198,9 @@ const buildCommandsItems = (
               "device health",
             ],
           },
-          // Mirrors the Configuration profiles card, which only offers "Add
-          // profile" to admins and maintainers once some MDM is turned on.
-          ...(isAdminOrMaintainer && isAnyMDMConfigured(config?.mdm)
+          // Same gate as the profiles card's "Add profile": current-fleet
+          // admins and maintainers, once some MDM is on.
+          ...(canAddConfigurationProfile && isAnyMDMConfigured(config?.mdm)
             ? [
                 {
                   id: "add-profile",

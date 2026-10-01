@@ -79,6 +79,8 @@ export const PROFILE_CONTENT_TYPE_PLATFORM: Record<
   windows: "windows",
 };
 
+const SERVER_SECRET_PREFIX = "FLEET_SECRET_";
+
 /** What the file picker offers when adding, where the type isn't known yet. */
 export const ADD_PROFILE_ACCEPT =
   ".json,.mobileconfig,application/x-apple-aspen-config,.xml";
@@ -118,22 +120,40 @@ export const detectProfileContentType = (
         ? "declaration"
         : "android";
     } catch {
-      return null;
+      // the server reads unparseable JSON with a secret as a declaration
+      return trimmed.includes(SERVER_SECRET_PREFIX) ? "declaration" : null;
     }
   }
-  // The server reads an XML declaration as a plist and only takes SyncML
-  // that starts with a command or a comment.
-  if (
-    /^<\?xml/i.test(trimmed) ||
-    /<plist[\s>]|<!DOCTYPE plist/i.test(trimmed)
-  ) {
+  if (/<plist[\s>]|<!DOCTYPE plist/i.test(trimmed)) {
     return "mobileconfig";
   }
-  if (/^<(replace|add|atomic|!--)/i.test(trimmed)) {
+  // SyncML starts with a command or a comment. Behind an XML declaration it's
+  // still Windows, so the server reports that the declaration isn't allowed.
+  if (
+    /^<(replace|add|atomic|exec|!--)/i.test(
+      trimmed.replace(/^<\?xml[^>]*\?>\s*/i, "")
+    )
+  ) {
     return "windows";
+  }
+  // as the server does, any other XML declaration is read as a plist
+  if (/^<\?xml/i.test(trimmed)) {
+    return "mobileconfig";
   }
   return null;
 };
+
+const EXTENSION_CONTENT_TYPE: Record<string, ProfileContentType> = {
+  mobileconfig: "mobileconfig",
+  xml: "windows",
+  json: "declaration",
+};
+
+/** The type the server gives an uploaded file by its extension, for contents
+ * the UI can't classify, such as a lone `$FLEET_SECRET_` placeholder. */
+export const contentTypeForExtension = (
+  ext: string
+): ProfileContentType | null => EXTENSION_CONTENT_TYPE[ext] ?? null;
 
 /** The type of an existing profile, from what the API returns about it. */
 export const profileContentTypeFor = (

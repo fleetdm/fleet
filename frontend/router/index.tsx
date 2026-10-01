@@ -672,9 +672,8 @@ const routes = (
             />
           </Route>
           <Route component={ExcludeInSandboxRoutes}>
-            {/* Declared before the controls group: its os-settings/:section/:platform
-                route would otherwise swallow these paths. Full pages, outside the
-                Controls tabs. */}
+            {/* Before the controls group, whose os-settings/:section/:platform
+                route would otherwise match these. */}
             <Route component={AuthAnyMaintainerAdminTechnicianRoutes}>
               <Route
                 path="controls/os-settings/configuration-profiles/new"
