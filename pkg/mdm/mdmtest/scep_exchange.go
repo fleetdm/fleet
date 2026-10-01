@@ -9,10 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math/big"
 	"time"
 
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/enrollment"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	smallstepscep "github.com/smallstep/scep"
 )
@@ -58,16 +58,9 @@ func performSCEPExchange(
 		return nil, nil, fmt.Errorf("scep exchange: create client: %w", err)
 	}
 
-	caResp, _, err := client.GetCACert(ctx, "")
+	caCerts, err := enrollment.FetchCACerts(ctx, client)
 	if err != nil {
-		return nil, nil, fmt.Errorf("scep exchange: get ca cert: %w", err)
-	}
-	caCerts, err := x509.ParseCertificates(caResp)
-	if err != nil {
-		return nil, nil, fmt.Errorf("scep exchange: parse ca certs: %w", err)
-	}
-	if len(caCerts) == 0 {
-		return nil, nil, errors.New("scep exchange: server returned no ca certificates")
+		return nil, nil, fmt.Errorf("scep exchange: %w", err)
 	}
 
 	privKey, err := rsa.GenerateKey(cryptorand.Reader, keyBits)
@@ -91,59 +84,21 @@ func performSCEPExchange(
 		return nil, nil, fmt.Errorf("scep exchange: parse csr: %w", err)
 	}
 
-	signerCert, err := selfSignedSignerCert(privKey, req.Subject)
+	signerCert, err := enrollment.NewSignerCert(privKey, req.Subject)
 	if err != nil {
-		return nil, nil, fmt.Errorf("scep exchange: build signer cert: %w", err)
+		return nil, nil, fmt.Errorf("scep exchange: %w", err)
 	}
 
-	pkiReq := &smallstepscep.PKIMessage{
-		MessageType: smallstepscep.PKCSReq,
-		Recipients:  caCerts,
-		SignerKey:   privKey,
-		SignerCert:  signerCert,
-	}
-	msg, err := smallstepscep.NewCSRRequest(csr, pkiReq)
+	cert, err := enrollment.Enroll(ctx, client, caCerts, enrollment.Request{
+		CSR:        csr,
+		SignerKey:  privKey,
+		SignerCert: signerCert,
+		Logger:     logger,
+	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("scep exchange: build pkcsreq: %w", err)
+		return nil, nil, fmt.Errorf("scep exchange: %w", err)
 	}
-	respBytes, err := client.PKIOperation(ctx, msg.Raw)
-	if err != nil {
-		return nil, nil, fmt.Errorf("scep exchange: pki operation: %w", err)
-	}
-	pkiResp, err := smallstepscep.ParsePKIMessage(respBytes, smallstepscep.WithCACerts(msg.Recipients))
-	if err != nil {
-		return nil, nil, fmt.Errorf("scep exchange: parse pki response: %w", err)
-	}
-	if pkiResp.PKIStatus != smallstepscep.SUCCESS {
-		return nil, nil, fmt.Errorf("scep exchange: pki status %v (failInfo=%v)", pkiResp.PKIStatus, pkiResp.FailInfo)
-	}
-	if err := pkiResp.DecryptPKIEnvelope(signerCert, privKey); err != nil {
-		return nil, nil, fmt.Errorf("scep exchange: decrypt pki envelope: %w", err)
-	}
-	if pkiResp.CertRepMessage == nil || pkiResp.CertRepMessage.Certificate == nil {
-		return nil, nil, errors.New("scep exchange: response contained no certificate")
-	}
-	return pkiResp.CertRepMessage.Certificate, privKey, nil
-}
-
-// selfSignedSignerCert builds a short-lived self-signed certificate wrapping key, used as the
-// outer-envelope signer cert for first-time SCEP enrollment per RFC 8894 §2.4.
-func selfSignedSignerCert(key *rsa.PrivateKey, subject pkix.Name) (*x509.Certificate, error) {
-	now := time.Now()
-	tpl := x509.Certificate{
-		SerialNumber:          big.NewInt(1),
-		Subject:               subject,
-		NotBefore:             now.Add(-1 * time.Minute),
-		NotAfter:              now.Add(24 * time.Hour),
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		BasicConstraintsValid: true,
-	}
-	der, err := x509.CreateCertificate(cryptorand.Reader, &tpl, &tpl, &key.PublicKey, key)
-	if err != nil {
-		return nil, err
-	}
-	return x509.ParseCertificate(der)
+	return cert, privKey, nil
 }
 
 // NewPKCSReqUndecryptableBy builds a signed PKCSReq whose envelope is addressed
@@ -168,9 +123,9 @@ func NewPKCSReqUndecryptableBy(caCert *x509.Certificate) (*smallstepscep.PKIMess
 	if err != nil {
 		return nil, fmt.Errorf("undecryptable pkcsreq: parse csr: %w", err)
 	}
-	signerCert, err := selfSignedSignerCert(requesterKey, subject)
+	signerCert, err := enrollment.NewSignerCert(requesterKey, subject)
 	if err != nil {
-		return nil, fmt.Errorf("undecryptable pkcsreq: build signer cert: %w", err)
+		return nil, fmt.Errorf("undecryptable pkcsreq: %w", err)
 	}
 	recipient, err := certWithSameIssuerAndSerialAs(caCert)
 	if err != nil {

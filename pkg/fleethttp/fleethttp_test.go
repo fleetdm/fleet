@@ -83,6 +83,7 @@ func TestTransport(t *testing.T) {
 			}
 			assert.NotNil(t, tr.Proxy)
 			assert.NotNil(t, tr.DialContext)
+			assert.Zero(t, tr.ResponseHeaderTimeout)
 		})
 	}
 }
@@ -563,6 +564,39 @@ func TestClientTimeoutBehavior(t *testing.T) {
 		case <-time.After(300 * time.Millisecond):
 		}
 	})
+}
+
+func TestClientResponseHeaderTimeout(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(300 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	})
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	tlsSrv := httptest.NewTLSServer(handler)
+	t.Cleanup(tlsSrv.Close)
+	tlsOpt := WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}) //nolint:gosec // test server
+
+	for _, c := range []struct {
+		name    string
+		url     string
+		opts    []ClientOpt
+		wantErr bool
+	}{
+		{"no option waits", srv.URL, nil, false},
+		{"option aborts", srv.URL, []ClientOpt{WithResponseHeaderTimeout(100 * time.Millisecond)}, true},
+		{"option aborts with TLS config", tlsSrv.URL, []ClientOpt{tlsOpt, WithResponseHeaderTimeout(100 * time.Millisecond)}, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			resp, err := NewClient(append(c.opts, WithNoTimeout())...).Get(c.url)
+			if c.wantErr {
+				require.ErrorContains(t, err, "timeout awaiting response headers")
+				return
+			}
+			require.NoError(t, err)
+			resp.Body.Close()
+		})
+	}
 }
 
 func TestNewGithubClientAuthorization(t *testing.T) {

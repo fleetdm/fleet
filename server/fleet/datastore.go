@@ -3864,6 +3864,10 @@ type Datastore interface {
 	// when WindowsMDMEnrollSecretPushed reports the live secret as pushed.
 	QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd, installCmd *MDMWindowsCommand) (bool, error)
 
+	// DeleteUnusedWindowsMDMOneTimeEnrollSecrets deletes the unused one-time enroll secrets not bound to a host that were minted for
+	// the Windows MDM enrollment.
+	DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx context.Context, enrollmentID uint) error
+
 	// WindowsMDMEnrollSecretPushed reports whether a push of the Windows MDM enrollment's live one-time enroll secret, a command
 	// targeting pushLocURI queued since the secret was minted, is still pending or was delivered successfully. It is false when the
 	// enrollment has no live secret, or when the last push failed on the device.
