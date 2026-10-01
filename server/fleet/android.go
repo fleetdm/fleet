@@ -357,9 +357,8 @@ var androidAppConfigDeniedKeys = map[string]struct{}{
 // later is rejected until that dependency is bumped.
 var androidApplicationPolicyFields = sync.OnceValue(func() map[string]struct{} {
 	fields := make(map[string]struct{})
-	t := reflect.TypeFor[androidmanagement.ApplicationPolicy]()
-	for i := range t.NumField() {
-		name, _, _ := strings.Cut(t.Field(i).Tag.Get("json"), ",")
+	for field := range reflect.TypeFor[androidmanagement.ApplicationPolicy]().Fields() {
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if name != "" && name != "-" {
 			fields[name] = struct{}{}
 		}
