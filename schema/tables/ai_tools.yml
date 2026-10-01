@@ -111,7 +111,7 @@ columns:
     type: text
     required: false
   - name: confidence
-    description: "Coming soon ([#52040](https://github.com/fleetdm/fleet/issues/52040)). Detection confidence from 0 to 100. Populated for `agents`. [Known agents](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/table/ai_tools/internal/agents/agents.go) always score 100. Everything else is scored from the `evidence` tokens by [weighted signal family](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/table/ai_tools/internal/evidence/score.go), and a row is only reported once the score clears the emit threshold."
+    description: "Detection confidence from 0 to 100. Populated for `agents`. [Known agents](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/table/ai_tools/internal/agents/agents.go) always score 100. Everything else is scored from the `evidence` tokens by [weighted signal family](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/table/ai_tools/internal/evidence/score.go), and a row is only reported once the score clears the emit threshold."
     type: integer
     required: false
   - name: evidence
