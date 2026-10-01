@@ -1,0 +1,1 @@
+- Added timeouts to the `maintained_apps_auto_update` and `cleanup_unused_software_installers` cron jobs.

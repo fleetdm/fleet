@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	"github.com/fleetdm/fleet/v4/server/config"
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -69,6 +70,7 @@ type extraHandlerOpts struct {
 	mdmSsoRateLimit *throttled.Rate
 	ssoRateLimit    *throttled.Rate
 	httpSigVerifier mux.MiddlewareFunc
+	agentWSHub      *agentws.Hub
 }
 
 // ExtraHandlerOption allows adding extra configuration to the HTTP handler.
@@ -103,6 +105,15 @@ func WithHTTPSigVerifier(m mux.MiddlewareFunc) ExtraHandlerOption {
 	}
 }
 
+// WithAgentWSHub provides the hub of agent WebSocket connections; when set
+// (and the websocket transport is enabled in the config), the agent
+// notifications WebSocket endpoint is registered.
+func WithAgentWSHub(hub *agentws.Hub) ExtraHandlerOption {
+	return func(o *extraHandlerOpts) {
+		o.agentWSHub = hub
+	}
+}
+
 func setCarveStoreInRequestContext(carveStore fleet.CarveStore) kithttp.RequestFunc {
 	return func(ctx context.Context, r *http.Request) context.Context {
 		ctx = carvestorectx.NewContext(ctx, carveStore)
@@ -120,7 +131,7 @@ func MakeHandler(
 	carveStore fleet.CarveStore,
 	featureRoutes []endpointer.HandlerRoutesFunc,
 	extra ...ExtraHandlerOption,
-) http.Handler {
+) (http.Handler, error) {
 	var eopts extraHandlerOpts
 	for _, fn := range extra {
 		fn(&eopts)
@@ -129,7 +140,7 @@ func MakeHandler(
 	// Create the client IP extraction strategy based on config.
 	ipStrategy, err := endpointer.NewClientIPStrategy(config.Server.TrustedProxies)
 	if err != nil {
-		panic(fmt.Sprintf("invalid server.trusted_proxies configuration: %v", err))
+		return nil, fmt.Errorf("invalid server.trusted_proxies configuration: %w", err)
 	}
 
 	fleetAPIOptions := []kithttp.ServerOption{
@@ -149,6 +160,8 @@ func MakeHandler(
 	}
 
 	r := mux.NewRouter()
+
+	fastPathEnabled := true
 	if config.Logging.TracingEnabled {
 		if config.OTELEnabled() {
 			r.Use(otmiddleware.Middleware(
@@ -157,20 +170,27 @@ func MakeHandler(
 					// Use the guideline for span names: {method} {target}
 					// See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
 					return r.Method + " " + route
-				})))
+				}),
+			))
 		} else {
+			// Elastic APM instrumentation is gorilla-specific and names spans from the matched mux route, so the fast path
+			// cannot be installed alongside it.
 			apmgorilla.Instrument(r)
+			fastPathEnabled = false
 		}
 	}
 
+	// Route-agnostic middleware is collected because it is needed by both the fastpath stdlib router and gorilla.
+	var middlewares []mux.MiddlewareFunc
+
 	if config.Server.GzipResponses {
-		r.Use(func(h http.Handler) http.Handler {
+		middlewares = append(middlewares, func(h http.Handler) http.Handler {
 			return gzhttp.GzipHandler(h)
 		})
 	}
 
 	// Add middleware to extract the client IP and set it in the request context.
-	r.Use(func(handler http.Handler) http.Handler {
+	middlewares = append(middlewares, func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ip := ipStrategy.ClientIP(r.Header, r.RemoteAddr)
 			if ip != "" {
@@ -181,7 +201,11 @@ func MakeHandler(
 	})
 
 	if eopts.httpSigVerifier != nil {
-		r.Use(eopts.httpSigVerifier)
+		middlewares = append(middlewares, eopts.httpSigVerifier)
+	}
+
+	for _, mw := range middlewares {
+		r.Use(mw)
 	}
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, redisPool, fleetAPIOptions, eopts)
@@ -190,7 +214,10 @@ func MakeHandler(
 	}
 	addMetrics(r)
 
-	return r
+	if !fastPathEnabled {
+		return r, nil
+	}
+	return newFastPathHandler(r, middlewares, config)
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics
@@ -284,9 +311,11 @@ const (
 	// ban requests from such IP for a duration of 1 minute.
 	//
 
-	deviceIPAllowedConsecutiveFailingRequestsCount      = 1_000
-	deviceIPAllowedConsecutiveFailingRequestsTimeWindow = 1 * time.Minute
-	deviceIPBanTime                                     = 1 * time.Minute
+	// Exported so bounded contexts with their own device-token endpoints (e.g.
+	// notifications) can apply the same IP ban policy.
+	DeviceIPAllowedConsecutiveFailingRequestsCount      = 1_000
+	DeviceIPAllowedConsecutiveFailingRequestsTimeWindow = 1 * time.Minute
+	DeviceIPBanTime                                     = 1 * time.Minute
 )
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
@@ -359,12 +388,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/policies/count", countGlobalPoliciesEndpoint, fleet.CountGlobalPoliciesRequest{})
 	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, fleet.GetPolicyByIDRequest{})
 	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/policies/{policy_id}", getPolicyByIDEndpoint, fleet.GetPolicyByIDRequest{})
-	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/policies/{policy_id}/automation_activities", listPolicyAutomationActivitiesEndpoint, fleet.ListPolicyAutomationActivitiesRequest{})
+	ue.GET("/api/_version_/fleet/policies/{policy_id}/automation_activities", listPolicyAutomationActivitiesEndpoint, fleet.ListPolicyAutomationActivitiesRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, fleet.DeleteGlobalPoliciesRequest{})
 	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/policies/delete", deleteGlobalPoliciesEndpoint, fleet.DeleteGlobalPoliciesRequest{})
 	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, fleet.ModifyGlobalPolicyRequest{})
 	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/policies/{policy_id}", modifyGlobalPolicyEndpoint, fleet.ModifyGlobalPolicyRequest{})
-	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/policies/{policy_id}/reset", resetPolicyEndpoint, fleet.ResetPolicyRequest{})
+	ue.POST("/api/_version_/fleet/policies/{policy_id}/reset", resetPolicyEndpoint, fleet.ResetPolicyRequest{})
 	ue.POST("/api/_version_/fleet/automations/reset", resetAutomationEndpoint, fleet.ResetAutomationRequest{})
 
 	ue.POST("/api/_version_/fleet/fleets/{fleet_id}/policies", teamPolicyEndpoint, fleet.TeamPolicyRequest{})
@@ -649,10 +678,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// platform-agnostic POST /mdm/commands/run. It is still supported
 	// indefinitely for backwards compatibility.
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/enqueue", enqueueMDMAppleCommandEndpoint, enqueueMDMAppleCommandRequest{})
-	// Deprecated: POST /mdm/apple/commandresults is now deprecated, replaced by the
-	// platform-agnostic POST /mdm/commands/commandresults. It is still supported
-	// indefinitely for backwards compatibility.
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/commandresults", getMDMAppleCommandResultsEndpoint, getMDMAppleCommandResultsRequest{})
 	// Deprecated: POST /mdm/apple/commands is now deprecated, replaced by the
 	// platform-agnostic POST /mdm/commands/commands. It is still supported
 	// indefinitely for backwards compatibility.
@@ -789,6 +814,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.DELETE("/api/_version_/fleet/assets/{asset_uuid}", deleteAppleDDMAssetEndpoint, deleteAppleDDMAssetRequest{})
 	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxBatchProfileSize).POST("/api/_version_/fleet/assets/batch", batchSetAppleDDMAssetsEndpoint, batchSetAppleDDMAssetsRequest{})
 
+	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/apns_ping", apnsPingRequestEndpoint, sendAPNSPingRequest{})
+
+	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles/{profile_uuid}/install", installSelfServiceConfigurationProfileEndpoint, installSelfServiceConfigurationProfileRequest{})
+	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles/{profile_uuid}/uninstall", uninstallSelfServiceConfigurationProfileEndpoint, uninstallSelfServiceConfigurationProfileRequest{})
+
 	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
 
 	mdmAnyMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
@@ -822,6 +852,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// GET /hosts/:id/encryption_key.
 	ue.GET("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/encryption_key/rotate", rotateDiskEncryptionKeyEndpoint, rotateDiskEncryptionKeyRequest{})
 
 	// Deprecated: GET /mdm/profiles/summary is now deprecated, replaced by the
 	// GET /configuration_profiles/summary endpoint.
@@ -880,6 +911,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/ab_tokens", listABMTokensEndpoint, nil)
 	ue.GET("/api/_version_/fleet/ab_tokens/count", countABMTokensEndpoint, nil)
 	ue.PATCH("/api/_version_/fleet/ab_tokens/{id:[0-9]+}/fleets", updateABMTokenTeamsEndpoint, updateABMTokenTeamsRequest{})
+	ue.PATCH("/api/_version_/fleet/ab_tokens/{id:[0-9]+}/default", setABMTokenDefaultEndpoint, setABMTokenDefaultRequest{})
 	ue.PATCH("/api/_version_/fleet/ab_tokens/{id:[0-9]+}/renew", renewABMTokenEndpoint, renewABMTokenRequest{})
 
 	ue.GET("/api/_version_/fleet/mdm/apple/request_csr", getMDMAppleCSREndpoint, getMDMAppleCSRRequest{})
@@ -931,10 +963,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAndroidMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAndroidMDM())
 	mdmAndroidMW.POST("/api/_version_/fleet/software/web_apps", createAndroidWebAppEndpoint, createAndroidWebAppRequest{})
 
-	ipBanner := redis.NewIPBanner(redisPool, "ipbanner::",
-		deviceIPAllowedConsecutiveFailingRequestsCount,
-		deviceIPAllowedConsecutiveFailingRequestsTimeWindow,
-		deviceIPBanTime,
+	ipBanner := redis.NewIPBanner(
+		redisPool, "ipbanner::",
+		DeviceIPAllowedConsecutiveFailingRequestsCount,
+		DeviceIPAllowedConsecutiveFailingRequestsTimeWindow,
+		DeviceIPBanTime,
 	)
 	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger)
 
@@ -981,6 +1014,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/setup_experience/status", getDeviceSetupExperienceStatusEndpoint, getDeviceSetupExperienceStatusRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/titles/{software_title_id}/icon", getDeviceSoftwareIconEndpoint, getDeviceSoftwareIconRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/disk_encryption_pin", submitDiskEncryptionPINEndpoint, submitDiskEncryptionPINRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/bypass_conditional_access", bypassConditionalAccessEndpoint, bypassConditionalAccessRequest{})
 
 	// Endpoints exempt from the Fleet Desktop SSO gate.
@@ -1009,7 +1043,13 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint, getDeviceMDMCommandResultsRequest{})
-	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/apns_ping", deviceSendAPNSPing, deviceSendAPNSPingRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/install", deviceInstallSelfServiceConfigurationProfileEndpoint, deviceInstallSelfServiceConfigurationProfileRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/uninstall", deviceUninstallSelfServiceConfigurationProfileEndpoint, deviceUninstallSelfServiceConfigurationProfileRequest{})
+
+	// Device authenticated, any MDM: the resend serves Windows profiles too.
+	deAnyMDM := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
+	deAnyMDM.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
 
 	// host-authenticated endpoints
 	//
@@ -1042,8 +1082,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// API. This allows us to deprecate osquery endpoints separately.
 	heHeader.WithAltPaths("/api/v1/osquery/config").
 		POST("/api/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
+	distReadEndpoint := getDistributedQueriesEndpoint
+	if extra.agentWSHub != nil && config.Logging.Debug {
+		// Count distributed/read requests per host and path for /debug/agentws.
+		// Debug-mode only: production servers skip the per-request accounting.
+		distReadEndpoint = recordDistributedReadStats(extra.agentWSHub, getDistributedQueriesEndpoint)
+	}
 	heHeader.WithAltPaths("/api/v1/osquery/distributed/read").
-		POST("/api/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
+		POST("/api/osquery/distributed/read", distReadEndpoint, getDistributedQueriesRequest{})
 		// /distributed/write and /log accept large payloads. The body-size
 		// policy depends on which auth scheme is in effect:
 		//   - body-auth mode: per-route limit (operator-tunable via
@@ -1107,6 +1153,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, fleet.OrbitPostDiskEncryptionKeyRequest{})
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_protection", postOrbitDiskEncryptionProtectionEndpoint, fleet.OrbitPostDiskEncryptionProtectionRequest{})
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_pin/details", getOrbitDiskEncryptionPINDetailsEndpoint, fleet.OrbitGetDiskEncryptionPINDetailsRequest{})
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_pin/result", postOrbitDiskEncryptionPINResultEndpoint, fleet.OrbitPostDiskEncryptionPINResultRequest{})
 	// managed local account escrow is Windows-MDM-specific, so it fails fast when Windows MDM is off.
 	oeWindowsMDM.POST("/api/fleet/orbit/managed_local_account", postOrbitManagedLocalAccountEndpoint, fleet.OrbitPostManagedLocalAccountRequest{})
 
@@ -1252,6 +1301,16 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/",
 		makeStreamDistributedQueryCampaignResultsHandler(config.Server, svc, logger))
 
+	// The agent notifications WebSocket endpoint is a raw http.Handler on the
+	// NoAuth endpointer: the upgrade request is authenticated inside the
+	// handler with the orbit node key. Registered only when the websocket
+	// transport is enabled, so with the feature off (the default) upgrade
+	// attempts get a 404.
+	if config.WebSocket.TransportEnabled && extra.agentWSHub != nil {
+		ne.HandleHTTPHandler("/api/fleet/orbit/notifications",
+			agentws.NewHandler(extra.agentWSHub, svc, logger), "GET")
+	}
+
 	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}
 	ne.
 		WithCustomMiddleware(limiter.Limit("forgot_password", quota)).
@@ -1372,17 +1431,19 @@ func RegisterAppleMDMProtocolServices(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
+	getTokenService nanomdm_service.GetToken,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
 	svc fleet.Service,
+	ds fleet.Datastore,
 ) error {
-	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig); err != nil {
+	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger, fleetConfig); err != nil {
+	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, getTokenService, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
-	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig); err != nil {
+	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig, ds); err != nil {
 		return fmt.Errorf("service discovery: %w", err)
 	}
 	if err := registerPSSO(mux, svc, logger, fleetConfig); err != nil {
@@ -1396,9 +1457,20 @@ func registerMDMServiceDiscovery(
 	logger *slog.Logger,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
+	appCfgGetter fleet.GetsAppConfig,
 ) error {
 	serviceDiscoveryLogger := logger.With("component", "mdm-apple-service-discovery")
 	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		appCfg, err := appCfgGetter.AppConfig(r.Context())
+		if err != nil {
+			serviceDiscoveryLogger.ErrorContext(r.Context(), "error loading app config for service discovery", "err", err)
+			return
+		} else if appCfg.MDM.OnlyAllowAppleBusinessEnrollment {
+			err := &fleet.ABOnlyEnrollmentForbiddenError{}
+			http.Error(w, err.Error(), err.StatusCode())
+			return
+		}
+
 		var mdmEnrollmentURL string
 		token := r.PathValue("token")
 		if token != "" {
@@ -1412,7 +1484,7 @@ func registerMDMServiceDiscovery(
 		serviceDiscoveryLogger.InfoContext(ctx, "serving MDM service discovery response", "url", mdmEnrollmentURL)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, err := fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, mdmEnrollmentURL)
+		_, err = fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, mdmEnrollmentURL)
 		if err != nil {
 			serviceDiscoveryLogger.ErrorContext(ctx, "error writing service discovery response", "err", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -1448,6 +1520,7 @@ func registerSCEP(
 	mdmStorage fleet.MDMAppleStore,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
+	appCfgGetter fleet.GetsAppConfig,
 ) error {
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
 		scepStorage,
@@ -1473,8 +1546,11 @@ func registerSCEP(
 
 	scepSlogLogger := logger.With("component", "http-mdm-apple-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
+	e.GetEndpoint = scepserver.ACMEOnlyEnrollmentMiddleware(appCfgGetter)(e.GetEndpoint)
+	e.PostEndpoint = scepserver.ACMEOnlyEnrollmentMiddleware(appCfgGetter)(e.PostEndpoint)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepSlogLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepSlogLogger)(e.PostEndpoint)
+
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepSlogLogger)
 	mux.Handle(apple_mdm.SCEPPath, otel.WrapHandler(scepHandler, apple_mdm.SCEPPath, fleetConfig))
 	return nil
@@ -1538,8 +1614,10 @@ func registerMDM(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
+	getTokenService nanomdm_service.GetToken,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
+	ds fleet.Datastore,
 ) error {
 	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
 	mdmLogger := NewNanoMDMLogger(logger.With("component", "http-mdm-apple-mdm"))
@@ -1553,7 +1631,9 @@ func registerMDM(
 	// the device.
 	// 5. Run actual MDM service operation (checkin handler or command and results handler).
 	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger), nanomdm.WithDeclarativeManagement(ddmService),
-		nanomdm.WithProfileService(profileService), nanomdm.WithUserAuthenticate(checkinAndCommandService))
+		nanomdm.WithProfileService(profileService), nanomdm.WithUserAuthenticate(checkinAndCommandService),
+		nanomdm.WithGetToken(getTokenService))
+
 	// NOTE: it is critical that the coreMDMService runs first, as the first
 	// service in the multi-service feature is run to completion _before_ running
 	// the other ones in parallel. This way, subsequent services have access to
@@ -1561,6 +1641,10 @@ func registerMDM(
 	var mdmService nanomdm_service.CheckinAndCommandService = multi.New(mdmLogger, coreMDMService, checkinAndCommandService)
 
 	mdmService = certauth.New(mdmService, mdmStorage, certauth.WithLogger(mdmLogger.With("handler", "cert-auth")))
+	// Wraps the whole chain above (not a multi.New sub-service) so a rejection here is what
+	// the HTTP handler actually returns to the device. See abOnlyEnrollmentCheckinService's
+	// doc comment for why this can't live inside checkinAndCommandService itself.
+	mdmService = newABOnlyEnrollmentCheckinService(mdmService, ds, logger.With("component", "http-mdm-apple-mdm", "handler", "ab-only-enrollment"))
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
 	verifyDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_VERIFY_DISABLE")
 	if exists && (strings.EqualFold(verifyDisable, "true") || verifyDisable == "1") {

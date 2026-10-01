@@ -1,0 +1,1 @@
+Increased the timeout of the fleet-mcp single-host live query request so it waits as long as the Fleet server (`FLEET_LIVE_QUERY_REST_PERIOD`) instead of failing after 30s.

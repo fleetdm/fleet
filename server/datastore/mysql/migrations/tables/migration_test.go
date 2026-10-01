@@ -168,6 +168,7 @@ WHERE
 		{"utf8mb4_bin", "host_certificate_templates", "fleet_challenge", "utf8mb4"},
 		{"utf8mb4_bin", "host_device_auth", "previous_token", "utf8mb4"},
 		{"utf8mb4_bin", "host_device_auth", "token", "utf8mb4"},
+		{"utf8mb4_bin", "host_one_time_enroll_secrets", "secret", "utf8mb4"},
 		{"utf8mb4_bin", "hosts", "node_key", "utf8mb4"},
 		{"utf8mb4_bin", "hosts", "orbit_node_key", "utf8mb4"},
 		{"utf8mb4_bin", "in_house_app_install_tokens", "token", "utf8mb4"},
@@ -182,4 +183,16 @@ WHERE
 	}
 
 	require.ElementsMatch(t, exceptions, nonStandardCollations)
+}
+
+// indexColumns returns the columns of index on table, in key order.
+func indexColumns(t *testing.T, db *sqlx.DB, table, index string) []string {
+	var cols []string
+	err := db.Select(&cols, `
+SELECT column_name
+FROM information_schema.statistics
+WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?
+ORDER BY seq_in_index`, table, index)
+	require.NoError(t, err)
+	return cols
 }

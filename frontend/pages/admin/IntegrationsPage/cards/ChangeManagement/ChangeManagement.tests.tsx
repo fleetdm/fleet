@@ -1,11 +1,11 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { createCustomRenderer, baseUrl } from "test/test-utils";
-import mockServer from "test/mock-server";
 import createMockConfig from "__mocks__/configMock";
 import { IConfig } from "interfaces/config";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, baseUrl } from "test/test-utils";
 
 import ChangeManagement from "./ChangeManagement";
 

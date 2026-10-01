@@ -741,7 +741,7 @@ class CertificateOrchestrator(
         )
 
         // Step 5: Perform enrollment
-        Log.d(TAG, "Starting SCEP enrollment for certificate: ${template.name}: $template")
+        Log.d(TAG, "Starting SCEP enrollment for certificate: $template")
         val result = handler.handleEnrollment(template, scepUrl)
 
         when (result) {

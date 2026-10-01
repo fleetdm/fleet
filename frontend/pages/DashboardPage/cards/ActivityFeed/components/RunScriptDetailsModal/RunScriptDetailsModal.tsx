@@ -1,16 +1,16 @@
+import { AxiosError } from "axios";
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "react-query";
 
-import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
-import Spinner from "components/Spinner/Spinner";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
+import TooltipWrapper from "components/TooltipWrapper";
+import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 
 const baseClass = "run-script-details-modal";
 
@@ -175,12 +175,20 @@ const RunScriptDetailsModal = ({
     }
   };
 
-  const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
+  const { data, isLoading, isError, error } = useQuery<
+    IScriptResultResponse,
+    AxiosError
+  >(
     ["runScriptDetailsModal", scriptExecutionId],
     () => {
       return scriptsAPI.getScriptResult(scriptExecutionId);
     },
-    { refetchOnWindowFocus: false, enabled: !!scriptExecutionId }
+    {
+      refetchOnWindowFocus: false,
+      enabled: !!scriptExecutionId,
+      // Retention can delete the result, and retrying won't bring it back.
+      retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
+    }
   );
 
   // For scrollable modal
@@ -195,6 +203,13 @@ const RunScriptDetailsModal = ({
 
     if (isLoading) {
       content = <Spinner />;
+    } else if (isError && error?.status === 404) {
+      content = (
+        <DataError
+          description="These script results are no longer available."
+          excludeIssueLink
+        />
+      );
     } else if (isError) {
       content = <DataError description="Close this modal and try again." />;
     } else if (data) {

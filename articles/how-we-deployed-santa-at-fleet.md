@@ -9,7 +9,7 @@ Here's a real-world example of deploying Santa with the Fleet GitOps approach th
 
 **Step 1: Deploy the Santa app via Fleet GitOps**
 
-Santa is a [Fleet-maintained app](https://fmalibrary.com/) making deployment easy. Alternatively, you can use our deployment YAML file: https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/software/santa.yml
+Santa is a [Fleet-maintained app](https://fmalibrary.com/) making deployment easy. Alternatively, you can deploy a custom package via GitOps that references Santa's install URL, making sure to update the URL to the version you intend to deploy: https://github.com/fleetdm/fleet/blob/466ab4467f4749143ecbe45e9efab2ddd68b624b/it-and-security/lib/macos/software/santa.yml
 
 Either method allows the Santa app to be installed on a test device group through self service. This can be changed to fit your needs, for example, by using automatic deployment instead of self service or deploying to multiple labels. 
 

@@ -2,7 +2,7 @@
   &__categories-selector {
     display: flex;
     flex-direction: column;
-    border-radius: $border-radius;
+    border-radius: $border-radius-large;
     border: 1px solid $ui-fleet-black-10;
     overflow-y: auto;
     // 210px shows about 4.5 rows so the last row is half-visible, hinting

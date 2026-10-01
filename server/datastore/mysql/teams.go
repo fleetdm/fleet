@@ -232,6 +232,13 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting policies for team %d", tid)
 		}
 
+		// The profiles' host rows outlive them; Windows is handled above.
+		for _, t := range []profileNameTables{appleProfileNameTables, declarationNameTables, androidProfileNameTables} {
+			if err := snapshotProfileNamesForDeletionDB(ctx, tx, t, "p.team_id = ?", tid); err != nil {
+				return err
+			}
+		}
+
 		// Delete related records from teamRefs tables before deleting the team itself
 		// to avoid foreign key constraint violations
 		for _, table := range teamRefs {
@@ -315,6 +322,14 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	})
 }
 
+func (ds *Datastore) HostIDsByTeamID(ctx context.Context, teamID uint) ([]uint, error) {
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, `SELECT id FROM hosts WHERE team_id = ?`, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host IDs by team")
+	}
+	return ids, nil
+}
+
 // prepareWindowsProfilesForTeamDeletion retains the content of the team's Windows config profiles (so the profile-manager cron can
 // build their <Delete> commands after the DeleteTeam cascade removes the definitions) and cleans up never-sent / terminal
 // host-profile rows. Runs in its own transaction to keep load out of the main DeleteTeam transaction.
@@ -333,6 +348,9 @@ func (ds *Datastore) prepareWindowsProfilesForTeamDeletion(ctx context.Context, 
 		// Copy from the live table before the DeleteTeam cascade removes the definitions; the definitions still exist here.
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, profileUUIDs); err != nil {
 			return ctxerr.Wrapf(ctx, err, "retaining windows profiles for team %d", tid)
+		}
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, windowsProfileNameTables, "p.profile_uuid IN (?)", profileUUIDs); err != nil {
+			return ctxerr.Wrapf(ctx, err, "snapshotting windows profile names for team %d", tid)
 		}
 
 		hosts, err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, profileUUIDs)

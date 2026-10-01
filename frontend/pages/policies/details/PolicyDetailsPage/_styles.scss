@@ -34,6 +34,12 @@
     gap: $pad-medium;
   }
 
+  &__policy-description {
+    p {
+      white-space: pre-wrap;
+    }
+  }
+
   &__policy-name {
     font-size: $large;
     display: flex;
@@ -82,10 +88,6 @@
       margin-right: $pad-xsmall;
       flex-shrink: 0;
     }
-  }
-
-  &__resolve dd {
-    white-space: normal;
   }
 
   &__details {

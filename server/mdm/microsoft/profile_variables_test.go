@@ -105,6 +105,11 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		withNDESConfig             *fleet.NDESSCEPProxyCA
 		getNDESChallengeFunc       func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error)
 		ndesChallengeErrorToDetail func(err error) string
+		// ndesChallengeErrorIsTerminal classifies a challenge-fetch failure. Defaults below to "everything is
+		// terminal" so existing cases keep their fail-fast behaviour; set it to return false for a self-clearing
+		// failure, which must surface as a MicrosoftProfileTransientError instead.
+		ndesChallengeErrorIsTerminal func(err error) bool
+		transientError               string // if set, expect a MicrosoftProfileTransientError carrying this message
 	}{
 		{
 			name:             "no fleet variables",
@@ -417,11 +422,33 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			processingError: "Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE. ndes server error",
 		},
 		{
+			// Same failure, classified as self-clearing
+			name:                         "ndes challenge fetch fails transiently",
+			hostUUID:                     "ndes-transient-host",
+			withNDESConfig:               ndesConfig,
+			getNDESChallengeFunc:         getNDESChallengeFail,
+			ndesChallengeErrorToDetail:   defaultNDESErrorToDetail,
+			ndesChallengeErrorIsTerminal: func(error) bool { return false },
+			profileContents: `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
+				`<Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`,
+			expectError:    true,
+			transientError: "Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE. ndes server error",
+		},
+		{
 			name:            "ndes not configured",
 			hostUUID:        "ndes-noconfig-host",
 			profileContents: `<Add><Item><Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`,
 			expectError:     true,
 			processingError: "NDES is not configured. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE.",
+		},
+		{
+			name:             "scep subject name quotes an idp username holding an x500 separator",
+			hostUUID:         "idp-host-uuid",
+			profileContents:  testSyncMLItem(testDeviceSubjectNameLocURI, `CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME,O=Fleet QA`),
+			expectedContents: testSyncMLItem(testDeviceSubjectNameLocURI, `CN="user+idp@example.com",O=Fleet QA`),
+			setup: func() {
+				scimUser.UserName = "user+idp@example.com"
+			},
 		},
 	}
 
@@ -467,6 +494,12 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				NDESConfig:                 tt.withNDESConfig,
 				GetNDESSCEPChallenge:       tt.getNDESChallengeFunc,
 				NDESChallengeErrorToDetail: tt.ndesChallengeErrorToDetail,
+				NDESChallengeErrorIsTerminal: func(err error) bool {
+					if tt.ndesChallengeErrorIsTerminal != nil {
+						return tt.ndesChallengeErrorIsTerminal(err)
+					}
+					return true
+				},
 			}
 
 			result, err := PreprocessWindowsProfileContentsForDeployment(deps, ProfilePreprocessParams{
@@ -479,6 +512,13 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 					var processingErr *MicrosoftProfileProcessingError
 					require.ErrorAs(t, err, &processingErr, "expected ProfileProcessingError")
 					require.Equal(t, tt.processingError, processingErr.Error())
+				}
+				if tt.transientError != "" {
+					var transientErr *MicrosoftProfileTransientError
+					require.ErrorAs(t, err, &transientErr, "expected ProfileTransientError")
+					require.Equal(t, tt.transientError, transientErr.Error())
+					var processingErr *MicrosoftProfileProcessingError
+					require.NotErrorAs(t, err, &processingErr)
 				}
 				return // do not verify profile contents if an error is expected
 			}

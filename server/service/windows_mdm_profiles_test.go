@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -467,7 +468,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
 		ds.AppConfigFunc = appConfigWith(nil)
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", otherSyncML, nil, fleet.LabelsIncludeAll, nil)
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", otherSyncML, nil, fleet.LabelsIncludeAll, nil, "")
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.False(t, ds.TeamMDMConfigFuncInvoked)
@@ -477,7 +478,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		svc, ctx, ds := setup(t, false)
 		ds.AppConfigFunc = appConfigWith(nil)
 
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "")
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		// The gate fails before the profile is inserted.
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
@@ -488,7 +489,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
 		ds.AppConfigFunc = appConfigWith(nil)
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "")
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.False(t, ds.TeamMDMConfigFuncInvoked)
@@ -503,7 +504,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 			return &fleet.TeamMDM{}, nil
 		}
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "")
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.True(t, ds.TeamMDMConfigFuncInvoked)
@@ -516,7 +517,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 			ac.MDM.WindowsUpdates = configuredSettings()
 		})
 
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "")
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 		// The gate fails before the profile is inserted.
@@ -530,7 +531,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 			return &fleet.TeamMDM{WindowsUpdates: configuredSettings()}, nil
 		}
 
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "")
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
@@ -584,12 +585,12 @@ func TestNewMDMWindowsConfigProfileLicense(t *testing.T) {
 	t.Run("labels not allowed on free tier", func(t *testing.T) {
 		svc, ctx, ds := setup(t, false)
 
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"})
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"}, "")
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profile")
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
 
-		_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, []string{"label1"}, fleet.LabelsIncludeAll, nil)
+		_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, []string{"label1"}, fleet.LabelsIncludeAll, nil, "")
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profile")
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
@@ -598,7 +599,7 @@ func TestNewMDMWindowsConfigProfileLicense(t *testing.T) {
 	t.Run("profile without labels allowed on free tier", func(t *testing.T) {
 		svc, ctx, ds := setup(t, false)
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "without-labels", syncML, nil, fleet.LabelsIncludeAll, nil)
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "without-labels", syncML, nil, fleet.LabelsIncludeAll, nil, "")
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
@@ -607,7 +608,7 @@ func TestNewMDMWindowsConfigProfileLicense(t *testing.T) {
 	t.Run("labels allowed on premium tier", func(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"})
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"}, "")
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
@@ -678,7 +679,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil)
 		require.NoError(t, err)
 
 		assert.Empty(t, updated.SyncML)
@@ -714,7 +715,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
 		require.NoError(t, err)
 		assert.Equal(t, syncML, updated.SyncML)
 		assert.Equal(t, existing.Name, updated.Name)
@@ -723,6 +724,93 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 		act, ok := firedActivity.(*fleet.ActivityTypeEditedWindowsProfile)
 		require.True(t, ok)
 		assert.Equal(t, existing.Name, act.ProfileName)
+	})
+
+	t.Run("uploading a differently named file renames the profile", func(t *testing.T) {
+		svc, ctx, ds, opts := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("disable-onedrive", 0)
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Firewall/MdmStore/DomainProfile/EnableFirewall")
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		var updated fleet.MDMWindowsConfigProfile
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			updated = p
+			return &p, nil
+		}
+		var firedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			firedActivity = activity
+			return nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "enable-firewall", syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+		require.NoError(t, err)
+		assert.Equal(t, syncML, updated.SyncML)
+		assert.Equal(t, "enable-firewall", updated.Name)
+		// the profile keeps its identity: a rename is not a delete + recreate
+		assert.Equal(t, existing.ProfileUUID, updated.ProfileUUID)
+
+		// the activity has to name the profile as it is now, not as it was
+		require.NotNil(t, firedActivity)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedWindowsProfile)
+		require.True(t, ok)
+		assert.Equal(t, "enable-firewall", act.ProfileName)
+	})
+
+	t.Run("a labels-only edit keeps the stored name", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("disable-onedrive", 0)
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		var updated fleet.MDMWindowsConfigProfile
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			updated = p
+			return &p, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil)
+		require.NoError(t, err)
+		assert.Equal(t, "disable-onedrive", updated.Name)
+	})
+
+	t.Run("renaming onto a Fleet-reserved name is rejected", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("disable-onedrive", 0)
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			return &p, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mdm.FleetWindowsOSUpdatesProfileName, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "is not allowed")
+		require.False(t, ds.UpdateMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("a file name longer than the name column is rejected", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("disable-onedrive", 0)
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			return &p, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, strings.Repeat("a", fleet.MaxProfileNameLength+1), syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, fleet.MaxProfileNameLengthErrMsg)
+		require.False(t, ds.UpdateMDMWindowsConfigProfileFuncInvoked)
 	})
 
 	t.Run("profile content update for a team-scoped profile", func(t *testing.T) {
@@ -744,7 +832,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
 		require.NoError(t, err)
 		assert.Equal(t, syncML, updated.SyncML)
 		require.NotNil(t, updated.TeamID)
@@ -773,7 +861,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, syncML, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{}, nil)
 		require.NoError(t, err)
 		assert.Equal(t, syncML, updated.SyncML)
 		require.Len(t, updated.LabelsIncludeAny, 1)
@@ -794,7 +882,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "managed by Fleet")
 	})
@@ -806,7 +894,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil, wantErr
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, "w"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, "w"+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, wantErr)
 	})
@@ -823,7 +911,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profiles with labels requires Fleet Premium license")
 
@@ -832,7 +920,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
 		require.NoError(t, err)
 	})
 
@@ -852,10 +940,10 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 		}
 
 		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
@@ -874,7 +962,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarName("HOST_UUID"))
 	})
@@ -895,7 +983,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 				return &p, nil
 			}
 
-			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
 			require.NoError(t, err)
 			assert.Equal(t, osUpdateSyncML, updated.SyncML)
 		})
@@ -921,7 +1009,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 				return nil, nil
 			}
 
-			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
 			require.Error(t, err)
 			assert.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 		})
@@ -938,9 +1026,21 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 				return nil, nil
 			}
 
-			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
 			require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		})
+	})
+
+	t.Run("fails if Windows MDM is not configured", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.WindowsEnabledAndConfigured = false
+			return ac, nil
+		}
+		err := svc.UpdateMDMConfigProfile(ctx, "wsome-uuid", "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Windows MDM isn't turned on.")
 	})
 
 	t.Run("authorization outcome matches user role and team membership", func(t *testing.T) {
@@ -992,10 +1092,10 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 
 				// profile content and labels are deliberately nil/empty here --
 				// this isolates the authz checks from content/label validation.
-				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
 				checkShouldFail(t, err, tt.shouldFailGlobal)
 
-				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
 				checkShouldFail(t, err, tt.shouldFailTeam)
 			})
 		}

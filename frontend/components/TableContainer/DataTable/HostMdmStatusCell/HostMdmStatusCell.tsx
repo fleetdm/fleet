@@ -1,11 +1,7 @@
 import React from "react";
-import {
-  DEFAULT_EMPTY_CELL_VALUE,
-  MDM_STATUS_TOOLTIP,
-} from "utilities/constants";
-import paths from "router/paths";
-import Icon from "components/Icon";
+
 import CustomLink from "components/CustomLink";
+import Icon from "components/Icon";
 import NotSupported from "components/NotSupported";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IHost } from "interfaces/host";
@@ -14,6 +10,11 @@ import {
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
 import { isChrome, isLinuxLike } from "interfaces/platform";
+import paths from "router/paths";
+import {
+  DEFAULT_EMPTY_CELL_VALUE,
+  MDM_STATUS_TOOLTIP,
+} from "utilities/constants";
 
 const baseClass = "host-mdm-status-cell";
 

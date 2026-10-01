@@ -1,113 +1,229 @@
-# Attempts to locate Granola's uninstaller from registry and execute it silently
+# Granola installs per user, so its uninstall entry lives in the installing user's
+# registry hive and its uninstaller removes the directory recorded in the hive of
+# whoever runs it -- run as SYSTEM it exits 0 and deletes nothing. Search every
+# hive and run the uninstaller as the user who owns the entry.
 
-$displayName = "Granola"
-$productCode = "cdc80bd8-3b8c-5d86-a628-c46cf9da018d"
+$displayNamePattern = '^Granola \d'
+$publisher = "Granola"
+$taskName = "fleet-uninstall-granola"
+$removedDirs = [System.Collections.Generic.List[string]]::new()
+$taskRunning = 267009  # SCHED_S_TASK_RUNNING
+$exitCode = 0
 
-$paths = @(
-    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
-    'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-    'HKCU:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
-)
+function Get-AppEntries {
+    $roots = [System.Collections.Generic.List[string]]::new()
+    $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
+    $roots.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+        if ($hive.Name -match '_Classes$') { continue }
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
+    }
 
-$uninstall = $null
+    $entries = @()
+    foreach ($root in $roots) {
+        foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
+            $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
+            if (-not $key.DisplayName) { continue }
+            # Some installers pad these values with nulls.
+            $name = ($key.DisplayName -replace "`0", "").Trim()
+            if ($name -notmatch $displayNamePattern) { continue }
+            if (($key.Publisher -replace "`0", "").Trim() -ne $publisher) { continue }
 
-foreach ($p in $paths) {
-    $codeCandidates = @(
-        "$p\$productCode",
-        "$p\{$productCode}"
-    )
+            # Only a real user's entry needs running as that user; HKLM and service SIDs are fine.
+            $sid = $null
+            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+)\\') { $sid = $matches[1] }
 
-    foreach ($candidate in $codeCandidates) {
-        if (Test-Path $candidate) {
-            $uninstall = Get-ItemProperty -Path $candidate -ErrorAction SilentlyContinue
-            if ($uninstall) {
+            $entries += [PSCustomObject]@{
+                DisplayName = $name
+                KeyPath     = $sub.PSPath
+                Sid         = $sid
+                Command     = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
+            }
+        }
+    }
+    return $entries
+}
+
+function Resolve-Uninstaller {
+    param([string]$Command)
+
+    $exePath = ""
+    $arguments = ""
+    if ($Command -match '^\s*"([^"]+)"\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    } elseif ($Command -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    } else {
+        Throw "Could not parse uninstall string: $Command"
+    }
+
+    # A 32-bit installer run as SYSTEM lands in SysWOW64 but records the system32 path.
+    if (-not (Test-Path -LiteralPath $exePath)) {
+        $redirected = $exePath -replace '(?i)\\system32\\', '\SysWOW64\'
+        if ($redirected -ne $exePath -and (Test-Path -LiteralPath $redirected)) {
+            Write-Host "  Uninstaller is under SysWOW64, not the recorded $exePath"
+            $exePath = $redirected
+        }
+    }
+
+    # \b does not match between a space and a slash, so anchor on whitespace.
+    if ($arguments -notmatch '(?i)(^|\s)/S($|\s)') { $arguments = "$arguments /S".Trim() }
+
+    return [PSCustomObject]@{ ExePath = $exePath; Arguments = $arguments }
+}
+
+function Invoke-UninstallerAsUser {
+    param([string]$Sid, [string]$ExePath, [string]$Arguments)
+
+    $account = (New-Object System.Security.Principal.SecurityIdentifier($Sid)).Translate(
+        [System.Security.Principal.NTAccount]).Value
+    Write-Host "  Running the uninstaller as $account"
+
+    try {
+        if ($Arguments) {
+            $action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
+        } else {
+            $action = New-ScheduledTaskAction -Execute $ExePath
+        }
+        $trigger = New-ScheduledTaskTrigger -AtLogOn
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+        $principal = New-ScheduledTaskPrincipal -UserId $account
+        $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
+        Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
+
+        $startDate = Get-Date
+        Start-ScheduledTask -TaskName $taskName
+
+        # Wait for a result rather than for the "Running" state, which a fast task can
+        # enter and leave between polls.
+        Start-Sleep -Seconds 2
+        while ($true) {
+            $info = Get-ScheduledTaskInfo -TaskName $taskName
+            $state = (Get-ScheduledTask -TaskName $taskName).State
+            if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+                return $info.LastTaskResult
+            }
+            if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 300) {
+                Write-Host "  Uninstall task still running after 300s; checking the result anyway."
+                return $null
+            }
+            Start-Sleep -Seconds 5
+        }
+    } finally {
+        if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+try {
+    $entries = Get-AppEntries
+    if ($entries.Count -eq 0) {
+        Write-Host "Granola is not installed."
+        Exit 0
+    }
+
+    foreach ($entry in $entries) {
+        Write-Host "Removing '$($entry.DisplayName)' ($($entry.KeyPath))"
+        if (-not $entry.Command) {
+            Write-Host "  No uninstall string recorded; removing the leftover registration."
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+            continue
+        }
+
+        $uninstaller = Resolve-Uninstaller $entry.Command
+        $installDir = Split-Path $uninstaller.ExePath -Parent
+        $removedDirs.Add($installDir)
+
+        # Anything running out of this directory blocks removal. Matching the directory
+        # rather than a process name leaves another user's copy running.
+        Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and $_.Path.StartsWith($installDir, [System.StringComparison]::OrdinalIgnoreCase) } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+
+        if (-not (Test-Path -LiteralPath $uninstaller.ExePath)) {
+            Write-Host "  Uninstaller is gone from $($uninstaller.ExePath); removing the leftover registration."
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+            continue
+        }
+
+        Write-Host "  Uninstall command: $($uninstaller.ExePath)"
+        Write-Host "  Uninstall args: $($uninstaller.Arguments)"
+        if ($entry.Sid) {
+            $result = Invoke-UninstallerAsUser -Sid $entry.Sid -ExePath $uninstaller.ExePath -Arguments $uninstaller.Arguments
+        } else {
+            $process = Start-Process -FilePath $uninstaller.ExePath -ArgumentList $uninstaller.Arguments `
+                -NoNewWindow -PassThru -Wait
+            $result = $process.ExitCode
+        }
+        Write-Host "  Uninstall exit code: $result"
+        if ($null -ne $result -and $result -ne 0 -and $exitCode -eq 0) { $exitCode = $result }
+
+        # An uninstaller that relaunches itself from %TEMP% exits while removal is still
+        # in flight. The directory or the registration going away means it got there.
+        for ($waited = 0; $waited -lt 60; $waited++) {
+            if (-not (Test-Path -LiteralPath $installDir)) { break }
+            if (-not (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue)) {
+                Start-Sleep -Seconds 3
                 break
+            }
+            Start-Sleep -Seconds 1
+        }
+
+        if (Test-Path -LiteralPath $installDir) {
+            Write-Host "  Uninstaller left $installDir behind; removing it."
+            Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $installDir) {
+                Write-Host "  WARNING: could not remove $installDir."
+                if ($exitCode -eq 0) { $exitCode = 1 }
+            }
+        }
+
+        if (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue) {
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    # Shortcuts sit in the installing user's profile, which the uninstaller may not have
+    # reached. Match on target rather than filename to catch vendor subfolders.
+    if ($removedDirs.Count) {
+        $shell = New-Object -ComObject WScript.Shell
+        foreach ($profileDir in (Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue)) {
+            foreach ($root in @(
+                (Join-Path $profileDir.FullName 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs'),
+                (Join-Path $profileDir.FullName 'Desktop')
+            )) {
+                if (-not (Test-Path -LiteralPath $root)) { continue }
+                foreach ($lnk in (Get-ChildItem -LiteralPath $root -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue)) {
+                    $target = $null
+                    try { $target = $shell.CreateShortcut($lnk.FullName).TargetPath } catch {}
+                    if (-not $target) { continue }
+                    foreach ($dir in $removedDirs) {
+                        if ($target.StartsWith($dir, [System.StringComparison]::OrdinalIgnoreCase)) {
+                            Remove-Item -LiteralPath $lnk.FullName -Force -ErrorAction SilentlyContinue
+                            break
+                        }
+                    }
+                }
             }
         }
     }
 
-    if ($uninstall) {
-        break
+    $remaining = Get-AppEntries
+    if ($remaining.Count -gt 0) {
+        Write-Host "WARNING: $($remaining.Count) Granola registration(s) still present:"
+        $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName) [$($_.KeyPath)]" }
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    } else {
+        Write-Host "Granola removed."
     }
 
-    $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-        $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like "$displayName*")
-    }
-
-    if ($items) {
-        $uninstall = $items | Select-Object -First 1
-        break
-    }
-}
-
-if (-not $uninstall) {
-    Write-Host "Uninstall entry not found"
-    Exit 0
-}
-
-$uninstallString = if ($uninstall.QuietUninstallString) {
-    $uninstall.QuietUninstallString
-}
-else {
-    $uninstall.UninstallString
-}
-
-if (-not $uninstallString) {
-    Write-Host "Uninstall command not found"
-    Exit 0
-}
-
-Stop-Process -Name "Granola" -Force -ErrorAction SilentlyContinue
-
-$exePath = ""
-$arguments = ""
-
-if ($uninstallString -match '^"([^"]+)"(.*)') {
-    $exePath = $matches[1]
-    $arguments = $matches[2].Trim()
-}
-elseif ($uninstallString -match '^([^\s]+)(.*)') {
-    $exePath = $matches[1]
-    $arguments = $matches[2].Trim()
-}
-else {
-    Write-Host "Error: Could not parse uninstall string: $uninstallString"
-    Exit 1
-}
-
-$argumentList = @()
-if ($arguments -ne '') {
-    $argumentList += $arguments -split '\s+'
-}
-
-# NSIS uninstallers require /S for silent mode.
-if ($argumentList -notcontains "/S" -and $arguments -notmatch '\b/S\b') {
-    $argumentList += "/S"
-}
-
-Write-Host "Uninstall executable: $exePath"
-Write-Host "Uninstall arguments: $($argumentList -join ' ')"
-
-try {
-    $processOptions = @{
-        FilePath    = $exePath
-        NoNewWindow = $true
-        PassThru    = $true
-        Wait        = $true
-    }
-
-    if ($argumentList.Count -gt 0) {
-        $processOptions.ArgumentList = $argumentList
-    }
-
-    $process = Start-Process @processOptions
-    $exitCode = $process.ExitCode
-
-    Write-Host "Uninstall exit code: $exitCode"
-    Exit $exitCode
-}
-catch {
+} catch {
     Write-Host "Error running uninstaller: $_"
-    Exit 1
+    $exitCode = 1
 }
+
+Exit $exitCode

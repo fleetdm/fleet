@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/WatchBeam/clock"
+	mockredis "github.com/fleetdm/fleet/v4/server/mock/redis"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
@@ -124,7 +128,7 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 			appCfg.MDM.AndroidEnabledAndConfigured = enabled
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-			h := ServeEndUserEnrollOTA(svc, "", ds, logger, false)
+			h := ServeEndUserEnrollOTA(svc, "", ds, newMemKeyValueStore(), clock.C, logger, false)
 			ts := httptest.NewServer(h)
 			t.Cleanup(func() {
 				ts.Close()
@@ -220,7 +224,7 @@ func TestInitiateOTAEnrollSSOPersistsQueryParams(t *testing.T) {
 	}
 }
 
-func TestServeEndUserEnrollOTAClearsCookieForFullyManaged(t *testing.T) {
+func TestServeEndUserEnrollOTAKeepsSessionForFullyManaged(t *testing.T) {
 	if !hasBuildTag("full") {
 		t.Skip("This test requires running with -tags full")
 	}
@@ -255,75 +259,102 @@ func TestServeEndUserEnrollOTAClearsCookieForFullyManaged(t *testing.T) {
 		return appCfg, nil
 	}
 
-	svc, _ := newTestService(t, ds, nil, nil)
+	kv := newMemKeyValueStore()
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{KeyValueStore: kv})
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	h := ServeEndUserEnrollOTA(svc, "", ds, logger, false)
+	h := ServeEndUserEnrollOTA(svc, "", ds, kv, clock.C, logger, false)
 	ts := httptest.NewServer(h)
 	t.Cleanup(func() {
 		ts.Close()
 	})
 
 	idpUUID := "test-idp-uuid-1234"
-
-	// Simulate a request with a valid BYOD cookie + matching enrollment_reference
-	// for a fully-managed Android enrollment.
-	req, err := http.NewRequest("GET", ts.URL+"?enroll_secret=foo&fully_managed=true&enrollment_reference="+idpUUID, nil)
+	sessionID, err := shared_mdm.CreateBYODIdPSession(ctx, kv, clock.C, idpUUID)
 	require.NoError(t, err)
-	req.AddCookie(&http.Cookie{
-		Name:  shared_mdm.BYODIdpCookieName,
-		Value: idpUUID,
-	})
 
-	client := fleethttp.NewClient(fleethttp.WithFollowRedir(false))
-	response, err := client.Do(req)
-	require.NoError(t, err)
-	defer response.Body.Close()
+	// The session must outlive the page: the token endpoint resolves it and
+	// only then ends it.
+	for _, query := range []string{"?enroll_secret=foo&fully_managed=true", "?enroll_secret=foo"} {
+		req, err := http.NewRequest("GET", ts.URL+query, nil)
+		require.NoError(t, err)
+		req.AddCookie(&http.Cookie{Name: shared_mdm.BYODIdpCookieName, Value: sessionID, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 
-	require.Equal(t, http.StatusOK, response.StatusCode)
+		response, err := fleethttp.NewClient(fleethttp.WithFollowRedir(false)).Do(req)
+		require.NoError(t, err)
+		defer response.Body.Close()
+		require.Equal(t, http.StatusOK, response.StatusCode)
 
-	// Assert that Set-Cookie header is present and clears the BYOD cookie.
-	setCookieHeaders := response.Header.Values("Set-Cookie")
-	var foundClear bool
-	for _, sc := range setCookieHeaders {
-		if bytes.Contains([]byte(sc), []byte(shared_mdm.BYODIdpCookieName)) &&
-			bytes.Contains([]byte(sc), []byte("Max-Age=0")) {
-			foundClear = true
-			break
+		for _, sc := range response.Header.Values("Set-Cookie") {
+			require.False(t,
+				bytes.Contains([]byte(sc), []byte(shared_mdm.BYODIdpCookieName)) &&
+					bytes.Contains([]byte(sc), []byte("Max-Age=0")),
+				"%s should not clear %s, got: %v", query, shared_mdm.BYODIdpCookieName, sc,
+			)
 		}
+		body, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		require.NotContains(t, string(body), idpUUID)
+		require.NotContains(t, string(body), "IDP_UUID")
 	}
-	require.True(t, foundClear, "expected Set-Cookie header to clear %s, got: %v", shared_mdm.BYODIdpCookieName, setCookieHeaders)
-
-	// Assert that the rendered HTML contains the IdP UUID for JS to use.
-	bodyBytes, err := io.ReadAll(response.Body)
-	require.NoError(t, err)
-	bodyString := string(bodyBytes)
-	require.Contains(t, bodyString, fmt.Sprintf(`const IDP_UUID = "%s";`, idpUUID))
-
-	// BYOD (non-fully-managed) requests should NOT clear the cookie
-	req2, err := http.NewRequest("GET", ts.URL+"?enroll_secret=foo&enrollment_reference="+idpUUID, nil)
-	require.NoError(t, err)
-	req2.AddCookie(&http.Cookie{
-		Name:  shared_mdm.BYODIdpCookieName,
-		Value: idpUUID,
-	})
-
-	response2, err := client.Do(req2)
-	require.NoError(t, err)
-	defer response2.Body.Close()
-
-	require.Equal(t, http.StatusOK, response2.StatusCode)
-
-	setCookieHeaders2 := response2.Header.Values("Set-Cookie")
-	for _, sc := range setCookieHeaders2 {
-		require.False(t,
-			bytes.Contains([]byte(sc), []byte(shared_mdm.BYODIdpCookieName)) &&
-				bytes.Contains([]byte(sc), []byte("Max-Age=0")),
-			"BYOD request should not clear %s, got: %v", shared_mdm.BYODIdpCookieName, setCookieHeaders2,
-		)
-	}
-
-	// Assert that BYOD rendered HTML has an empty IdP UUID (not passed through template).
-	bodyBytes2, err := io.ReadAll(response2.Body)
-	require.NoError(t, err)
-	require.Contains(t, string(bodyBytes2), `const IDP_UUID = "";`)
 }
+
+func TestServeEndUserEnrollOTARejectsUnknownSession(t *testing.T) {
+	ds := new(mock.Store)
+	ds.HasUsersFunc = func(ctx context.Context) (bool, error) { return true, nil }
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{Secret: secret}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}, nil
+	}
+	kv := newMemKeyValueStore()
+	svc := &enrollPageService{}
+	h := ServeEndUserEnrollOTA(svc, "", ds, kv, clock.C, slog.New(slog.NewTextHandler(os.Stdout, nil)), false)
+	ts := httptest.NewServer(h)
+	t.Cleanup(ts.Close)
+
+	unknown := "not-a-session"
+	req, err := http.NewRequest("GET", ts.URL+"?enroll_secret=foo&fully_managed=true&enrollment_reference="+unknown, nil)
+	require.NoError(t, err)
+	req.AddCookie(&http.Cookie{Name: shared_mdm.BYODIdpCookieName, Value: unknown, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+
+	resp, err := fleethttp.NewClient(fleethttp.WithFollowRedir(false)).Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
+	require.NotEmpty(t, resp.Header.Get("Location"))
+	require.NotContains(t, string(body), unknown)
+}
+
+func newMemKeyValueStore() *mockredis.KeyValueStore {
+	var mu sync.Mutex
+	vals := map[string]string{}
+	return &mockredis.KeyValueStore{
+		SetFunc: func(_ context.Context, key, value string, _ time.Duration) error {
+			mu.Lock()
+			defer mu.Unlock()
+			vals[key] = value
+			return nil
+		},
+		GetFunc: func(_ context.Context, key string) (*string, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			v, ok := vals[key]
+			if !ok {
+				return nil, nil
+			}
+			return &v, nil
+		},
+	}
+}
+
+// enrollPageService is the ssoURLCaptureService plus what /enroll asks of the
+// service before it decides to start SSO.
+type enrollPageService struct {
+	ssoURLCaptureService
+}
+
+func (s *enrollPageService) SetupRequired(context.Context) (bool, error) { return false, nil }

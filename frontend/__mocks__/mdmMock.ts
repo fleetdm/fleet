@@ -51,6 +51,7 @@ export const createMockMdmProfile = (
 const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
   encryption_key_available: false,
   enrollment_status: "On (automatic)",
+  is_personal_enrollment: false,
   server_url: "http://mdmsolution.com",
   name: "MDM Solution",
   id: 1,

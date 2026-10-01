@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -377,7 +378,7 @@ func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 		}
 
 		err := ds.RemovePendingInHouseAppInstalls(ctx, id)
-		if err != nil && !fleet.IsNotFound(err) {
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete in house app: remove pending in house app installs")
 		}
 
@@ -434,7 +435,8 @@ func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHous
 
 	for _, in := range installs {
 		_, err := ds.CancelHostUpcomingActivity(ctx, in.HostID, in.ExecutionID)
-		if err != nil {
+		// Ignore the not found error for installs that finished or were canceled since the select above, their upcoming activity is already deleted
+		if err != nil && !fleet.IsNotFound(err) {
 			return err
 		}
 	}
@@ -471,11 +473,11 @@ upcoming AS (
 -- NOTE if you change this logic make sure to change inHouseAppHostStatusNamedQuery accordingly
 past AS (
 	SELECT
-		hihsi.host_id,
+		ranked.host_id,
 		CASE
-			WHEN hihsi.verification_at IS NOT NULL THEN
+			WHEN ranked.verification_at IS NOT NULL THEN
 				:software_status_installed
-			WHEN hihsi.verification_failed_at IS NOT NULL THEN
+			WHEN ranked.verification_failed_at IS NOT NULL THEN
 				:software_status_failed
 			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 				:software_status_failed
@@ -484,28 +486,35 @@ past AS (
 			ELSE
 				NULL -- either pending or not installed via in-house App
 		END AS status
-	FROM
-		host_in_house_software_installs hihsi
-		JOIN hosts h ON host_id = h.id
-		-- LEFT JOIN so Fleet-side pre-flight failures (unresolvable
-		-- managed-config Fleet variable) survive — those never enqueue an MDM
-		-- command, so no ncr row exists. The CASE above maps
-		-- verification_failed_at IS NOT NULL to failed before any ncr.status
-		-- branch is evaluated.
-		LEFT JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hihsi.command_uuid
-		LEFT JOIN host_in_house_software_installs hihsi2
-			ON hihsi.host_id = hihsi2.host_id AND
-				 hihsi.in_house_app_id = hihsi2.in_house_app_id AND
-				 hihsi2.removed = 0 AND
-				 hihsi2.canceled = 0 AND
-				 (hihsi.created_at < hihsi2.created_at OR (hihsi.created_at = hihsi2.created_at AND hihsi.id < hihsi2.id))
+	FROM (
+		SELECT
+			hihsi.host_id,
+			hihsi.command_uuid,
+			hihsi.verification_at,
+			hihsi.verification_failed_at,
+			h.uuid AS host_uuid,
+			ROW_NUMBER() OVER (
+				PARTITION BY hihsi.host_id
+				ORDER BY hihsi.created_at DESC, hihsi.id DESC
+			) AS rn
+		FROM
+			host_in_house_software_installs hihsi
+			JOIN hosts h ON hihsi.host_id = h.id
+		WHERE
+			hihsi.in_house_app_id = :in_house_app_id
+			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+			AND hihsi.removed = 0
+			AND hihsi.canceled = 0
+	) ranked
+	-- LEFT JOIN so Fleet-side pre-flight failures (unresolvable
+	-- managed-config Fleet variable) survive — those never enqueue an MDM
+	-- command, so no ncr row exists. The CASE above maps
+	-- verification_failed_at IS NOT NULL to failed before any ncr.status
+	-- branch is evaluated.
+	LEFT JOIN nano_command_results ncr ON ncr.id = ranked.host_uuid AND ncr.command_uuid = ranked.command_uuid
 	WHERE
-		hihsi2.id IS NULL
-		AND hihsi.in_house_app_id = :in_house_app_id
-		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
-		AND hihsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
-		AND hihsi.removed = 0
-		AND hihsi.canceled = 0
+		ranked.rn = 1
+		AND ranked.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 )
 
 -- count each status
@@ -619,8 +628,12 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "insert in house app install request join table")
 		}
 
-		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity")
+		// deferred activations are picked up by the fleet-initiated release
+		// cron within its per-minute budget
+		if !opts.DeferActivation {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
 		}
 		return nil
 	})
@@ -652,7 +665,7 @@ func (ds *Datastore) SetInHouseAppInstallAsFailed(ctx context.Context, hostID ui
 	stmt := `
 UPDATE host_in_house_software_installs
 SET verification_failed_at = CURRENT_TIMESTAMP(6),
-verification_command_uuid = ?
+verification_command_uuid = NULLIF(?, '')
 WHERE command_uuid = ?
 	`
 
@@ -710,6 +723,11 @@ AND hihsi.verification_failed_at IS NULL
 }
 
 func (ds *Datastore) GetPastActivityDataForInHouseAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error) {
+	// Called at activity-write time to snapshot the software display name
+	// override (and adjacent fields) into the activity JSON blob. Reading from
+	// a lagging replica could miss a rename an admin committed to the primary
+	// moments before the install ack landed, defeating the write-time freeze.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	return ds.getPastActivityDataForInHouseAppInstallDB(ctx, ds.reader(ctx), commandResults)
 }
 
@@ -726,28 +744,34 @@ SELECT
 	hihsi.host_id AS host_id,
 	hdn.display_name AS host_display_name,
 	st.name AS software_title,
+	stdn.display_name AS software_display_name,
 	hihsi.command_uuid AS command_uuid,
 	hihsi.self_service AS self_service
 FROM
 	host_in_house_software_installs hihsi
 	LEFT OUTER JOIN users u ON hihsi.user_id = u.id
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hihsi.host_id
+	LEFT OUTER JOIN hosts h ON h.id = hihsi.host_id
 	LEFT OUTER JOIN in_house_apps iha ON hihsi.in_house_app_id = iha.id
 	LEFT OUTER JOIN software_titles st ON st.id = iha.title_id
+	LEFT OUTER JOIN software_title_display_names stdn
+		ON stdn.software_title_id = iha.title_id
+		AND stdn.team_id = COALESCE(h.team_id, 0)
 WHERE
 	hihsi.command_uuid = :command_uuid AND
 	hihsi.canceled = 0
 	`
 
 	type result struct {
-		HostID          uint    `db:"host_id"`
-		HostDisplayName string  `db:"host_display_name"`
-		SoftwareTitle   string  `db:"software_title"`
-		CommandUUID     string  `db:"command_uuid"`
-		UserName        *string `db:"user_name"`
-		UserID          *uint   `db:"user_id"`
-		UserEmail       *string `db:"user_email"`
-		SelfService     bool    `db:"self_service"`
+		HostID              uint    `db:"host_id"`
+		HostDisplayName     string  `db:"host_display_name"`
+		SoftwareTitle       string  `db:"software_title"`
+		SoftwareDisplayName *string `db:"software_display_name"`
+		CommandUUID         string  `db:"command_uuid"`
+		UserName            *string `db:"user_name"`
+		UserID              *uint   `db:"user_id"`
+		UserEmail           *string `db:"user_email"`
+		SelfService         bool    `db:"self_service"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -790,12 +814,13 @@ WHERE
 	}
 
 	act := &fleet.ActivityTypeInstalledSoftware{
-		HostID:          res.HostID,
-		HostDisplayName: res.HostDisplayName,
-		SoftwareTitle:   res.SoftwareTitle,
-		CommandUUID:     res.CommandUUID,
-		Status:          status,
-		SelfService:     res.SelfService,
+		HostID:              res.HostID,
+		HostDisplayName:     res.HostDisplayName,
+		SoftwareTitle:       res.SoftwareTitle,
+		SoftwareDisplayName: res.SoftwareDisplayName,
+		CommandUUID:         res.CommandUUID,
+		Status:              status,
+		SelfService:         res.SelfService,
 	}
 
 	return user, act, nil
@@ -1569,7 +1594,8 @@ WHERE
 	if err != nil {
 		return err
 	}
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	return err
 }
 
 func (ds *Datastore) runInHouseUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) (affectedHostIDs []uint, err error) {

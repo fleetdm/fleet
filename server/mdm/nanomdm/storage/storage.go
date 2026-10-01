@@ -47,8 +47,12 @@ type SecretStore interface {
 	ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error)
 	// SetRecoveryLockFailed marks a host's recovery lock as failed.
 	// The hostUUID is the same as the enrollment ID (UDID).
+	// The commandUUID is the SetRecoveryLock or VerifyRecoveryLock command being delivered.
 	// Used when secret expansion fails and we need to update the host status.
-	SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error
+	SetRecoveryLockFailed(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error
+	// SetDiskEncryptionKeyRotationFailed fails the host's pending RotateFileVaultKey command when secret expansion
+	// fails. The hostUUID is the same as the enrollment ID (UDID).
+	SetDiskEncryptionKeyRotationFailed(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error
 }
 
 // ServiceStore stores & retrieves both command and check-in data.

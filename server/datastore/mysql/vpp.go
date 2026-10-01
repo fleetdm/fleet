@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
@@ -224,11 +225,11 @@ upcoming AS (
 -- NOTE if you change this logic make sure to change vppAppHostStatusNamedQuery accordingly
 past AS (
 	SELECT
-		hvsi.host_id,
+		ranked.host_id,
 		CASE
-			WHEN hvsi.verification_at IS NOT NULL THEN
+			WHEN ranked.verification_at IS NOT NULL THEN
 				:software_status_installed
-			WHEN hvsi.verification_failed_at IS NOT NULL THEN
+			WHEN ranked.verification_failed_at IS NOT NULL THEN
 				:software_status_failed
 			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 				:software_status_failed
@@ -238,34 +239,42 @@ past AS (
 			ELSE
 				NULL -- either pending or not installed via VPP App
 		END AS status
-	FROM
-		host_vpp_software_installs hvsi
-		JOIN hosts h ON host_id = h.id
-		LEFT JOIN nano_command_results ncr ON
-			ncr.id = h.uuid AND
-			ncr.command_uuid = hvsi.command_uuid
-		LEFT JOIN host_vpp_software_installs hvsi2
-			ON hvsi.host_id = hvsi2.host_id AND
-				 hvsi.adam_id = hvsi2.adam_id AND
-				 hvsi.platform = hvsi2.platform AND
-				 hvsi2.removed = 0 AND
-				 hvsi2.canceled = 0 AND
-				 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
+	FROM (
+		SELECT
+			hvsi.host_id,
+			hvsi.command_uuid,
+			hvsi.verification_at,
+			hvsi.verification_failed_at,
+			h.uuid AS host_uuid,
+			ROW_NUMBER() OVER (
+				PARTITION BY hvsi.host_id
+				ORDER BY hvsi.created_at DESC, hvsi.id DESC
+			) AS rn
+		FROM
+			host_vpp_software_installs hvsi
+			JOIN hosts h ON hvsi.host_id = h.id
+		WHERE
+			hvsi.adam_id = :adam_id
+			AND hvsi.platform = :platform
+			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+			AND hvsi.removed = 0
+			AND hvsi.canceled = 0
+	) ranked
+	LEFT JOIN nano_command_results ncr ON
+		ncr.id = ranked.host_uuid AND
+		ncr.command_uuid = ranked.command_uuid
 	WHERE
-		hvsi2.id IS NULL
-		AND hvsi.adam_id = :adam_id
-		AND hvsi.platform = :platform
+		ranked.rn = 1
 		-- Allow rows with no nano_command_results — Android VPP never produces
 		-- one, and Fleet-side pre-flight failures (e.g. unresolvable
 		-- managed-config Fleet variable on iOS/iPadOS) record only the install
 		-- row with verification_failed_at set, no MDM command. The CASE above
 		-- maps verification_failed_at IS NOT NULL to failed ahead of the ncr
-		-- branches.
-		AND (ncr.id IS NOT NULL OR hvsi.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
-		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
-		AND hvsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
-		AND hvsi.removed = 0
-		AND hvsi.canceled = 0
+		-- branches. This check runs after ranking, so a host whose most recent
+		-- row lacks a command result is dropped rather than falling back to an
+		-- older row.
+		AND (ncr.id IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
+		AND ranked.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 )
 
 -- count each status
@@ -1213,8 +1222,12 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "insert vpp install request join table")
 		}
 
-		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity")
+		// deferred activations are picked up by the fleet-initiated release
+		// cron within its per-minute budget
+		if !opts.DeferActivation {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
 		}
 		return nil
 	})
@@ -1335,6 +1348,8 @@ func (ds *Datastore) MapAdamIDsQueuedInstalls(ctx context.Context, hostID uint) 
 }
 
 func (ds *Datastore) GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	// See GetPastActivityDataForVPPAppInstall — same write-time-freeze rationale.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	return ds.getPastActivityDataForAndroidVPPAppInstallDB(ctx, ds.reader(ctx), cmdUUID, status)
 }
 
@@ -1347,6 +1362,11 @@ func (ds *Datastore) getPastActivityDataForAndroidVPPAppInstallDB(ctx context.Co
 }
 
 func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	// Called at activity-write time to snapshot the software display name
+	// override (and adjacent fields) into the activity JSON blob. Reading from
+	// a lagging replica could miss a rename an admin committed to the primary
+	// moments before the install ack landed, defeating the write-time freeze.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	return ds.getPastActivityDataForVPPAppInstallDB(ctx, ds.reader(ctx), commandResults)
 }
 
@@ -1363,6 +1383,7 @@ SELECT
 	hvsi.host_id AS host_id,
 	hdn.display_name AS host_display_name,
 	st.name AS software_title,
+	stdn.display_name AS software_display_name,
 	hvsi.adam_id AS app_store_id,
 	hvsi.command_uuid AS command_uuid,
 	hvsi.self_service AS self_service,
@@ -1376,6 +1397,9 @@ FROM
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
 	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
 	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
+	LEFT OUTER JOIN software_title_display_names stdn
+		ON stdn.software_title_id = vpa.title_id
+		AND stdn.team_id = COALESCE(h.team_id, 0)
 	LEFT OUTER JOIN policies p ON p.id = hvsi.policy_id
 WHERE
 	hvsi.command_uuid = :command_uuid AND
@@ -1383,18 +1407,19 @@ WHERE
 `
 
 	type result struct {
-		HostID          uint    `db:"host_id"`
-		HostDisplayName string  `db:"host_display_name"`
-		SoftwareTitle   string  `db:"software_title"`
-		AppStoreID      string  `db:"app_store_id"`
-		CommandUUID     string  `db:"command_uuid"`
-		UserName        *string `db:"user_name"`
-		UserID          *uint   `db:"user_id"`
-		UserEmail       *string `db:"user_email"`
-		SelfService     bool    `db:"self_service"`
-		PolicyID        *uint   `db:"policy_id"`
-		PolicyName      *string `db:"policy_name"`
-		HostPlatform    string  `db:"platform"`
+		HostID              uint    `db:"host_id"`
+		HostDisplayName     string  `db:"host_display_name"`
+		SoftwareTitle       string  `db:"software_title"`
+		SoftwareDisplayName *string `db:"software_display_name"`
+		AppStoreID          string  `db:"app_store_id"`
+		CommandUUID         string  `db:"command_uuid"`
+		UserName            *string `db:"user_name"`
+		UserID              *uint   `db:"user_id"`
+		UserEmail           *string `db:"user_email"`
+		SelfService         bool    `db:"self_service"`
+		PolicyID            *uint   `db:"policy_id"`
+		PolicyName          *string `db:"policy_name"`
+		HostPlatform        string  `db:"platform"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -1437,16 +1462,17 @@ WHERE
 	}
 
 	act := &fleet.ActivityInstalledAppStoreApp{
-		HostID:          res.HostID,
-		HostDisplayName: res.HostDisplayName,
-		SoftwareTitle:   res.SoftwareTitle,
-		AppStoreID:      res.AppStoreID,
-		CommandUUID:     res.CommandUUID,
-		SelfService:     res.SelfService,
-		PolicyID:        res.PolicyID,
-		PolicyName:      res.PolicyName,
-		Status:          status,
-		HostPlatform:    res.HostPlatform,
+		HostID:              res.HostID,
+		HostDisplayName:     res.HostDisplayName,
+		SoftwareTitle:       res.SoftwareTitle,
+		SoftwareDisplayName: res.SoftwareDisplayName,
+		AppStoreID:          res.AppStoreID,
+		CommandUUID:         res.CommandUUID,
+		SelfService:         res.SelfService,
+		PolicyID:            res.PolicyID,
+		PolicyName:          res.PolicyName,
+		Status:              status,
+		HostPlatform:        res.HostPlatform,
 	}
 
 	return user, act, nil
@@ -3121,6 +3147,16 @@ func (ds *Datastore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.Host
 			return ctxerr.Wrap(ctx, err, "updating upcoming activities with new execution id")
 		}
 
+		_, err := tx.ExecContext(ctx, `UPDATE setup_experience_status_results
+			SET nano_command_uuid = ?
+			WHERE nano_command_uuid = ? AND host_uuid = (SELECT uuid FROM hosts WHERE id = ?)
+			AND status NOT IN (?, ?, ?)`,
+			newCommandUUID, vppInstall.InstallCommandUUID, vppInstall.HostID,
+			fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure, fleet.SetupExperienceStatusCancelled)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating setup experience status result with new command uuid")
+		}
+
 		return ds.nanoEnqueueVPPInstall(ctx, tx, vppInstall.HostID, []string{newCommandUUID})
 	})
 }
@@ -3284,7 +3320,10 @@ INSERT INTO
 SELECT
 	?,
 	execution_id,
-	created_at -- force same timestamp to keep ordering
+	-- distinct, forward-dated timestamps: nanomdm orders the queue by
+	-- created_at alone, and one statement's rows would otherwise tie on the
+	-- column default and be served in arbitrary order
+	NOW(6) + INTERVAL ROW_NUMBER() OVER (ORDER BY priority DESC, created_at ASC, id ASC) MICROSECOND
 FROM
 	upcoming_activities
 WHERE
@@ -3303,9 +3342,20 @@ ORDER BY
 		return ctxerr.Wrap(ctx, err, "insert nano queue")
 	}
 
-	// best-effort APNs push notification to the host, not critical because we
-	// have a cron job that will retry for hosts with pending MDM commands.
-	if ds.pusher != nil {
+	if ds.pusher == nil {
+		return nil
+	}
+	switch v := tx.(type) {
+	case platform_mysql.WrappedExtContext:
+		// we wrap the APNs Push here, as activate next upcoming is called from many sites
+		// and it's racy to ping before we have committed the transaction.
+		v.AddOnCommitHook(func() {
+			if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
+				ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
+			}
+		})
+	case *sqlx.DB:
+		// We are not in a transaction but rather just auto-commit mode, fire the push immediately.
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
 			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}

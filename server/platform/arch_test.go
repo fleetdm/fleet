@@ -66,6 +66,15 @@ func TestHTTPPackageDependencies(t *testing.T) {
 		Check()
 }
 
+func TestJSONDecodePackageDependencies(t *testing.T) {
+	t.Parallel()
+	archtest.NewPackageTest(t, m+"/server/platform/jsondecode").
+		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		WithTests().
+		ShouldNotDependOn(m + "/...").
+		Check()
+}
+
 func TestAuthzCheckPackageDependencies(t *testing.T) {
 	t.Parallel()
 	archtest.NewPackageTest(t, m+"/server/platform/middleware/authzcheck").

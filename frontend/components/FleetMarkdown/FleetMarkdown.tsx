@@ -1,12 +1,12 @@
+import { Ace } from "ace-builds";
+import classnames from "classnames";
+import { noop } from "lodash";
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import classnames from "classnames";
-import { Ace } from "ace-builds";
-import { noop } from "lodash";
 
-import SQLEditor from "components/SQLEditor";
 import CustomLink from "components/CustomLink";
+import SQLEditor from "components/SQLEditor";
 
 interface IFleetMarkdownProps {
   markdown: string;

@@ -2,8 +2,6 @@
 
 This directory contains scripts to build and run Docker Linux images with fleetd installed on them that connect to a Fleet instance running on the host (similar to [tools/osquery](../osquery/)).
 
-PS: In the future, we could push these images to Docker Hub and include some of them in `fleetctl preview` (to allow demoing script execution on Linux hosts).
-
 ## Build fleetd docker images
 
 To build all docker images run:
@@ -13,6 +11,10 @@ To build all docker images run:
 To build all docker images using `edge` channels from our staging TUF:
 ```sh
 UPDATE_URL=https://updates-staging.fleetdm.com ORBIT_CHANNEL=edge DESKTOP_CHANNEL=edge OSQUERYD_CHANNEL=edge ./tools/fleetd-linux/build-all.sh
+```
+By default packages point to `https://host.docker.internal:8080` and use the local dev TLS certificate. To point them to a different Fleet server (no `--fleet-certificate` is set for non-local URLs):
+```sh
+FLEET_URL=https://fleet.example.com ./tools/fleetd-linux/build-all.sh
 ```
 
 ## Run fleetd containers

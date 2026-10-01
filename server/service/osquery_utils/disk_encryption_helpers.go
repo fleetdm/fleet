@@ -7,10 +7,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// IsDiskEncryptionEnabledForHost checks if disk encryption is enabled for the
-// host's platform, in the host's team or globally if the host is not assigned
-// to a team.
-func IsDiskEncryptionEnabledForHost(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, host *fleet.Host) bool {
+// IsDiskEncryptionEscrowEnabledForHost reports whether Fleet should store a
+// recovery key for this host, based on its platform's escrow-relevant setting
+// in the host's team, or globally if the host is not assigned to a team.
+func IsDiskEncryptionEscrowEnabledForHost(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, host *fleet.Host) bool {
 	var cfg fleet.DiskEncryptionConfig
 
 	// team
@@ -41,12 +41,13 @@ func IsDiskEncryptionEnabledForHost(ctx context.Context, logger *slog.Logger, ds
 		cfg = appConfig.MDM.DiskEncryptionConfig()
 	}
 
-	// the FileVault flow treats the macOS pair as one unit until the
-	// per-payload split ships
 	switch host.FleetPlatform() {
 	case "darwin":
-		return cfg.MacOSEnabled || cfg.MacOSEscrowEnabled
+		// enforcement alone escrows nothing: the profile omits the escrow
+		// payloads, so no key is ever produced for Fleet to store
+		return cfg.MacOSEscrowEnabled
 	case "windows":
+		// BitLocker escrow is not separately settable; enforcement implies it
 		return cfg.WindowsEnabled
 	case "linux":
 		return cfg.LinuxEscrowEnabled

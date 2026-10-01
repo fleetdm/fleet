@@ -44,9 +44,20 @@ tasks:
       - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
         msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
     cmds:
-      - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.OUTPUT}}"'
+      - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -ldflags="{{.LDFLAGS}}" -o "{{.OUTPUT}}"'
     vars:
-      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if or .EXTRA_TAGS (eq .OBFUSCATED "true")}}-tags {{if eq .OBFUSCATED "true"}}wails_obfuscated{{if .EXTRA_TAGS}},{{end}}{{end}}{{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
+      # LDFLAGS is deliberately kept OUT of BUILD_FLAGS: BUILD_FLAGS is handed
+      # down to the frontend and bindings tasks, and Task derives its checksum
+      # filenames from the task label those flags appear in — the stamp made
+      # that filename exceed the filesystem limit and the build failed outright.
+      # Only the go build below needs it, so only it gets it.
+      #
+      # The stamp fills in internal/buildinfo, which is what the Settings tab,
+      # `--version` and every hangar.log session report. An unstamped build (a
+      # bare `go build`) reports "dev"/"unknown" instead.
+      STAMP: '-X github.com/fleetdm/fleet/tools/hangar/internal/buildinfo.version={{.APP_VERSION}} -X github.com/fleetdm/fleet/tools/hangar/internal/buildinfo.commit={{.GIT_COMMIT}} -X github.com/fleetdm/fleet/tools/hangar/internal/buildinfo.date={{.BUILD_DATE}}'
+      LDFLAGS: '{{if eq .DEV "true"}}{{.STAMP}}{{else}}-w -s {{.STAMP}}{{end}}'
+      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if or .EXTRA_TAGS (eq .OBFUSCATED "true")}}-tags {{if eq .OBFUSCATED "true"}}wails_obfuscated{{if .EXTRA_TAGS}},{{end}}{{end}}{{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false{{end}}'
       DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
       OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
     env:
@@ -159,6 +170,17 @@ tasks:
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents/Resources"
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents/MacOS"
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents"
+      # Stamp the version the bundle claims from build/config.yml, so Finder,
+      # `task pkg` (which reads CFBundleShortVersionString) and Fleet's software
+      # inventory all agree with what the binary reports. The commit rides along
+      # in a custom key: two builds of the same release are otherwise
+      # indistinguishable from the outside.
+      - |
+        PLIST="{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents/Info.plist"
+        /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString {{.APP_VERSION}}" "$PLIST"
+        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion {{.APP_VERSION}}" "$PLIST"
+        /usr/libexec/PlistBuddy -c "Add :FleetHangarGitCommit string {{.GIT_COMMIT}}" "$PLIST" >/dev/null 2>&1 \
+          || /usr/libexec/PlistBuddy -c "Set :FleetHangarGitCommit {{.GIT_COMMIT}}" "$PLIST"
       - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
 
   codesign:adhoc:

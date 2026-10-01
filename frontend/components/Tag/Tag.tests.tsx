@@ -1,6 +1,6 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React from "react";
 
 import Tag from "./Tag";
 
@@ -22,6 +22,12 @@ describe("Tag", () => {
     render(<Tag size="small">Inherited</Tag>);
 
     expect(screen.getByText("Inherited")).toHaveClass("tag--small");
+  });
+
+  it("adds the xsmall modifier class when size is set to xsmall", () => {
+    render(<Tag size="xsmall">Inherited</Tag>);
+
+    expect(screen.getByText("Inherited")).toHaveClass("tag--xsmall");
   });
 
   it("does not wrap the tag in a tooltip when tooltip is omitted", () => {

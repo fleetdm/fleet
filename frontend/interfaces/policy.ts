@@ -1,8 +1,10 @@
 import PropTypes from "prop-types";
-import { CommaSeparatedPlatformString } from "interfaces/platform";
+
 import type { ActivityType, IActivityDetails } from "interfaces/activity";
-import { IScript } from "./script";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
+
 import { ILabelPolicy } from "./label";
+import { IScript } from "./script";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({
@@ -67,6 +69,8 @@ export interface IPolicy {
   critical: boolean;
   calendar_events_enabled: boolean;
   conditional_access_enabled: boolean;
+  /** Hidden from end users in Fleet Desktop. Absent on device (My device) policies. */
+  hidden?: boolean;
   type: string;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
@@ -74,6 +78,7 @@ export interface IPolicy {
   patch_software?: IPolicySoftwareToInstall;
   continuous_automations_enabled?: boolean;
   patch_when_closed?: boolean;
+  notify_before_patching?: boolean;
   labels_include_any?: ILabelPolicy[];
   labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
@@ -87,7 +92,7 @@ export interface IPolicySoftwareToInstall {
   /** Present when the policy pins a specific package on a multi-package
    * title. Absent for VPP-backed policies. When absent the automations UI
    * falls back to auto-selecting the title's first-added package. */
-  software_installer_id?: number;
+  software_package_id?: number;
 }
 
 export interface IPolicyResendConfigurationProfile {
@@ -152,13 +157,15 @@ export interface IPolicyFormData {
   id?: number;
   calendar_events_enabled?: boolean;
   conditional_access_enabled?: boolean;
+  hidden?: boolean;
   continuous_automations_enabled?: boolean;
   patch_when_closed?: boolean;
+  notify_before_patching?: boolean;
   software_title_id?: number | null;
   /** Pins the policy to a specific package on a multi-package title. `null`
-   * on PATCH lets the backend fall back to the title's first-added package
-   * (mirrors `software_title_id`'s unset asymmetry). */
-  software_installer_id?: number | null;
+   * on PATCH clears the pinned package (mirrors `software_title_id`'s unset
+   * asymmetry). */
+  software_package_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;
   profile_uuid?: string | null;

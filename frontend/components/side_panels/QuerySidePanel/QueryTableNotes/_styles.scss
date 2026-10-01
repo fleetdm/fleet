@@ -1,18 +1,22 @@
 .query-table-notes {
+  @include flex-column-16px-gap;
+
   h3 {
     font-size: $small;
     font-weight: $bold;
+    margin: 0;
   }
 
-  // overriding default FleetMarkdown styles here
   &__notes-markdown {
-    li {
-      margin-bottom: $pad-medium;
-      line-height: $line-height;
+    ul {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: $pad-medium;
+    }
 
-      &:last-child {
-        margin-bottom: 0;
-      }
+    li {
+      line-height: $line-height;
     }
   }
 }

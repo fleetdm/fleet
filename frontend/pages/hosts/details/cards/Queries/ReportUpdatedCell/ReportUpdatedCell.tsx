@@ -1,13 +1,13 @@
 import React from "react";
 import { browserHistory } from "react-router";
 
+import Button from "components/buttons/Button";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import Button from "components/buttons/Button";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import TooltipWrapper from "components/TooltipWrapper";
 import PATHS from "router/paths";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 const baseClass = "report-updated-cell";
 

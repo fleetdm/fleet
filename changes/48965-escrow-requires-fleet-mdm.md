@@ -1,1 +1,0 @@
-- Fixed Fleet storing an unusable disk encryption key and logging an escrow activity for macOS hosts that aren't enrolled in Fleet's MDM.

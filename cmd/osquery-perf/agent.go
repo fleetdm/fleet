@@ -477,6 +477,7 @@ type agent struct {
 	softwareCount                 softwareEntityCount
 	softwareVSCodeExtensionsCount softwareExtraEntityCount
 	softwareAdobePluginsCount     softwareExtraEntityCount
+	softwareGoBinariesCount       entityCount
 	userCount                     entityCount
 	policyPassProb                float64
 	munkiIssueProb                float64
@@ -510,6 +511,15 @@ type agent struct {
 	// WindowsMDMSyncRequest notification), mirroring real fleetd waking the device. Buffered with capacity 1, sent
 	// non-blocking, so coalesced wakes never block the orbit config loop. Non-nil only for Windows MDM agents.
 	winMDMWake chan struct{}
+
+	// ws simulates orbit's WebSocket notification transport; non-nil only
+	// while the server's orbit-config directive has it enabled (see
+	// syncWSTransport). wsSupported gates which orbit agents follow the
+	// directive (-websocket_prob), simulating older fleetd versions that
+	// ignore it.
+	wsMu        sync.Mutex
+	ws          *wsTransport
+	wsSupported bool
 
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
@@ -572,6 +582,7 @@ type agent struct {
 	softwareQueryFailureProb         float64
 	softwareVSCodeExtensionsFailProb float64
 	softwareAdobePluginsFailProb     float64
+	softwareGoBinariesFailProb       float64
 
 	softwareInstaller softwareInstaller
 
@@ -643,6 +654,19 @@ type agent struct {
 	entraIDDeviceID          string
 	entraIDUserPrincipalName string
 	installedAdamIDs         []int
+
+	// configTLSETag enables the native osquery conditional config request
+	// behavior: the agent sends an "etag" field in the config request body
+	// and treats the constant {"etag":"ok"} response as "unchanged".
+	configTLSETag bool
+	// configETag holds the etag from the last config response RECEIVED
+	// (matching the real client, which stores the validator on receipt, not
+	// on successful apply). Opaque and server-assigned; echoed verbatim.
+	configETag string
+	// lastConfigBodyBytes is the size of the last received full config body.
+	// Used to estimate the body bytes avoided by a subsequent not-modified
+	// response for this host.
+	lastConfigBodyBytes int64
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -669,6 +693,8 @@ type softwareEntityCount struct {
 	duplicateBundleIdentifiersPercent int
 	softwareRenaming                  bool
 	embeddedBundlePaths               bool
+	homebrewKegPercent                int
+	homebrewLargeKegPercent           int
 }
 type softwareExtraEntityCount struct {
 	entityCount
@@ -717,10 +743,12 @@ func newAgent(
 	softwareQueryFailureProb float64,
 	softwareVSCodeExtensionsQueryFailureProb float64,
 	softwareAdobePluginsQueryFailureProb float64,
+	softwareGoBinariesQueryFailureProb float64,
 	softwareInstaller softwareInstaller,
 	softwareCount softwareEntityCount,
 	softwareVSCodeExtensionsCount softwareExtraEntityCount,
 	softwareAdobePluginsCount softwareExtraEntityCount,
+	softwareGoBinariesCount entityCount,
 	userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
@@ -742,8 +770,10 @@ func newAgent(
 	cancelableCmdAckDelay time.Duration,
 	httpMessageSignatureProb float64,
 	httpMessageSignatureP384Prob float64,
+	configTLSETag bool,
 	psso pssoParams,
 	mdmAPNSPushURL string,
+	websocketProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -806,6 +836,7 @@ func newAgent(
 		softwareCount:                 softwareCount,
 		softwareVSCodeExtensionsCount: softwareVSCodeExtensionsCount,
 		softwareAdobePluginsCount:     softwareAdobePluginsCount,
+		softwareGoBinariesCount:       softwareGoBinariesCount,
 		userCount:                     userCount,
 		strings:                       make(map[string]string),
 		policyPassProb:                policyPassProb,
@@ -829,6 +860,7 @@ func newAgent(
 		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
 		softwareAdobePluginsFailProb:     softwareAdobePluginsQueryFailureProb,
+		softwareGoBinariesFailProb:       softwareGoBinariesQueryFailureProb,
 		softwareInstaller:                softwareInstaller,
 
 		linuxUniqueSoftwareVersion: linuxUniqueSoftwareVersion,
@@ -837,6 +869,7 @@ func newAgent(
 		macMDMClient:   macMDMClient,
 		winMDMClient:   winMDMClient,
 		mdmUserProb:    mdmUserProb,
+		wsSupported:    rand.Float64() < websocketProb, // nolint:gosec // ignore weak randomizer
 		mdmAPNSPushURL: mdmAPNSPushURL,
 		ddmDeclTokens:  make(map[string]string),
 
@@ -855,6 +888,7 @@ func newAgent(
 
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
+		configTLSETag:            configTLSETag,
 	}
 
 	// Windows MDM agents can be woken on demand by the server, so give them a wake channel for the MDM loop.
@@ -956,6 +990,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	_ = a.config()
 
+	// This startup read runs before runOrbitLoop, so it cannot race with the
+	// WebSocket transport (started only from that loop's config checks).
 	resp, err := a.DistributedRead()
 	if err == nil {
 		if len(resp.Queries) > 0 {
@@ -1002,6 +1038,11 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		defer liveQueryTicker.Stop()
 
 		for range liveQueryTicker.C {
+			// With the WebSocket transport running, the tick belongs to it
+			// (see wsPollTick).
+			if a.wsPollTick() {
+				continue
+			}
 			if resp, err := a.DistributedRead(); err == nil && len(resp.Queries) > 0 {
 				_ = a.DistributedWrite(resp.Queries)
 			}
@@ -1186,8 +1227,10 @@ func (a *agent) runOrbitLoop() {
 	}
 
 	// orbit does a config check when it starts
-	if _, err := orbitClient.GetConfig(); err != nil {
+	if cfg, err := orbitClient.GetConfig(); err != nil {
 		a.stats.IncrementOrbitErrors()
+	} else {
+		a.syncWSTransport(cfg.WebSocketTransport)
 	}
 
 	tokenRotationEnabled := false
@@ -1264,6 +1307,8 @@ func (a *agent) runOrbitLoop() {
 				a.stats.IncrementOrbitErrors()
 				continue
 			}
+			// Follow the server's WebSocket transport directive, like fleetd.
+			a.syncWSTransport(cfg.WebSocketTransport)
 			if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
 				// there are pending scripts to execute on this host, start a goroutine
 				// that will simulate executing them.
@@ -2414,7 +2459,22 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 }
 
 func (a *agent) config() error {
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/config", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
+	// The presence of the "etag" field — even empty — is the opt-in to
+	// conditional responses; its value is the etag from the last config
+	// response received (see the configETag field docs).
+	sentConditional := a.configTLSETag && a.configETag != ""
+	requestBody := []byte(`{"node_key": "` + a.nodeKey + `"}`)
+	if a.configTLSETag {
+		var err error
+		requestBody, err = json.Marshal(map[string]string{
+			"node_key": a.nodeKey,
+			"etag":     a.configETag,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/config", bytes.NewReader(requestBody))
 	if err != nil {
 		return err
 	}
@@ -2428,10 +2488,58 @@ func (a *agent) config() error {
 
 	a.stats.IncrementConfigRequests()
 
-	statusCode := response.StatusCode
-	if statusCode != http.StatusOK {
+	if response.StatusCode != http.StatusOK {
 		a.stats.IncrementConfigErrors()
-		return fmt.Errorf("config request failed: %d", statusCode)
+		return fmt.Errorf("config request failed: %d", response.StatusCode)
+	}
+
+	// Read the full body
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		a.stats.IncrementConfigErrors()
+		return fmt.Errorf("read config body: %w", err)
+	}
+
+	// Extract the body-carried etag, if the server assigned one.
+	var envelope struct {
+		ETag *string `json:"etag"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		a.stats.IncrementConfigErrors()
+		return fmt.Errorf("json parse at config: %w", err)
+	}
+
+	// The reserved value "ok" means the config is unchanged. The server may
+	// only say this to an agent that echoed one of its validators.
+	if envelope.ETag != nil && *envelope.ETag == "ok" {
+		if !sentConditional {
+			a.stats.IncrementConfigErrors()
+			return fmt.Errorf("invalid config unchanged response: sent_etag=%t", sentConditional)
+		}
+		a.stats.RecordConfigNotModified(int64(len(body)), a.lastConfigBodyBytes)
+		return nil
+	}
+
+	if a.configTLSETag {
+		if envelope.ETag != nil {
+			serverETag := *envelope.ETag
+			// Drift diagnostic only: the validator should be the SHA-256 of
+			// the canonical config — the body with the etag key stripped.
+			// The server value stays authoritative regardless.
+			if canonical, err := canonicalConfigBody(body); err == nil && serverETag != sha256Hex(canonical) {
+				a.stats.IncrementConfigETagDrift()
+			}
+			// Store on receive, BEFORE processing the config — the real
+			// client echoes the etag of the last config received, not
+			// applied, so a config the agent fails to process is confirmed
+			// unchanged instead of re-downloaded.
+			a.configETag = serverETag
+			a.lastConfigBodyBytes = int64(len(body))
+		} else {
+			// The server assigned no etag (it does not support conditional
+			// requests): hold no validator, keep opting in with an empty one.
+			a.configETag = ""
+		}
 	}
 
 	parsedResp := struct {
@@ -2439,7 +2547,7 @@ func (a *agent) config() error {
 			Queries map[string]interface{} `json:"queries"`
 		} `json:"packs"`
 	}{}
-	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
+	if err := json.Unmarshal(body, &parsedResp); err != nil {
 		a.stats.IncrementConfigErrors()
 		return fmt.Errorf("json parse at config: %w", err)
 	}
@@ -2495,7 +2603,34 @@ func (a *agent) config() error {
 	a.scheduledQueryData = newScheduledQueryData
 	a.scheduledQueryMapMutex.Unlock()
 
+	a.stats.RecordFullConfigResponse(int64(len(body)), sentConditional)
+
 	return nil
+}
+
+// canonicalConfigBody returns the config body with the top-level "etag" key
+// removed, re-marshaled the way the server marshals configs (two-space
+// indent, trailing newline) — the representation the validator covers.
+func canonicalConfigBody(body []byte) ([]byte, error) {
+	var config map[string]any
+	if err := json.Unmarshal(body, &config); err != nil {
+		return nil, err
+	}
+	delete(config, "etag")
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(config); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// sha256Hex returns the lowercase hex SHA-256 digest of the given bytes,
+// matching the server-assigned validator format.
+func sha256Hex(data []byte) string {
+	sum := sha256.Sum256(data)
+	return fmt.Sprintf("%x", sum)
 }
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
@@ -2720,7 +2855,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 
 	// Use database software 80% of the time if available; otherwise use legacy vulnerable software.
 	var realSoftware []map[string]string
-	if softwareDB != nil && len(softwareDB.Darwin) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+	if softwareDB != nil && len(softwareDB.Darwin) > 0 && rand.Float64() < 0.8 { //nolint:gosec // G404: load testing, not security-sensitive
 		// Initialize cached indices on first call, then mutate on subsequent calls
 		if a.cachedSoftwareIndices == nil {
 			// Select a random count between min-max, then pick that many random indices
@@ -2848,6 +2983,59 @@ func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
 	return fleetSoftware
 }
 
+// A large keg stands in for a formula like netpbm (~360 tools) or texlive, which install
+// hundreds of executables where most formulae install one or two.
+const (
+	minLargeKegExecutables = 200
+	maxLargeKegExecutables = 400
+)
+
+// kegBucket maps a formula to a number in [0, 100) that is stable across runs and across hosts,
+// so a formula is a keg, is large, and installs the same executables wherever it appears — as with
+// a real formula, whose contents are a property of the formula, not of the machine.
+func kegBucket(salt, name string) int {
+	sum := sha256.Sum256([]byte(salt + "\x00" + name))
+	return (int(sum[0])<<8 | int(sum[1])) % 100
+}
+
+// homebrewExecutableHashes simulates the macos_homebrew_executable_sha256 software override
+// query: one row per Mach-O executable a Homebrew formula installs under its keg, hashed by the
+// fleetd executable_hashes table. That fan-out, not the number of formulae, is what sizes a macOS
+// host's installed path delta, so it is what the two keg flags control.
+func (a *agent) homebrewExecutableHashes(software []map[string]string) []map[string]string {
+	var results []map[string]string
+	for _, s := range software {
+		kegPath, name := s["installed_path"], s["name"]
+		if s["source"] != "homebrew_packages" || kegPath == "" {
+			continue
+		}
+		if kegBucket("keg", name) >= a.softwareCount.homebrewKegPercent {
+			continue
+		}
+
+		count := kegBucket("count", name)%3 + 1
+		if kegBucket("large", name) < a.softwareCount.homebrewLargeKegPercent {
+			count = minLargeKegExecutables + kegBucket("count", name)*(maxLargeKegExecutables-minLargeKegExecutables)/100
+		}
+
+		for i := range count {
+			binary := name
+			if i > 0 {
+				binary = fmt.Sprintf("%s-%d", binary, i+1)
+			}
+			executablePath := kegPath + "/" + s["version"] + "/bin/" + binary
+			results = append(results, map[string]string{
+				"keg_path":          kegPath,
+				"version":           s["version"],
+				"executable_path":   executablePath,
+				"executable_sha256": fmt.Sprintf("%x", sha256.Sum256([]byte(executablePath))),
+				"hash_state":        "hashed",
+			})
+		}
+	}
+	return results
+}
+
 func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	commonVSCodeExtensionsSoftware := make([]map[string]string, a.softwareVSCodeExtensionsCount.common)
 	for i := 0; i < len(commonVSCodeExtensionsSoftware); i++ {
@@ -2969,6 +3157,66 @@ func (a *agent) softwareAdobePlugins() []map[string]string {
 	return plugins
 }
 
+// goBinDir returns the directory `go install` puts binaries in.
+func (a *agent) goBinDir() string {
+	switch a.os {
+	case "windows":
+		return `C:\Users\fleet\go\bin\`
+	case "darwin":
+		return "/Users/fleet/go/bin/"
+	default:
+		return "/home/fleet/go/bin/"
+	}
+}
+
+func (a *agent) goBinary(name, modulePath, baseVersion, alternateVersion, goVersion string) map[string]string {
+	return map[string]string{
+		"name":           name,
+		"version":        a.selectSoftwareVersion(name, baseVersion, alternateVersion),
+		"extension_id":   modulePath,
+		"extension_for":  "",
+		"source":         "go_binaries",
+		"release":        goVersion,
+		"vendor":         "",
+		"arch":           "",
+		"installed_path": a.goBinDir() + name,
+	}
+}
+
+// softwareGoBinaries generates the Go binaries reported by fleetd's go_binaries table,
+// covering the three shapes the real table emits: binaries installed with `go install`, one
+// built with `go build` (version "(devel)" and no module path, because it was built outside
+// module mode), and one name and version built with two toolchains, which Fleet stores as
+// two software rows because release is part of the software checksum.
+func (a *agent) softwareGoBinaries() []map[string]string {
+	if a.softwareGoBinariesCount.common == 0 && a.softwareGoBinariesCount.unique == 0 {
+		return nil
+	}
+
+	modulePath := func(name string) string { return "github.com/fleetdm/osquery-perf/" + name }
+
+	var binaries []map[string]string
+	for i := range a.softwareGoBinariesCount.common {
+		name := fmt.Sprintf("common-go-binary-%d", i)
+		binaries = append(binaries, a.goBinary(name, modulePath(name), "v0.0.1", "v0.0.2", "go1.26.1"))
+	}
+	for i := range a.softwareGoBinariesCount.unique {
+		name := fmt.Sprintf("unique-go-binary-%s-%d", a.CachedString("hostname"), i)
+		binaries = append(binaries, a.goBinary(name, modulePath(name), "v1.1.1", "v1.1.2", "go1.26.1"))
+	}
+
+	develBinary := a.goBinary("devel-go-binary", "", "v0.0.1", "v0.0.2", "go1.26.1")
+	develBinary["version"] = "(devel)"
+	binaries = append(binaries, develBinary)
+
+	if a.softwareGoBinariesCount.common > 0 {
+		name := "common-go-binary-0"
+		binaries = append(binaries, a.goBinary(name, modulePath(name), "v0.0.1", "v0.0.2", "go1.25.4"))
+	}
+
+	return binaries
+}
+
 func selectKernels(kernelList []map[string]string) []map[string]string {
 	// Determine number of kernels based on probability distribution
 	r := rand.Float64()
@@ -3010,7 +3258,7 @@ func selectKernels(kernelList []map[string]string) []map[string]string {
 }
 
 func (a *agent) DistributedRead() (*distributedReadResponse, error) {
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
+	request, err := http.NewRequest("POST", a.serverAddress+a.distributedAPIPrefix()+"/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.distributedNodeKey()+`"}`)))
 	if err != nil {
 		return nil, err
 	}
@@ -3459,48 +3707,48 @@ func (a *agent) runLiveYaraQuery(query string) (results []map[string]string, sta
 	// Return a response indicating that the file is clean.
 	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
-			{
-				"count":     "0",
-				"matches":   "",
-				"strings":   "",
-				"tags":      "",
-				"sig_group": "",
-				"sigfile":   "",
-				"sigrule":   "",
-				"sigurl":    url,
-				// Could pull this from the query, but not necessary for load testing.
-				"path": "/some/path",
-			},
-		}, &ss, nil, &fleet.Stats{
-			WallTimeMs: uint64(rand.Intn(1000) * 1000),
-			UserTime:   uint64(rand.Intn(1000)),
-			SystemTime: uint64(rand.Intn(1000)),
-			Memory:     uint64(rand.Intn(1000)),
-		}
+		{
+			"count":     "0",
+			"matches":   "",
+			"strings":   "",
+			"tags":      "",
+			"sig_group": "",
+			"sigfile":   "",
+			"sigrule":   "",
+			"sigurl":    url,
+			// Could pull this from the query, but not necessary for load testing.
+			"path": "/some/path",
+		},
+	}, &ss, nil, &fleet.Stats{
+		WallTimeMs: uint64(rand.Intn(1000) * 1000), //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		UserTime:   uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		SystemTime: uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		Memory:     uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+	}
 }
 
 func (a *agent) runLiveMockQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
 	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
-			{
-				"admindir":   "/var/lib/dpkg",
-				"arch":       "amd64",
-				"maintainer": "foobar",
-				"name":       "netconf",
-				"priority":   "optional",
-				"revision":   "",
-				"section":    "default",
-				"size":       "112594",
-				"source":     "",
-				"status":     "install ok installed",
-				"version":    "20230224000000",
-			},
-		}, &ss, nil, &fleet.Stats{
-			WallTimeMs: uint64(rand.Intn(1000) * 1000),
-			UserTime:   uint64(rand.Intn(1000)),
-			SystemTime: uint64(rand.Intn(1000)),
-			Memory:     uint64(rand.Intn(1000)),
-		}
+		{
+			"admindir":   "/var/lib/dpkg",
+			"arch":       "amd64",
+			"maintainer": "foobar",
+			"name":       "netconf",
+			"priority":   "optional",
+			"revision":   "",
+			"section":    "default",
+			"size":       "112594",
+			"source":     "",
+			"status":     "install ok installed",
+			"version":    "20230224000000",
+		},
+	}, &ss, nil, &fleet.Stats{
+		WallTimeMs: uint64(rand.Intn(1000) * 1000), //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		UserTime:   uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		SystemTime: uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		Memory:     uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+	}
 }
 
 func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
@@ -3663,6 +3911,15 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			}
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_macos_homebrew_executable_sha256":
+		ss := fleet.StatusOK
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb { // nolint:gosec // load testing, not security-sensitive
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			results = a.homebrewExecutableHashes(cachedResults.software)
+		}
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
 		ss := fleet.StatusOK
 		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
@@ -3670,7 +3927,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		}
 		if ss == fleet.StatusOK {
 			// Use database software 80% of the time if available, otherwise use embedded data
-			if softwareDB != nil && len(softwareDB.Windows) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+			if softwareDB != nil && len(softwareDB.Windows) > 0 && rand.Float64() < 0.8 { //nolint:gosec // G404: load testing, not security-sensitive
 				// Initialize cached indices on first call, then mutate on subsequent calls
 				if a.cachedSoftwareIndices == nil {
 					// Select a random count between min-max, then pick that many random indices
@@ -3775,7 +4032,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			switch a.os {
 			case "ubuntu":
 				// Use database software 80% of the time if available, otherwise use embedded data
-				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && rand.Float64() < 0.8 { //nolint:gosec // G404: load testing, not security-sensitive
 					// Initialize cached indices on first call, then mutate on subsequent calls
 					if a.cachedSoftwareIndices == nil {
 						// Select a random count between min-max, then pick that many random indices
@@ -3870,6 +4127,15 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			results = a.softwareAdobePlugins()
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_go_binaries":
+		ss := fleet.StatusOK
+		if a.softwareGoBinariesFailProb > 0.0 && rand.Float64() <= a.softwareGoBinariesFailProb { //nolint:gosec // ignore weak randomizer
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			results = a.softwareGoBinaries()
+		}
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
@@ -3952,7 +4218,7 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 		Messages: make(map[string]string),
 		Stats:    make(map[string]*fleet.Stats),
 	}
-	r.NodeKey = a.nodeKey
+	r.NodeKey = a.distributedNodeKey()
 
 	cachedResults := cachedResults{}
 
@@ -3993,7 +4259,7 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 		panic(err)
 	}
 
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/write", bytes.NewReader(body))
+	request, err := http.NewRequest("POST", a.serverAddress+a.distributedAPIPrefix()+"/distributed/write", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -4260,6 +4526,7 @@ func main() {
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
 		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
+		websocketProb       = flag.Float64("websocket_prob", 1.0, "Probability of an orbit agent supporting the WebSocket notification transport when the server's orbit config directive enables it (older fleetd versions ignore the directive)")
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies only to Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
@@ -4274,6 +4541,7 @@ func main() {
 		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.5, "Probability of the software query failing")
 		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.0, "Probability of the software vscode_extensions query failing")
 		softwareAdobePluginsQueryFailureProb     = flag.Float64("software_adobe_plugins_query_fail_prob", 0.0, "Probability of the software adobe_plugins query failing")
+		softwareGoBinariesQueryFailureProb       = flag.Float64("software_go_binaries_query_fail_prob", 0.0, "Probability of the software go_binaries query failing")
 
 		softwareInstallerPreInstallFailureProb = flag.Float64("software_installer_pre_install_fail_prob", 0.05,
 			"Probability of the pre-install query failing")
@@ -4287,6 +4555,7 @@ func main() {
 		commonAdobePluginsSoftwareCount              = flag.Int("common_adobe_plugins_software_count", 5, "Number of common adobe_plugins installed plugins reported to fleet")
 		commonAdobePluginsSoftwareUninstallCount     = flag.Int("common_adobe_plugins_software_uninstall_count", 1, "Number of common adobe_plugins plugins to uninstall")
 		commonAdobePluginsSoftwareUninstallProb      = flag.Float64("common_adobe_plugins_software_uninstall_prob", 0.1, "Probability of uninstalling common_adobe_plugins_software_uninstall_count common plugin/s")
+		commonGoBinariesSoftwareCount                = flag.Int("common_go_binaries_software_count", 5, "Number of common go_binaries binaries reported to fleet")
 		commonSoftwareUninstallCount                 = flag.Int("common_software_uninstall_count", 1, "Number of common software to uninstall")
 		commonVSCodeExtensionsSoftwareUninstallCount = flag.Int("common_vscode_extensions_software_uninstall_count", 1, "Number of common vscode_extensions software to uninstall")
 		commonSoftwareUninstallProb                  = flag.Float64("common_software_uninstall_prob", 0.1, "Probability of uninstalling common_software_uninstall_count unique software/s")
@@ -4297,10 +4566,16 @@ func main() {
 		uniqueAdobePluginsSoftwareCount              = flag.Int("unique_adobe_plugins_software_count", 1, "Number of unique adobe_plugins plugins installed on each host")
 		uniqueAdobePluginsSoftwareUninstallCount     = flag.Int("unique_adobe_plugins_software_uninstall_count", 1, "Number of unique adobe_plugins plugins to uninstall")
 		uniqueAdobePluginsSoftwareUninstallProb      = flag.Float64("unique_adobe_plugins_software_uninstall_prob", 0.1, "Probability of uninstalling unique_adobe_plugins_software_uninstall_count unique plugin/s")
+		uniqueGoBinariesSoftwareCount                = flag.Int("unique_go_binaries_software_count", 1, "Number of unique go_binaries binaries installed on each host")
 		uniqueSoftwareUninstallCount                 = flag.Int("unique_software_uninstall_count", 1, "Number of unique software to uninstall")
 		uniqueVSCodeExtensionsSoftwareUninstallCount = flag.Int("unique_vscode_extensions_software_uninstall_count", 1, "Number of unique vscode_extensions software to uninstall")
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
 		uniqueVSCodeExtensionsSoftwareUninstallProb  = flag.Float64("unique_vscode_extensions_software_uninstall_prob", 0.1, "Probability of uninstalling unique_vscode_extensions_software_uninstall_count common software/s")
+
+		homebrewKegPercent = flag.Int("software_homebrew_keg_percent", 80,
+			"Percentage of a macOS host's Homebrew packages that are kegs reporting executable hashes (0-100); the rest report none, as a cask does")
+		homebrewLargeKegPercent = flag.Int("software_homebrew_large_keg_percent", 1,
+			"Percentage of those kegs that install 200 or more executables, standing in for a formula like netpbm or texlive (0-100)")
 
 		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
 		softwareRenaming                  = flag.Bool("software_renaming", false, "Enable software renaming for duplicate bundle identifiers")
@@ -4364,6 +4639,9 @@ func main() {
 		softwareDatabasePath     = flag.String("software_db_path", "software-library/software.db",
 			"Path to software.db (SQLite database with realistic software data). Auto-generates from software.sql if missing.")
 
+		configTLSETag = flag.Bool("config_tls_etag", false,
+			"Enable native osquery conditional config requests (sends an \"etag\" field in the request body, treats the {\"etag\":\"ok\"} response as unchanged). Default false — opt in to measure bandwidth savings.")
+
 		// Android load testing flags
 		androidPubSubToken       = flag.String("android_pubsub_token", "", "PubSub token for authenticating fake Android device messages to Fleet")
 		androidProxyAddress      = flag.String("android_proxy_address", "", "Address of the mock AMAPI proxy (e.g., http://localhost:9999)")
@@ -4371,6 +4649,7 @@ func main() {
 		androidStatusInterval    = flag.Duration("android_status_interval", 5*time.Minute, "Interval between Android STATUS_REPORT messages (real devices report ~every 24h; lower values stress test Fleet harder)")
 		androidAppCount          = flag.Int("android_app_count", 50, "Number of installed apps each Android device reports")
 		androidNonComplianceProb = flag.Float64("android_non_compliance_prob", 0.05, "Probability of an Android STATUS_REPORT including non-compliance details [0, 1]")
+		androidVitalsChurnProb   = flag.Float64("android_vitals_churn_prob", defaultVitalsChurnProb, "Probability of an Android STATUS_REPORT reporting changed host vitals; 0 reports identical vitals forever, which MySQL stores without writing a row [0, 1]")
 	)
 
 	flag.Parse()
@@ -4430,8 +4709,17 @@ func main() {
 	if *uniqueAdobePluginsSoftwareUninstallCount > *uniqueAdobePluginsSoftwareCount {
 		log.Fatalf("Argument unique_adobe_plugins_software_uninstall_count cannot be bigger than unique_adobe_plugins_software_count")
 	}
+	if *commonGoBinariesSoftwareCount < 0 {
+		log.Fatalf("Argument common_go_binaries_software_count cannot be negative, got %d", *commonGoBinariesSoftwareCount)
+	}
+	if *uniqueGoBinariesSoftwareCount < 0 {
+		log.Fatalf("Argument unique_go_binaries_software_count cannot be negative, got %d", *uniqueGoBinariesSoftwareCount)
+	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
+	}
+	if *androidVitalsChurnProb < 0 || *androidVitalsChurnProb > 1 {
+		log.Fatalf("Argument android_vitals_churn_prob must be between 0 and 1, got %f", *androidVitalsChurnProb)
 	}
 
 	// only fail if mdm is turned on for macOS devices and the mdm_apns_url is not specified.
@@ -4532,7 +4820,7 @@ func main() {
 				serverAddress:              *serverURL,
 				osVersion:                  osVersion,
 				supplementalOSVersionExtra: supplementalOSVersionExtra,
-				isPersonalEnrollment:       rand.Float64() < *mdmIOSBYODProb, // nolint:gosec,G404 // load testing, not security-sensitive
+				isPersonalEnrollment:       rand.Float64() < *mdmIOSBYODProb, //nolint:gosec // G404: load testing, not security-sensitive
 				softwareCount: softwareEntityCount{
 					entityCount: entityCount{
 						common: *commonSoftwareCount,
@@ -4570,6 +4858,7 @@ func main() {
 				*androidStatusInterval,
 				*androidAppCount,
 				*androidNonComplianceProb,
+				*androidVitalsChurnProb,
 				stats,
 			)
 			go androidDevice.runLoop()
@@ -4591,6 +4880,7 @@ func main() {
 			*softwareQueryFailureProb,
 			*softwareVSCodeExtensionsQueryFailureProb,
 			*softwareAdobePluginsQueryFailureProb,
+			*softwareGoBinariesQueryFailureProb,
 			softwareInstaller{
 				preInstallFailureProb:  *softwareInstallerPreInstallFailureProb,
 				installFailureProb:     *softwareInstallerInstallFailureProb,
@@ -4612,6 +4902,8 @@ func main() {
 				duplicateBundleIdentifiersPercent: *duplicateBundleIdentifiersPercent,
 				softwareRenaming:                  *softwareRenaming,
 				embeddedBundlePaths:               *embeddedBundlePaths,
+				homebrewKegPercent:                *homebrewKegPercent,
+				homebrewLargeKegPercent:           *homebrewLargeKegPercent,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{
@@ -4632,6 +4924,10 @@ func main() {
 				commonSoftwareUninstallProb:  *commonAdobePluginsSoftwareUninstallProb,
 				uniqueSoftwareUninstallCount: *uniqueAdobePluginsSoftwareUninstallCount,
 				uniqueSoftwareUninstallProb:  *uniqueAdobePluginsSoftwareUninstallProb,
+			},
+			entityCount{
+				common: *commonGoBinariesSoftwareCount,
+				unique: *uniqueGoBinariesSoftwareCount,
 			},
 			entityCount{
 				common: *commonUserCount,
@@ -4658,6 +4954,7 @@ func main() {
 			*mdmCancelableCommandAckDelay,
 			*httpMessageSignatureProb,
 			*httpMessageSignatureP384Prob,
+			*configTLSETag,
 			pssoParams{
 				prob:      *mdmPSSOProb,
 				clientID:  *mdmPSSOClientID,
@@ -4668,6 +4965,7 @@ func main() {
 				keyProb:   *mdmPSSOKeyProb,
 			},
 			*mdmAPNSURL,
+			*websocketProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

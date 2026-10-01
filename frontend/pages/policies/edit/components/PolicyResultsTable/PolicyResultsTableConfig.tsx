@@ -1,15 +1,14 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
-import React from "react";
-import { memoize } from "lodash";
 
+import { memoize } from "lodash";
+import React from "react";
 import { ColumnInstance } from "react-table";
 
-import Icon from "components/Icon/Icon";
-import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-
+import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import { IPolicyHostResponse } from "interfaces/host";
 import sortUtils from "utilities/sort";
 
@@ -66,21 +65,12 @@ const generateTableHeaders = (): IDataColumn[] => {
       disableSortBy: false,
       sortType: "hasLength",
       accessor: "query_results",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <>
-          {cellProps.cell.value.length ? (
-            <>
-              <Icon name="success" />
-              <span className="status-header-text">Pass</span>
-            </>
-          ) : (
-            <>
-              <Icon name="error" />
-              <span className="status-header-text">Fail</span>
-            </>
-          )}
-        </>
-      ),
+      Cell: (cellProps: ICellProps): JSX.Element =>
+        cellProps.cell.value.length ? (
+          <StatusIndicatorWithIcon status="success" value="Pass" />
+        ) : (
+          <StatusIndicatorWithIcon status="error" value="Fail" />
+        ),
     },
   ];
   return tableHeaders;

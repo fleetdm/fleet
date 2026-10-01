@@ -28,6 +28,9 @@ spec:
       uptime: true
       vulnerabilities: true
   integrations:
+    certificates_disable_host_end_user_binding: null
+    certificates_idp_client_ids: null
+    certificates_idp_introspection_urls: null
     conditional_access_enabled: null
     google_calendar: null
     jira: null
@@ -56,6 +59,7 @@ spec:
     windows_entra_client_ids: null
     microsoft_graph_credential_invalid: false
     apple_require_hardware_attestation: false
+    only_allow_apple_business_enrollment: false
     macos_migration:
       enable: false
       mode: ""
@@ -112,14 +116,13 @@ spec:
       require_all_software_windows: false
       macos_script:
       software:
-    windows_enrollment: null
+    windows_automatic_enrollment: null
     windows_settings:
       require_bitlocker_pin: false
       custom_settings: null
       enable_disk_encryption: false
       configuration_profiles: null
-      managed_local_account_settings:
-        enabled: false
+      enable_managed_local_account: false
     linux_settings:
       enable_escrow_disk_encryption_key: false
     android_settings:

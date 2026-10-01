@@ -201,6 +201,9 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 }
 
 func (c MockClient) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
+	if c.IsFree {
+		return nil, fleet.ErrMissingLicense
+	}
 	if !c.WithAssets {
 		return nil, nil
 	}
@@ -372,6 +375,17 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					FleetMaintainedAppID: ptr.Uint(3),
 				},
 			},
+			{
+				ID:         11,
+				Name:       "My Notify FMA",
+				HashSHA256: new("notify-fma-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "my-notify-fma.pkg",
+					Platform:             "darwin",
+					Version:              "1",
+					FleetMaintainedAppID: new(uint(4)),
+				},
+			},
 		}, nil
 	case "available_for_install=1&fleet_id=0&order_key=name":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -389,6 +403,7 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 		{ID: 1, Slug: "fma1/darwin", Name: "My FMA", Platform: "darwin", UniqueIdentifier: "com.my.fma"},
 		{ID: 2, Slug: "fma2/windows", Name: "My Windows FMA", Platform: "windows", UniqueIdentifier: "My Windows FMA"},
 		{ID: 3, Slug: "fma3/windows", Name: "Version Locked Name 2.0", Platform: "windows", UniqueIdentifier: "Version Locked Name 2.0"},
+		{ID: 4, Slug: "fma4/darwin", Name: "My Notify FMA", Platform: "darwin", UniqueIdentifier: "com.my.notifyfma"},
 	}, nil
 }
 
@@ -470,6 +485,19 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			},
 		},
 		{
+			ID:                           6,
+			Name:                         "My Notify FMA up to date",
+			Resolution:                   new("Install the latest version from self-service"),
+			Description:                  "This is a team patch policy that notifies before patching",
+			Platform:                     "darwin",
+			Type:                         fleet.PolicyTypePatch,
+			NotifyBeforePatching:         true,
+			ContinuousAutomationsEnabled: true,
+			PatchSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 11,
+			},
+		},
+		{
 			PolicyData: fleet.PolicyData{
 				ID:          3,
 				Name:        "Team VPP policy",
@@ -478,6 +506,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				Description: "This is a team policy with VPP app automation",
 				Platform:    "darwin",
 				Type:        fleet.PolicyTypeDynamic,
+				Hidden:      true,
 			},
 			InstallSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 2,
@@ -751,6 +780,26 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				PinnedVersion:        new("^123"),
 			},
 		}, nil
+	case 11:
+		return &fleet.SoftwareTitle{
+			ID:   11,
+			Name: "My Notify FMA",
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:        "install",
+				UninstallScript:      "uninstall",
+				Platform:             "darwin",
+				FleetMaintainedAppID: new(uint(4)),
+				// Mirrors the API, which returns the managed app open query while
+				// notify_before_patching is on.
+				PreInstallQuery: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'My Notify FMA');",
+				PatchPolicy: &fleet.PatchPolicyData{
+					ID:                           6,
+					Name:                         "My Notify FMA up to date",
+					NotifyBeforePatching:         true,
+					ContinuousAutomationsEnabled: true,
+				},
+			},
+		}, nil
 	default:
 		return nil, errors.New("software title not found")
 	}
@@ -919,19 +968,18 @@ func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetu
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
 }
 
-func (MockClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error) {
+func (MockClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 	return nil, nil
 }
 
-// graphCredClient returns one stored credential, as the endpoint does once one is configured. The secret comes back
-// masked from the API, so generate-gitops must not emit it.
+// graphCredClient returns one stored credential, as the endpoint does once one is configured. A read carries no
+// secret, so generate-gitops has none to emit and must write a placeholder instead.
 type graphCredClient struct{ MockClient }
 
-func (graphCredClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error) {
-	return []*fleet.MicrosoftGraphCredential{{
-		TenantID:     "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
-		ClientID:     "122349c0-2458-448d-a9ae-f40b81a63213",
-		ClientSecret: fleet.MaskedPassword,
+func (graphCredClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
+	return []*fleet.MicrosoftGraphCredentialMetadata{{
+		TenantID: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+		ClientID: "122349c0-2458-448d-a9ae-f40b81a63213",
 	}}, nil
 }
 
@@ -1071,7 +1119,7 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 func configureFMAManifestServer(t *testing.T) {
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "apps.json") {
-			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}, {"name": "Version Locked Name 2.0", "slug": "fma3/windows", "platform": "windows", "unique_identifier": "Version Locked Name 2.0"}]}`)
+			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}, {"name": "Version Locked Name 2.0", "slug": "fma3/windows", "platform": "windows", "unique_identifier": "Version Locked Name 2.0"}, {"name": "My Notify FMA", "slug": "fma4/darwin", "platform": "darwin", "unique_identifier": "com.my.notifyfma"}]}`)
 			err := json.NewEncoder(w).Encode(data)
 			require.NoError(t, err)
 			return
@@ -1348,9 +1396,9 @@ func TestGenerateOrgSettings(t *testing.T) {
 	// Compare.
 	require.Equal(t, expectedAppConfig, orgSettings)
 
-	// An unset mdm.windows_enrollment must serialize as null rather than an object with an empty default_fleet.
+	// An unset mdm.windows_automatic_enrollment must serialize as null rather than an object with an empty default_fleet.
 	// Applying null is a no-op; an empty default_fleet would clear whatever default the target server has set.
-	appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{}
+	appConfig.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{}
 	orgSettingsRaw, err = cmd.generateOrgSettings()
 	require.NoError(t, err)
 	b, err = yamlMarshalRenamed(orgSettingsRaw)
@@ -1358,9 +1406,9 @@ func TestGenerateOrgSettings(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
 	mdmSettings, ok := orgSettings["mdm"].(map[string]any)
 	require.True(t, ok)
-	we, present := mdmSettings["windows_enrollment"]
-	require.True(t, present, "windows_enrollment key should still be emitted")
-	require.Nil(t, we, "unset windows_enrollment must serialize as null so applying it is a no-op")
+	we, present := mdmSettings["windows_automatic_enrollment"]
+	require.True(t, present, "windows_automatic_enrollment key should still be emitted")
+	require.Nil(t, we, "unset windows_automatic_enrollment must serialize as null so applying it is a no-op")
 }
 
 // generate-gitops must round-trip the Microsoft Graph credential's identifiers so a generated file can be applied
@@ -1876,7 +1924,7 @@ func TestGenerateControls(t *testing.T) {
 	require.False(t, ok, "Expected no setup_experience section for no-team controls")
 	// The disabled Windows managed local account is not emitted (absent key means disabled).
 	if windowsSection, ok := controlsRaw["windows_settings"].(map[string]any); ok {
-		require.NotContains(t, windowsSection, "managed_local_account_settings")
+		require.NotContains(t, windowsSection, "enable_managed_local_account")
 	}
 
 	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled,
@@ -1886,7 +1934,7 @@ func TestGenerateControls(t *testing.T) {
 			EnableEndUserAuthentication: true,
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
+			EnableManagedLocalAccount: optjson.SetBool(true),
 		},
 	}
 	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
@@ -1896,24 +1944,39 @@ func TestGenerateControls(t *testing.T) {
 	// The enabled Windows managed local account is emitted.
 	windowsSettings, ok := controlsRaw["windows_settings"].(map[string]any)
 	require.True(t, ok, "expected a windows_settings section")
-	require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
+	require.Equal(t, true, windowsSettings["enable_managed_local_account"])
+
+	// The same key name is the deprecated spelling of the Apple toggle, so make sure it is correct.
+	controlsYaml, err := yamlMarshalRenamed(controlsRaw)
+	require.NoError(t, err)
+	require.Contains(t, string(controlsYaml), "enable_managed_local_account: true")
+	require.NotContains(t, string(controlsYaml), "enable_create_local_admin_account")
+
+	b, err = os.ReadFile("./testdata/generateGitops/teamConfig.json")
+	require.NoError(t, err)
+	var teamConfig fleet.TeamConfig
+	require.NoError(t, json.Unmarshal(b, &teamConfig))
+	mdmConfig = teamConfig.MDM
 
 	// Generate controls for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	// Note that this team has setup experience software, so we expect a macos_setup section.
-	controlsRaw, err = cmd.generateControls(ptr.Uint(1), "some_team", nil)
+	controlsRaw, err = cmd.generateControls(new(uint(1)), "some_team", &mdmConfig)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
 	b, err = yaml.Marshal(controlsRaw)
 	require.NoError(t, err)
 	fmt.Println("Controls raw:\n", string(b)) // Debugging line
+	// Decode into fresh maps: unmarshaling into the maps used for the global
+	// comparison above would merge the two results instead of replacing.
+	controls = nil
 	err = yaml.Unmarshal(b, &controls)
 	require.NoError(t, err)
 
 	// Get the expected controls YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamControls.yaml")
 	require.NoError(t, err)
+	expectedControls = nil
 	err = yaml.Unmarshal(b, &expectedControls)
 	require.NoError(t, err)
 
@@ -2074,6 +2137,9 @@ func TestGenerateSoftware(t *testing.T) {
 
 	// The windows FMA is patch_when_closed, so its query is not written out.
 	require.NotContains(t, cmd.FilesToWrite, "lib/some-team/queries/my-windows-fma-windows-preinstallquery.yml")
+
+	// The notify FMA is notify_before_patching, so its query is not written out either.
+	require.NotContains(t, cmd.FilesToWrite, "lib/some-team/queries/my-notify-fma-darwin-preinstallquery.yml")
 
 	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-setup-experience-app-android-config.json"]; ok {
 		require.JSONEq(t, `{"managedConfiguration": "WORK_PROFILE_ALLOWED"}`, string(fileContents.([]byte)))
@@ -2704,6 +2770,10 @@ func TestGeneratePolicies(t *testing.T) {
 				MaintainedAppID: 1,
 				Slug:            "fma1/darwin",
 			},
+			11: {
+				MaintainedAppID: 4,
+				Slug:            "fma4/darwin",
+			},
 		},
 		ScriptList: map[uint]string{
 			1: "/path/to/script1.sh",
@@ -2752,7 +2822,7 @@ func TestGeneratePolicies(t *testing.T) {
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedPolicies, generatedPolicies)
+	require.Equal(t, expectedTeamPolicies, generatedTeamPolicies)
 }
 
 func TestGenerateQueries(t *testing.T) {
@@ -2899,6 +2969,114 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 		require.Contains(t, mdmRaw, key)
 		require.Empty(t, mdmRaw[key])
 	}
+}
+
+// Disk encryption and key escrow moved from the flat controls.enable_disk_encryption
+// and controls.windows_require_bitlocker_pin keys to per-platform ones. DoGitOps
+// rejects a file that carries a flat key and its per-platform equivalent, so the
+// generator must emit only the per-platform keys — and must read them from the
+// right source, which differs between a real fleet and "no team".
+func TestGenerateControlsDiskEncryption(t *testing.T) {
+	newCmd := func(t *testing.T, client *MockClient) *GenerateGitopsCommand {
+		t.Helper()
+		appConfig, err := client.GetAppConfig()
+		require.NoError(t, err)
+		return &GenerateGitopsCommand{
+			Client:       client,
+			CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+			Messages:     Messages{},
+			FilesToWrite: make(map[string]any),
+			AppConfig:    appConfig,
+			ScriptList:   make(map[uint]string),
+		}
+	}
+
+	// Deliberately the inverse of appConfig.json's global values, so that which
+	// source won is visible in the assertion.
+	fleetMDM := func() *fleet.TeamMDM {
+		return &fleet.TeamMDM{
+			MacOSSettings: fleet.MacOSSettings{
+				EnableDiskEncryption:          optjson.SetBool(true),
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+			},
+			WindowsSettings: fleet.WindowsSettings{
+				EnableDiskEncryption: optjson.SetBool(false),
+				RequireBitLockerPIN:  optjson.SetBool(false),
+			},
+			LinuxSettings: fleet.LinuxSettings{
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+			},
+		}
+	}
+
+	type diskEncryption struct {
+		macOS, macOSEscrow, windows, bitLockerPIN, linuxEscrow bool
+	}
+
+	assertDiskEncryption := func(t *testing.T, controls map[string]any, want diskEncryption) {
+		t.Helper()
+
+		apple, ok := controls["apple_settings"].(map[string]any)
+		require.True(t, ok, "expected an apple_settings section")
+		require.Equal(t, want.macOS, apple["enable_disk_encryption"])
+		require.Equal(t, want.macOSEscrow, apple["enable_escrow_disk_encryption_key"])
+
+		windows, ok := controls["windows_settings"].(map[string]any)
+		require.True(t, ok, "expected a windows_settings section")
+		require.Equal(t, want.windows, windows["enable_disk_encryption"])
+		require.Equal(t, want.bitLockerPIN, windows["require_bitlocker_pin"])
+
+		linux, ok := controls["linux_settings"].(map[string]any)
+		require.True(t, ok, "expected a linux_settings section")
+		require.Equal(t, want.linuxEscrow, linux["enable_escrow_disk_encryption_key"])
+
+		// Emitting either deprecated flat key next to the per-platform ones
+		// would make every generated file fail on apply.
+		require.NotContains(t, controls, "enable_disk_encryption")
+		require.NotContains(t, controls, "windows_require_bitlocker_pin")
+	}
+
+	// appConfig.json's global values.
+	globalWant := diskEncryption{macOSEscrow: true, windows: true, linuxEscrow: true}
+
+	t.Run("a fleet uses its own settings", func(t *testing.T) {
+		controls, err := newCmd(t, &MockClient{}).generateControls(new(uint(1)), "some_team", fleetMDM())
+		require.NoError(t, err)
+		assertDiskEncryption(t, controls, diskEncryption{macOS: true})
+	})
+
+	// "No team" is stored on the global config, so the global values must win
+	// over whatever fleet config is passed in.
+	t.Run("no team uses the global settings", func(t *testing.T) {
+		controls, err := newCmd(t, &MockClient{}).generateControls(new(uint(0)), "no_team", fleetMDM())
+		require.NoError(t, err)
+		assertDiskEncryption(t, controls, globalWant)
+	})
+
+	t.Run("global uses the global settings", func(t *testing.T) {
+		controls, err := newCmd(t, &MockClient{}).generateControls(nil, "", fleetMDM())
+		require.NoError(t, err)
+		assertDiskEncryption(t, controls, globalWant)
+	})
+
+	// Disk encryption is a Premium feature: emitting the keys on Free would
+	// generate a file the server rejects.
+	t.Run("free tier omits every key", func(t *testing.T) {
+		controls, err := newCmd(t, &MockClient{IsFree: true}).generateControls(new(uint(1)), "some_team", fleetMDM())
+		require.NoError(t, err)
+
+		if apple, ok := controls["apple_settings"].(map[string]any); ok {
+			require.NotContains(t, apple, "enable_disk_encryption")
+			require.NotContains(t, apple, "enable_escrow_disk_encryption_key")
+		}
+		if windows, ok := controls["windows_settings"].(map[string]any); ok {
+			require.NotContains(t, windows, "enable_disk_encryption")
+			require.NotContains(t, windows, "require_bitlocker_pin")
+		}
+		require.NotContains(t, controls, "linux_settings")
+		require.NotContains(t, controls, "enable_disk_encryption")
+		require.NotContains(t, controls, "windows_require_bitlocker_pin")
+	})
 }
 
 func TestGenerateMDMVPPTokens(t *testing.T) {
@@ -3088,9 +3266,9 @@ func TestSillyTeamNames(t *testing.T) {
 }
 
 func TestReplaceAliasKeys(t *testing.T) {
-	rules := map[string]string{
-		"old_key":    "new_key",
-		"nested_old": "nested_new",
+	rules := map[string]aliasRule{
+		"old_key":    {newKey: "new_key"},
+		"nested_old": {newKey: "nested_new"},
 	}
 
 	t.Run("deleteOld=true removes old keys", func(t *testing.T) {
@@ -3158,9 +3336,9 @@ func TestReplaceAliasKeys(t *testing.T) {
 	})
 
 	t.Run("container key deleteOld=false: old keeps old children, new gets new children", func(t *testing.T) {
-		rules := map[string]string{
-			"old_container": "new_container",
-			"child_old":     "child_new",
+		rules := map[string]aliasRule{
+			"old_container": {newKey: "new_container"},
+			"child_old":     {newKey: "child_new"},
 		}
 		data := map[string]any{
 			"old_container": map[string]any{
@@ -3186,9 +3364,9 @@ func TestReplaceAliasKeys(t *testing.T) {
 	})
 
 	t.Run("container key deleteOld=true: children renamed, old container removed", func(t *testing.T) {
-		rules := map[string]string{
-			"old_container": "new_container",
-			"child_old":     "child_new",
+		rules := map[string]aliasRule{
+			"old_container": {newKey: "new_container"},
+			"child_old":     {newKey: "child_new"},
 		}
 		data := map[string]any{
 			"old_container": map[string]any{
@@ -3210,6 +3388,28 @@ func TestReplaceAliasKeys(t *testing.T) {
 		replaceAliasKeys(nil, rules, false)
 		var m map[string]any
 		replaceAliasKeys(m, rules, true)
+	})
+
+	// A scoped rule only renames inside the objects it belongs to, which is what keeps windows_settings.enable_managed_local_account (canonical)
+	// from being rewritten by the setup_experience rename that shares its name.
+	t.Run("scoped rule only applies inside its own object", func(t *testing.T) {
+		scopedRules := map[string]aliasRule{
+			"macos_setup": {newKey: "setup_experience"},
+			"enable_managed_local_account": {
+				newKey: "enable_create_local_admin_account",
+				scope:  []string{"macos_setup", "setup_experience"},
+			},
+		}
+		for _, deleteOld := range []bool{true, false} {
+			data := map[string]any{
+				"macos_setup":      map[string]any{"enable_managed_local_account": true},
+				"windows_settings": map[string]any{"enable_managed_local_account": false},
+			}
+			replaceAliasKeys(data, scopedRules, deleteOld)
+
+			require.Equal(t, map[string]any{"enable_create_local_admin_account": true}, data["setup_experience"])
+			require.Equal(t, map[string]any{"enable_managed_local_account": false}, data["windows_settings"])
+		}
 	})
 }
 
@@ -3276,6 +3476,23 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Equal(t, string(pngBody), cmd.FilesToWrite["lib/org_logo/dark.png"])
 	})
 
+	t.Run("SVG logo is exported with an .svg extension", func(t *testing.T) {
+		svgBody := []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>`)
+		cmd, _ := newOrgLogoCommand(t,
+			&orgLogoStub{MockClient: &MockClient{}, body: svgBody, contentType: "image/svg+xml"},
+			fleet.OrgInfo{
+				OrgName:            "ACME",
+				OrgLogoURLDarkMode: "https://fleet.example.com/api/latest/fleet/logo?mode=dark",
+			},
+		)
+
+		orgInfo, err := cmd.generateOrgInfo()
+		require.NoError(t, err)
+
+		assert.Equal(t, "./lib/org_logo/dark.svg", orgInfo["org_logo_path_dark_mode"])
+		assert.Equal(t, string(svgBody), cmd.FilesToWrite["lib/org_logo/dark.svg"])
+	})
+
 	t.Run("external URLs are exported unchanged (existing customer configs)", func(t *testing.T) {
 		stub := &orgLogoStub{
 			MockClient: &MockClient{},
@@ -3324,6 +3541,36 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Contains(t, errBuf.String(), "warning")
 		assert.Contains(t, errBuf.String(), "dark")
 	})
+}
+
+func TestOrgLogoExtFromContentType(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		contentType string
+		wantExt     string
+		wantErr     bool
+	}{
+		{contentType: "image/png", wantExt: ".png"},
+		{contentType: "image/jpeg", wantExt: ".jpg"},
+		{contentType: "image/webp", wantExt: ".webp"},
+		{contentType: "image/svg+xml", wantExt: ".svg"},
+		// The serving endpoint may append parameters to the header.
+		{contentType: "image/svg+xml; charset=utf-8", wantExt: ".svg"},
+		{contentType: "image/gif", wantErr: true},
+		{contentType: "application/octet-stream", wantErr: true},
+		{contentType: "", wantErr: true},
+	} {
+		t.Run(tc.contentType, func(t *testing.T) {
+			ext, err := orgLogoExtFromContentType(tc.contentType)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantExt, ext)
+		})
+	}
 }
 
 func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T) {

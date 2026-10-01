@@ -73,10 +73,12 @@ module.exports = {
       'guides': 'Guides',
       'securing': 'Security articles',
       'engineering': 'Engineering articles',
-      'announcements': 'Announcements',
+      'announcements': 'Roadmap',
       'podcasts': 'Podcasts',
       'report': 'Reports',
+      'newsletters': 'Newsletters',
       'articles': 'Blog',
+      'industry-news': 'Industry news',
     };
     let categoryFriendlyName = categoryFriendlyNamesByCategorySlug[articleCategorySlug];
 

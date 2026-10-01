@@ -73,7 +73,7 @@ Check out the [instructions](https://github.com/fleetdm/fleet/tree/main/tools/os
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```sh
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@6008b81b81c690c046ffc3fd5bce896da715d5fd
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@27774aaf853a4fd21f1dd5e69439459dc1b26e68
 ```
 
 This installs the version of `golangci-lint` used in our CI environment (currently 2.7.1). Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
@@ -1003,7 +1003,7 @@ described below.
 
 For Autopilot, Azure requires the Fleet server instance to have a proper domain name with some TXT/MX records added (see `/settings/integrations/automatic-enrollment/windows` on your Fleet instance).
 For that reason, currently the only way to test this flow is to use Dogfood or the QA fleet server,
-which already have this configured, or to [configure an alternate server for this workflow](../../product-groups/mdm/windows-autopilot.md#setting-up-a-custom-domain-with-ngrok).
+which already have this configured, or to [configure an alternate server for this workflow](../mdm/windows/windows-autopilot.md#setting-up-a-custom-domain-with-ngrok).
 
 #### Pre-requisites
 
@@ -1075,7 +1075,7 @@ mkdir -p ./tmp/fleetd-base-dir/stable
 	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://installers.fleetdm-example.ngrok.app" ./build/fleet serve --dev`
 	- For Dogfood/QA deployments using Terraform, set the environment variable on `infrastructure/dogfood/terraform/aws-tf-module/main.tf`.
 	- Note: This variable is only read when dev mode is enabled (`--dev` flag).
-7. Enroll your Windows device with Autopilot. See the [Windows Autopilot guide](../../product-groups/mdm/windows-autopilot.md#enrolling-the-device) for detailed enrollment steps, including prerequisites like custom domain setup and required licenses. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
+7. Enroll your Windows device with Autopilot. See the [Windows Autopilot guide](../mdm/windows/windows-autopilot.md#enrolling-the-device) for detailed enrollment steps, including prerequisites like custom domain setup and required licenses. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
 
 ## MDM setup and testing
 

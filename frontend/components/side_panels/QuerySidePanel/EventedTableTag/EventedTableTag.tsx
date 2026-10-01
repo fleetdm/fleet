@@ -1,7 +1,7 @@
 import React from "react";
 
-import { buildQueryStringFromParams } from "utilities/url";
 import Icon from "components/Icon";
+import { buildQueryStringFromParams } from "utilities/url";
 
 interface IEventedTableTagProps {
   selectedTableName: string;

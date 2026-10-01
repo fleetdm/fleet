@@ -251,7 +251,12 @@ func (s *FileStorage) ExpandHostSecrets(_ context.Context, document string, _ st
 	return document, nil
 }
 
-func (s *FileStorage) SetRecoveryLockFailed(_ context.Context, _ string, _ string) error {
+func (s *FileStorage) SetRecoveryLockFailed(_ context.Context, _ string, _ string, _ string) error {
+	// NOT IMPLEMENTED
+	return nil
+}
+
+func (s *FileStorage) SetDiskEncryptionKeyRotationFailed(_ context.Context, _ string, _ string, _ string) error {
 	// NOT IMPLEMENTED
 	return nil
 }

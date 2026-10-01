@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.1.4",
+      "version": "4.1.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'co.180g.Vellum';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.180g.Vellum' AND version_compare(bundle_short_version, '4.1.4') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'co.180g.Vellum');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.180g.Vellum' AND version_compare(bundle_short_version, '4.1.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'co.180g.Vellum' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://180g.s3.amazonaws.com/downloads/Vellum-41400.zip",
+      "installer_url": "https://180g.s3.amazonaws.com/downloads/Vellum-41500.zip",
       "install_script_ref": "737a7ab5",
       "uninstall_script_ref": "9259a70c",
-      "sha256": "3750ea467e2f368d24b60cd18241cc3f40bafa46bc564b949fd3dc49dce9f511",
+      "sha256": "d46559e60994d63b8ed282089a881e12106f6de255c3990a7655cd43789fd166",
       "default_categories": [
         "Productivity"
       ]

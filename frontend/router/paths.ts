@@ -1,4 +1,8 @@
-import { SetupExperiencePlatform } from "interfaces/platform";
+import {
+  DiskEncryptionSettingsPlatform,
+  SetupExperiencePlatform,
+} from "interfaces/platform";
+
 import URL_PREFIX from "./url_prefix";
 
 const INTEGRATIONS_PREFIX = `${URL_PREFIX}/settings/integrations`;
@@ -15,6 +19,9 @@ export default {
   CONTROLS_ASSETS: `${URL_PREFIX}/controls/os-settings/assets`,
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
+  CONTROLS_DISK_ENCRYPTION_PLATFORM: (
+    platform: DiskEncryptionSettingsPlatform
+  ) => `${URL_PREFIX}/controls/os-settings/disk-encryption/${platform}`,
   CONTROLS_PASSWORDS: `${URL_PREFIX}/controls/os-settings/passwords`,
   CONTROLS_HOST_NAME_TEMPLATE: `${URL_PREFIX}/controls/os-settings/host-name-template`,
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
@@ -62,6 +69,7 @@ export default {
   ADMIN_INTEGRATIONS_MDM_APPLE: `${INTEGRATIONS_PREFIX}/mdm/apple`,
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${INTEGRATIONS_PREFIX}/mdm/windows`,
   ADMIN_INTEGRATIONS_MDM_ANDROID: `${INTEGRATIONS_PREFIX}/mdm/android`,
+  ADMIN_INTEGRATIONS_MDM_ANDROID_ZERO_TOUCH: `${INTEGRATIONS_PREFIX}/mdm/android-zero-touch`,
   ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${INTEGRATIONS_PREFIX}/mdm/ab`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${INTEGRATIONS_PREFIX}/automatic-enrollment/windows`,
   ADMIN_INTEGRATIONS_MICROSOFT_GRAPH: `${INTEGRATIONS_PREFIX}/mdm/microsoft-graph`,
@@ -204,6 +212,12 @@ export default {
   },
   DEVICE_TRANSPARENCY: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/api/v1/fleet/device/${deviceAuthToken}/transparency`;
+  },
+  DEVICE_NOTIFICATION: (
+    deviceAuthToken: string,
+    notificationUuid: string
+  ): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/notifications/${notificationUuid}`;
   },
 
   FLEET_DETAILS_USERS: (teamId?: number): string => {

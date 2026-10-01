@@ -1,8 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import type { Location as HistoryLocation } from "history";
+import React from "react";
 
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import type { Location as HistoryLocation } from "history";
 
 import MDMAppleSSOCallbackPage from "./MDMAppleSSOCallbackPage";
 

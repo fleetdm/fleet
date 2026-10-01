@@ -151,7 +151,12 @@ tasks:
     generates:
       - "darwin/icons.icns"
     cmds:
-      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns
+      # Hangar is macOS-only, but the generator always writes a Windows .ico as
+      # well and fails if it can't (there's no flag to skip it), so it goes to
+      # the gitignored bin/ and is never used. Without this a fresh clone — no
+      # build/windows/ directory, no Task checksum cache to skip the step —
+      # can't build at all.
+      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename ../bin/icon.ico
 
   dev:frontend:
     summary: Runs the frontend in development mode

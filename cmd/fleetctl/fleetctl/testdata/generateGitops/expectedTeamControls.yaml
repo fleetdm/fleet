@@ -1,11 +1,40 @@
-apple_settings:
-  configuration_profiles:
-  - path: ../lib/some_team/profiles/team-macos-mobileconfig-profile.mobileconfig
-scripts:
-- path: ../lib/some_team/scripts/Script B.ps1
+android_enabled_and_configured: true
 android_settings:
   certificates:
   - certificate_authority_name: DIGIDOO
     name: my_certypoo
     subject_alternative_name: DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME
     subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
+apple_settings:
+  configuration_profiles:
+  - path: ../lib/some_team/profiles/team-macos-mobileconfig-profile.mobileconfig
+  enable_disk_encryption: true
+  enable_escrow_disk_encryption_key: true
+enable_recovery_lock_password: false
+ios_updates:
+  deadline: "2021-12-31"
+  deadline_days:
+  minimum_version: "98.1"
+  update_new_hosts:
+ipados_updates:
+  deadline: "2022-12-31"
+  deadline_days:
+  minimum_version: "98.2"
+  update_new_hosts:
+linux_settings:
+  enable_escrow_disk_encryption_key: true
+macos_updates:
+  deadline: "2020-12-31"
+  deadline_days:
+  minimum_version: "95.1"
+  update_new_hosts: true
+name_template: iPad $FLEET_VAR_HOST_HARDWARE_SERIAL
+scripts:
+- path: ../lib/some_team/scripts/Script B.ps1
+windows_enabled_and_configured: true
+windows_settings:
+  enable_disk_encryption: true
+  require_bitlocker_pin: false
+windows_updates:
+  deadline_days: 95
+  grace_period_days: 92

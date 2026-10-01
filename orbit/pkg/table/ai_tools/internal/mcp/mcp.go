@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/paths"
+	toml "github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 )
 
@@ -77,9 +78,9 @@ func ScanConfigs(h homes.Home) []Server {
 type cfgFile struct {
 	client string
 	path   string
-	key    string // top-level key holding the server map
+	key    string // top-level key holding the server map (when format needs one)
 	scope  string
-	format string // json | zed | continue | claudejson
+	format string // json | zed | continue | claudejson | yamlmap | tomlmap | openclaw
 }
 
 func userConfigFiles(r paths.Roots) []cfgFile {
@@ -126,15 +127,42 @@ func userConfigFiles(r paths.Roots) []cfgFile {
 		add("zed", filepath.Join(r.MacAppSupport, "Zed", "settings.json"), "context_servers", "zed", "user")
 	}
 
-	// Cline and Roo live under each VS Code-family editor's global storage.
+	// Cline and Roo under each VS Code-family editor's globalStorage, plus standalone Cline.
 	for _, base := range vscodeUserDirs(r) {
 		add("cline", filepath.Join(base, "globalStorage", "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json"), "mcpServers", "json", "user")
 		add("roo", filepath.Join(base, "globalStorage", "rooveterinaryinc.roo-cline", "settings", "mcp_settings.json"), "mcpServers", "json", "user")
 	}
+	add("cline", filepath.Join(h, ".cline", "data", "settings", "cline_mcp_settings.json"), "mcpServers", "json", "user")
 
-	// Continue (YAML preferred, JSON legacy) — both parsed via the continue path.
+	// Continue (YAML preferred, JSON legacy).
 	add("continue", filepath.Join(h, ".continue", "config.yaml"), "mcpServers", "continue", "user")
 	add("continue", filepath.Join(h, ".continue", "config.json"), "mcpServers", "continue", "user")
+
+	// Jan
+	switch runtime.GOOS {
+	case "darwin":
+		add("jan", filepath.Join(r.MacAppSupport, "Jan", "data", "mcp_config.json"), "mcpServers", "json", "user")
+	case "windows":
+		add("jan", filepath.Join(r.AppData, "Jan", "data", "mcp_config.json"), "mcpServers", "json", "user")
+	default:
+		add("jan", filepath.Join(r.XDGConfig, "Jan", "data", "mcp_config.json"), "mcpServers", "json", "user")
+		add("jan", filepath.Join(r.XDGData, "Jan", "data", "mcp_config.json"), "mcpServers", "json", "user")
+	}
+
+	// Gemini CLI / Antigravity
+	add("gemini", filepath.Join(h, ".gemini", "config", "mcp_config.json"), "mcpServers", "json", "user")
+	add("gemini", filepath.Join(h, ".gemini", "antigravity", "mcp_config.json"), "mcpServers", "json", "user")
+	add("gemini", filepath.Join(h, ".gemini", "antigravity-ide", "mcp_config.json"), "mcpServers", "json", "user")
+	add("gemini", filepath.Join(h, ".gemini", "ag-kit", "mcp_config.json"), "mcpServers", "json", "user")
+
+	// Hermes (YAML mcp_servers), OpenClaw (+ legacy names), Grok/Codex (TOML mcp_servers).
+	add("hermes", filepath.Join(h, ".hermes", "config.yaml"), "mcp_servers", "yamlmap", "user")
+	add("openclaw", filepath.Join(h, ".openclaw", "openclaw.json"), "", "openclaw", "user")
+	add("openclaw", filepath.Join(h, ".openclaw", ".agent", "mcp_config.json"), "mcpServers", "json", "user")
+	add("openclaw", filepath.Join(h, ".clawdbot", "clawdbot.json"), "", "openclaw", "user")
+	add("openclaw", filepath.Join(h, ".moltbot", "moltbot.json"), "", "openclaw", "user")
+	add("grok", filepath.Join(h, ".grok", "config.toml"), "mcp_servers", "tomlmap", "user")
+	add("codex", filepath.Join(h, ".codex", "config.toml"), "mcp_servers", "tomlmap", "user")
 
 	return f
 }
@@ -207,6 +235,12 @@ func parseFile(cf cfgFile) []Server {
 		return mapToServers(m)
 	case "continue":
 		return parseContinueFile(cf.path)
+	case "yamlmap":
+		return parseYAMLMapServers(cf.path, cf.key)
+	case "tomlmap":
+		return parseTOMLMapServers(cf.path, cf.key)
+	case "openclaw":
+		return parseOpenClaw(cf.path)
 	default:
 		m, ok := extractJSONServers(cf.path, cf.key)
 		if !ok {
@@ -227,6 +261,7 @@ type jsonServer struct {
 	Type      string            `json:"type"`
 	Transport string            `json:"transport"`
 	Env       map[string]string `json:"env"`
+	Headers   map[string]string `json:"headers"`
 	Disabled  *bool             `json:"disabled"`
 	Enabled   *bool             `json:"enabled"`
 	Path      string            `json:"path"`
@@ -341,7 +376,7 @@ func toServer(name string, j jsonServer) Server {
 	case j.Disabled != nil:
 		s.Enabled = boolToInt(!*j.Disabled)
 	}
-	s.EnvKeys = envKeyNames(j.Env)
+	s.EnvKeys = envKeyNames(mergeKeyNames(j.Env, j.Headers))
 	return s
 }
 
@@ -375,7 +410,7 @@ func parseContinueFile(path string) []Server {
 	if err := yaml.Unmarshal(b, &doc); err != nil { // YAML is a JSON superset, so .json parses too
 		return nil
 	}
-	return continueNodeToServers(doc.MCPServers)
+	return yamlNodeToServers(doc.MCPServers)
 }
 
 func scanContinueDir(h homes.Home) []Server {
@@ -418,7 +453,11 @@ type yamlServer struct {
 	URL       string            `yaml:"url"`
 	ServerURL string            `yaml:"serverUrl"`
 	Type      string            `yaml:"type"`
+	Transport string            `yaml:"transport"`
 	Env       map[string]string `yaml:"env"`
+	Headers   map[string]string `yaml:"headers"`
+	Enabled   *bool             `yaml:"enabled"`
+	Disabled  *bool             `yaml:"disabled"`
 }
 
 func (rs yamlServer) toServer(name string) Server {
@@ -433,15 +472,38 @@ func (rs yamlServer) toServer(name string) Server {
 			}
 		}
 	case url != "":
-		s.Location, s.Transport, s.URL = "remote", normalizeTransport(rs.Type, ""), url
+		s.Location, s.Transport, s.URL = "remote", normalizeTransport(rs.Type, rs.Transport), url
 	default:
 		s.Location, s.Transport = "local", "stdio"
 	}
-	s.EnvKeys = envKeyNames(rs.Env)
+	switch {
+	case rs.Enabled != nil:
+		s.Enabled = boolToInt(*rs.Enabled)
+	case rs.Disabled != nil:
+		s.Enabled = boolToInt(!*rs.Disabled)
+	}
+	s.EnvKeys = envKeyNames(mergeKeyNames(rs.Env, rs.Headers))
 	return s
 }
 
-func continueNodeToServers(n yaml.Node) []Server {
+// parseYAMLMapServers reads top-level key (e.g. Hermes mcp_servers) as a map or list.
+func parseYAMLMapServers(path, key string) []Server {
+	b, err := fsutil.ReadFileBounded(path)
+	if err != nil {
+		return nil
+	}
+	var top map[string]yaml.Node
+	if err := yaml.Unmarshal(b, &top); err != nil {
+		return nil
+	}
+	n, ok := top[key]
+	if !ok {
+		return nil
+	}
+	return yamlNodeToServers(n)
+}
+
+func yamlNodeToServers(n yaml.Node) []Server {
 	var out []Server
 	switch n.Kind {
 	case yaml.MappingNode:
@@ -457,6 +519,130 @@ func continueNodeToServers(n yaml.Node) []Server {
 			_ = item.Decode(&rs)
 			out = append(out, rs.toServer(rs.Name))
 		}
+	}
+	return out
+}
+
+// parseTOMLMapServers reads [mcp_servers.<name>] tables (Grok, Codex).
+func parseTOMLMapServers(path, key string) []Server {
+	b, err := fsutil.ReadFileBounded(path)
+	if err != nil {
+		return nil
+	}
+	var doc map[string]any
+	if err := toml.Unmarshal(b, &doc); err != nil {
+		return nil
+	}
+	raw, ok := doc[key]
+	if !ok {
+		return nil
+	}
+	servers, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	names := make([]string, 0, len(servers))
+	for n := range servers {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	out := make([]Server, 0, len(names))
+	for _, name := range names {
+		entry, ok := servers[name].(map[string]any)
+		if !ok {
+			continue
+		}
+		out = append(out, anyMapToServer(name, entry))
+	}
+	return out
+}
+
+// anyMapToServer converts a TOML table. Env/header values are dropped; only key names are kept.
+func anyMapToServer(name string, m map[string]any) Server {
+	rs := yamlServer{Name: name}
+	if v, ok := m["command"].(string); ok {
+		rs.Command = v
+	}
+	if v, ok := m["url"].(string); ok {
+		rs.URL = v
+	}
+	if v, ok := m["serverUrl"].(string); ok {
+		rs.ServerURL = v
+	}
+	if v, ok := m["type"].(string); ok {
+		rs.Type = v
+	}
+	if v, ok := m["transport"].(string); ok {
+		rs.Transport = v
+	}
+	if v, ok := m["args"].([]any); ok {
+		for _, a := range v {
+			if s, ok := a.(string); ok {
+				rs.Args = append(rs.Args, s)
+			}
+		}
+	}
+	if v, ok := m["enabled"].(bool); ok {
+		rs.Enabled = &v
+	}
+	if v, ok := m["disabled"].(bool); ok {
+		rs.Disabled = &v
+	}
+	rs.Env = stringMapKeys(m["env"])
+	rs.Headers = stringMapKeys(m["headers"])
+	return rs.toServer(name)
+}
+
+func stringMapKeys(v any) map[string]string {
+	m, ok := v.(map[string]any)
+	if !ok || len(m) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k := range m {
+		out[k] = ""
+	}
+	return out
+}
+
+// parseOpenClaw reads mcp.servers and/or top-level mcpServers from OpenClaw-family JSON.
+func parseOpenClaw(path string) []Server {
+	b, err := fsutil.ReadFileBounded(path)
+	if err != nil {
+		return nil
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(b, &top); err != nil {
+		return nil
+	}
+	var out []Server
+	if raw, ok := top["mcp"]; ok {
+		var block struct {
+			Servers map[string]jsonServer `json:"servers"`
+		}
+		if err := json.Unmarshal(raw, &block); err == nil && len(block.Servers) > 0 {
+			out = append(out, mapToServers(block.Servers)...)
+		}
+	}
+	if raw, ok := top["mcpServers"]; ok {
+		var servers map[string]jsonServer
+		if err := json.Unmarshal(raw, &servers); err == nil {
+			out = append(out, mapToServers(servers)...)
+		}
+	}
+	return out
+}
+
+// mergeKeyNames unions map keys and drops values (secrets must not leave the file parser).
+func mergeKeyNames(maps ...map[string]string) map[string]string {
+	out := map[string]string{}
+	for _, m := range maps {
+		for k := range m {
+			out[k] = ""
+		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }

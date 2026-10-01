@@ -1,8 +1,7 @@
 import classnames from "classnames";
+import { uniqueId } from "lodash";
 import React from "react";
 import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
-
-import { uniqueId } from "lodash";
 
 interface IDropdownOptionTooltipWrapper {
   children: React.ReactNode;

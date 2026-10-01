@@ -1,8 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { renderWithSetup, createMockRouter } from "test/test-utils";
+import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
+import { renderWithSetup, createMockRouter } from "test/test-utils";
 
 import GlobalHostStatusWebhook from "./GlobalHostStatusWebhook";
 

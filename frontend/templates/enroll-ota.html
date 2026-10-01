@@ -161,6 +161,10 @@
         margin-top: 24px;
       }
 
+      .qr-container--standalone {
+        align-self: flex-start;
+      }
+
       .qr-container {
         display: flex;
         flex-direction: column;
@@ -283,6 +287,23 @@
           </div>
         </section>
       </div>
+    </template>
+
+    <!-- shown when Apple MDM is off but Android MDM is on, and the enroll
+         link (generated from the Android BYOD tab) is opened on a Mac/iOS
+         device instead of the Android device it was meant for -->
+    <template id="android-redirect-template">
+      <section class="device-instructions-content">
+        <h1>How to enroll your Android device to Fleet</h1>
+        <p>Scan this QR code and follow the instructions on your device.</p>
+        <div class="qr-container qr-container--standalone">
+          <canvas class="qr-code"></canvas>
+        </div>
+        <p>
+          Trying to enroll your Mac or iPhone? Please contact your IT admin.
+          Apple MDM is turned off.
+        </p>
+      </section>
     </template>
 
     <!-- android content when not fully managed-->
@@ -578,8 +599,8 @@
       // using string comparison to satisfy the linter.
       const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
       const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
+      const IS_APPLE_MANUAL_ENROLLMENT_BLOCKED = "{{.AppleManualEnrollmentBlocked}}" == "true";
       const ERROR_MESSAGE = "{{.ErrorMessage}}";
-      const IDP_UUID = "{{.IdpUUID}}";
       const isFullyManaged = new URLSearchParams(window.location.search).has(
         "fully_managed",
         true
@@ -812,6 +833,17 @@
         ).src = `{{.URLPrefix}}/assets/images/${osImagePrefix}-install-profile.png`;
       };
 
+      // Renders Android BYOD enrollment instructions (QR code pointing back
+      // at this same link) for the case where the enroll link was opened on
+      // a Mac/iPhone/iPad that has Apple MDM off but Android MDM on. Without
+      // this, the Android BYOD link (which carries no platform marker, see
+      // AndroidPanel.tsx) would otherwise show an irrelevant "Apple MDM is
+      // turned off" error.
+      const renderAndroidRedirect = () => {
+        renderContent("android-redirect-template");
+        renderQRCode(window.location.href, document.querySelector(".qr-code"));
+      };
+
       const renderError = (title, description) => {
         const template = document.getElementById("error-template");
         if (template) {
@@ -836,12 +868,6 @@
 
         if (fullyManaged) {
           url = url.concat("&fully_managed=true");
-        }
-
-        if (IDP_UUID) {
-          url = url.concat(
-            `&idp_uuid=${encodeURIComponent(IDP_UUID)}`
-          );
         }
 
         const response = await fetch(url, {
@@ -948,7 +974,18 @@
 
         // handle rendering for macos
         if (platform === "macos") {
+          if (IS_APPLE_MANUAL_ENROLLMENT_BLOCKED) {
+            renderError(
+              "This URL is invalid or expired.",
+              "IT blocked manual enrollments. Please reach out to your IT admin."
+            );
+            return;
+          }
           if (!MAC_MDM_ENABLED) {
+            if (ANDROID_MDM_ENABLED) {
+              renderAndroidRedirect();
+              return;
+            }
             renderError(
               "Apple MDM is turned off.",
               "To enroll your Mac device please contact your IT admin."
@@ -965,7 +1002,18 @@
 
         // handle rendering for ios and ipad
         if (platform === "ios" || platform === "ipad") {
+          if (IS_APPLE_MANUAL_ENROLLMENT_BLOCKED) {
+            renderError(
+              "This URL is invalid or expired.",
+              "IT blocked manual enrollments. Please reach out to your IT admin."
+            );
+            return;
+          }
           if (!MAC_MDM_ENABLED) {
+            if (ANDROID_MDM_ENABLED) {
+              renderAndroidRedirect();
+              return;
+            }
             const description = `To enroll your ${
               platform === "ios" ? "iPhone" : "iPad"
             } please contact your IT admin.`;

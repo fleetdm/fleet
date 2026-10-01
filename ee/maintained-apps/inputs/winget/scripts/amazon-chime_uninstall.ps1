@@ -1,91 +1,234 @@
-# Attempts to locate Amazon Chime's uninstaller from the registry and execute it silently.
-# Amazon Chime installs per-user, so its uninstall entry lives in HKCU.
+# Amazon Chime installs per user, so its uninstall entry is in the installing user's
+# registry hive rather than SYSTEM's, and its uninstaller reads the directory to
+# remove out of the hive of whoever runs it -- run as SYSTEM against a user's
+# install it exits 0 and deletes nothing. So search every hive and run the
+# uninstaller as the user who owns the entry.
 
-$displayName = "Amazon Chime"
+$displayNamePattern = '^Amazon\ Chime$'
 $publisher = "Amazon.com Services LLC"
+$taskName = "fleet-uninstall-amazon-chime"
+$removedDirs = [System.Collections.Generic.List[string]]::new()
+$taskRunning = 267009  # SCHED_S_TASK_RUNNING
+$exitCode = 0
 
-$paths = @(
-  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
-)
+function Get-AppEntries {
+    $roots = [System.Collections.Generic.List[string]]::new()
+    $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
+    $roots.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+        if ($hive.Name -match '_Classes$') { continue }
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
+    }
 
-$uninstall = $null
-foreach ($p in $paths) {
-  $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like "$displayName*")
-  }
-  if ($items) { $uninstall = $items | Select-Object -First 1; break }
+    $entries = @()
+    foreach ($root in $roots) {
+        foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
+            $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
+            if (-not $key.DisplayName) { continue }
+            # Some installers pad these values with nulls (Fork writes "Fork" + 15 of them).
+            $name = ($key.DisplayName -replace "`0", "").Trim()
+            if ($name -notmatch $displayNamePattern) { continue }
+            if (($key.Publisher -replace "`0", "").Trim() -ne $publisher) { continue }
+
+            # Only a real user's entry needs the uninstaller run for them; HKLM and the
+            # service SIDs are already in the right context.
+            $sid = $null
+            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+)\\') { $sid = $matches[1] }
+
+            $entries += [PSCustomObject]@{
+                DisplayName = $name
+                KeyPath     = $sub.PSPath
+                Sid         = $sid
+                Command     = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
+            }
+        }
+    }
+    return $entries
 }
 
-if (-not $uninstall) {
-  Write-Host "Uninstall entry not found for $displayName"
-  Exit 0
+function Resolve-Uninstaller {
+    param([string]$Command)
+
+    $exePath = ""
+    $arguments = ""
+    if ($Command -match '^\s*"([^"]+)"\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    } elseif ($Command -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    } else {
+        Throw "Could not parse uninstall string: $Command"
+    }
+
+    # A 32-bit installer run as SYSTEM is redirected into SysWOW64, but records the
+    # unredirected system32 path that 64-bit PowerShell cannot resolve.
+    if (-not (Test-Path -LiteralPath $exePath)) {
+        $redirected = $exePath -replace '(?i)\\system32\\', '\SysWOW64\'
+        if ($redirected -ne $exePath -and (Test-Path -LiteralPath $redirected)) {
+            Write-Host "  Uninstaller is under SysWOW64, not the recorded $exePath"
+            $exePath = $redirected
+        }
+    }
+
+    if ($arguments -notmatch '(?i)((^|\s)-s($|\s)|--silent)') { $arguments = "$arguments -s".Trim() }
+
+    return [PSCustomObject]@{ ExePath = $exePath; Arguments = $arguments }
 }
 
-$uninstallCommand = if ($uninstall.QuietUninstallString) {
-  $uninstall.QuietUninstallString
-} elseif ($uninstall.UninstallString) {
-  $uninstall.UninstallString
-} else {
-  $null
+function Invoke-UninstallerAsUser {
+    param([string]$Sid, [string]$ExePath, [string]$Arguments)
+
+    $account = (New-Object System.Security.Principal.SecurityIdentifier($Sid)).Translate(
+        [System.Security.Principal.NTAccount]).Value
+    Write-Host "  Running the uninstaller as $account"
+
+    try {
+        if ($Arguments) {
+            $action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
+        } else {
+            $action = New-ScheduledTaskAction -Execute $ExePath
+        }
+        $trigger = New-ScheduledTaskTrigger -AtLogOn
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+        $principal = New-ScheduledTaskPrincipal -UserId $account
+        $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
+        Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
+
+        $startDate = Get-Date
+        Start-ScheduledTask -TaskName $taskName
+
+        # Wait for a result rather than for the "Running" state, which a fast task can
+        # enter and leave between polls.
+        Start-Sleep -Seconds 2
+        while ($true) {
+            $info = Get-ScheduledTaskInfo -TaskName $taskName
+            $state = (Get-ScheduledTask -TaskName $taskName).State
+            if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+                return $info.LastTaskResult
+            }
+            if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 300) {
+                Write-Host "  Uninstall task still running after 300s; checking the result anyway."
+                return $null
+            }
+            Start-Sleep -Seconds 5
+        }
+    } finally {
+        if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+        }
+    }
 }
-
-if (-not $uninstallCommand) {
-  Write-Host "No usable uninstall string for $displayName"
-  Exit 0
-}
-
-# Stop Chime if running so the uninstaller can complete.
-Stop-Process -Name "Amazon Chime" -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "chime" -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
-
-# Parse the uninstall string defensively into an executable + existing args.
-$exe = $null
-$existingArgs = ""
-if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
-    $exe = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
-    $exe = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
-    $exe = $matches[1]
-    $existingArgs = $matches[2].Trim()
-}
-
-if (-not $exe) {
-    Write-Host "Error: Could not parse uninstall command: $uninstallCommand"
-    Exit 1
-}
-
-# Ensure a silent switch is present.
-$uninstallArgs = $existingArgs
-if ($uninstallArgs -notmatch '(?i)--silent' -and $uninstallArgs -notmatch '(?i)/S\b') {
-    $uninstallArgs = "$uninstallArgs --silent".Trim()
-}
-
-Write-Host "Uninstall command: $exe"
-Write-Host "Uninstall args: $uninstallArgs"
 
 try {
-    $processOptions = @{
-        FilePath = $exe
-        NoNewWindow = $true
-        PassThru = $true
-        Wait = $true
-    }
-    if ($uninstallArgs -ne '') {
-        $processOptions.ArgumentList = $uninstallArgs
+    $entries = Get-AppEntries
+    if ($entries.Count -eq 0) {
+        Write-Host "Amazon Chime is not installed."
+        Exit 0
     }
 
-    $process = Start-Process @processOptions
-    $exitCode = $process.ExitCode
+    foreach ($entry in $entries) {
+        Write-Host "Removing '$($entry.DisplayName)' ($($entry.KeyPath))"
+        if (-not $entry.Command) {
+            Write-Host "  No uninstall string recorded; removing the leftover registration."
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+            continue
+        }
 
-    Write-Host "Uninstall exit code: $exitCode"
-    Exit $exitCode
+        $uninstaller = Resolve-Uninstaller $entry.Command
+        $installDir = Split-Path $uninstaller.ExePath -Parent
+        $removedDirs.Add($installDir)
+
+        # Anything running out of this install directory blocks removal. Matching on the
+        # directory rather than a process name keeps another install of the same app,
+        # in another user's profile, running.
+        Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and $_.Path.StartsWith($installDir, [System.StringComparison]::OrdinalIgnoreCase) } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+
+        if (-not (Test-Path -LiteralPath $uninstaller.ExePath)) {
+            Write-Host "  Uninstaller is gone from $($uninstaller.ExePath); removing the leftover registration."
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+            continue
+        }
+
+        Write-Host "  Uninstall command: $($uninstaller.ExePath)"
+        Write-Host "  Uninstall args: $($uninstaller.Arguments)"
+        if ($entry.Sid) {
+            $result = Invoke-UninstallerAsUser -Sid $entry.Sid -ExePath $uninstaller.ExePath -Arguments $uninstaller.Arguments
+        } else {
+            $process = Start-Process -FilePath $uninstaller.ExePath -ArgumentList $uninstaller.Arguments `
+                -NoNewWindow -PassThru -Wait
+            $result = $process.ExitCode
+        }
+        Write-Host "  Uninstall exit code: $result"
+        if ($null -ne $result -and $result -ne 0 -and $exitCode -eq 0) { $exitCode = $result }
+
+        # An uninstaller that relaunches itself from %TEMP% exits while removal is
+        # still in flight. Either the directory or the registration going away means
+        # it got there.
+        for ($waited = 0; $waited -lt 60; $waited++) {
+            if (-not (Test-Path -LiteralPath $installDir)) { break }
+            if (-not (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue)) {
+                Start-Sleep -Seconds 3
+                break
+            }
+            Start-Sleep -Seconds 1
+        }
+
+        if (Test-Path -LiteralPath $installDir) {
+            Write-Host "  Uninstaller left $installDir behind; removing it."
+            Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $installDir) {
+                Write-Host "  WARNING: could not remove $installDir."
+                if ($exitCode -eq 0) { $exitCode = 1 }
+            }
+        }
+
+        if (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue) {
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    # Shortcuts sit in the installing user's profile, so an uninstall that could not
+    # reach that profile leaves them behind. Match on where they point rather than on a
+    # filename, which also catches the vendor subfolders some installers create.
+    if ($removedDirs.Count) {
+        $shell = New-Object -ComObject WScript.Shell
+        foreach ($profileDir in (Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue)) {
+            foreach ($root in @(
+                (Join-Path $profileDir.FullName 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs'),
+                (Join-Path $profileDir.FullName 'Desktop')
+            )) {
+                if (-not (Test-Path -LiteralPath $root)) { continue }
+                foreach ($lnk in (Get-ChildItem -LiteralPath $root -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue)) {
+                    $target = $null
+                    try { $target = $shell.CreateShortcut($lnk.FullName).TargetPath } catch {}
+                    if (-not $target) { continue }
+                    foreach ($dir in $removedDirs) {
+                        if ($target.StartsWith($dir, [System.StringComparison]::OrdinalIgnoreCase)) {
+                            Remove-Item -LiteralPath $lnk.FullName -Force -ErrorAction SilentlyContinue
+                            break
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    $remaining = Get-AppEntries
+    if ($remaining.Count -gt 0) {
+        Write-Host "WARNING: $($remaining.Count) Amazon Chime registration(s) still present:"
+        $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName) [$($_.KeyPath)]" }
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    } else {
+        Write-Host "Amazon Chime removed."
+    }
+
 } catch {
     Write-Host "Error running uninstaller: $_"
-    Exit 1
+    $exitCode = 1
 }
+
+Exit $exitCode

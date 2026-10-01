@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -301,4 +302,78 @@ func TestActivityTypeEditedHostNameTemplate(t *testing.T) {
 			"name_template": null
 		}`, string(b))
 	})
+}
+
+// nameTemplateDS stubs the two validation methods the validator calls.
+type nameTemplateDS struct {
+	Datastore
+	secretsChecked bool
+	secretsErr     error
+}
+
+func (d *nameTemplateDS) ValidateEmbeddedSecrets(context.Context, []string) error {
+	d.secretsChecked = true
+	return d.secretsErr
+}
+
+func (d *nameTemplateDS) ValidateReferencedCustomHostVitals(context.Context, []string) error {
+	return nil
+}
+
+func TestValidateHostNameTemplateSecretScope(t *testing.T) {
+	cases := []struct {
+		name                string
+		tmpl                string
+		canReferenceSecrets bool
+		secretsErr          error
+		wantErr             string
+		wantSecretsChecked  bool
+	}{
+		{
+			name: "secret allowed for a caller who can write secrets", tmpl: "WS-$FLEET_SECRET_SITE",
+			canReferenceSecrets: true, wantSecretsChecked: true,
+		},
+		{
+			name: "secret rejected for a caller who cannot", tmpl: "WS-$FLEET_SECRET_SITE",
+			wantErr: "$FLEET_SECRET_SITE can only be used in a host name template by a global admin, maintainer, or GitOps user",
+		},
+		{
+			name: "braced form is not a bypass", tmpl: "WS-${FLEET_SECRET_SITE}",
+			wantErr: "$FLEET_SECRET_SITE can only be used",
+		},
+		{
+			name: "first referenced secret is named", tmpl: "$FLEET_SECRET_ALPHA-$FLEET_SECRET_BETA",
+			wantErr: "$FLEET_SECRET_ALPHA can only be used",
+		},
+		{
+			// Same error as a defined secret, so it isn't an existence oracle.
+			name: "undefined secret still gives the scope error", tmpl: "WS-$FLEET_SECRET_NOPE",
+			secretsErr: MissingSecretsError{MissingSecrets: []string{"NOPE"}},
+			wantErr:    "$FLEET_SECRET_NOPE can only be used",
+		},
+		{
+			name: "built-in variables are not gated", tmpl: "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL",
+		},
+		{
+			name: "custom host vitals are not gated", tmpl: "WS-$FLEET_HOST_VITAL_asset_tag",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := &nameTemplateDS{secretsErr: c.secretsErr}
+			norm, err := ValidateHostNameTemplateWithSecrets(context.Background(), ds, c.tmpl, c.canReferenceSecrets)
+			if c.wantErr == "" {
+				require.NoError(t, err)
+				require.Equal(t, c.tmpl, norm)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), c.wantErr)
+				var invalid *InvalidArgumentError
+				require.ErrorAs(t, err, &invalid)
+				require.Empty(t, norm)
+			}
+			require.Equal(t, c.wantSecretsChecked, ds.secretsChecked)
+		})
+	}
 }

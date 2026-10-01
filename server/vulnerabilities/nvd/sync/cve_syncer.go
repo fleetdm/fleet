@@ -8,6 +8,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -52,6 +53,12 @@ var (
 	timeBetweenRequests = 6 * time.Second
 	// maxRetryAttempts is the maximum number of request to retry in case of API failure.
 	maxRetryAttempts = 10
+	// nvdRequestTimeout bounds a single NVD API request, including reading the
+	// body: the client has no overall timeout, so a stalled response would
+	// otherwise block the sync indefinitely. A full page normally completes in
+	// well under a minute; staying short leaves room for retries within an
+	// incremental run's deadline.
+	nvdRequestTimeout = 2 * time.Minute
 	// waitTimeForRetry is the time to wait between retries.
 	waitTimeForRetry = 30 * time.Second
 	// vulnCheckStartDate is the earliest date to start processing the vulncheck data.
@@ -87,7 +94,7 @@ func NewCVE(dbDir string, opts ...CVEOption) (*CVE, error) {
 		return nil, errors.New("directory not set")
 	}
 	s := CVE{
-		client:           fleethttp.NewClient(),
+		client:           fleethttp.NewClient(fleethttp.WithNoTimeout()),
 		dbDir:            dbDir,
 		logger:           slog.New(slog.DiscardHandler),
 		MaxTryAttempts:   maxRetryAttempts,
@@ -414,11 +421,13 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 
 	for startIndex := int(startIdx); startIndex < totalResults; {
 		startRequestTime := time.Now()
-		cveResponse, err := nvdapi.GetCVEs(s.getHTTPClient(ctx, s.debug), nvdapi.GetCVEsParams{
+		reqCtx, cancel := context.WithTimeout(ctx, nvdRequestTimeout)
+		cveResponse, err := nvdapi.GetCVEs(s.getHTTPClient(reqCtx, s.debug), nvdapi.GetCVEsParams{
 			StartIndex:       ptr.Int(startIndex),
 			LastModStartDate: lastModStartDate,
 			LastModEndDate:   lastModEndDate,
 		})
+		cancel()
 		if err != nil {
 			if retryAttempts > maxRetryAttempts {
 				return "", err
@@ -437,6 +446,7 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 		totalResults = cveResponse.TotalResults
 		startIndex += cveResponse.ResultsPerPage
 		newLastModStartDate = cveResponse.Timestamp
+		s.logger.InfoContext(ctx, "fetched NVD CVE page", "fetched", min(startIndex, totalResults), "total", totalResults, "duration", requestDuration.String())
 
 		// Environment variable NETWORK_TEST_NVD_CVE_END_IDX is set only in tests
 		// (to reduce test duration time).
@@ -649,7 +659,7 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 	defer resp.Body.Close()
 
 	var vcResponse VulnCheckBackupResponse
-	if err := json.NewDecoder(resp.Body).Decode(&vcResponse); err != nil {
+	if err := jsonv2.UnmarshalRead(resp.Body, &vcResponse); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "error decoding response")
 	}
 
@@ -741,7 +751,7 @@ func (s *CVE) processVulnCheckFile(ctx context.Context, fileName string) error {
 		}
 
 		var data VulnCheckBackupDataFile
-		if err := json.NewDecoder(gReader).Decode(&data); err != nil {
+		if err := jsonv2.UnmarshalRead(gReader, &data); err != nil {
 			return fmt.Errorf("error decoding JSON from file %s: %w", file.Name, err)
 		}
 
@@ -859,7 +869,7 @@ func readCVEsLegacyFormat(dbDir string, year int) (*schema.NVDCVEFeedJSON10, err
 	defer file.Close()
 
 	var cveFeed schema.NVDCVEFeedJSON10
-	if err := json.NewDecoder(file).Decode(&cveFeed); err != nil {
+	if err := jsonv2.UnmarshalRead(file, &cveFeed); err != nil {
 		return nil, err
 	}
 

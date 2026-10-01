@@ -1,8 +1,9 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
 
 import InfoBanner from "components/InfoBanner";
 import TooltipWrapper from "components/TooltipWrapper";
+
 import CustomLink from ".";
 
 const meta: Meta<typeof CustomLink> = {
@@ -101,5 +102,13 @@ export const DisabledKeyboardNav: Story = {
     url: "https://www.google.com",
     text: "Disabled Keyboard Navigation",
     disableKeyboardNavigation: true,
+  },
+};
+
+export const ButtonVariant: Story = {
+  args: {
+    url: "https://www.google.com",
+    text: "Button link",
+    variant: "button",
   },
 };

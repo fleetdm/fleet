@@ -1,8 +1,8 @@
 import { http, HttpResponse } from "msw";
 
-import { baseUrl } from "test/test-utils";
-import { IScript } from "interfaces/script";
 import { createMockScript } from "__mocks__/scriptMock";
+import { IScript } from "interfaces/script";
+import { baseUrl } from "test/test-utils";
 
 // not supported for all teams
 const getTeamScriptsHandler = (

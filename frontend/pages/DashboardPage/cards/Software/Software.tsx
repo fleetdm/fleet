@@ -1,19 +1,18 @@
 import React, { useMemo } from "react";
-import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { Row } from "react-table";
-import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { getPathWithQueryParams } from "utilities/url";
-import { ISoftwareResponse } from "interfaces/software";
-
+import DataError from "components/DataError";
+import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import TableContainer from "components/TableContainer";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
+import { ISoftwareResponse } from "interfaces/software";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import generateTableHeaders from "./SoftwareTableConfig";
 

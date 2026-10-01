@@ -141,6 +141,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ua.payload->>'$.software_title_name', ''),
+				'software_display_name', stdn.display_name,
 				'software_package', COALESCE(si.filename, ua.payload->>'$.installer_filename', ''),
 				'install_uuid', ua.execution_id,
 				'status', 'pending_install',
@@ -166,6 +167,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			policies p ON p.id = siua.policy_id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = ua.host_id
+		LEFT OUTER JOIN
+			hosts h ON h.id = ua.host_id
+		LEFT OUTER JOIN
+			software_title_display_names stdn
+				ON stdn.software_title_id = st.id
+				AND stdn.team_id = COALESCE(h.team_id, 0)
 		WHERE
 			ua.host_id = :host_id AND
 			ua.activity_type = 'software_install'
@@ -184,6 +191,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ua.payload->>'$.software_title_name', ''),
+				'software_display_name', stdn.display_name,
 				'script_execution_id', ua.execution_id,
 				'status', 'pending_uninstall',
 				'self_service', COALESCE(ua.payload->'$.self_service', FALSE) IS TRUE,
@@ -208,6 +216,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			policies p ON p.id = siua.policy_id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = ua.host_id
+		LEFT OUTER JOIN
+			hosts h ON h.id = ua.host_id
+		LEFT OUTER JOIN
+			software_title_display_names stdn
+				ON stdn.software_title_id = st.id
+				AND stdn.team_id = COALESCE(h.team_id, 0)
 		WHERE
 			ua.host_id = :host_id AND
 			activity_type = 'software_uninstall'
@@ -226,6 +240,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
+				'software_display_name', stdn.display_name,
 				'app_store_id', vaua.adam_id,
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
@@ -249,6 +264,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			vpp_apps vpa ON vaua.adam_id = vpa.adam_id AND vaua.platform = vpa.platform
 		LEFT OUTER JOIN
 			software_titles st ON st.id = vpa.title_id
+		LEFT OUTER JOIN
+			software_title_display_names stdn
+				ON stdn.software_title_id = st.id
+				AND stdn.team_id = COALESCE(h.team_id, 0)
 		WHERE
 			ua.host_id = :host_id AND
 			ua.activity_type = 'vpp_app_install'
@@ -267,6 +286,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
+				'software_display_name', stdn.display_name,
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
 				'status', 'pending_install'
@@ -284,6 +304,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			host_display_names hdn ON hdn.host_id = ua.host_id
 		LEFT OUTER JOIN
 			software_titles st ON st.id = ihua.software_title_id
+		LEFT OUTER JOIN
+			hosts h ON h.id = ua.host_id
+		LEFT OUTER JOIN
+			software_title_display_names stdn
+				ON stdn.software_title_id = st.id
+				AND stdn.team_id = COALESCE(h.team_id, 0)
 		WHERE
 			ua.host_id = :host_id AND
 			ua.activity_type = 'in_house_app_install'
@@ -487,12 +513,13 @@ func (ds *Datastore) batchCancelAllHostUpcomingActivities(ctx context.Context, t
 }
 
 type activityToCancel struct {
-	ActivityType    string `db:"activity_type"`
-	HostID          uint   `db:"host_id"`
-	HostDisplayName string `db:"host_display_name"`
-	CanceledName    string `db:"canceled_name"`
-	CanceledID      *uint  `db:"canceled_id"`
-	Activated       bool   `db:"activated"`
+	ActivityType        string  `db:"activity_type"`
+	HostID              uint    `db:"host_id"`
+	HostDisplayName     string  `db:"host_display_name"`
+	CanceledName        string  `db:"canceled_name"`
+	CanceledDisplayName *string `db:"canceled_display_name"`
+	CanceledID          *uint   `db:"canceled_id"`
+	Activated           bool    `db:"activated"`
 }
 
 func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, activateNext bool) (fleet.ActivityDetails, error) {
@@ -503,6 +530,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		ua.host_id,
 		COALESCE(hdn.display_name, '') as host_display_name,
 		COALESCE(ses.name, scr.name, '') as canceled_name, -- script name in this case
+		NULL as canceled_display_name, -- scripts have no display name override
 		NULL as canceled_id, -- no ID for scripts in the canceled activity
 		IF(ua.activated_at IS NULL, 0, 1) as activated
 	FROM
@@ -527,6 +555,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		ua.host_id,
 		COALESCE(hdn.display_name, '') as host_display_name,
 		COALESCE(st.name, ua.payload->>'$.software_title_name', '') as canceled_name, -- software title name in this case
+		stdn.display_name as canceled_display_name,
 		st.id as canceled_id,
 		IF(ua.activated_at IS NULL, 0, 1) as activated
 	FROM
@@ -539,6 +568,12 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		software_titles st ON st.id = si.title_id
 	LEFT OUTER JOIN
 		host_display_names hdn ON hdn.host_id = ua.host_id
+	LEFT OUTER JOIN
+		hosts h ON h.id = ua.host_id
+	LEFT OUTER JOIN
+		software_title_display_names stdn
+			ON stdn.software_title_id = st.id
+			AND stdn.team_id = COALESCE(h.team_id, 0)
 	WHERE
 		ua.host_id = :host_id AND
 		ua.execution_id = :execution_id AND
@@ -551,6 +586,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		ua.host_id,
 		COALESCE(hdn.display_name, '') as host_display_name,
 		COALESCE(st.name, ua.payload->>'$.software_title_name', '') as canceled_name, -- software title name in this case
+		stdn.display_name as canceled_display_name,
 		st.id as canceled_id,
 		IF(ua.activated_at IS NULL, 0, 1) as activated
 	FROM
@@ -563,6 +599,12 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		software_titles st ON st.id = si.title_id
 	LEFT OUTER JOIN
 		host_display_names hdn ON hdn.host_id = ua.host_id
+	LEFT OUTER JOIN
+		hosts h ON h.id = ua.host_id
+	LEFT OUTER JOIN
+		software_title_display_names stdn
+			ON stdn.software_title_id = st.id
+			AND stdn.team_id = COALESCE(h.team_id, 0)
 	WHERE
 		ua.host_id = :host_id AND
 		ua.execution_id = :execution_id AND
@@ -575,6 +617,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		ua.host_id,
 		COALESCE(hdn.display_name, '') as host_display_name,
 		COALESCE(st.name, '') as canceled_name, -- software title name in this case
+		stdn.display_name as canceled_display_name,
 		st.id as canceled_id,
 		IF(ua.activated_at IS NULL, 0, 1) as activated
 	FROM
@@ -584,9 +627,15 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 	LEFT OUTER JOIN
 		host_display_names hdn ON hdn.host_id = ua.host_id
 	LEFT OUTER JOIN
+		hosts h ON h.id = ua.host_id
+	LEFT OUTER JOIN
 		vpp_apps vpa ON vaua.adam_id = vpa.adam_id AND vaua.platform = vpa.platform
 	LEFT OUTER JOIN
 		software_titles st ON st.id = vpa.title_id
+	LEFT OUTER JOIN
+		software_title_display_names stdn
+			ON stdn.software_title_id = vpa.title_id
+			AND stdn.team_id = COALESCE(h.team_id, 0)
 	WHERE
 		ua.host_id = :host_id AND
 		ua.execution_id = :execution_id AND
@@ -599,6 +648,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		ua.host_id,
 		COALESCE(hdn.display_name, '') as host_display_name,
 		COALESCE(st.name, '') as canceled_name, -- software title name in this case
+		stdn.display_name as canceled_display_name,
 		st.id as canceled_id,
 		IF(ua.activated_at IS NULL, 0, 1) as activated
 	FROM
@@ -608,9 +658,15 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 	LEFT OUTER JOIN
 		host_display_names hdn ON hdn.host_id = ua.host_id
 	LEFT OUTER JOIN
+		hosts h ON h.id = ua.host_id
+	LEFT OUTER JOIN
 		in_house_apps iha ON ihua.in_house_app_id = iha.id
 	LEFT OUTER JOIN
 		software_titles st ON st.id = iha.title_id
+	LEFT OUTER JOIN
+		software_title_display_names stdn
+			ON stdn.software_title_id = iha.title_id
+			AND stdn.team_id = COALESCE(h.team_id, 0)
 	WHERE
 		ua.host_id = :host_id AND
 		ua.execution_id = :execution_id AND
@@ -746,10 +802,11 @@ func cancelHostInHouseAppInstallUpcomingActivity(ctx context.Context, tx sqlx.Ex
 		titleID = *act.CanceledID
 	}
 	return fleet.ActivityTypeCanceledInstallSoftware{
-		HostID:          act.HostID,
-		HostDisplayName: act.HostDisplayName,
-		SoftwareTitle:   act.CanceledName,
-		SoftwareTitleID: titleID,
+		HostID:              act.HostID,
+		HostDisplayName:     act.HostDisplayName,
+		SoftwareTitle:       act.CanceledName,
+		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareTitleID:     titleID,
 	}, nil
 }
 
@@ -784,10 +841,11 @@ func cancelHostVPPAppInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtCon
 		titleID = *act.CanceledID
 	}
 	return fleet.ActivityTypeCanceledInstallAppStoreApp{
-		HostID:          act.HostID,
-		HostDisplayName: act.HostDisplayName,
-		SoftwareTitle:   act.CanceledName,
-		SoftwareTitleID: titleID,
+		HostID:              act.HostID,
+		HostDisplayName:     act.HostDisplayName,
+		SoftwareTitle:       act.CanceledName,
+		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareTitleID:     titleID,
 	}, nil
 }
 
@@ -814,10 +872,11 @@ func cancelHostSoftwareUninstallUpcomingActivity(ctx context.Context, tx sqlx.Ex
 		titleID = *act.CanceledID
 	}
 	return fleet.ActivityTypeCanceledUninstallSoftware{
-		HostID:          act.HostID,
-		HostDisplayName: act.HostDisplayName,
-		SoftwareTitle:   act.CanceledName,
-		SoftwareTitleID: titleID,
+		HostID:              act.HostID,
+		HostDisplayName:     act.HostDisplayName,
+		SoftwareTitle:       act.CanceledName,
+		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareTitleID:     titleID,
 	}, nil
 }
 
@@ -842,10 +901,11 @@ func cancelHostSoftwareInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtC
 		titleID = *act.CanceledID
 	}
 	return fleet.ActivityTypeCanceledInstallSoftware{
-		HostID:          act.HostID,
-		HostDisplayName: act.HostDisplayName,
-		SoftwareTitle:   act.CanceledName,
-		SoftwareTitleID: titleID,
+		HostID:              act.HostID,
+		HostDisplayName:     act.HostDisplayName,
+		SoftwareTitle:       act.CanceledName,
+		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareTitleID:     titleID,
 	}, nil
 }
 
@@ -941,7 +1001,13 @@ func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uin
 // the next activity, or to a missing call to activateNextUpcomingActivity. It
 // unblocks up to maxHosts found in this situation (by activating the next
 // activity for each host).
-func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error) {
+//
+// When skipFleetInitiated is true (the fleet-initiated release budget is
+// enabled), a host is only considered blocked if it has an unactivated
+// non-fleet-initiated activity: hosts waiting solely on deferred
+// fleet-initiated activities are the release cron's job, and activating them
+// here would bypass its budget.
+func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error) {
 	const findBlockedHostsStmt = `
 		SELECT
 			DISTINCT inactive_ua.host_id
@@ -953,13 +1019,55 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 		WHERE
 			active_ua.host_id IS NULL AND
 			inactive_ua.activated_at IS NULL
+		%s
 		LIMIT ?`
 
+	var fleetInitiatedFilter string
+	if skipFleetInitiated {
+		fleetInitiatedFilter = "AND inactive_ua.fleet_initiated = 0"
+	}
+	stmt := fmt.Sprintf(findBlockedHostsStmt, fleetInitiatedFilter)
+
 	var blockedHostIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &blockedHostIDs, findBlockedHostsStmt, maxHosts); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &blockedHostIDs, stmt, maxHosts); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "select blocked hosts")
 	}
-	return len(blockedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
+}
+
+// ReleaseFleetInitiatedUpcomingActivities activates the upcoming activities
+// queue of up to maxHosts hosts that have no activated activity and at least
+// one fleet-initiated activity waiting (enqueued with deferred activation by
+// the policy-automation paths). Hosts with the oldest waiting fleet-initiated
+// activity are released first. It returns the number of hosts released.
+//
+// This is the release valve for the activity.fleet_initiated_release_per_minute
+// budget: enqueue is unthrottled, but hosts only start executing
+// fleet-initiated work at the pace this method is called with.
+func (ds *Datastore) ReleaseFleetInitiatedUpcomingActivities(ctx context.Context, maxHosts int) (int, error) {
+	const findGatedHostsStmt = `
+		SELECT
+			gated_ua.host_id
+		FROM
+			upcoming_activities gated_ua
+			LEFT OUTER JOIN upcoming_activities active_ua ON
+				active_ua.host_id = gated_ua.host_id AND
+				active_ua.activated_at IS NOT NULL
+		WHERE
+			active_ua.host_id IS NULL AND
+			gated_ua.activated_at IS NULL AND
+			gated_ua.fleet_initiated = 1
+		GROUP BY
+			gated_ua.host_id
+		ORDER BY
+			MIN(gated_ua.created_at), gated_ua.host_id
+		LIMIT ?`
+
+	var gatedHostIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &gatedHostIDs, findGatedHostsStmt, maxHosts); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "select gated hosts")
+	}
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, gatedHostIDs)
 }
 
 // mdmApplePushDeliveryGraceDays is how long an activated command has to reach its device before the
@@ -1218,12 +1326,18 @@ func (ds *Datastore) ActivateNextUpcomingActivityForHost(ctx context.Context, ho
 	return err
 }
 
-func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) error {
+// activateNextUpcomingActivityForBatchOfHosts activates the next upcoming
+// activity of each host, chunked into batch transactions. It returns the
+// number of hosts whose activation committed, along with any per-host
+// activation errors joined together (partial success returns both a non-zero
+// count and a non-nil error).
+func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) (int, error) {
 	const maxHostIDsPerBatch = 500
 
 	slices.Sort(hostIDs)              // sorting can help avoid deadlocks
 	hostIDs = slices.Compact(hostIDs) // dedupe IDs (must be sorted first)
 
+	var activated int
 	var errs []error
 	for batch := range slices.Chunk(hostIDs, maxHostIDsPerBatch) {
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -1234,11 +1348,35 @@ func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Con
 			}
 			return nil
 		})
-		if err != nil {
-			errs = append(errs, err)
+		if err == nil {
+			activated += len(batch)
+			continue
+		}
+
+		// The chunk transaction is all-or-nothing: one host whose activation
+		// deterministically fails (e.g. an FK or duplicate-key violation on its
+		// queued row) would roll back every other host in the chunk, and the
+		// callers that select hosts in a deterministic order (the release and
+		// unblock crons) would re-pick the same hosts on every run, wedging the
+		// queue behind the poison host. Retry each host of the failed chunk in
+		// its own transaction so a bad host only loses its own slot.
+		for _, hostID := range batch {
+			hostErr := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, "")
+				return err
+			})
+			if hostErr != nil {
+				ds.logger.ErrorContext(ctx, "activate next upcoming activity failed for host; skipping it",
+					"host_id", hostID,
+					"err", hostErr,
+				)
+				errs = append(errs, ctxerr.Wrapf(ctx, hostErr, "activate next activity for host %d", hostID))
+				continue
+			}
+			activated++
 		}
 	}
-	return errors.Join(errs...)
+	return activated, errors.Join(errs...)
 }
 
 // This function activates the next upcoming activity, if any, for the specified host.
@@ -1434,7 +1572,7 @@ func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx
 	const insStmt = `
 INSERT INTO host_software_installs
 	(execution_id, host_id, software_installer_id, user_id, self_service,
-		policy_id, installer_filename, version, software_title_id, software_title_name, attempt_number)
+		policy_id, patch_when_closed, installer_filename, version, software_title_id, software_title_name, override_pre_install_query, attempt_number)
 SELECT
 	ua.execution_id,
 	ua.host_id,
@@ -1442,10 +1580,17 @@ SELECT
 	ua.user_id,
 	COALESCE(ua.payload->'$.self_service', 0),
 	siua.policy_id,
+	-- Snapshot the triggering policy's patch_when_closed at activation so a
+	-- later toggle or policy delete (policy_id becomes NULL via ON DELETE SET
+	-- NULL) can't retroactively reclassify this row as an ordinary failure.
+	COALESCE(p.patch_when_closed, 0),
 	COALESCE(si.filename, ua.payload->>'$.installer_filename', '[deleted installer]'),
 	COALESCE(si.version, ua.payload->>'$.version', 'unknown'),
 	COALESCE(si.title_id, siua.software_title_id),
 	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
+	-- Activities queued before the payload carried this key fall back to the
+	-- policy flags so an in-flight patch install keeps its app-open gate.
+	COALESCE(ua.payload->'$.override_pre_install_query', p.patch_when_closed OR p.notify_before_patching, 0),
 	-- Compute the attempt number for this activation. Each retry creates a
 	-- new upcoming_activity (via InsertSoftwareInstallRequest), so when that
 	-- new activity activates, COUNT(*) of previous completed attempts gives
@@ -1471,6 +1616,8 @@ FROM
 		ON si.id = siua.software_installer_id
 	LEFT JOIN software_titles st
 		ON st.id = si.title_id
+	LEFT JOIN policies p
+		ON p.id = siua.policy_id
 WHERE
 	ua.host_id = ? AND
 	ua.execution_id IN (?)
@@ -1677,7 +1824,10 @@ INSERT INTO
 SELECT
 	?,
 	execution_id,
-	created_at -- force same timestamp to keep ordering
+	-- distinct, forward-dated timestamps: nanomdm orders the queue by
+	-- created_at alone, and one statement's rows would otherwise tie on the
+	-- column default and be served in arbitrary order
+	NOW(6) + INTERVAL ROW_NUMBER() OVER (ORDER BY priority DESC, created_at ASC, id ASC) MICROSECOND
 FROM
 	upcoming_activities
 WHERE
@@ -1784,9 +1934,11 @@ WHERE
 		if err := ds.CreateInHouseAppInstallToken(ctx, tx, token, p.SoftwareTitle, tid, hostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "mint in-house app install token")
 		}
+		// The device fetches this itself, so it has to be the URL Apple devices
+		// reach Fleet on, which is a separate hostname when apple_server_url is set.
 		manifestURL := fmt.Sprintf(
 			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s",
-			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, token)
+			appConfig.MDMUrl(), p.SoftwareTitle, token)
 		cfg := configsByAppID[p.InHouseAppID]
 		if len(cfg) > 0 {
 			substituted, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, ds, cfg, subHost)
@@ -1820,13 +1972,24 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "insert nano queue")
 	}
 
-	// best-effort APNs push notification to the host, not critical because we
-	// have a cron job that will retry for hosts with pending MDM commands.
-	if ds.pusher != nil {
+	if ds.pusher == nil {
+		return nil
+	}
+
+	switch v := tx.(type) {
+	case common_mysql.WrappedExtContext:
+		v.AddOnCommitHook(func() {
+			if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
+				ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
+			}
+		})
+	case *sqlx.DB:
+		// We are not in a transaction but rather just auto-commit mode, fire the push immediately.
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
 			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}
 	}
+
 	return nil
 }
 
@@ -1975,6 +2138,19 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
 		// script output to surface.
 		statusCols: statusOutputCols{
 			status: "IF(ap.details->>'$.status' = 'failed_install', 'error', 'success')",
+			output: "NULL",
+		},
+	},
+	{
+		activityType: "notified_end_user_before_patching",
+		joins: `
+            INNER JOIN patch_notification_apps pna
+                ON  pna.notification_uuid = ap.details->>'$.patch_notification_uuid'
+                AND pna.policy_id         = ?`,
+		errorCond:   "ap.details->>'$.status' = 'failed'",
+		successCond: "NOT (ap.details->>'$.status' <=> 'failed')",
+		statusCols: statusOutputCols{
+			status: "IF(ap.details->>'$.status' = 'failed', 'error', 'success')",
 			output: "NULL",
 		},
 	},

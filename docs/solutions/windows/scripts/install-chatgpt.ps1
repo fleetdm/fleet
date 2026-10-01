@@ -1,3 +1,5 @@
+# Wrap this in a scheduled task so it installs as the user.
+# winget won't work when run directly as SYSTEM.
 $taskName = "Install ChatGPT Desktop"
 
 # Encode the script as Base64, so we can use it with a scheduled task
@@ -16,7 +18,7 @@ if (-not $wingetPath) {
 }
 
 $args = @(
-    "--id", "9NT1R1C2HH7J"
+    "--id", "9plm9xgg6vks"
     "--source", "msstore"
     "--silent"
     "--accept-package-agreements"

@@ -1,10 +1,9 @@
 import React from "react";
 
-import { SetupStepStatus } from "interfaces/setup";
-
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import Spinner from "components/Spinner";
+import { SetupStepStatus } from "interfaces/setup";
 
 const baseClass = "setup-script-status-cell";
 

@@ -1,10 +1,10 @@
-import { useQuery, UseQueryResult } from "react-query";
 import { filter, uniqueId } from "lodash";
+import { useQuery, UseQueryResult } from "react-query";
 
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { ITeam } from "interfaces/team";
 import { ISelectedTargetsForApi } from "interfaces/target";
+import { ITeam } from "interfaces/team";
 import targetsAPI from "services/entities/targets";
 
 export interface ITargetsLabels {

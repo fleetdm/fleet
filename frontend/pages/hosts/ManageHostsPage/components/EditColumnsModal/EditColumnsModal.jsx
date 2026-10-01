@@ -1,9 +1,10 @@
-import React, { useState } from "react";
 import PropTypes from "prop-types";
+import React, { useState } from "react";
 
 import Modal from "components/Modal";
-import Checkbox from "../../../../../components/forms/fields/Checkbox";
+
 import Button from "../../../../../components/buttons/Button";
+import Checkbox from "../../../../../components/forms/fields/Checkbox";
 
 const baseClass = "edit-columns-modal";
 

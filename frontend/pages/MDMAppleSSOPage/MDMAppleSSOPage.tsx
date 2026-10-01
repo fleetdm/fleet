@@ -1,17 +1,16 @@
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 import { WithRouterProps } from "react-router";
+import { Params } from "react-router/lib/Router";
 
-import mdmAPI, { IMDMSSOParams } from "services/entities/mdm";
-
-import SSOError from "components/MDM/SSOError";
-import Spinner from "components/Spinner/Spinner";
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import SSOError from "components/MDM/SSOError";
+import Spinner from "components/Spinner/Spinner";
 import { IMdmSSOResponse } from "interfaces/mdm";
-import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import { Params } from "react-router/lib/Router";
+import mdmAPI, { IMDMSSOParams } from "services/entities/mdm";
 
 const baseClass = "mdm-apple-sso-page";
 

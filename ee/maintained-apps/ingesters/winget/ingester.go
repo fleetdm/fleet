@@ -481,6 +481,13 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	out.Queries.Open = patch_policy.GenerateOpenQuery("windows", "", out.Name)
 
+	// arm64 builds can't run on x64 hosts, so their policies must pass there. The open
+	// query stays as-is: it only runs on a host already queued for the install.
+	if input.InstallerArch == "arm64" {
+		out.Queries.Exists = patch_policy.ScopeToWindowsARM(out.Queries.Exists)
+		out.Queries.Patched = patch_policy.ScopeToWindowsARM(out.Queries.Patched)
+	}
+
 	return &out, nil
 }
 

@@ -34,7 +34,7 @@ const (
 // DownloadNVDCVEFeed downloads CVEs information from the NVD 2.0 API
 // and supplements the data with CPE information from the Vulncheck API.
 // This is used to download CVE information to vulnPath.
-func GenerateCVEFeeds(vulnPath string, debug bool, logger *slog.Logger) error {
+func GenerateCVEFeeds(ctx context.Context, vulnPath string, debug bool, logger *slog.Logger) error {
 	cveSyncer, err := nvdsync.NewCVE(
 		vulnPath,
 		nvdsync.WithLogger(logger),
@@ -44,11 +44,11 @@ func GenerateCVEFeeds(vulnPath string, debug bool, logger *slog.Logger) error {
 		return err
 	}
 
-	if err := cveSyncer.Do(context.Background()); err != nil {
+	if err := cveSyncer.Do(ctx); err != nil {
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
 
-	if err := cveSyncer.DoVulnCheck(context.Background()); err != nil {
+	if err := cveSyncer.DoVulnCheck(ctx); err != nil {
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
 
@@ -59,7 +59,7 @@ func DownloadCVEFeed(vulnPath, cveFeedPrefixURL string, debug bool, logger *slog
 	var err error
 
 	if cveFeedPrefixURL == "" {
-		cveFeedPrefixURL, err = GetGitHubCVEAssetPath()
+		cveFeedPrefixURL, err = GetGitHubCVEAssetPath(context.Background())
 		if err != nil {
 			return fmt.Errorf("get cve asset path: %w", err)
 		}
@@ -73,44 +73,60 @@ func DownloadCVEFeed(vulnPath, cveFeedPrefixURL string, debug bool, logger *slog
 	return nil
 }
 
-func GetGitHubCVEAssetPath() (string, error) {
+const (
+	// cveReleasesPerPage keeps each request small: releases list their assets
+	// inline, and Fleet servers make this request on every vulnerability sync.
+	cveReleasesPerPage = 10
+	// maxPublishedReleasesScanned bounds the search. Drafts don't count toward it:
+	// GitHub lists them first (only to callers with push access) and they can
+	// accumulate, so they must not be able to exhaust the search.
+	maxPublishedReleasesScanned = 100
+)
+
+var cveReleaseTagRegex = regexp.MustCompile(`cve-\d+`)
+
+// GetGitHubCVEAssetPath returns the download URL prefix of the latest published
+// CVE release.
+func GetGitHubCVEAssetPath(ctx context.Context) (string, error) {
 	vulnOwner := os.Getenv("TEST_VULN_GITHUB_OWNER")
 	if vulnOwner == "" {
 		vulnOwner = owner
 	}
 
 	ghClient := github.NewClient(fleethttp.NewGithubClient())
-
-	releases, _, err := ghClient.Repositories.ListReleases(
-		context.Background(),
-		vulnOwner,
-		vulnRepo,
-		&github.ListOptions{Page: 0, PerPage: 10},
-	)
+	found, err := findLatestCVEReleaseTag(ctx, ghClient, vulnOwner)
 	if err != nil {
 		return "", err
 	}
 
-	nvdregex := regexp.MustCompile(`cve-\d+`)
-	var found string
-
-	for _, release := range releases {
-		// Skip draft releases
-		if release.GetDraft() {
-			continue
-		}
-
-		if nvdregex.MatchString(release.GetTagName()) {
-			found = release.GetTagName()
-			break
-		}
-	}
-
-	if found == "" {
-		return "", errors.New("no CVE feed found")
-	}
-
 	return fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/", vulnOwner, vulnRepo, found), nil
+}
+
+// findLatestCVEReleaseTag returns the tag of the newest non-draft CVE release.
+func findLatestCVEReleaseTag(ctx context.Context, ghClient *github.Client, vulnOwner string) (string, error) {
+	opts := &github.ListOptions{PerPage: cveReleasesPerPage}
+	var scanned int
+	for {
+		releases, resp, err := ghClient.Repositories.ListReleases(ctx, vulnOwner, vulnRepo, opts)
+		if err != nil {
+			return "", err
+		}
+		for _, release := range releases {
+			if release.GetDraft() {
+				continue
+			}
+			if cveReleaseTagRegex.MatchString(release.GetTagName()) {
+				return release.GetTagName(), nil
+			}
+			if scanned++; scanned >= maxPublishedReleasesScanned {
+				return "", errors.New("no CVE feed found")
+			}
+		}
+		if resp.NextPage == 0 {
+			return "", errors.New("no CVE feed found")
+		}
+		opts.Page = resp.NextPage
+	}
 }
 
 func downloadNVDCVELegacy(vulnPath string, cveFeedPrefixURL string) error {
@@ -631,13 +647,13 @@ func checkCVEs(
 								sink.addSoftware(ctx, fleet.SoftwareVulnerability{
 									SoftwareID:        CPEItem.GetID(),
 									CVE:               matches.CVE.ID(),
-									ResolvedInVersion: new(resolvedVersion),
+									ResolvedInVersion: &resolvedVersion,
 								})
 							} else if _, ok := CPEItem.(osCPEWithNVDMeta); ok {
 								sink.addOS(ctx, fleet.OSVulnerability{
 									OSID:              CPEItem.GetID(),
 									CVE:               matches.CVE.ID(),
-									ResolvedInVersion: new(resolvedVersion),
+									ResolvedInVersion: &resolvedVersion,
 								})
 							}
 

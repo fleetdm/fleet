@@ -334,14 +334,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	return filename, nil
 }
 
-func writeSystemdUnit(opt Options, rootPath string) error {
-	systemdRoot := filepath.Join(rootPath, "usr", "lib", "systemd", "system")
-	if err := secure.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
-		return fmt.Errorf("create systemd dir: %w", err)
-	}
-	if err := os.WriteFile(
-		filepath.Join(systemdRoot, "orbit.service"),
-		[]byte(`
+// defaultCPUQuota is the systemd CPUQuota percentage applied to the orbit
+// service when none is specified.
+const defaultCPUQuota uint = 20
+
+var systemdUnitTemplate = template.Must(template.New("systemd").Parse(`
 [Unit]
 Description=Orbit osquery
 After=network.service syslog.service
@@ -355,11 +352,30 @@ Restart=always
 RestartSec=1
 KillMode=control-group
 KillSignal=SIGTERM
-CPUQuota=20%
+CPUQuota={{ .CPUQuota }}%
 
 [Install]
 WantedBy=multi-user.target
-`),
+`))
+
+func writeSystemdUnit(opt Options, rootPath string) error {
+	systemdRoot := filepath.Join(rootPath, "usr", "lib", "systemd", "system")
+	if err := secure.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("create systemd dir: %w", err)
+	}
+
+	cpuQuota := opt.CPUQuota
+	if cpuQuota == 0 {
+		cpuQuota = defaultCPUQuota
+	}
+	var contents bytes.Buffer
+	if err := systemdUnitTemplate.Execute(&contents, struct{ CPUQuota uint }{CPUQuota: cpuQuota}); err != nil {
+		return fmt.Errorf("execute template: %w", err)
+	}
+
+	if err := os.WriteFile(
+		filepath.Join(systemdRoot, "orbit.service"),
+		contents.Bytes(),
 		constant.DefaultSystemdUnitMode,
 	); err != nil {
 		return fmt.Errorf("write file: %w", err)

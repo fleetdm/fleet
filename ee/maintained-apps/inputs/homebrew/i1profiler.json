@@ -6,5 +6,6 @@
   "slug": "i1profiler/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

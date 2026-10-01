@@ -1,28 +1,46 @@
 .upload-list {
   border: 1px solid $ui-fleet-black-10;
-  border-radius: $border-radius;
+  border-radius: $border-radius-large;
 
   &__header {
     padding: $pad-medium $pad-large;
     font-size: $x-small;
     border-bottom: 1px solid $ui-fleet-black-10;
     background-color: $ui-off-white;
-    border-top-left-radius: $border-radius;
-    border-top-right-radius: $border-radius;
+    border-top-left-radius: $border-radius-large;
+    border-top-right-radius: $border-radius-large;
   }
 
   &__list {
     list-style: none;
     padding: 0;
     margin: 0;
+
+    // The header is optional, so without it the first row sits at the top.
+    // Longhands: with a single row the :last-child rule below also matches,
+    // and the shorthand would wipe that row's bottom corners.
+    &:first-child > .upload-list__list-item:first-child {
+      border-top-left-radius: $border-radius-large;
+      border-top-right-radius: $border-radius-large;
+    }
   }
 
   &__list-item {
     padding: $pad-medium $pad-large;
     border-bottom: 1px solid $ui-fleet-black-10;
 
+    // Rows carry their own corners because `overflow: hidden` here would clip
+    // the tooltips rows render in flow. Some consumers (e.g. Scripts) move the
+    // hover background onto their row content, so the radius has to reach it.
+    &:first-child > *,
+    &:last-child > * {
+      border-radius: inherit;
+    }
+
     &:last-child {
       border-bottom: initial;
+      border-bottom-left-radius: $border-radius-large;
+      border-bottom-right-radius: $border-radius-large;
     }
 
     &:hover {

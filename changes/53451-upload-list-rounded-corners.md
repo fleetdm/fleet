@@ -1,0 +1,1 @@
+- Fixed the upload list's rounded corners squaring off while the first or last row is hovered, on pages such as Controls > Scripts and Controls > OS settings > Configuration profiles.

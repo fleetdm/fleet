@@ -1,11 +1,11 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
-import mockServer from "test/mock-server";
 import { baseUrl } from "test/default-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import InstallAllInCategoryButton, {
   IInstallAllInCategoryButtonProps,

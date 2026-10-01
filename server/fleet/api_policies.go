@@ -12,6 +12,7 @@ type GlobalPolicyRequest struct {
 	Resolution       string   `json:"resolution"`
 	Platform         string   `json:"platform"`
 	Critical         bool     `json:"critical" premium:"true"`
+	Hidden           bool     `json:"hidden" premium:"true"`
 	LabelsIncludeAny []string `json:"labels_include_any" premium:"true"`
 	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
 	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
@@ -108,7 +109,8 @@ func (r ModifyGlobalPolicyResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type ResetPolicyRequest struct {
-	PolicyID uint `url:"policy_id"`
+	PolicyID uint  `url:"policy_id"`
+	HostID   *uint `query:"host_id,optional"`
 }
 
 type ResetPolicyResponse struct {
@@ -178,8 +180,10 @@ type TeamPolicyRequest struct {
 	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
 	SoftwareTitleID       *uint  `json:"software_title_id"`
 	// SoftwareInstallerID optionally selects which package of the title to install on failure.
-	// When omitted, the policy defaults to the title's first-added package.
-	SoftwareInstallerID          *uint    `json:"software_installer_id"`
+	// When omitted, the policy defaults to the title's first-added package. The wire
+	// key is `software_package_id`; the endpointer's renameto layer accepts the
+	// legacy `software_installer_id` alias and logs a deprecation warning.
+	SoftwareInstallerID          *uint    `json:"software_installer_id" renameto:"software_package_id"`
 	ScriptID                     *uint    `json:"script_id"`
 	ProfileUUID                  *string  `json:"profile_uuid" premium:"true"`
 	LabelsIncludeAny             []string `json:"labels_include_any" premium:"true"`
@@ -187,10 +191,12 @@ type TeamPolicyRequest struct {
 	LabelsExcludeAny             []string `json:"labels_exclude_any" premium:"true"`
 	LabelsExcludeAll             []string `json:"labels_exclude_all" premium:"true"`
 	ConditionalAccessEnabled     bool     `json:"conditional_access_enabled"`
+	Hidden                       bool     `json:"hidden" premium:"true"`
 	ContinuousAutomationsEnabled bool     `json:"continuous_automations_enabled" premium:"true"`
 	Type                         *string  `json:"type"`
 	PatchSoftwareTitleID         *uint    `json:"patch_software_title_id"`
 	PatchWhenClosed              bool     `json:"patch_when_closed" premium:"true"`
+	NotifyBeforePatching         bool     `json:"notify_before_patching" premium:"true"`
 }
 
 type TeamPolicyResponse struct {

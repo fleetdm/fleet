@@ -1,15 +1,15 @@
 import React, { useContext } from "react";
 
-import { IHostUpcomingActivity } from "interfaces/activity";
-import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
-
-import { AppContext } from "context/app";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 import DataError from "components/DataError";
 import Pagination from "components/Pagination";
-import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import { AppContext } from "context/app";
+import { IHostUpcomingActivity } from "interfaces/activity";
+import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
+import { PREMIUM_ONLY_DETAIL_ACTIVITIES } from "utilities/activityHelpers";
 
-import EmptyFeed from "../EmptyFeed/EmptyFeed";
 import { upcomingActivityComponentMap } from "../ActivityConfig";
+import EmptyFeed from "../EmptyFeed/EmptyFeed";
 
 const baseClass = "upcoming-activity-feed";
 
@@ -47,11 +47,11 @@ const UpcomingActivityFeed = ({
   if (activitiesList === null || activitiesList.length === 0) {
     return (
       <EmptyFeed
-        title="No pending activity "
+        title="No pending activity"
         message={
           isPremiumTier
-            ? "Pending actions will appear here (scripts, software, lock, and wipe)."
-            : "Pending script runs will appear here."
+            ? "Pending commands (e.g. lock, wipe) will appear here."
+            : "Pending commands will appear here."
         }
         className={`${baseClass}__empty-feed`}
       />
@@ -64,6 +64,8 @@ const UpcomingActivityFeed = ({
         {activitiesList.map((activity: IHostUpcomingActivity) => {
           const ActivityItemComponent =
             upcomingActivityComponentMap[activity.type];
+          const hideShowDetails =
+            !isPremiumTier && PREMIUM_ONLY_DETAIL_ACTIVITIES.has(activity.type);
           return (
             <ActivityItemComponent
               key={activity.uuid}
@@ -71,6 +73,7 @@ const UpcomingActivityFeed = ({
               activity={activity}
               onShowDetails={onShowDetails}
               hideCancel={!canCancelActivities}
+              hideShowDetails={hideShowDetails}
               onCancel={() => onCancel(activity)}
             />
           );

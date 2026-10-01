@@ -1,0 +1,1 @@
+- Added support for restricting managed apple account sign-ins via Apple Business, by supporting the GetToken protocol.

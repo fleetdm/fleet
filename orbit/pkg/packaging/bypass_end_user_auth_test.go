@@ -2,7 +2,6 @@ package packaging
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 	"text/template"
 
@@ -11,7 +10,7 @@ import (
 )
 
 // TestBypassEndUserAuthTemplates verifies the --bypass-end-user-auth switch is wired into the generated Linux env file
-// and Windows MSI arguments when enabled, and absent when not. macOS is intentionally excluded.
+// and Windows MSI service environment when enabled, and absent when not. macOS is intentionally excluded.
 func TestBypassEndUserAuthTemplates(t *testing.T) {
 	baseOpt := Options{
 		FleetURL:        "https://fleet.example.com",
@@ -38,20 +37,12 @@ func TestBypassEndUserAuthTemplates(t *testing.T) {
 		assert.NotContains(t, render(t, envTemplate, false), "ORBIT_BYPASS_END_USER_AUTH")
 	})
 
-	t.Run("windows msi args", func(t *testing.T) {
-		// The flag is one of many appended to the service's ServiceInstall Arguments; isolate that line.
-		argsLine := func(output string) string {
-			t.Helper()
-			for line := range strings.SplitSeq(output, "\n") {
-				if strings.Contains(line, "Arguments=") && strings.Contains(line, "--fleet-url") {
-					return line
-				}
-			}
-			t.Fatal("ServiceInstall Arguments line not found in template output")
-			return ""
-		}
-		assert.Contains(t, argsLine(render(t, windowsWixTemplate, true)), "--bypass-end-user-auth")
-		assert.NotContains(t, argsLine(render(t, windowsWixTemplate, false)), "--bypass-end-user-auth")
+	t.Run("windows msi service environment", func(t *testing.T) {
+		opt := baseOpt
+		opt.BypassEndUserAuth = true
+		assert.Contains(t, windowsServiceEnvironment(t, opt), "ORBIT_BYPASS_END_USER_AUTH=true")
+		opt.BypassEndUserAuth = false
+		assert.NotContains(t, windowsServiceEnvironment(t, opt), "ORBIT_BYPASS_END_USER_AUTH=true")
 	})
 
 	// Guard the deliberate macOS exclusion: the flag must never leak into the launchd plist.

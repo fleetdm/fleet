@@ -1,9 +1,8 @@
 import React, { useMemo } from "react";
 
-import { IGetConfigProfileStatusResponse } from "services/entities/config_profiles";
-
-import TableContainer from "components/TableContainer";
 import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
+import { IGetConfigProfileStatusResponse } from "services/entities/config_profiles";
 
 import {
   generateTableConfig,
