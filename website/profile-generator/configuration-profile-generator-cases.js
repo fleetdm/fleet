@@ -847,7 +847,7 @@ const TEST_CASES = [
   // Apple preference domains with no payload manifest, so not in the provided schema and answered
   // from recall.  The domain casing is the trap: com.apple.Safari, not com.apple.safari.
   // 2026-10-01: eashaw: I commented out the four cases below because they rely on settings not included in the schema we are currently sending the LLM.
-  // FUTURE: uncomment these cases and update regenerate-apple-profile-schema to add settings documeneted in the usnistgov/macos_security GitHub repo.
+  // FUTURE: uncomment these cases and update regenerate-apple-profile-schemas to add settings documented in the usnistgov/macos_security GitHub repo.
   // {
   //   id: 'mobileconfig-cis-bonjour-advertising',
   //   profileType: 'mobileconfig',
