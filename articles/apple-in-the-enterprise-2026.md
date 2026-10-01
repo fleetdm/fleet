@@ -19,7 +19,7 @@ Fleet surveyed more than 250 enterprise IT practitioners who manage Apple device
 
 "AI can help push changes out in seconds, while a mistake can drain hours of valuable IT time and resources," said Allen Houchins, CIO, Fleet. "Automating work with AI isn't inherently bad, but human accountability and judgment is still critical. Teams need a clear record of what changed and a fast way to undo it when something goes wrong. Speed is only an advantage if the pace of recovery matches."
 
-The report recommends moving device configuration into code. Some teams already work this way: 28% keep a human in the loop and route AI-generated changes through version control. When configuration lives in files, every AI-written profile arrives as a diff, the review teams already do becomes a pull request, and rollback becomes a single revert.
+The report recommends moving device configuration into code. Some teams already work this way: 28% keep a human in the loop and route AI-generated changes through version control. When configuration lives in files, every AI-written profile arrives as a diff, the review that teams already do becomes a pull request, and rollback becomes a single revert.
 
 ## Read the report
 
