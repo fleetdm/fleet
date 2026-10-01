@@ -3542,7 +3542,7 @@ func LinkWindowsHostMDMEnrollment(
 	}
 	device.HostUUID = hostUUID // in case the read was stale due to replication lag
 	// fleetd reporting this enrollment from the device means it enrolled without the secret minted for Fleet's fleetd install, which
-	// the installer command line left readable on the device. Linking happens once, so a secret an administrator resends survives.
+	// the installer command line left readable on the device. We delete/invalidate it.
 	if fleetdOnDevice {
 		if err := ds.DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx, device.ID); err != nil {
 			logger.ErrorContext(ctx, "failed to delete unused windows one-time enroll secrets", "err", err, "host_id", hostID)

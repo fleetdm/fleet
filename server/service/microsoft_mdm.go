@@ -1830,10 +1830,12 @@ scan:
 		}
 		return false
 	}
-	// The serial arrives in the device's own DevDetail response and nothing corroborates it,
-	// so it must not be able to take over a host that already belongs to different hardware.
-	conflicted, conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(
-		ctx, host.UUID, enrolledDevice.MDMHardwareID)
+	// The serial arrives in the device's own DevDetail response and nothing corroborates it, so it must not be able to
+	// take over a host that already belongs to different hardware. Refusing here costs the device nothing: the fleetd
+	// installer is enqueued by MDM device ID, so an unlinked enrollment still receives it, and osquery's
+	// directIngestMDMDeviceIDWindows backstop then links this enrollment to whichever host actually reports this MDM
+	// device ID.
+	conflicted, conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, enrolledDevice.MDMHardwareID)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "windows mdm: conflicting enrollment lookup failed",
 			"err", err, "device_id", enrolledDevice.MDMDeviceID)
@@ -1894,10 +1896,9 @@ func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, en
 	return updated
 }
 
-// releaseUnusedFleetdInstallSecret deletes the unused secret minted for Fleet's fleetd install when an MDM session links a
-// user-driven enrollment to a host whose fleetd is already running: fleetd enrolled without that secret, which the installer
-// command line left readable on the device. A host whose last check-in predates the enrollment, such as a re-imaged device's old
-// record, keeps it for the install still to come.
+// releaseUnusedFleetdInstallSecret deletes the unused secret minted for Fleet's fleetd install when an MDM session links
+// a user-driven enrollment to a host whose fleetd is already running: fleetd enrolled without that secret. A host whose
+// last check-in predates the enrollment, such as a re-imaged device's old record, keeps it for the install still to come.
 func (svc *Service) releaseUnusedFleetdInstallSecret(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) {
 	if !svc.config.MDM.WindowsOneTimeEnrollSecrets || !microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID) {
 		return
