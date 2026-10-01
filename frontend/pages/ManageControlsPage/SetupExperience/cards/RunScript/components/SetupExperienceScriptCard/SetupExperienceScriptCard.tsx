@@ -1,17 +1,15 @@
-import React from "react";
 import FileSaver from "file-saver";
-
-import mdmAPI, {
-  IGetSetupExperienceScriptResponse,
-} from "services/entities/mdm";
-
-import { uploadedFromNow } from "utilities/date_format";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import Graphic from "components/Graphic";
 import { notify } from "components/ToastNotification";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import mdmAPI, {
+  IGetSetupExperienceScriptResponse,
+} from "services/entities/mdm";
+import { uploadedFromNow } from "utilities/date_format";
 
 const baseClass = "setup-experience-script-card";
 

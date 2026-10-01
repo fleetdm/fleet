@@ -1,22 +1,14 @@
-import React, { FormEvent, useState } from "react";
-import { size } from "lodash";
-
-import { IResetPasswordForm, IResetPasswordFormErrors } from "interfaces/user";
+import React from "react";
 
 import Button from "components/buttons/Button";
-// @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-import validatePresence from "components/forms/validators/validate_presence";
 import validatePassword from "components/forms/validators/valid_password";
 import validateEquality from "components/forms/validators/validate_equality";
+import validatePresence from "components/forms/validators/validate_presence";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import { IResetPasswordForm } from "interfaces/user";
 
 const baseClass = "reset-password-form";
-
-// Response created by utilities/format_error_response
-export interface IOldApiError {
-  http_status: number;
-  base: string;
-}
 
 export interface IFormData {
   new_password: string;
@@ -24,103 +16,102 @@ export interface IFormData {
 }
 
 interface IResetPasswordFormProps {
-  serverErrors: IOldApiError;
-  handleSubmit: (formData: IFormData) => void;
+  handleSubmit: (formData: IFormData) => void | Promise<unknown>;
 }
+
+const PASSWORD_ERRORS: Record<string, string> = {
+  too_short: "Enter a password with at least 12 characters",
+  too_long: "Enter a password with 48 characters or fewer",
+  invalid_format: "Enter a password with at least 1 number and 1 symbol",
+};
+
+const validate = (formData: IFormData): IFormErrors => {
+  const errors: IFormErrors = {};
+  const {
+    new_password: newPassword,
+    new_password_confirmation: newPasswordConfirmation,
+  } = formData;
+
+  if (!validatePresence(newPassword)) {
+    errors.new_password = "Enter a new password";
+  } else {
+    const { error_code: errorCode, error } = validatePassword(newPassword);
+    if (errorCode) {
+      errors.new_password = PASSWORD_ERRORS[errorCode] || error;
+    }
+  }
+
+  if (!validatePresence(newPasswordConfirmation)) {
+    errors.new_password_confirmation = "Confirm your new password";
+  } else if (
+    newPassword &&
+    !validateEquality(newPassword, newPasswordConfirmation)
+  ) {
+    errors.new_password_confirmation = "Match the password above";
+  }
+
+  return errors;
+};
+
 const ResetPasswordForm = ({
-  serverErrors,
   handleSubmit,
 }: IResetPasswordFormProps): JSX.Element => {
-  const [errors, setErrors] = useState<IResetPasswordFormErrors>({});
-  const [formData, setFormData] = useState<IResetPasswordForm>({
-    new_password: "",
-    new_password_confirmation: "",
+  const {
+    formData,
+    setField,
+    getError,
+    clearFieldError,
+    validateField,
+    handleSubmit: onSubmit,
+    isSubmitting,
+  } = useFormValidation<IResetPasswordForm>({
+    initialFormData: {
+      new_password: "",
+      new_password_confirmation: "",
+    },
+    validate,
+    skipTrim: ["new_password", "new_password_confirmation"],
   });
 
-  const validate = (): boolean => {
-    const {
-      new_password: newPassword,
-      new_password_confirmation: newPasswordConfirmation,
-    } = formData;
-
-    const noMatch =
-      newPassword &&
-      newPasswordConfirmation &&
-      !validateEquality(newPassword, newPasswordConfirmation);
-
-    const validationErrors: { [key: string]: string } = {};
-
-    const { isValid, error } = validatePassword(newPassword);
-    if (!isValid) {
-      validationErrors.new_password = error;
-    }
-
-    if (!validatePresence(newPasswordConfirmation)) {
-      validationErrors.new_password_confirmation =
-        "New password confirmation field must be completed";
-    }
-
-    if (!validatePresence(newPassword)) {
-      validationErrors.new_password = "New password field must be completed";
-    }
-
-    if (noMatch) {
-      validationErrors.new_password_confirmation = "Passwords do not match";
-    }
-
-    setErrors(validationErrors);
-    const valid = !size(validationErrors);
-    return valid;
-  };
-
-  const onFormSubmit = (evt: FormEvent): void => {
-    evt.preventDefault();
-    const valid = validate();
-
-    if (valid) {
-      handleSubmit(formData);
-    }
-  };
-
-  const onInputChange = (formField: string): ((value: string) => void) => {
-    return (value: string) => {
-      setErrors({});
-      setFormData({
-        ...formData,
-        [formField]: value,
-      });
-    };
-  };
-
   return (
-    <form className={baseClass}>
-      {serverErrors?.base && (
-        <div className="form__base-error">{serverErrors.base}</div>
-      )}
+    <form className={baseClass} onSubmit={onSubmit(handleSubmit)}>
       <InputFieldWithIcon
-        error={errors.new_password}
+        error={getError("new_password")}
         autofocus
+        name="new_password"
         label="New password"
         placeholder="New password"
-        onChange={onInputChange("new_password")}
-        value={formData.new_password || ""}
+        onChange={(value) => setField("new_password", value)}
+        onFocus={() => clearFieldError("new_password")}
+        onBlur={() => validateField("new_password")}
+        value={formData.new_password}
         className={`${baseClass}__input`}
         type="password"
         helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
         ignore1Password={false}
+        disabled={isSubmitting}
       />
       <InputFieldWithIcon
-        error={errors.new_password_confirmation}
+        error={getError("new_password_confirmation")}
+        name="new_password_confirmation"
         label="Confirm password"
         placeholder="Confirm password"
-        onChange={onInputChange("new_password_confirmation")}
-        value={formData.new_password_confirmation || ""}
+        onChange={(value) => setField("new_password_confirmation", value)}
+        onFocus={() => clearFieldError("new_password_confirmation")}
+        onBlur={() => validateField("new_password_confirmation")}
+        value={formData.new_password_confirmation}
         className={`${baseClass}__input`}
         type="password"
         ignore1Password={false}
+        disabled={isSubmitting}
       />
       <div className="button-wrap--center">
-        <Button type="submit" onClick={onFormSubmit} size="wide">
+        <Button
+          type="submit"
+          size="wide"
+          isLoading={isSubmitting}
+          disabled={isSubmitting}
+        >
           Reset password
         </Button>
       </div>

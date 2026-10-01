@@ -3012,6 +3012,42 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NotNil(t, titleResult.AutoUpdateEndTime)
 	require.Equal(t, endTime, *titleResult.AutoUpdateEndTime)
 
+	// ListSoftwareTitles must populate the same fields via its JOIN.
+	listTitles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		TeamID: teamID,
+	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	require.NoError(t, err)
+	listed := titleByName(listTitles, "vpp1")
+	require.NotNil(t, listed.AutoUpdateEnabled)
+	require.True(t, *listed.AutoUpdateEnabled)
+	require.NotNil(t, listed.AutoUpdateStartTime)
+	require.Equal(t, startTime, *listed.AutoUpdateStartTime)
+	require.NotNil(t, listed.AutoUpdateEndTime)
+	require.Equal(t, endTime, *listed.AutoUpdateEndTime)
+	// A title with no schedule should marshal all three as nil. NotZero
+	// guards against titleByName returning a zero-value struct on rename.
+	unscheduled := titleByName(listTitles, "vpp3")
+	require.NotZero(t, unscheduled.ID, "vpp3 fixture must be present in list results")
+	require.Nil(t, unscheduled.AutoUpdateEnabled)
+	require.Nil(t, unscheduled.AutoUpdateStartTime)
+	require.Nil(t, unscheduled.AutoUpdateEndTime)
+
+	// Non-hosts_count order forces the templated fallback query, which has
+	// its own copy of the JOIN.
+	listTitlesByName, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		TeamID:      teamID,
+		ListOptions: fleet.ListOptions{OrderKey: "name"},
+	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	require.NoError(t, err)
+	listedByName := titleByName(listTitlesByName, "vpp1")
+	require.NotZero(t, listedByName.ID, "vpp1 fixture must be present in name-ordered results")
+	require.NotNil(t, listedByName.AutoUpdateEnabled)
+	require.True(t, *listedByName.AutoUpdateEnabled)
+	require.NotNil(t, listedByName.AutoUpdateStartTime)
+	require.Equal(t, startTime, *listedByName.AutoUpdateStartTime)
+	require.NotNil(t, listedByName.AutoUpdateEndTime)
+	require.Equal(t, endTime, *listedByName.AutoUpdateEndTime)
+
 	// Add valid, disabled auto-update schedule for the other VPP app.
 	// The schedule should be ignored since it's disabled, but it should still be created.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title2ID, *teamID, fleet.SoftwareAutoUpdateConfig{
@@ -3166,7 +3202,7 @@ func testGetFleetMaintainedVersionsOrder(t *testing.T, ds *Datastore) {
 				Version:              c.published[0],
 				UserID:               user.ID,
 				ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-				FleetMaintainedAppID: new(app.ID),
+				FleetMaintainedAppID: &app.ID,
 			})
 			require.NoError(t, err)
 
@@ -3213,7 +3249,7 @@ func testMarkFleetMaintainedAppVersionCurrent(t *testing.T, ds *Datastore) {
 		Title: "Marked", Source: "apps", Platform: "darwin",
 		InstallScript: "echo install", UninstallScript: "echo uninstall",
 		InstallerFile: tfr, StorageID: "marked-storage-1", Filename: "marked-1.pkg", Version: "1.0",
-		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: new(app.ID),
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: &app.ID,
 	})
 	require.NoError(t, err)
 	newerID, err := ds.InsertFleetMaintainedAppVersion(ctx, olderID, &fleet.UploadSoftwareInstallerPayload{

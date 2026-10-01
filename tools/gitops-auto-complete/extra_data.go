@@ -40,7 +40,7 @@ var pathReferenceDefinitions = []string{
 }
 
 var pathsReferenceDefinitions = []string{
-	"GitOpsPolicySpec", "LabelSpec",
+	"GitOpsPolicySpec", "LabelSpec", "TeamSpecAppStoreApp", "MaintainedAppSpec",
 }
 
 // requiredKeyRule gates a $def: an item is valid if it has all the keys of any one of
@@ -65,14 +65,22 @@ var requiredKeys = []requiredKeyRule{
 		},
 	},
 	{
-		definition:           "TeamSpecAppStoreApp",
-		message:              "An app_store_apps entry must set app_store_id.",
-		validKeyCombinations: [][]string{{"app_store_id"}},
+		definition: "TeamSpecAppStoreApp",
+		message:    "An app_store_apps entry must set app_store_id (or reference a file with path/paths).",
+		validKeyCombinations: [][]string{
+			{"app_store_id"},
+			{"path"},
+			{"paths"},
+		},
 	},
 	{
-		definition:           "MaintainedAppSpec",
-		message:              "A fleet_maintained_apps entry must set slug.",
-		validKeyCombinations: [][]string{{"slug"}},
+		definition: "MaintainedAppSpec",
+		message:    "A fleet_maintained_apps entry must set slug (or reference a file with path/paths).",
+		validKeyCombinations: [][]string{
+			{"slug"},
+			{"path"},
+			{"paths"},
+		},
 	},
 	{
 		definition: "LabelSpec",

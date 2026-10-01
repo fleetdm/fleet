@@ -1,5 +1,6 @@
-import { IHost } from "interfaces/host";
 import { map } from "lodash";
+
+import { IHost } from "interfaces/host";
 
 export const parseEntityFunc = (host: IHost) => {
   let hostCpuOutput = null;

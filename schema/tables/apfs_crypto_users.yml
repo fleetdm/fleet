@@ -1,0 +1,38 @@
+name: apfs_crypto_users
+platforms:
+  - darwin
+description: |-
+  APFS cryptographic users for each APFS container, from the `diskutil apfs listCryptoUsers -plist <device>` command.
+  Cryptographic users include local user accounts that hold a Secure Token, the personal recovery key, and the MDM bootstrap token.
+  The `volume_owner` column reports whether each cryptographic user is an APFS volume owner. A host where no `LocalOpenDirectory` user is a volume owner has a user who cannot authorize macOS updates.
+examples: |-
+  Find hosts where no local user account owns the APFS volume (e.g. a delayed first-login flow left the user without a Secure Token). Scope this as a policy to macOS hosts; hosts that return no rows fail the policy.
+
+  ```
+  SELECT 1 FROM apfs_crypto_users WHERE type = 'LocalOpenDirectory' AND volume_owner = 1;
+  ```
+columns:
+  - name: device_identifier
+    type: text
+    required: false
+    description: The device identifier of the Data volume (e.g. "disk3s5"). Joins to `apfs_volumes.device_identifier`.
+  - name: volume_uuid
+    type: text
+    required: false
+    description: The UUID of the APFS volume.
+  - name: crypto_user_uuid
+    type: text
+    required: false
+    description: The UUID of the cryptographic user.
+  - name: type
+    type: text
+    required: false
+    description: |-
+      The type of cryptographic user, e.g. "LocalOpenDirectory" (a local user account with a Secure Token),
+      "PersonalRecovery" (the personal recovery key), or "MDMRecovery" (the MDM bootstrap token).
+  - name: volume_owner
+    type: integer
+    required: false
+    description: Whether this cryptographic user is an APFS volume owner (1) or not (0).
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+evented: false

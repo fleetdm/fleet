@@ -1,0 +1,2 @@
+- Fixed "Clear all" in the Vulnerability exposure chart settings on the dashboard clearing filters on both the Hosts and Software tabs. It now clears only the tab you are on, and appears only when that tab has active filters.
+- Fixed hosts picked under "Exclude hosts" after clicking "Clear all" in the Vulnerability exposure chart settings being ignored when the filters were applied.

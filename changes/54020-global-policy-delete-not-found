@@ -1,0 +1,1 @@
+- Fixed `POST /api/v1/fleet/global/policies/delete` returning a 500 "forbidden" error for a nonexistent policy ID (now 404) or an empty `ids` list (now a no-op).

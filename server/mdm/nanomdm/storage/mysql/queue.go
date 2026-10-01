@@ -63,8 +63,9 @@ func enqueue(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *mdm.Com
 func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.CommandWithSubtype) (map[string]error,
 	error,
 ) {
-	// We need to retry because this transaction may deadlock with updates to nano_enrollment.last_seen_at
-	// Deadlock seen in 2024/12/12 loadtest: https://docs.google.com/document/d/1-Q6qFTd7CDm-lh7MVRgpNlNNJijk6JZ4KO49R1fp80U
+	// Retry for lock-wait resilience among concurrent enqueue transactions. (Seen-time updates no
+	// longer touch nano_enrollments — they go to nano_seen_times — so the historical deadlock with
+	// last_seen_at updates is gone: https://docs.google.com/document/d/1-Q6qFTd7CDm-lh7MVRgpNlNNJijk6JZ4KO49R1fp80U)
 	err := common_mysql.WithRetryTxx(ctx, sqlx.NewDb(m.db, ""), func(tx sqlx.ExtContext) error {
 		return enqueue(ctx, tx, ids, cmd)
 	}, m.logger)

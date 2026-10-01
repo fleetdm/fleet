@@ -1,25 +1,18 @@
-import React, { useContext, useEffect, useState, useMemo } from "react";
-import { useQuery } from "react-query";
 import { format, parseISO } from "date-fns";
 import { isEqual } from "lodash";
+import React, { useContext, useEffect, useState, useMemo } from "react";
+import { useQuery } from "react-query";
 import { SingleValue } from "react-select-5";
 
-import chartsAPI, {
-  IChartResponse,
-  IChartApiParams,
-  IChartQueryKey,
-} from "services/entities/charts";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
 import { severityFilters } from "components/SeverityFilter";
-
+import Spinner from "components/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
 import {
   IDataSet,
   IFormattedDataPoint,
@@ -29,24 +22,29 @@ import {
   ALL_CVE_SOFTWARE_CATEGORY_VALUES,
   IVulnExposureFilterDefaults,
 } from "interfaces/charts";
-
-import { AppContext } from "context/app";
+import chartsAPI, {
+  IChartResponse,
+  IChartApiParams,
+  IChartQueryKey,
+} from "services/entities/charts";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import ChartFilterModal, {
   IChartFilterState,
   ChartFilterTab,
 } from "./ChartFilterModal";
+import CheckerboardViz from "./CheckerboardViz";
+import DataCollectionDisabledState from "./DataCollectionDisabledState";
 import {
   buildInitialChartFilters,
   hasActiveHostFilters,
   hasActiveSoftwareFilters,
   hostFilterLines,
+  severityDefaultSentence,
   severitySelection,
   softwareFilterLines,
 } from "./helpers";
 import LineChartViz from "./LineChartViz";
-import CheckerboardViz from "./CheckerboardViz";
-import DataCollectionDisabledState from "./DataCollectionDisabledState";
 
 const baseClass = "chart-card";
 
@@ -85,6 +83,9 @@ const filterTooltip = (
 interface IChartCardProps {
   currentTeamId?: number;
   historicalDataEnabled?: Record<HistoricalDataConfigKey, boolean>;
+  // Org-level historical_data settings only, needed to decide who can turn
+  // collection back on when the effective (AND'd) value is disabled.
+  historicalDataGloballyEnabled?: Record<HistoricalDataConfigKey, boolean>;
   // GitOps-managed default filter state for the current scope (org or fleet).
   // Seeds the chart's filter controls on load; UI edits are not persisted.
   filterDefaults?: IVulnExposureFilterDefaults;
@@ -93,6 +94,7 @@ interface IChartCardProps {
 const ChartCard = ({
   currentTeamId,
   historicalDataEnabled,
+  historicalDataGloballyEnabled,
   filterDefaults,
 }: IChartCardProps): JSX.Element => {
   const [selectedMetric, setSelectedMetric] = useState("uptime");
@@ -147,6 +149,7 @@ const ChartCard = ({
     DATASETS.find((ds) => ds.name === name) || DATASETS[0];
 
   if (isPremiumTier) {
+    const severityDefault = severityDefaultSentence(initialChartFilters);
     DATASETS.push({
       name: "cve",
       label: "Vulnerability exposure",
@@ -155,9 +158,13 @@ const ChartCard = ({
         <>
           The number of hosts with at least one vulnerability matching the
           chart&apos;s filters.
-          <br />
-          <br />
-          Severity is filtered to critical by default.
+          {severityDefault && (
+            <>
+              <br />
+              <br />
+              {severityDefault}
+            </>
+          )}
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>
@@ -295,6 +302,9 @@ const ChartCard = ({
       return (
         <DataCollectionDisabledState
           datasetLabel={DATASET_LABEL[datasetConfigKey]}
+          globallyEnabled={
+            historicalDataGloballyEnabled?.[datasetConfigKey] ?? true
+          }
           currentTeamId={currentTeamId}
         />
       );

@@ -274,7 +274,6 @@ INSERT INTO nano_enrollments (
       push_magic,
       token_hex,
       enabled,
-      last_seen_at,
       enrolled_from_migration,
       token_update_tally,
       updated_at
@@ -288,7 +287,6 @@ SELECT
       '%s',
       '%s',
       %t,
-      CURRENT_TIMESTAMP,
       1,
       1,
       '%s'
@@ -307,7 +305,6 @@ UPDATE
     push_magic = VALUES(push_magic),
     token_hex = VALUES(token_hex),
     enabled = VALUES(enabled),
-    last_seen_at = CURRENT_TIMESTAMP,
     token_update_tally = nano_enrollments.token_update_tally + 1;`,
 				device.UDID,
 				device.UDID,
@@ -316,6 +313,25 @@ UPDATE
 				hex.EncodeToString(tokenUpdate.Token),
 				device.Enrolled,
 				referenceTime,
+				device.UDID,
+				referenceTime,
+			))
+
+			// Seed the seen time so freshly migrated devices don't read as never-seen until their
+			// first check-in. Same guard as the enrollment statement above so a device touched
+			// after the migration reference time is left alone.
+			sb.WriteString(fmt.Sprintf(`
+INSERT INTO nano_seen_times (id, seen_time)
+SELECT '%s', CURRENT_TIMESTAMP
+WHERE
+    NOT EXISTS (
+        SELECT 1 FROM nano_enrollments
+        WHERE id = '%s' AND updated_at != '%s'
+    )
+ON DUPLICATE KEY
+UPDATE
+    seen_time = CURRENT_TIMESTAMP;`,
+				device.UDID,
 				device.UDID,
 				referenceTime,
 			))

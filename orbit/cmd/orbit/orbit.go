@@ -27,6 +27,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	fleetclient "github.com/fleetdm/fleet/v4/client"
@@ -329,8 +330,26 @@ func readEnrollSecretFromFile(enrollSecretPath string, ks enrollSecretKeystore, 
 	if secret == "" {
 		return nil
 	}
-	if err = setSecret(secret); err != nil {
-		return fmt.Errorf("set enroll secret from file: %w", err)
+	return loadEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
+		deleteSecretPathIfExists(enrollSecretPath)
+	})
+}
+
+// loadEnrollSecret sets secret as the active enroll secret and syncs it into the keystore, adding it when the keystore holds
+// none and updating it when it holds a different one. The update branch is what lets a freshly delivered secret supersede a
+// stored one.
+//
+// onDelivered is called once the secret is safely in the keystore, to discard the copy it arrived in: the file for a
+// package-delivered secret, the registry value for an MDM-delivered one.
+func loadEnrollSecret(
+	secret string,
+	ks enrollSecretKeystore,
+	disableKeystore bool,
+	setSecret func(string) error,
+	onDelivered func(),
+) error {
+	if err := setSecret(secret); err != nil {
+		return fmt.Errorf("set enroll secret: %w", err)
 	}
 	if !ks.Supported() || disableKeystore {
 		return nil
@@ -352,7 +371,7 @@ func readEnrollSecretFromFile(enrollSecretPath string, ks enrollSecretKeystore, 
 				log.Warn().Msgf("enroll secret was not saved correctly in %v", ks.Name())
 			} else {
 				log.Info().Msgf("added enroll secret to keystore: %v", ks.Name())
-				deleteSecretPathIfExists(enrollSecretPath)
+				onDelivered()
 			}
 		}
 	} else if secretFromKeystore != secret {
@@ -368,12 +387,111 @@ func readEnrollSecretFromFile(enrollSecretPath string, ks enrollSecretKeystore, 
 				log.Warn().Msgf("enroll secret was not updated correctly in %v", ks.Name())
 			} else {
 				log.Info().Msgf("updated enroll secret in keystore: %v", ks.Name())
-				deleteSecretPathIfExists(enrollSecretPath)
+				onDelivered()
 			}
 		}
 	} else {
-		// Keystore secret found, and it matches the secret from the file.
-		deleteSecretPathIfExists(enrollSecretPath)
+		// Keystore secret found, and it matches the delivered secret.
+		onDelivered()
+	}
+	return nil
+}
+
+// loadDeliveredEnrollSecret takes the delivery channel as functions so tests can exercise it without reading or clearing the
+// host's real enroll secret.
+func loadDeliveredEnrollSecret(
+	readDelivered func() (string, error),
+	clearDelivered func() error,
+	enrollSecretPath string,
+	ks enrollSecretKeystore,
+	disableKeystore bool,
+	setSecret func(string) error,
+) (bool, error) {
+	secret, err := readDelivered()
+	switch {
+	case errors.Is(err, profiles.ErrEnrollSecretNotFound), errors.Is(err, profiles.ErrNotImplemented):
+		return false, nil
+	case err != nil:
+		return false, fmt.Errorf("read MDM-delivered enroll secret: %w", err)
+	}
+
+	log.Info().Msg("found an enroll secret delivered by Fleet MDM")
+	if !ks.Supported() || disableKeystore {
+		return true, moveDeliveredEnrollSecretToFile(secret, clearDelivered, enrollSecretPath, setSecret)
+	}
+	if err := loadEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
+		if err := clearDelivered(); err != nil {
+			// Not fatal: the secret is already in the keystore, so orbit can enroll.
+			log.Warn().Err(err).Msg("failed to clear the MDM-delivered enroll secret")
+		}
+		if enrollSecretPath != "" {
+			deleteSecretPathIfExists(enrollSecretPath)
+		}
+	}); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// throttledMDMSync returns a function that asks the device to check in with its MDM server, at most once per interval and in the
+// background. orbit calls it when the server rejects the enroll secret it has, so only a secret Fleet MDM delivers can help. With
+// orbit's node key rejected the server cannot ask the device to check in, so without this a resent profile waits for the device's
+// own MDM poll, which can be hours away.
+func throttledMDMSync(interval time.Duration, enrolledInMDM func() bool, triggerSync func() error) func() {
+	var (
+		mu   sync.Mutex
+		last time.Time
+	)
+	return func() {
+		mu.Lock()
+		defer mu.Unlock()
+		if !last.IsZero() && time.Since(last) < interval {
+			return
+		}
+		if !enrolledInMDM() {
+			return
+		}
+		last = time.Now()
+		go func() {
+			if err := triggerSync(); err != nil {
+				log.Debug().Err(err).Msg("failed to trigger an MDM sync while waiting for an enroll secret")
+			}
+		}()
+	}
+}
+
+// moveDeliveredEnrollSecretToFile is loadDeliveredEnrollSecret without a keystore. The enroll secret file is then where the secret
+// lives across restarts, so the delivered value moves there and the delivered copy is cleared.
+func moveDeliveredEnrollSecretToFile(secret string, clearDelivered func() error, enrollSecretPath string, setSecret func(string) error) error {
+	if err := setSecret(secret); err != nil {
+		return fmt.Errorf("set enroll secret: %w", err)
+	}
+	if enrollSecretPath == "" {
+		return nil
+	}
+	if err := writeRestrictedFile(enrollSecretPath, secret); err != nil {
+		// Not fatal: the secret is active, and the delivered copy is kept so the next start still has it.
+		log.Warn().Err(err).Msg("failed to move the MDM-delivered enroll secret into the enroll secret file")
+		return nil
+	}
+	if err := clearDelivered(); err != nil {
+		log.Warn().Err(err).Msg("failed to clear the MDM-delivered enroll secret")
+	}
+	return nil
+}
+
+// writeRestrictedFile restricts the file before writing to it, so the contents are never on disk with inherited permissions.
+func writeRestrictedFile(path, contents string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, constant.DefaultFileMode)
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+	defer f.Close()
+	if err := platform.ChmodRestrictFile(path); err != nil {
+		return fmt.Errorf("restrict: %w", err)
+	}
+	if _, err := f.WriteString(contents); err != nil {
+		return fmt.Errorf("write: %w", err)
 	}
 	return nil
 }
@@ -470,10 +588,16 @@ func orbitAction(c *cli.Context) error {
 	setEnrollSecret := func(secret string) error { return c.Set("enroll-secret", secret) }
 	disableKeystore := c.Bool("disable-keystore")
 	enrollSecretPath := c.String("enroll-secret-path")
-	if enrollSecretPath != "" {
-		if c.String("enroll-secret") != "" {
-			return errors.New("enroll-secret and enroll-secret-path may not be specified together")
-		}
+
+	// Checked before anything below sets enroll-secret, so it judges only what the caller passed.
+	if enrollSecretPath != "" && c.String("enroll-secret") != "" {
+		return errors.New("enroll-secret and enroll-secret-path may not be specified together")
+	}
+
+	// Windows MDM can deliver a secret out of band, and that takes precedence over anything already stored.
+	loadedMDMSecret := loadMDMSecretIfWaiting(enrollSecretPath, disableKeystore, setEnrollSecret)
+
+	if enrollSecretPath != "" && !loadedMDMSecret {
 		if err := readEnrollSecretFromFile(enrollSecretPath, realKeystore{}, disableKeystore, setEnrollSecret); err != nil {
 			return err
 		}
@@ -1224,6 +1348,11 @@ func orbitAction(c *cli.Context) error {
 		orbitClient.SetEUAToken(euaToken)
 	}
 
+	// Both run only on enroll attempts. They are how a running orbit that has to re-enroll picks up a secret Fleet MDM delivered
+	// after startup.
+	orbitClient.SetEnrollSecretRefresher(mdmEnrollSecretRefresher(enrollSecretPath, disableKeystore))
+	orbitClient.SetOnEnrollRejected(newMDMSync())
+
 	// If the server can't be reached, we want to fail quickly on any blocking network calls
 	// so that desktop can be launched as soon as possible.
 	serverIsReachable := orbitClient.Ping() == nil
@@ -1283,8 +1412,11 @@ func orbitAction(c *cli.Context) error {
 	if serverIsReachable {
 		expired, _ := trw.HasExpired()
 		if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
+			// Not fatal: a stale orbit node key (e.g. host deleted while offline) returns 401 here,
+			// and exiting would restart orbit before the re-enroll grace period elapses. The
+			// periodic rotation below retries once orbit re-enrolls.
 			if err := trw.Rotate(); err != nil {
-				return fmt.Errorf("rotating token: %w", err)
+				log.Error().Err(err).Msg("rotating token on startup")
 			}
 		}
 	}
@@ -1319,6 +1451,9 @@ func orbitAction(c *cli.Context) error {
 		defer comWorker.Close()
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
 			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
+		if c.Bool("fleet-desktop") {
+			registerFleetDesktopAppID(c.String("root-dir"))
+		}
 		orbitClient.RegisterConfigReceiver(managedaccount.New(orbitClient, windowsManagedAccountRetryFrequency))
 	case "linux":
 		orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
@@ -1361,10 +1496,12 @@ func orbitAction(c *cli.Context) error {
 		}, updateRunner, orbitClient.TriggerOrbitRestart)
 
 		// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
-		_, err := updateRunner.UpdateAction()
-		if err != nil {
-			// OK, initial call may fail, ok to continue
-			logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial extensions update action failed")
+		if updateRunner != nil {
+			_, err := updateRunner.UpdateAction()
+			if err != nil {
+				// OK, initial call may fail, ok to continue
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial extensions update action failed")
+			}
 		}
 
 		extensionAutoLoadFile := filepath.Join(c.String("root-dir"), "extensions.load")

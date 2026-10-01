@@ -1,12 +1,11 @@
 import React, { useContext } from "react";
 
-import { AppContext } from "context/app";
-import { syntaxHighlight } from "utilities/helpers";
-import { ISoftwareVulnerability } from "interfaces/software";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import Modal from "components/Modal";
+import { AppContext } from "context/app";
+import { ISoftwareVulnerability } from "interfaces/software";
+import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "preview-data-modal";
 
@@ -75,24 +74,22 @@ const PreviewPayloadModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <div className={`${baseClass}__preview-modal`}>
-        <p>
-          Want to learn more about how automations in Fleet work?{" "}
-          <CustomLink
-            url="https://fleetdm.com/docs/using-fleet/automations"
-            text="Check out the Fleet documentation"
-            newTab
-          />
-        </p>
-        <div className={`${baseClass}__payload-request-preview`}>
-          <pre>POST https://server.com/example</pre>
-        </div>
-        <div className={`${baseClass}__payload-webhook-preview`}>
-          <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
-        </div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Close</Button>
-        </div>
+      <p>
+        Want to learn more about how automations in Fleet work?{" "}
+        <CustomLink
+          url="https://fleetdm.com/docs/using-fleet/automations"
+          text="Check out the Fleet documentation"
+          newTab
+        />
+      </p>
+      <div className={`${baseClass}__payload-request-preview`}>
+        <pre>POST https://server.com/example</pre>
+      </div>
+      <div className={`${baseClass}__payload-webhook-preview`}>
+        <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
+      </div>
+      <div className="modal-cta-wrap">
+        <Button onClick={onCancel}>Close</Button>
       </div>
     </Modal>
   );

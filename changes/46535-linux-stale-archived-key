@@ -1,0 +1,1 @@
+- Fixed Fleet offering a Linux host's previous disk encryption key after detecting that the escrowed LUKS key slot was removed. `GET /api/v1/fleet/hosts/:id/encryption_key` no longer falls back to the archived key for Linux hosts, and the host details page only offers the key while disk encryption is "Verified".

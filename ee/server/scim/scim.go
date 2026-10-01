@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
+	fleetotel "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -225,7 +226,7 @@ func RegisterSCIM(
 					Required: false,
 				},
 			},
-			Handler: NewUserHandler(ds, svc.NewActivity, scimLogger),
+			Handler: newSanitizedResourceHandler(NewUserHandler(ds, svc.NewActivity, scimLogger), scimLogger),
 		},
 		{
 			ID:          optional.NewString("Group"),
@@ -233,7 +234,7 @@ func RegisterSCIM(
 			Endpoint:    "/Groups",
 			Description: optional.NewString("Group"),
 			Schema:      groupSchema,
-			Handler:     NewGroupHandler(ds, scimLogger),
+			Handler:     newSanitizedResourceHandler(NewGroupHandler(ds, scimLogger), scimLogger),
 		},
 	}
 
@@ -349,7 +350,7 @@ func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig
 
 		// Create the instrumented handler with the proper route
 		instrumentedHandler := otelhttp.NewHandler(
-			otelhttp.WithRouteTag(route, next),
+			fleetotel.WithRouteTag(route, next),
 			"", // Empty operation name - will be set by span name formatter
 			otelhttp.WithSpanNameFormatter(func(operation string, req *http.Request) string {
 				return req.Method + " " + route
@@ -443,6 +444,8 @@ func GoogleWorkspaceExclusionMiddleware(ds fleet.Datastore, logger *slog.Logger,
 // These details can be used as a debug tool by the Fleet admin to see if SCIM integration is working.
 func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, detailHolder := withScimDetail(r.Context())
+		r = r.WithContext(ctx)
 		multi := newMultiResponseWriter(w)
 		next.ServeHTTP(multi, r)
 
@@ -470,12 +473,18 @@ func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Ha
 			return
 		case multi.statusCode >= 400:
 			status = "error"
-			// Attempt to parse the response body as a SCIM error.
-			var parsedScimError scimerrors.ScimError
-			if err := json.Unmarshal(multi.body.Bytes(), &parsedScimError); err == nil {
-				details = parsedScimError.Detail
-			} else {
-				details = multi.body.String()
+			switch {
+			case detailHolder.detail != "":
+				// the client response is generic; the holder still has the real detail
+				details = detailHolder.detail
+			default:
+				// Attempt to parse the response body as a SCIM error.
+				var parsedScimError scimerrors.ScimError
+				if err := json.Unmarshal(multi.body.Bytes(), &parsedScimError); err == nil {
+					details = parsedScimError.Detail
+				} else {
+					details = multi.body.String()
+				}
 			}
 			if multi.statusCode == scimerrors.ScimErrorInvalidValue.Status && details == scimerrors.ScimErrorInvalidValue.Detail &&
 				strings.Contains(r.URL.Path, "/Users") {

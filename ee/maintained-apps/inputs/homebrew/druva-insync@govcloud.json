@@ -1,0 +1,9 @@
+{
+  "name": "Druva inSync (GovCloud)",
+  "unique_identifier": "com.druva.inSyncClient",
+  "token": "druva-insync@govcloud",
+  "installer_format": "dmg",
+  "slug": "druva-insync@govcloud/darwin",
+  "default_categories": ["Productivity"],
+  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/druva-insync@govcloud.json"
+}

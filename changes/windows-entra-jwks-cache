@@ -1,0 +1,1 @@
+- Fixed Windows automatic enrollment (Microsoft Entra ID) re-downloading Microsoft's JWT signing keys and leaking a background refresh goroutine. The keys are now fetched once and refreshed hourly.

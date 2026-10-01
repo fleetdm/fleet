@@ -1,12 +1,12 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 
-import { createMockRouter, renderWithSetup } from "test/test-utils";
-import inviteAPI from "services/entities/invites";
-import usersAPI from "services/entities/users";
-import sessionsAPI from "services/entities/sessions";
 import { IUser } from "interfaces/user";
+import inviteAPI from "services/entities/invites";
+import sessionsAPI from "services/entities/sessions";
+import usersAPI from "services/entities/users";
+import { createMockRouter, renderWithSetup } from "test/test-utils";
 
 import ConfirmSSOInvitePage from "./ConfirmSSOInvitePage";
 

@@ -1,14 +1,14 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { createCustomRenderer, baseUrl } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
 import { SEVERITY_SCORE_RANGE_ERROR } from "components/SeverityFilter";
+import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, baseUrl } from "test/test-utils";
 
-import SoftwareFilters from "./SoftwareFilters";
 import { EPSS_RANGE_HELP, NO_CATEGORIES_MSG } from "./helpers";
+import SoftwareFilters from "./SoftwareFilters";
 
 const emptyVulnsHandler = http.get(baseUrl("/vulnerabilities"), () =>
   HttpResponse.json({

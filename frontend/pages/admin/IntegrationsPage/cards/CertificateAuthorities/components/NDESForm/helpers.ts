@@ -1,6 +1,5 @@
-import { getErrorReason } from "interfaces/errors";
-
 import valid_url from "components/forms/validators/valid_url";
+import { getErrorReason } from "interfaces/errors";
 
 import { INDESFormData } from "./NDESForm";
 

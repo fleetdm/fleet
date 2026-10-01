@@ -884,7 +884,6 @@ func testListAvailableAppsSharedName(t *testing.T, ds *Datastore) {
 }
 
 func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
-
 	ctx := context.Background()
 
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -937,7 +936,7 @@ func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
 		Version:              "1.0",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(maintained3.ID),
+		FleetMaintainedAppID: &maintained3.ID,
 	})
 	require.NoError(t, err)
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -951,7 +950,7 @@ func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
 		Version:              "1.0",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(maintained4.ID),
+		FleetMaintainedAppID: &maintained4.ID,
 	})
 	require.NoError(t, err)
 
@@ -1687,7 +1686,7 @@ func testGetWindowsFMAMatches(t *testing.T, ds *Datastore) {
 		BundleIdentifier:     "com.granola.app",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(darwinApp.ID),
+		FleetMaintainedAppID: &darwinApp.ID,
 	})
 	require.NoError(t, err)
 
@@ -1754,7 +1753,7 @@ func testWindowsFMANameOnIngest(t *testing.T, ds *Datastore) {
 		Version:              "7.373.2",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(maintained.ID),
+		FleetMaintainedAppID: &maintained.ID,
 	})
 	require.NoError(t, err)
 
@@ -2079,7 +2078,7 @@ func testWindowsFMAMultiTeamInstallersShareTitle(t *testing.T, ds *Datastore) {
 		Version:              "1.0.0",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(app.ID),
+		FleetMaintainedAppID: &app.ID,
 	})
 	require.NoError(t, err)
 	require.Equal(t, titleID, teamTitleID, "both teams' installers should share one title")
@@ -2530,7 +2529,7 @@ func addWindowsFMAWithInstaller(t *testing.T, ds *Datastore, userID uint, name, 
 		Version:              "1.0.0",
 		UserID:               userID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(app.ID),
+		FleetMaintainedAppID: &app.ID,
 	})
 	require.NoError(t, err)
 

@@ -1,5 +1,14 @@
 import React from "react";
 
+import { ActivityType } from "interfaces/activity";
+
+/** Detail modals for these types hit premium-only endpoints. */
+export const PREMIUM_ONLY_DETAIL_ACTIVITIES: ReadonlySet<string> = new Set([
+  ActivityType.InstalledSoftware,
+  ActivityType.UninstalledSoftware,
+  ActivityType.InstalledAppStoreApp,
+]);
+
 export const getMdmCommandDisplayName = (
   requestType: string | undefined
 ): string => {

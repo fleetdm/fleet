@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.0.3",
+      "version": "4.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.objective-see.KnockKnock';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.objective-see.KnockKnock' AND version_compare(bundle_short_version, '4.0.3') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.objective-see.KnockKnock');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.objective-see.KnockKnock' AND version_compare(bundle_short_version, '4.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.objective-see.KnockKnock' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/objective-see/KnockKnock/releases/download/v4.0.3/KnockKnock_4.0.3.zip",
+      "installer_url": "https://github.com/objective-see/KnockKnock/releases/download/v4.1.0/KnockKnock_4.1.0.zip",
       "install_script_ref": "357d3c4a",
       "uninstall_script_ref": "d17246f7",
-      "sha256": "1e1371ff6eb62e0866266a0744e90aa3bdc6b22cca0599afbd330ddf52663c69",
+      "sha256": "98eae6cda5a7e122e6c7e68622617c00d6533a909f505f002c93dd90941a3f9e",
       "default_categories": [
         "Productivity"
       ]

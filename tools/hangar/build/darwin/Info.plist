@@ -11,12 +11,15 @@
             <string>fleet-hangar</string>
         <key>CFBundleIdentifier</key>
             <string>com.fleetdm.fleet-hangar</string>
+        <!-- CFBundleVersion and CFBundleShortVersionString below are placeholders:
+             `task package` overwrites both from build/config.yml, and adds
+             FleetHangarGitCommit. Bump the version there, not here. -->
         <key>CFBundleVersion</key>
-            <string>1.0.0</string>
+            <string>1.1.0</string>
         <key>CFBundleGetInfoString</key>
             <string>Desktop control panel for the Fleet dev environment</string>
         <key>CFBundleShortVersionString</key>
-            <string>1.0.0</string>
+            <string>1.1.0</string>
         <key>CFBundleIconFile</key>
             <string>icons</string>
         <key>LSMinimumSystemVersion</key>

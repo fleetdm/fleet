@@ -3,14 +3,32 @@
   align-items: center;
   gap: $pad-small;
 
+  // Render the icon as a flex box rather than inside the tooltip element's
+  // text line box, which would baseline-align it and push it above center.
+  .component__tooltip-wrapper__element {
+    display: flex;
+    align-items: center;
+  }
+
   &__scope-tooltip {
     text-align: center;
-
-    // Render the icon as a flex box rather than inside the tooltip element's
-    // text line box, which would baseline-align it and push it above center.
-    .component__tooltip-wrapper__element {
-      display: flex;
-      align-items: center;
-    }
   }
+
+  /* Fix for the text wrapper to allow shrinking */
+  &__name-tooltip {
+    min-width: 0;
+    flex-shrink: 1;
+    overflow: hidden;
+  }
+
+  /* Prevent icons from being pushed out or shrinking */
+  .component__tooltip-wrapper {
+    flex-shrink: 0;
+  }
+}
+
+/* Ensure the text container inside also allows shrinking */
+.data-table__tooltip-truncated-text-container {
+  min-width: 0;
+  overflow: hidden;
 }

@@ -3,14 +3,16 @@
  * When we need another autocomplete dropdown we should come back and refactor
  * this to be more generic.
  */
+
+import classnames from "classnames";
 import React, { useCallback } from "react";
 import { Async, OnChangeHandler, Option } from "react-select";
-import classnames from "classnames";
 
+import { IDropdownOption } from "interfaces/dropdownOption";
 import authToken from "utilities/auth_token";
 import debounce from "utilities/debounce";
 import permissionUtils from "utilities/permissions";
-import { IDropdownOption } from "interfaces/dropdownOption";
+
 import { ITeam } from "../../../../../../../interfaces/team";
 import { IUser } from "../../../../../../../interfaces/user";
 

@@ -1,0 +1,2 @@
+- Hid the "My device" link on Host details for iOS/iPadOS hosts that aren't enrolled in MDM (Pending or Off) or when Fleet Premium isn't active.
+- Updated `GET /api/v1/fleet/hosts/:id/device_url` to return a 400 error instead of a 500 for iOS/iPadOS hosts that haven't enrolled in MDM yet.

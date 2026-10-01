@@ -1,5 +1,5 @@
-import React from "react";
 import { act, render, waitFor } from "@testing-library/react";
+import React from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 
 import usePickerSearch from "./usePickerSearch";

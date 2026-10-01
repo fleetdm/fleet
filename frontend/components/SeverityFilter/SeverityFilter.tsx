@@ -1,12 +1,11 @@
 import React from "react";
 import { SingleValue } from "react-select-5";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import {
   CUSTOM_SEVERITY_VALUE,

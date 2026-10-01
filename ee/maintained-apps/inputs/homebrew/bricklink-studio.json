@@ -6,5 +6,6 @@
   "slug": "bricklink-studio/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

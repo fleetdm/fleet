@@ -50,6 +50,38 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			errorMsg:    `Couldn't update configuration. "NO_SUCH_VALUE" is not a supported value for "workProfileWidget".`,
 		},
 		{
+			name:        "valid - credentialProviderPolicy only",
+			config:      json.RawMessage(`{"credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - credentialProviderPolicy unspecified value",
+			config:      json.RawMessage(`{"credentialProviderPolicy": "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - credentialProviderPolicy empty string",
+			config:      json.RawMessage(`{"credentialProviderPolicy": ""}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - all three keys",
+			config:      json.RawMessage(`{"managedConfiguration": {"key": "value"}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - credentialProviderPolicy bad value",
+			config:      json.RawMessage(`{"credentialProviderPolicy": "CREDENTIAL_PROVIDER_DISALLOWED"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "CREDENTIAL_PROVIDER_DISALLOWED" is not a supported value for "credentialProviderPolicy".`,
+		},
+		{
+			name:        "invalid - credentialProviderPolicy bad type",
+			config:      json.RawMessage(`{"credentialProviderPolicy": true}`),
+			expectError: true,
+			errorMsg:    "Couldn't update configuration. Invalid JSON.",
+		},
+		{
 			name:        "valid - empty object",
 			config:      json.RawMessage(`{}`),
 			expectError: false,
@@ -98,19 +130,19 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			name:        "invalid - unknown top-level key",
 			config:      json.RawMessage(`{"invalidKey": "value"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
+			errorMsg:    `Couldn't update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.`,
 		},
 		{
 			name:        "invalid - extra key with valid keys",
 			config:      json.RawMessage(`{"managedConfiguration": {}, "extraKey": "value"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
+			errorMsg:    `Couldn't update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.`,
 		},
 		{
 			name:        "invalid - multiple invalid keys",
 			config:      json.RawMessage(`{"key1": "value1", "key2": "value2"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
+			errorMsg:    `Couldn't update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.`,
 		},
 		// Fleet variable tests
 		{

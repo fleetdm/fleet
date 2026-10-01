@@ -1,0 +1,1 @@
+- Fixed an issue clicking the info icon on a configuration profile for a platform that no longer has MDM enabled showed a generic error.

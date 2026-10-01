@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.1.8.30",
+      "version": "2.1.10.56",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GOG GALAXY' AND publisher = 'GOG.com';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GOG GALAXY' AND publisher = 'GOG.com' AND version_compare(version, '2.1.8.30') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GOG GALAXY' AND publisher = 'GOG.com' AND version_compare(version, '2.1.10.56') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gog galaxy.exe');"
       },
-      "installer_url": "https://content-system.gog.com/open_link/download?path=/open/galaxy/client/setup_galaxy_2.1.8.30.exe",
+      "installer_url": "https://content-system.gog.com/open_link/download?path=/open/galaxy/client/setup_galaxy_2.1.10.56.exe",
       "install_script_ref": "e1c78c6b",
       "uninstall_script_ref": "824492ce",
-      "sha256": "e654a8fdd66582328576d063a4f8ac5384e340acffe1f777d90407309af7d293",
+      "sha256": "ec1ef3744a6ba365c022d5e114a482b74ff0496e00a91924ebdae401e2c9291b",
       "default_categories": [
         "Productivity"
       ]

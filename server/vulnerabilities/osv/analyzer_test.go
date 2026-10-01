@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/stretchr/testify/require"
 )
 
@@ -529,122 +531,56 @@ func TestMatchSoftwareToOSV(t *testing.T) {
 	}
 }
 
-func TestFindLatestOSVArtifactForVersion(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// Create test artifacts for different Ubuntu versions and dates
-	artifacts := []struct {
-		filename string
-		age      int // days old (to set mod time)
-	}{
-		{"osv-ubuntu-2204-2026-03-28.json.gz", 3},       // Older 22.04
-		{"osv-ubuntu-2204-2026-03-30.json.gz", 1},       // Newer 22.04 (should be selected)
-		{"osv-ubuntu-2204-2026-03-29.json.gz", 2},       // Middle 22.04
-		{"osv-ubuntu-2004-2026-03-30.json.gz", 1},       // 20.04 (different version)
-		{"osv-ubuntu-1804-2026-03-30.json.gz", 1},       // 18.04 (different version)
-		{"other-file.json.gz", 0},                       // Non-OSV file
-		{"osv-ubuntu-2204-delta-2026-03-30.json.gz", 1}, // Delta file (should be ignored by pattern)
-	}
-
-	for _, a := range artifacts {
-		path := filepath.Join(tmpDir, a.filename)
-		err := os.WriteFile(path, []byte("test"), 0o644)
-		require.NoError(t, err)
-
-		// Set modification time to simulate different ages
-		modTime := time.Now().Add(-time.Duration(a.age) * 24 * time.Hour)
-		err = os.Chtimes(path, modTime, modTime)
-		require.NoError(t, err)
-	}
+// An artifact with no vulnerability data would mark every existing OSV vulnerability for
+// matching software as remediated, so the loaders refuse one. It usually means the download
+// was corrupted.
+func TestLoadArtifactRejectsEmpty(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	tests := []struct {
-		name          string
-		ubuntuVersion string
-		expectedFile  string
-		expectError   bool
+		name string
+		file string
+		body string
+		load func(dir string) error
 	}{
 		{
-			name:          "finds latest 22.04 artifact",
-			ubuntuVersion: "2204",
-			expectedFile:  "osv-ubuntu-2204-2026-03-30.json.gz", // Most recent
+			name: "ubuntu",
+			file: "osv-ubuntu-2204-2026-03-30.json.gz",
+			body: `{"schema_version":"1.0.0","ubuntu_version":"2204","generated":"2026-03-30T00:00:00Z","total_cves":0,"total_packages":0,"vulnerabilities":{}}`,
+			load: func(dir string) error {
+				ver := fleet.OSVersion{Name: "Ubuntu 22.04.8 LTS", Version: "22.04.8 LTS"}
+				_, err := loadOSVArtifact(t.Context(), ver, dir, logger, time.Time{})
+				return err
+			},
 		},
 		{
-			name:          "finds latest 20.04 artifact",
-			ubuntuVersion: "2004",
-			expectedFile:  "osv-ubuntu-2004-2026-03-30.json.gz",
-		},
-		{
-			name:          "finds latest 18.04 artifact",
-			ubuntuVersion: "1804",
-			expectedFile:  "osv-ubuntu-1804-2026-03-30.json.gz",
-		},
-		{
-			name:          "returns error for non-existent version",
-			ubuntuVersion: "2404",
-			expectError:   true,
+			name: "rhel",
+			file: "osv-rhel-9-2026-04-08.json.gz",
+			body: `{"schema_version":"1.0.0","rhel_version":"9","generated":"2026-04-08T00:00:00Z","total_cves":0,"total_packages":0,"vulnerabilities":{}}`,
+			load: func(dir string) error {
+				ver := fleet.OSVersion{Name: "Red Hat Enterprise Linux 9.0.0", Version: "9.0.0"}
+				_, err := loadRHELOSVArtifact(t.Context(), ver, dir, logger, time.Time{})
+				return err
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := findLatestOSVArtifactForVersion(tmpDir, tt.ubuntuVersion)
+			dir := t.TempDir()
+			f, err := os.Create(filepath.Join(dir, tt.file))
+			require.NoError(t, err)
+			gz := gzip.NewWriter(f)
+			_, err = gz.Write([]byte(tt.body))
+			require.NoError(t, err)
+			require.NoError(t, gz.Close())
+			require.NoError(t, f.Close())
 
-			if tt.expectError {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), "no OSV artifact found")
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, filepath.Join(tmpDir, tt.expectedFile), result)
-			}
+			err = tt.load(dir)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "no vulnerabilities")
 		})
 	}
-}
-
-// TestLoadOSVArtifactRejectsEmpty verifies that loadOSVArtifact refuses an artifact with
-// no vulnerability data. An empty artifact would cause every existing OSV vulnerability for
-// matching software to be marked as remediated.
-// See https://github.com/fleetdm/fleet/issues/45602.
-func TestLoadOSVArtifactRejectsEmpty(t *testing.T) {
-	tmpDir := t.TempDir()
-	path := filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-30.json.gz")
-
-	f, err := os.Create(path)
-	require.NoError(t, err)
-	gz := gzip.NewWriter(f)
-	_, err = gz.Write([]byte(`{"schema_version":"1.0.0","ubuntu_version":"2204","generated":"2026-03-30T00:00:00Z","total_cves":0,"total_packages":0,"vulnerabilities":{}}`))
-	require.NoError(t, err)
-	gz.Close()
-	f.Close()
-
-	ctx := context.Background()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	ver := fleet.OSVersion{Name: "Ubuntu 22.04.8 LTS", Version: "22.04.8 LTS"}
-
-	_, err = loadOSVArtifact(ctx, ver, tmpDir, logger, time.Time{})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "no vulnerabilities")
-}
-
-// TestLoadRHELOSVArtifactRejectsEmpty mirrors the Ubuntu OSV check for the RHEL OSV artifact.
-func TestLoadRHELOSVArtifactRejectsEmpty(t *testing.T) {
-	tmpDir := t.TempDir()
-	path := filepath.Join(tmpDir, "osv-rhel-9-2026-04-08.json.gz")
-
-	f, err := os.Create(path)
-	require.NoError(t, err)
-	gz := gzip.NewWriter(f)
-	_, err = gz.Write([]byte(`{"schema_version":"1.0.0","rhel_version":"9","generated":"2026-04-08T00:00:00Z","total_cves":0,"total_packages":0,"vulnerabilities":{}}`))
-	require.NoError(t, err)
-	gz.Close()
-	f.Close()
-
-	ctx := context.Background()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	ver := fleet.OSVersion{Name: "Red Hat Enterprise Linux 9.0.0", Version: "9.0.0"}
-
-	_, err = loadRHELOSVArtifact(ctx, ver, tmpDir, logger, time.Time{})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "no vulnerabilities")
 }
 
 func TestLoadOSVArtifactZeroTimeUsesLatest(t *testing.T) {
@@ -854,4 +790,26 @@ func TestMatchSoftwareToRHELOSV(t *testing.T) {
 		result := matchSoftwareToRHELOSV(software, artifact)
 		require.Empty(t, result)
 	})
+}
+
+// TestAnalyzeOSVScopesToPackageSources guards the source filter: without it a Go binary or npm
+// package named like a distro package is compared against distro advisories.
+func TestAnalyzeOSVScopesToPackageSources(t *testing.T) {
+	ds := new(mock.Store)
+
+	var requestedSources []string
+	ds.ListSoftwareForVulnDetectionByOSVersionFunc = func(
+		ctx context.Context, osVer fleet.OSVersion, sources []string,
+	) ([]fleet.Software, error) {
+		requestedSources = sources
+		return nil, nil
+	}
+
+	ver := fleet.OSVersion{Platform: "ubuntu", Name: "Ubuntu 22.04.1 LTS"}
+	matcher := func([]fleet.Software) []fleet.SoftwareVulnerability { return nil }
+
+	_, err := analyzeOSV(t.Context(), ds, ver, fleet.UbuntuOSVSource, matcher, false, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	require.Equal(t, oval.SupportedSoftwareSources, requestedSources)
 }

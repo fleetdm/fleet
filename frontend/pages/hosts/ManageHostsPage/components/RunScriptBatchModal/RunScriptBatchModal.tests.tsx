@@ -1,12 +1,12 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-
 import { UserEvent } from "@testing-library/user-event";
-import { IScript } from "interfaces/script";
-import { createCustomRenderer } from "test/test-utils";
-import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
 import { format } from "date-fns";
+import { http, HttpResponse } from "msw";
+import React from "react";
+
+import { IScript } from "interfaces/script";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import RunScriptBatchModal from "./RunScriptBatchModal";
 

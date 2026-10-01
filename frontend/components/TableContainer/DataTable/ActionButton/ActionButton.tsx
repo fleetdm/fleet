@@ -1,12 +1,11 @@
-import React, { useCallback } from "react";
-import { kebabCase, noop } from "lodash";
 import classnames from "classnames";
+import { kebabCase, noop } from "lodash";
+import React, { useCallback } from "react";
 
 import { ButtonVariant } from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
-
 import { Colors } from "styles/var/colors";
 
 import Button from "../../../buttons/Button";

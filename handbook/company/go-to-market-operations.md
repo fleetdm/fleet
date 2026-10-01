@@ -30,7 +30,7 @@ The goal of the 🤝Enterprise group is to provide the best possible customer ex
 | Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_ <br> [Dave Siederer](https://www.linkedin.com/in/siederer/) _([@ds0x](https://github.com/ds0x))_ <br> [Henry Stamerjohann](https://www.linkedin.com/in/henry-st/) _([@headmin](https://github.com/headmin))_
 | Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_  <br> [Nick Blee](https://www.linkedin.com/in/nickablee/) _([@NickBlee](https://github.com/NickBlee))_ <br> [Manny Mendoza](https://www.linkedin.com/in/mannymendoza1/) _([@mmendm](https://github.com/mmendm))_ 
 | Solutions Specialist              | [Thomas Salomon](https://www.linkedin.com/in/thomassalomon4/) _([@ThomasSalomon4](https://github.com/ThomasSalomon4))_ <br> [Maribell Morales](https://www.linkedin.com/in/maribell-morales-056647139/) _([@maribell-fleetdm](https://github.com/maribell-fleetdm))_ <br> [James Sorrenti](https://www.linkedin.com/in/jsorrenti/) _([@jamessorrenti](https://github.com/jamessorrenti))_ <br> [Lewis Barajas](https://www.linkedin.com/in/lewisbarajas/) _([@lewisbarajas](https://github.com/lewisbarajas))_ 
-| Pipeline DRI                      | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala/) _([@akuthiala](https://github.com/akuthiala))_
+| Pipeline DRI                      | [Mike McNeil](https://www.linkedin.com/in/mikermcneil/) _([@mikermcneil](https://github.com/mikermcneil))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Customer Success Manager (CSM)    | [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989)_) <br> [Joshua Roskos](https://www.linkedin.com/in/jroskos/) _([@kc9wwh](https://github.com/kc9wwh))_ 
 | Customer Support Engineer (CSE)       | <sup><sub> _See [Customer_Success](https://fleetdm.com/handbook/customer-success)_
@@ -493,7 +493,7 @@ The goal of a slide deck is not necessarily to walk every customer through it.  
 
 Even if you never show these decks on a screenshare, use them to keep the conversation on track, or to send as a teaser.
 
-- [Leave behind deck (PDF)](https://fleetdm.com/pdfs/fleet-leave-behind-deck.pdf)
+- [Fleet AI device management patching and governance for every OS (leave behind PDF)](https://fleetdm.com/pdfs/fleet-ai-device-management-patching-and-governance-for-every-os.pdf)
 - [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
 - [Fleet for digital workplace leaders](https://drive.google.com/file/d/1JlIV1PY5lECQQmq2H_eR35haeKefHXIf/view?usp=sharing)
 - [Fleet for partners](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
@@ -550,7 +550,7 @@ This approach “connects” Eventbrite to Salesforce campaigns by using the **`
     
     ```
         NEW GITOPS REGISTRATION
-        _*`fullName`*_ signed up for `proviededNotes`
+        _*`fullName`*_ signed up for `providedNotes`
 
         - CONTACT: 
         _*`fullName`*_ (`finalLinkedInProfile`)

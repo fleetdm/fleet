@@ -1,10 +1,18 @@
+import { capitalize } from "lodash";
 import React, { useContext, useEffect, useState, useRef } from "react";
-import { Row } from "react-table";
 import { useQuery } from "react-query";
+import { Row } from "react-table";
 import { useDebouncedCallback } from "use-debounce";
 
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import PageError from "components/DataError";
+import SearchField from "components/forms/fields/SearchField";
+import Spinner from "components/Spinner";
+import TargetsInput from "components/TargetsInput";
+import { generateTableHeaders } from "components/TargetsInput/TargetsInputHostsTableConfig";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
-
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelSummary } from "interfaces/label";
 import {
@@ -15,7 +23,6 @@ import {
   ISelectedTargetsForApi,
 } from "interfaces/target";
 import { ITeam } from "interfaces/team";
-
 import labelsAPI, { ILabelsSummaryResponse } from "services/entities/labels";
 import targetsAPI, {
   ITargetsCountResponse,
@@ -23,17 +30,8 @@ import targetsAPI, {
 } from "services/entities/targets";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
-import { capitalize } from "lodash";
 import permissions from "utilities/permissions";
 
-import PageError from "components/DataError";
-import TargetsInput from "components/TargetsInput";
-import { generateTableHeaders } from "components/TargetsInput/TargetsInputHostsTableConfig";
-import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
-import SearchField from "components/forms/fields/SearchField";
-import RevealButton from "components/buttons/RevealButton";
 import TargetPillSelector from "./TargetChipSelector";
 
 interface ISelectTargetsProps {

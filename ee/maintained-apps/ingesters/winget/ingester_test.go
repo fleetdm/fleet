@@ -357,13 +357,16 @@ func TestIngestValidations(t *testing.T) {
 	cases := []struct {
 		name                string
 		wantErr             string
+		wantExists          string
+		wantPatched         string
 		wantPatchedContains string
 		inputApp            inputApp
 		cfg                 serverConfig
 	}{
 		{
-			name:    "valid",
-			wantErr: "",
+			name:       "valid",
+			wantErr:    "",
+			wantExists: "SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.';",
 			inputApp: inputApp{
 				Name:                "Foo",
 				UniqueIdentifier:    "Foo",
@@ -436,6 +439,32 @@ func TestIngestValidations(t *testing.T) {
 			},
 		},
 		{
+			name: "arm64 scopes policy queries to ARM hosts",
+			// An arm64 build can't run on x64, so both policy queries pass on non-ARM
+			// hosts. The open query runs only on a host already queued, so it is unscoped.
+			wantExists:  "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+			wantPatched: "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.' AND version_compare(version, '1.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "arm64",
+				Slug:                "foo-arm64/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "arm64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
 			name:    "wrong installer type",
 			wantErr: "failed to find installer for app",
 			inputApp: inputApp{
@@ -478,6 +507,12 @@ func TestIngestValidations(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+			if c.wantExists != "" {
+				require.Equal(t, c.wantExists, out.Queries.Exists)
+			}
+			if c.wantPatched != "" {
+				require.Equal(t, c.wantPatched, out.Queries.Patched)
+			}
 			if c.wantPatchedContains != "" {
 				require.Contains(t, out.Queries.Patched, c.wantPatchedContains)
 			}

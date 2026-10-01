@@ -1,13 +1,13 @@
-import React from "react";
-import { noop } from "lodash";
 import { render, screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import { noop } from "lodash";
+import React from "react";
 
 import createMockHost from "__mocks__/hostMock";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
-
 import { IHost } from "interfaces/host";
+import { createCustomRenderer } from "test/test-utils";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+
 import VitalsModal from "./VitalsModal";
 
 const ALL_VITALS_LABELS = [

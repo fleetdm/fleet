@@ -1,0 +1,1 @@
+- Fixed Windows MDM commands enqueued within the same second being delivered to the device in an arbitrary order rather than the order they were created.

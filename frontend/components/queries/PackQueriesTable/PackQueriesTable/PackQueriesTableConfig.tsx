@@ -1,22 +1,22 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
-import React from "react";
+
 import { find } from "lodash";
+import React from "react";
 
-import {
-  getPerformanceImpactDescription,
-  secondsToDhms,
-} from "utilities/helpers";
-import { IScheduledQuery } from "interfaces/scheduled_query";
-import { IDropdownOption } from "interfaces/dropdownOption";
-
-import Checkbox from "components/forms/fields/Checkbox";
 import ActionsDropdown from "components/ActionsDropdown";
+import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IScheduledQuery } from "interfaces/scheduled_query";
+import {
+  getPerformanceImpactDescription,
+  secondsToDhms,
+} from "utilities/helpers";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;

@@ -46,19 +46,29 @@
 			<array>
 				<dict>
 					<key>aboutUpdateURL</key>
-					<string>https://support.apple.com/en-us/120283</string>
+					<string>https://support.apple.com/en-us/127257</string>
+					<key>requiredInstallationDate</key>
+					<string>2026-12-13T12:00:00</string>
 					<key>requiredMinimumOSVersion</key>
-					<string>latest-minor</string>
+					<string>latest-supported</string>
 					<key>targetedOSVersionsRule</key>
 					<string>15</string>
 				</dict>
 				<dict>
 					<key>aboutUpdateURL</key>
-					<string>https://www.apple.com/os/macos</string>
+					<string>https://support.apple.com/en-us/122868</string>
 					<key>requiredMinimumOSVersion</key>
 					<string>latest-minor</string>
 					<key>targetedOSVersionsRule</key>
 					<string>26</string>
+				</dict>
+				<dict>
+					<key>aboutUpdateURL</key>
+					<string>https://support.apple.com/en-us/127257</string>
+					<key>requiredMinimumOSVersion</key>
+					<string>latest-minor</string>
+					<key>targetedOSVersionsRule</key>
+					<string>27</string>
 				</dict>
 			</array>
 			<key>userExperience</key>

@@ -3,13 +3,13 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json/v2"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-json-experiment/json"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
 )

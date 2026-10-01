@@ -1,0 +1,1 @@
+- Fixed a horizontal scrollbar on the Labels table for read-only roles, which sat on the table card's bottom border and left its bottom-right corner open.

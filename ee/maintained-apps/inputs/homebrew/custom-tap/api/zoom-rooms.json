@@ -6,9 +6,9 @@
   ],
   "desc": "Conference room software for Zoom meetings",
   "homepage": "https://www.zoom.com/en/products/zoom-rooms/",
-  "url": "https://cdn.zoom.us/prod/7.1.5.13403/ZoomRooms.pkg",
+  "url": "https://cdn.zoom.us/prod/7.2.0.14036/ZoomRooms.pkg",
   "url_specs": {},
-  "version": "7.1.5.13403",
+  "version": "7.2.0.14036",
   "autobump": true,
   "no_autobump_message": null,
   "skip_livecheck": true,
@@ -16,7 +16,7 @@
   "bundle_short_version": null,
   "pinned": false,
   "pinned_version": null,
-  "sha256": "3b303bc150a3a5d639f09439abf84f2117784a2124ba660f7c73917ba5ef9ab6",
+  "sha256": "c5785b449000f8ef0b7b760bafb7dab8d476a2cff283015c2678345c8a217dde",
   "artifacts": [
     {
       "uninstall": [
@@ -61,13 +61,7 @@
   ],
   "caveats": null,
   "caveats_rosetta": null,
-  "depends_on": {
-    "macos": {
-      ">=": [
-        "10.15"
-      ]
-    }
-  },
+  "depends_on": {},
   "conflicts_with": null,
   "container": null,
   "rename": [],
@@ -87,6 +81,6 @@
   "languages": [],
   "ruby_source_path": "Casks/zoom-rooms.rb",
   "ruby_source_checksum": {
-    "sha256": "68a54a05536d96778206ce47a5ea03de6136a760b797ed8d08addef89c31e405"
+    "sha256": "fb20be06336e80f13bc3705c196ce6dbf35292e50eac57420932f665b7761182"
   }
 }

@@ -1,12 +1,11 @@
 import React from "react";
 
-import { IConfig } from "interfaces/config";
-
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import { IConfig } from "interfaces/config";
 import SettingsSection from "pages/admin/components/SettingsSection";
 
-import IdentityProviderSection from "./components/IdentityProviderSection";
 import GoogleWorkspaceSection from "./components/GoogleWorkspaceSection";
+import IdentityProviderSection from "./components/IdentityProviderSection";
 
 const baseClass = "identity-providers";
 

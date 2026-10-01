@@ -1,10 +1,12 @@
 /* eslint-disable no-alert */
-import React from "react";
-import { Meta, StoryObj } from "@storybook/react";
 
+import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
+
+import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import ActionsDropdown from "components/ActionsDropdown";
+
 import ModalFooter from "./ModalFooter";
 
 const meta: Meta<typeof ModalFooter> = {

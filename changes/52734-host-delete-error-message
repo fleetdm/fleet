@@ -1,0 +1,1 @@
+- Fixed the error message shown when a host can't be deleted because its Apple Business assignment couldn't be verified: internal error details are no longer appended to the message.

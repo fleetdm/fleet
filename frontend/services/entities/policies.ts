@@ -1,17 +1,17 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
-import { buildQueryStringFromParams } from "utilities/url";
 import {
   IPolicyAutomationActivity,
   IStoredPolicyResponse,
   PolicyAutomationActivityStatus,
 } from "interfaces/policy";
+import sendRequest from "services";
 import {
   ListEntitiesResponseCommon,
   OrderDirection,
 } from "services/entities/common";
+import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export type PolicyAutomationActivitiesOrderKey =
   | "id"
@@ -64,9 +64,15 @@ export default {
     return sendRequest("GET", path);
   },
 
-  reset: (id: number): Promise<void> => {
+  reset: (id: number, hostId?: number): Promise<void> => {
     const { POLICY_RESET } = endpoints;
+    const path =
+      hostId === undefined
+        ? POLICY_RESET(id)
+        : `${POLICY_RESET(id)}?${buildQueryStringFromParams({
+            host_id: hostId,
+          })}`;
 
-    return sendRequest("POST", POLICY_RESET(id));
+    return sendRequest("POST", path);
   },
 };

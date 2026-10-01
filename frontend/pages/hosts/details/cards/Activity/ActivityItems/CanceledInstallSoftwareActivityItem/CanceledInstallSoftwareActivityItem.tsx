@@ -2,6 +2,7 @@ import React from "react";
 
 import ActivityItem from "components/ActivityItem";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 
 const baseClass = "canceled-install-software-activity-item";

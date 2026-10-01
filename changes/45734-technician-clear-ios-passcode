@@ -1,0 +1,3 @@
+- Added the ability for users with the Technician role to clear passcodes on iOS and iPadOS hosts.
+- Fixed fleet-level admins and maintainers receiving a permission error when clearing passcodes on hosts in their fleets.
+- Made authorization errors consistent across the host MDM endpoints. Lock, unlock, wipe, clear passcode, Recovery Lock and managed local account password rotation, MDM command cancellation, and turning off MDM now return a `404` instead of a `403` when the target host is not in one of the caller's fleets.

@@ -38,6 +38,7 @@ spec:
     total_issues_count: 0
   label_updated_at: "0001-01-01T00:00:00Z"
   last_enrolled_at: "0001-01-01T00:00:00Z"
+  last_mdm_checked_in_at: null
   last_restarted_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
@@ -45,6 +46,7 @@ spec:
     dep_profile_error: false
     encryption_key_available: false
     enrollment_status: null
+    is_personal_enrollment: false
     name: ""
     server_url: null
   memory: 0
@@ -108,6 +110,7 @@ spec:
     total_issues_count: 0
   label_updated_at: "0001-01-01T00:00:00Z"
   last_enrolled_at: "0001-01-01T00:00:00Z"
+  last_mdm_checked_in_at: null
   last_restarted_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
@@ -115,6 +118,7 @@ spec:
     dep_profile_error: false
     encryption_key_available: false
     enrollment_status: null
+    is_personal_enrollment: false
     name: ""
     server_url: null
   memory: 0

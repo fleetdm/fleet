@@ -590,13 +590,14 @@ func TestApplyLabelSpecsCustomHostVitalCriteria(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
 
 	specWithCriteria := func(criteria fleet.HostVitalCriteria) *fleet.LabelSpec {
-		raw, err := json.Marshal(&criteria)
+		marshalled, err := json.Marshal(&criteria)
 		require.NoError(t, err)
+		raw := json.RawMessage(marshalled)
 		return &fleet.LabelSpec{
 			Name:                "custom-vital-spec",
 			LabelType:           fleet.LabelTypeRegular,
 			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-			HostVitalsCriteria:  new(json.RawMessage(raw)),
+			HostVitalsCriteria:  &raw,
 		}
 	}
 

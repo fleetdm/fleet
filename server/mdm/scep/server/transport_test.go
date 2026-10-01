@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"io"
 	"io/ioutil"
 	"log/slog"
 	"net/http"
@@ -13,10 +14,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/gorilla/mux"
+	"github.com/smallstep/scep"
 )
 
 func TestCACaps(t *testing.T) {
@@ -138,6 +141,54 @@ func TestPKIOperationGET(t *testing.T) {
 	}
 	if resp.StatusCode != http.StatusOK {
 		t.Error("expected", http.StatusOK, "got", resp.StatusCode)
+	}
+}
+
+func TestPKIOperationUndecryptableEnvelope(t *testing.T) {
+	server, svc, teardown := newServer(t)
+	defer teardown()
+
+	caRaw, _, err := svc.GetCACert(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	caCert, err := x509.ParseCertificate(caRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := mdmtest.NewPKCSReqUndecryptableBy(caCert)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := http.Post(server.URL+"/scep?operation=PKIOperation", "", bytes.NewReader(req.Raw)) //nolint:gosec
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	if got := resp.Header.Get("Content-Type"); got != "application/x-pki-message" {
+		t.Fatalf("expected application/x-pki-message, got %q", got)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certRep, err := scep.ParsePKIMessage(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if certRep.PKIStatus != scep.FAILURE {
+		t.Errorf("expected pkiStatus %s, got %s", scep.FAILURE, certRep.PKIStatus)
+	}
+	if certRep.FailInfo != scep.BadRequest {
+		t.Errorf("expected failInfo %s, got %s", scep.BadRequest, certRep.FailInfo)
+	}
+	if certRep.TransactionID != req.TransactionID {
+		t.Errorf("expected transaction id %s, got %s", req.TransactionID, certRep.TransactionID)
 	}
 }
 

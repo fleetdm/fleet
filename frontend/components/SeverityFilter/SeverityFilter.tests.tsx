@@ -1,11 +1,11 @@
-import React, { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React, { useState } from "react";
 
 import { renderWithSetup } from "test/test-utils";
 
-import SeverityFilter, { ISeverityFilterValue } from "./SeverityFilter";
 import { SEVERITY_SCORE_RANGE_ERROR, validateSeverityScores } from "./helpers";
+import SeverityFilter, { ISeverityFilterValue } from "./SeverityFilter";
 
 const ControlledSeverityFilter = ({
   severity = "any",

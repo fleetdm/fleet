@@ -1,0 +1,1 @@
+- Fixed a bug where a macOS host could be left at the setup experience screen indefinitely when an App Store app install failed.

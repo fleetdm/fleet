@@ -18,3 +18,8 @@ func trayIconExists() bool {
 	log.Debug().Msg("tray icon checker is not implemented for this platform")
 	return true
 }
+
+// currentLoginID is only needed for the Windows BitLocker PIN toast.
+func currentLoginID() (string, error) {
+	return "", nil
+}

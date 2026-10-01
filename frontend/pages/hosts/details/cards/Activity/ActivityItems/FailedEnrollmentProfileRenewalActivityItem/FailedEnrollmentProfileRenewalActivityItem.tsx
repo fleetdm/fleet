@@ -1,6 +1,7 @@
 import React from "react";
 
 import ActivityItem from "components/ActivityItem";
+
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 
 const baseClass = "failed-enrollment-profile-renewal-activity-item";

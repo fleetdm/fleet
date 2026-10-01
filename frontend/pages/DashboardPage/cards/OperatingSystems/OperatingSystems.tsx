@@ -1,6 +1,11 @@
+import { AxiosError } from "axios";
 import React, { useEffect } from "react";
 import { useQuery } from "react-query";
 
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import LastUpdatedText from "components/LastUpdatedText";
+import Spinner from "components/Spinner";
 import {
   OS_END_OF_LIFE_LINK_BY_PLATFORM,
   OS_VENDOR_BY_PLATFORM,
@@ -12,12 +17,6 @@ import {
   OS_VERSIONS_API_SUPPORTED_PLATFORMS,
 } from "services/entities/operating_systems";
 import { PlatformValueOptions } from "utilities/constants";
-
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import LastUpdatedText from "components/LastUpdatedText";
-import CustomLink from "components/CustomLink";
-import { AxiosError } from "axios";
 
 import OSTable from "./OSTable";
 

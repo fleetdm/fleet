@@ -1,0 +1,1 @@
+- Added support for the `credentialProviderPolicy` option in Android app configuration, allowing end users on Android 14+ to select an allowed app (e.g. a third-party password manager) as their autofill and passkey (credential) provider in the work profile.

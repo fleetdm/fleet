@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/stretchr/testify/require"
 )
 
@@ -158,5 +159,77 @@ func TestExecCmdSuccess(t *testing.T) {
 	expectedOutput := "Hello, World!\n"
 	if string(output) != expectedOutput {
 		t.Fatalf("Expected output %q, got: %q", expectedOutput, output)
+	}
+}
+
+// Values are defined ahead of the body rather than substituted into it, so a
+// value carrying interpreter metacharacters is data by the time it runs.
+func TestExecCmdDoesNotExecuteFleetVariableValues(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "MARKER")
+
+	for _, tc := range []struct {
+		name     string
+		value    string
+		contents string
+		// macOS splits shebang arguments and Linux doesn't, so the shebang case
+		// only gets the safety assertion
+		safetyOnly bool
+	}{
+		{"backtick", "Eng`touch " + marker + "`", "#!/bin/sh\nprintf %s \"$FLEET_VAR_HOST_UUID\"\n", false},
+		{"cmd-subst", "Eng$(touch " + marker + ")", "#!/bin/sh\nprintf %s \"$FLEET_VAR_HOST_UUID\"\n", false},
+		{"embedded quote", "Eng'; touch " + marker + "; echo '", "#!/bin/sh\nprintf %s \"$FLEET_VAR_HOST_UUID\"\n", false},
+		{"no shebang", "Eng`touch " + marker + "`", "printf %s \"$FLEET_VAR_HOST_UUID\"\n", false},
+		{"bash shebang", "Eng`touch " + marker + "`", "#!/bin/bash\nprintf %s \"$FLEET_VAR_HOST_UUID\"\n", false},
+		// the kernel splits shebang arguments, so a substituted value would run
+		{"shebang reference", "x`touch " + marker + "`", "#!/bin/sh -c $FLEET_VAR_HOST_UUID\nprintf %s \"$FLEET_VAR_HOST_UUID\"\n", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			preamble := variables.Preamble(map[string]string{"HOST_UUID": tc.value}, variables.DialectPOSIX)
+			script, err := variables.InsertPreamble(tc.contents, preamble, variables.DialectPOSIX)
+			require.NoError(t, err)
+
+			path := filepath.Join(t.TempDir(), "script")
+			require.NoError(t, os.WriteFile(path, []byte(script), 0o600))
+
+			output, _, err := ExecCmd(context.Background(), path, nil)
+			require.NoFileExists(t, marker)
+			if tc.safetyOnly {
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.value, string(output))
+		})
+	}
+}
+
+// An older agent decides how to run a script from its first line, so the
+// preamble has to leave that decision unchanged.
+func TestPreambleDoesNotChangeInterpreterChoice(t *testing.T) {
+	pre := variables.Preamble(map[string]string{"HOST_UUID": "ABC"}, variables.DialectPOSIX)
+
+	for _, contents := range []string{
+		"echo hi\n",
+		"#!/bin/sh\necho hi\n",
+		"#!/bin/sh -e\necho hi\n",
+		"#!/bin/bash\necho hi\n",
+		"#!/bin/zsh\necho hi\n",
+		"#!/usr/bin/env bash\necho hi\n",
+		"#!/bin/sh\r\necho hi\r\n",
+		"# not a shebang\necho hi\n",
+	} {
+		t.Run(contents, func(t *testing.T) {
+			withPreamble, err := variables.InsertPreamble(contents, pre, variables.DialectPOSIX)
+			require.NoError(t, err)
+
+			wantDirect, wantErr := fleet.ValidateShebang(contents)
+			gotDirect, gotErr := fleet.ValidateShebang(withPreamble)
+			require.Equal(t, wantErr, gotErr)
+			require.Equal(t, wantDirect, gotDirect)
+
+			wantKind, _, _ := fleet.ShebangInfo(contents)
+			gotKind, _, _ := fleet.ShebangInfo(withPreamble)
+			require.Equal(t, wantKind, gotKind)
+		})
 	}
 }

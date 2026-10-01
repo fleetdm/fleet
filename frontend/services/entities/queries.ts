@@ -1,19 +1,20 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+
 import { getErrorReason } from "interfaces/errors";
-import { ISelectedTargetsForApi } from "interfaces/target";
+import { SelectedPlatform } from "interfaces/platform";
 import {
   ICreateQueryFormData,
   IEditQueryFormData,
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import { ISelectedTargetsForApi } from "interfaces/target";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
-import { SelectedPlatform } from "interfaces/platform";
 
 export interface ILoadQueriesParams {
   teamId?: number;

@@ -4,9 +4,9 @@ import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button";
 // @ts-ignore
 import DropdownButton from "components/buttons/DropdownButton";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 // TODO - there are two `IActionButtonProps` in the codebase, one specifically used in
 // TableContainer. Disambiguate these names or combine into a single abstraction.

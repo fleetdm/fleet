@@ -74,19 +74,13 @@ module.exports = {
 
     if(os.toLowerCase() === 'windows') {
       // If this request is for a Windows device, get a graph API token for this tenant to send the compliance status update request.
-
-      let graphTokenResponse = await sails.helpers.http.sendHttpRequest.with({
-        method: 'POST',
-        url: `https://login.microsoftonline.com/${entraTenantId}/oauth2/v2.0/token`,
-        enctype: 'application/x-www-form-urlencoded',
-        body: {
-          client_id: sails.config.custom.compliancePartnerClientId,// eslint-disable-line camelcase
-          scope: 'https://graph.microsoft.com/.default',
-          client_secret: sails.config.custom.compliancePartnerClientSecret,// eslint-disable-line camelcase
-          grant_type: 'client_credentials'// eslint-disable-line camelcase
-        }
-      });
-      let graphAccessToken = JSON.parse(graphTokenResponse.body).access_token;
+      // Note: the getAccessTokenAndApiUrls helper returns cached tokens when possible, so most requests make no token request to Microsoft.
+      let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
+        complianceTenantRecordId: informationAboutThisTenant.id
+      })
+      .intercept('microsoftApiRequestFailed', 'microsoftApiRequestFailed')
+      .intercept('microsoftApiError', 'microsoftApiError');
+      let graphAccessToken = tokenAndApiUrls.graphAccessToken;
 
       // Send the compliance status update.
       await sails.helpers.http.sendHttpRequest.with({
@@ -101,6 +95,11 @@ module.exports = {
           isManaged: deviceManagementState,
           isCompliant: compliant
         }
+      }).intercept({raw: {statusCode: 401}}, async (err)=>{
+        // If the Microsoft API rejected the cached access token, clear this tenant's cached tokens and URLs to force re-authentication on the next request.
+        await sails.helpers.microsoftProxy.clearCacheForTenant.with({entraTenantId});
+        sails.log.warn(`When sending a request to sync a Windows device's compliance status for a Microsoft compliance tenant, the cached access token was rejected. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        return 'microsoftApiError';
       }).intercept((err)=>{
         return new Error(`An error occurred when sending a request to sync a Windows device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
       });
@@ -114,7 +113,9 @@ module.exports = {
       // If this is a compliance update for a macOS device, we'll need to use the getAccessTokenAndApiUrls helper to get an API URL and token for this request.
       let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
         complianceTenantRecordId: informationAboutThisTenant.id
-      });
+      })
+      .intercept('microsoftApiRequestFailed', 'microsoftApiRequestFailed')
+      .intercept('microsoftApiError', 'microsoftApiError');
       let graphAccessToken = tokenAndApiUrls.graphAccessToken;
       let accessToken = tokenAndApiUrls.manageApiAccessToken;
       let deviceDataSyncUrl = tokenAndApiUrls.deviceDataSyncUrl;
@@ -133,12 +134,19 @@ module.exports = {
         }
       })
       .intercept({raw: {statusCode: 404}}, 'userNotFound')
+      .intercept({raw: {statusCode: 401}}, async (err)=>{
+        // If the Microsoft API rejected the cached access token, clear this tenant's cached tokens and URLs to force re-authentication on the next request.
+        // The Fleet server retries this request upon error for up to a minute, and if it times out then the host will retry in 1 hour (policy interval).
+        await sails.helpers.microsoftProxy.clearCacheForTenant.with({entraTenantId});
+        sails.log.warn(`When getting a user ID from a user principal name for a compliance status update (entra tenant id: ${entraTenantId}), the cached access token was rejected. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        return 'microsoftApiError';
+      })
       .intercept((err)=>{
-        return new Error(`An error occurred when getting a user ID from a user principal name (${userPrincipalName}) for a compliance status update. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        return new Error(`An error occurred when getting a user ID from a user principal name for a compliance status update (entra tenant id: ${entraTenantId}). Full error: ${require('util').inspect(err, {depth: 3})}`);
       });
 
       if(!informationAboutThisUser.id) {
-        throw new Error(`An error occurred when getting information about a user (${userPrincipalName}). The response from the Microsoft graph API did not include an ID.`);
+        throw new Error(`An error occurred when getting information about a user for a compliance status update (entra tenant id: ${entraTenantId}). The response from the Microsoft graph API did not include an ID.`);
       }
 
       let lastUpdateTime = new Date().toISOString();
@@ -187,9 +195,19 @@ module.exports = {
           Content: JSON.stringify(complianceUpdateContent),
         }
       })
-      .intercept('requestFailed', ()=>{
-        // If a request to the microsoft API fails with a requestFailed error, return a microsoftApiRequestFailed response to the Fleet server
+      .intercept('requestFailed', async ()=>{
+        // If a request to the microsoft API fails with a requestFailed error, the cached data sync URL for this tenant may be stale,
+        // so clear this tenant's cached tokens and URLs to force re-discovery, and return a microsoftApiRequestFailed response to the Fleet server.
+        // The Fleet server retries this request upon error for up to a minute, and if it times out then the host will retry in 1 hour (policy interval).
+        await sails.helpers.microsoftProxy.clearCacheForTenant.with({entraTenantId});
         return 'microsoftApiRequestFailed';
+      })
+      .intercept({raw: {statusCode: 401}}, async (err)=>{
+        // If the Microsoft API rejected the cached access token, clear this tenant's cached tokens and URLs to force re-authentication on the next request.
+        // The Fleet server retries this request upon error for up to a minute, and if it times out then the host will retry in 1 hour (policy interval).
+        await sails.helpers.microsoftProxy.clearCacheForTenant.with({entraTenantId});
+        sails.log.warn(`When sending a request to sync a device's compliance status for a Microsoft compliance tenant, the cached access token was rejected. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        return 'microsoftApiError';
       })
       .intercept((err)=>{
         // If the request to the Microsoft API returns a non-2xx response, log a warning and return a microsoftApiError response
@@ -202,6 +220,28 @@ module.exports = {
         sails.log.info(`Microsoft proxy: update-one-devices-compliance-status sent a compliance update: ${complianceUpdateResponse.body}`);
       }
 
+      // The upload channel reports validation errors in-band: a 200 response whose body has an ErrorCode
+      // other than 202 ("accepted") means the message was not accepted. (Top-level HTTP errors are handled
+      // by the intercepts above.)
+      let parsedComplianceUpdateResponse;
+      try {
+        parsedComplianceUpdateResponse = JSON.parse(complianceUpdateResponse.body);
+      } catch(unusedErr) {
+        // If the response body could not be parsed, continue and let the Fleet server's status query surface any failure.
+      }
+      // Note: Microsoft's examples show ErrorCode as both a string ("202") and a number (404), so normalize it before comparing.
+      let inBandErrorCode = parsedComplianceUpdateResponse ? Number(parsedComplianceUpdateResponse.ErrorCode) : undefined;
+      if(inBandErrorCode && inBandErrorCode !== 202) {
+        if(inBandErrorCode === 404) {
+          // An in-band 404 means "A matching tenant could not be found at this endpoint. The tenant may have been
+          // moved or deleted." — the cached data sync URL may point at the tenant's old location, so clear this
+          // tenant's cached tokens and URLs to force endpoint re-discovery on the next request.
+          await sails.helpers.microsoftProxy.clearCacheForTenant.with({entraTenantId});
+        }
+        // Note: don't log the full response body here — successful responses echo the uploaded content, which can include a userPrincipalName.
+        sails.log.warn(`When sending a request to sync a device's compliance status for a Microsoft compliance tenant (entra tenant id: ${entraTenantId}), the Microsoft API did not accept the message. Error code: ${parsedComplianceUpdateResponse.ErrorCode}, error detail: ${parsedComplianceUpdateResponse.ErrorDetail}`);
+        throw 'microsoftApiError';
+      }
 
       return {
         message_id: messageId,// eslint-disable-line camelcase

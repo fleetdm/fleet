@@ -1,8 +1,8 @@
 import React from "react";
 
-import SQLEditor from "components/SQLEditor";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import SQLEditor from "components/SQLEditor";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 

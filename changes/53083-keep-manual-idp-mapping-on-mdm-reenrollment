@@ -1,0 +1,1 @@
+* Fixed macOS hosts losing their IdP username, full name, groups, and department (and dropping out of IdP-group labels) after an MDM certificate renewal or re-enrollment when the IdP user had been set manually.

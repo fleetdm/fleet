@@ -5,30 +5,28 @@ import React, {
   useMemo,
   useState,
 } from "react";
-
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import variablesAPI, {
-  IListVariablesResponse,
-} from "services/entities/variables";
-import { IVariable } from "interfaces/variables";
-
-import { AppContext } from "context/app";
-
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import SectionHeader from "components/SectionHeader";
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PageDescription from "components/PageDescription";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import { AppContext } from "context/app";
+import { IVariable } from "interfaces/variables";
+import variablesAPI, {
+  IListVariablesResponse,
+} from "services/entities/variables";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import generateTableHeaders from "./GlobalVariablesTableConfig";
 import AddCustomVariableModal from "../../components/AddCustomVariableModal";
 import DeleteCustomVariableModal from "../../components/DeleteCustomVariableModal";
+
+import generateTableHeaders from "./GlobalVariablesTableConfig";
 
 const baseClass = "global-variables";
 

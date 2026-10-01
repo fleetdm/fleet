@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.10.2.0",
+      "version": "6.12.2.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Okta Verify' AND publisher = 'Okta, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Okta Verify' AND publisher = 'Okta, Inc.' AND version_compare(version, '6.10.2.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Okta Verify' AND publisher = 'Okta, Inc.' AND version_compare(version, '6.12.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'oktaverify.exe');"
       },
-      "installer_url": "https://okta.okta.com/artifacts/WINDOWS_OKTA_VERIFY/6.10.2.0/OktaVerifySetup-6.10.2.0-de20e9b.exe",
+      "installer_url": "https://okta.okta.com/artifacts/WINDOWS_OKTA_VERIFY/6.12.2.0/OktaVerifySetup-6.12.2.0-662d31d.exe",
       "install_script_ref": "b1554868",
       "uninstall_script_ref": "3fc3a520",
-      "sha256": "065c6ad3ffc8551a29459d6cae4d06cd95a083ef716c18eb2e1215720a6b400a",
+      "sha256": "297fce44dc95f0f7ddcd4f81200397d5781697d536b80eccef54c65dbf8c08a6",
       "default_categories": [
         "Productivity"
       ]

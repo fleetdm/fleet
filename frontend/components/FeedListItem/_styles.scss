@@ -20,7 +20,7 @@
   }
 
   &__avatar-upper-dash {
-    border-right: 1px solid $ui-fleet-black-10;
+    border-right: 1.5px solid $ui-fleet-black-25;
     grid-column-start: 1;
     grid-column-end: 2;
     grid-row-start: 1;
@@ -28,7 +28,7 @@
   }
 
   &__avatar-lower-dash {
-    border-right: 1px solid $ui-fleet-black-10;
+    border-right: 1.5px solid $ui-fleet-black-25;
     grid-column-start: 1;
     grid-column-end: 2;
     grid-row-start: 3;

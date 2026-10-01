@@ -1,0 +1,1 @@
+- Cleaned up the error toasts shown when a Microsoft Graph credential save fails and when an MDM unenroll returns "already off": the main line is a short, static message and the full backend response is available in the expandable raw-response panel, so the same long reason no longer appears twice in the same toast.

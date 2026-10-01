@@ -138,6 +138,9 @@ type Options struct {
 	// OsqueryDB is the directory to use for the osquery database.
 	// If not set, then the default is `$ORBIT_ROOT_DIR/osquery.db`.
 	OsqueryDB string
+	// CPUQuota is the systemd CPUQuota percentage applied to the orbit service
+	// (Linux only). Zero means the default of 20%.
+	CPUQuota uint
 	// Architecture that the package is being built for. (amd64, arm64)
 	Architecture string
 	// TUF platform name. windows, windows-arm64, linux, linux-arm64, darwin

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "17.0.20.10",
+      "version": "17.0.20.12",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon Corretto (x64)' AND publisher = 'Amazon' AND version LIKE '17.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Corretto (x64)' AND publisher = 'Amazon' AND version LIKE '17.%' AND version_compare(version, '17.0.20.10') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Corretto (x64)' AND publisher = 'Amazon' AND version LIKE '17.%' AND version_compare(version, '17.0.20.12') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'amazon corretto 17.exe');"
       },
-      "installer_url": "https://corretto.aws/downloads/resources/17.0.20.10.1/amazon-corretto-17.0.20.10.1-windows-x64.msi",
+      "installer_url": "https://corretto.aws/downloads/resources/17.0.20.12.1/amazon-corretto-17.0.20.12.1-windows-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "d85741a4",
-      "sha256": "b9175f5b8466fc42028470a67d8989fe6b528dd1132050e5bba7a4d5a3c201a4",
+      "sha256": "daf82d2796f7894bc4f5ceef9094b70ae85d2f134f6ac3e955a17c6e6c934bf0",
       "default_categories": [
         "Developer tools"
       ],

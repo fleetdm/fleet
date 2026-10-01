@@ -1,15 +1,15 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import type { Location as HistoryLocation } from "history";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
+import { IMDMSSOParams } from "services/entities/mdm";
+import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   createMockRouter,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
-import type { Location as HistoryLocation } from "history";
-import { IMDMSSOParams } from "services/entities/mdm";
 
 import DEPSSOLoginPage from "./MDMAppleSSOPage";
 

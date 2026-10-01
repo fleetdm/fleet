@@ -1,0 +1,1 @@
+- Hosts page's User email column now shows a host's IdP username (or first Chrome profile email if no IdP username) instead of a generic "N users" label, with a `+N` count and tooltip listing any additional emails.

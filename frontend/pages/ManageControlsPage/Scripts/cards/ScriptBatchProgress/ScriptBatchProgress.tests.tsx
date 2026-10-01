@@ -1,19 +1,19 @@
-import React from "react";
 import { cleanup, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import React from "react";
+
+import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
+import { ScriptBatchStatus } from "interfaces/script";
+import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   createMockRouter,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { http, HttpResponse } from "msw";
 
-import { ScriptBatchStatus } from "interfaces/script";
-
-import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
+import { ScriptsLocation } from "../../Scripts";
 
 import ScriptBatchProgress from "./ScriptBatchProgress";
-import { ScriptsLocation } from "../../Scripts";
 
 const waitForLoadingToFinish = async (container: HTMLElement) => {
   await waitFor(() => {

@@ -1,3 +1,4 @@
+import { AxiosError } from "axios";
 import React, {
   useCallback,
   useState,
@@ -7,47 +8,42 @@ import React, {
 } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { AxiosError } from "axios";
 
+import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
+import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 import { notify } from "components/ToastNotification";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   IDeviceSoftware,
   IHostSoftware,
   IDeviceSoftwareWithUiStatus,
   IVPPHostSoftware,
 } from "interfaces/software";
-
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import deviceApi, {
   IDeviceSoftwareQueryKey,
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
-
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
-import SoftwareUninstallDetailsModal, {
-  ISWUninstallDetailsParentState,
-} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
-import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
-import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
-import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
-
-import UpdatesCard from "./components/UpdatesCard/UpdatesCard";
-import SelfServiceCard from "./SelfServiceCard/SelfServiceCard";
-import SoftwareUpdateModal from "./components/SoftwareUpdateModal";
-import UninstallSoftwareModal from "./components/UninstallSoftwareModal";
-import SoftwareInstructionsModal from "./components/OpenSoftwareModal";
-
-import { generateSoftwareTableHeaders } from "./components/SelfServiceTable/SelfServiceTableConfig";
 import {
   getInstallErrorMessage,
   getLastInstall,
 } from "../../HostSoftwareLibrary/helpers";
-
 import { getUiStatus } from "../helpers";
+
+import SoftwareInstructionsModal from "./components/OpenSoftwareModal";
+import { generateSoftwareTableHeaders } from "./components/SelfServiceTable/SelfServiceTableConfig";
+import SoftwareUpdateModal from "./components/SoftwareUpdateModal";
+import UninstallSoftwareModal from "./components/UninstallSoftwareModal";
+import UpdatesCard from "./components/UpdatesCard/UpdatesCard";
+import SelfServiceCard from "./SelfServiceCard/SelfServiceCard";
 
 const baseClass = "software-self-service";
 
@@ -257,7 +253,8 @@ const SoftwareSelfService = ({
         software,
         true,
         hostSoftwareUpdatedAt,
-        recentlyUpdatedSoftwareIds
+        recentlyUpdatedSoftwareIds,
+        true // suppress "Patch skipped" — end-user view keeps the failed_install fallback
       ),
     }));
   }, [selfServiceData, recentlyUpdatedSoftwareIds, hostSoftwareUpdatedAt]);

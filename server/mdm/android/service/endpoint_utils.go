@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"io"
 	"net/http"
 
@@ -10,8 +12,6 @@ import (
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
-	"github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"

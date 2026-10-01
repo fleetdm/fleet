@@ -1,0 +1,1 @@
+* Fixed an issue where the ACME enrollment CA occasionally returned a bad nonce error instead of not found on certain client errors

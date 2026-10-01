@@ -11,7 +11,7 @@ info:
   description: "Desktop control panel for the Fleet dev environment" # The application description
   copyright: "(c) 2026, Fleet Device Management" # Copyright text
   comments: "https://github.com/fleetdm/fleet/tree/main/tools/hangar" # Comments
-  version: "1.0.0" # The application version
+  version: "1.1.0" # The application version — bump this when sharing a build; it is the single source (see README "Versioning")
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
   #                               # Should match the name of your .icon file without the extension
   #                               # If not set and Assets.car exists, defaults to "appicon"

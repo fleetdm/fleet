@@ -1,6 +1,8 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
+
 import { ButtonVariant, IButtonProps } from "./Button";
+
 import Button from ".";
 
 const DEFAULT_ARGS = {

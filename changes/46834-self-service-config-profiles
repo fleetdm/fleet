@@ -1,0 +1,2 @@
+- Added self-service for Apple configuration profiles on macOS hosts.
+- Added a hidden field for configuration profiles to hide behind a toggle for the end user on their My Device page.

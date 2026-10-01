@@ -1,14 +1,9 @@
 import { AxiosProgressEvent } from "axios";
 
-import sendRequest, {
-  sendRequestWithHeaders,
-  sendRequestWithProgressAndHeaders,
-} from "services";
-import endpoints from "utilities/endpoints";
 import {
-  encodeScriptBase64,
-  SCRIPTS_ENCODED_HEADER,
-} from "utilities/scripts_encoding";
+  ApplePlatform,
+  CommaSeparatedPlatformString,
+} from "interfaces/platform";
 import {
   ISoftwareResponse,
   ISoftwareCountResponse,
@@ -20,25 +15,30 @@ import {
   ISoftwarePackage,
   SoftwareCategory,
 } from "interfaces/software";
+import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
+import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
+import { ISoftwareAutoUpdateConfigFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditAutoUpdateConfigModal/EditAutoUpdateConfigModal";
+import { ISoftwareConfigurationFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditConfigurationModal/EditConfigurationModal";
+import { ISoftwareDisplayNameFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditIconModal/EditIconModal";
+import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
+import { IVersionPinFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/VersionsModal/VersionsModal";
+import sendRequest, {
+  sendRequestWithHeaders,
+  sendRequestWithProgressAndHeaders,
+} from "services";
+import { listNamesFromSelectedLabels } from "services/entities/labels";
+import endpoints from "utilities/endpoints";
 import {
-  ApplePlatform,
-  CommaSeparatedPlatformString,
-} from "interfaces/platform";
+  encodeScriptBase64,
+  SCRIPTS_ENCODED_HEADER,
+} from "utilities/scripts_encoding";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
   getPathWithQueryParams,
 } from "utilities/url";
-import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
-import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
-import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
-import { ISoftwareAutoUpdateConfigFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditAutoUpdateConfigModal/EditAutoUpdateConfigModal";
-import { ISoftwareDisplayNameFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditIconModal/EditIconModal";
-import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
-import { listNamesFromSelectedLabels } from "services/entities/labels";
-import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
-import { ISoftwareConfigurationFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditConfigurationModal/EditConfigurationModal";
-import { IVersionPinFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/VersionsModal/VersionsModal";
 
 export interface ISoftwareApiParams {
   page?: number;

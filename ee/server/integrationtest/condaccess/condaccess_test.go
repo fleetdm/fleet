@@ -141,7 +141,7 @@ func testSCEPEnrollment(t *testing.T, s *Suite) {
 	assert.Equal(t, "urn:device:apple:uuid:"+host.UUID, cert.URIs[0].String())
 
 	// Verify certificate is stored in database and linked to host
-	hostID, err := s.DS.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64())) //nolint:gosec,G115
+	hostID, err := s.DS.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64())) //nolint:gosec // G115
 	require.NoError(t, err)
 	assert.Equal(t, host.ID, hostID)
 

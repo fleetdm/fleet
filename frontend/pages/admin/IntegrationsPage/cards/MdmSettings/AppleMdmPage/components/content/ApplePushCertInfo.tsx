@@ -1,10 +1,8 @@
 import React from "react";
 
-import { IMdmApple } from "interfaces/mdm";
-
-import { readableDate } from "utilities/helpers";
-
 import Button from "components/buttons/Button";
+import { IMdmApple } from "interfaces/mdm";
+import { readableDate } from "utilities/helpers";
 
 interface IApplePushCertInfoProps {
   baseClass: string;

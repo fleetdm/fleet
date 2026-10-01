@@ -124,7 +124,7 @@ func ResolveHostEndUserIDPValue(ctx context.Context, ds fleet.Datastore,
 		value = user.IdpUserName
 	case string(fleet.FleetVarHostEndUserIDPUsernameLocalPart):
 		rx = fleet.FleetVarHostEndUserIDPUsernameLocalPartRegexp
-		value = getEmailLocalPart(user.IdpUserName)
+		value = fleet.EmailLocalPart(user.IdpUserName)
 	case string(fleet.FleetVarHostEndUserIDPGroups):
 		rx = fleet.FleetVarHostEndUserIDPGroupsRegexp
 		value = strings.Join(user.IdpGroups, ",")
@@ -200,13 +200,6 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 		detail = noFullnameErr
 	}
 	return nil, false, onError(detail)
-}
-
-func getEmailLocalPart(email string) string {
-	// if there is a "@" in the email, return the part before that "@", otherwise
-	// return the string unchanged.
-	local, _, _ := strings.Cut(email, "@")
-	return local
 }
 
 func ReplaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents string, replacement string) (string, error) {

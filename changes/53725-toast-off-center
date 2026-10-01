@@ -1,0 +1,1 @@
+* Fixed toast notifications rendering shifted right of viewport center; they now sit horizontally centered at the bottom of the viewport.

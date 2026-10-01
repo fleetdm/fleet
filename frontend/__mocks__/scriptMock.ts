@@ -1,15 +1,15 @@
 import {
-  IScriptBatchHostResult,
-  IScriptBatchHostResultsResponse,
-  IScriptBatchSummaryV2,
-  IScriptResultResponse,
-} from "services/entities/scripts";
-import {
   IScript,
   IHostScript,
   ScriptBatchStatus,
   ScriptBatchHostStatus,
 } from "interfaces/script";
+import {
+  IScriptBatchHostResult,
+  IScriptBatchHostResultsResponse,
+  IScriptBatchSummaryV2,
+  IScriptResultResponse,
+} from "services/entities/scripts";
 
 const DEFAULT_SCRIPT_MOCK: IScript = {
   id: 1,

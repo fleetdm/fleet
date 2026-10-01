@@ -5,14 +5,15 @@ import {
   ScriptBatchStatus,
 } from "interfaces/script";
 import sendRequest from "services";
-
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
+
 import {
   ListEntitiesResponseCommon,
   OrderDirection,
   PaginationParams,
 } from "./common";
+
 /** Single script response from GET /script/:id */
 export type IScriptResponse = IScript;
 

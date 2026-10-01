@@ -1,7 +1,8 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
 import userEvent from "@testing-library/user-event";
+import React from "react";
+
+import { createCustomRenderer } from "test/test-utils";
 
 import CreateFleetModal from "./CreateFleetModal";
 

@@ -1,31 +1,26 @@
+import { filter, includes } from "lodash";
 import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
-import { filter, includes } from "lodash";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-
-import permissions from "utilities/permissions";
-
-import { AppContext } from "context/app";
-import { QueryContext } from "context/query";
-
-import queryAPI from "services/entities/queries";
-
-// @ts-ignore
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import Button from "components/buttons/Button";
-import Modal from "components/Modal";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
-
+// @ts-ignore
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import Modal from "components/Modal";
+import { AppContext } from "context/app";
+import { QueryContext } from "context/query";
 import {
   IListQueriesResponse,
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { API_ALL_TEAMS_ID } from "interfaces/team";
 import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
+import PATHS from "router/paths";
+import queryAPI from "services/entities/queries";
+import permissions from "utilities/permissions";
 import { getPathWithQueryParams } from "utilities/url";
 
 export interface ISelectReportModalProps {

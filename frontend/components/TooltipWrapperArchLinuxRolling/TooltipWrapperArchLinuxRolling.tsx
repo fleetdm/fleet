@@ -1,7 +1,7 @@
 import React from "react";
 
-import TooltipWrapper from "../TooltipWrapper";
 import CustomLink from "../CustomLink";
+import TooltipWrapper from "../TooltipWrapper";
 
 interface TooltipWrapperArchLinuxRollingProps {
   capitalized?: boolean;

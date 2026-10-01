@@ -125,7 +125,7 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 	// DisableSSL is only used for testing.
 	if cfg.DisableSSL {
 		// Ignoring "G402: TLS InsecureSkipVerify set true", this is only used for automated testing.
-		c := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{ //nolint:gosec
+		c := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{ //nolint:gosec
 			InsecureSkipVerify: false,
 		}))
 		opts = append(opts, aws_config.WithHTTPClient(c))

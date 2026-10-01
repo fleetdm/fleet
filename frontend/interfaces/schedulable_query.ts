@@ -2,13 +2,13 @@
 import PropTypes from "prop-types";
 
 import { IFormField } from "./form_field";
+import { ILabelQuery } from "./label";
 import { IPack } from "./pack";
 import {
   CommaSeparatedPlatformString,
   QueryablePlatform,
   SelectedPlatform,
 } from "./platform";
-import { ILabelQuery } from "./label";
 
 // Query itself
 export interface ISchedulableQuery {

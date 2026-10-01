@@ -83,7 +83,7 @@
       min-width: 100%;
       height: 36px;
       border: 1px solid $ui-fleet-black-25;
-      border-radius: 6px;
+      border-radius: $border-radius-large;
       display: flex;
       justify-content: space-between;
       align-items: center;

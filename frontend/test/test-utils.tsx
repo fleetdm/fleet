@@ -1,6 +1,3 @@
-import React from "react";
-import { InjectedRouter } from "react-router";
-import { Location } from "history";
 import {
   render,
   RenderOptions,
@@ -9,7 +6,10 @@ import {
 } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import userEvent from "@testing-library/user-event";
+import { Location } from "history";
+import React from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
+import { InjectedRouter } from "react-router";
 
 import { AppContext, IAppContext, initialState } from "context/app";
 import { IPolicyContext, PolicyContext } from "context/policy";

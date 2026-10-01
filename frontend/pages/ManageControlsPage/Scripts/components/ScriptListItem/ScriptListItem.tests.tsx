@@ -1,8 +1,10 @@
 import { render, screen } from "@testing-library/react";
-import { createCustomRenderer, renderWithSetup } from "test/test-utils";
-import { IScript } from "interfaces/script";
 import React from "react";
+
+import { IScript } from "interfaces/script";
 import scriptAPI from "services/entities/scripts";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
+
 import ScriptListItem from "./ScriptListItem";
 
 jest.mock("services/entities/scripts", () => ({

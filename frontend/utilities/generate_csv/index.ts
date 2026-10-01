@@ -1,7 +1,8 @@
-import convertToCSV from "utilities/convert_to_csv";
-import { Row, Column } from "react-table";
-import { ICampaignError } from "interfaces/campaign";
 import { format } from "date-fns";
+import { Row, Column } from "react-table";
+
+import { ICampaignError } from "interfaces/campaign";
+import convertToCSV from "utilities/convert_to_csv";
 
 const reorderCSVFields = (tableHeaders: string[]) => {
   const result = tableHeaders.filter((field) => field !== "host_display_name");

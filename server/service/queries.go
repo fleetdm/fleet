@@ -148,7 +148,7 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 
 func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.GetQueryReportRequest)
-	queryReportResults, reportClipped, err := svc.GetQueryReportResults(ctx, req.ID, req.TeamID)
+	queryReportResults, count, meta, reportClipped, err := svc.GetQueryReportResults(ctx, req.ID, req.TeamID, req.ListOptions)
 	if err != nil {
 		return fleet.GetQueryReportResponse{Err: err}, nil
 	}
@@ -161,50 +161,81 @@ func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.
 		QueryID:       req.ID,
 		Results:       results,
 		ReportClipped: reportClipped,
+		Count:         count,
+		Meta:          meta,
 	}, nil
 }
 
-func (svc *Service) GetQueryReportResults(ctx context.Context, id uint, teamID *uint) ([]fleet.HostQueryResultRow, bool, error) {
+func (svc *Service) GetQueryReportResults(ctx context.Context, id uint, teamID *uint, opts fleet.ListOptions) ([]fleet.HostQueryResultRow, int, *fleet.PaginationMetadata, bool, error) {
 	// Load query first to get its teamID.
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, false, ctxerr.Wrap(ctx, err, "get query from datastore")
+		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "get query from datastore")
 	}
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
-		return nil, false, err
+		return nil, 0, nil, false, err
 	}
 
 	if query.DiscardData {
-		return nil, false, nil
+		return nil, 0, nil, false, nil
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, false, fleet.ErrNoContext
+		return nil, 0, nil, false, fleet.ErrNoContext
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	queryReportResultRows, err := svc.ds.QueryResultRows(ctx, id, filter)
+	// Only paginate when the caller asks for a page size; otherwise return every row,
+	// which is what existing API consumers expect.
+	opts.IncludeMetadata = opts.PerPage > 0
+	if opts.OrderKey == "" {
+		opts.OrderKey = "last_fetched"
+		opts.OrderDirection = fleet.OrderDescending
+	}
+
+	queryReportResultRows, count, meta, err := svc.ds.QueryResultRows(ctx, id, filter, opts)
 	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "get query report results")
+		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "get query report results")
 	}
 	queryReportResults, err := fleet.MapQueryReportResultsToRows(queryReportResultRows)
 	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "map db rows to results")
+		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "map db rows to results")
 	}
-	appConfig, err := svc.ds.AppConfig(ctx)
+	reportClipped, err := svc.QueryReportIsClipped(ctx, id)
 	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "get app config")
+		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "check query report is clipped")
 	}
-	reportClipped, err := svc.QueryReportIsClipped(ctx, id, appConfig.ServerSettings.GetQueryReportCap())
-	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "check query report is clipped")
-	}
-	return queryReportResults, reportClipped, nil
+	return queryReportResults, count, meta, reportClipped, nil
 }
 
-func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error) {
+// queryReportCap returns the effective report cap, raised to the total host count cached in
+// Redis by the query results cleanup cron. On a cache miss the count is read from the database
+// and seeded into Redis. Falls back to the configured cap if the count is unavailable.
+func (svc *Service) queryReportCap(ctx context.Context, serverSettings fleet.ServerSettings) int {
+	if svc.liveQueryStore == nil {
+		return serverSettings.GetEffectiveQueryReportCap(0)
+	}
+	hostCount, ok, err := svc.liveQueryStore.GetQueryReportsHostCount()
+	if err != nil {
+		svc.logger.DebugContext(ctx, "get query reports host count", "err", err)
+		return serverSettings.GetEffectiveQueryReportCap(0)
+	}
+	if !ok {
+		hostCount, err = svc.ds.CountAllHosts(ctx)
+		if err != nil {
+			svc.logger.DebugContext(ctx, "count hosts for query report cap", "err", err)
+			return serverSettings.GetEffectiveQueryReportCap(0)
+		}
+		if err := svc.liveQueryStore.SetQueryReportsHostCountIfAbsent(hostCount); err != nil {
+			svc.logger.DebugContext(ctx, "seed query reports host count in redis", "err", err)
+		}
+	}
+	return serverSettings.GetEffectiveQueryReportCap(hostCount)
+}
+
+func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
 	query, err := svc.ds.Query(ctx, queryID)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
@@ -214,11 +245,46 @@ func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint, maxQ
 		return false, err
 	}
 
-	count, err := svc.ds.ResultCountForQuery(ctx, queryID)
+	clipped, err := svc.queryReportsClipped(ctx, []uint{queryID})
 	if err != nil {
 		return false, err
 	}
-	return count >= maxQueryReportRows, nil
+	return clipped[queryID], nil
+}
+
+// queryReportsClipped returns the reports flagged as clipped in Redis because a host's results
+// were rejected by the cap (see saveResultLogsToQueryReports). A report whose stored rows merely
+// reach the cap is not clipped: nothing has been dropped yet.
+func (svc *Service) queryReportsClipped(ctx context.Context, queryIDs []uint) (map[uint]bool, error) {
+	if svc.liveQueryStore == nil {
+		return nil, nil
+	}
+	clipped, err := svc.liveQueryStore.QueryReportsClipped(queryIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get query reports clipped from redis")
+	}
+	return clipped, nil
+}
+
+// clearQueryReportState resets the Redis state of a report whose results were discarded or
+// deleted. Errors are logged, not returned: the count is re-synced by the query_results_cleanup
+// job and the clipped marker expires on its own.
+func (svc *Service) clearQueryReportState(ctx context.Context, queryID uint, deleted bool) {
+	if svc.liveQueryStore == nil {
+		return
+	}
+	var err error
+	if deleted {
+		err = svc.liveQueryStore.DeleteQueryResultsCount(queryID)
+	} else {
+		err = svc.liveQueryStore.SetQueryResultsCount(queryID, 0)
+	}
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to reset query results count", "err", err, "query_id", queryID)
+	}
+	if err := svc.liveQueryStore.ClearQueryReportsClipped([]uint{queryID}); err != nil {
+		svc.logger.ErrorContext(ctx, "failed to clear query report clipped", "err", err, "query_id", queryID)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -466,14 +532,8 @@ func (svc *Service) modifyLoadedQuery(ctx context.Context, query *fleet.Query, p
 		return nil, err
 	}
 
-	// If the query was modified in a way that requires discarding results,
-	// reset the Redis count as well.
-	if shouldDiscardQueryResults && svc.liveQueryStore != nil {
-		if err := svc.liveQueryStore.SetQueryResultsCount(query.ID, 0); err != nil {
-			// Log the error but don't fail the request; this will get cleaned up
-			// in the "query_results_cleanup" job.
-			svc.logger.ErrorContext(ctx, "failed to set query results count", "err", err, "query_id", query.ID)
-		}
+	if shouldDiscardQueryResults {
+		svc.clearQueryReportState(ctx, query.ID, false)
 	}
 
 	var teamID int64
@@ -553,14 +613,7 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		return err
 	}
 
-	// Delete the Redis counter for query results
-	if svc.liveQueryStore != nil {
-		if err := svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
-			// Log the error but don't fail the request; this will get cleaned up
-			// in the "query_results_cleanup" job.
-			svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", query.ID)
-		}
-	}
+	svc.clearQueryReportState(ctx, query.ID, true)
 
 	var logTeamID int64
 	var teamName *string
@@ -628,14 +681,7 @@ func (svc *Service) deleteLoadedQuery(ctx context.Context, query *fleet.Query) e
 		return ctxerr.Wrap(ctx, err, "delete query")
 	}
 
-	// Delete the Redis counter for query results
-	if svc.liveQueryStore != nil {
-		if err := svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
-			// Log the error but don't fail the request; this will get cleaned up
-			// in the "query_results_cleanup" job.
-			svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", query.ID)
-		}
-	}
+	svc.clearQueryReportState(ctx, query.ID, true)
 
 	var logTeamID int64
 	var teamName *string
@@ -713,15 +759,8 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 		return n, err
 	}
 
-	// Delete the Redis counters for query results
-	if svc.liveQueryStore != nil {
-		for _, id := range ids {
-			if err = svc.liveQueryStore.DeleteQueryResultsCount(id); err != nil {
-				// Log the error but don't fail the request; this will get cleaned up
-				// in the "query_results_cleanup" job.
-				svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", id)
-			}
-		}
+	for _, id := range ids {
+		svc.clearQueryReportState(ctx, id, true)
 	}
 
 	if err := svc.NewActivity(
@@ -825,15 +864,8 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		return ctxerr.Wrap(ctx, err, "applying queries")
 	}
 
-	// Reset the Redis counters for queries whose results were discarded
-	if svc.liveQueryStore != nil {
-		for queryID := range queriesToDiscardResults {
-			if err = svc.liveQueryStore.SetQueryResultsCount(queryID, 0); err != nil {
-				// Log the error but don't fail the request; this will get cleaned up
-				// in the "query_results_cleanup" job.
-				svc.logger.ErrorContext(ctx, "failed to set query results count", "err", err, "query_id", queryID)
-			}
-		}
+	for queryID := range queriesToDiscardResults {
+		svc.clearQueryReportState(ctx, queryID, false)
 	}
 
 	if err := svc.NewActivity(

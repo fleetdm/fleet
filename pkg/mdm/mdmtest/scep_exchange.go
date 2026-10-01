@@ -145,3 +145,71 @@ func selfSignedSignerCert(key *rsa.PrivateKey, subject pkix.Name) (*x509.Certifi
 	}
 	return x509.ParseCertificate(der)
 }
+
+// NewPKCSReqUndecryptableBy builds a signed PKCSReq whose envelope is addressed
+// to caCert (same issuer and serial) but encrypted under a freshly generated RSA
+// key, so a SCEP server holding caCert's private key selects the recipient and
+// then fails to decrypt. The returned message carries the transaction ID so
+// callers can match it against the server's CertRep.
+func NewPKCSReqUndecryptableBy(caCert *x509.Certificate) (*smallstepscep.PKIMessage, error) {
+	requesterKey, err := rsa.GenerateKey(cryptorand.Reader, 2048)
+	if err != nil {
+		return nil, fmt.Errorf("undecryptable pkcsreq: generate requester key: %w", err)
+	}
+	subject := pkix.Name{CommonName: "undecryptable-pkcsreq"}
+	csrDER, err := x509.CreateCertificateRequest(cryptorand.Reader, &x509.CertificateRequest{
+		Subject:            subject,
+		SignatureAlgorithm: x509.SHA256WithRSA,
+	}, requesterKey)
+	if err != nil {
+		return nil, fmt.Errorf("undecryptable pkcsreq: create csr: %w", err)
+	}
+	csr, err := x509.ParseCertificateRequest(csrDER)
+	if err != nil {
+		return nil, fmt.Errorf("undecryptable pkcsreq: parse csr: %w", err)
+	}
+	signerCert, err := selfSignedSignerCert(requesterKey, subject)
+	if err != nil {
+		return nil, fmt.Errorf("undecryptable pkcsreq: build signer cert: %w", err)
+	}
+	recipient, err := certWithSameIssuerAndSerialAs(caCert)
+	if err != nil {
+		return nil, fmt.Errorf("undecryptable pkcsreq: build recipient cert: %w", err)
+	}
+	return smallstepscep.NewCSRRequest(csr, &smallstepscep.PKIMessage{
+		MessageType: smallstepscep.PKCSReq,
+		Recipients:  []*x509.Certificate{recipient},
+		SignerKey:   requesterKey,
+		SignerCert:  signerCert,
+	})
+}
+
+// certWithSameIssuerAndSerialAs returns a certificate that PKCS#7 recipient
+// matching cannot tell apart from caCert, but whose RSA public key belongs to a
+// throwaway private key that is discarded.
+func certWithSameIssuerAndSerialAs(caCert *x509.Certificate) (*x509.Certificate, error) {
+	keyBits := 2048
+	if pub, ok := caCert.PublicKey.(*rsa.PublicKey); ok {
+		keyBits = pub.N.BitLen()
+	}
+	key, err := rsa.GenerateKey(cryptorand.Reader, keyBits)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	tpl := &x509.Certificate{
+		SerialNumber: caCert.SerialNumber,
+		Subject:      caCert.Subject,
+		NotBefore:    now.Add(-1 * time.Minute),
+		NotAfter:     now.Add(time.Hour),
+		KeyUsage:     x509.KeyUsageKeyEncipherment,
+	}
+	// x509.CreateCertificate copies the issuer from parent.RawSubject verbatim,
+	// which keeps the encoded issuer byte-identical to caCert's.
+	parent := &x509.Certificate{RawSubject: caCert.RawIssuer}
+	der, err := x509.CreateCertificate(cryptorand.Reader, tpl, parent, &key.PublicKey, key)
+	if err != nil {
+		return nil, err
+	}
+	return x509.ParseCertificate(der)
+}

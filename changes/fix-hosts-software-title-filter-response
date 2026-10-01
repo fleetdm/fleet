@@ -1,1 +1,0 @@
-* Fixed the hosts list endpoint sometimes returning software title details that didn't match the applied filter.

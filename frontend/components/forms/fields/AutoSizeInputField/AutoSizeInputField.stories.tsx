@@ -1,9 +1,10 @@
-import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 import { noop } from "lodash";
+import React from "react";
+
+import { IAutoSizeInputFieldProps } from "./AutoSizeInputField";
 
 import AutoSizeInputField from ".";
-import { IAutoSizeInputFieldProps } from "./AutoSizeInputField";
 
 import "../../../../index.scss";
 

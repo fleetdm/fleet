@@ -1,17 +1,17 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IMdmVppToken } from "interfaces/mdm";
+import ActionsDropdown from "components/ActionsDropdown";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ActionsDropdown from "components/ActionsDropdown";
-import TextCell from "components/TableContainer/DataTable/TextCell";
+import { IMdmVppToken } from "interfaces/mdm";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import RenewDateCell from "../../../components/RenewDateCell";
 import { IRenewDateCellStatusConfig } from "../../../components/RenewDateCell/RenewDateCell";
+
 import TeamsCell from "./TeamsCell";
 
 type IAbmTableConfig = Column<IMdmVppToken>;

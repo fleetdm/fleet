@@ -1,10 +1,9 @@
 import React, { useCallback, useState } from "react";
 
-import deviceUserAPI from "services/entities/device_user";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import deviceUserAPI from "services/entities/device_user";
 
 const baseClass = "uninstall-software-modal";
 

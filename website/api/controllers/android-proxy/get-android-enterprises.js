@@ -18,6 +18,7 @@ module.exports = {
     missingOriginHeader: { description: 'The request was missing an Origin header', responseType: 'badRequest'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
+    tooManyRequests: { description: 'The Android management API rate limit was exceeded.', statusCode: 429 },
   },
 
 
@@ -82,10 +83,11 @@ module.exports = {
         });
 
         return allEnterprises;
-      }).intercept({status: 429}, (err)=>{
+      }).intercept({status: 429}, ()=>{
         // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
         sails.log.warn(`p1: Android management API rate limit exceeded!`);
-        return err;
+        // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so it can retry.
+        return 'tooManyRequests';
       }).intercept((err)=>{
         // Re-throw the error for handling outside the intercept
         return err;
@@ -106,6 +108,10 @@ module.exports = {
       return { enterprises: filteredEnterprises };
 
     } catch (err) {
+      // The 429 intercept above hands back the tooManyRequests exit wrapped in an Error; let it through.
+      if (err.raw === 'tooManyRequests') {
+        throw 'tooManyRequests';
+      }
       throw new Error(`When attempting to list android enterprises, an error occurred. Error: ${err}`);
     }
 

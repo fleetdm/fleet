@@ -275,7 +275,7 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("expand recovery lock password", func(t *testing.T) {
-		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD</string></dict>`
+		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PENDING_PASSWORD</string></dict>`
 		expected := `<dict><key>NewPassword</key><string>TEST-PASS-1234</string></dict>`
 		expanded, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
 		require.NoError(t, err)
@@ -283,7 +283,7 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("expand with braces syntax", func(t *testing.T) {
-		doc := `Password: ${FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD}`
+		doc := `Password: ${FLEET_HOST_SECRET_RECOVERY_LOCK_PENDING_PASSWORD}`
 		expected := `Password: TEST-PASS-1234`
 		expanded, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
 		require.NoError(t, err)
@@ -345,14 +345,14 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// When expanded in an XML document, special characters should be escaped
-		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD</string></dict>`
+		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PENDING_PASSWORD</string></dict>`
 		expected := `<dict><key>NewPassword</key><string>Pass&amp;word&lt;with&gt;special&#34;chars&#39;</string></dict>`
 		expanded, err := ds.ExpandHostSecrets(ctx, doc, hostXML.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, expected, expanded)
 
 		// Non-XML documents should not escape the characters
-		docNonXML := `Password: $FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD`
+		docNonXML := `Password: $FLEET_HOST_SECRET_RECOVERY_LOCK_PENDING_PASSWORD`
 		expandedNonXML, err := ds.ExpandHostSecrets(ctx, docNonXML, hostXML.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, `Password: Pass&word<with>special"chars'`, expandedNonXML)
@@ -377,7 +377,7 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, unlock_token, authenticate, platform) VALUES (?, ?, 'fake-auth', 'ios')`, hostMDM.UUID, unlockToken)
 			require.NoError(t, err)
-			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, last_seen_at) VALUES (?, ?, 'Device', 'fake-topic', 'fake-push-magic', 'fake-token-hex', NOW())`, hostMDM.UUID, hostMDM.UUID)
+			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex) VALUES (?, ?, 'Device', 'fake-topic', 'fake-push-magic', 'fake-token-hex')`, hostMDM.UUID, hostMDM.UUID)
 			return err
 		})
 

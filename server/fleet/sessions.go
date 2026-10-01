@@ -25,6 +25,11 @@ type Auth interface {
 	UserDisplayName() string
 	// AssertionAttributes returns the attributes of the SAML response.
 	AssertionAttributes() []SAMLAttribute
+	// AssertionID returns the ID of the verified SAML assertion.
+	AssertionID() string
+	// AssertionNotOnOrAfter returns the latest instant the verified assertion
+	// is valid, considering both its conditions and subject confirmations.
+	AssertionNotOnOrAfter() time.Time
 }
 
 // SAMLAttribute holds the name and values of a custom attribute.

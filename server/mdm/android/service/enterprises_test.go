@@ -183,6 +183,9 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.DeleteOtherEnterprisesFunc = func(ctx context.Context, ID uint) error {
 		return nil
 	}
+	ds.Store.DeleteZeroTouchEnrollmentTokensFunc = func(_ context.Context) error {
+		return nil
+	}
 
 	ds.Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -249,6 +252,9 @@ func InitCommonDSMocks() *AndroidMockDS {
 	}
 	ds.Store.AndroidResetOnReenrollmentFunc = func(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) ([]*fleet.User, []fleet.ActivityDetails, error) {
 		return nil, nil, nil
+	}
+	ds.Store.SetOrUpdateHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, hostUUID string, vitals fleet.MDMAndroidDeviceVitals) error {
+		return nil
 	}
 	return &ds
 }

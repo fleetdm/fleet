@@ -1,10 +1,10 @@
-import React, { useCallback } from "react";
 import classnames from "classnames";
-
-import { ISoftwareInstallPolicyUI } from "interfaces/software";
+import React, { useCallback } from "react";
 
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
+import { ISoftwareInstallPolicyUI } from "interfaces/software";
+
 import generateInstallerPoliciesTableConfig from "./InstallerPoliciesTableConfig";
 
 export const baseClass = "installer-policies-table";

@@ -1,7 +1,7 @@
 // Note: Dynamic page titles are constructed for host, software, query, and policy details on their respective *DetailsPage.tsx file
 
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import PATHS from "router/paths";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 // Note: Order matters for use of array.find() (specific subpaths must be listed before their parent path)
 export default [

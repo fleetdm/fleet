@@ -105,7 +105,7 @@ variable "redis_parameter_group_family" {
 }
 
 variable "enable_otel" {
-  description = "Enable OpenTelemetry tracing with SigNoz instead of Elastic APM"
+  description = "Enable OpenTelemetry tracing with SigNoz. Tracing is disabled when false"
   type        = bool
   default     = false
 }

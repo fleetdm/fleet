@@ -1,0 +1,1 @@
+- Fixed the "Hosts online" empty state on the fleet dashboard to hide the Turn on button for team admins when the setting is disabled at the org level, since only a global admin can lift the org-level gate. Team admins now see "Ask an admin" copy in that case; global admins keep the Turn on button and it now routes to the org-level setting instead of the fleet setting.

@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -638,4 +639,41 @@ func TestParseMultipartForm(t *testing.T) {
 		err := parseMultipartForm(context.Background(), req, platform_http.MaxMultipartFormSize)
 		require.Error(t, err)
 	})
+}
+
+// TestUniversalDecoderReportsFieldPath covers the endpoints that decode through the generic decoder
+// rather than their own DecodeBody, which is most of them. Go 1.27 stopped reporting the position of a
+// failure inside a custom UnmarshalJSON, and every pkg/optjson type has one, so these errors lost the
+// field name entirely. See https://github.com/fleetdm/fleet/issues/52493.
+func TestUniversalDecoderReportsFieldPath(t *testing.T) {
+	type nested struct {
+		Enabled optjson.Bool `json:"enabled"`
+	}
+	type universalStruct struct {
+		Nested nested   `json:"nested"`
+		Items  []nested `json:"items"`
+		Name   string   `json:"name"`
+	}
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
+
+	for _, c := range []struct {
+		body string
+		want string
+	}{
+		{`{"nested":{"enabled":"yes"}}`, "invalid value type at 'nested.enabled': expected bool but got string"},
+		{`{"items":[{"enabled":true},{"enabled":"yes"}]}`, "invalid value type at 'items.1.enabled': expected bool but got string"},
+		// A plain field never lost its path; it must keep reporting the same way.
+		{`{"name":123}`, "invalid value type at 'name': expected string but got number"},
+	} {
+		t.Run(c.body, func(t *testing.T) {
+			req := httptest.NewRequest("POST", "/target", strings.NewReader(c.body))
+			_, err := decoder(context.Background(), req)
+			require.Error(t, err)
+
+			var bre *platform_http.BadRequestError
+			require.ErrorAs(t, err, &bre)
+			require.Equal(t, c.want, bre.Message)
+			require.Error(t, bre.InternalErr, "the decoder error stays available for logs")
+		})
+	}
 }

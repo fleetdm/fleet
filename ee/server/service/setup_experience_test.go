@@ -120,6 +120,7 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	assert.Len(t, requestedInstalls, 1)
 	assert.Len(t, requestedUpdateSetupExperience, 1)
 	assert.Equal(t, "install-uuid", *requestedUpdateSetupExperience[0].HostSoftwareInstallsExecutionID)
+	assert.Equal(t, fleet.SetupExperienceStatusRunning, requestedUpdateSetupExperience[0].Status)
 
 	mockListSetupExperience[0].Status = fleet.SetupExperienceStatusSuccess
 	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
@@ -580,6 +581,26 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.Len(t, updates, 1)
 		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
 		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "out-of-scope fallback ran no gating policy; policy clock must not be reset")
+	})
+
+	t.Run("gated marker but no gating policy (only a patch policy) -> installs without consulting results", func(t *testing.T) {
+		reset()
+		items = gatedPending()
+		policyResult = &policyPasses
+		// The item was enqueued as gated (e.g. before patch policies stopped counting), but the installer's only policy is a patch
+		// policy, so the datastore reports no gating policy: nothing is in scope and the gate doesn't apply -> install.
+		gatingPolicyIDs = []uint{}
+		deliverable = map[string]string{}
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.False(t, ds.GetSetupExperiencePolicyResultFuncInvoked, "with no gating policy there is no result to consult")
+		require.Len(t, installs, 1)
+		require.True(t, installs[0].ForSetupExperience)
+		require.Len(t, updates, 1)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
+		require.NotNil(t, updates[0].HostSoftwareInstallsExecutionID)
 	})
 
 	t.Run("result present but policy out of scope -> installs, result not consulted (exclude-label edge)", func(t *testing.T) {

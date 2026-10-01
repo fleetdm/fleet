@@ -1,0 +1,1 @@
+- Fixed Platform SSO user registration on Macs that were set up before the PSSO profile was installed. The extension now prompts for IdP credentials and verifies them through Fleet instead of failing registration immediately.

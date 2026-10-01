@@ -1,10 +1,9 @@
 import React, { useCallback, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
+import PlatformCompatibility from "components/PlatformCompatibility";
 import { QueryablePlatform, QUERYABLE_PLATFORMS } from "interfaces/platform";
 import { checkPlatformCompatibility } from "utilities/sql_tools";
-
-import PlatformCompatibility from "components/PlatformCompatibility";
 
 export interface IPlatformCompatibility {
   getCompatiblePlatforms: () => QueryablePlatform[];

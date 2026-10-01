@@ -1,4 +1,5 @@
 import { useContext, useMemo } from "react";
+
 import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { isAndroid } from "interfaces/platform";
@@ -10,11 +11,11 @@ import {
   isIpadOrIphoneSoftwareSource,
   InstallerType,
 } from "interfaces/software";
+import { isAndroidWebApp } from "pages/SoftwarePage/helpers";
 import {
   getInstallerCardInfo,
   InstallerCardInfo,
 } from "pages/SoftwarePage/SoftwareTitleDetailsPage/helpers";
-import { isAndroidWebApp } from "pages/SoftwarePage/helpers";
 import { compareVersions } from "utilities/helpers";
 
 export interface SoftwareInstallerMeta {

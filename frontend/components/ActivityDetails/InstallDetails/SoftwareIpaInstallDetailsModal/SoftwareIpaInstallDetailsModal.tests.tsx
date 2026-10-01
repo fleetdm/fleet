@@ -1,10 +1,11 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { getMdmCommandResultHandler } from "test/handlers/software-handlers";
-import { getDeviceVppCommandResultHandler } from "test/handlers/device-handler";
+import React from "react";
+
 import { createMockHostSoftware } from "__mocks__/hostMock";
+import { getDeviceVppCommandResultHandler } from "test/handlers/device-handler";
+import { getMdmCommandResultHandler } from "test/handlers/software-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import SoftwareIpaInstallDetailsModal from "./SoftwareIpaInstallDetailsModal";
 

@@ -1,16 +1,14 @@
 import React, { useRef, useState } from "react";
 
-import { notify } from "components/ToastNotification";
-
-import { getErrorReason } from "interfaces/errors";
-import mdmAPI from "services/entities/mdm";
-
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "add-asset-modal";
 

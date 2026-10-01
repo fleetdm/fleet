@@ -1,28 +1,27 @@
 import React, { useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { ISoftwareFleetMaintainedAppsResponse } from "services/entities/software";
-import { getNextLocationPath } from "utilities/helpers";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import {
   FleetMaintainedAppPlatform,
   ICombinedFMA,
   IFleetMaintainedApp,
 } from "interfaces/software";
+import PATHS from "router/paths";
+import { ISoftwareFleetMaintainedAppsResponse } from "services/entities/software";
+import { getNextLocationPath } from "utilities/helpers";
 
-import TableContainer from "components/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
+import { generateTableConfig } from "./FleetMaintainedAppsTableConfig";
 import {
   FmaStatusFilter,
   FmaPlatformFilter,
   FmaPlatformValue,
   FmaStatusValue,
 } from "./FmaFilters/FmaFilters";
-
-import { generateTableConfig } from "./FleetMaintainedAppsTableConfig";
 
 const baseClass = "fleet-maintained-apps-table";
 

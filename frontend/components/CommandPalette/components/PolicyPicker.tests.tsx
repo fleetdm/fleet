@@ -1,11 +1,11 @@
-import React from "react";
 import { waitFor } from "@testing-library/react";
 import { Command } from "cmdk";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
 
+import { IPolicyStats } from "interfaces/policy";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
-import { IPolicyStats } from "interfaces/policy";
+import { createCustomRenderer } from "test/test-utils";
 
 import PolicyPicker from "./PolicyPicker";
 

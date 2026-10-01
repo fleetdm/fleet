@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "26.3.1012",
+      "version": "26.3.3012.1855",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'RingCentral' AND publisher = 'RingCentral';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'RingCentral' AND publisher = 'RingCentral' AND version_compare(version, '26.3.1012.1623') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'RingCentral' AND publisher = 'RingCentral' AND version_compare(version, '26.3.3012.1855') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'ringcentral.exe');"
       },
       "installer_url": "https://app.ringcentral.com/download/RingCentral-x64.msi",

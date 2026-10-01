@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-empty-function, class-methods-use-this */
-import React from "react";
+
 import { fireEvent, render, screen } from "@testing-library/react";
+import React from "react";
 import { InjectedRouter } from "react-router";
+
 import { ILabelSummary } from "interfaces/label";
 
 import HostsEnrolledCard, { formatPercent } from "./HostsEnrolledCard";
@@ -197,5 +199,25 @@ describe("HostsEnrolledCard", () => {
       expect(push).toHaveBeenNthCalledWith(1, expectedPath);
       expect(push).toHaveBeenNthCalledWith(2, expectedPath);
     });
+  });
+
+  it("links every platform to its enrolled (non-pending) hosts", () => {
+    const push = jest.fn();
+    const router = ({ push } as unknown) as InjectedRouter;
+    render(
+      <HostsEnrolledCard
+        counts={counts}
+        totalHostCount={22070}
+        builtInLabels={builtInLabels}
+        router={router}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "macOS hosts" }));
+    fireEvent.click(screen.getByRole("button", { name: "Linux hosts" }));
+
+    expect(push).toHaveBeenCalledTimes(2);
+    expect(push.mock.calls[0][0]).toMatch(/\/labels\/10\?.*status=enrolled/);
+    expect(push.mock.calls[1][0]).toMatch(/\/labels\/12\?.*status=enrolled/);
   });
 });

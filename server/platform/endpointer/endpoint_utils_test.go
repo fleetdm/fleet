@@ -576,6 +576,35 @@ func TestMakeDecoderGzipBomb(t *testing.T) {
 	})
 }
 
+// A DecodeBody that hands its decode error back as a UserMessageError, as applyTeamSpecsRequest does, only
+// gets a 413 for an oversized body if that wrapper still unwraps to the http.MaxBytesError underneath.
+// Without it the request is answered with a 400 carrying the raw read error.
+func TestMakeDecoderBodyDecoderWrappedSizeError(t *testing.T) {
+	const limit = 100
+	isBodyDecoder := func(v reflect.Value) bool {
+		_, ok := reflect.TypeAssert[*testGzipBodyDecoderType](v)
+		return ok
+	}
+	decodeBodyFn := func(_ context.Context, _ *http.Request, v reflect.Value, body io.Reader) error {
+		if err := json.NewDecoder(body).Decode(v.Interface()); err != nil {
+			return platform_http.NewUserMessageError(err, http.StatusBadRequest)
+		}
+		return nil
+	}
+	decode := MakeDecoder(testGzipBodyDecoderType{}, defaultJSONUnmarshal, nil, isBodyDecoder, decodeBodyFn, nil, limit)
+
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"data":"`+strings.Repeat("x", limit*10)+`"}`))
+	_, err := decode(t.Context(), r)
+	ple, ok := errors.AsType[platform_http.PayloadTooLargeError](err)
+	require.True(t, ok, "an oversized body must be reported as PayloadTooLargeError, got: %v", err)
+	assert.Equal(t, int64(limit), ple.MaxRequestSize)
+
+	w := httptest.NewRecorder()
+	EncodeError(t.Context(), err, w, nil)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	assert.NotContains(t, w.Body.String(), "request body too large")
+}
+
 // TestMakeEndpointRequestSizeOverride asserts the precedence between a
 // route's own resolved limit and a configured EndpointRequestSizeOverrides entry.
 // The override only wins when it's larger, and it's never consulted
@@ -597,10 +626,17 @@ func TestMakeEndpointRequestSizeOverride(t *testing.T) {
 			expectedLimit: 10,
 		},
 		{
+			desc:          "Global can never override route limit",
+			globalDefault: 10,
+			routeLimit:    5,
+			expectedLimit: 5,
+		},
+		{
 			desc:          "Override lower than resolved default: default wins",
 			globalDefault: 10,
-			overrides:     map[string]int64{path: 5},
-			expectedLimit: 10,
+			routeLimit:    5,
+			overrides:     map[string]int64{path: 3},
+			expectedLimit: 5,
 		},
 		{
 			desc:          "Override higher than resolved default: override wins",
@@ -761,4 +797,29 @@ func TestMakeDecoderPremiumErrorNamesTheJSONField(t *testing.T) {
 	t.Run("a field that is not premium gated still decodes", func(t *testing.T) {
 		require.NoError(t, decodeBody(t, `{"free":"ok"}`))
 	})
+}
+
+type renamedPremiumRequest struct {
+	TeamIDs     []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
+	InstallerID uint   `json:"software_installer_id" renameto:"software_package_id,inline" premium:"true"`
+}
+
+func TestMakeDecoderPremiumErrorNamesTheRenamedFieldAsSent(t *testing.T) {
+	decode := MakeDecoder(renamedPremiumRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	for _, tc := range []struct {
+		body string
+		want string
+	}{
+		{body: `{"fleet_ids":[1]}`, want: "option fleet_ids requires a premium license"},
+		{body: `{"team_ids":[1]}`, want: "option team_ids requires a premium license"},
+		{body: `{"software_package_id":1}`, want: "option software_package_id requires a premium license"},
+		{body: `{"software_installer_id":1}`, want: "option software_installer_id requires a premium license"},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			r := httptest.NewRequest("POST", "/", strings.NewReader(tc.body))
+			_, err := decode(t.Context(), r)
+			require.ErrorContains(t, err, tc.want)
+		})
+	}
 }

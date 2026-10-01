@@ -65,8 +65,8 @@ func TestString(t *testing.T) {
 			{`{"i": 1, "s": null, "n": {}}`, "", T{I: 1, S: String{Set: true, Valid: false, Value: ""}}, `{"i": 1, "s": null, "n": {"s2": null}}`},
 			{`{"i": 1, "s": "a", "n": {"s2": "b"}}`, "", T{I: 1, S: String{Set: true, Valid: true, Value: "a"}, N: N{S2: String{Set: true, Valid: true, Value: "b"}}}, `{"i": 1, "s": "a", "n": {"s2": "b"}}`},
 			{`{"i": 1, "s": "a", "n": {"s2": null}}`, "", T{I: 1, S: String{Set: true, Valid: true, Value: "a"}, N: N{S2: String{Set: true, Valid: false, Value: ""}}}, `{"i": 1, "s": "a", "n": {"s2": null}}`},
-			{`{"i": 1, "s": true}`, "cannot unmarshal bool into Go struct", T{I: 1, S: String{Set: true, Valid: false, Value: ""}}, `{"i": 1, "s": null, "n": {"s2": null}}`},
-			{`{"i": 1, "n": {"s2": 123}}`, "cannot unmarshal number into Go struct", T{I: 1, N: N{S2: String{Set: true, Valid: false, Value: ""}}}, `{"i": 1, "s": null, "n": {"s2": null}}`},
+			{`{"i": 1, "s": true}`, "cannot unmarshal bool into Go value of type string", T{I: 1, S: String{Set: true, Valid: false, Value: ""}}, `{"i": 1, "s": null, "n": {"s2": null}}`},
+			{`{"i": 1, "n": {"s2": 123}}`, "cannot unmarshal number into Go value of type string", T{I: 1, N: N{S2: String{Set: true, Valid: false, Value: ""}}}, `{"i": 1, "s": null, "n": {"s2": null}}`},
 		}
 
 		for _, c := range cases {
@@ -146,8 +146,8 @@ func TestBool(t *testing.T) {
 			{`{"i": 1, "b": null, "n": {}}`, "", T{I: 1, B: Bool{Set: true, Valid: false, Value: false}}, `{"i": 1, "b": null, "n": {"b2": null}}`},
 			{`{"i": 1, "b": false, "n": {"b2": true}}`, "", T{I: 1, B: Bool{Set: true, Valid: true, Value: false}, N: N{B2: Bool{Set: true, Valid: true, Value: true}}}, `{"i": 1, "b": false, "n": {"b2": true}}`},
 			{`{"i": 1, "b": true, "n": {"b2": null}}`, "", T{I: 1, B: Bool{Set: true, Valid: true, Value: true}, N: N{B2: Bool{Set: true, Valid: false, Value: false}}}, `{"i": 1, "b": true, "n": {"b2": null}}`},
-			{`{"i": 1, "b": ""}`, "cannot unmarshal string into Go struct", T{I: 1, B: Bool{Set: true, Valid: false, Value: false}}, `{"i": 1, "b": null, "n": {"b2": null}}`},
-			{`{"i": 1, "n": {"b2": 123}}`, "cannot unmarshal number into Go struct", T{I: 1, N: N{B2: Bool{Set: true, Valid: false, Value: false}}}, `{"i": 1, "b": null, "n": {"b2": null}}`},
+			{`{"i": 1, "b": ""}`, "cannot unmarshal string into Go value of type bool", T{I: 1, B: Bool{Set: true, Valid: false, Value: false}}, `{"i": 1, "b": null, "n": {"b2": null}}`},
+			{`{"i": 1, "n": {"b2": 123}}`, "cannot unmarshal number into Go value of type bool", T{I: 1, N: N{B2: Bool{Set: true, Valid: false, Value: false}}}, `{"i": 1, "b": null, "n": {"b2": null}}`},
 		}
 
 		for _, c := range cases {
@@ -230,8 +230,9 @@ func TestInt(t *testing.T) {
 			{`{"i": null, "b": true, "n": {}}`, "", T{I: Int{Set: true, Valid: false, Value: 0}, B: true}, `{"i": null, "b": true, "n": {"i2": null}}`},
 			{`{"i": 1, "b": true, "n": {"i2": 2}}`, "", T{I: Int{Set: true, Valid: true, Value: 1}, B: true, N: N{I2: Int{Set: true, Valid: true, Value: 2}}}, `{"i": 1, "b": true, "n": {"i2": 2}}`},
 			{`{"i": 1, "b": true, "n": {"i2": null}}`, "", T{I: Int{Set: true, Valid: true, Value: 1}, B: true, N: N{I2: Int{Set: true, Valid: false, Value: 0}}}, `{"i": 1, "b": true, "n": {"i2": null}}`},
-			{`{"i": "", "b": true}`, "cannot unmarshal string into Go struct", T{I: Int{Set: true, Valid: false, Value: 0}, B: false}, `{"i": null, "b": false, "n": {"i2": null}}`},
-			{`{"b": true, "n": {"i2": true}}`, "cannot unmarshal bool into Go struct", T{I: Int{Set: false, Valid: false, Value: 0}, B: true, N: N{I2: Int{Set: true, Valid: false, Value: 0}}}, `{"i": null, "b": true, "n": {"i2": null}}`},
+			// Go 1.27's encoding/json keeps decoding the remaining members after a type error, so "b" is populated even though "i" failed.
+			{`{"i": "", "b": true}`, "cannot unmarshal string into Go value of type int", T{I: Int{Set: true, Valid: false, Value: 0}, B: true}, `{"i": null, "b": true, "n": {"i2": null}}`},
+			{`{"b": true, "n": {"i2": true}}`, "cannot unmarshal bool into Go value of type int", T{I: Int{Set: false, Valid: false, Value: 0}, B: true, N: N{I2: Int{Set: true, Valid: false, Value: 0}}}, `{"i": null, "b": true, "n": {"i2": null}}`},
 		}
 
 		for _, c := range cases {

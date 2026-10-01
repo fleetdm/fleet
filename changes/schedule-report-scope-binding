@@ -1,1 +1,0 @@
-* Fixed the fleet and global schedule endpoints accepting reports that belong to a different fleet, and made them return the same "not found" response for a report outside the caller's access as for one that doesn't exist.

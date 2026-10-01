@@ -110,6 +110,20 @@ func TestPolicySpecVerifyFleetMaintainedAppSlug(t *testing.T) {
 			name: "dynamic policy without slug is allowed",
 			spec: PolicySpec{Name: "Chrome installed", Team: "Workstations", Query: "SELECT 1;", Type: PolicyTypeDynamic},
 		},
+		{
+			name: "patch policy with notify_before_patching is allowed",
+			spec: PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", NotifyBeforePatching: true},
+		},
+		{
+			name:    "dynamic policy with notify_before_patching is rejected",
+			spec:    PolicySpec{Name: "Chrome installed", Team: "Workstations", Query: "SELECT 1;", Type: PolicyTypeDynamic, NotifyBeforePatching: true},
+			wantErr: errPolicyNotifyBeforePatchingRequiresPatch,
+		},
+		{
+			name:    "patch policy with both patch options is rejected",
+			spec:    PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", PatchWhenClosed: true, NotifyBeforePatching: true},
+			wantErr: ErrPolicyPatchOptionsMutuallyExclusive,
+		},
 	}
 
 	for _, tc := range testCases {

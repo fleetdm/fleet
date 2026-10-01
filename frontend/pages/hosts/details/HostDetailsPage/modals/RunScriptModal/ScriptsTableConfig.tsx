@@ -1,11 +1,13 @@
 import React from "react";
 
+import ActionsDropdown from "components/ActionsDropdown";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import TooltipWrapper from "components/TooltipWrapper";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostScript, ILastExecution } from "interfaces/script";
 import { IUser } from "interfaces/user";
-
-import Icon from "components/Icon";
-import ActionsDropdown from "components/ActionsDropdown";
 import {
   isGlobalAdmin,
   isTeamMaintainer,
@@ -16,9 +18,6 @@ import {
   isGlobalTechnician,
   isTeamTechnician,
 } from "utilities/permissions/permissions";
-import Button from "components/buttons/Button";
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
-import TooltipWrapper from "components/TooltipWrapper";
 
 import ScriptStatusCell from "./components/ScriptStatusCell";
 

@@ -35,8 +35,9 @@ func RouteTemplateFromContext(ctx context.Context) (string, bool) {
 }
 
 // WithRouteTemplate returns a new context with the given route template value.
-// Intended for tests that need to simulate what RouteTemplateRequestFunc would
-// have stored without running a real mux router.
+// Used by routers that match a request without going through gorilla/mux, and
+// by tests that need to simulate what RouteTemplateRequestFunc would have
+// stored without running a real mux router.
 func WithRouteTemplate(ctx context.Context, tpl string) context.Context {
 	return context.WithValue(ctx, routeTemplateKey, tpl)
 }

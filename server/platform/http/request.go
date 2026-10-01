@@ -13,4 +13,7 @@ const (
 	// MaxMultipartFormSize represents how big the in memory elements is when parsing a multipart form data set,
 	// anything above that limit (primarily files) will be written to temp disk files
 	MaxMultipartFormSize int64 = 1 * units.MiB
+
+	// MaxPerPage is the largest page a list endpoint should return.
+	MaxPerPage = 10000
 )

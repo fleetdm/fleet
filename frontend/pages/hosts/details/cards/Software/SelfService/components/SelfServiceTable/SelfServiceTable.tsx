@@ -1,8 +1,9 @@
 import React from "react";
+
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
 import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 

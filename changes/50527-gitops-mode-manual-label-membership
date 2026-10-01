@@ -1,0 +1,1 @@
+- Fixed GitOps mode blocking edits to a manual label's host membership. Hosts can now be added and removed in the Fleet UI while the label's name and description stay managed in YAML.

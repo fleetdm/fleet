@@ -1,16 +1,13 @@
 # Deploying Entra ID Platform SSO with Fleet
-Apple’s Platform Single Sign-on (Platform SSO), [introduced at WWDC22](https://developer.apple.com/videos/play/wwdc2022/10045) alongside macOS Ventura, iOS 17, and iPadOS 17, enables users to sign in to their identity provider credentials once and automatically access apps and websites that require authentication through an IdP.
+Apple's [Platform Single Sign-on (Platform SSO)](https://support.apple.com/guide/deployment/platform-sso-for-macos-dep7bbb05313/web), enables the following features for macOS hosts:
+
+- Initial local account creation based on identity provider (IdP) credentials during macOS automatic (ADE) enrollment (aka [Simplified Platform SSO](#simplified-platform-sso-macos-26))
+- Sync local account password with IdP
+- End users sign in to their Mac once and automatically access apps and websites that require authentication through an IdP
 
 This guide details how to deploy Microsoft Entra ID's macOS Platform SSO extension to your Fleet macOS hosts.
 
 > Fleet is testing [Simplified Setup](https://support.apple.com/en-gb/guide/deployment/dep7bbb05313/web#:~:text=Activate%20and%20enforce%20Platform%20SSO%20during%20Automated%20Device%20Enrollment%20to%20authenticate%20the%20enrollment%2C%20sign%20in%20with%20a%20Managed%20Apple%20Account%2C%20and%20create%20a%20local%20user) with Entra ID, which is currently in "preview" status. 
-
-## Why use Platform SSO?
-If your Identity Provider (IdP) supports Platform Single Sign-on, deploying it in your environment offers a great and secure sign-in experience for your users.
-
-Rather than your users having to enter credentials each time they sign in to an app protected by Entra ID, the Platform SSO extension will automatically perform the authentication using a Secure Enclave-backed key.
-
-This speeds up the authentication process for your employees and is more resistant to phishing than a traditional username and password.
 
 ## Requirements
 - macOS 13 or later
@@ -146,10 +143,108 @@ Lastly, they’ll be prompted to enable the Company Portal app to be used as a P
 
 Once registration is complete, the next time an employee logs into an Entra ID protected app in their web browser, the authentication will be seamless. The employee won’t be prompted for their password or be required to complete an MFA challenge. The Platform SSO extension will handle the entire authentication using the Secure Enclave-backed key.
 
+## Simplified Platform SSO (macOS 26+)
+
+Apple introduced Simplified Platform SSO in macOS 26. It streamlines the Platform SSO setup by presenting a **Single Sign-On for Mac** page during Setup Assistant, allowing users to authenticate with their IdP right out of the box with no post-enrollment registration step required.
+
+
+### Prerequisites
+In addition to the [standard requirements](#requirements) above, Simplified Platform SSO requires:
+
+- Hosts running **macOS 26** or later
+- Hosts enrolled via **Apple Business (AB)**
+- Fleet's Setup experience configured for the target fleet
+- Microsoft's Company Portal app of **version 5.2604.0** or later configured in Setup experience
+
+### Step 1: Configure profiles
+Simplified Platform SSO uses the same Extensible SSO / Platform SSO profile described in the section above. Follow the existing instructions to create:
+
+- An **Extensible Single Sign-On** profile with Simplified Platform SSO settings.
+
+For users to be created during setup and immediately registered with Platform SSO the profile must include **EnableRegistrationDuringSetup** and must list the URLs under **[Common settings](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#manual-configuration-for-other-mdm-services)** within **URLs**
+
+Example configuration for macOS 26:
+
+```
+<key>PayloadType</key>
+<string>com.apple.extensiblesso</string>
+<key>PlatformSSO</key>
+<dict>
+	<key>AuthenticationMethod</key>
+	<string>UserSecureEnclaveKey</string>
+	<key>UseSharedDeviceKeys</key>
+	<true />
+	<key>TokenToUserMapping</key>
+	<dict>
+		<key>AccountName</key>
+		<string>preferred_username</string>
+		<key>FullName</key>
+		<string>name</string>
+	</dict>
+	<key>EnableRegistrationDuringSetup</key>
+	<true />
+</dict>
+<key>ScreenLockedBehavior</key>
+<string>DoNotHandle</string>
+<key>TeamIdentifier</key>
+<string>UBF8T346G9</string>
+<key>Type</key>
+<string>Redirect</string>
+<key>URLs</key>
+<array>
+	<string>https://login.microsoftonline.com</string>
+	<string>https://login.microsoft.com</string>
+	<string>https://sts.windows.net</string>
+	<string>https://login.partner.microsoftonline.cn</string>
+	<string>https://login.chinacloudapi.cn</string>
+	<string>https://login.microsoftonline.us</string>
+	<string>https://login-us.microsoftonline.com</string>
+</array>
+```
+
+- View example **[Extensible Single Sign-On profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/entra-sso-extension-example.mobileconfig)**
+
+Upload the profile to the target fleet in Fleet under **Controls > OS Settings > Configuration profiles**. For best results, don't use labels to scope the Platform SSO profile to ensure it is immediately applicable to hosts during setup.
+
+### Step 2: Add Company Portal as a setup experience app
+
+Download the latest Company Portal app from your Fleet-maintained apps, ensuring the version is **5.2604.0** or later.
+
+In Fleet navigate to the target fleet and go to **Controls > Setup experience > Install software > macOS**. Check the box next to Company Portal so that it is installed on the host during setup experience.
+
+### Step 3: Enroll via AB
+
+Enroll the host through Apple Business. After setup experience completes (profiles are delivered and Company Portal is installed), the user is presented with a new **Single Sign-On for Mac** page containing an Entra login prompt.
+
+### End user experience (Simplified Platform SSO)
+1. **Single Sign-On for Mac screen**: After setup experience, the user sees an Entra login page. They enter their Entra credentials to register their device with Entra.
+    1. If using `Password` as the Authentication method, the user also sees the **Sign in to your Organization** screen, where they enter their Entra credentials again to finalize the PSSO registration.
+2. **Create account screen**: After authenticating, the standard macOS create-account screen appears, but all fields are locked (the user can only edit the password hint). The local account password is automatically set to match their Entra password.
+    1. If using `UserSecureEnclaveKey` the user can set their own device password, but the name and username fields are still locked.
+3. **Continue with Single Sign-On screen**: If using `UserSecureEnclaveKey` the user is prompted a final time to complete their registration with Entra.
+
+
+### Managing mixed macOS versions
+If your fleet includes hosts running macOS versions older than macOS 26, carefully review Apple's Platform SSO documentation to understand which features are supported on each version. Consider assigning hosts on older macOS versions to a **separate fleet** in Fleet so they receive the standard Platform SSO profiles (described earlier in this guide) rather than the Simplified Platform SSO configuration.
+
+
 ## What about password sync?
 Platform SSO extensions can be configured to synchronize local account credentials with the IdP. To do this, you'll need to change the `AuthenticationMethod` keys in your configuration profile to `Password`. After the end user registers with the Company Portal app, their local account password will change to match their Entra ID password.
 
 Keep in mind that when this method is used, authentication to Entra ID protected apps _won't_ be handled by the Secure Enclave-backed key.
+
+## Troubleshooting
+
+
+### Simplified Platform SSO: Missing single sign-on application or extension
+If the Company Portal app failed to install, never installed or the wrong version is installed, the user will see an error saying: **"This Mac does not have the necessary single sign-on application or extension."**
+
+To resolve this, you can install the Company Portal app onto the host via Fleet. Once it successfully installs, the end user can click **Try Again** and they should be able to continue on. It is also possible to issue a **Wipe** command to the host so it restarts the setup experience.
+
+
+## Additional resources
+
+To figure out what authentication method you should use, see Microsoft's [documentation](https://learn.microsoft.com/en-us/intune/device-configuration/settings-catalog/configure-platform-sso-macos?tabs=password#step-1---decide-the-authentication-method).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="ddribeiro">

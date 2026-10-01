@@ -104,6 +104,13 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedPackageIDs: []string{"org.golang.go"},
 		},
 		{
+			file:               "distribution-globalprotect.xml",
+			expectedName:       "GlobalProtect",
+			expectedVersion:    "6.2.8-948",
+			expectedBundleID:   "com.paloaltonetworks.globalprotect.pkg",
+			expectedPackageIDs: []string{"com.paloaltonetworks.globalprotect.pkg"},
+		},
+		{
 			file:             "distribution-microsoft-teams.xml",
 			expectedName:     "Microsoft Teams",
 			expectedVersion:  "24124.1412.2911.3341",

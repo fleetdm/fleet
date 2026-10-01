@@ -20,10 +20,10 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
-	"github.com/fleetdm/fleet/v4/pkg/race"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/go-tuf/verify"
 	"github.com/urfave/cli/v2"
 )
 
@@ -463,13 +463,10 @@ func TestRollback(t *testing.T) {
 // behavior depends on which of the roles has the expired signature).
 func TestIntegrationsUpdatesExpiredSignatures(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment and global variables.
-	if race.Enabled {
-		// Because execution is slower and thus sleep time would need to be higher.
-		t.Skip("Skipping test when race is enabled")
-	}
-
 	setPassphrases(t)
-	const timeToExpire = 5 * time.Second
+	// Long enough that a slow test setup cannot expire the metadata early (expiration is
+	// checked with a fake clock below), but shorter than the default expiration durations.
+	const timeToExpire = 1 * time.Hour
 
 	for _, tc := range []struct {
 		name                      string
@@ -572,7 +569,11 @@ func TestIntegrationsUpdatesExpiredSignatures(t *testing.T) {
 			err = updater.UpdateMetadata()
 			require.NoError(t, err)
 
-			time.Sleep(timeToExpire + 1*time.Second)
+			// Move go-tuf's clock past the expiration instead of sleeping.
+			oldIsExpired := verify.IsExpired
+			t.Cleanup(func() { verify.IsExpired = oldIsExpired })
+			fakeNow := time.Now().Add(timeToExpire + 1*time.Minute)
+			verify.IsExpired = func(expires time.Time) bool { return !fakeNow.Before(expires) }
 
 			// Expect UpdateMetadata (client.Update) to fail when the signature has expired.
 			err = updater.UpdateMetadata()

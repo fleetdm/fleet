@@ -1,21 +1,34 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
-import React, { useState, useContext, useEffect, useRef } from "react";
-import { useQuery, useQueryClient } from "react-query";
 
 import { Ace } from "ace-builds";
-import { useDebouncedCallback } from "use-debounce";
 import { size } from "lodash";
+import React, { useState, useContext, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
+import { useDebouncedCallback } from "use-debounce";
 
-import { AppContext } from "context/app";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+import {
+  validateQuery,
+  EMPTY_QUERY_ERR,
+} from "components/forms/validators/validate_query";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Icon from "components/Icon/Icon";
+import Spinner from "components/Spinner";
+import SQLEditor from "components/SQLEditor";
+import { TargetLabelSelector } from "components/TargetLabelSelector";
 import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
@@ -23,52 +36,36 @@ import {
   APP_CONTEXT_NO_TEAM_ID,
   APP_CONTEXT_NO_TEAM_SUMMARY,
 } from "interfaces/team";
-import { CommaSeparatedPlatformString } from "interfaces/platform";
-import {
-  DEFAULT_POLICIES,
-  POLICY_TARGET_EMPTY_STATE_DESCRIPTION,
-} from "pages/policies/constants";
-
-import {
-  LEARN_MORE_ABOUT_BASE_LINK,
-  MAX_ENTITY_CHAR_LENGTH,
-} from "utilities/constants";
-
-import SQLEditor from "components/SQLEditor";
-import {
-  validateQuery,
-  EMPTY_QUERY_ERR,
-} from "components/forms/validators/validate_query";
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import TooltipWrapper from "components/TooltipWrapper";
-import Spinner from "components/Spinner";
-import Icon from "components/Icon/Icon";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import CustomLink from "components/CustomLink";
-import { TargetLabelSelector } from "components/TargetLabelSelector";
-
-import teamPoliciesAPI from "services/entities/team_policies";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-
+import { PatchAutomationCta } from "pages/policies/components";
 import PolicyAutomationsFields, {
   IPolicyAutomationsFieldsHandle,
   IPolicyAutomationsPayload,
 } from "pages/policies/components/PolicyAutomationsFields";
-import { PatchAutomationCta } from "pages/policies/components";
 import {
-  getPatchPolicyFlags,
-  PatchOption,
-  PatchOptionSelector,
-} from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
+  DEFAULT_POLICIES,
+  POLICY_TARGET_EMPTY_STATE_DESCRIPTION,
+} from "pages/policies/constants";
 import {
   useUpdatePolicyAutomations,
   usePolicyLabelTargets,
 } from "pages/policies/hooks";
+import {
+  EndUserExperience,
+  getPatchPolicyFlags,
+  PatchOption,
+  PatchOptionSelector,
+} from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
+import PATHS from "router/paths";
+import teamPoliciesAPI from "services/entities/team_policies";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import {
+  LEARN_MORE_ABOUT_BASE_LINK,
+  MAX_ENTITY_CHAR_LENGTH,
+} from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
+
 import { getPolicyAutomationErrorMessage } from "./helpers";
 
 const baseClass = "policy-form";
@@ -143,8 +140,12 @@ const PolicyForm = ({
   const isPatchPolicy = storedPolicy?.type === "patch";
   const [isAddingAutomation, setIsAddingAutomation] = useState(false);
   const [patchOption, setPatchOption] = useState<PatchOption>("manual");
+  const [endUserExperience, setEndUserExperience] = useState<EndUserExperience>(
+    "immediate"
+  );
   const storedPatchPolicyId = storedPolicy?.id;
   const storedPatchWhenClosed = storedPolicy?.patch_when_closed;
+  const storedNotifyBeforePatching = storedPolicy?.notify_before_patching;
   const storedInstallSoftwareId =
     storedPolicy?.install_software?.software_title_id;
 
@@ -157,10 +158,12 @@ const PolicyForm = ({
       nextPatchOption = "force";
     }
     setPatchOption(nextPatchOption);
+    setEndUserExperience(storedNotifyBeforePatching ? "notify" : "immediate");
   }, [
     isPatchPolicy,
     storedPatchPolicyId,
     storedPatchWhenClosed,
+    storedNotifyBeforePatching,
     storedInstallSoftwareId,
   ]);
 
@@ -173,6 +176,7 @@ const PolicyForm = ({
     lastEditedQueryBody,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    lastEditedQueryHidden,
     lastEditedQueryPlatform,
     lastEditedQueryLabelsIncludeAny,
     lastEditedQueryLabelsIncludeAll,
@@ -184,6 +188,7 @@ const PolicyForm = ({
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
@@ -295,6 +300,17 @@ const PolicyForm = ({
   }
 
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
+  const [conditionalAccessOn, setConditionalAccessOn] = useState(
+    storedPolicy?.conditional_access_enabled ?? false
+  );
+  useEffect(() => {
+    setConditionalAccessOn(storedPolicy?.conditional_access_enabled ?? false);
+  }, [storedPolicy?.conditional_access_enabled]);
+  useEffect(() => {
+    if (conditionalAccessOn) {
+      setLastEditedQueryHidden(false);
+    }
+  }, [conditionalAccessOn, setLastEditedQueryHidden]);
 
   const {
     mutate: saveAutomations,
@@ -448,7 +464,7 @@ const PolicyForm = ({
               patchOption === "manual"
                 ? null
                 : storedPolicy?.patch_software?.software_title_id ?? null,
-            ...getPatchPolicyFlags(patchOption),
+            ...getPatchPolicyFlags(patchOption, endUserExperience),
           },
         };
       }
@@ -471,6 +487,12 @@ const PolicyForm = ({
       }
     };
 
+    // The core PATCH lands before the automations PATCH, and the backend
+    // validates hidden against the stored conditional access value, so a
+    // disable has to travel with the core update or hidden is rejected.
+    const disablesConditionalAccess =
+      automations?.policyUpdate?.conditional_access_enabled === false;
+
     if (isPatchPolicy && isEditMode) {
       // Patch policies: only send editable fields, not query/platform
       const payload: IPolicyFormData = {
@@ -480,6 +502,10 @@ const PolicyForm = ({
       };
       if (isPremiumTier) {
         payload.critical = lastEditedQueryCritical;
+        payload.hidden = lastEditedQueryHidden;
+        if (disablesConditionalAccess) {
+          payload.conditional_access_enabled = false;
+        }
       }
       await onUpdate(payload);
       persistAutomations();
@@ -523,6 +549,10 @@ const PolicyForm = ({
       if (isPremiumTier) {
         Object.assign(payload, getLabelsPayload());
         payload.critical = lastEditedQueryCritical;
+        payload.hidden = lastEditedQueryHidden;
+        if (disablesConditionalAccess) {
+          payload.conditional_access_enabled = false;
+        }
       }
       await onUpdate(payload);
       persistAutomations();
@@ -636,7 +666,6 @@ const PolicyForm = ({
           className="critical-policy"
           onChange={(value: boolean) => setLastEditedQueryCritical(value)}
           value={lastEditedQueryCritical}
-          isLeftLabel
           disabled={gitOpsModeEnabled}
         >
           <TooltipWrapper
@@ -649,6 +678,30 @@ const PolicyForm = ({
             }
           >
             Critical
+          </TooltipWrapper>
+        </Checkbox>
+      </div>
+    );
+  };
+
+  const renderHiddenPolicy = () => {
+    return (
+      <div className={`${baseClass}__hidden-checkbox-wrapper`}>
+        <Checkbox
+          name="hidden-policy"
+          className="hidden-policy"
+          onChange={(value: boolean) => setLastEditedQueryHidden(value)}
+          value={lastEditedQueryHidden}
+          disabled={gitOpsModeEnabled || conditionalAccessOn}
+        >
+          <TooltipWrapper
+            tipContent={
+              conditionalAccessOn
+                ? "This setting is not compatible with the conditional access automation."
+                : "Does not require action from the end user and is hidden in Fleet Desktop."
+            }
+          >
+            Hide from end user
           </TooltipWrapper>
         </Checkbox>
       </div>
@@ -714,6 +767,9 @@ const PolicyForm = ({
             <PatchOptionSelector
               patchOption={patchOption}
               onSelectPatchOption={setPatchOption}
+              platform={storedPolicy?.platform}
+              endUserExperience={endUserExperience}
+              onSelectEndUserExperience={setEndUserExperience}
               disabled={disableChildren}
             />
           )}
@@ -773,8 +829,12 @@ const PolicyForm = ({
                 patchOption={
                   isPremiumTier && isPatchPolicy ? patchOption : undefined
                 }
+                endUserExperience={
+                  isPremiumTier && isPatchPolicy ? endUserExperience : undefined
+                }
                 patchSlot={patchOptions}
                 selectedPlatforms={getSelectedPlatforms()}
+                onConditionalAccessChange={setConditionalAccessOn}
               />
             </div>
           )}
@@ -783,6 +843,7 @@ const PolicyForm = ({
             isPremiumTier &&
             !isPatchPolicy &&
             renderCriticalPolicy()}
+          {isEditMode && isPremiumTier && renderHiddenPolicy()}
           <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}

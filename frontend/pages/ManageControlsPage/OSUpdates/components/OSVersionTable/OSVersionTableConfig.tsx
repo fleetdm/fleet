@@ -1,13 +1,12 @@
 import React from "react";
 
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-
-import OSTypeCell from "../OSTypeCell";
 import { IFilteredOperatingSystemVersion } from "../CurrentVersionSection/CurrentVersionSection";
+import OSTypeCell from "../OSTypeCell";
 
 interface IOSTypeCellProps {
   row: {

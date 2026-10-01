@@ -3876,7 +3876,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) (slu
 	return slug, installerServer.URL
 }
 
-func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsPatchWhenClosed() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsPatchPolicyOptions() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -3971,6 +3971,20 @@ reports:
 	require.True(t, pols[0].PatchWhenClosed)
 	require.True(t, pols[0].ContinuousAutomationsEnabled)
 
+	// Switching the same policy to notify_before_patching flips both flags and keeps
+	// continuous automations auto-set on.
+	apply(fmt.Sprintf(`  - name: patch-policy
+    type: patch
+    fleet_maintained_app_slug: %s
+    notify_before_patching: true`, slug))
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, pols, 1)
+	require.Equal(t, firstID, pols[0].ID)
+	require.True(t, pols[0].NotifyBeforePatching, "notify_before_patching should persist")
+	require.False(t, pols[0].PatchWhenClosed, "patch_when_closed should be cleared")
+	require.True(t, pols[0].ContinuousAutomationsEnabled)
+
 	// An explicit continuous_automations_enabled: false is rejected end-to-end.
 	require.NoError(t, os.WriteFile(teamFile, []byte(teamCfg(fmt.Sprintf(`  - name: patch-policy
     type: patch
@@ -3979,7 +3993,7 @@ reports:
     patch_when_closed: true`, slug))), 0o644))
 	fleetctltest.RunAppCheckErr(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
-	}, `"continuous_automations_enabled" must be true when "patch_when_closed" is true`)
+	}, `If "patch_when_closed" is true, "continuous_automations_enabled" can't be set to false.`)
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDeletedActivities() {
@@ -4112,6 +4126,237 @@ reports:
 			"expected deleted_policy activity for %q (id=%d), got activities for IDs %v",
 			name, policyIDsByName[name], deletedIDs)
 	}
+}
+
+// TestGitOpsFleetMaintainedAppFileReferences applies Fleet-maintained apps through
+// path and paths references and asserts the applied state matches what an inline
+// declaration produces, including that the later of two duplicate declarations wins.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsFleetMaintainedAppFileReferences() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	slugA, installerA := s.setupDarwinFMA(t)
+	slugB, installerB := s.setupDarwinFMA(t)
+	teamName := uuid.NewString()
+
+	installerBySlug := map[string]string{slugA: installerA, slugB: installerB}
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for slug, installer := range installerBySlug {
+			if r.URL.Path != "/"+slug+".json" {
+				continue
+			}
+			_ = json.NewEncoder(w).Encode(ma.FMAManifestFile{
+				Versions: []*ma.FMAManifestApp{{
+					Version:            "1.0",
+					Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+					InstallerURL:       installer + "/foo.pkg",
+					InstallScriptRef:   "fooscript",
+					UninstallScriptRef: "fooscript",
+					SHA256:             "no_check",
+				}},
+				Refs: map[string]string{"fooscript": "echo hello"},
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+
+	const globalConfig = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+	baseDir := t.TempDir()
+	globalFile := filepath.Join(baseDir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalConfig), 0o644))
+
+	libDir := filepath.Join(baseDir, "lib")
+	require.NoError(t, os.MkdirAll(libDir, 0o755))
+	writeLib := func(name, body string) {
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, name), []byte(body), 0o644))
+	}
+	writeLib("a.yml", fmt.Sprintf("- slug: %s\n  self_service: true\n", slugA))
+	writeLib("b.yml", fmt.Sprintf("- slug: %s\n", slugB))
+	writeLib("dup1.yml", fmt.Sprintf("- slug: %s\n  self_service: true\n", slugA))
+	writeLib("dup2.yml", fmt.Sprintf("- slug: %s\n  self_service: false\n", slugA))
+
+	teamFile := filepath.Join(baseDir, "team.yml")
+	apply := func(softwareBody string) {
+		cfg := fmt.Sprintf(`
+controls:
+software:
+  fleet_maintained_apps:
+%s
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+`, softwareBody, teamName)
+		require.NoError(t, os.WriteFile(teamFile, []byte(cfg), 0o644))
+		s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+		}))
+	}
+
+	type applied struct {
+		Slug        string `db:"slug"`
+		SelfService bool   `db:"self_service"`
+	}
+	installers := func(teamID uint) []applied {
+		var out []applied
+		mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &out, `
+				SELECT fma.slug, si.self_service
+				FROM software_installers si
+				JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+				WHERE si.global_or_team_id = ?
+				ORDER BY fma.slug`, teamID)
+		})
+		return out
+	}
+
+	// A single path reference applies the app, carrying the referenced file's fields.
+	apply("    - path: lib/a.yml")
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.Equal(t, []applied{{Slug: slugA, SelfService: true}}, installers(team.ID))
+
+	// A paths glob applies every app across every matched file.
+	apply(`    - paths: "lib/[ab].yml"`)
+	got := installers(team.ID)
+	require.Len(t, got, 2)
+	require.ElementsMatch(t, []applied{{Slug: slugA, SelfService: true}, {Slug: slugB}}, got)
+
+	// The same app declared in two referenced files applies without error, and the
+	// later file wins, matching what two inline declarations produce.
+	apply("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
+	require.Equal(t, []applied{{Slug: slugA, SelfService: false}}, installers(team.ID))
+
+	apply(fmt.Sprintf("    - slug: %s\n      self_service: true\n    - slug: %s\n      self_service: false", slugA, slugA))
+	require.Equal(t, []applied{{Slug: slugA, SelfService: false}}, installers(team.ID))
+}
+
+// TestGitOpsAppStoreAppFileReferences is the App Store counterpart to
+// TestGitOpsFleetMaintainedAppFileReferences. Adam IDs 1 and 2 are the assets
+// StartAndServeVPPServer licenses.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsAppStoreAppFileReferences() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	test.CreateInsertGlobalVPPToken(t, s.DS)
+	testing_utils.StartAndServeVPPServer(t)
+	teamName := uuid.NewString()
+
+	globalConfig := fmt.Sprintf(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  mdm:
+    volume_purchasing_program:
+      - location: Jungle
+        fleets:
+          - %s
+policies:
+reports:
+`, teamName)
+
+	baseDir := t.TempDir()
+	globalFile := filepath.Join(baseDir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalConfig), 0o644))
+
+	libDir := filepath.Join(baseDir, "lib")
+	require.NoError(t, os.MkdirAll(libDir, 0o755))
+	writeLib := func(name, body string) {
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, name), []byte(body), 0o644))
+	}
+	writeLib("a.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: true\n")
+	writeLib("b.yml", "- app_store_id: \"2\"\n  platform: ios\n")
+	writeLib("dup1.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: true\n")
+	writeLib("dup2.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: false\n")
+
+	teamFile := filepath.Join(baseDir, "team.yml")
+	apply := func(softwareBody string) {
+		cfg := fmt.Sprintf(`
+controls:
+software:
+  app_store_apps:
+%s
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+`, softwareBody, teamName)
+		require.NoError(t, os.WriteFile(teamFile, []byte(cfg), 0o644))
+		// assertRealRunOutput rejects the re-apply line the VPP flow emits.
+		require.Contains(t, fleetctltest.RunAppForTest(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+		}), "gitops succeeded")
+	}
+
+	type applied struct {
+		AdamID      string `db:"adam_id"`
+		Platform    string `db:"platform"`
+		SelfService bool   `db:"self_service"`
+	}
+	assigned := func(teamID uint) []applied {
+		var out []applied
+		mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &out,
+				`SELECT adam_id, platform, self_service FROM vpp_apps_teams
+				 WHERE global_or_team_id = ? ORDER BY adam_id, platform`, teamID)
+		})
+		return out
+	}
+
+	apply(`    - path: lib/a.yml`)
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.Equal(t, []applied{{AdamID: "1", Platform: "darwin", SelfService: true}}, assigned(team.ID))
+
+	apply(`    - paths: "lib/[ab].yml"`)
+	require.ElementsMatch(t, []applied{
+		{AdamID: "1", Platform: "darwin", SelfService: true},
+		{AdamID: "2", Platform: "ios"},
+	}, assigned(team.ID))
+
+	// Duplicates through references must land the same way as duplicates declared
+	// inline. Each run starts from empty so the comparison isn't reading stale state.
+	apply("")
+	require.Empty(t, assigned(team.ID))
+	apply("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
+	viaReferences := assigned(team.ID)
+
+	apply("")
+	require.Empty(t, assigned(team.ID))
+	apply("    - app_store_id: \"1\"\n      platform: darwin\n      self_service: true\n    - app_store_id: \"1\"\n      platform: darwin\n      self_service: false")
+	require.Equal(t, assigned(team.ID), viaReferences, "referenced duplicates must match inline duplicates")
+	require.Len(t, viaReferences, 1)
 }
 
 // TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)

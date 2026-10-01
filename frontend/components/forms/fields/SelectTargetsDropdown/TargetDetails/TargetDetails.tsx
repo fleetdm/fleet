@@ -1,15 +1,15 @@
-import React from "react";
-import { noop } from "lodash";
-import SQLEditor from "components/SQLEditor";
 import classnames from "classnames";
+import { noop } from "lodash";
+import React from "react";
 
-import { humanHostMemory } from "utilities/helpers";
-import FleetIcon from "components/icons/FleetIcon";
-import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
-import { ISelectHost, ISelectLabel, ISelectTeam } from "interfaces/target";
 import DataSet from "components/DataSet";
+import FleetIcon from "components/icons/FleetIcon";
+import SQLEditor from "components/SQLEditor";
 import StatusIndicator from "components/StatusIndicator";
 import TableCount from "components/TableContainer/TableCount";
+import { ISelectHost, ISelectLabel, ISelectTeam } from "interfaces/target";
+import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
+import { humanHostMemory } from "utilities/helpers";
 
 import { isTargetHost, isTargetTeam, isTargetLabel } from "../helpers";
 

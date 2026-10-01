@@ -1,14 +1,14 @@
 import React, { useState, useContext } from "react";
-
-import { AppContext } from "context/app";
-
-import Modal from "components/Modal";
 import { SingleValue } from "react-select-5";
+
+import CustomLink from "components/CustomLink";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import CustomLink from "components/CustomLink";
+import Modal from "components/Modal";
 import PageDescription from "components/PageDescription";
+import { AppContext } from "context/app";
 import { IIntegration, IZendeskJiraIntegrations } from "interfaces/integration";
+
 import IntegrationForm from "../IntegrationForm";
 
 const baseClass = "add-integration-modal";
@@ -18,7 +18,7 @@ interface IAddTicketDestinationModalProps {
   onSubmit: (
     integrationSubmitData: IIntegration[],
     integrationDestination: string
-  ) => void;
+  ) => void | Promise<unknown>;
   integrations: IZendeskJiraIntegrations;
   testingConnection: boolean;
 }

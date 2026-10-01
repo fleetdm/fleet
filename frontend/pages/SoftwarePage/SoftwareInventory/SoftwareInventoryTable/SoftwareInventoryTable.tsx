@@ -7,34 +7,32 @@ import React, { useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Slider from "components/forms/fields/Slider";
+import LastUpdatedText from "components/LastUpdatedText";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import TooltipWrapper from "components/TooltipWrapper";
+import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import PATHS from "router/paths";
-import { getNextLocationPath } from "utilities/helpers";
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
 import {
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
-import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
-import TableContainer from "components/TableContainer";
-import Slider from "components/forms/fields/Slider";
-import CustomLink from "components/CustomLink";
-import LastUpdatedText from "components/LastUpdatedText";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
-import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
-
-import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
-
-import generateInventoryTableConfig from "./SoftwareInventoryTableConfig";
-import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
 import {
   ISoftwareVulnFiltersParams,
   buildSoftwareVulnFiltersQueryParams,
   getVulnFilterRenderDetails,
 } from "./helpers";
+import generateInventoryTableConfig from "./SoftwareInventoryTableConfig";
+import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
 
 interface IRowProps extends Row {
   original: {

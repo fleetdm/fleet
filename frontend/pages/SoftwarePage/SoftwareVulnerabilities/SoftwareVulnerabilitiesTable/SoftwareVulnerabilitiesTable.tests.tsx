@@ -1,9 +1,9 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import React from "react";
 
-import { createMockVulnerabilitiesResponse } from "__mocks__/vulnerabilitiesMock";
 import createMockUser from "__mocks__/userMock";
+import { createMockVulnerabilitiesResponse } from "__mocks__/vulnerabilitiesMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import SoftwareVulnerabilitiesTable from "./SoftwareVulnerabilitiesTable";
 

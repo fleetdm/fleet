@@ -17,7 +17,7 @@ const generateDuplicateMessage = (msg: string) => {
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (err: unknown) => {
   const duplicateEntryReason = getErrorReason(err, {
-    reasonIncludes: "Duplicate entry",
+    reasonIncludes: "Apple Business Manager connection already exists",
   });
   const invalidTokenReason = getErrorReason(err, {
     reasonIncludes: "Invalid token",

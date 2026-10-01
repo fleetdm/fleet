@@ -1,12 +1,13 @@
-import React from "react";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import mockServer from "test/mock-server";
+import React from "react";
+
 import {
   emptySelfServiceCategoriesHandler,
   listSelfServiceCategoriesErrorHandler,
   listSelfServiceCategoriesHandler,
 } from "test/handlers/self-service-categories-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import SoftwareOptionsSelector from "./SoftwareOptionsSelector";
 

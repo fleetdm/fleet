@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.6.1",
+      "version": "5.7.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'KeyStore Explorer' AND publisher = 'Kai Kramer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'KeyStore Explorer' AND publisher = 'Kai Kramer' AND version_compare(version, '5.6.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'KeyStore Explorer' AND publisher = 'Kai Kramer' AND version_compare(version, '5.7.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'kse.exe');"
       },
-      "installer_url": "https://github.com/kaikramer/keystore-explorer/releases/download/v5.6.1/kse-561-setup.exe",
+      "installer_url": "https://github.com/kaikramer/keystore-explorer/releases/download/v5.7.0/kse-570-setup.exe",
       "install_script_ref": "5d895dc9",
       "uninstall_script_ref": "2470a3d3",
-      "sha256": "299c99412a791a92c86b70a3e100531f8548115603ad541f11c5c29f8c867eeb",
+      "sha256": "9d337fb85b3fa9de4f75df959dbaecd42330d58993fed6a4861ce091d67a3d56",
       "default_categories": [
         "Productivity"
       ]

@@ -1,10 +1,10 @@
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
 import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
+import PATHS from "router/paths";
 
-import GlobalVariables from "./cards/GlobalVariables";
 import CustomHostVitalsTab from "./cards/CustomHostVitalsTab";
+import GlobalVariables from "./cards/GlobalVariables";
 
 export interface IVariablesCardProps {
   router: InjectedRouter;

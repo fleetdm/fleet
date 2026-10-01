@@ -152,6 +152,15 @@
   },
   {
     "software": {
+      "name": ["bash", "python3-bash"],
+      "source": ["python_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["flock"],
       "source": ["homebrew_packages"]
     },
@@ -716,6 +725,28 @@
       "product": ["firefox"],
       "vendor": ["mozilla"],
       "sw_edition": ["esr"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.adobe\\.LightroomClassicCC\\d*$/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["lightroom"],
+      "vendor": ["adobe"],
+      "sw_edition": ["classic"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.adobe.lightroomCC", "com.adobe.mas.lightroomCC"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["lightroom"],
+      "vendor": ["adobe"],
+      "sw_edition": ["desktop"]
     }
   },
   {

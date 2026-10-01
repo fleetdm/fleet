@@ -9,6 +9,8 @@
 
 import React from "react";
 
+import CustomLink from "components/CustomLink";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { getErrorReason } from "interfaces/errors";
 import {
   IHostSoftware,
@@ -19,11 +21,8 @@ import {
   ISoftwareInstallPolicy,
   SoftwareInstallPolicyTypeSet,
 } from "interfaces/software";
-import { IDropdownOption } from "interfaces/dropdownOption";
-
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
-import CustomLink from "components/CustomLink";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
 
 /**
  * helper function to generate error message for secret variables based
@@ -227,7 +226,7 @@ export const getSelfServiceTooltip = (
   if (isAndroidPlayStoreApp) {
     return (
       <>
-        End users can install from the <strong>Play Store</strong> <br />
+        End users can install from the <strong>Play Store</strong>
         in their work profile.
       </>
     );
@@ -235,11 +234,10 @@ export const getSelfServiceTooltip = (
   if (isIosOrIpadosApp)
     return (
       <>
-        End users can install from self service.
-        <br />
+        End users can install from{" "}
         <CustomLink
           newTab
-          text="Learn how to deploy self service"
+          text="self service"
           variant="tooltip-link"
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/deploy-self-service-to-ios`}
         />
@@ -248,11 +246,10 @@ export const getSelfServiceTooltip = (
 
   return (
     <>
-      End users can install from <br />
-      <strong>Fleet Desktop</strong> &gt; <strong>Self service</strong>. <br />
+      End users can install from <strong>Fleet Desktop</strong> &gt;{" "}
       <CustomLink
         newTab
-        text="Learn more"
+        text="Self service"
         variant="tooltip-link"
         url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
       />
@@ -263,11 +260,9 @@ export const getSelfServiceTooltip = (
 export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
   return (
     <>
-      When a new version is available,
-      <br />
-      targeted hosts will begin updating between
-      <br />
-      {startTime} and {endTime} (host&rsquo;s local time).
+      When a new version is available, targeted hosts will begin updating
+      between {internationalTimeOnlyFormat(startTime)} and{" "}
+      {internationalTimeOnlyFormat(endTime)} (host local time).
     </>
   );
 };
@@ -316,19 +311,25 @@ const WELL_KNOWN_SOFTWARE_TITLES: Record<string, string> = {
   "microsoft.companyportal": "Company Portal",
 };
 
+/** Whether a string renders as anything at all. Excludes whitespace and the
+ * Unicode format (Cf) and control (Cc) categories, which String.trim() leaves
+ * in place. Cf + Cc is also the set utf8mb4_unicode_ci ignores. */
+const hasVisibleChars = (value?: string | null): value is string =>
+  !!value && /[^\s\p{Cc}\p{Cf}]/u.test(value);
+
 /** Prioritizes display_name over name and converts awkward software titles
  * listed in WELL_KNOWN_SOFTWARE_TITLES to more human readable names */
 export const getDisplayedSoftwareName = (
   name?: string | null,
-  display_name?: string | null
+  display_name?: string | null,
+  bundle_identifier?: string | null
 ): string => {
-  // 1. End-user custom name always wins. Treat whitespace-only as absent so
-  // an inadvertent " " from the backend doesn't render a blank label.
-  if (display_name?.trim()) {
+  // 1. End-user custom name always wins.
+  if (hasVisibleChars(display_name)) {
     return display_name;
   }
 
-  if (name?.trim()) {
+  if (hasVisibleChars(name)) {
     // 2. Normalize known titles only from the raw name.
     const key = name.toLowerCase();
     if (WELL_KNOWN_SOFTWARE_TITLES[key]) {
@@ -337,7 +338,11 @@ export const getDisplayedSoftwareName = (
     return name;
   }
 
-  // This should not happen
+  // 3. An app with no readable name is still identifiable by its bundle ID.
+  if (hasVisibleChars(bundle_identifier)) {
+    return bundle_identifier;
+  }
+
   return "Software";
 };
 

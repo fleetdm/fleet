@@ -1,5 +1,5 @@
-import { compareVersions } from "utilities/helpers";
 import { IFleetMaintainedVersion } from "interfaces/software";
+import { compareVersions } from "utilities/helpers";
 
 /** Radio value meaning "track Latest" (no pin). Sent to the API as an empty
  * `version` field, which the backend treats as clearing the pin. */

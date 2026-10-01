@@ -28,6 +28,9 @@ spec:
       uptime: true
       vulnerabilities: true
   integrations:
+    certificates_disable_host_end_user_binding: null
+    certificates_idp_client_ids: null
+    certificates_idp_introspection_urls: null
     conditional_access_enabled: null
     google_calendar: null
     jira: null
@@ -56,6 +59,7 @@ spec:
     windows_entra_client_ids: null
     microsoft_graph_credential_invalid: false
     apple_require_hardware_attestation: false
+    only_allow_apple_business_enrollment: false
     macos_migration:
       enable: false
       mode: ""

@@ -1,9 +1,9 @@
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
 import {
   IMicrosoftGraphCredential,
   IMicrosoftGraphCredentialFormData,
 } from "interfaces/microsoft_graph_credential";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 
 export interface IGetMicrosoftGraphCredentialsResponse {
   microsoft_graph_credentials: IMicrosoftGraphCredential[];

@@ -1,8 +1,10 @@
 import React from "react";
 
-import { ITeam } from "interfaces/team";
-import { IUserFormErrors, UserRole } from "interfaces/user";
 import Modal from "components/Modal";
+import { IFormErrors } from "hooks/useFormValidation";
+import { ITeam } from "interfaces/team";
+import { UserRole } from "interfaces/user";
+
 import UserForm from "../UserForm";
 import { IUserFormData } from "../UserForm/UserForm";
 
@@ -20,7 +22,7 @@ interface IAddUserModalProps {
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isModifiedByGlobalAdmin?: boolean | false;
   isUpdatingUsers?: boolean | false;
-  addUserErrors: IUserFormErrors;
+  addUserErrors: IFormErrors;
 }
 
 const baseClass = "add-user-modal";
@@ -49,7 +51,7 @@ const AddUserModal = ({
       width="large"
     >
       <UserForm
-        ancestorErrors={addUserErrors}
+        serverErrors={addUserErrors}
         defaultGlobalRole={defaultGlobalRole}
         defaultTeamRole={defaultTeamRole}
         defaultTeams={defaultTeams}

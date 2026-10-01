@@ -15,9 +15,9 @@ import {
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
 import { IUser } from "interfaces/user";
+import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import sort from "utilities/sort";
-import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
 
 enum ACTIONS {
   SET_AVAILABLE_TEAMS = "SET_AVAILABLE_TEAMS",

@@ -1,14 +1,14 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
 import { noop } from "lodash";
+import React from "react";
 
-import { HostPlatform } from "interfaces/platform";
-import { IGetHostCertificatesResponse } from "services/entities/hosts";
 import {
   createMockGetHostCertificatesResponse,
   createMockHostCertificate,
 } from "__mocks__/certificatesMock";
+import { HostPlatform } from "interfaces/platform";
+import { IGetHostCertificatesResponse } from "services/entities/hosts";
+import { createCustomRenderer } from "test/test-utils";
 
 import CertificatesTable from "./CertificatesTable";
 

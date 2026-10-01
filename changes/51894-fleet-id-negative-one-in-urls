@@ -1,0 +1,2 @@
+- Fixed the Software page redirecting to an invalid fleet ID of `-1` when leaving the Library tab.
+- Fixed fleet-scoped users being bounced off the Software > Library tab before their fleets finished loading.

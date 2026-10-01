@@ -1,0 +1,1 @@
+- Upgraded OpenTelemetry dependencies to the latest stable release (otel 1.46.0, otel/log 0.22.0). Telemetry now reports against semantic conventions schema 1.43.0 instead of 1.41.0.

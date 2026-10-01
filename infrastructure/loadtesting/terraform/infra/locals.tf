@@ -3,7 +3,9 @@ locals {
   prefix      = "fleet-${terraform.workspace}"
   fleet_image = "${aws_ecr_repository.fleet.repository_url}:${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
 
-  # Tracing configuration - either OTEL or Elastic APM
+  # Tracing configuration. OpenTelemetry is the only option: Elastic APM instrumentation is gorilla-specific, so
+  # MakeHandler turns off the stdlib ServeMux fast path whenever it is active, which costs more than the traces are
+  # worth in a loadtest. Tracing is off entirely unless enable_otel is set.
   otel_environment_variables = var.enable_otel ? {
     OTEL_SERVICE_NAME             = "fleet"
     OTEL_RESOURCE_ATTRIBUTES      = "deployment.environment.name=${terraform.workspace},deployment.environment=${terraform.workspace}"
@@ -12,25 +14,13 @@ locals {
     FLEET_LOGGING_TRACING_TYPE    = "opentelemetry"
   } : {}
 
-  elastic_apm_environment_variables = var.enable_otel ? {} : {
-    ELASTIC_APM_SERVER_URL              = "https://loadtest.fleetdm.com:8200"
-    ELASTIC_APM_SERVICE_NAME            = "fleet"
-    ELASTIC_APM_ENVIRONMENT             = "${terraform.workspace}"
-    ELASTIC_APM_TRANSACTION_SAMPLE_RATE = "0.004"
-    ELASTIC_APM_SERVICE_VERSION         = "${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
-    FLEET_LOGGING_TRACING_ENABLED       = "true"
-    FLEET_LOGGING_TRACING_TYPE          = "elasticapm"
-  }
-
   # Single label under loadtest.fleetdm.com so the *.loadtest.fleetdm.com
   # wildcard cert would cover it if the mock ever moves to the HTTPS listener.
   # A nested name would not: wildcards match exactly one label.
   apple_apns_mock_hostname = "${local.customer}-apns-mock.loadtest.fleetdm.com"
   apple_apns_mock_port     = 8378
 
-  # MDM behaviours we always want in a loadtest. These were previously buried
-  # in the Elastic APM branch above, which meant they silently vanished
-  # whenever enable_otel was true.
+  # MDM behaviours we always want in a loadtest, independent of the tracing configuration.
   mdm_apple_environment_variables = merge(
     {
       # Skip verification of Apple certificates for OTA enrollments.
@@ -87,7 +77,6 @@ locals {
       FLEET_DEV_SKIP_S3_CONFIG = "1"
     },
     local.otel_environment_variables,
-    local.elastic_apm_environment_variables,
     local.mdm_apple_environment_variables
   )
   extra_secrets = {

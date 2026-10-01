@@ -1,6 +1,7 @@
 import {
   buildQueryStringFromParams,
   getPathWithQueryParams,
+  reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from ".";
 
@@ -155,6 +156,38 @@ describe("url utilities > reconcileMutuallyInclusiveHostParams", () => {
       })
     ).toEqual({
       fleet_id: undefined,
+    });
+  });
+});
+
+describe("url utilities > reconcileMutuallyExclusiveHostParams", () => {
+  it("keeps the disk encryption filter when a label is selected", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        diskEncryptionStatus: "verified",
+      })
+    ).toEqual({
+      os_settings_disk_encryption: "verified",
+    });
+  });
+
+  it("returns no filters for a label alone", () => {
+    expect(reconcileMutuallyExclusiveHostParams({ label: "labels/7" })).toEqual(
+      {}
+    );
+  });
+
+  it("drops params a label doesn't allow while keeping disk encryption", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        diskEncryptionStatus: "verified",
+        policyId: 3,
+        policyResponse: "passing",
+      })
+    ).toEqual({
+      os_settings_disk_encryption: "verified",
     });
   });
 });

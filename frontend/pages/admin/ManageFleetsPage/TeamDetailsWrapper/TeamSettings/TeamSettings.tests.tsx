@@ -1,7 +1,11 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
+import { createMockTeamSummary } from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
+import teamsAPI from "services/entities/teams";
+import { createGetConfigHandler } from "test/handlers/config-handlers";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
@@ -9,10 +13,6 @@ import {
   createMockRouter,
   createMockLocation,
 } from "test/test-utils";
-import { createGetConfigHandler } from "test/handlers/config-handlers";
-import createMockUser from "__mocks__/userMock";
-import { createMockTeamSummary } from "__mocks__/teamMock";
-import teamsAPI from "services/entities/teams";
 
 import TeamSettings from "./TeamSettings";
 

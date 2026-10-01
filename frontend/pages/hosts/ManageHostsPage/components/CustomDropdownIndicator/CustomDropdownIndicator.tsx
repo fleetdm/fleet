@@ -1,8 +1,8 @@
 import React from "react";
 import { DropdownIndicatorProps, components } from "react-select-5";
 
-import { ILabel } from "interfaces/label";
 import Icon from "components/Icon";
+import { ILabel } from "interfaces/label";
 
 import { IEmptyOption, IGroupOption } from "../LabelFilterSelect/helpers";
 

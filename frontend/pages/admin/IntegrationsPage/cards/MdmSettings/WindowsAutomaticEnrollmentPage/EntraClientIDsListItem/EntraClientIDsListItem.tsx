@@ -1,8 +1,8 @@
 import React from "react";
 
-import ListItem from "components/ListItem";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import ListItem from "components/ListItem";
 
 const baseClass = "entra-client-ids-list-item";
 

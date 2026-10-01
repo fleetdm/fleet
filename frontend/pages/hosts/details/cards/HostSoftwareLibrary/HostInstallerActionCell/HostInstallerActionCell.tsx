@@ -6,12 +6,13 @@
  */
 
 import React, { useState, useEffect, ReactNode } from "react";
+
+import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
-import ActionsDropdown from "components/ActionsDropdown";
 import { IDropdownOption } from "interfaces/dropdownOption";
-
 import {
   IHostSoftwarePackage,
   IHostAppStoreApp,
@@ -20,7 +21,7 @@ import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { IconNames } from "components/icons";
+
 import {
   getInstallerActionButtonConfig,
   IButtonDisplayConfig,

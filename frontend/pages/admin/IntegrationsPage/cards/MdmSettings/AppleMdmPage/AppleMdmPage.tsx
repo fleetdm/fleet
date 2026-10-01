@@ -1,23 +1,20 @@
+import { AxiosError } from "axios";
 import React, { useCallback, useContext, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import { AxiosError } from "axios";
-
-import PATHS from "router/paths";
-import mdmAppleAPI from "services/entities/mdm_apple";
-import { IMdmApple, getMdmServerUrl } from "interfaces/mdm";
-import { AppContext } from "context/app";
-
 import BackButton from "components/BackButton";
-import MainContent from "components/MainContent";
 import DataError from "components/DataError";
+import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IMdmApple, getMdmServerUrl } from "interfaces/mdm";
+import PATHS from "router/paths";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
-import ApplePushCertSetup from "./components/content/ApplePushCertSetup";
 import ApplePushCertInfo from "./components/content/ApplePushCertInfo";
-
+import ApplePushCertSetup from "./components/content/ApplePushCertSetup";
 import RenewCertModal from "./components/modals/RenewCertModal";
 import TurnOffAppleMdmModal from "./components/modals/TurnOffAppleMdmModal";
 

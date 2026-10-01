@@ -1,5 +1,5 @@
-import React from "react";
 import { uniqueId } from "lodash";
+import React from "react";
 import type { SVGProps } from "react";
 
 const Brave = (props: SVGProps<SVGSVGElement>) => {

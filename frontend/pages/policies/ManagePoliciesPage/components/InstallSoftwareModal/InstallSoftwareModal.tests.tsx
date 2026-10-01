@@ -5,12 +5,13 @@
 // and react-query data loading, which adds a lot of brittle setup for minor
 // extra confidence over these focused unit tests.
 
+import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
+
 import {
   getOriginalSoftwareState,
   getCurrentSoftwareState,
   getTrulyDirtyInstallSoftwareItems,
 } from "./InstallSoftwareModal";
-import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const MOCK_POLICY_SOFTWARE = {
   software_title_id: 20,

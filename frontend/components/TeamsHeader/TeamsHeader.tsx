@@ -1,8 +1,7 @@
 import React from "react";
 
-import { ITeamSummary } from "interfaces/team";
-
 import FleetsDropdown from "components/FleetsDropdown";
+import { ITeamSummary } from "interfaces/team";
 
 interface ITeamsHeader {
   isOnGlobalTeam?: boolean;

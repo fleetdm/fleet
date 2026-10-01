@@ -1,14 +1,13 @@
 import React from "react";
 
+import Pagination from "components/Pagination";
 import { ICommand } from "interfaces/command";
 import { IGetCommandsResponse } from "services/entities/command";
 
-import Pagination from "components/Pagination";
-
-import EmptyFeed from "../EmptyFeed/EmptyFeed";
 import CommandItem, {
   ShowCommandDetailsHandler,
 } from "../CommandItem/CommandItem";
+import EmptyFeed from "../EmptyFeed/EmptyFeed";
 
 const baseClass = "past-command-feed";
 

@@ -2,6 +2,21 @@ import React, { useContext, useEffect, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import FileUploader from "components/FileUploader";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner";
+import TableCount from "components/TableContainer/TableCount";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { notify, INotifyBatchItem } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
 import {
   IAppStoreApp,
   isAndroidSoftwareSource,
@@ -9,36 +24,18 @@ import {
   ISoftwarePackage,
   InstallerType,
 } from "interfaces/software";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { ISelfServiceCategory } from "interfaces/self_service_category";
-
-import { AppContext } from "context/app";
-import { notify, INotifyBatchItem } from "components/ToastNotification";
-import { getErrorReason } from "interfaces/errors";
-import softwareAPI from "services/entities/software";
-import selfServiceCategoriesAPI, {
-  ISelfServiceCategoriesResponse,
-} from "services/entities/self_service_categories";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import InputField from "components/forms/fields/InputField";
-import FileUploader from "components/FileUploader";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import Card from "components/Card";
-import Button from "components/buttons/Button";
+import SelfServicePreview from "pages/SoftwarePage/components/cards/SelfServicePreview";
+import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import TableCount from "components/TableContainer/TableCount";
-import Spinner from "components/Spinner";
-
+import { BasicSoftwareTable } from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal/CategoriesEndUserExperienceModal";
 import {
   getDisplayedSoftwareName,
   isSafeImagePreviewUrl,
 } from "pages/SoftwarePage/helpers";
-import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
-import { BasicSoftwareTable } from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal/CategoriesEndUserExperienceModal";
-import SelfServicePreview from "pages/SoftwarePage/components/cards/SelfServicePreview";
+import selfServiceCategoriesAPI, {
+  ISelfServiceCategoriesResponse,
+} from "services/entities/self_service_categories";
+import softwareAPI from "services/entities/software";
 
 import { TitleVersionsLastUpdatedInfo } from "../TitleVersionsTable/TitleVersionsTable";
 
@@ -428,15 +425,11 @@ const EditIconModal = ({
     } = previewInfo;
     return (
       <Card
-        borderRadiusSize="medium"
         color="grey"
         className={`${baseClass}__preview-card`}
         paddingSize="xlarge"
       >
-        <Card
-          borderRadiusSize="xxlarge"
-          className={`${baseClass}__preview-card__fleet`}
-        >
+        <Card className={`${baseClass}__preview-card__fleet`}>
           <SoftwareDetailsSummary
             displayName={displayName || previewInfo.titleName}
             name={previewInfo.titleName}

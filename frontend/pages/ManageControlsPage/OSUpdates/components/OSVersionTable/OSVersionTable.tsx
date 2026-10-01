@@ -1,18 +1,18 @@
 import React, { useCallback } from "react";
-import { Row } from "react-table";
 import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
 
-import PATHS from "router/paths";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
+import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
 import { getPathWithQueryParams } from "utilities/url";
 
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TableContainer from "components/TableContainer";
+import { parseOSUpdatesCurrentVersionsQueryParams } from "../CurrentVersionSection/CurrentVersionSection";
+import OSVersionsEmptyState from "../OSVersionsEmptyState";
 
 import { generateTableHeaders } from "./OSVersionTableConfig";
-import OSVersionsEmptyState from "../OSVersionsEmptyState";
-import { parseOSUpdatesCurrentVersionsQueryParams } from "../CurrentVersionSection/CurrentVersionSection";
 
 const baseClass = "os-version-table";
 

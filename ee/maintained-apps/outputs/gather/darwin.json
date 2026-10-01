@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gather.Gather';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gather.Gather' AND version_compare(bundle_short_version, '1.39.2') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.gather.Gather');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.gather.Gather' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/gathertown/gather-town-desktop-releases/releases/download/v1.39.2/Gather-1.39.2-arm64-mac.zip",
       "install_script_ref": "f9b83cc5",

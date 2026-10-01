@@ -1,0 +1,1 @@
+- Reworked Apple recovery lock flow to never move to Verified before a successful VerifyRecoveryLock command has been received.

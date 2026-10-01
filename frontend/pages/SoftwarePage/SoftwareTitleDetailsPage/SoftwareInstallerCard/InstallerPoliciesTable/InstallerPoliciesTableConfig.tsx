@@ -1,12 +1,11 @@
 import React from "react";
 
+import SoftwareInstallPolicyBadges from "components/SoftwareInstallPolicyBadges";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import { ISoftwareInstallPolicyUI } from "interfaces/software";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
-
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import SoftwareInstallPolicyBadges from "components/SoftwareInstallPolicyBadges";
 
 interface IInstallerPoliciesTableConfig {
   teamId?: number;

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.1.6",
+      "version": "2.1.7",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'balenaEtcher' AND publisher = 'Balena Ltd. <hello@balena.io>';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'balenaEtcher' AND publisher = 'Balena Ltd. <hello@balena.io>' AND version_compare(version, '2.1.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'balenaEtcher' AND publisher = 'Balena Ltd. <hello@balena.io>' AND version_compare(version, '2.1.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'balenaetcher.exe');"
       },
-      "installer_url": "https://github.com/balena-io/etcher/releases/download/v2.1.6/balenaEtcher-2.1.6.Setup.exe",
+      "installer_url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/balenaEtcher-2.1.7.Setup.exe",
       "install_script_ref": "29118b09",
       "uninstall_script_ref": "675133fb",
-      "sha256": "78d1c45a55428e65ab2ac96e462ad6d77adbf7d1c0aa4b704b214bc00e1fcdfc",
+      "sha256": "386bb45da6e0edeb20e065427cdef30a876e4d2a59579f8add329d8510ac12f8",
       "default_categories": [
         "Developer tools"
       ]

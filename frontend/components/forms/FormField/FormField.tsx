@@ -1,9 +1,9 @@
-import React from "react";
 import classnames from "classnames";
 import { isEmpty } from "lodash";
+import React from "react";
+import { PlacesType } from "react-tooltip-5";
 
 import TooltipWrapper from "components/TooltipWrapper";
-import { PlacesType } from "react-tooltip-5";
 
 // all form-field styles are defined in _global.scss, which apply here and elsewhere
 const baseClass = "form-field";

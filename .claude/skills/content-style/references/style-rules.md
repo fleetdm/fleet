@@ -1,6 +1,6 @@
 # Fleet style rules (full reference)
 
-This mirrors Fleet's canonical guidance in `handbook/company/writing.md` and `handbook/marketing/fleet-ai-writing-instructions.md`. When those files are present in the repo, they win — read them. Use this when they aren't available.
+This mirrors Fleet's canonical guidance in `handbook/company/writing.md`. When that file is present in the repo, it wins — read it. Use this when it isn't available.
 
 ## Contents
 - [Voice and tone](#voice-and-tone)

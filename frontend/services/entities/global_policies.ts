@@ -1,17 +1,18 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+import { QueryablePlatform } from "interfaces/platform";
 import {
   IPolicyFormData,
   ILoadAllPoliciesResponse,
   IPoliciesCountResponse,
 } from "interfaces/policy";
-import { QueryablePlatform } from "interfaces/platform";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
+
 import { AutomationType } from "./team_policies";
 
 export type GlobalPoliciesAutomationType = Exclude<

@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 
-import { IHostSoftware } from "interfaces/software";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
+import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
+import { IHostSoftware } from "interfaces/software";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import InventoryVersions from "../../components/InventoryVersions";
 

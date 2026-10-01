@@ -1,35 +1,31 @@
 import React, { useContext, useEffect, useState } from "react";
+import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import Checkbox from "components/forms/fields/Checkbox";
+import { IconNames } from "components/icons";
+import Modal from "components/Modal";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
+import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
-
 import conditionalAccessAPI, {
   ConfirmMSConditionalAccessResponse,
 } from "services/entities/conditional_access";
 import configAPI from "services/entities/config";
-
-import CustomLink from "components/CustomLink";
-import SectionHeader from "components/SectionHeader";
-import { IconNames } from "components/icons";
-import { notify } from "components/ToastNotification";
-
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import { AppContext } from "context/app";
-
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import { useQuery } from "react-query";
-import DataError from "components/DataError";
-import Modal from "components/Modal";
-import TooltipWrapper from "components/TooltipWrapper";
-import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
 
 import SectionCard from "../MdmSettings/components/SectionCard";
+
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
 import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
 

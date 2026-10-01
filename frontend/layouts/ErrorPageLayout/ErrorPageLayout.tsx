@@ -1,12 +1,11 @@
 import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
 
+import LogoOnlyNav from "components/top_nav/LogoOnlyNav";
+import SiteTopNav from "components/top_nav/SiteTopNav";
 import { AppContext } from "context/app";
 import paths from "router/paths";
 import { QueryParams } from "utilities/url";
-
-import SiteTopNav from "components/top_nav/SiteTopNav";
-import LogoOnlyNav from "components/top_nav/LogoOnlyNav";
 
 interface IErrorPageLayoutProps {
   children: React.ReactNode;

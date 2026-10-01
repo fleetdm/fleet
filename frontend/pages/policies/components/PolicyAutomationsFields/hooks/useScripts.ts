@@ -1,5 +1,5 @@
-import { useQuery } from "react-query";
 import { omit } from "lodash";
+import { useQuery } from "react-query";
 
 import scriptsAPI, {
   IListScriptsQueryKey,

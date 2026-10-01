@@ -1,26 +1,24 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
-import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
-import PATHS from "router/paths";
-import useTeamIdParam from "hooks/useTeamIdParam";
 
+import SelectTargets from "components/LiveQuery/SelectTargets";
+import MainContent from "components/MainContent";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
-import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-import policiesAPI from "services/entities/policies";
-import hostAPI from "services/entities/hosts";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { ITeam } from "interfaces/team";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
-
-import MainContent from "components/MainContent";
-import SelectTargets from "components/LiveQuery/SelectTargets";
-
+import { ITeam } from "interfaces/team";
 import RunQuery from "pages/policies/live/screens/RunQuery";
+import PATHS from "router/paths";
+import hostAPI from "services/entities/hosts";
+import policiesAPI from "services/entities/policies";
+import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 interface ILivePolicyPageProps {
   router: InjectedRouter;

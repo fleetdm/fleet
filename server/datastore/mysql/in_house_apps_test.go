@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -27,6 +28,7 @@ func TestInHouseApps(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"InHouseAppInstallPushesViaDirectActivation", testInHouseAppInstallPushesViaDirectActivation},
 		{"TestInHouseAppsCrud", testInHouseAppsCrud},
 		{"MultipleTeams", testInHouseAppsMultipleTeams},
 		{"BatchSetInHouseInstallers", testBatchSetInHouseInstallers},
@@ -41,6 +43,8 @@ func TestInHouseApps(t *testing.T) {
 		{"InHouseAppInstallTokens", testInHouseAppInstallTokens},
 		{"SummaryUpcomingPerHostNoDropout", testInHouseSummaryUpcomingPerHostNoDropout},
 		{"BatchSetInHouseInstallersInstallDuringSetup", testBatchSetInHouseInstallersInstallDuringSetup},
+		{"ManifestURLUsesAppleServerURL", testInHouseAppManifestURLUsesAppleServerURL},
+		{"RemovePendingInstallsSkipsInstallWithDeletedUpcomingActivity", testRemovePendingInHouseAppInstallsSkipsInstallWithDeletedUpcomingActivity},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -163,7 +167,8 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 				LabelID:   label.ID,
 				LabelName: label.Name,
 			},
-		}}
+		},
+	}
 	cfg := []byte(`<dict><key>k</key><string>v1</string></dict>`)
 	updatePayload := fleet.UpdateSoftwareInstallerPayload{
 		TeamID:          &team.ID,
@@ -391,7 +396,6 @@ func testInHouseAppsMultipleTeams(t *testing.T, ds *Datastore) {
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM software_titles`)
 	require.NoError(t, err)
 	require.Equal(t, 2, count)
-
 }
 
 func testInHouseAppsCategories(t *testing.T, ds *Datastore) {
@@ -1858,7 +1862,6 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, ptr.Uint(0), inHouseAppID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0, Failed: 1}, *summary)
-
 }
 
 // setupTestInHouseApp inserts both iOS and iPadOS rows for the given filename
@@ -2193,4 +2196,166 @@ func testBatchSetInHouseInstallersInstallDuringSetup(t *testing.T, ds *Datastore
 	})
 	require.NoError(t, err)
 	require.Equal(t, map[string]bool{"ios": false, "ipados": true}, flagsByPlatform())
+}
+
+func testInHouseAppManifestURLUsesAppleServerURL(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	const (
+		adminURL  = "https://admin.example.com"
+		deviceURL = "https://devices.example.com"
+	)
+	appCfg, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.ServerSettings.ServerURL = adminURL
+	appCfg.MDM.AppleServerURL = deviceURL
+	require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
+
+	err = ds.BatchSetInHouseAppsInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			StorageID:        "ipa0",
+			Filename:         "ipa0.ipa",
+			Title:            "ipa0",
+			Source:           "ios_apps",
+			Version:          "1.0.0",
+			UserID:           user.ID,
+			Platform:         "ios",
+			URL:              "https://example.com/0",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.ipa0",
+		},
+	})
+	require.NoError(t, err)
+
+	installers, err := ds.GetSoftwareInstallers(ctx, 0)
+	require.NoError(t, err)
+	require.Len(t, installers, 1)
+	ipa, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, *installers[0].TitleID)
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now(), test.WithPlatform("ios"))
+	nanoEnroll(t, ds, host, false)
+
+	cmdUUID := createInHouseAppInstallRequest(t, ds, host.ID, ipa.InstallerID, *installers[0].TitleID, user)
+
+	var rawCmd string
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &rawCmd,
+		`SELECT command FROM nano_commands WHERE command_uuid = ?`, cmdUUID))
+
+	// The device fetches the manifest itself, so the command has to carry the
+	// hostname Apple devices reach Fleet on rather than the admin one, which a
+	// split-hostname deployment does not expose to them.
+	require.Contains(t, rawCmd, deviceURL+"/api/latest/fleet/software/titles/")
+	require.NotContains(t, rawCmd, adminURL)
+}
+
+func testInHouseAppInstallPushesViaDirectActivation(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "ipa-direct-activation-host", "ipa-direct-1", "ipa-direct-1-key", "ipa-direct-1-uuid", time.Now())
+	nanoEnroll(t, ds, host, false)
+
+	user := test.NewUser(t, ds, "Direct Activation", "direct-activation@example.com", true)
+
+	payload := fleet.UploadSoftwareInstallerPayload{
+		UserID:           user.ID,
+		Title:            "direct-activation-app",
+		Filename:         "direct-activation.ipa",
+		BundleIdentifier: "com.direct.activation",
+		StorageID:        "direct-activation-storage",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.0.0",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.NoError(t, err)
+
+	var pushedIDs []string
+	ds.WithPusher(pusherFunc(func(ctx context.Context, ids []string) (map[string]*push.Response, error) {
+		pushedIDs = append(pushedIDs, ids...)
+		return okPusherFunc(ctx, ids)
+	}))
+	t.Cleanup(func() { ds.WithPusher(nil) })
+
+	cmd1 := createInHouseAppInstallRequest(t, ds, host.ID, installerID, titleID, user)
+	// cmd2 stays queued behind cmd1, which is still activated.
+	cmd2 := createInHouseAppInstallRequest(t, ds, host.ID, installerID, titleID, user)
+
+	// cmd1's insert already pushed once; isolate the push triggered by activating cmd2.
+	pushedIDs = nil
+
+	// Mirrors production: the activity ACL adapter calls this directly against
+	// ds.writer(ctx) once cmd1 completes, with no surrounding transaction.
+	require.NoError(t, ds.ActivateNextUpcomingActivityForHost(ctx, host.ID, cmd1))
+
+	require.Equal(t, []string{host.UUID}, pushedIDs, "no APNs push when activation runs outside a transaction")
+
+	var cmd2Rows int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cmd2Rows, "SELECT COUNT(*) FROM nano_commands WHERE command_uuid = ?", cmd2)
+	})
+}
+
+func testRemovePendingInHouseAppInstallsSkipsInstallWithDeletedUpcomingActivity(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID, host2.ID}))
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host1, false)
+	nanoEnroll(t, ds, host2, false)
+
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team.ID,
+		UserID:           user1.ID,
+		Title:            "foo",
+		Filename:         "foo.ipa",
+		BundleIdentifier: "com.foo",
+		StorageID:        "testingtesting123",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.2.3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// queue an install on host1 and store an Error result without setting verification_failed_at, the upcoming activity should be deleted and the install row should still read as pending
+	cmdUUID1 := createInHouseAppInstallRequest(t, ds, host1.ID, installerID, titleID, user1)
+	createInHouseAppInstallResult(t, ds, host1, cmdUUID1, "Error")
+	var host1UpcomingCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &host1UpcomingCount, `SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host1.ID)
+	})
+	require.Zero(t, host1UpcomingCount)
+
+	// queue the install on host2, it should be pending
+	cmdUUID2 := createInHouseAppInstallRequest(t, ds, host2.ID, installerID, titleID, user1)
+
+	// remove the pending installs, the call should succeed, host1's install row should be left unchanged and host2's install should be canceled
+	err = ds.RemovePendingInHouseAppInstalls(ctx, installerID)
+	require.NoError(t, err)
+
+	var host2UpcomingCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &host2UpcomingCount, `SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host2.ID)
+	})
+	require.Zero(t, host2UpcomingCount)
+
+	var host2Canceled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &host2Canceled, `SELECT canceled FROM host_in_house_software_installs WHERE command_uuid = ?`, cmdUUID2)
+	})
+	require.True(t, host2Canceled)
+
+	var host1Canceled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &host1Canceled, `SELECT canceled FROM host_in_house_software_installs WHERE command_uuid = ?`, cmdUUID1)
+	})
+	require.False(t, host1Canceled)
 }

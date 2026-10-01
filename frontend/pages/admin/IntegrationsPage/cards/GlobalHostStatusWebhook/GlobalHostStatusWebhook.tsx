@@ -1,16 +1,5 @@
 import React, { useState, useMemo } from "react";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import {
-  HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
-  HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
-} from "utilities/constants";
-import { getCustomDropdownOptions } from "utilities/helpers";
-
-import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
-import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -18,6 +7,15 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import {
+  HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
+  HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
+} from "utilities/constants";
+import { getCustomDropdownOptions } from "utilities/helpers";
 
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 

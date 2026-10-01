@@ -1,0 +1,1 @@
+- Added support for end users to create their own BitLocker startup PIN from the **My device** page, so a Windows user without local admin rights can satisfy a fleet that requires one. The PIN is stored encrypted, handed to the host's agent exactly once, and cleared; Fleet never shows it back to the end user or to an admin.

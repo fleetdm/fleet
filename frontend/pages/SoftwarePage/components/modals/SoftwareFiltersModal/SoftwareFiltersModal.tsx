@@ -1,9 +1,9 @@
 import React, { useRef, useState } from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import Slider from "components/forms/fields/Slider";
 import Checkbox from "components/forms/fields/Checkbox";
+import Slider from "components/forms/fields/Slider";
+import Modal from "components/Modal";
 import SeverityFilter, {
   ISeverityFieldErrors,
   ISeverityFilterValue,

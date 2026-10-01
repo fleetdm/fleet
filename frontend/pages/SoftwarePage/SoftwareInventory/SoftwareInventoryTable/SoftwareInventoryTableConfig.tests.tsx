@@ -1,3 +1,10 @@
+import { render, screen } from "@testing-library/react";
+import React from "react";
+
+import {
+  createMockSoftwareTitle,
+  createMockSoftwareTitleVersion,
+} from "__mocks__/softwareMock";
 import { createMockRouter } from "test/test-utils";
 
 import generateTableHeaders from "./SoftwareInventoryTableConfig";
@@ -23,11 +30,50 @@ describe("SoftwareInventoryTableConfig", () => {
     ]);
   });
 
-  it("has a Version column (not 'Installed version')", () => {
+  // Versions carry no source of their own, so the cell reads the title's.
+  describe("Version column", () => {
     const versionCol = headers.find(
       (h) => typeof h.Header === "string" && h.Header === "Version"
-    );
-    expect(versionCol).toBeDefined();
+    ) as { Cell?: React.ElementType } | undefined;
+    const Cell = versionCol?.Cell as React.ElementType;
+
+    it("appends the Go toolchain version for a go_binaries title", () => {
+      render(
+        <Cell
+          cell={{
+            value: [
+              createMockSoftwareTitleVersion({
+                version: "v0.21.1",
+                release: "go1.26.1",
+              }),
+            ],
+          }}
+          row={{ original: createMockSoftwareTitle({ source: "go_binaries" }) }}
+        />
+      );
+
+      expect(screen.getAllByText("v0.21.1 (go1.26.1)")[0]).toBeInTheDocument();
+    });
+
+    it("renders the plain version for a source that also populates release", () => {
+      render(
+        <Cell
+          cell={{
+            value: [
+              createMockSoftwareTitleVersion({
+                version: "1.2.3",
+                release: "30.el7",
+              }),
+            ],
+          }}
+          row={{
+            original: createMockSoftwareTitle({ source: "rpm_packages" }),
+          }}
+        />
+      );
+
+      expect(screen.getAllByText("1.2.3")[0]).toBeInTheDocument();
+    });
   });
 
   it("does not have a Library version column", () => {

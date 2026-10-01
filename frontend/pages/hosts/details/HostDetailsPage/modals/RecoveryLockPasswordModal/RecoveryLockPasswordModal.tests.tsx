@@ -1,9 +1,8 @@
+import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
-import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-
 import hostAPI from "services/entities/hosts";
+import { createCustomRenderer } from "test/test-utils";
 
 import RecoveryLockPasswordModal from "./RecoveryLockPasswordModal";
 

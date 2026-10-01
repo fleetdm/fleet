@@ -1,17 +1,16 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import PATHS from "router/paths";
-import { IPolicyAutomationActivity } from "interfaces/policy";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import Icon from "components/Icon";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { IPolicyAutomationActivity } from "interfaces/policy";
+import PATHS from "router/paths";
 
 import {
   getAutomationRunDisplayName,
@@ -26,7 +25,8 @@ type ICellProps = CellProps<IPolicyAutomationActivity>;
 
 const generateColumnConfigs = (
   baseClass: string,
-  onShowDetails: (activity: IPolicyAutomationActivity) => void
+  onShowDetails: (activity: IPolicyAutomationActivity) => void,
+  currentPolicyId: number
 ): ITableConfig[] => [
   {
     Header: (cellProps: ITableHeaderProps) => (
@@ -43,7 +43,9 @@ const generateColumnConfigs = (
       return (
         <div className={`${baseClass}__automation-cell`}>
           <Icon name={statusIcon.name} color={statusIcon.color} />
-          <TooltipTruncatedText value={getAutomationRunDisplayName(activity)} />
+          <TooltipTruncatedText
+            value={getAutomationRunDisplayName(activity, currentPolicyId)}
+          />
         </div>
       );
     },

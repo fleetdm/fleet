@@ -1,7 +1,6 @@
-import React from "react";
-import noop from "lodash/noop";
-
 import { render, screen } from "@testing-library/react";
+import noop from "lodash/noop";
+import React from "react";
 
 import VppCard from "./VppCard";
 

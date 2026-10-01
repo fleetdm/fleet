@@ -1,13 +1,14 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 import { SingleValue } from "react-select-5";
+
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import SoftwareAppStoreVpp from "./SoftwareAppStoreVpp";
 import SoftwareAppStoreAndroid from "./SoftwareAppStoreAndroid";
+import SoftwareAppStoreVpp from "./SoftwareAppStoreVpp";
 
 const baseClass = "software-app-store";
 

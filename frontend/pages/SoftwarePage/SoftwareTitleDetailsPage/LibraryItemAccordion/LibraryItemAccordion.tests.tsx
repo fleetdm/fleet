@@ -1,10 +1,10 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { UserEvent } from "@testing-library/user-event";
+import React from "react";
 
-import { renderWithSetup } from "test/test-utils";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import paths from "router/paths";
+import { renderWithSetup } from "test/test-utils";
 import { stringToClipboard } from "utilities/copy_text";
 import { getPathWithQueryParams } from "utilities/url";
 

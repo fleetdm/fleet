@@ -1,21 +1,18 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import SockJS from "sockjs-client";
 
-import { PolicyContext } from "context/policy";
 import { notify } from "components/ToastNotification";
-import { formatSelectedTargetsForApi } from "utilities/helpers";
-
-import campaignHelpers from "utilities/campaign_helpers";
-import queryAPI from "services/entities/queries";
-import debounce from "utilities/debounce";
-import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
-import authToken from "utilities/auth_token";
-
+import { PolicyContext } from "context/policy";
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
-
 import PolicyResults from "pages/policies/edit/components/PolicyResults";
+import queryAPI from "services/entities/queries";
+import authToken from "utilities/auth_token";
+import campaignHelpers from "utilities/campaign_helpers";
+import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
+import debounce from "utilities/debounce";
+import { formatSelectedTargetsForApi } from "utilities/helpers";
 
 interface IRunQueryProps {
   storedPolicy: IPolicy | undefined;

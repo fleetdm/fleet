@@ -28,7 +28,8 @@ module.exports = {
     deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
     invalidPolicyName: {description: 'The specified policy_name is invalid', responseType: 'badRequest' },
     managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
-    deviceNotFound: {description: 'The specified device does not exist in this Android enterprise', responseType: 'notFound'}
+    deviceNotFound: {description: 'The specified device does not exist in this Android enterprise', responseType: 'notFound'},
+    tooManyRequests: { description: 'The Android management API rate limit was exceeded.', statusCode: 429 },
   },
 
 
@@ -78,10 +79,11 @@ module.exports = {
         requestBody: this.req.body,
       });
       return patchDeviceResponse.data;
-    }).intercept({status: 429}, (err)=>{
+    }).intercept({status: 429}, ()=>{
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
-      return new Error(`When attempting to update a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so it can retry.
+      return 'tooManyRequests';
     }).intercept({status: 403}, ()=>{
       // If the Android management API returns a 403 response, return a enterpriseNotAccessible (notFound) response to the Fleet server.
       return {'enterpriseNotAccessible': 'Fleet is not authorized to manage this Android enterprise.'};

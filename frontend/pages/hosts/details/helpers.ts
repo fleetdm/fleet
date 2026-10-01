@@ -54,6 +54,8 @@ export const generateWinDiskEncryptionSetting = (
     operation_type: null,
     scope: null,
     managed_local_account: null,
+    hidden: false,
+    self_service: false,
   };
 };
 
@@ -78,6 +80,8 @@ export const generateLinuxDiskEncryptionSetting = (
     operation_type: null,
     scope: null,
     managed_local_account: null,
+    hidden: false,
+    self_service: false,
   };
 };
 
@@ -96,6 +100,8 @@ export const generateRecoveryLockPasswordSetting = (
     operation_type: null,
     scope: null,
     managed_local_account: null,
+    hidden: false,
+    self_service: false,
   };
 };
 
@@ -119,6 +125,8 @@ const generateHostNameSetting = (
     operation_type: null,
     scope: null,
     managed_local_account: null,
+    hidden: false,
+    self_service: false,
   };
 };
 

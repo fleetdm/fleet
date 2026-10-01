@@ -3,11 +3,13 @@
  * More can be learnt about React Select custom components here:
  * https://react-select.com/components
  */
+
+import React, { useRef } from "react";
+import { components, GroupHeadingProps } from "react-select-5";
+
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import { ILabel } from "interfaces/label";
-import React, { useRef } from "react";
-import { components, GroupHeadingProps } from "react-select-5";
 
 import { IEmptyOption, IGroupOption } from "../LabelFilterSelect/helpers";
 

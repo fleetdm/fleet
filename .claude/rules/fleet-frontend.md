@@ -94,7 +94,7 @@ Always use `<Button icon="name">` — the `<Button><Icon /></Button>` child patt
 ## Software titles
 
 ### Display name
-Render software title names via `getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx` — never raw `t.name` or open-coded `display_name || name`. See `frontend/docs/patterns.md`.
+Render software title names via `getDisplayedSoftwareName(name, display_name, bundle_identifier?)` from `pages/SoftwarePage/helpers.tsx` — never raw `t.name` or open-coded `display_name || name`. See `frontend/docs/patterns.md`.
 
 ### Icons
 `<SoftwareIcon name={...}>` uses `name` for fallback icon matching when `icon_url` is null (Fleet-maintained apps depend entirely on this). Pass the **raw** `name`, never `getDisplayedSoftwareName(...)` or `display_name`, or admin renames will break the icon match. When a flattened row carries only one name field, add a sibling `iconName` (raw) field and feed THAT to `<SoftwareIcon>`. See `frontend/docs/patterns.md` and #47123.
@@ -113,7 +113,7 @@ Cap free-text inputs' `maxLength` to the backend column length (check `server/da
 
 ## Validation
 
-**Read [frontend/docs/patterns.md#data-validation](../../frontend/docs/patterns.md#data-validation) before adding or editing form validation — that doc is authoritative.** Fleet diverges from what mainstream React libraries (Formik, react-hook-form, MUI, Ant Design) do by default on submit-button behavior, error timing, error position, and copy tone. Pattern-matching from another React app will land you in these specific mistakes:
+**Read [frontend/docs/patterns.md#data-validation](../../frontend/docs/patterns.md#data-validation) before adding or editing form validation — that doc is authoritative.** Use the `useFormValidation` hook (`frontend/hooks/useFormValidation.ts`) rather than re-implementing the behavior; it encodes all of the rules below. Reference migrations: `UserForm`, `ApiUserForm`. Fleet diverges from what mainstream React libraries (Formik, react-hook-form, MUI, Ant Design) do by default on submit-button behavior, error timing, error position, and copy tone. Pattern-matching from another React app will land you in these specific mistakes:
 - No visible required-field indicator (no `*`, no `(required)` suffix). Users discover requirements via post-interaction errors.
 - Submit button stays enabled with invalid fields. Only disable during in-flight submission, or when the form is disabled by GitOps mode. On click, the handler runs client-side validation first — if invalid, it surfaces errors inline and returns without calling the API.
 - Field errors clear on **focus**, not on typing.
@@ -129,6 +129,9 @@ Anti-pattern:
 ```tsx
 <span className={`${baseClass}__row-name`}>{item.name}</span>
 ```
+
+## Tooltips
+Arrowless `TooltipWrapper` is `bottom-start` with left-aligned bubble text. Only override `position` or `text-align` when the anchor uses `showArrow` (pointed callout).
 
 ## Interfaces & Types
 - Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `IPack`

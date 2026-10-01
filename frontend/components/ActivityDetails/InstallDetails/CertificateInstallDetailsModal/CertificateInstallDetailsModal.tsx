@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import IconStatusMessage from "components/IconStatusMessage";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
-import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
-import RevealButton from "components/buttons/RevealButton";
 
 const baseClass = "certificate-install-details-modal";
 

@@ -494,7 +494,9 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 		return fleet.NewInvalidArgumentError("gitops", "certificate_authorities: batch apply is intended only for use with gitops")
 	}
 
-	if len(svc.config.Server.PrivateKey) == 0 {
+	// The private key is only needed to encrypt CA secrets, so don't require it when
+	// no CAs are configured (the common case for GitOps users without CAs).
+	if !incoming.IsEmpty() && len(svc.config.Server.PrivateKey) == 0 {
 		return &fleet.BadRequestError{Message: "Server private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key"}
 	}
 

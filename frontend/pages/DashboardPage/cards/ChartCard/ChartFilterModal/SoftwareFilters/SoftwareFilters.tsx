@@ -2,24 +2,23 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { useDebouncedCallback } from "use-debounce";
 
-import { IVulnerability } from "interfaces/vulnerability";
+import RevealButton from "components/buttons/RevealButton";
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+import SearchField from "components/forms/fields/SearchField";
+import Icon from "components/Icon";
+import SeverityFilter, {
+  ISeverityFilterValue,
+} from "components/SeverityFilter";
+import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import { CVE_SOFTWARE_CATEGORIES } from "interfaces/charts";
+import { IVulnerability } from "interfaces/vulnerability";
 import {
   getVulnerabilities,
   IVulnerabilitiesResponse,
 } from "services/entities/vulnerabilities";
 
-import Checkbox from "components/forms/fields/Checkbox";
-import Icon from "components/Icon";
-import RevealButton from "components/buttons/RevealButton";
-import SearchField from "components/forms/fields/SearchField";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-import SeverityFilter, {
-  ISeverityFilterValue,
-} from "components/SeverityFilter";
-
-import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import { ISoftwareFilterErrors, SoftwareFilterField } from "./helpers";
 
 const baseClass = "software-filters";

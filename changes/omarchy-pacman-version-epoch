@@ -1,0 +1,1 @@
+- Fixed vulnerability detection for Arch Linux and Omarchy hosts by ingesting pacman packages with the epoch removed and the package release split out of the version (e.g. `2:9.0.1-4` is now version `9.0.1`, release `4`), matching how RPM packages are ingested.

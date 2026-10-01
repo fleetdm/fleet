@@ -25,7 +25,9 @@ module.exports = {
     tenantNotFound: {
       description: 'A Microsoft compliance tenant could not be found using the provided information.',
       responseType: 'notFound',
-    }
+    },
+    microsoftApiRequestFailed: {description: 'An error occurred when sending a request to the Microsoft API.'},
+    microsoftApiError: {description: 'The Microsoft API returned an unexpected response.'},
   },
 
 
@@ -41,7 +43,9 @@ module.exports = {
 
       let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
         complianceTenantRecordId: informationAboutThisTenant.id
-      });
+      })
+      .intercept('microsoftApiRequestFailed', 'microsoftApiRequestFailed')
+      .intercept('microsoftApiError', 'microsoftApiError');
 
       let accessToken = tokenAndApiUrls.manageApiAccessToken;
       let tenantDataSyncUrl = tokenAndApiUrls.tenantDataSyncUrl;
@@ -59,6 +63,11 @@ module.exports = {
           PartnerEnrollmentUrl: `https://fleetdm.com/microsoft-compliance-partner/enroll`,
           PartnerRemediationUrl: `https://fleetdm.com/microsoft-compliance-partner/remediate`,
         }
+      }).intercept({raw: {statusCode: 401}}, async (err)=>{
+        // If the Microsoft API rejected the cached access token, clear this tenant's cached tokens and URLs to force re-authentication on the next request.
+        await sails.helpers.microsoftProxy.clearCacheForTenant.with({entraTenantId});
+        sails.log.warn(`When deprovisioning a Microsoft compliance tenant, the cached access token was rejected. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        return 'microsoftApiError';
       }).intercept((err)=>{
         return new Error({error: `an error occurred when deprovisioning a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
       });
@@ -69,6 +78,9 @@ module.exports = {
     }
 
     await MicrosoftComplianceTenant.destroyOne({id: informationAboutThisTenant.id});
+
+    // Remove any cached access tokens and data sync URLs for the removed tenant.
+    await sails.helpers.microsoftProxy.clearCacheForTenant.with({entraTenantId});
 
 
     // All done.

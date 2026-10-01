@@ -74,14 +74,6 @@
     }
   }
 
-  &__wrapper {
-    border: solid 1px $ui-fleet-black-10;
-    border-radius: 6px;
-    margin-top: $pad-small;
-    overflow: scroll;
-    box-shadow: inset -8px 0 17px -10px #e8edf4;
-  }
-
   .tooltip__tooltip-icon {
     img {
       vertical-align: middle;

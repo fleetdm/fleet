@@ -1,9 +1,9 @@
+import classnames from "classnames";
 import React from "react";
 import { PlacesType } from "react-tooltip-5";
 
-import classnames from "classnames";
-import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IIssuesIndicatorProps {
   totalIssuesCount?: number;

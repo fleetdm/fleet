@@ -1,4 +1,4 @@
-import { shouldShowControlsTab } from "./helpers";
+import { getResendProfileErrorMessage, shouldShowControlsTab } from "./helpers";
 
 describe("shouldShowControlsTab", () => {
   const args = {
@@ -158,5 +158,35 @@ describe("shouldShowControlsTab", () => {
     it("shows the tab without a global MDM flag to check", () => {
       expect(shouldShowControlsTab(deviceArgs)).toBe(true);
     });
+  });
+});
+
+describe("getResendProfileErrorMessage", () => {
+  const apiError = (status: number, reason: string) => ({
+    status,
+    data: { message: "Error", errors: [{ name: "base", reason }] },
+  });
+
+  it("shows Fleet's reason for a client error", () => {
+    expect(
+      getResendProfileErrorMessage(
+        apiError(403, "Ask your IT admin to resend it.")
+      )
+    ).toBe("Ask your IT admin to resend it.");
+    expect(
+      getResendProfileErrorMessage(apiError(409, "Couldn't resend. Pending."))
+    ).toBe("Couldn't resend. Pending.");
+  });
+
+  it("falls back to the generic copy for server errors and unknown shapes", () => {
+    expect(getResendProfileErrorMessage(apiError(500, "internal"))).toBe(
+      "Couldn't resend. Please try again."
+    );
+    expect(getResendProfileErrorMessage(new Error("boom"))).toBe(
+      "Couldn't resend. Please try again."
+    );
+    expect(getResendProfileErrorMessage(apiError(403, ""))).toBe(
+      "Couldn't resend. Please try again."
+    );
   });
 });

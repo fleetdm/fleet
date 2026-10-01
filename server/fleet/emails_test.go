@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsLooseEmail(t *testing.T) {
@@ -24,5 +25,17 @@ func TestIsLooseEmail(t *testing.T) {
 		t.Run(tc.str, func(t *testing.T) {
 			assert.Equal(t, tc.match, IsLooseEmail(tc.str))
 		})
+	}
+}
+
+func TestEmailLocalPart(t *testing.T) {
+	cases := map[string]string{
+		"alice@example.com":       "alice",
+		"alice.smith@example.com": "alice.smith",
+		"jdoe":                    "jdoe",
+		"":                        "",
+	}
+	for email, want := range cases {
+		require.Equal(t, want, EmailLocalPart(email), email)
 	}
 }

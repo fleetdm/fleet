@@ -1,11 +1,13 @@
 // __tests__/SoftwareOSDetailsCards.test.tsx
-import React from "react";
+
 import { render, screen } from "@testing-library/react";
-import { createMockRouter } from "test/test-utils";
+import React from "react";
+
 import {
   createMockLinuxOSVersion,
   createMockOSVersion,
 } from "__mocks__/operatingSystemsMock";
+import { createMockRouter } from "test/test-utils";
 
 import {
   SummaryCard,

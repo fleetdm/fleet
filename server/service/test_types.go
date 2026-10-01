@@ -17,6 +17,7 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 
@@ -104,6 +105,19 @@ type TestServerOpts struct {
 	// ActivityMock is populated automatically when a test service is built.
 	// After setup, tests can use it to intercept or assert on activity creation.
 	ActivityMock *fleet_mock.MockActivityService
+
+	// NotificationsSvc is populated automatically when DBConns is set and a
+	// real notifications bounded context is built. Tests can use it to
+	// dispatch notifications directly instead of going through the cron.
+	NotificationsSvc notifications_api.Service
+
+	// PatchNotificationKind is populated alongside NotificationsSvc, so tests can
+	// run RemindAndInstallDuePatches directly instead of going through the cron.
+	PatchNotificationKind PatchNotificationKind
+
+	// NotificationsMock is populated automatically when a test service is built,
+	// and is what the service uses unless DBConns replaced it with NotificationsSvc.
+	NotificationsMock *fleet_mock.MockNotificationsService
 
 	// MicrosoftGraphClientFactory overrides the Graph client used to verify a credential on config write.
 	MicrosoftGraphClientFactory msgraph.ClientFactory

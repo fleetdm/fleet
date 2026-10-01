@@ -1,9 +1,9 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
 
 import { createMockHostEndUser } from "__mocks__/hostMock";
+import { createCustomRenderer } from "test/test-utils";
 
 import User from ".";
 

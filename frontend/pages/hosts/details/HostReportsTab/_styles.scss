@@ -106,6 +106,9 @@
     font-size: $small;
     font-weight: $bold;
     margin: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
   }
 
   &__last-updated {

@@ -47,7 +47,6 @@ export const MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS = [
   "bootstrap_package",
   "apple_settings",
   "macos_settings",
-  HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
   HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS,
   HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID,
 ] as const;
@@ -99,13 +98,13 @@ export const hostSelectStatuses = (isPremiumTier: boolean) => {
       disabled: false,
       label: "Online hosts",
       value: "online",
-      helpText: "Hosts that will respond to a live report.",
+      helpText: "Hosts that have recently checked into Fleet.",
     },
     {
       disabled: false,
       label: "Offline hosts",
       value: "offline",
-      helpText: "Hosts that won't respond to a live report.",
+      helpText: "Hosts that haven't recently checked into Fleet.",
     },
     {
       disabled: false,
@@ -118,6 +117,13 @@ export const hostSelectStatuses = (isPremiumTier: boolean) => {
       label: "New hosts",
       value: "new",
       helpText: "Hosts added to Fleet in the last 24 hours.",
+    },
+    {
+      disabled: false,
+      label: "Enrolled hosts",
+      value: "enrolled",
+      helpText:
+        "Hosts that have enrolled to Fleet. Excludes hosts pending enrollment.",
     },
   ];
 

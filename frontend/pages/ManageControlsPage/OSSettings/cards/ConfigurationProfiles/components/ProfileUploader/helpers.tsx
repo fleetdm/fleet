@@ -1,12 +1,11 @@
-import React from "react";
 import { AxiosResponse } from "axios";
-
-import { IApiError } from "interfaces/errors";
-import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
-import { LabelTargetMode, TargetType } from "components/TargetLabelSelector";
-import { listNamesFromSelectedLabels } from "services/entities/labels";
+import React from "react";
 
 import CustomLink from "components/CustomLink";
+import { LabelTargetMode, TargetType } from "components/TargetLabelSelector";
+import { IApiError } from "interfaces/errors";
+import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
+import { listNamesFromSelectedLabels } from "services/entities/labels";
 import { generateGenericLearnMoreErrMsg } from "utilities/helpers";
 
 export interface IParseFileResult {

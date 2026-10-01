@@ -1,11 +1,10 @@
-import React, { useState } from "react";
 import classnames from "classnames";
+import React, { useState } from "react";
 
-import mdmAPI from "services/entities/mdm";
-
-import { notify } from "components/ToastNotification";
 import FileUploader from "components/FileUploader";
+import { notify } from "components/ToastNotification";
 import { getErrorReason } from "interfaces/errors";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "setup-experience-script-uploader";
 

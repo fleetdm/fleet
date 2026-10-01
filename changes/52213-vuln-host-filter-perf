@@ -1,0 +1,1 @@
+- Fixed the host list and host count timing out when filtered by a vulnerability (CVE) that affects many software versions.

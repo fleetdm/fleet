@@ -1,3 +1,4 @@
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { isEnrolledInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   HostPlatform,
@@ -56,3 +57,13 @@ export const shouldShowControlsTab = ({
 };
 
 export default shouldShowControlsTab;
+
+/** Fleet's 4xx reasons for a profile resend are written for the requester (for
+ * example, only an admin can resend the Fleetd configuration profile), so they
+ * are shown as-is. Anything else gets the generic copy. sendRequest rejects
+ * with the response itself. */
+export const getResendProfileErrorMessage = (e: unknown) => {
+  const isClientError = hasStatusKey(e) && e.status >= 400 && e.status < 500;
+  const reason = isClientError ? getErrorReason(e) : "";
+  return reason || "Couldn't resend. Please try again.";
+};

@@ -3,8 +3,8 @@ import {
   ICustomHostVitalFormData,
 } from "interfaces/custom_host_vitals";
 import sendRequest from "services";
-import { getPathWithQueryParams } from "utilities/url";
 import endpoints from "utilities/endpoints";
+import { getPathWithQueryParams } from "utilities/url";
 
 export interface IListCustomHostVitalsApiParams {
   page?: number;

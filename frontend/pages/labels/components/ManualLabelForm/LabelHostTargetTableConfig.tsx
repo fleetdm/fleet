@@ -3,11 +3,10 @@
 import React from "react";
 import { Column, Row } from "react-table";
 
+import Button from "components/buttons/Button";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { IHost } from "interfaces/host";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import Button from "components/buttons/Button";
 
 export type ITargestInputHostTableConfig = Column<IHost>;
 type ITableStringCellProps = IStringCellProps<IHost>;

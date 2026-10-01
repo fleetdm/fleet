@@ -75,7 +75,7 @@ type DatasetStore interface {
 	// platform-specific predicate. Non-mobile (osquery) hosts use the product's
 	// standard online predicate (host_seen_times.seen_time within the host's own
 	// check-in interval). Mobile hosts (iOS, iPadOS, Android), which only check
-	// in via MDM, use their MDM activity signal (nano_enrollments.last_seen_at,
+	// in via MDM, use their MDM activity signal (nano_seen_times.seen_time,
 	// falling back to detail_updated_at) within a fixed mobile online window.
 	// Used by datasets like uptime.
 	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
@@ -113,6 +113,14 @@ type DatasetStore interface {
 // MetricCVE is the metric name of the vulnerability-exposure (CVE) dataset.
 // The CVE entity filters apply only to this metric.
 const MetricCVE = "cve"
+
+// MobileOnlineWindowSeconds is the mobile online-status window used by the
+// chart bounded context's FindOnlineHostIDs predicate, in seconds. Fleet's
+// core status computation duplicates the value in fleet.MobileOnlineWindow
+// because server/chart can't import server/fleet (arch test enforced).
+// TestMobileOnlineWindowMatchesChart in server/fleet asserts the two stay in
+// lockstep; edit both when tuning.
+const MobileOnlineWindowSeconds = 3600 + 600 + 60
 
 // CVE chart software category keys. These are the API contract for the
 // `software_filters` query parameter and are mirrored by the frontend. The

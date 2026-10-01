@@ -1,6 +1,7 @@
 import React from "react";
 
 import ActivityItem from "components/ActivityItem";
+
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 
 const baseClass = "unlocked-host-activity-item";

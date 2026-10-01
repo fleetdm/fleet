@@ -1,8 +1,8 @@
 import React from "react";
 
-import { getPathWithQueryParams } from "utilities/url";
 import CustomLink from "components/CustomLink";
 import paths from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 interface IRunScriptHelpTextProps {
   className?: string;

@@ -1,18 +1,16 @@
 import React, { useState } from "react";
 
-import { IWebhookHostActivities } from "interfaces/webhook";
-
-import Modal from "components/Modal";
-import validURL from "components/forms/validators/valid_url";
-import Slider from "components/forms/fields/Slider";
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
-import useGitOpsMode from "hooks/useGitOpsMode";
-import { syntaxHighlight } from "utilities/helpers";
 import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import Slider from "components/forms/fields/Slider";
+import validURL from "components/forms/validators/valid_url";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Modal from "components/Modal";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IWebhookHostActivities } from "interfaces/webhook";
+import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "host-activity-automations-modal";
 

@@ -4,15 +4,16 @@ _Available in Fleet Premium_
 
 In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
 
-For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://gdmf.apple.com/v2/pmv). The update will only be enforced if you use a version in that list.
+For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://sofa.macadmins.io/). The update will only be enforced if you use a version in that list.
 
-For Android hosts, you can enforce OS updates using a configuration profile with the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. This setting is only supported on fully-managed Android hosts (not BYO). Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
+For Android hosts, you can enforce OS updates using a configuration profile. See [Android](#android) below for which management types support this.
 
 ## Fleet-managed OS updates vs. custom profiles
 
 Fleet provides two approaches to enforce OS updates:
 
 1. **Fleet-managed settings** — Use the Fleet UI, API, or GitOps YAML to set a minimum version and deadline. Fleet generates and deploys the appropriate enforcement profile automatically.
+
 2. **Custom profiles** — Upload your own [Apple DDM declaration](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) or [Windows Update CSP](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) profile for full control over enforcement parameters (e.g., custom enforcement time).
 
 These two approaches are **mutually exclusive** per platform. If Fleet-managed OS update settings are configured, you cannot upload a custom OS update profile (and vice versa). You must remove one before configuring the other.
@@ -25,11 +26,14 @@ You can enforce OS settings using the Fleet UI, Fleet API, or [GitOps](https://f
 
 1. Head to the **Controls** > **OS updates** tab.
 
-2. To enforce OS updates for enrolled macOS, iOS, or iPadOS hosts, select the platform and set a **Minimum version** and **Deadline**.
+2. To enforce OS updates for enrolled Apple hosts, select the **macOS**, **iOS**, or **iPadOS** tab and choose an enforcement policy:
+
+   - **Custom version** — Set a specific **Minimum version** (e.g., `15.4.1`) and an absolute **Deadline** (date). Hosts below this version will be prompted to update by the deadline.
+   - **Latest version (based on host hardware)** — Fleet automatically enforces the latest macOS version available for each host's hardware. Set **Days after release** to control how long hosts have to update after Apple publishes a new version.
 
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
 
-4. *macOS only*: check "Update new hosts to latest" if you would like hosts to automatically update to the latest OS version during automatic (ADE) enrollment, regardless of the minimum version and deadline settings.
+4. *macOS only*: check "Update new hosts to latest" if you would like hosts to automatically update to the latest OS version during automatic (ADE) enrollment, regardless of the minimum version and deadline settings. This is implicitly enabled when using the automatic enforcement option (latest version).
 
 Use the [modify fleet endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-team) to turn on minimum OS version enforcement. The relevant payload keys in the `mdm` object are:
 + `macos_updates`
@@ -44,6 +48,27 @@ OS version enforcement options are declared within the [controls](https://fleetd
 + [ios_updates](https://fleetdm.com/docs/configuration/yaml-files#ios-updates)
 + [ipados_updates](https://fleetdm.com/docs/configuration/yaml-files#ipados-updates)
 + [windows_updates](https://fleetdm.com/docs/configuration/yaml-files#windows-updates)
+
+### Apple (macOS, iOS, and iPadOS) examples
+_Examples also work with ios_updates and ipados_updates._
+
+Custom version with an absolute deadline:
+```yaml
+controls:
+  macos_updates:
+    minimum_version: "15.4.1"
+    deadline: "2025-07-01"
+```
+
+Automatically enforce the latest macOS version, giving hosts 14 days after Apple releases it:
+```yaml
+controls:
+  macos_updates:
+    minimum_version: "latest"
+    deadline_days: 14
+```
+
+> `deadline` (a date) is used with a specific version number. `deadline_days` (an integer) is used with automatic option (`latest`). These cannot be mixed.
 
 ## Custom OS update profiles
 
@@ -124,6 +149,17 @@ Upload a custom Windows XML profile targeting the [Update CSP](https://learn.mic
 ```
 
 See Microsoft's [Update CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) for all available settings.
+
+### Android
+
+Upload a custom Android configuration profile using the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
+
+Support depends on how the Android host is managed:
+
+- **Company-owned (fully-managed) hosts**: supported. `systemUpdate` controls the whole device, and Android only exposes it on fully-managed hosts.
+- **Persona (BYOD) hosts**: not supported. Android has no work profile equivalent of `systemUpdate`, since the setting applies to the whole device rather than just the work profile.
+- **OEMConfig hosts (Knox Service Plugin, Zebra, etc.)**: not supported. Fleet doesn't support [OEMConfig](https://support.google.com/work/android/answer/9388447?hl=en).
+- **[Android Open Source (AOSP)](https://source.android.com/) hosts**: not supported. Fleet's Android MDM runs on the [Android Management API](https://developers.google.com/android/management), which requires Google Mobile Services. Hosts without Google Mobile Services, like Huawei devices and other China-market Android, can't enroll in Fleet at all.
 
 ## Apple (macOS, iOS, and iPadOS) end user experience
 

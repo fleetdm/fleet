@@ -1,9 +1,9 @@
+import classnames from "classnames";
+import { pick } from "lodash";
 import React from "react";
 import { Link } from "react-router";
-import classnames from "classnames";
 
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
-import { pick } from "lodash";
 
 const baseClass = "link-with-context";
 

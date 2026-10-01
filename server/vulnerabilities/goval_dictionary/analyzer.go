@@ -73,6 +73,7 @@ func Analyze(
 			hostID := hostID
 			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{
 				HostID:      &hostID,
+				Sources:     oval.SupportedSoftwareSources,
 				KernelsOnly: kernelsOnly,
 			})
 			if err != nil {

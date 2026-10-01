@@ -1,8 +1,8 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
-import { renderWithSetup } from "test/test-utils";
 import OrgDetails from "components/forms/RegistrationForm/OrgDetails";
+import { renderWithSetup } from "test/test-utils";
 
 describe("OrgDetails - form", () => {
   const handleSubmitSpy = jest.fn();

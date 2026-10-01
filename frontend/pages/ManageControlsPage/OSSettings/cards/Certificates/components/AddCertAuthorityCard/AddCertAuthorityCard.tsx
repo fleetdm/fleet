@@ -1,10 +1,9 @@
 import React from "react";
-
-import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
 
-import Card from "components/Card";
 import Button from "components/buttons/Button";
+import Card from "components/Card";
+import PATHS from "router/paths";
 
 const baseClass = "add-cert-authority-card";
 

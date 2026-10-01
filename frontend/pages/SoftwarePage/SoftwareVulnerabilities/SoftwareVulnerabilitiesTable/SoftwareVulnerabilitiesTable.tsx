@@ -2,37 +2,33 @@
 
 import React, { useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
 import { Row } from "react-table";
 
-import PATHS from "router/paths";
-
-import { AppContext } from "context/app";
-import {
-  GITHUB_NEW_ISSUE_LINK,
-  VULNERABILITIES_SEARCH_BOX_TOOLTIP,
-} from "utilities/constants";
-import { isIncompleteQuoteQuery } from "utilities/strings/stringUtils";
-
 import CustomLink from "components/CustomLink";
-import TableContainer from "components/TableContainer";
-import LastUpdatedText from "components/LastUpdatedText";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
-import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
+import LastUpdatedText from "components/LastUpdatedText";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import { AppContext } from "context/app";
 import EmptyVulnerabilitiesTable from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/EmptyVulnerabilitiesTable";
-
+import PATHS from "router/paths";
 import {
   IVulnerabilitiesResponse,
   IVulnerabilitiesEmptyStateReason,
 } from "services/entities/vulnerabilities";
-import { getPathWithQueryParams } from "utilities/url";
+import {
+  GITHUB_NEW_ISSUE_LINK,
+  VULNERABILITIES_SEARCH_BOX_TOOLTIP,
+} from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
+import { isIncompleteQuoteQuery } from "utilities/strings/stringUtils";
+import { getPathWithQueryParams } from "utilities/url";
 
-import generateTableConfig from "./VulnerabilitiesTableConfig";
 import { getExploitedVulnerabilitiesDropdownOptions } from "./helpers";
+import generateTableConfig from "./VulnerabilitiesTableConfig";
 
 const baseClass = "software-vulnerabilities-table";
 

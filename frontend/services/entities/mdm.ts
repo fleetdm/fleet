@@ -7,16 +7,15 @@ import {
   IMdmSSOResponse,
   MdmProfileStatus,
 } from "interfaces/mdm";
-import { API_NO_TEAM_ID } from "interfaces/team";
-import { ISoftwareTitle } from "interfaces/software";
 import { SetupExperiencePlatform } from "interfaces/platform";
-
+import { ISoftwareTitle } from "interfaces/software";
+import { API_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
-import { ISoftwareTitlesResponse } from "./software";
 import { PaginationParams } from "./common";
+import { ISoftwareTitlesResponse } from "./software";
 
 export interface IEulaMetadataResponse {
   name: string;

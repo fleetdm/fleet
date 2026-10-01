@@ -1,14 +1,15 @@
 import React, { useState } from "react";
 
-import Modal from "components/Modal";
-import Checkbox from "components/forms/fields/Checkbox";
-import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
-import mdmAbmAPI from "services/entities/mdm_apple_bm";
-import { notify } from "components/ToastNotification";
 import CustomLink from "components/CustomLink";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import Checkbox from "components/forms/fields/Checkbox";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import { notify } from "components/ToastNotification";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import mdmAbmAPI from "services/entities/mdm_apple_bm";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import getErrorMessage from "./helpers";
 
 type SimpleHost = {

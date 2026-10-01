@@ -1,8 +1,8 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import { createMockRouter } from "test/test-utils";
+import React from "react";
 
 import { ISoftwareResponse } from "interfaces/software";
+import { createMockRouter } from "test/test-utils";
 
 import Software from "./Software";
 

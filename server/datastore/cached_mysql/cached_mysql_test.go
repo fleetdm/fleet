@@ -772,42 +772,6 @@ func TestCachedQueryByName(t *testing.T) {
 	require.True(t, mockedDS.QueryByNameFuncInvoked)
 }
 
-func TestCachedResultCountForQuery(t *testing.T) {
-	t.Parallel()
-
-	mockedDS := new(mock.Store)
-	ds := New(mockedDS, WithQueryResultsCountExpiration(100*time.Millisecond))
-
-	testCount := 1
-	mockedDS.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return testCount, nil
-	}
-
-	// first call gets the result from the DB
-	c1, err := ds.ResultCountForQuery(context.Background(), 1)
-	require.NoError(t, err)
-	require.Equal(t, testCount, c1)
-	require.True(t, mockedDS.ResultCountForQueryFuncInvoked)
-	mockedDS.ResultCountForQueryFuncInvoked = false
-
-	// change "stored" count.
-	testCount = 2
-
-	// this call gets it from the cache
-	c2, err := ds.ResultCountForQuery(context.Background(), 1)
-	require.NoError(t, err)
-	require.Equal(t, c1, c2) // returns the old cached value
-	require.False(t, mockedDS.ResultCountForQueryFuncInvoked)
-
-	time.Sleep(200 * time.Millisecond)
-
-	// this call gets it from the DB again since the cache expired
-	c3, err := ds.ResultCountForQuery(context.Background(), 1)
-	require.NoError(t, err)
-	require.Equal(t, testCount, c3)
-	require.True(t, mockedDS.ResultCountForQueryFuncInvoked)
-}
-
 func TestCachedQueriesPerHost(t *testing.T) {
 	t.Parallel()
 

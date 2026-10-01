@@ -5,26 +5,25 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery, useQueryClient } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
+import BackButton from "components/BackButton";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import DataSet from "components/DataSet";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import { IConfig } from "interfaces/config";
 import { getErrorReason } from "interfaces/errors";
+import PATHS from "router/paths";
 import mdmAndroidAPI from "services/entities/mdm_android";
 import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
-
-import MainContent from "components/MainContent";
-import BackButton from "components/BackButton";
-import Button from "components/buttons/Button";
-import DataSet from "components/DataSet";
-import TooltipWrapper from "components/TooltipWrapper";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import CustomLink from "components/CustomLink";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import { notify } from "components/ToastNotification";
 
 import TurnOffAndroidMdmModal from "./components/TurnOffAndroidMdmModal";
 

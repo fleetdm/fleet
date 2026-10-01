@@ -1,0 +1,1 @@
+- Fixed Orbit enrollment so that, when `mdm.allow_orbit_end_user_auth_bypass` is set to `false`, a host cannot skip required end user authentication by reporting a macOS platform. Set that option to `false` to enforce end user authentication on every platform.

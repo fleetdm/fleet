@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.6.4",
+      "version": "3.6.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.GitHubClient';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.GitHubClient' AND version_compare(bundle_short_version, '3.6.4') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.github.GitHubClient');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.GitHubClient' AND version_compare(bundle_short_version, '3.6.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.github.GitHubClient' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://desktop.githubusercontent.com/releases/3.6.4-28955b81/GitHubDesktop-arm64.zip",
+      "installer_url": "https://desktop.githubusercontent.com/releases/3.6.6-8b85519e/GitHubDesktop-arm64.zip",
       "install_script_ref": "7ed6a869",
       "uninstall_script_ref": "642b60ca",
-      "sha256": "ff99e90964b866af854eb4c0701020bf2b2e209fe06d0ba28308836ec2e34106",
+      "sha256": "8cdf7f8a24d843f6f0becd2b8ea3c76a81a63fd09ea113a5ecae246baa8d07c9",
       "default_categories": [
         "Developer tools"
       ]

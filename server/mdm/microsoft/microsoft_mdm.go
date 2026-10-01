@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"regexp"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
@@ -94,11 +95,26 @@ func Encrypt(rawValue string, cert *x509.Certificate) (string, error) {
 
 // regex to validate UPN
 // https://learn.microsoft.com/en-us/windows/win32/ad/naming-properties#upn-format
-var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+// The local part also accepts ' ! # ^ ~, which Entra allows in user principal names.
+var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+'!#^~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 
 // IsValidUPN checks if the provided user ID is a valid UPN
 func IsValidUPN(userID string) bool {
 	return upnRegex.MatchString(userID)
+}
+
+// IsValidEntraUPN additionally applies Entra ID's own limits on a user principal
+// name: at most 64 characters before the '@' and 48 after, no '+' or '%' in the
+// local part, and a local part that does not end with a period.
+// https://learn.microsoft.com/en-us/microsoft-365/enterprise/prepare-for-directory-synchronization
+func IsValidEntraUPN(userID string) bool {
+	if !IsValidUPN(userID) {
+		return false
+	}
+	at := strings.LastIndex(userID, "@")
+	local, domain := userID[:at], userID[at+1:]
+	return len(local) <= 64 && len(domain) <= 48 &&
+		!strings.ContainsAny(local, "+%") && !strings.HasSuffix(local, ".")
 }
 
 // WindowsUserContextStateFromDevice reports what Fleet knows about the enrollment's MDM user context, which decides whether its

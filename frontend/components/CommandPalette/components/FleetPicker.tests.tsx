@@ -1,6 +1,7 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { Command } from "cmdk";
+import React from "react";
+
 import { createCustomRenderer } from "test/test-utils";
 
 import FleetPicker from "./FleetPicker";

@@ -127,8 +127,10 @@
       }
     }
 
-    // table header content responsive styles
-    @media (max-width: $table-controls-break) {
+    // table header content responsive styles.
+    // Uses a wider local break than $table-controls-break so the "N hosts"
+    // count doesn't get squeezed by the toolbar between 1180-1250px.
+    @media (max-width: 1250px) {
       &__header {
         flex-direction: column;
       }
@@ -168,9 +170,14 @@
             flex-direction: row;
             flex: 1;
 
-            .form-field--dropdown,
+            // Ratio tuned for 768px. Label may overhang a few px between
+            // 768-778px; not worth further layout complexity.
+            .form-field--dropdown {
+              flex: 8;
+            }
+
             .manage-hosts__label-filter-dropdown {
-              flex: 1;
+              flex: 13;
             }
 
             .manage-hosts__status-filter {
@@ -224,13 +231,11 @@
   &__status-filter {
     width: 195px;
 
-    .Select-menu-outer {
-      width: 364px;
-      max-height: min-content;
-
-      .Select-menu {
-        max-height: none;
-      }
+    // Matches .label-filter-select__menu-list so both filter menus are the
+    // same height and neither scrolls.
+    .react-select__menu-list {
+      max-height: 590px;
+      padding-bottom: 0.75rem;
     }
     .Select-value {
       padding-left: $pad-medium;

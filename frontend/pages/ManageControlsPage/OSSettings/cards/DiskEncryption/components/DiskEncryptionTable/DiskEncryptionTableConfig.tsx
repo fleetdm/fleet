@@ -1,16 +1,15 @@
 import React from "react";
 
+import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
+import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { DiskEncryptionStatus } from "interfaces/mdm";
 import {
   IDiskEncryptionStatusAggregate,
   IDiskEncryptionSummaryResponse,
 } from "services/entities/disk_encryption";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 
 export interface IStatusCellValue {
   displayName: string;

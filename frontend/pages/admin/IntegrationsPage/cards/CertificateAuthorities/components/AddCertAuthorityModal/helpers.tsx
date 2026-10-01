@@ -1,21 +1,20 @@
 import React from "react";
 
-import { IAddCertAuthorityFormData } from "services/entities/certificates";
+import CustomLink from "components/CustomLink";
 import { ICertificateAuthorityType } from "interfaces/certificates";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { getErrorReason } from "interfaces/errors";
+import { IAddCertAuthorityFormData } from "services/entities/certificates";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import CustomLink from "components/CustomLink";
-
-import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
-import { INDESFormData } from "../NDESForm/NDESForm";
-import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
-import { IHydrantFormData } from "../HydrantForm/HydrantForm";
-import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
+import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
+import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import CA_LABEL_BY_TYPE from "../helpers";
+import { IHydrantFormData } from "../HydrantForm/HydrantForm";
+import { INDESFormData } from "../NDESForm/NDESForm";
+import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 
 // keep these alphabetized
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [

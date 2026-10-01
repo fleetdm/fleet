@@ -61,6 +61,20 @@ module.exports = {
     fleetDesktopSSOEnabled: {required: true, type: 'boolean'},
     numHostsFleetMDMEnrolledMacOS: {required: true, type: 'number'},
     numHostsFleetMDMEnrolledWindows: {required: true, type: 'number'},
+    resultLogDestination: {required: true, type: 'string'},
+    statusLogDestination: {required: true, type: 'string'},
+    auditLogDestination: {required: true, type: 'string'},
+    anyVulnerabilitiesWebhookEnabled: {required: true, type: 'boolean'},
+    anyFailingPoliciesWebhookEnabled: {required: true, type: 'boolean'},
+    anyHostActivitiesWebhookEnabled: {required: true, type: 'boolean'},
+    globalActivityWebhookEnabled: {required: true, type: 'boolean'},
+    ticketDestinationConfigured: {required: true, type: 'boolean'},
+    ssoConfiguredFleetUsers: {required: true, type: 'boolean'},
+    ssoConfiguredEndUsers: {required: true, type: 'boolean'},
+    accountProvisioningConfigured: {required: true, type: 'boolean'},
+    idpSCIMConfigured: {required: true, type: 'boolean'},
+    idpGoogleWorkspaceConfigured: {required: true, type: 'boolean'},
+    certificateAuthorityConfigured: {required: true, type: 'boolean'},
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

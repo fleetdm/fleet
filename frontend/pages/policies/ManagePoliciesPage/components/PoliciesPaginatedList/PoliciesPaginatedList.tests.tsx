@@ -1,17 +1,17 @@
-import React from "react";
-
-import { http, HttpResponse } from "msw";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import React from "react";
+
+import createMockPolicy from "__mocks__/policyMock";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   waitForLoadingToFinish,
 } from "test/test-utils";
-import createMockPolicy from "__mocks__/policyMock";
-import mockServer from "test/mock-server";
 
-import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import PoliciesPaginatedList, { IFormPolicy } from "./PoliciesPaginatedList";
 
 const globalPolicies = [

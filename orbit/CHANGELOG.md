@@ -1,3 +1,61 @@
+## 1.61.0 (Sep 14, 2026)
+
+* Added support for the Fleet server's experimental WebSocket notification transport (ADR-0011). When the server enables it, fleetd keeps a WebSocket connection open to the server, registers itself as osquery's distributed plugin, and runs a distributed read as soon as the server sends a notification, instead of osquery polling for distributed queries every 10 seconds. fleetd falls back to polling while the connection is down.
+
+* Added a 30-second timeout to fleetd's requests to the Fleet server, so a request that hangs is retried instead of stalling fleetd indefinitely.
+
+* Added a 60-second stall timeout to software installer downloads, so a download that stops receiving data is retried instead of hanging indefinitely. Slow but progressing downloads are not affected.
+
+* Added support for restoring BitLocker protection on Windows hosts whose volume is already encrypted but has protection turned off. If the volume has no TPM protector, fleetd adds one before turning protection back on. fleetd waits while a restart is pending, and reports the reason to Fleet when it can't restore protection.
+
+* Updated `macadmins/osquery-extension` to `v1.5.4`, which includes the following changes:
+
+* Fixed the `munki_info` table failing on hosts where Munki reported items it couldn't install, which left those hosts without Munki version, error, and warning data.
+
+* Added the `touchid_system_config` and `touchid_user_config` tables for macOS.
+
+* Added the `privileges_events` table for macOS, which reports admin privilege changes and tamper attempts recorded by SAP Privileges.
+
+* Fixed the `macadmins_unified_log` table returning an extra empty row at the end of every result.
+
+* Fixed and improved the `santa_allowed` and `santa_denied` tables:
+
+* Fixed the tables returning no results on hosts where Santa is running, most often in monitor mode. A single log line longer than 64KB (Santa logs process arguments, which have no practical size limit), a log rotation during a read, or an archive that couldn't be decompressed caused every event read from the other Santa log files to be discarded. Reads are now best effort: over-long lines are truncated, a file that can't be read no longer discards the events read from the other files, and failures are logged instead of silently returning zero rows.
+
+* Fixed fleetd skipping rotated Santa logs that haven't been compressed, so the tables no longer miss events on hosts whose newsyslog configuration leaves archives uncompressed.
+
+* Improved performance: the tables now parse Santa logs about 3x faster while allocating 5-7x less memory, and stop reading rotated logs once they have the most recent 10,000 events, so on a busy host the compressed archives are no longer decompressed on every query.
+
+* Fixed Linux disk encryption key escrow rejecting a valid passphrase with "Passphrase incorrect" on hosts whose shell startup files print to stdout. fleetd read the passphrase from the dialog's stdout, which is also where the login shell's startup files write, so their output was captured as part of the passphrase. fleetd now delimits the dialog's own output so the passphrase can be read back separately.
+
+* Fixed fleetd attempting BitLocker encryption on an already-encrypted volume when the volume's status couldn't be read. This deleted the volume's key protectors and could leave the host requiring its recovery key at the next restart.
+
+* Fixed fleetd package installs silently overwriting a user-provided `osquery.flags` with an empty file when the package was built without `--osquery-flagfile`.
+
+* Fixed Windows hosts installed from a network path failing to uninstall or reinstall fleetd when the original install source was no longer available.
+
+## 1.60.0 (Sep 03, 2026)
+
+* Added Windows support for the Fleet-managed local admin account: when the setting is enabled for the host's fleet, fleetd creates the hidden `_fleetadmin` administrator account, keeps it off the sign-in screen, and escrows its password to Fleet.
+
+* Added the `homebrew_outdated` table to fleetd for querying outdated Homebrew packages (formulae and casks) on macOS, exposing installed and latest-available versions.
+
+- * Fixed Migrate MDM webhook showing an error on macOS by checking local MDM enrollment status before firing.
+
+* Added a `--bypass-end-user-auth` flag (env `ORBIT_BYPASS_END_USER_AUTH`) that skips the end-user authentication prompt during enrollment on Linux and Windows by not advertising the end-user auth capability to the Fleet server. When a Windows MDM EUA token is present, it takes precedence and end-user auth is still processed.
+
+* Added new `apple_hardware_info` osquery extension table (macOS only) with a `marketing_name` column that returns the human-readable marketing name for the current Apple device.
+
+* Fixed `.py` package install scripts being written to the host with a `.sh` extension, which produced misleading Python tracebacks.
+
+* Added the underlying execution error to an install script's output when the script can't be run at all (exit code -1), so the failure names the interpreter that couldn't be resolved instead of reporting nothing.
+
+* Updated client response type for the `GET /api/latest/fleet/device/{token}/policies` endpoint for consistency with the server response type (`fleet.DevicePolicy`).
+
+* Updated Go to 1.26.7.
+
+* Updated Orbit CA certs.
+
 ## 1.59.0 (Aug 13, 2026)
 
 * Added a new `ai_tools` table that inventories AI software (desktop apps, IDE plugins, agent CLIs, MCP servers, live AI/MCP sockets, agent instruction files, and browser extensions) with a `type` discriminator and per-row `risk_flags`, `sha256`, and JSON `detail` columns.

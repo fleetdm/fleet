@@ -1,14 +1,13 @@
 import React from "react";
 
-import { ICustomHostVital } from "interfaces/custom_host_vitals";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
-import Icon from "components/Icon";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import Icon from "components/Icon";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import { ICustomHostVital } from "interfaces/custom_host_vitals";
 
 export const getTokenFromVitalId = (id: number): string =>
   `$FLEET_HOST_VITAL_${id}`;

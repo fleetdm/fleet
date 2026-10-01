@@ -1,35 +1,34 @@
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import PageDescription from "components/PageDescription";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import { IConfig } from "interfaces/config";
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import mdmAPI, {
+  IGetSetupExperienceScriptResponse,
+} from "services/entities/mdm";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-import PATHS from "router/paths";
 
-import mdmAPI, {
-  IGetSetupExperienceScriptResponse,
-} from "services/entities/mdm";
-import configAPI from "services/entities/config";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import { IConfig } from "interfaces/config";
-import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
-
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
-import EmptyState from "components/EmptyState";
-import Button from "components/buttons/Button";
-
-import SetupExperienceScriptUploader from "./components/SetupExperienceScriptUploader";
-import SetupExperienceScriptCard from "./components/SetupExperienceScriptCard";
-import DeleteSetupExperienceScriptModal from "./components/DeleteSetupExperienceScriptModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 import getManualAgentInstallSetting from "../../helpers";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+
+import DeleteSetupExperienceScriptModal from "./components/DeleteSetupExperienceScriptModal";
+import SetupExperienceScriptCard from "./components/SetupExperienceScriptCard";
+import SetupExperienceScriptUploader from "./components/SetupExperienceScriptUploader";
 
 const baseClass = "run-script";
 

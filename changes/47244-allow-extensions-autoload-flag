@@ -1,0 +1,1 @@
+- Allowed setting the `extensions_autoload` flag in agent options `command_line_flags`. It's still rejected when the `extensions` key is also configured, because fleetd uses that flag to load the extensions it manages.
