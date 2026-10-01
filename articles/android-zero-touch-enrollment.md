@@ -41,7 +41,7 @@ After a device is factory reset or unboxed and connected to a network:
 1. Android Device Policy installs automatically.
 2. The device enrolls to Fleet and appears on the **Hosts** page.
 
-All zero-touch-enrolled hosts enroll to the **Unassigned** fleet. Enrolling to a specific fleet is coming soon.
+All zero-touch-enrolled hosts enroll to the **Unassigned** fleet. Enrolling to a specific fleet is [coming soon](https://github.com/fleetdm/fleet/issues/51479).
 
 > Zero-touch enrollment doesn't support [end-user authentication (EUA)](https://fleetdm.com/guides/setup-experience#end-user-authentication). There's no browser-based identity provider (IdP) sign-in during zero-touch provisioning, so IdP variables in certificates won't work on these hosts.
 
