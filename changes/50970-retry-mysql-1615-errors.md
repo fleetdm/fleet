@@ -1,1 +1,0 @@
-- Fixed host activity queue getting stuck due to database transactions not retrying when getting MySQL error 1615

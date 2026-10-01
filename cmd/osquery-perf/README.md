@@ -60,6 +60,26 @@ Supported Linux templates: `ubuntu_22.04`, `rhel_8`, `rhel_9`, `rhel_10`. RHEL t
 
 The software database (`cmd/osquery-perf/software-library/software.db`) is optional — macOS, Windows, and Ubuntu have embedded fallback fixtures, and RHEL kernels are embedded too. The DB only adds non-kernel software variety. If the DB isn't present at `--software_db_path`, osquery-perf logs a warning and falls back to the embedded fixtures.
 
+### Homebrew executable hashes
+
+macOS hosts report a sha256 for every Mach-O executable their Homebrew formulae install, and the
+server stores one installed path row per executable. That fan-out, not the number of formulae, is
+what sizes a macOS host's installed path delta, so it has its own flags:
+
+- `--software_homebrew_keg_percent` (default 80): percentage of a host's Homebrew packages that
+  are kegs reporting executable hashes. The rest report none, as a cask does. `0` reports no
+  hashes at all, like a host running an older `fleetd`.
+- `--software_homebrew_large_keg_percent` (default 1): percentage of those kegs that install 200
+  or more executables, standing in for a formula like netpbm or texlive. The rest install one to
+  three, as most formulae do.
+
+Which packages are kegs, which kegs are large, and how many executables each installs are derived
+from the formula name, so a keg reports the same set on every run and every host that has the
+formula agrees about it.
+
+Homebrew formulae come from the software database, so these flags do nothing when it isn't loaded
+(the embedded macOS fixtures are all `apps`).
+
 ## Controlling Agent Behavior From the Fleet UI
 
 ### Specify Query Results

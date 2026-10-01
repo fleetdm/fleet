@@ -36,6 +36,7 @@ import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
 
+import { isNotifyBeforePatchingSkip } from "../../NotifyBeforePatchingDetailsModal/helpers";
 import {
   INSTALL_DETAILS_STATUS_ICONS,
   SKIPPED_INSTALL_DETAILS,
@@ -108,13 +109,79 @@ export const StatusMessage = ({
     host_display_name,
     software_package,
     software_title,
+    software_display_name,
     status,
     updated_at,
     created_at,
   } = installResult;
+  const displayedTitle = getDisplayedSoftwareName(
+    software_title,
+    software_display_name
+  );
+
+  const formattedHost = host_display_name ? (
+    <b>{host_display_name}</b>
+  ) : (
+    "the host"
+  );
+
+  const displayTimeStamp = ["failed_install", "installed"].includes(
+    status || ""
+  )
+    ? ` (${timeAgo(new Date(updated_at || created_at), {
+        includeSeconds: true,
+        addSuffix: true,
+      })})`
+    : "";
+
+  // A patch-when-closed skip must render its own message even when the host
+  // currently reports the app as installed. The skip is the load-bearing state
+  // (deferred update); collapsing it into "is installed" would hide the
+  // reason the row is flagged.
+  if (skippedInstall && status === "failed_install") {
+    // Notify variant appends "Fleet notifies the end user..." to
+    // pre_install_query_output; patch_when_closed doesn't.
+    const isNotifyVariant = isNotifyBeforePatchingSkip(
+      installResult.pre_install_query_output
+    );
+
+    // Admin-facing pages link "policy runs again" to cadence docs; the end-user
+    // "My device" flow shows plain text since the doc is admin-only.
+    const skippedDetails = isMyDevicePage ? (
+      SKIPPED_INSTALL_DETAILS
+    ) : (
+      <>
+        {SKIPPED_INSTALL_DETAILS_PREFIX}
+        <CustomLink
+          url={SKIPPED_INSTALL_DETAILS_LINK_URL}
+          text={SKIPPED_INSTALL_DETAILS_LINK_TEXT}
+          newTab
+        />
+      </>
+    );
+
+    return (
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName={INSTALL_DETAILS_STATUS_ICONS.skipped_install}
+        iconColor="ui-fleet-black-50"
+        message={
+          <span>
+            Fleet skipped install of <b>{displayedTitle}</b> ({software_package}
+            ) on {formattedHost}
+            {displayTimeStamp}.{" "}
+            {isNotifyVariant
+              ? "The app was open. Fleet notifies the end user 1 hour before the patch is forced."
+              : skippedDetails}
+          </span>
+        }
+      />
+    );
+  }
 
   // Treat failed_install/failed_uninstall with installed versions as installed
-  // as the host still reports installed versions (4.82 #31663)
+  // as the host still reports installed versions (4.82 #31663). Skipped installs
+  // are handled above so this override never masks a patch-when-closed skip.
   const overrideFailureWithInstalled =
     canOverrideFailureWithInstalled &&
     ["failed_install", "failed_uninstall"].includes(status || "");
@@ -133,58 +200,10 @@ export const StatusMessage = ({
     );
   }
 
-  const formattedHost = host_display_name ? (
-    <b>{host_display_name}</b>
-  ) : (
-    "the host"
-  );
-
-  const displayTimeStamp = ["failed_install", "installed"].includes(
-    status || ""
-  )
-    ? ` (${timeAgo(new Date(updated_at || created_at), {
-        includeSeconds: true,
-        addSuffix: true,
-      })})`
-    : "";
-
-  if (skippedInstall && status === "failed_install") {
-    // Admin-facing pages link "policy runs again" to cadence docs; the end-user
-    // "My device" flow shows plain text since the doc is admin-only.
-    const skippedDetails = isMyDevicePage ? (
-      SKIPPED_INSTALL_DETAILS
-    ) : (
-      <>
-        {SKIPPED_INSTALL_DETAILS_PREFIX}
-        <CustomLink
-          url={SKIPPED_INSTALL_DETAILS_LINK_URL}
-          text={SKIPPED_INSTALL_DETAILS_LINK_TEXT}
-          newTab
-        />
-        .
-      </>
-    );
-
-    return (
-      <IconStatusMessage
-        className={`${baseClass}__status-message`}
-        iconName={INSTALL_DETAILS_STATUS_ICONS.skipped_install}
-        iconColor="ui-fleet-black-50"
-        message={
-          <span>
-            Fleet skipped install of <b>{software_title}</b> ({software_package}
-            ) on {formattedHost}
-            {displayTimeStamp}. {skippedDetails}
-          </span>
-        }
-      />
-    );
-  }
-
   const renderStatusCopy = () => {
     const prefix = (
       <>
-        Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>
+        Fleet {getInstallDetailsStatusPredicate(status)} <b>{displayedTitle}</b>
       </>
     );
 
@@ -334,9 +353,11 @@ export const SoftwareInstallDetailsModal = ({
     const outputs = [
       {
         label: "Pre-install query output:",
-        value: detailsFromProps.skipped_install
-          ? SKIPPED_PRE_INSTALL_OUTPUT
-          : swInstallResult?.pre_install_query_output,
+        value:
+          swInstallResult?.pre_install_query_output ||
+          (detailsFromProps.skipped_install
+            ? SKIPPED_PRE_INSTALL_OUTPUT
+            : undefined),
       },
       {
         label: "Install script output:",
@@ -409,11 +430,14 @@ export const SoftwareInstallDetailsModal = ({
       ? inventoryReportsInstalled
       : false;
 
-  // Treat failed_install / failed_uninstall with installed versions as installed
+  // Treat failed_install / failed_uninstall with installed versions as installed.
+  // Skips escape the override so the Details button + SKIPPED_PRE_INSTALL_OUTPUT
+  // still render on Library rows where inventory reports an older version.
   const overrideFailedMessageWithInstalledMessage =
     canOverrideFailureWithInstalled &&
+    !detailsFromProps.skipped_install &&
     ["failed_install", "failed_uninstall"].includes(
-      swInstallResult?.status || "" || ""
+      swInstallResult?.status || ""
     );
 
   // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)

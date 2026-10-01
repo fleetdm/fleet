@@ -1,6 +1,6 @@
 import { AxiosError } from "axios";
 import classNames from "classnames";
-import { pick } from "lodash";
+import { omit, pick } from "lodash";
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -50,6 +50,7 @@ import {
 } from "utilities/constants";
 import { normalizeEmptyValues } from "utilities/helpers";
 import { isDarkMode } from "utilities/theme";
+import { getPathWithQueryParams } from "utilities/url";
 
 import CertificatesCard from "../cards/Certificates";
 import ControlsCard from "../cards/Controls";
@@ -68,12 +69,14 @@ import SelfService from "../cards/Software/SelfService";
 import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
 import UserCard from "../cards/User";
 import VitalsCard from "../cards/Vitals";
+import { hasReportedVitals } from "../HostDetailsPage/helpers";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
+import BitLockerPinInstructionsModal from "./BitLockerPinInstructionsModal";
 import BitLockerPinModal from "./BitLockerPinModal";
 import BypassModal from "./BypassModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
@@ -87,6 +90,8 @@ import {
   isIPhone,
   isIPad,
   isRecentlyEnrolled,
+  isMismatchedSSOUserError,
+  toEndUserIssues,
 } from "./helpers";
 import InfoModal from "./InfoModal";
 import useDeviceSSO from "./useDeviceSSO";
@@ -121,6 +126,15 @@ const FREE_TAB_PATHS = [
 const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
 const DEFAULT_CERTIFICATES_PAGE = 0;
 
+const BITLOCKER_PIN_POLL_INTERVAL = 5000;
+
+/** Whether a submitted BitLocker PIN is still in the agent's hands, so its outcome is still coming. */
+const hasPINRequestInFlight = (data?: IDUPDetails) => {
+  const status =
+    data?.host.mdm.os_settings?.disk_encryption.pin_request?.status;
+  return status === "pending" || status === "delivered";
+};
+
 interface IDeviceUserPageProps {
   location: {
     pathname: string;
@@ -135,6 +149,7 @@ interface IDeviceUserPageProps {
       order_direction?: "asc" | "desc";
       setup_only?: string;
       sso_error?: string;
+      create_pin?: string;
     };
     search?: string;
   };
@@ -153,6 +168,8 @@ const DeviceUserPage = ({
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
+  /** Whether the Create PIN modal is still owed an answer about a PIN it handed to Fleet. */
+  const [isAwaitingPINOutcome, setIsAwaitingPINOutcome] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [enrollUrlError, setEnrollUrlError] = useState<string | null>(null);
@@ -160,6 +177,7 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [showHiddenPolicies, setShowHiddenPolicies] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -190,7 +208,12 @@ const DeviceUserPage = ({
   const [queuedSelfServiceRefetch, setQueuedSelfServiceRefetch] = useState(
     false
   );
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  const [refetchStart, setRefetchStart] = useState<{
+    at: number;
+    byUser: boolean;
+  } | null>(null);
+  const refetchStartTime = refetchStart?.at ?? null;
+  const isUserRequestedRefetch = !!refetchStart?.byUser;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
 
   const [darkMode, setDarkMode] = useState(() => isDarkMode());
@@ -261,7 +284,7 @@ const DeviceUserPage = ({
    */
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
-    setRefetchStartTime(null);
+    setRefetchStart(null);
   };
 
   const isRefetching = ({
@@ -281,22 +304,32 @@ const DeviceUserPage = ({
 
   const {
     data: dupDetails,
+    dataUpdatedAt: dupDetailsUpdatedAt,
     isLoading: isLoadingDupDetails,
+    isPreviousData: isDupDetailsPreviousData,
     error: dupDetailsError,
     refetch: refetchDupDetails,
   } = useQuery<IDUPDetails, AxiosError>(
-    ["host", deviceAuthToken],
+    ["host", deviceAuthToken, showHiddenPolicies],
     () =>
       deviceUserAPI.loadHostDetails({
         token: deviceAuthToken,
         exclude_software: true,
+        include_hidden_policies: showHiddenPolicies,
       }),
     {
       enabled: !!deviceAuthToken,
+      keepPreviousData: true,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
+      // A PIN the agent has not reported on yet resolves without the end user doing anything, so the banner clears itself.
+      // A modal still owed an answer keeps polling on its own account. The modal gives up after a deadline, which is what bounds this.
+      refetchInterval: (data) =>
+        isAwaitingPINOutcome || hasPINRequestInFlight(data)
+          ? BITLOCKER_PIN_POLL_INTERVAL
+          : false,
       onSuccess: ({ host: responseHost }) => {
         // If we're just showing the setup screen,
         // we don't need to refetch or alert on offline hosts.
@@ -306,6 +339,9 @@ const DeviceUserPage = ({
         // Handle spinner and timer for refetch
         if (isRefetching(responseHost)) {
           setShowRefetchSpinner(true);
+          // A host without vitals is still on its enrollment refetch, which nobody asked for, so only a Refetch click gets toasts.
+          const shouldNotify =
+            hasReportedVitals(responseHost) || isUserRequestedRefetch;
 
           // Only set timer if not already running
           if (!refetchStartTime) {
@@ -321,16 +357,18 @@ const DeviceUserPage = ({
               isIOSOrIPadOS ||
               isRecentlyEnrolled(responseHost.last_enrolled_at)
             ) {
-              setRefetchStartTime(Date.now());
+              setRefetchStart({ at: Date.now(), byUser: false });
               setTimeout(() => {
                 refetchDupDetails();
                 refetchExtensions();
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
               resetHostRefetchStates();
-              notify.error(
-                `This host is offline. Please try refetching host vitals later.`
-              );
+              if (shouldNotify) {
+                notify.error(
+                  `This host is offline. Please try refetching host vitals later.`
+                );
+              }
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
@@ -349,9 +387,11 @@ const DeviceUserPage = ({
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
                 resetHostRefetchStates();
-                notify.error(
-                  `This host is offline. Please try refetching host vitals later.`
-                );
+                if (shouldNotify) {
+                  notify.error(
+                    `This host is offline. Please try refetching host vitals later.`
+                  );
+                }
               }
             } else {
               // Timeout reached (3 minutes)
@@ -359,7 +399,7 @@ const DeviceUserPage = ({
               const isIOSOrIPadOS =
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
-              if (!isIOSOrIPadOS) {
+              if (!isIOSOrIPadOS && shouldNotify) {
                 notify.error(
                   "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
                 );
@@ -392,6 +432,26 @@ const DeviceUserPage = ({
   const lightLogoURL = orgLogoUrlLightMode || orgLogoUrlLightBackground;
   const orgLogoURL = darkMode ? darkLogoURL : lightLogoURL;
   const isPremiumTier = license?.tier === "premium";
+  const diskEncryptionSetting = host?.mdm.os_settings?.disk_encryption;
+  const needsBitLockerPIN =
+    diskEncryptionSetting?.action_required === "create_pin";
+
+  // The Fleet Desktop toast links here with ?create_pin=1. The parameter is dropped once the page has acted on it.
+  useEffect(() => {
+    if (!location.query.create_pin || !host) {
+      return;
+    }
+    if (needsBitLockerPIN) {
+      setShowBitLockerPINModal(true);
+    }
+    router.replace(
+      getPathWithQueryParams(
+        location.pathname,
+        omit(location.query, "create_pin")
+      )
+    );
+  }, [host, needsBitLockerPIN, location, router]);
+
   const isAppleHost = isAppleDevice(host?.platform);
   const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
   const isSetupExperienceSoftwareEnabledPlatform =
@@ -420,6 +480,10 @@ const DeviceUserPage = ({
   );
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
+
+  const deviceSummaryData = host?.issues
+    ? { ...summaryData, issues: toEndUserIssues(host.issues) }
+    : summaryData;
 
   const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
@@ -547,40 +611,45 @@ const DeviceUserPage = ({
     setSelectedPolicy(null);
   }, [setShowPolicyDetailsModal, setSelectedPolicy]);
 
-  // User-initiated refetch always starts a new timer!
-  const onRefetchHost = useCallback(async () => {
-    if (!host) return;
-    setShowRefetchSpinner(true);
+  // A refetch always starts a new timer!
+  const startRefetch = useCallback(
+    async (byUser: boolean) => {
+      if (!host) return;
+      setShowRefetchSpinner(true);
 
-    // Trigger APNS ping independently of the main refetch
-    if (canTriggerAPNSPing(host)) {
-      deviceUserAPI.apnsPing(deviceAuthToken).catch((error) => {
-        notify.error("Failed to send APNS ping", { response: error });
-      });
-    }
+      // Trigger APNS ping independently of the main refetch
+      if (canTriggerAPNSPing(host)) {
+        deviceUserAPI.apnsPing(deviceAuthToken).catch((error) => {
+          notify.error("Failed to send APNS ping", { response: error });
+        });
+      }
 
-    try {
-      await deviceUserAPI.refetch(deviceAuthToken);
-      setRefetchStartTime(Date.now());
-      setTimeout(() => {
-        refetchDupDetails();
-        refetchExtensions();
-      }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
-    } catch (error) {
-      notify.error(getErrorMessage(error, host.display_name), {
-        response: error,
-      });
-      resetHostRefetchStates();
-    }
-  }, [host, deviceAuthToken, refetchDupDetails, refetchExtensions]);
+      try {
+        await deviceUserAPI.refetch(deviceAuthToken);
+        setRefetchStart({ at: Date.now(), byUser });
+        setTimeout(() => {
+          refetchDupDetails();
+          refetchExtensions();
+        }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+      } catch (error) {
+        notify.error(getErrorMessage(error, host.display_name), {
+          response: error,
+        });
+        resetHostRefetchStates();
+      }
+    },
+    [host, deviceAuthToken, refetchDupDetails, refetchExtensions]
+  );
+
+  const onRefetchHost = useCallback(() => startRefetch(true), [startRefetch]);
 
   // Handles the queue: If there's a queued refetch and not actively refetching, run refetch
   useEffect(() => {
     if (queuedSelfServiceRefetch && !showRefetchSpinner) {
       setQueuedSelfServiceRefetch(false);
-      onRefetchHost();
+      startRefetch(false);
     }
-  }, [queuedSelfServiceRefetch, showRefetchSpinner, onRefetchHost]);
+  }, [queuedSelfServiceRefetch, showRefetchSpinner, startRefetch]);
 
   // Triggered when a software update finishes
   const requestRefetch = () => {
@@ -589,7 +658,7 @@ const DeviceUserPage = ({
       setQueuedSelfServiceRefetch(true);
     } else {
       // Otherwise, run it now
-      onRefetchHost();
+      startRefetch(false);
     }
   };
 
@@ -643,8 +712,28 @@ const DeviceUserPage = ({
     [deviceAuthToken]
   );
 
+  const installProfile = useCallback(
+    (profileUUID: string): Promise<void> =>
+      deviceUserAPI.installProfile(deviceAuthToken, profileUUID),
+    [deviceAuthToken]
+  );
+
+  const uninstallProfile = useCallback(
+    (profileUUID: string): Promise<void> =>
+      deviceUserAPI.uninstallProfile(deviceAuthToken, profileUUID),
+    [deviceAuthToken]
+  );
+
   const renderDeviceUserPage = () => {
-    const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
+    // While the toggle's refetch is in flight the cached list is for the other
+    // toggle state, so blank the card instead of showing the wrong rows.
+    const displayedPolicies = isDupDetailsPreviousData
+      ? []
+      : host?.policies || [];
+    // Counted from the list the tab shows, so it follows the hidden-policies toggle.
+    const failingPoliciesCount = displayedPolicies.filter(
+      (p) => p.response === "fail"
+    ).length;
 
     const failedControlsCount = countFailedControls(controls);
 
@@ -872,7 +961,7 @@ const DeviceUserPage = ({
               <TabPanel className={`${baseClass}__details-panel`}>
                 <HostSummaryCard
                   className={fullWidthCardClass}
-                  summaryData={summaryData}
+                  summaryData={deviceSummaryData}
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
                 />
@@ -916,6 +1005,12 @@ const DeviceUserPage = ({
                     canResendProfiles={isAppleHost || isWindows(host.platform)}
                     resendRequest={resendProfile}
                     onProfileResent={refetchDupDetails}
+                    isMacOSHost={host.platform === "darwin"}
+                    canManageSelfServiceProfiles={
+                      isPremiumTier && host.platform === "darwin"
+                    }
+                    installRequest={installProfile}
+                    uninstallRequest={uninstallProfile}
                     router={router}
                   />
                 </TabPanel>
@@ -940,9 +1035,14 @@ const DeviceUserPage = ({
               {isPremiumTier && (
                 <TabPanel>
                   <PoliciesCard
-                    policies={host?.policies || []}
-                    isLoading={isLoadingDupDetails}
+                    policies={displayedPolicies}
+                    isLoading={isDupDetailsPreviousData}
                     deviceUser
+                    showHiddenPolicies={showHiddenPolicies}
+                    hasHiddenPolicies={!!host?.issues?.hidden_policies_count}
+                    onToggleShowHiddenPolicies={() =>
+                      setShowHiddenPolicies((current) => !current)
+                    }
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
                     closePolicyDetailsModal={onCancelPolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
@@ -960,11 +1060,30 @@ const DeviceUserPage = ({
           {showEnrollMdmModal && host.dep_assigned_to_fleet ? (
             <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
           ) : null}
-          {showBitLockerPINModal && (
-            <BitLockerPinModal
-              onCancel={() => setShowBitLockerPINModal(false)}
-            />
-          )}
+          {showBitLockerPINModal &&
+            (diskEncryptionSetting?.fleetd_can_set_pin ? (
+              <BitLockerPinModal
+                deviceAuthToken={deviceAuthToken}
+                diskEncryption={diskEncryptionSetting}
+                dataUpdatedAt={dupDetailsUpdatedAt}
+                onWaitingChange={(isWaiting) => {
+                  setIsAwaitingPINOutcome(isWaiting);
+                  // A request already in flight would answer from before the submit, and react-query hands it back
+                  // rather than starting a second one unless it is cancelled.
+                  if (isWaiting) {
+                    refetchDupDetails({ cancelRefetch: true });
+                  }
+                }}
+                onExit={() => {
+                  setIsAwaitingPINOutcome(false);
+                  setShowBitLockerPINModal(false);
+                }}
+              />
+            ) : (
+              <BitLockerPinInstructionsModal
+                onExit={() => setShowBitLockerPINModal(false)}
+              />
+            ))}
         </div>
         {!!host && showPolicyDetailsModal && (
           <PolicyDetailsModal
@@ -1052,12 +1171,23 @@ const DeviceUserPage = ({
     if (isSSORequired) {
       return renderDeviceSSOState();
     }
-    if (dupDetailsError || enrollUrlError) {
+    // Only a failure that leaves nothing to show takes over the page. An expired token still takes over, because
+    // nothing here will work again without signing in.
+    if (
+      (dupDetailsError && !dupDetails) ||
+      isAuthenticationError ||
+      enrollUrlError
+    ) {
       return (
         <DeviceUserError
           isMobileView={isMobileView}
           isMobileDevice={isMobileDevice}
           isAuthenticationError={!!isAuthenticationError}
+          ssoError={
+            isMismatchedSSOUserError(dupDetailsError)
+              ? "mismatched_sso_user"
+              : undefined
+          }
         />
       );
     }

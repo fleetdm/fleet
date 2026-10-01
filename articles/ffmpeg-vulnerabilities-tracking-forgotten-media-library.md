@@ -61,7 +61,7 @@ FFmpeg being everywhere is exactly why "we'll patch it when we notice" doesn't h
 ---
 *See which of your hosts are still running a vulnerable FFmpeg build. [Talk to Fleet](https://fleetdm.com/contact), or explore the [software catalog](https://fleetdm.com/software-catalog) Fleet already builds from your fleet.*
 
-<meta name="articleTitle" value="What 13 new FFmpeg vulnerabilities mean for tracking a media library most teams forget they run">
+<meta name="articleTitle" value="Ubuntu patched FFmpeg but most devices never got the memo">
 <meta name="authorFullName" value="Aube Paul">
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">

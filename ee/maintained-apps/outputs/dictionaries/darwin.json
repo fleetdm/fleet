@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.9",
+      "version": "3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.dictionaries.Dictionaries';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.dictionaries.Dictionaries' AND version_compare(bundle_short_version, '2.9') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.dictionaries.Dictionaries' AND version_compare(bundle_short_version, '3.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.dictionaries.Dictionaries' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.dictionaries.io/mac/Dictionaries-2.9.zip",
+      "installer_url": "https://download.dictionaries.io/mac/Dictionaries-3.0.zip",
       "install_script_ref": "2490aeec",
       "uninstall_script_ref": "1629c5ed",
-      "sha256": "c4c189f0f4a80874e30777457ef089af5bafb27f5ceebec5e382d80fea99133c",
+      "sha256": "8ec8a8ba471238def7749364bdd9fe026554c00f4815f3042cdd11231c796680",
       "default_categories": [
         "Productivity"
       ]

@@ -139,16 +139,29 @@ fi
 # bundle_identifier and patch policies report Docker as out of date.
 sudo rm -rf "$APPDIR/Docker.app.back"
 sudo cp -R "$TMPDIR/Docker.app" "$APPDIR"
+# Docker Desktop manages its own CLI symlinks: on every launch it compares each
+# /usr/local/bin link byte-for-byte with /Applications/Docker.app/Contents/Resources/bin/<name>
+# and asks the user for an admin password to rewrite any that differ. Earlier versions of
+# this script wrote those links with a "/Applications//Docker.app/..." target, which fails
+# that check after every update. Repair the links this script created so affected hosts
+# converge without a prompt, and otherwise leave the links to Docker.
+for name in docker docker-credential-desktop docker-credential-ecr-login docker-credential-osxkeychain kubectl.docker hub-tool; do
+  link="/usr/local/bin/$name"
+  [ -L "$link" ] || continue
+  target=$(readlink "$link")
+  case "$target" in
+    /Applications//Docker.app/*) ;;
+    *) continue ;;
+  esac
+  clean="/Applications/${target#/Applications//}"
+  if [ -e "$clean" ]; then
+    /bin/ln -h -f -s -- "$clean" "$link"
+  else
+    # The binary no longer ships (hub-tool); Docker treats the link as obsolete.
+    rm -f -- "$link"
+  fi
+done
 relaunch_application 'com.electron.dockerdesktop'
-mkdir -p /usr/local/cli-plugins
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/cli-plugins/docker-compose" "/usr/local/cli-plugins/docker-compose"
-mkdir -p /usr/local/bin
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/hub-tool" "/usr/local/bin/hub-tool"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/kubectl" "/usr/local/bin/kubectl.docker"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker" "/usr/local/bin/docker"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-desktop" "/usr/local/bin/docker-credential-desktop"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-ecr-login" "/usr/local/bin/docker-credential-ecr-login"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-osxkeychain" "/usr/local/bin/docker-credential-osxkeychain"
 # Remove stale copies recreated during the quit/relaunch window, if any.
 sudo rm -rf "$APPDIR/Docker.app.back"
 sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install/in_progress/Docker.app

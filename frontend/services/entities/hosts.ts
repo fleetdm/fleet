@@ -102,6 +102,19 @@ export const HOSTS_QUERY_PARAMS = {
   SCRIPT_BATCH_EXECUTION_ID: "script_batch_execution_id",
 } as const;
 
+// Host filters that only apply within one fleet or "No fleet": without a fleet
+// the API narrows them to "No fleet" (or rejects software_status), so they're
+// cleared on any switch to All fleets.
+export const FLEET_SCOPED_HOST_FILTER_PARAMS = [
+  HOSTS_QUERY_PARAMS.OS_SETTINGS,
+  "apple_settings",
+  "macos_settings",
+  HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
+  "macos_bootstrap_package",
+  "bootstrap_package",
+  HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
+];
+
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
   scope: "hosts";
 }
@@ -725,6 +738,16 @@ export default {
     const { HOST_RESEND_PROFILE } = endpoints;
 
     return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
+  },
+
+  installProfile: (hostId: number, profileUUID: string): Promise<void> => {
+    const { HOST_INSTALL_PROFILE } = endpoints;
+    return sendRequest("POST", HOST_INSTALL_PROFILE(hostId, profileUUID));
+  },
+
+  uninstallProfile: (hostId: number, profileUUID: string): Promise<void> => {
+    const { HOST_UNINSTALL_PROFILE } = endpoints;
+    return sendRequest("POST", HOST_UNINSTALL_PROFILE(hostId, profileUUID));
   },
 
   resendCertificate: (

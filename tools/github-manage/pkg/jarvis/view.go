@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -25,6 +26,8 @@ var (
 	projectStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#39C5CF"))
 	noticeStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#04B575")).Bold(true)
 	errStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF5555")).Bold(true)
+	barFillStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#7D56F4"))
+	barEmptyStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#444444"))
 )
 
 func (m Model) View() string {
@@ -33,7 +36,7 @@ func (m Model) View() string {
 	}
 	switch m.state {
 	case stateLoading:
-		return fmt.Sprintf("\n  %s Summoning your work from GitHub…\n", m.spinner.View())
+		return m.renderLoading()
 	case stateError:
 		return "\n" + errStyle.Render("  Jarvis hit an error.") + "\n" +
 			fmt.Sprintf("  %v\n\n", m.err) +
@@ -46,6 +49,46 @@ func (m Model) View() string {
 		return m.renderFocus()
 	}
 	return m.renderBoard()
+}
+
+// renderLoading draws the loading screen: the spinner headline plus two
+// progress bars — which fetch phase we're on overall, and how far through the
+// current phase's items we are — so a long pull visibly isn't hung.
+func (m Model) renderLoading() string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("\n  %s Summoning your work from GitHub…\n", m.spinner.View()))
+	p := m.loadProgress
+	if p.Phases == 0 {
+		return b.String() // no tick yet
+	}
+	const width = 24
+	b.WriteString("\n")
+	b.WriteString(fmt.Sprintf("  %s  step %d/%d · %s\n",
+		renderBar(p.Phase, p.Phases, width), p.Phase, p.Phases, p.PhaseName))
+	if p.Total > 0 {
+		b.WriteString(fmt.Sprintf("  %s  %d/%d\n",
+			renderBar(p.Done, p.Total, width), p.Done, p.Total))
+	} else {
+		b.WriteString(fmt.Sprintf("  %s  %s\n",
+			renderBar(0, 1, width), dimStyle.Render("working…")))
+	}
+	return b.String()
+}
+
+// renderBar draws a done/total progress bar of the given rune width.
+func renderBar(done, total, width int) string {
+	if total <= 0 {
+		total = 1
+	}
+	if done < 0 {
+		done = 0
+	}
+	if done > total {
+		done = total
+	}
+	fill := done * width / total
+	return barFillStyle.Render(strings.Repeat("█", fill)) +
+		barEmptyStyle.Render(strings.Repeat("░", width-fill))
 }
 
 // renderFocus renders the pinned work items as issue-centric cards: issue +
@@ -224,6 +267,77 @@ func (m Model) bucketHeader(bk Bucket, n int) string {
 	return headerStyle.Render(fmt.Sprintf("%s (%d)", bk.Title(), n)) + " " + subtitleStyle.Render(bk.Subtitle())
 }
 
+// projectEmoji returns a project title's leading emoji ("🍎 #g-apple-at-work"
+// → "🍎"), or "" when the title doesn't start with one. The first token is
+// taken whole so multi-codepoint emoji (e.g. ❤️‍🩹) survive.
+func projectEmoji(title string) string {
+	fields := strings.Fields(title)
+	if len(fields) == 0 {
+		return ""
+	}
+	if r, _ := utf8.DecodeRuneInString(fields[0]); r < 128 {
+		return "" // starts with plain ASCII (letters, '#', ...): no emoji prefix
+	}
+	return fields[0]
+}
+
+// issueGroupLabels returns an issue's product-group labels (#g-...), lowercased.
+func issueGroupLabels(it Item) []string {
+	if it.Issue == nil {
+		return nil
+	}
+	var out []string
+	for _, l := range it.Issue.Labels {
+		if ln := strings.ToLower(strings.TrimSpace(l.Name)); strings.HasPrefix(ln, "#g-") {
+			out = append(out, ln)
+		}
+	}
+	return out
+}
+
+// groupInfo returns the emoji and Status of the product-group (#g-) board
+// responsible for an issue. The board is picked from the issue's own project
+// memberships, preferring one matching a #g- label; when the issue is only
+// labeled (not on the board yet), the emoji is learned from any other issue's
+// membership of that board, with no status to show.
+func (m Model) groupInfo(it Item) (emoji, status string) {
+	labels := issueGroupLabels(it)
+	titleMatchesLabel := func(title string) bool {
+		lt := strings.ToLower(title)
+		for _, ln := range labels {
+			if strings.Contains(lt, ln) {
+				return true
+			}
+		}
+		return false
+	}
+
+	var fallback *ProjectRef
+	refs := m.issueProjects[m.itemKey(it)]
+	for i, r := range refs {
+		if !strings.Contains(strings.ToLower(r.Title), "#g-") {
+			continue
+		}
+		if titleMatchesLabel(r.Title) {
+			return projectEmoji(r.Title), r.Status
+		}
+		if fallback == nil {
+			fallback = &refs[i]
+		}
+	}
+	if fallback != nil {
+		return projectEmoji(fallback.Title), fallback.Status
+	}
+	for _, rs := range m.issueProjects {
+		for _, r := range rs {
+			if titleMatchesLabel(r.Title) {
+				return projectEmoji(r.Title), ""
+			}
+		}
+	}
+	return "", ""
+}
+
 func (m Model) itemLine(it Item, selected bool, hiddenLabel string, bk Bucket) string {
 	if it.Kind == KindProject {
 		return m.projectLine(it, selected)
@@ -260,13 +374,28 @@ func (m Model) itemLine(it Item, selected bool, hiddenLabel string, bk Bucket) s
 		reason = hiddenLabel
 	}
 
+	// Outside the Project View, tag issues with their product group's emoji and
+	// show that board's Status column (right before the age) when it's on one.
+	teamEmoji := ""
+	if it.Kind == KindIssue && bk != BucketPrimary {
+		emoji, gStatus := m.groupInfo(it)
+		teamEmoji = emoji
+		if gStatus != "" {
+			statusText = gStatus
+		}
+	}
+	emojiField := ""
+	if teamEmoji != "" {
+		emojiField = teamEmoji + " "
+	}
+
 	if selected {
 		annot := ""
 		if statusText != "" {
 			annot += "  [" + statusText + "]"
 		}
 		annot += prText
-		plain := fmt.Sprintf("▸ %s%s%-6s %-7s %s%s   %s%s   %s", indent, focusMark, kind, num, title, marker, reason, annot, age)
+		plain := fmt.Sprintf("▸ %s%s%-6s %s%-7s %s%s   %s%s   %s", indent, focusMark, kind, emojiField, num, title, marker, reason, annot, age)
 		return selectedStyle.Render(plain)
 	}
 
@@ -291,8 +420,8 @@ func (m Model) itemLine(it Item, selected bool, hiddenLabel string, bk Bucket) s
 	if prText != "" {
 		annot += prTagStyle.Render(prText)
 	}
-	return fmt.Sprintf("  %s%s%s %-7s %s%s   %s%s   %s",
-		indent, focusStyle.Render(focusMark), styledLabel, num, title, marker, reasonStyled, annot, dimStyle.Render(age))
+	return fmt.Sprintf("  %s%s%s %s%-7s %s%s   %s%s   %s",
+		indent, focusStyle.Render(focusMark), styledLabel, emojiField, num, title, marker, reasonStyled, annot, dimStyle.Render(age))
 }
 
 // projectLine renders a KindProject header row (always shown, navigable, opened
@@ -309,7 +438,7 @@ func (m Model) projectLine(it Item, selected bool) string {
 // (number, title, project status) and, indented beneath, its linked PR + branch +
 // local clone folder + PR state. The PR/branch line is omitted when there's none.
 func (m Model) projectIssueLines(it Item, selected bool) []string {
-	w := m.workByIssue[it.Number]
+	w := m.workByIssue[m.itemKey(it)]
 	title := truncateTitle(it.Title)
 
 	var line1 string
@@ -389,7 +518,7 @@ func (m Model) issueAnnotation(it Item) (status, prText string, focused bool) {
 	if it.Kind != KindIssue {
 		return "", "", false
 	}
-	w, ok := m.workByIssue[it.Number]
+	w, ok := m.workByIssue[m.itemKey(it)]
 	if !ok {
 		return "", "", false
 	}

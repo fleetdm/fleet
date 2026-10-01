@@ -318,19 +318,25 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     // Wait for config to load before deciding — isPremiumTier is undefined
     // until then, and !undefined would incorrectly bounce premium users.
     if (isPremiumTier === undefined) return;
+    // Until the fleets load, isAllTeamsSelected reads as true and would bounce
+    // a fleet-scoped user off Library.
+    if (!isRouteOk) return;
 
     if (isOnLibraryTab && (!isPremiumTier || isAllTeamsSelected)) {
+      // teamIdForApi, not currentTeamId: "All fleets" is -1 in app context but
+      // an absent param in a URL.
       router.replace(
         getPathWithQueryParams(PATHS.SOFTWARE_INVENTORY, {
-          fleet_id: currentTeamId,
+          fleet_id: teamIdForApi,
         })
       );
     }
   }, [
     isPremiumTier,
+    isRouteOk,
     isAllTeamsSelected,
     isOnLibraryTab,
-    currentTeamId,
+    teamIdForApi,
     router,
   ]);
 

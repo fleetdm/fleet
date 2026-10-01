@@ -1,0 +1,87 @@
+name: Post open community PRs to Slack
+
+# Every Monday, runs `./tools/oncall/oncall.sh prs --slack` and posts the list of open
+# PRs from outside contributors to #help-engineering.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 13 * * 1' # Every Monday at 8am EST (1pm UTC)
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  post-community-prs:
+    if: github.repository == 'fleetdm/fleet'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: List open community PRs
+        env:
+          # The script filters out org members. GITHUB_TOKEN can only see public
+          # members, so private members would be reported as outside contributors.
+          GH_TOKEN: ${{ secrets.FLEET_GITHUB_TOKEN_MEMBERS_READ }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::FLEET_GITHUB_TOKEN_MEMBERS_READ secret is not set or is empty."
+            exit 1
+          fi
+          ./tools/oncall/oncall.sh prs --slack > "$RUNNER_TEMP/prs.txt"
+          cat "$RUNNER_TEMP/prs.txt"
+
+      - name: Post to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+        run: |
+          count=$(grep -c . "$RUNNER_TEMP/prs.txt" || true)
+          if [ "$count" -eq 0 ]; then
+            text=":tada: No open PRs from outside contributors this week."
+          else
+            # Top-level text (not a section block) to avoid the 3000 character
+            # limit on block text. Not a code block, so the links render.
+            text=$(printf '*%s open PRs from outside contributors*\n%s' \
+              "$count" "$(cat "$RUNNER_TEMP/prs.txt")")
+          fi
+          jq -n --arg text "$text" '{text: $text, unfurl_links: false, unfurl_media: false}' |
+            curl -sfS -X POST "$SLACK_WEBHOOK_URL" -H 'Content-Type: application/json' --data @-
+
+      - name: Slack notification on failure
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "❌ The post open community PRs workflow failed\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

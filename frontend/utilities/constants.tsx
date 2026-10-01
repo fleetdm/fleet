@@ -383,6 +383,13 @@ export const MDM_STATUS_TOOLTIP: Record<
       admins can wipe this device and enforce all MDM restrictions.
     </span>
   ),
+  "On (personal)": (
+    <span>
+      Enrolled via a Managed Apple Account (Account-driven User Enrollment) or
+      Android work profile as a personal (BYOD) device. IT admins cannot wipe
+      this device or lock the end user out.
+    </span>
+  ),
   "On (manual - personal)": (
     <span>
       Enrolled with a manual enrollment profile as a personal (BYOD) device. IT
@@ -392,6 +399,22 @@ export const MDM_STATUS_TOOLTIP: Record<
   "On (company-owned)": null,
   Off: undefined, // no tooltip specified
   Pending: (
+    <span>
+      Hosts pending automatic enrollment in Apple Business (AB) or Windows
+      Autopilot.
+    </span>
+  ),
+};
+
+/** Used where a single host's platform is known, e.g. the host details MDM status modal. */
+export const MDM_STATUS_PENDING_TOOLTIP_BY_PLATFORM = {
+  windows: (
+    <span>
+      Hosts added to Windows Autopilot. These will automatically enroll to Fleet
+      and turn on MDM when they&apos;re unboxed.
+    </span>
+  ),
+  apple: (
     <span>
       Hosts ordered via Apple Business (AB). These will automatically enroll to
       Fleet and turn on MDM when they&apos;re unboxed.

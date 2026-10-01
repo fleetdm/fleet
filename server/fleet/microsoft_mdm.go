@@ -583,7 +583,7 @@ func (msg *RequestSecurityToken) GetContextItem(item string) (string, error) {
 		msg.MapContextItems = contextMap
 	}
 
-	itemVal, ok := (msg.MapContextItems)[item]
+	itemVal, ok := msg.MapContextItems[item]
 	if !ok {
 		return "", fmt.Errorf("ContextItem item %s is not present", item)
 	}
@@ -918,6 +918,14 @@ type MDMWindowsHostConfigState struct {
 	// ManagedLocalAccountRotationRequested asks the device to re-provision the account even though a password is already
 	// escrowed. Cleared once it escrows the replacement.
 	ManagedLocalAccountRotationRequested bool
+	// FleetdBitLockerPINCapable is the last-observed value of the X-Fleet-Capabilities CapabilityWindowsBitLockerPIN
+	// flag for this enrollment, persisted by the orbit-config endpoint. The device and Fleet Desktop endpoints carry no
+	// capability header, so they read this column to decide whether to offer the end user the PIN form.
+	FleetdBitLockerPINCapable bool
+	// BitLockerPINRequestPending is true while the end user has submitted a startup PIN that the agent has not yet collected.
+	// It is denormalized from host_bitlocker_pin_requests so the orbit config poll can answer "is a PIN waiting?" from the
+	// enrollment row it already reads. That table is the source of truth; setBitLockerPINPendingFlag keeps this column in step.
+	BitLockerPINRequestPending bool
 }
 
 type MDMWindowsEnrolledDevice struct {
@@ -962,6 +970,9 @@ type MDMWindowsEnrolledDevice struct {
 	EnrolledActivityAt *time.Time `db:"enrolled_activity_at"`
 	CreatedAt          time.Time  `db:"created_at"`
 	UpdatedAt          time.Time  `db:"updated_at"`
+
+	// LinkedHostID is the host that has HostUUID
+	LinkedHostID *uint `db:"linked_host_id"`
 }
 
 // WindowsEnrollmentDefaultFleet is the cacheable shape of Datastore.GetWindowsEnrollmentDefaultFleet (see the cached_mysql
@@ -1661,6 +1672,19 @@ type MDMWindowsCommand struct {
 	UpdatedAt    time.Time `db:"updated_at"`
 }
 
+// MDMWindowsCommandHistoryCleanupCounts reports what one retention sweep of the
+// Windows MDM command history tables deleted.
+type MDMWindowsCommandHistoryCleanupCounts struct {
+	Responses int64
+	Results   int64
+	Commands  int64
+}
+
+// Total returns the number of rows deleted across all three tables.
+func (c MDMWindowsCommandHistoryCleanupCounts) Total() int64 {
+	return c.Responses + c.Results + c.Commands
+}
+
 // GetEncodedBinarySecurityToken returns the base64 form of a input payload
 func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload string) (string, error) {
 	var pld WindowsMDMAccessTokenPayload
@@ -1692,6 +1716,7 @@ type HostMDMWindowsProfile struct {
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string             `db:"detail" json:"detail"`
+	Hidden        bool               `db:"hidden" json:"hidden"`
 }
 
 func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
@@ -1704,6 +1729,8 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "windows",
+		SelfService:   false,
+		Hidden:        p.Hidden,
 	}
 }
 

@@ -160,3 +160,28 @@ func TestPreprocessCAFields(t *testing.T) {
 		require.Equal(t, "  password  ", *smallstepSCEPProxyCAUpdate.Password)
 	})
 }
+
+func TestRequestCertificatePayloadIdPCredentialsProvided(t *testing.T) {
+	ptr := func(s string) *string { return &s }
+	u, tok, c := ptr("https://company.okta.com/oauth2/v1/introspect"), ptr("a-token"), ptr("client")
+
+	provided, err := RequestCertificatePayload{}.IdPCredentialsProvided()
+	require.NoError(t, err)
+	require.False(t, provided)
+
+	provided, err = RequestCertificatePayload{IDPOauthURL: u, IDPToken: tok, IDPClientID: c}.IdPCredentialsProvided()
+	require.NoError(t, err)
+	require.True(t, provided)
+
+	// A partial set is refused: were it allowed through, the caller would clear the allowlist on
+	// the fields it did carry and then skip introspection entirely.
+	for _, p := range []RequestCertificatePayload{
+		{IDPOauthURL: u}, {IDPToken: tok}, {IDPClientID: c},
+		{IDPOauthURL: u, IDPToken: tok}, {IDPOauthURL: u, IDPClientID: c}, {IDPToken: tok, IDPClientID: c},
+	} {
+		_, err := p.IdPCredentialsProvided()
+		require.ErrorContains(t, err, "all must be provided")
+		var bre *BadRequestError
+		require.ErrorAs(t, err, &bre)
+	}
+}

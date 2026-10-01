@@ -615,10 +615,10 @@ func renameHostIdPEmails(
 	// an authenticated and a manual row may now hold the same address; the
 	// authenticated one wins
 	delStmt, delArgs, err := sqlx.In(
-		`DELETE manual FROM host_emails manual
+		`DELETE he FROM host_emails he
 		 JOIN host_emails authenticated
-		   ON authenticated.host_id = manual.host_id AND authenticated.source = ? AND authenticated.email = ?
-		 WHERE manual.host_id IN (?) AND manual.source = ? AND manual.email = ?`,
+		   ON authenticated.host_id = he.host_id AND authenticated.source = ? AND authenticated.email = ?
+		 WHERE he.host_id IN (?) AND he.source = ? AND he.email = ?`,
 		fleet.DeviceMappingMDMIdpAccounts, newEmail, slices.Sorted(maps.Keys(dedupe)), fleet.DeviceMappingIDP, newEmail)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "prepare delete duplicate host idp device mappings arguments")
@@ -1054,49 +1054,9 @@ func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint, excludeUsers bo
 	return group, nil
 }
 
-// ScimGroupsExist checks if all the provided SCIM group IDs exist in the datastore.
-// If the slice is empty, it returns true. This mirrors ScimUsersExist.
-func (ds *Datastore) ScimGroupsExist(ctx context.Context, ids []uint) (bool, error) {
-	if len(ids) == 0 {
-		return true, nil
-	}
-
-	// Create a set to track which IDs we've found
-	foundIDs := make(map[uint]struct{}, len(ids))
-
-	batchSize := 10000
-	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
-		query, args, err := sqlx.In(`
-			SELECT id
-			FROM scim_groups
-			WHERE id IN (?)
-		`, batchIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "prepare scim groups exist batch query")
-		}
-
-		var foundBatchIDs []uint
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &foundBatchIDs, query, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if scim groups exist in batch")
-		}
-
-		for _, id := range foundBatchIDs {
-			foundIDs[id] = struct{}{}
-		}
-		return nil
-	})
-	if err != nil {
-		return false, err
-	}
-
-	// Verify that all requested IDs were found
-	for _, id := range ids {
-		if _, ok := foundIDs[id]; !ok {
-			return false, nil
-		}
-	}
-	return true, nil
+// ExistingScimGroupIDs returns the subset of ids that reference existing SCIM groups.
+func (ds *Datastore) ExistingScimGroupIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error) {
+	return existingScimIDs(ctx, ds.reader(ctx), "scim_groups", ids)
 }
 
 // insertScimGroupChildren inserts direct parent -> child SCIM group edges
@@ -2105,8 +2065,17 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		fv.name IN (:affected_vars)
 `
 
-	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery, androidUpdateStatusQuery} {
-		updateStmt, args, err := sqlx.Named(query, namedParams)
+	var windowsRowsAffected int64
+	for _, update := range []struct {
+		query     string
+		isWindows bool
+	}{
+		{appleUpdateStatusQuery, false},
+		{windowsUpdateStatusQuery, true},
+		{declarationUpdateStatusQuery, false},
+		{androidUpdateStatusQuery, false},
+	} {
+		updateStmt, args, err := sqlx.Named(update.query, namedParams)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
 		}
@@ -2116,9 +2085,30 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 			return ctxerr.Wrap(ctx, err, "prepare resend profiles arguments")
 		}
 
-		_, err = tx.ExecContext(ctx, updateStmt, args...)
+		res, err := tx.ExecContext(ctx, updateStmt, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "execute resend profiles")
+		}
+		if update.isWindows {
+			windowsRowsAffected, _ = res.RowsAffected()
+		}
+	}
+
+	// The Windows update reset status to NULL, so only hosts now holding a pending row can have a stale rollup.
+	if windowsRowsAffected > 0 {
+		windowsHostUUIDStmt, windowsHostUUIDArgs, err := sqlx.In(
+			`SELECT DISTINCT h.uuid FROM hosts h JOIN host_mdm_windows_profiles hmwp ON hmwp.host_uuid = h.uuid
+			 WHERE h.id IN (?) AND hmwp.status IS NULL`,
+			hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare windows hosts lookup for profiles status rollup")
+		}
+		var windowsHostUUIDs []string
+		if err := sqlx.SelectContext(ctx, tx, &windowsHostUUIDs, windowsHostUUIDStmt, windowsHostUUIDArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select windows hosts for profiles status rollup")
+		}
+		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, windowsHostUUIDs, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "update windows profiles status rollup for variable resend")
 		}
 	}
 
@@ -2311,50 +2301,29 @@ func emailsRequireUpdate(currentEmails, newEmails []fleet.ScimUserEmail) bool {
 	return false
 }
 
-// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
-// If the slice is empty, it returns true
-// This method processes IDs in batches to handle large numbers of IDs efficiently
-func (ds *Datastore) ScimUsersExist(ctx context.Context, ids []uint) (bool, error) {
-	if len(ids) == 0 {
-		return true, nil
-	}
+// ExistingScimUserIDs returns the subset of ids that reference existing SCIM users.
+func (ds *Datastore) ExistingScimUserIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error) {
+	return existingScimIDs(ctx, ds.reader(ctx), "scim_users", ids)
+}
 
-	// Create a map to track which IDs we've found
-	foundIDs := make(map[uint]bool, len(ids))
-
-	batchSize := 10000
-	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
-		query, args, err := sqlx.In(`
-			SELECT id
-			FROM scim_users
-			WHERE id IN (?)
-		`, batchIDs)
+func existingScimIDs(ctx context.Context, q sqlx.QueryerContext, table string, ids []uint) (map[uint]struct{}, error) {
+	found := make(map[uint]struct{}, len(ids))
+	err := common_mysql.BatchProcessSimple(ids, 10000, func(batchIDs []uint) error {
+		query, args, err := sqlx.In(fmt.Sprintf("SELECT id FROM %s WHERE id IN (?)", table), batchIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "prepare scim users exist batch query")
+			return ctxerr.Wrap(ctx, err, "prepare existing ids query for "+table)
 		}
-
-		var foundBatchIDs []uint
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &foundBatchIDs, query, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if scim users exist in batch")
+		var batchFound []uint
+		if err := sqlx.SelectContext(ctx, q, &batchFound, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select existing ids from "+table)
 		}
-
-		// Mark found IDs
-		for _, id := range foundBatchIDs {
-			foundIDs[id] = true
+		for _, id := range batchFound {
+			found[id] = struct{}{}
 		}
 		return nil
 	})
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-
-	// Check if all IDs were found
-	for _, id := range ids {
-		if !foundIDs[id] {
-			return false, nil
-		}
-	}
-
-	return true, nil
+	return found, nil
 }

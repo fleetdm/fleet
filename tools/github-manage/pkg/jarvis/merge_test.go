@@ -15,8 +15,9 @@ func TestMergeTargetFromProjectViewIssue(t *testing.T) {
 		flat:   []Item{{Kind: KindIssue, Number: 49364}},
 		cursor: 0,
 		work:   []WorkItem{{Number: 49364, Project: 108, PR: prItem}},
-		workByIssue: map[int]WorkItem{
-			49364: {Number: 49364, Project: 108, PR: prItem},
+		workByIssue: map[string]WorkItem{
+			// The test model has no repo and the item no URL: ""-repo key.
+			ghapi.IssueRefKey("", 49364): {Number: 49364, Project: 108, PR: prItem},
 		},
 	}
 
@@ -37,7 +38,7 @@ func TestMergeTargetIssueWithoutPR(t *testing.T) {
 	m := &Model{
 		flat:        []Item{{Kind: KindIssue, Number: 49364}},
 		cursor:      0,
-		workByIssue: map[int]WorkItem{49364: {Number: 49364, Project: 108}},
+		workByIssue: map[string]WorkItem{ghapi.IssueRefKey("", 49364): {Number: 49364, Project: 108}},
 	}
 	if _, _, _, ok := m.mergeTarget(); ok {
 		t.Error("expected no merge target for an issue without a PR")
