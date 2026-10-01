@@ -20,9 +20,11 @@ Fleet 4.93.0 is now available. See the complete [changelog](https://github.com/f
 
 _Available in Fleet Premium_
 
-IT admins can now ship company-owned Android devices straight to end users and have them enroll in Fleet the first time they're turned on. Copy Fleet's zero-touch configuration into Google's zero-touch portal, or get it from [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#get-android-zero-touch-enrollment-configuration). Zero-touch-enrolled hosts land in "Unassigned." Assigning them to a fleet automatically is [coming soon](https://github.com/fleetdm/fleet/issues/51479).
+IT admins can now ship company-owned Android devices straight to end users and have them enroll in Fleet the first time they're turned on. In **Settings > Integrations > MDM > Android zero-touch**, copy the DPC extras JSON into Google's zero-touch portal, or get it from [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#get-android-zero-touch-enrollment-configuration). Zero-touch-enrolled hosts land in "Unassigned." Assigning them to a fleet automatically is [coming soon](https://github.com/fleetdm/fleet/issues/51479).
 
 Zero-touch enrollment skips end user authentication, because Google's zero-touch flow has no browser sign-in step.
+
+Learn how to set it up in the [Android zero-touch enrollment guide](https://fleetdm.com/guides/android-zero-touch-enrollment).
 
 GitHub issue: [#49165](https://github.com/fleetdm/fleet/issues/49165)
 
