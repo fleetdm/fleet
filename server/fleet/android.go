@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -344,9 +345,31 @@ var validAndroidCredentialProviderPolicies = map[string]struct{}{
 	"CREDENTIAL_PROVIDER_ALLOWED":            {},
 }
 
+// androidAppConfigDeniedKeys are ApplicationPolicy fields Fleet sets itself: packageName is the
+// software title's identity and installType is how Fleet drives self-service vs. setup experience.
+var androidAppConfigDeniedKeys = map[string]struct{}{
+	"packageName": {},
+	"installType": {},
+}
+
+// androidApplicationPolicyFields returns the JSON names of androidmanagement.ApplicationPolicy's
+// fields. Allowed keys follow the vendored google.golang.org/api version, so a field Google adds
+// later is rejected until that dependency is bumped.
+var androidApplicationPolicyFields = sync.OnceValue(func() map[string]struct{} {
+	fields := make(map[string]struct{})
+	t := reflect.TypeFor[androidmanagement.ApplicationPolicy]()
+	for i := range t.NumField() {
+		name, _, _ := strings.Cut(t.Field(i).Tag.Get("json"), ",")
+		if name != "" && name != "-" {
+			fields[name] = struct{}{}
+		}
+	}
+	return fields
+})
+
 // ValidateAndroidAppConfiguration validates Android app configuration JSON.
-// Configuration must be valid JSON with only "managedConfiguration",
-// "workProfileWidgets" and/or "credentialProviderPolicy" as top-level keys.
+// Configuration must be a valid JSON object whose top-level keys are
+// ApplicationPolicy fields, other than "packageName" and "installType".
 // Empty configuration is not allowed.
 func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	if len(config) == 0 {
@@ -355,20 +378,33 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 		}
 	}
 
-	type androidAppConfig struct {
-		ManagedConfiguration     json.RawMessage `json:"managedConfiguration"`
-		WorkProfileWidgets       string          `json:"workProfileWidgets"`
-		CredentialProviderPolicy string          `json:"credentialProviderPolicy"`
+	var topLevel map[string]json.RawMessage
+	if err := json.Unmarshal(config, &topLevel); err != nil || topLevel == nil {
+		return &BadRequestError{
+			Message: "Couldn't update configuration. Invalid JSON.",
+		}
 	}
 
-	var cfg androidAppConfig
-	if err := JSONStrictDecode(bytes.NewReader(config), &cfg); err != nil {
-		if strings.Contains(err.Error(), "unknown field") {
+	keys := slices.Sorted(maps.Keys(topLevel))
+	for _, key := range keys {
+		if _, denied := androidAppConfigDeniedKeys[key]; denied {
 			return &BadRequestError{
-				Message: `Couldn't update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.`,
+				Message: `Couldn't update configuration. "packageName" and "installType" are not supported as top-level keys.`,
 			}
 		}
+	}
+	allowedFields := androidApplicationPolicyFields()
+	for _, key := range keys {
+		if _, ok := allowedFields[key]; !ok {
+			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. Unknown top-level key %q.", key)}
+		}
+	}
 
+	var cfg androidmanagement.ApplicationPolicy
+	if err := jsondecode.Unmarshal(config, &cfg); err != nil {
+		if fieldPath := jsondecode.FieldPath(err); jsondecode.IsTypeError(err) && fieldPath != "" {
+			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q format is wrong.", fieldPath)}
+		}
 		return &BadRequestError{
 			Message: "Couldn't update configuration. Invalid JSON.",
 		}
