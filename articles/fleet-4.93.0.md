@@ -1,0 +1,100 @@
+# Fleet 4.93.0 | Android zero-touch enrollment, Windows admin password rotation, and more...
+
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/TODO" title="0" allowfullscreen></iframe>
+</div>
+
+Fleet 4.93.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.93.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
+
+## Highlights
+
+- [Android: zero-touch enrollment](#android-zero-touch-enrollment)
+- [Android: more host vitals](#android-more-host-vitals)
+- [Windows: rotate the local admin password](#windows-rotate-the-local-admin-password)
+- [Prompt end users before patching macOS apps](#prompt-end-users-before-patching-macos-apps)
+- [Restrict Managed Apple Account sign-in to managed devices](#restrict-managed-apple-account-sign-in-to-managed-devices)
+- [Hardware attestation for iOS and iPadOS](#hardware-attestation-for-ios-and-ipados)
+- [Reports that cover every host](#reports-that-cover-every-host)
+
+### Android: zero-touch enrollment
+
+_Available in Fleet Premium_
+
+IT admins can now ship company-owned Android devices straight to end users and have them enroll in Fleet the first time they're turned on. Copy Fleet's zero-touch configuration into Google's zero-touch portal, or get it from [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#get-android-zero-touch-enrollment-configuration). Zero-touch-enrolled hosts land in "Unassigned." Assigning them to a fleet automatically is [coming soon](https://github.com/fleetdm/fleet/issues/51479).
+
+Zero-touch enrollment skips end user authentication, because Google's zero-touch flow has no browser sign-in step.
+
+GitHub issue: [#49165](https://github.com/fleetdm/fleet/issues/49165)
+
+### Android: more host vitals
+
+IT admins can now see more Android host vitals on the **Host details** page, including whether USB debugging is on, whether a passcode is set, whether Google Play Protect is on, encryption status, security patch level, manufacturer, security posture (from Google's Play Integrity checks), and phone numbers. These vitals are also returned by the [get host API](https://fleetdm.com/docs/rest-api/rest-api#get-host).
+
+GitHub issue: [#49791](https://github.com/fleetdm/fleet/issues/49791)
+
+### Windows: rotate the local admin password
+
+_Available in Fleet Premium_
+
+IT admins can now rotate the password for Fleet's managed local admin account on Windows hosts, the same way they already could on macOS. Go to **Host details > Actions > Show managed account** and select **Rotate password**. Fleet also rotates the password automatically about an hour after someone views it, so a password shared for troubleshooting doesn't stay valid.
+
+Learn more about the [managed local account on Windows](https://fleetdm.com/guides/windows-linux-setup-experience#managed-local-account-windows).
+
+GitHub issue: [#43489](https://github.com/fleetdm/fleet/issues/43489)
+
+### Prompt end users before patching macOS apps
+
+_Available in Fleet Premium_
+
+IT admins can now warn end users before Fleet patches an open macOS app. When a patch policy with `notify_before_patching` fails and the app is open, Fleet Desktop shows a notification listing the apps that will update, waits one hour, shows a reminder five minutes before, and then installs the update. This gives end users time to save their work, instead of waiting until they close the app on their own (`patch_when_closed`).
+
+This requires Fleet Desktop 1.5.0 or later. Learn how to set it up in the [GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#policies).
+
+GitHub issue: [#39178](https://github.com/fleetdm/fleet/issues/39178)
+
+### Restrict Managed Apple Account sign-in to managed devices
+
+_Available in Fleet Premium_
+
+IT admins can now make sure end users sign in to their Managed Apple Account only on devices enrolled in Fleet. This stops company data from syncing to personal, unmanaged Apple devices. In Apple Business, set **Allow Managed Apple Account on** to **Managed devices only** or **Supervised devices only**, and Fleet signs the token Apple checks during sign-in. If you have more than one Apple Business token, set a default token for hosts that aren't assigned to one.
+
+Hosts enrolled before Fleet 4.93.0 support this after their next enrollment profile renewal, about every six months.
+
+Learn more in the [Apple MDM setup guide](https://fleetdm.com/guides/apple-mdm-setup#restrict-apple-account-sign-in-managed-apple-accounts).
+
+GitHub issue: [#45829](https://github.com/fleetdm/fleet/issues/45829)
+
+### Hardware attestation for iOS and iPadOS
+
+_Available in Fleet Premium_
+
+Hardware attestation (ACME), which Fleet already supported for Apple silicon Macs, now works for iPhones and iPads assigned to Fleet in Apple Business. With `apple_require_hardware_attestation` on, iPhones and iPads with an A11 Bionic chip or later, running iOS or iPadOS 16 or later, prove their hardware matches a known Apple Business record when they enroll. Hosts already enrolled with SCEP move to ACME on their next certificate renewal. Older devices keep enrolling with SCEP.
+
+Learn more in the [GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#controls).
+
+GitHub issue: [#51528](https://github.com/fleetdm/fleet/issues/51528)
+
+### Reports that cover every host
+
+Reports now store as many results as you have hosts, instead of stopping at 1,000. A report that returns one result per host covers your whole fleet, so you can bring Jamf extension attributes over to Fleet. Sorting, search, and pagination now run on the server, so large reports stay usable.
+
+Fleet doesn't store a host's result over 512 KB. Learn more in the [reports guide](https://fleetdm.com/guides/reports).
+
+GitHub issue: [#43723](https://github.com/fleetdm/fleet/issues/43723)
+
+## Changes
+
+<!-- TODO: Populate from the fleet-v4.93.0 changelog once it ships. -->
+
+See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.93.0).
+
+## Ready to upgrade?
+
+Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs to update to Fleet 4.93.0.
+
+<meta name="category" value="releases">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="publishedOn" value="2026-10-02">
+<meta name="articleTitle" value="Fleet 4.93.0 | Android zero-touch enrollment, Windows admin password rotation, and more...">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.93.0-1600x900@2x.png">
