@@ -22,7 +22,12 @@ describe("UnenrollMdmModal", () => {
 
   it("shows enrollment link instructions for a manual BYOD host", () => {
     const render = createCustomRenderer({ withBackendMock: true });
-    render(<UnenrollMdmModal {...MOCK_PROPS} enrollmentStatus="On (manual)" />);
+    render(
+      <UnenrollMdmModal
+        {...MOCK_PROPS}
+        enrollmentStatus="On (manual - personal)"
+      />
+    );
 
     expect(
       screen.getByText(/Hosts > Add hosts > iOS\/iPadOS/i)
@@ -32,13 +37,10 @@ describe("UnenrollMdmModal", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows sign-in instructions for a personally enrolled host", () => {
+  it("shows sign-in instructions for an account-driven enrolled host", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
-      <UnenrollMdmModal
-        {...MOCK_PROPS}
-        enrollmentStatus="On (manual - personal)"
-      />
+      <UnenrollMdmModal {...MOCK_PROPS} enrollmentStatus="On (personal)" />
     );
 
     expect(
@@ -46,6 +48,18 @@ describe("UnenrollMdmModal", () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/Hosts > Add hosts > iOS\/iPadOS/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows no BYOD re-enroll instructions for a company-owned manual host", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<UnenrollMdmModal {...MOCK_PROPS} enrollmentStatus="On (manual)" />);
+
+    expect(
+      screen.queryByText(/Hosts > Add hosts > iOS\/iPadOS/i)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Sign in to Work or School Account/i)
     ).not.toBeInTheDocument();
   });
 

@@ -1143,6 +1143,9 @@ type MDMConfig struct {
 	// to macOS MDM hosts in the fleetd configuration profile and rejects shared
 	// enroll secrets for hosts enrolled in Fleet MDM or assigned in ABM.
 	AppleOneTimeEnrollSecrets bool `yaml:"apple_one_time_enroll_secrets"`
+	// WindowsOneTimeEnrollSecrets is the Windows counterpart of AppleOneTimeEnrollSecrets. The two are separate switches
+	// because the platforms deliver the secret by different mechanisms and can be rolled out independently.
+	WindowsOneTimeEnrollSecrets bool `yaml:"windows_one_time_enroll_secrets"`
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
@@ -1150,6 +1153,20 @@ type MDMConfig struct {
 
 // IsCustomDiskEncryptionEnabled reports whether custom disk encryption configuration profiles are allowed. Any of the equivalent
 // (and deprecated) options enables the behavior.
+// OneTimeEnrollSecretsEnabled reports whether either platform mints one-time enroll secrets. An enrolling agent presents a
+// secret without saying which platform minted it, so the lookup has to run whenever either switch is on.
+func (m MDMConfig) OneTimeEnrollSecretsEnabled() bool {
+	return m.AppleOneTimeEnrollSecrets || m.WindowsOneTimeEnrollSecrets
+}
+
+// OneTimeEnrollSecretsEnabledForPlatform reports whether one-time enroll secrets minted for the given platform are honored.
+func (m MDMConfig) OneTimeEnrollSecretsEnabledForPlatform(platform string) bool {
+	if platform == "windows" {
+		return m.WindowsOneTimeEnrollSecrets
+	}
+	return m.AppleOneTimeEnrollSecrets
+}
+
 func (m MDMConfig) IsCustomDiskEncryptionEnabled() bool {
 	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault || m.EnableCustomDiskEncryption
 }
@@ -2114,6 +2131,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.allow_custom_activations", false, "Allows custom activations to be uploaded for Apple declaration (DDM) profiles")
 	man.addConfigBool("mdm.apple_one_time_enroll_secrets", false,
 		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets")
+	man.addConfigBool("mdm.windows_one_time_enroll_secrets", false,
+		"Deliver one-time, device-scoped enroll secrets to Windows MDM hosts instead of shared enroll secrets")
 	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -2504,6 +2523,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AllowCustomActivations:            man.getConfigBool("mdm.allow_custom_activations"),
 			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
 			AppleOneTimeEnrollSecrets:         man.getConfigBool("mdm.apple_one_time_enroll_secrets"),
+			WindowsOneTimeEnrollSecrets:       man.getConfigBool("mdm.windows_one_time_enroll_secrets"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),

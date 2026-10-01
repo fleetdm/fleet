@@ -5114,6 +5114,8 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.Equal(t, uint64(2), getDeviceHostResp.Host.HostIssues.FailingPoliciesCount)
 	require.NotNil(t, getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
 	require.Equal(t, uint64(1), *getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
+	require.NotNil(t, getDeviceHostResp.Host.HostIssues.HiddenPoliciesCount)
+	require.Equal(t, uint64(1), *getDeviceHostResp.Host.HostIssues.HiddenPoliciesCount)
 	require.False(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 	// the host's policies must not leak the policy author's identity nor the
 	// raw SQL query
@@ -5144,6 +5146,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.True(t, sawHidden)
 	require.Equal(t, uint64(2), getDeviceHostResp.Host.HostIssues.FailingPoliciesCount)
 	require.Equal(t, uint64(1), *getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
+	require.Equal(t, uint64(1), *getDeviceHostResp.Host.HostIssues.HiddenPoliciesCount)
 
 	// GET `/api/_version_/fleet/device/{token}/desktop`
 	getDesktopResp := fleetDesktopResponse{}
@@ -29200,7 +29203,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEnabled: new(false),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Do an update without auto-update fields to check that it still includes the auto-update values.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{

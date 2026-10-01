@@ -1478,6 +1478,15 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 				}
 			}
 		}
+		if !isPresent {
+			// The orbit version arrives with osquery's first detail ingestion, which can lag orbit's enrollment by minutes. orbit
+			// using this enrollment's one-time secret already proves fleetd is installed, and a reinstall would mint another.
+			usedByOrbit, err := svc.ds.WindowsMDMEnrollSecretUsedByOrbit(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ID)
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "check one-time enroll secret used by orbit")
+			}
+			isPresent = usedByOrbit
+		}
 		return isPresent, nil
 	}
 
@@ -1506,15 +1515,42 @@ func (svc *Service) generateWindowsEUAToken(ctx context.Context, deviceID string
 	return token
 }
 
-func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID string) error {
-	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting enroll secrets")
+func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) error {
+	fleetdInstallCmd, err := svc.buildFleetdInstallCommand(ctx, enrolledDevice)
+	if err != nil || fleetdInstallCmd == nil {
+		return err
+	}
+	// Create the Windows one-time enroll secret, because the caller only gets here when fleetd is absent.
+	if svc.config.MDM.WindowsOneTimeEnrollSecrets {
+		if err := svc.ds.MintWindowsMDMOneTimeEnrollSecret(ctx, enrolledDevice.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "minting one-time enroll secret for fleetd install")
+		}
 	}
 
-	if len(secrets) == 0 {
-		svc.logger.WarnContext(ctx, "unable to find a global enroll secret to install fleetd")
-		return nil
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{enrolledDevice.MDMDeviceID}, fleetdInstallCmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert command to install fleetd")
+	}
+
+	return nil
+}
+
+// buildFleetdInstallCommand returns the command that installs fleetd on the device, or nil when it cannot be built yet, which
+// the next session retries. With one-time enroll secrets the command carries a placeholder, resolved at delivery.
+func (svc *Service) buildFleetdInstallCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) (*fleet.MDMWindowsCommand, error) {
+	deviceID := enrolledDevice.MDMDeviceID
+
+	enrollSecret := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
+	if !svc.config.MDM.WindowsOneTimeEnrollSecrets {
+		secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting enroll secrets")
+		}
+
+		if len(secrets) == 0 {
+			svc.logger.WarnContext(ctx, "unable to find a global enroll secret to install fleetd")
+			return nil, nil
+		}
+		enrollSecret = secrets[0].Secret
 	}
 
 	// it's okay to skip the installation if we're not able to retrieve the
@@ -1523,15 +1559,14 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	fleetdMetadata, err := fleetdbase.GetMetadata()
 	if err != nil {
 		svc.logger.WarnContext(ctx, "unable to get fleetd-base metadata")
-		return nil
+		return nil, nil
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting app config")
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
 	}
 	fleetURL := appCfg.ServerSettings.ServerURL
-	globalEnrollSecret := secrets[0].Secret
 	// Fleet-internal CmdID: the Add is injected inline and is never its own tracked queue command. The Exec command is
 	// the important one, and we only track that.
 	addCommandUUID := fleet.FleetInternalCmdIDPrefix + "fleetd-install-add"
@@ -1574,7 +1609,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 					<FileHash>` + fleetdMetadata.MSISha256 + `</FileHash>
 				</Validation>
 				<Enforcement>
-					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `" ENABLE_SCRIPTS="True"` + euaTokenArg + `</CommandLine>
+					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + enrollSecret + `" ENABLE_SCRIPTS="True"` + euaTokenArg + `</CommandLine>
 					<TimeOut>10</TimeOut>
 					<RetryCount>1</RetryCount>
 					<RetryInterval>5</RetryInterval>
@@ -1599,11 +1634,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 		RawCommand:   rawCombinedCmd,
 		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
 	}
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, fleetdInstallCmd); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert command to install fleetd")
-	}
-
-	return nil
+	return fleetdInstallCmd, nil
 }
 
 // Alerts Handlers
@@ -1611,6 +1642,12 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 // New session Alert Handler
 // This handler will return an protocol command to install an MSI on a new session from unenrolled device
 func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string, enrolledDevice *fleet.MDMWindowsEnrolledDevice, cmd mdm_types.ProtoCmdOperation) error {
+	// A host_uuid with no host means the host was deleted, so these go to the push instead.
+	if svc.config.MDM.WindowsOneTimeEnrollSecrets && enrolledDevice.HostUUID != "" && enrolledDevice.LinkedHostID == nil {
+		svc.pushEnrollSecretToOrphanedEnrollment(ctx, enrolledDevice)
+		return nil
+	}
+
 	// Checking if fleetd is present on the device
 	fleetdPresent, err := svc.isFleetdPresentOnDevice(ctx, enrolledDevice)
 	if err != nil {
@@ -1618,9 +1655,10 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 	}
 
 	if !fleetdPresent {
-		return svc.enqueueInstallFleetdCommand(ctx, enrolledDevice.MDMDeviceID)
+		if err := svc.enqueueInstallFleetdCommand(ctx, enrolledDevice); err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
@@ -2092,6 +2130,16 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 		if err != nil {
 			// This error should never happen since we validate the presence of needed secrets on profile upload.
 			return nil, false, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
+		}
+		// Host-scoped secrets ($FLEET_HOST_SECRET_*) are resolved here rather than at enqueue, for security.
+		rawCommandWithSecret, err = svc.expandWindowsHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
+		if err != nil {
+			// Skipped rather than failing the session, like a command that does not parse: one bad command must not hold
+			// back every other command pending for the device. It stays queued and is tried again next session.
+			err = ctxerr.Wrapf(ctx, err, "expanding host secrets for Windows pending command %s", pendingCmd.CommandUUID)
+			logging.WithErr(ctx, err)
+			ctxerr.Handle(ctx, err)
+			continue
 		}
 		parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
 		if err != nil {
@@ -2795,11 +2843,20 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 					break
 				}
 			}
+			var softwareDisplayName *string
+			if softwareTitleID != 0 {
+				dn, dnErr := svc.ds.GetSoftwareTitleDisplayName(ctx, host.TeamID, softwareTitleID)
+				if dnErr != nil {
+					svc.logger.WarnContext(ctx, "failed to look up software display name for canceled setup experience timeout activity", "err", dnErr)
+				}
+				softwareDisplayName = dn
+			}
 			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
-				HostID:          host.ID,
-				HostDisplayName: host.DisplayName(),
-				SoftwareTitle:   softwareTitle,
-				SoftwareTitleID: softwareTitleID,
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       softwareTitle,
+				SoftwareDisplayName: softwareDisplayName,
+				SoftwareTitleID:     softwareTitleID,
 			}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "creating canceled setup experience activity on timeout")
 			}
@@ -3982,13 +4039,19 @@ func windowsProfileNeedsPerHostProcessing(syncML []byte) bool {
 // Named return so the deferred SetCursor block sees the actual function-exit error: the cursor is persisted only on a clean (err
 // == nil) tick, so any failure leaves the cursor untouched and the next tick re-scans from the same point. Re-scanning is cheap
 // and idempotent since delivered work is now pending, so it no longer computes as work.
-func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) (err error) {
+func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, useOneTimeEnrollSecrets bool) (err error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
 	}
 	if !appConfig.MDM.WindowsEnabledAndConfigured {
 		return nil
+	}
+
+	if err := ensureFleetWindowsProfiles(ctx, ds, logger, useOneTimeEnrollSecrets); err != nil {
+		// Log and continue, matching the Apple equivalent: don't stop the reconcile pass that delivers everything else.
+		logger.ErrorContext(ctx, "unable to ensure Fleet-managed Windows profiles are in place", "details", err)
+		ctxerr.Handle(ctx, err)
 	}
 
 	// Read the cursor; on error, treat as start-of-pass and continue. A stale or missing cursor is harmless because the in-memory
