@@ -297,6 +297,38 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
         return true
     }
 
+    /// Whether the URL is Fleet's device transparency endpoint
+    /// (`<prefix>/api/<version>/fleet/device/<token>/transparency`), which
+    /// redirects to the admin-configured transparency page. Loaded in the
+    /// WebView, that redirect off the Fleet host looks like the start of an
+    /// SSO flow, so the external page would render in-app with no way back.
+    private func isTransparencyEndpoint(_ url: URL) -> Bool {
+        guard url.host?.lowercased() == fleetHost else { return false }
+        let parts = Array(url.pathComponents.suffix(6))
+        return parts.count == 6 && parts[0] == "api" && parts[2] == "fleet"
+            && parts[3] == "device" && parts[5] == "transparency"
+    }
+
+    /// Resolves the transparency endpoint's redirect natively and opens the
+    /// destination in the default browser. Opening the endpoint itself in the
+    /// browser would put the device token in its address bar and history.
+    private func openTransparencyPage(_ url: URL) {
+        let task = URLSession.shared.dataTask(with: url) { [weak self] _, response, error in
+            guard let http = response as? HTTPURLResponse,
+                  (300...399).contains(http.statusCode),
+                  let location = http.value(forHTTPHeaderField: "Location"),
+                  let target = URL(string: location, relativeTo: url)?.absoluteURL else {
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                NSLog("Fleet Desktop: Transparency redirect failed (HTTP %d): %@",
+                      status, error?.localizedDescription ?? "no redirect")
+                return
+            }
+            DispatchQueue.main.async { self?.openExternalURL(target) }
+        }
+        task.delegate = RedirectBlocker.shared
+        task.resume()
+    }
+
     // MARK: - Title Centering
 
     private func centerTitleTextField(in window: NSWindow) {
@@ -436,6 +468,12 @@ extension BrowserWindow: WKNavigationDelegate {
 
         let requestHost = requestURL.host?.lowercased()
 
+        if isTransparencyEndpoint(requestURL) {
+            decisionHandler(.cancel)
+            openTransparencyPage(requestURL)
+            return
+        }
+
         // Always allow same-host and about: URLs
         if requestHost == fleetHost || requestURL.scheme == "about" {
             decisionHandler(.allow)
@@ -513,7 +551,9 @@ extension BrowserWindow: WKUIDelegate {
     ) -> WKWebView? {
         if let url = navigationAction.request.url {
             let host = url.host?.lowercased()
-            if host == fleetHost || (ssoFlowActive && host == ssoHost && !ssoFlowExpired) {
+            if isTransparencyEndpoint(url) {
+                openTransparencyPage(url)
+            } else if host == fleetHost || (ssoFlowActive && host == ssoHost && !ssoFlowExpired) {
                 webView.load(URLRequest(url: url))
             } else if !launchAuthenticatorIfRequested(url) {
                 openExternalURL(url)
@@ -568,6 +608,24 @@ extension BrowserWindow: WKDownloadDelegate {
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
         NSLog("Fleet Desktop: Download failed: %@", error.localizedDescription)
+    }
+}
+
+// MARK: - Redirect Blocker
+
+/// Stops a URLSession task at the first redirect so the caller can read the
+/// `Location` header instead of following it.
+private final class RedirectBlocker: NSObject, URLSessionTaskDelegate {
+    static let shared = RedirectBlocker()
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        completionHandler(nil)
     }
 }
 
