@@ -3987,9 +3987,11 @@ func (svc *Service) updateAppConfigMDMHostNameTemplate(ctx context.Context, name
 ////////////////////////////////////////////////////////////////////////////////
 
 type uploadBootstrapPackageRequest struct {
-	Package *multipart.FileHeader
-	DryRun  bool `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
-	TeamID  uint
+	Package        *multipart.FileHeader
+	StagedUploadID string
+	Filename       string
+	DryRun         bool `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	TeamID         uint
 }
 
 type uploadBootstrapPackageResponse struct {
@@ -4008,15 +4010,21 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 		}
 	}
 
-	if r.MultipartForm.File["package"] == nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "package multipart field is required",
-			InternalErr: err,
+	if decoded.StagedUploadID, decoded.Filename, err = decodeStagedUploadFields(r.MultipartForm, "package"); err != nil {
+		return nil, err
+	}
+	if decoded.StagedUploadID == "" {
+		if r.MultipartForm.File["package"] == nil {
+			return nil, &fleet.BadRequestError{
+				Message:     "package multipart field is required",
+				InternalErr: err,
+			}
 		}
+		decoded.Package = r.MultipartForm.File["package"][0]
+		decoded.Filename = decoded.Package.Filename
 	}
 
-	decoded.Package = r.MultipartForm.File["package"][0]
-	if !file.IsValidMacOSName(decoded.Package.Filename) {
+	if !file.IsValidMacOSName(decoded.Filename) {
 		return nil, &fleet.BadRequestError{
 			Message:     "package name contains invalid characters",
 			InternalErr: ctxerr.New(ctx, "package name contains invalid characters"),
@@ -4044,19 +4052,23 @@ func (r uploadBootstrapPackageResponse) Error() error { return r.Err }
 
 func uploadBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*uploadBootstrapPackageRequest)
-	ff, err := req.Package.Open()
-	if err != nil {
-		return uploadBootstrapPackageResponse{Err: err}, nil
+	var pkg io.Reader
+	if req.Package != nil {
+		ff, err := req.Package.Open()
+		if err != nil {
+			return uploadBootstrapPackageResponse{Err: err}, nil
+		}
+		defer ff.Close()
+		pkg = ff
 	}
-	defer ff.Close()
 
-	if err := svc.MDMAppleUploadBootstrapPackage(ctx, req.Package.Filename, ff, req.TeamID, req.DryRun); err != nil {
+	if err := svc.MDMAppleUploadBootstrapPackage(ctx, req.Filename, pkg, req.StagedUploadID, req.TeamID, req.DryRun); err != nil {
 		return uploadBootstrapPackageResponse{Err: err}, nil
 	}
 	return &uploadBootstrapPackageResponse{}, nil
 }
 
-func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
+func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, stagedUploadID string, teamID uint, dryRun bool) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

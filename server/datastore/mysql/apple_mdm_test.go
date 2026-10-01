@@ -9689,6 +9689,21 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, bpContent)
 
+	// PackageFile is stored in place of Bytes
+	bpFile := &fleet.MDMAppleBootstrapPackage{
+		TeamID:      uint(4),
+		Name:        "bp-file",
+		Sha256:      hashContent("bp-file"),
+		PackageFile: bytes.NewReader([]byte("bp-file")),
+		Token:       uuid.New().String(),
+	}
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bpFile, pkgStore)
+	require.NoError(t, err)
+	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bpFile.Token, pkgStore)
+	require.NoError(t, err)
+	require.Equal(t, []byte("bp-file"), bpContent.Bytes)
+	require.NoError(t, ds.DeleteMDMAppleBootstrapPackage(ctx, 4))
+
 	// delete bp for no team and team 2
 	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
 	require.NoError(t, err)

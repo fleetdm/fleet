@@ -47,9 +47,15 @@ import (
 
 const softwareInstallerTokenMaxLength = 36 // UUID length
 
-func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
+func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (_ *fleet.SoftwareInstaller, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+	if payload.StagedUploadID != "" {
+		if payload.InstallerFile, err = svc.openStagedUpload(ctx, payload.StagedUploadID); err != nil {
+			return nil, err
+		}
+		defer svc.finishStagedUpload(ctx, payload.StagedUploadID, payload.InstallerFile, &err)
 	}
 
 	if payload.AutomaticInstall {
@@ -359,9 +365,15 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 	return nil
 }
 
-func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
+func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (_ *fleet.SoftwareInstaller, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+	if payload.StagedUploadID != "" {
+		if payload.InstallerFile, err = svc.openStagedUpload(ctx, payload.StagedUploadID); err != nil {
+			return nil, err
+		}
+		defer svc.finishStagedUpload(ctx, payload.StagedUploadID, payload.InstallerFile, &err)
 	}
 
 	vc, ok := viewer.FromContext(ctx)

@@ -931,7 +931,7 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 
 	// Determine which file to use: either provided by test or opened from testdata
 	var installerFile io.Reader
-	if payload.InstallerFile == nil {
+	if payload.InstallerFile == nil && payload.StagedUploadID == "" {
 		// Open file from testdata and close it when done
 		tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
 		// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
@@ -953,12 +953,17 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
-	// add the software field
-	fw, err := w.CreateFormFile("software", payload.Filename)
-	require.NoError(t, err)
-	n, err := io.Copy(fw, installerFile)
-	require.NoError(t, err)
-	require.NotZero(t, n)
+	if payload.StagedUploadID != "" {
+		require.NoError(t, w.WriteField("upload_id", payload.StagedUploadID))
+		require.NoError(t, w.WriteField("filename", payload.Filename))
+	} else {
+		// add the software field
+		fw, err := w.CreateFormFile("software", payload.Filename)
+		require.NoError(t, err)
+		n, err := io.Copy(fw, installerFile)
+		require.NoError(t, err)
+		require.NotZero(t, n)
+	}
 
 	// add the team_id field
 	if payload.TeamID != nil {
@@ -1037,6 +1042,10 @@ func (ts *withServer) updateSoftwareInstaller(
 		n, err := io.Copy(fw, payload.InstallerFile)
 		require.NoError(t, err)
 		require.NotZero(t, n)
+	}
+	if payload.StagedUploadID != "" {
+		require.NoError(t, w.WriteField("upload_id", payload.StagedUploadID))
+		require.NoError(t, w.WriteField("filename", payload.Filename))
 	}
 
 	// add the team_id field
