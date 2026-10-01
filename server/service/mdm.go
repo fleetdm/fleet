@@ -2024,11 +2024,6 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 			Err: svc.NewMDMActivationUnsupportedProfile(ctx, req.TeamID),
 		}, nil
 	}
-	if req.SelfService && !isMobileConfig {
-		return &newMDMConfigProfileResponse{
-			Err: svc.NewMDMSelfServiceUnsupportedProfile(ctx, req.TeamID),
-		}, nil
-	}
 
 	if isMobileConfig || isAppleDeclarationJSON {
 		// Then it's an Apple configuration file
@@ -2353,13 +2348,6 @@ func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID stri
 			return ctxerr.Wrap(ctx, err)
 		}
 		return fleet.NewInvalidArgumentError("activation", ActivationUnsupportedProfileErrorMsg)
-	}
-	if ptr.ValOrZero(selfService) && !isAppleProfileUUID(profileUUID) {
-		// Same basic check as above.
-		if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-		return fleet.NewInvalidArgumentError("self_service", "Couldn't edit. "+SelfServiceUnsupportedProfileErrorMsg)
 	}
 
 	switch {
