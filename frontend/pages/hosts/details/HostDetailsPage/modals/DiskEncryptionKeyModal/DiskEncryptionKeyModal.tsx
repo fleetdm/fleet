@@ -135,12 +135,7 @@ const DiskEncryptionKeyModal = ({
       : "Use this key to unlock the encrypted drive.";
 
   return (
-    <Modal
-      title="Disk encryption key"
-      onExit={onCancel}
-      onEnter={onCancel}
-      className={baseClass}
-    >
+    <Modal title="Disk encryption key" onExit={onCancel} className={baseClass}>
       {encryptionKeyError ? (
         <DataError
           description={getErrorReason(encryptionKeyError) || undefined}

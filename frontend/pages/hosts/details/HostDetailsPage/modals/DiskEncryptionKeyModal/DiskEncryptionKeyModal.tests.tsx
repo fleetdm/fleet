@@ -104,6 +104,22 @@ describe("DiskEncryptionKeyModal", () => {
     );
   });
 
+  it("starts the rotation instead of closing when Enter is pressed on Rotate key", async () => {
+    (hostAPI.rotateDiskEncryptionKey as jest.Mock).mockReturnValue(
+      new Promise(() => undefined)
+    );
+    const onCancel = jest.fn();
+    const { user } = renderModal({ onCancel });
+    (await screen.findByRole("button", { name: "Rotate key" })).focus();
+    await user.keyboard("{Enter}");
+
+    expect(hostAPI.rotateDiskEncryptionKey).toHaveBeenCalledWith(7);
+    expect(
+      await screen.findByRole("button", { name: "Rotating..." })
+    ).toBeDisabled();
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
   it("shows a rotation someone else started once the request conflicts", async () => {
     const err = apiError(
       "Disk encryption key rotation is already in progress for this host."
