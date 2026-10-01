@@ -11206,7 +11206,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
 | platform           | string | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
 | fleet_id                 | integer | query  | _Available in Fleet Premium._ The ID of the fleet for the policies to be listed. When omitted, returns global policies.
 | merge_inherited     | boolean | query | _Available in Fleet Premium._ If `true` will include inherited ("All fleets") policies in the count when filtering by `fleet_id`. (If no `fleet_id` is provided, this parameter is ignored.) |
-| automation_type       | string | query | _Available in Fleet Premium._ Filters by automation type when filtering by `fleet_id`. (If no `fleet_id` is provided, this parameter is ignored.) Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
+| automation_type       | string | query | _Available in Fleet Premium._ Filters by automation type when filtering by `fleet_id`. (If no `fleet_id` is provided, this parameter is ignored.) Supported values are "software", "script", "calendar", "conditional_access", and "other". |
 | page                    | integer | query | Page number of the results to fetch. |
 | per_page                | integer | query | Results per page. |
 | order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
