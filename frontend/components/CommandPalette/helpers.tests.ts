@@ -1044,6 +1044,37 @@ describe("CommandPalette helpers", () => {
         expect(url.searchParams.has("software_status")).toBe(false);
       });
 
+      it.each([
+        "os_settings=pending",
+        "apple_settings=failing",
+        "macos_settings=latest",
+        "os_settings_disk_encryption=verified",
+        "macos_bootstrap_package=failed",
+        "bootstrap_package=pending",
+      ])("strips %s when switching to All fleets", (filter) => {
+        const [name] = filter.split("=");
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: `?fleet_id=1&${filter}&query=mac`,
+            fleetId: -1,
+          })
+        );
+        expect(url.searchParams.has(name)).toBe(false);
+        expect(url.searchParams.get("query")).toBe("mac");
+      });
+
+      it("preserves fleet-scoped filters when switching between specific fleets", () => {
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: "?fleet_id=1&os_settings=pending",
+            fleetId: 2,
+          })
+        );
+        expect(url.searchParams.get("os_settings")).toBe("pending");
+      });
+
       it("preserves software_status when switching between specific fleets", () => {
         const url = parse(
           buildFleetSwitchUrl({
