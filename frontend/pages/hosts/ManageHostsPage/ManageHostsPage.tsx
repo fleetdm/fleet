@@ -115,7 +115,10 @@ import { IHostActivityAutomationsFormData } from "./components/HostActivityAutom
 import HostsFilterBlock from "./components/HostsFilterBlock";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import RunScriptBatchModal from "./components/RunScriptBatchModal";
-import { isAcceptableStatus } from "./helpers";
+import {
+  isAcceptableStatus,
+  STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS,
+} from "./helpers";
 import {
   LABEL_SLUG_PREFIX,
   DEFAULT_SORT_HEADER,
@@ -202,9 +205,7 @@ const ManageHostsPage = ({
     includeAllTeams: true,
     includeNoTeam: true,
     overrideParamsOnTeamChange: {
-      // remove the software status filter when selecting All teams
-      [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
-        newTeamId === API_ALL_TEAMS_ID,
+      ...STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS,
       // remove batch script summary results filters on team change
       [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: shouldStripScriptBatchExecParamOnTeamChange,
       [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: shouldStripScriptBatchExecParamOnTeamChange,

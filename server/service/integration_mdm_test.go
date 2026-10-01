@@ -242,6 +242,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()
 	require.NoError(s.T(), err)
+	mdmStorage.SetNewActivityFunc(func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return s.fleetSvc.NewActivity(ctx, user, activity)
+	})
 	depStorage, err := s.ds.NewMDMAppleDEPStorage()
 	require.NoError(s.T(), err)
 	scepStorage, err := s.ds.NewSCEPDepot()
@@ -15942,7 +15945,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.JSONEq(
 				t,
 				fmt.Sprintf(
-					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
+					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 					installHost.ID,
 					installHost.DisplayName(),
 					app.Name,
@@ -16690,7 +16693,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			macOSApp.Name,
@@ -16811,7 +16814,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			macOSApp.Name,
@@ -28943,6 +28946,323 @@ func (s *integrationMDMTestSuite) submitDarwinFileVaultKey(ctx context.Context, 
 	}
 	var distributedResp submitDistributedQueryResultsResponse
 	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+}
+
+func (s *integrationMDMTestSuite) TestRotateFileVaultKey() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Escrow is the only setting rotation needs.
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": false, "enable_escrow_disk_encryption_key": true } }
+	}`), http.StatusOK)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": { "macos_settings": { "enable_escrow_disk_encryption_key": false } }
+		}`), http.StatusOK)
+	})
+
+	caKeyPair, err := assets.CAKeyPair(ctx, s.ds)
+	require.NoError(t, err)
+	encrypt := func(plain string) []byte {
+		b, err := pkcs7.Encrypt([]byte(plain), []*x509.Certificate{caKeyPair.Leaf})
+		require.NoError(t, err)
+		return b
+	}
+	storedKey := func(hostID uint) *fleet.HostDiskEncryptionKey {
+		key, err := s.ds.GetHostDiskEncryptionKey(ctx, hostID)
+		require.NoError(t, err)
+		return key
+	}
+	getKey := func(hostID uint) getHostEncryptionKeyResponse {
+		var resp getHostEncryptionKeyResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", hostID), nil, http.StatusOK, &resp)
+		return resp
+	}
+	countRows := func(query string, args ...any) int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, query, args...)
+		})
+		return n
+	}
+	archiveRows := func(hostID uint) int {
+		return countRows(`SELECT COUNT(*) FROM host_disk_encryption_keys_archive WHERE host_id = ?`, hostID)
+	}
+	hostActivities := func(hostID uint, activityType string) int {
+		// not every host activity is linked in activity_host_past, so match on details
+		return countRows(`
+			SELECT COUNT(*) FROM activity_past
+			WHERE activity_type = ? AND JSON_EXTRACT(details, '$.host_id') = ?`, activityType, hostID)
+	}
+	rotateURL := func(hostID uint) string {
+		return fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key/rotate", hostID)
+	}
+	// the device may have enrollment commands queued ahead of the rotation
+	nextRotateCommand := func(t *testing.T, mdmClient *mdmtest.TestAppleMDMClient) *mdm.Command {
+		cmd, err := mdmClient.Idle()
+		for ; err == nil && cmd != nil; cmd, err = mdmClient.Acknowledge(cmd.CommandUUID) {
+			if cmd.Command.RequestType == fleet.RotateFileVaultKeyCmdName {
+				return cmd
+			}
+		}
+		require.NoError(t, err)
+		return nil
+	}
+	newEscrowedHost := func(t *testing.T, recoveryKey string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+		host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, recoveryKey)
+		require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now()))
+		require.Nil(t, nextRotateCommand(t, mdmClient))
+		return host, mdmClient
+	}
+
+	t.Run("host acknowledges", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		before := getKey(host.ID)
+		require.Equal(t, "AAA-111-222", before.EncryptionKey.DecryptedValue)
+		require.False(t, before.EncryptionKey.RotationPending)
+		archivedBefore := archiveRows(host.ID)
+		escrowedBefore := hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
+		readBefore := hostActivities(host.ID, fleet.ActivityTypeReadHostDiskEncryptionKey{}.ActivityName())
+
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		s.lastActivityMatches(fleet.ActivityTypeRotatedDiskEncryptionKey{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+		require.Equal(t, readBefore, hostActivities(host.ID, fleet.ActivityTypeReadHostDiskEncryptionKey{}.ActivityName()),
+			"rotating does not read the key on the user's behalf")
+
+		marker := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, marker)
+		var storedCmd string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &storedCmd, `SELECT command FROM nano_commands WHERE command_uuid = ?`, *marker)
+		})
+		require.Contains(t, storedCmd, "$FLEET_HOST_SECRET_FILEVAULT_KEY")
+		require.NotContains(t, storedCmd, "AAA-111-222")
+
+		pending := getKey(host.ID)
+		require.True(t, pending.EncryptionKey.RotationPending)
+		require.Equal(t, "AAA-111-222", pending.EncryptionKey.DecryptedValue)
+		require.True(t, before.EncryptionKey.UpdatedAt.Equal(pending.EncryptionKey.UpdatedAt))
+
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusConflict)
+
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+		require.Equal(t, *marker, cmd.CommandUUID)
+		require.Contains(t, string(cmd.Raw), "AAA-111-222", "the device receives the current key")
+		require.NotContains(t, string(cmd.Raw), "FLEET_HOST_SECRET")
+
+		_, err := mdmClient.AcknowledgeRotateFileVaultKey(cmd.CommandUUID, encrypt("NEW-333-444"))
+		require.NoError(t, err)
+
+		after := getKey(host.ID)
+		require.Equal(t, "NEW-333-444", after.EncryptionKey.DecryptedValue)
+		require.False(t, after.EncryptionKey.RotationPending)
+		require.True(t, after.EncryptionKey.UpdatedAt.After(before.EncryptionKey.UpdatedAt))
+		require.Equal(t, new(true), storedKey(host.ID).Decryptable, "decryptable without waiting for the cron")
+		require.Equal(t, archivedBefore+1, archiveRows(host.ID))
+		require.Equal(t, escrowedBefore+1, hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName()))
+
+		// osquery then reports FileVaultPRK.dat: the same key in a different envelope
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "NEW-333-444")
+		ingested := storedKey(host.ID)
+		require.Equal(t, new(true), ingested.Decryptable)
+		require.True(t, after.EncryptionKey.UpdatedAt.Equal(ingested.UpdatedAt))
+		require.Equal(t, archivedBefore+1, archiveRows(host.ID))
+		require.Equal(t, escrowedBefore+1, hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName()))
+
+		// a report of a different key follows the normal path
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "OTHER-555")
+		require.Equal(t, archivedBefore+2, archiveRows(host.ID), "a different key still follows the normal path")
+		require.Nil(t, storedKey(host.ID).Decryptable)
+
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusUnprocessableEntity)
+	})
+
+	t.Run("osquery reports the new key before the acknowledgement", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "NEW-333-444")
+		reported := storedKey(host.ID)
+		require.Nil(t, reported.Decryptable)
+		archived := archiveRows(host.ID)
+		escrowed := hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
+
+		_, err := mdmClient.AcknowledgeRotateFileVaultKey(cmd.CommandUUID, encrypt("NEW-333-444"))
+		require.NoError(t, err)
+
+		acked := storedKey(host.ID)
+		require.Equal(t, reported.Base64Encrypted, acked.Base64Encrypted, "the reported copy is kept")
+		require.Equal(t, new(true), acked.Decryptable)
+		require.Nil(t, acked.RotationCommandUUID)
+		require.Equal(t, archived, archiveRows(host.ID))
+		require.Equal(t, escrowed, hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName()))
+		require.Equal(t, "NEW-333-444", getKey(host.ID).EncryptionKey.DecryptedValue)
+	})
+
+	t.Run("host returns an error", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+
+		_, err := mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{{
+			ErrorCode: 12, ErrorDomain: "MDMErrorDomain", USEnglishDescription: "The password is incorrect.",
+		}})
+		require.NoError(t, err)
+
+		key := storedKey(host.ID)
+		require.Nil(t, key.RotationCommandUUID)
+		require.Equal(t, new(false), key.Decryptable)
+		s.lastActivityMatches(fleet.ActivityTypeFailedToRotateDiskEncryptionKey{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "detail": "MDMErrorDomain (12): The password is incorrect."}`,
+				host.ID, host.DisplayName()), 0)
+
+		// the stored key is no longer usable, so there is nothing to rotate with
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusUnprocessableEntity)
+	})
+
+	t.Run("acknowledgement without a usable key", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+
+		_, err := mdmClient.AcknowledgeRotateFileVaultKey(cmd.CommandUUID, []byte("not cms"))
+		require.NoError(t, err)
+
+		key := storedKey(host.ID)
+		require.Nil(t, key.RotationCommandUUID)
+		require.Equal(t, new(false), key.Decryptable)
+		s.lastActivityMatches(fleet.ActivityTypeFailedToRotateDiskEncryptionKey{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "detail": "Fleet couldn't decrypt the new key returned by the host."}`,
+				host.ID, host.DisplayName()), 0)
+	})
+
+	t.Run("stored key changes before delivery", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		require.NoError(t, s.ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, storedKey(host.ID).Base64Encrypted,
+			base64.StdEncoding.EncodeToString([]byte("not cms"))))
+
+		require.Nil(t, nextRotateCommand(t, mdmClient), "a command that can't be expanded is not delivered")
+		key := storedKey(host.ID)
+		require.Nil(t, key.RotationCommandUUID)
+		require.Equal(t, new(false), key.Decryptable)
+		var listActivities listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc", "per_page", "1")
+		require.Len(t, listActivities.Activities, 1)
+		require.Equal(t, fleet.ActivityTypeFailedToRotateDiskEncryptionKey{}.ActivityName(), listActivities.Activities[0].Type)
+		require.Contains(t, string(*listActivities.Activities[0].Details), "failed to expand host secrets")
+	})
+
+	t.Run("transfer to a fleet without escrow while pending", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		rotation := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, rotation)
+		followUp := uuid.NewString()
+		require.NoError(t, s.mdmCommander.EnqueueCommand(ctx, []string{host.UUID}, fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>ProfileList</string>
+	</dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+</dict>
+</plist>`, followUp)))
+
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{host.ID}},
+			http.StatusOK, &addHostsToTeamResponse{})
+		_, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		require.True(t, fleet.IsNotFound(err), "the destination fleet doesn't escrow, so the key is dropped")
+
+		// The rotation can't be expanded any more. It must fail rather than block
+		// the commands queued behind it.
+		var delivered []string
+		cmd, err := mdmClient.Idle()
+		for i := 0; err == nil && i < 10; i++ {
+			if cmd != nil {
+				delivered = append(delivered, cmd.CommandUUID)
+				cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+			} else {
+				cmd, err = mdmClient.Idle()
+			}
+		}
+		require.NoError(t, err)
+		require.Contains(t, delivered, followUp)
+		require.NotContains(t, delivered, *rotation)
+
+		var status string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status, `SELECT status FROM nano_command_results WHERE id = ? AND command_uuid = ?`, host.UUID, *rotation)
+		})
+		require.Equal(t, fleet.MDMAppleStatusError, status)
+	})
+
+	t.Run("a marker whose command is gone is replaced after the grace period", func(t *testing.T) {
+		host, _ := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		first := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, first)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM nano_enrollment_queue WHERE command_uuid = ?`, *first)
+			return err
+		})
+
+		// indistinguishable from a request whose command isn't enqueued yet
+		require.True(t, getKey(host.ID).EncryptionKey.RotationPending)
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusConflict)
+
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				UPDATE host_disk_encryption_keys
+				SET rotation_requested_at = NOW(6) - INTERVAL 2 MINUTE, updated_at = updated_at
+				WHERE host_id = ?`, host.ID)
+			return err
+		})
+		// GET and rotate agree that the marker is stale
+		require.False(t, getKey(host.ID).EncryptionKey.RotationPending)
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		require.True(t, getKey(host.ID).EncryptionKey.RotationPending)
+		second := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, second)
+		require.NotEqual(t, *first, *second)
+	})
+
+	t.Run("re-enrollment clears a pending rotation", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		require.NotNil(t, storedKey(host.ID).RotationCommandUUID)
+
+		require.NoError(t, mdmClient.Authenticate())
+		key, err := s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		if !fleet.IsNotFound(err) {
+			require.NoError(t, err)
+			require.Nil(t, key.RotationCommandUUID)
+		}
+	})
+
+	t.Run("ineligible hosts", func(t *testing.T) {
+		s.Do("POST", rotateURL(0), nil, http.StatusNotFound)
+
+		windowsHost := createOrbitEnrolledHost(t, "windows", t.Name(), s.ds)
+		s.Do("POST", rotateURL(windowsHost.ID), nil, http.StatusBadRequest)
+
+		host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusUnprocessableEntity)
+	})
 }
 
 // Escrow without enforcement: status follows the escrowed key, not the disk

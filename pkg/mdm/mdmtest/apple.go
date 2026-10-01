@@ -1178,6 +1178,24 @@ func (c *TestAppleMDMClient) AcknowledgeVerifyRecoveryLock(cmdUUID string, passw
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
+// AcknowledgeRotateFileVaultKey acknowledges a RotateFileVaultKey command with
+// the new recovery key encrypted to the command's ReplyEncryptionCertificate.
+func (c *TestAppleMDMClient) AcknowledgeRotateFileVaultKey(cmdUUID string, encryptedNewRecoveryKey []byte) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":       "Acknowledged",
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
+		"CommandUUID":  cmdUUID,
+		"RotateResult": map[string]any{
+			"EncryptedNewRecoveryKey": encryptedNewRecoveryKey,
+		},
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
 // NotNow sends a NotNow message to the MDM server.
 // The cmdUUID is the UUID of the command to reference.
 //
