@@ -274,7 +274,11 @@ describe("ProfileFormPage", () => {
     await user.click(screen.getByRole("button", { name: "Add profile" }));
     await waitFor(() => expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1));
     expect(mdmAPI.getProfiles).toHaveBeenCalledTimes(1);
-    expect(mdmAPI.getProfiles).toHaveBeenCalledWith({ fleet_id: 0 });
+    expect(mdmAPI.getProfiles).toHaveBeenCalledWith({
+      fleet_id: 0,
+      page: 0,
+      per_page: 1000,
+    });
     const args = jest.mocked(mdmAPI.uploadProfile).mock.calls[0][0];
     expect(args.name).toBeUndefined();
     expect(args.file.name).toBe("New profile 2.xml");

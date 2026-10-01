@@ -75,6 +75,10 @@ const DESCRIPTION_MAX_LENGTH = 1023;
 const EMPTY_EDITOR_MAX_LINES = 3;
 const EDITOR_MAX_LINES = 30;
 
+// Same page size as the policy automations' profile list; the endpoint's
+// default isn't documented.
+const PROFILE_NAMES_PER_PAGE = 1000;
+
 const UNRECOGNIZED_CONTENTS_ERROR =
   "Paste a .mobileconfig, declaration (.json), Android (.json) or Windows (.xml) profile";
 
@@ -307,7 +311,11 @@ const ProfileForm = ({
       return undefined;
     }
     try {
-      const { profiles } = await mdmAPI.getProfiles({ fleet_id: teamId });
+      const { profiles } = await mdmAPI.getProfiles({
+        fleet_id: teamId,
+        page: 0,
+        per_page: PROFILE_NAMES_PER_PAGE,
+      });
       return nextPastedProfileName((profiles ?? []).map((p) => p.name));
     } catch {
       return undefined;
