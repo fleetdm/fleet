@@ -3775,6 +3775,54 @@ Two things are kept regardless of age: commands still queued for a device that h
     windows_command_retention: 336h
   ```
 
+### mdm.apple_command_cleanup_short_retention
+
+How long completed recurring Apple MDM commands (refetches, device renames, VPP verifications, and DeclarativeManagement) and inactive queue entries are kept before the hourly cleanup deletes them. Set to `0` to disable this sweep. Non-zero values below one hour are rejected at startup.
+
+- Default value: 24h
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_short_retention: 48h
+  ```
+
+### mdm.apple_command_cleanup_standard_retention
+
+How long other completed Apple MDM commands on the deletion allowlist are kept before the hourly cleanup deletes them. Commands a feature still relies on are never deleted. Set to `0` to disable this sweep. Non-zero values below one hour are rejected at startup.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_standard_retention: 1440h
+  ```
+
+### mdm.apple_command_cleanup_max_row_deletions_per_run
+
+Maximum number of Apple MDM command queue entries (one command to one host, with its result) deleted per hourly cleanup run. Set to `0` to delete none.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_ROW_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_row_deletions_per_run: 10000
+  ```
+
+### mdm.apple_command_cleanup_max_command_deletions_per_run
+
+Maximum number of Apple MDM commands no longer referenced by any host deleted per hourly cleanup run. Set to `0` to delete none.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_COMMAND_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_command_deletions_per_run: 10000
+  ```
+
 ### mdm.sso_rate_limit_per_minute
 
 The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
