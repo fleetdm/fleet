@@ -180,18 +180,12 @@ func (ds *Datastore) applyQueriesInTx(
 	return nil
 }
 
-func (ds *Datastore) deleteMultipleQueryResults(ctx context.Context, queryIDs []uint) (err error) {
-	if len(queryIDs) == 0 {
-		return nil
-	}
-
-	deleteQueryResultsStmt := `DELETE FROM query_results WHERE query_id IN (?)`
-	query, args, err := sqlx.In(deleteQueryResultsStmt, queryIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building delete query_results stmt")
-	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "executing delete query_results")
+// deleteMultipleQueryResults deletes all stored results of the given queries.
+func (ds *Datastore) deleteMultipleQueryResults(ctx context.Context, queryIDs []uint) error {
+	for _, queryID := range queryIDs {
+		if err := ds.deleteQueryResults(ctx, queryID); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -657,12 +651,17 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 	return nil
 }
 
+// deleteQueryResults deletes all stored results of a query in primary key batches. Rows that
+// hosts write while it runs are kept, since they may already come from the updated query.
 func (ds *Datastore) deleteQueryResults(ctx context.Context, queryID uint) error {
-	resultsSQL := `DELETE FROM query_results WHERE query_id = ?`
-	if _, err := ds.writer(ctx).ExecContext(ctx, resultsSQL, queryID); err != nil {
-		return ctxerr.Wrap(ctx, err, "executing delete query_results")
+	var maxID sql.NullInt64
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &maxID, `SELECT MAX(id) FROM query_results WHERE query_id = ?`, queryID); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting last query_results id")
 	}
-	return nil
+	if !maxID.Valid {
+		return nil
+	}
+	return ds.deleteQueryResultsBeforeID(ctx, queryID, uint(maxID.Int64)+1, false, deleteQueryResultsBatchSize) //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
