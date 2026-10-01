@@ -7187,6 +7187,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NotEqual(t, staticProf.Token, q.Get("profile_token"))
 	s.checkOneTimeDEPEnrollmentToken(t, di, q.Get("profile_token"))
 
+	boundUser1 := fmt.Sprintf(`{"host_uuid": %q, "idp_email": "sso_user@example.com"}`, mdmDevice.UUID)
+	boundActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeBoundHostToIdPAccount{}.ActivityName(), boundUser1, 0)
+
 	res = s.LoginMDMSSOUser("sso_user", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
@@ -7208,6 +7211,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	// IdP info stored is accurate for the account
 	s.checkStoredIdPInfo(t, user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
+
+	// re-enrolling as the same account logs nothing new
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeBoundHostToIdPAccount{}.ActivityName(), boundUser1, boundActID)
 
 	res = s.LoginMDMSSOUser("sso_user", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
@@ -7473,6 +7479,20 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	// IdP info stored is accurate for the account
 	s.checkStoredIdPInfo(t, user2EnrollRef, "sso_user2", "SSO User 2", "sso_user2@example.com")
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeBoundHostToIdPAccount{}.ActivityName(),
+		fmt.Sprintf(`{"host_uuid": %q, "idp_email": "sso_user2@example.com", "replaced_idp_email": "sso_user@example.com"}`, mdmDevice.UUID), 0)
+
+	// enrolling without an account removes the link
+	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
+	})
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeUnboundHostFromIdPAccount{}.ActivityName(),
+		fmt.Sprintf(`{"host_uuid": %q, "idp_email": "sso_user2@example.com"}`, mdmDevice.UUID), 0)
+	unlinked, err := s.ds.GetMDMIdPAccountByHostUUID(t.Context(), mdmDevice.UUID)
+	require.NoError(t, err)
+	require.Nil(t, unlinked)
 
 	// changing the server URL also updates the remote DEP profile
 	acResp = appConfigResponse{}

@@ -1166,7 +1166,7 @@ type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []go
 
 type SetHostMDMMigrationCompletedFunc func(ctx context.Context, hostID uint) error
 
-type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) error
+type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) (previousAcctUUID string, err error)
 
 type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error
 
@@ -1500,11 +1500,11 @@ type DeactivateMDMAppleHostSCEPRenewCommandsFunc func(ctx context.Context, hostU
 
 type ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc func(ctx context.Context, limit int) ([]string, error)
 
-type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
+type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (legacyRef string, previousAcctUUID string, err error)
 
 type GetMDMIdPAccountByHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error)
 
-type AssociateHostMDMIdPAccountFunc func(ctx context.Context, hostUUID string, accountUUID string) error
+type AssociateHostMDMIdPAccountFunc func(ctx context.Context, hostUUID string, accountUUID string) (previousAcctUUID string, err error)
 
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
@@ -10330,7 +10330,7 @@ func (s *DataStore) SetHostMDMMigrationCompleted(ctx context.Context, hostID uin
 	return s.SetHostMDMMigrationCompletedFunc(ctx, hostID)
 }
 
-func (s *DataStore) IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) error {
+func (s *DataStore) IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) (previousAcctUUID string, err error) {
 	s.mu.Lock()
 	s.IngestMDMAppleDeviceFromOTAEnrollmentFuncInvoked = true
 	s.mu.Unlock()
@@ -11499,7 +11499,7 @@ func (s *DataStore) ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.C
 	return s.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc(ctx, limit)
 }
 
-func (s *DataStore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
+func (s *DataStore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (legacyRef string, previousAcctUUID string, err error) {
 	s.mu.Lock()
 	s.ReconcileMDMAppleEnrollRefFuncInvoked = true
 	s.mu.Unlock()
@@ -11513,7 +11513,7 @@ func (s *DataStore) GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID str
 	return s.GetMDMIdPAccountByHostUUIDFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID string, accountUUID string) error {
+func (s *DataStore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID string, accountUUID string) (previousAcctUUID string, err error) {
 	s.mu.Lock()
 	s.AssociateHostMDMIdPAccountFuncInvoked = true
 	s.mu.Unlock()

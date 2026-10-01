@@ -187,8 +187,8 @@ func TestPubSubEnrollment(t *testing.T) {
 				require.False(t, companyOwned)
 				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
-			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
-				return nil
+			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+				return "", nil
 			}
 			mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 				return nil
@@ -227,10 +227,10 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 
 			var capturedIdpHostUUID, capturedIdpAcctUUID string
-			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
 				capturedIdpHostUUID = hostUUID
 				capturedIdpAcctUUID = accountUUID
-				return nil
+				return "", nil
 			}
 
 			var capturedScimHostID uint
@@ -332,8 +332,8 @@ func TestPubSubEnrollment(t *testing.T) {
 				require.Equal(t, testBrandTestSerialHashed, host.UUID)
 				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
-			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
-				return nil
+			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+				return "", nil
 			}
 
 			enrollmentToken := enrollmentTokenRequest{
@@ -400,10 +400,10 @@ func TestPubSubEnrollment(t *testing.T) {
 
 		var capturedHostUUID, capturedIdpUUID string
 		mockDS.AssociateHostMDMIdPAccountFuncInvoked = false
-		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
 			capturedHostUUID = hostUUID
 			capturedIdpUUID = accountUUID
-			return nil
+			return "", nil
 		}
 
 		enrollmentToken := enrollmentTokenRequest{
@@ -1887,8 +1887,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 		}
 
-		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
-			return nil
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+			return "", nil
 		}
 		mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 			return nil
@@ -1947,8 +1947,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 		}
 
-		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
-			return nil
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+			return "", nil
 		}
 		mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 			return nil

@@ -3545,12 +3545,17 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 	)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
+	var activities []fleet.ActivityDetails
 	svc := MDMAppleCheckinAndCommandService{
 		notificationsSvc: &mock.MockNotificationsService{},
 		ds:               ds,
 		mdmLifecycle:     mdmLifecycle,
 		commander:        cmdr,
 		logger:           slog.New(slog.DiscardHandler),
+		newActivityFn: func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+			activities = append(activities, act)
+			return nil
+		},
 	}
 
 	const (
@@ -3636,7 +3641,7 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 			require.Equal(t, "idp-uuid", uuid)
 			return &fleet.MDMIdPAccount{UUID: "idp-uuid", Email: "bearer.user@example.com"}, nil
 		}
-		ds.AssociateHostMDMIdPAccountFunc = func(context.Context, string, string) error { return nil }
+		ds.AssociateHostMDMIdPAccountFunc = func(context.Context, string, string) (string, error) { return "", nil }
 		ds.SetHostManagedAppleIDFuncInvoked = false
 		var gotMAID string
 		ds.SetHostManagedAppleIDFunc = func(_ context.Context, _ uint, managedAppleID string) error {
@@ -3659,6 +3664,10 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.SetHostManagedAppleIDFuncInvoked)
 		require.Equal(t, "bearer.user@example.com", gotMAID)
+		require.Equal(t, []fleet.ActivityDetails{fleet.ActivityTypeBoundHostToIdPAccount{
+			HostUUID: enrollID,
+			IdPEmail: "bearer.user@example.com",
+		}}, activities)
 	})
 
 	t.Run("UserEnrollmentDevice without IDP account clears managed_apple_id", func(t *testing.T) {

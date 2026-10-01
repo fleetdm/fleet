@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -861,9 +862,11 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 		}
 
 		if enrollmentTokenRequest.IdpUUID != "" {
-			if err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, enrollmentTokenRequest.IdpUUID); err != nil {
+			previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, enrollmentTokenRequest.IdpUUID)
+			if err != nil {
 				return 0, ctxerr.Wrap(ctx, err, "updating IdP account on re-enrollment")
 			}
+			shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.newActivity, svc.logger, host.Host.UUID, previousAcctUUID, enrollmentTokenRequest.IdpUUID)
 		}
 
 		if err := svc.updateHost(ctx, device, host, true); err != nil {
@@ -1385,10 +1388,11 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 
 	if idpUUID != "" {
 		svc.logger.InfoContext(ctx, "associating android host with idp account", "host_uuid", host.UUID, "idp_uuid", idpUUID)
-		err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpUUID)
+		previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpUUID)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "associating host with idp account")
 		}
+		shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.newActivity, svc.logger, host.UUID, previousAcctUUID, idpUUID)
 		if err := svc.fleetDS.MaybeAssociateHostWithScimUser(ctx, fleetHost.Host.ID); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "associating android host with scim user")
 		}
