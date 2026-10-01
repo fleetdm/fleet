@@ -164,6 +164,35 @@ If an app does not pass test criteria:
 - [Freeze the app](#freezing-an-existing-fleet-maintained-app)
 - File a bug for tracking
 
+## Editing an app's pre-install query (macOS)
+
+When patch when closed is on, Fleet runs the app's pre-install query (`open` in the app's output manifest) on the host before installing an update. The query returns a result only when the app is closed, so Fleet doesn't patch an app while it's open. Fleet generates this query for every macOS app. If it's wrong for an app (e.g. [#53919](https://github.com/fleetdm/fleet/issues/53919)), override it:
+
+1. In `ingesters/homebrew/ingester.go`, find the `switch input.Token` block right after `out.Queries.Open = patch_policy.GenerateOpenQuery(...)`.
+2. Add a `case` for the app's Homebrew `token` (from its input file in `inputs/homebrew/`) that sets `out.Queries.Open`. If an existing case already uses the query you need, add the token to that case instead. For example:
+
+   ```go
+   case "<token>":
+   	// Explain why the generated query doesn't work for this app.
+   	out.Queries.Open = fmt.Sprintf(
+   		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON ... WHERE a.bundle_identifier = '%s' ...);",
+   		out.UniqueIdentifier,
+   	)
+   ```
+
+3. Add a test case for the new query in `ingesters/homebrew/ingester_test.go`.
+4. Regenerate the app's output data from the root of the Fleet repo and confirm `open` changed in `outputs/<app>/darwin.json`:
+
+   ```bash
+   go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
+   ```
+
+5. Open a PR with the Go change and the regenerated output. Go changes need approval from [@fleetdm/go](https://github.com/orgs/fleetdm/teams/go).
+
+After the PR merges, no Fleet release is needed. Fleet servers pick up the new query the next time they auto-update Fleet-maintained apps, even when the app's version didn't change. Apps pinned to a specific version keep their current query.
+
+Windows apps don't support overrides yet. The Windows ingester generates the pre-install query from the app's name for every app.
+
 ## Freezing an existing Fleet-maintained app
 
 If any app fails validation:
