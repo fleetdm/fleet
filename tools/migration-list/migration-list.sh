@@ -90,7 +90,7 @@ else
   cut -d' ' -f1 "$work_dir/numbers_with_version" | sort -u > "$work_dir/listed_numbers"
 fi
 
-echo "version id | earliest release tag or branch that includes this migration"
+echo "version id | earliest ref that includes this migration"
 # Pair each listed number with the first release that has it, or a blank label if no compared ref has it, then keep the last count rows
 awk 'FILENAME == ARGV[1] { if (!($1 in first)) first[$1] = $2; next } { print $1 " " (($1 in first) ? first[$1] : "") }' "$work_dir/numbers_with_version" "$work_dir/listed_numbers" \
   | sort -k1,1 | tail -n "$count" | awk -v target="${base_ref#origin/}" '
@@ -98,7 +98,9 @@ awk 'FILENAME == ARGV[1] { if (!($1 in first)) first[$1] = $2; next } { print $1
   {
     # Show the branch HEAD merges into after HEAD, such as "HEAD (target main)"
     shown = ($2 == "HEAD" && target != "") ? "HEAD (target " target ")" : $2
-    rows++; number[rows] = $1; label[rows] = shown; if (length(shown) > width) width = length(shown)
+    rows++; number[rows] = $1; label[rows] = shown
+    # Pad to the longest release or branch label, so the longer HEAD label pushes only its own arrow out
+    if ($2 != "HEAD" && length($2) > width) width = length($2)
   }
   END {
     # Pad labels to the longest one, mark rows in new_numbers with <-- NEW, and other rows whose label differs from the last row not in new_numbers with <--

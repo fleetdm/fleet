@@ -1,6 +1,6 @@
 # Migration list
 
-`migration-list.sh` prints the most recent table migrations sorted by version ID, each labeled with the earliest release tag or branch that includes it. Use it to catch migrations numbered out of order across releases. Fleet only runs migrations newer than the last one a database applied, so a migration in an older release must be numbered before every migration that is only in a newer release or `main`.
+`migration-list.sh` prints the most recent table migrations sorted by version ID, each labeled with the earliest ref (release tag, RC branch, `main` or `HEAD`) that includes it. Use it to catch migrations numbered out of order across releases. Fleet only runs migrations newer than the last one a database applied, so a migration in an older release must be numbered before every migration that is only in a newer release or `main`.
 
 It only reads local git data, so run `git fetch origin --tags` first, or pass `-f`.
 
@@ -9,7 +9,7 @@ It only reads local git data, so run `git fetch origin --tags` first, or pass `-
 ```
 
 ```
-version id | earliest release tag or branch that includes this migration
+version id | earliest ref that includes this migration
 20260923180303 - 4.93.0
 20260925155809 - 4.93.0
 20260925160000 - 4.93.0
@@ -25,10 +25,10 @@ To check a branch, pass `-b` with the branch it will merge into. This also compa
 ```
 
 ```
-20260923180303 - 4.93.0                                <--
+20260923180303 - 4.93.0  <--
 20260925155809 - 4.93.0
 20260925160000 - 4.93.0
-20260925182107 - main                                  <--
+20260925182107 - main    <--
 20260925182113 - main
 20260926120000 - HEAD (target rc-minor-fleet-v4.93.0)  <-- NEW
 20260928054420 - main
