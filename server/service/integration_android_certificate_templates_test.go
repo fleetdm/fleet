@@ -623,7 +623,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateWithSANIDPVariable() {
 
 	// Enroll an Android host with no team and link it to the IdP account.
 	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, nil, "san")
-	require.NoError(t, s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, insertedIdP.UUID))
+	_, err = s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, insertedIdP.UUID)
+	require.NoError(t, err)
 
 	// Create pending certificate templates for the host (simulating what the pubsub handler does
 	// during enrollment).
