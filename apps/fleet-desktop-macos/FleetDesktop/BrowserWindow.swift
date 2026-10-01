@@ -20,6 +20,9 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
     /// Used by `fleet://update_all` to click the in-page "Update all" button.
     private var pendingPostLoadJS: String?
 
+    /// Fleet's MDM enrollment page, while it's open in a sheet over the device page.
+    private var enrollmentSheet: EnrollmentSheet?
+
     /// Host of the external IdP page an SSO/auth flow is currently on. Non-nil
     /// while a flow is in progress; external redirects are kept in the WebView
     /// so the full redirect chain completes in-app, but navigation is restricted
@@ -63,13 +66,13 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
     ]
 
     /// URL schemes that are safe to open externally.
-    private static let allowedExternalSchemes: Set<String> = ["https", "http", "mailto"]
+    static let allowedExternalSchemes: Set<String> = ["https", "http", "mailto"]
 
     /// URL schemes of native authenticator apps an IdP launches mid-flow.
     /// Okta Verify registers `com-okta-authenticator`; Okta's sign-in page
     /// navigates to it (from a hidden iframe) for FastPass when its localhost
     /// loopback probe fails, then polls Okta for the app's answer.
-    private static let authenticatorSchemes: Set<String> = ["com-okta-authenticator"]
+    static let authenticatorSchemes: Set<String> = ["com-okta-authenticator"]
 
     /// Called when a navigation error occurs (e.g., expired token returns 401/403)
     /// or when the page content indicates an error (e.g., "Something went wrong").
@@ -178,9 +181,10 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
         window.map { $0.isVisible } ?? false
     }
 
-    /// Reload the current page in the web view (e.g., Cmd+R).
+    /// Reload the page the user is looking at (e.g., Cmd+R): the enrollment sheet
+    /// if it's open, otherwise the main web view.
     func reloadCurrent() {
-        webView?.reload()
+        (enrollmentSheet?.webView ?? webView)?.reload()
     }
 
     /// Navigate the existing web view to a new URL (e.g., after token refresh).
@@ -271,6 +275,34 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
         webView?.load(URLRequest(url: homeURL))
     }
 
+    // MARK: - Enrollment Sheet
+
+    /// Whether the URL is Fleet's MDM enrollment page (`<server>/enroll`).
+    private func isEnrollmentPage(_ url: URL) -> Bool {
+        url.host?.lowercased() == fleetHost && url.lastPathComponent == "enroll"
+    }
+
+    /// Opens the enrollment page in a sheet over the device page, or loads it in
+    /// the sheet that's already open.
+    private func presentEnrollmentSheet(url: URL) {
+        let request = URLRequest(url: url)
+        if let sheet = enrollmentSheet {
+            sheet.webView.load(request)
+            return
+        }
+        guard let window = window, let fleetHost = fleetHost, let mainWebView = webView else { return }
+        let sheet = EnrollmentSheet(
+            fleetHost: fleetHost,
+            websiteDataStore: mainWebView.configuration.websiteDataStore,
+            downloadDelegate: self
+        )
+        sheet.onClose = { [weak self] in
+            self?.enrollmentSheet = nil
+        }
+        enrollmentSheet = sheet
+        sheet.present(on: window, request: request)
+    }
+
     // MARK: - External URL Safety
 
     /// Opens a URL externally only if it uses a safe scheme (https, http, mailto).
@@ -324,7 +356,12 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
         loadingOverlay = nil
         pendingPostLoadJS = nil
         resetSSOFlow()
+        enrollmentSheet?.close()
         onWindowClose?()
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        enrollmentSheet?.parentDidResize()
     }
 }
 
@@ -504,7 +541,8 @@ extension BrowserWindow: WKNavigationDelegate {
 
 extension BrowserWindow: WKUIDelegate {
     /// Handle links that request a new window (target="_blank", window.open, etc.).
-    /// Same-host links are loaded in the current WebView; external links open in the default browser.
+    /// The MDM enrollment page opens in a sheet over the device page; other same-host
+    /// links are loaded in the current WebView; external links open in the default browser.
     func webView(
         _ webView: WKWebView,
         createWebViewWith configuration: WKWebViewConfiguration,
@@ -513,7 +551,9 @@ extension BrowserWindow: WKUIDelegate {
     ) -> WKWebView? {
         if let url = navigationAction.request.url {
             let host = url.host?.lowercased()
-            if host == fleetHost || (ssoFlowActive && host == ssoHost && !ssoFlowExpired) {
+            if isEnrollmentPage(url) {
+                presentEnrollmentSheet(url: url)
+            } else if host == fleetHost || (ssoFlowActive && host == ssoHost && !ssoFlowExpired) {
                 webView.load(URLRequest(url: url))
             } else if !launchAuthenticatorIfRequested(url) {
                 openExternalURL(url)
@@ -560,6 +600,10 @@ extension BrowserWindow: WKDownloadDelegate {
         // to avoid automatically executing potentially unsafe files.
         if url.pathExtension.lowercased() == "mobileconfig" {
             NSWorkspace.shared.open(url)
+
+            // From the enrollment sheet, stay put: its remaining steps walk the
+            // user through installing the profile in System Settings.
+            if let source = download.webView, source === enrollmentSheet?.webView { return }
 
             // Navigate back to the Fleet self-service homepage
             navigateHome()
