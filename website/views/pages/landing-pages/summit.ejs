@@ -1,0 +1,158 @@
+<div id="summit-page" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="page-hero">
+        <div purpose="page-hero-content">
+          <div purpose="page-hero-headings">
+            <h4>Virtual summit &bull; November 10, 2026</h4>
+            <h1>Fleet Virtual Summit 2026</h1>
+            <p purpose="hero-tagline">How GitOps, open source, and AI agents get device management to 2030.</p>
+          </div>
+          <div purpose="page-hero-text">
+            <p>Four panel conversations with the IT and security practitioners doing the work. No slides and no demos. Watch free on LinkedIn Live, and bring your questions.</p>
+          </div>
+          <div purpose="button-row">
+            <% if (registrationUrl) { %>
+            <a purpose="cta-button" class="btn btn-primary" href="<%= registrationUrl %>" target="_blank">Register on LinkedIn</a>
+            <a purpose="calendar-link" href="<%= googleCalendarUrl %>" target="_blank">Add to Google Calendar</a>
+            <% } else { %>
+            <a purpose="cta-button" class="btn btn-primary" href="<%= googleCalendarUrl %>" target="_blank">Add to Google Calendar</a>
+            <% } %>
+            <a purpose="calendar-link" @click="clickDownloadCalendarFile()">Download .ics</a>
+          </div>
+        </div>
+        <div purpose="event-details">
+          <div purpose="event-detail">
+            <p purpose="detail-label">When</p>
+            <p purpose="detail-value">Tuesday, November 10, 2026</p>
+            <p purpose="detail-subtext">11 AM ET &bull; 8 AM PT &bull; 4 PM GMT</p>
+            <p purpose="detail-subtext" v-if="localStartTime">{{localStartTime}} your time</p>
+          </div>
+          <div purpose="event-detail">
+            <p purpose="detail-label">Where</p>
+            <p purpose="detail-value">LinkedIn Live</p>
+            <p purpose="detail-subtext">Fleet's team answers questions in the comments</p>
+          </div>
+          <div purpose="event-detail">
+            <p purpose="detail-label">Format</p>
+            <p purpose="detail-value">Four 30-minute panels</p>
+            <p purpose="detail-subtext">Hosted by Mike McNeil, cofounder and CEO of Fleet</p>
+          </div>
+          <div purpose="event-detail">
+            <p purpose="detail-label">Cost</p>
+            <p purpose="detail-value">Free</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="panelist-companies">
+        <p purpose="panelist-companies-label">Panelists from</p>
+        <div purpose="company-names">
+          <% for (let company of panelistCompanies) { %>
+          <span purpose="company-name"><%= company %></span>
+          <% } %>
+        </div>
+      </div>
+
+      <div purpose="page-section">
+        <div purpose="section-heading">
+          <h2>What to expect</h2>
+        </div>
+        <div purpose="three-column-list">
+          <div purpose="feature">
+            <h5>Practitioners, not vendors</h5>
+            <p>Every panel is IT and security leaders talking about their own work: what they tried, what broke, and what they'd do differently.</p>
+          </div>
+          <div purpose="feature">
+            <h5>Four topics in two hours</h5>
+            <p>Infrastructure as code, open source, AI agents, and where device management goes next. Watch one panel or all four.</p>
+          </div>
+          <div purpose="feature">
+            <h5>Questions answered live</h5>
+            <p>Fleet's team joins the stream to answer your questions in the LinkedIn comments as they come in.</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="page-section" id="sessions">
+        <div purpose="section-heading">
+          <h2>The sessions</h2>
+        </div>
+        <div purpose="sessions">
+          <% for (let [index, session] of sessions.entries()) { %>
+          <div purpose="session">
+            <div purpose="session-number">
+              <p>Session <%= String(index + 1).padStart(2, '0') %></p>
+            </div>
+            <div purpose="session-content">
+              <h4 purpose="session-topic"><%= session.topic %></h4>
+              <h3><%= session.title %></h3>
+              <p><%= session.description %></p>
+            </div>
+            <div purpose="session-speakers">
+              <% for (let speaker of session.speakers) { %>
+              <div purpose="speaker">
+                <% if (speaker.imageSrc) { %>
+                <img purpose="speaker-image" alt="<%= speaker.name %>" src="<%= speaker.imageSrc %>">
+                <% } else { %>
+                <div purpose="speaker-initials" aria-hidden="true"><%= speaker.name.split(' ').map((namePart)=>namePart[0]).join('').slice(0, 2) %></div>
+                <% } %>
+                <div purpose="speaker-name-and-title">
+                  <% if (speaker.linkedInUrl) { %>
+                  <a purpose="speaker-name" href="<%= speaker.linkedInUrl %>" target="_blank"><%= speaker.name %></a>
+                  <% } else { %>
+                  <p purpose="speaker-name"><%= speaker.name %></p>
+                  <% } %>
+                  <p purpose="speaker-title"><%= speaker.title ? speaker.title + ', ' : '' %><%= speaker.company %></p>
+                </div>
+              </div>
+              <% } %>
+              <% if (session.moreSpeakersToBeAnnounced) { %>
+              <div purpose="speaker" class="to-be-announced">
+                <div purpose="speaker-initials" aria-hidden="true">+</div>
+                <div purpose="speaker-name-and-title">
+                  <p purpose="speaker-name">More speakers coming soon</p>
+                </div>
+              </div>
+              <% } %>
+            </div>
+          </div>
+          <% } %>
+        </div>
+      </div>
+
+      <div purpose="host-card">
+        <img alt="Mike McNeil" src="/images/team-mikermcneil-110x110@2x.png">
+        <div purpose="host-text">
+          <h4>Your host</h4>
+          <h5>Mike McNeil, cofounder and CEO of Fleet</h5>
+          <p>Mike moderates all four panels. Before Fleet, he created Sails.js, the open source Node.js framework.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div purpose="bottom-gradient">
+    <div purpose="page-container">
+      <div purpose="page-content">
+        <div purpose="bottom-cta">
+          <div>
+            <h4>Tuesday, November 10 &bull; 11 AM ET</h4>
+            <h1>Join us on LinkedIn Live</h1>
+          </div>
+          <div purpose="button-row">
+            <% if (registrationUrl) { %>
+            <a purpose="cta-button" class="btn btn-primary" href="<%= registrationUrl %>" target="_blank">Register on LinkedIn</a>
+            <% } else { %>
+            <a purpose="cta-button" class="btn btn-primary" href="<%= googleCalendarUrl %>" target="_blank">Add to Google Calendar</a>
+            <% } %>
+            <animated-arrow-button href="#sessions">See the sessions</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <%/* Cloud city banner */%>
+  <cloud-city></cloud-city>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

@@ -779,6 +779,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /lp/summit': {
+    action: 'landing-pages/view-summit',
+    locals: {
+      hideHeaderLinks: true,
+      pageTitleForMeta: 'Fleet Virtual Summit 2026',
+      pageDescriptionForMeta: 'Four free panels on how GitOps, open source, and AI agents get device management to 2030. Live on LinkedIn, November 10, 2026.',
+    }
+  },
+
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
@@ -1269,6 +1278,8 @@ module.exports.routes = {
   'GET /observability': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/orchestration' + originalQueryString); },
   'GET /signup': '/login#register',
 
+  'GET /summit': '/lp/summit',
+  'GET /virtual-summit': '/lp/summit',
   'GET /jnuc-2025': '/articles/free-migration-from-jamf-to-fleet',
   'GET /announcements/global-cloud-platform-simplifies-device-management-with-fleet': '/case-study/fastly',
   'GET /announcements/consolidate-multiple-tools-with-fleet': '/case-study/stripe',
