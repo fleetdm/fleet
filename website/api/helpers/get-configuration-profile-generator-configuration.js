@@ -523,6 +523,7 @@ This is the complete set.  A declaration type or key that does not appear here d
           'Identifier is your own reverse-DNS identifier for this declaration instance, not a copy of Type.  Copying Type conflates Apple\'s namespace with yours and collides the moment a second declaration of the same type exists.',
           'Derive Identifier from the full declaration type rather than its last component, or passcode.settings and softwareupdate.settings collapse into one identifier and silently overwrite each other.',
           'Keep Identifier to 64 bytes or fewer.  Apple\'s DeclarationBase caps it, and a longer identifier is accepted by an MDM and then rejected by the device at delivery.',
+          'A declaration file holds exactly one declaration: one JSON object with Type, Identifier, and Payload.  Never return an array or several objects.  Settings that share a declaration type go in that one Payload.  When the request needs more than one declaration type, return the "couldNotGenerateProfile" shape, name each declaration type the request needs, and say that each one must be generated and uploaded as its own file.',
         ],
       },
 
