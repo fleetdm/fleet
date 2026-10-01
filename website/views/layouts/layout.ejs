@@ -1159,7 +1159,7 @@
       });
     </script>
     <script>
-      // Sends search queries to a scoped Google search.
+      // Sends search queries to a scoped Google search. (Searches from the handbook are scoped to /handbook.)
       document.addEventListener('submit', function(event) {
         var form = event.target.closest('form[purpose="google-search"]');
         if (!form) { return; }
@@ -1167,7 +1167,8 @@
         var input = form.querySelector('input');
         var searchQuery = (input ? input.value : '').trim();
         if (!searchQuery) { return; }
-        window.open('https://www.google.com/search?q=' + encodeURIComponent('site:fleetdm.com ' + searchQuery), '_blank', 'noopener');
+        var searchScope = /^\/handbook(\/|$)/.test(window.location.pathname) ? 'site:fleetdm.com/handbook ' : 'site:fleetdm.com ';
+        window.open('https://www.google.com/search?q=' + encodeURIComponent(searchScope + searchQuery), '_blank', 'noopener');
       });
     </script>
     <% if (sails.config.environment === 'production') { %>
