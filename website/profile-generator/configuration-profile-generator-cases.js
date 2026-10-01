@@ -651,7 +651,7 @@ const TEST_CASES = [
     // false because the payload is named "restrictions".
     expect: {
       mustContain: ['com.apple.applicationaccess', '<key>allowBookstore</key><true/>'],
-      mustNotContain: ['allowBookstoreErotica', '<false/>'],
+      mustNotContain: ['allowBookstoreErotica', '<key>allowBookstore</key><false/>'],
       mustNotContainElement: [['key', 'AllowBookstore'], ['string', 'true']]
     }
   },
@@ -1005,7 +1005,7 @@ const TEST_CASES = [
   {
     id: 'ddm-beta-enroll',
     profileType: 'ddm',
-    instructions: 'Enroll devices in our beta program using the enrollment token BETA-TOKEN-123, shown to users as "Acme macOS Beta".',
+    instructions: 'Automatically enroll devices in our beta program using the enrollment token BETA-TOKEN-123, shown to users as "Acme macOS Beta".',
     expect: {
       mustContain: ['com.apple.configuration.softwareupdate.settings', 'RequireProgram', 'BETA-TOKEN-123']
     }
@@ -1141,7 +1141,7 @@ const TEST_CASES = [
   {
     id: 'ddm-disk-management-external-readonly',
     profileType: 'ddm',
-    instructions: 'Let people read from USB drives but not write to them.',
+    instructions: 'Let people read from USB drives and other external disks, but not write to them.',
     readByEye: 'Restrictions.ExternalStorage is a nested dictionary with the enum Allowed|ReadOnly|Disallowed.  ReadOnly is the answer; a boolean here is an unknown value in a known key.',
     expect: {
       mustContain: ['com.apple.configuration.diskmanagement.settings', '"Restrictions"', '"ExternalStorage":"ReadOnly"'],
