@@ -6,11 +6,11 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 | Type | Name | Version | Publisher | Identifier | Install path | File hashes | Last opened | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| macOS apps | ✅ | ✅ | ✅ Apple Developer Team ID | ✅ Bundle ID | ✅ | ✅ cdhash and executable SHA-256 | ✅ | ✅ | — |
-| Windows apps | ✅ | ✅ | ✅ | ✅ Upgrade code | ✅ | ❌ | ✅ | ✅ | Includes Microsoft Store (MSIX/Appx) apps on recent versions of Fleet's agent. |
+| macOS apps (`source`: `apps`) | ✅ | ✅ | ✅ Apple Developer Team ID | ✅ Bundle ID | ✅ | ✅ cdhash and executable SHA-256 | ✅ | ✅ | — |
+| Windows apps (`source`: `programs`) | ✅ | ✅ | ✅ | ✅ Upgrade code | ✅ | ❌ | ✅ | ✅ | Includes Microsoft Store (MSIX/Appx) apps on recent versions of Fleet's agent. |
 | Linux apps | ✅ | ✅ | ✅ rpm only | ❌ | ❌ | ❌ | ✅ deb and rpm | ✅ | Apps install as [packages](#packages) on Linux. |
-| Android apps | ✅ | ✅ | ❌ | ✅ Application ID | ❌ | ❌ | ❌ | ❌ | BYOD hosts report work profile apps only. Fully-managed hosts report all apps. |
-| iOS and iPadOS apps | ✅ | ✅ | ❌ | ✅ Bundle ID | ❌ | ❌ | ❌ | ❌ | BYOD hosts report only the apps Fleet installed. |
+| Android apps (`source`: `android_apps`) | ✅ | ✅ | ❌ | ✅ Application ID | ❌ | ❌ | ❌ | ❌ | BYOD hosts report work profile apps only. Fully-managed hosts report all apps. |
+| iOS and iPadOS apps (`source`: `ios_apps`, `ipados_apps`) | ✅ | ✅ | ❌ | ✅ Bundle ID | ❌ | ❌ | ❌ | ❌ | BYOD hosts report only the apps Fleet installed. |
 | ChromeOS: browser extensions | ✅ | ✅ | ❌ | ✅ Extension ID | ❌ | ❌ | ❌ | ✅ | Collected under [browser extensions](#browser-extensions). |
 | ChromeOS: progressive web apps (PWAs) and Isolated Web Apps (IWAs) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | No extension API returns installed web apps. |
 | ChromeOS: Android apps | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Android apps run in a container the browser can't see. Distinct from the Android apps row above, which covers Android hosts. |
@@ -100,13 +100,13 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 | Browser | Collected on | Name | Version | Publisher | Extension ID | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Chrome | macOS, Windows, Linux, ChromeOS | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ChromeOS reports no install path. |
-| Chromium, Brave, Edge, Edge Beta, Opera, and Yandex | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | — |
+| Chrome (`source`: `chrome_extensions`, `extension_for`: `chrome`) | macOS, Windows, Linux, ChromeOS | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ChromeOS reports no install path. |
+| Chromium, Brave, Edge, Edge Beta, Opera, and Yandex (`source`: `chrome_extensions`, `extension_for`: `chromium`, `brave`, `edge`, `edge_beta`, `opera`, `yandex`) | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | — |
 | Chrome Beta, Dev, and Canary, Brave Beta and Nightly, Edge Dev and Canary, and Vivaldi | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | The **Type** column shows the raw browser value, such as "Chrome Beta". |
 | Arc | macOS | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | Not collected on Windows. Shows the raw browser value. |
-| Firefox | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | On Linux, the snap profile is collected and the Flatpak profile isn't. |
-| Safari | macOS | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ When the NVD has a matching entry. | Fleet doesn't store the extension identifier yet. |
-| Internet Explorer | Windows | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ When the NVD has a matching entry. | Fleet doesn't store the extension identifier yet. |
+| Firefox (`source`: `firefox_addons`, `extension_for`: `firefox`) | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | On Linux, the snap profile is collected and the Flatpak profile isn't. |
+| Safari (`source`: `safari_extensions`) | macOS | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ When the NVD has a matching entry. | Fleet doesn't store the extension identifier yet. |
+| Internet Explorer (`source`: `ie_extensions`) | Windows | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ When the NVD has a matching entry. | Fleet doesn't store the extension identifier yet. |
 | Perplexity Comet and Dia | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Support ships in an upcoming version of Fleet's agent. |
 
 - Fleet doesn't hash browser extensions on any platform, and none of them report a last opened time.
@@ -116,14 +116,14 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 | Type | Collected on | Name | Version | Publisher | Install path | Last opened | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Homebrew | macOS | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | Formulae, plus casks that don't install a `.app` bundle. Those appear under Apps. Homebrew on Linux isn't collected. |
-| Chocolatey | Windows | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | — |
-| deb | Linux | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ Ubuntu. Debian covers the kernel only. | — |
-| rpm | Linux | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ RHEL, CentOS, Fedora, and Amazon Linux. | Also reports architecture and release. |
-| pacman | Linux | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ Matched against the NVD by version, which can produce false positives. | Needs Fleet's agent. Also reports architecture. |
-| Portage | Linux | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ When the NVD has a matching entry. | — |
-| Python | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | System and per-user site-packages, plus pipx, uv tools, conda, pipenv, pyenv, and mise. Project-level `.venv` directories aren't collected. |
-| npm | macOS, Linux | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | Global packages only, including nvm, fnm, asdf, mise, and Volta locations. Windows isn't queried yet. Project-level `node_modules` directories aren't collected. |
+| Homebrew (`source`: `homebrew_packages`) | macOS | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | Formulae, plus casks that don't install a `.app` bundle. Those appear under Apps. Homebrew on Linux isn't collected. |
+| Chocolatey (`source`: `chocolatey_packages`) | Windows | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | — |
+| deb (`source`: `deb_packages`) | Linux | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ Ubuntu. Debian covers the kernel only. | — |
+| rpm (`source`: `rpm_packages`) | Linux | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ RHEL, CentOS, Fedora, and Amazon Linux. | Also reports architecture and release. |
+| pacman (`source`: `pacman_packages`) | Linux | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ Matched against the NVD by version, which can produce false positives. | Needs Fleet's agent. Also reports architecture. |
+| Portage (`source`: `portage_packages`) | Linux | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ When the NVD has a matching entry. | — |
+| Python (`source`: `python_packages`) | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | System and per-user site-packages, plus pipx, uv tools, conda, pipenv, pyenv, and mise. Project-level `.venv` directories aren't collected. |
+| npm (`source`: `npm_packages`) | macOS, Linux | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | Global packages only, including nvm, fnm, asdf, mise, and Volta locations. Windows isn't queried yet. Project-level `node_modules` directories aren't collected. |
 | Scoop, winget portable packages, snap, Flatpak, AppImage, Nix, pnpm, Yarn, Bun, RubyGems, cargo, and Nim | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't read them. |
 | Atom | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Removed from inventory in December 2023 after the editor was sunset. |
 
@@ -133,8 +133,8 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 | Type | Collected on | Name | Version | Publisher | Extension ID | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| VS Code, VS Code Insiders, VSCodium, VSCodium Insiders, Cursor, Windsurf (Devin), and Trae | macOS, Windows, Linux | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Remote-server variants are collected too. Learn more in the [vscode_extensions](https://fleetdm.com/tables/vscode_extensions) reference. |
-| JetBrains: CLion, DataGrip, GoLand, IntelliJ IDEA (and Community Edition), PhpStorm, PyCharm (and Community Edition), ReSharper, Rider, RubyMine, RustRover, and WebStorm | macOS, Windows, Linux | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | Fleet reads 13 products installed under the `JetBrains` directory. Learn more in the [jetbrains_plugins](https://fleetdm.com/tables/jetbrains_plugins) reference. |
+| VS Code, VS Code Insiders, VSCodium, VSCodium Insiders, Cursor, Windsurf (Devin), and Trae (`source`: `vscode_extensions`, `extension_for`: `vscode`, `vscode_insiders`, `vscodium`, `vscodium_insiders`, `cursor`, `windsurf`, `trae`) | macOS, Windows, Linux | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Remote-server variants are collected too. Learn more in the [vscode_extensions](https://fleetdm.com/tables/vscode_extensions) reference. |
+| JetBrains: CLion, DataGrip, GoLand, IntelliJ IDEA (and Community Edition), PhpStorm, PyCharm (and Community Edition), ReSharper, Rider, RubyMine, RustRover, and WebStorm (`source`: `jetbrains_plugins`, `extension_for`: `CLion`, `DataGrip`, `GoLand`, `IntelliJIdea`, `IntelliJIdeaCommunityEdition`, `PhpStorm`, `PyCharm`, `PyCharmCommunityEdition`, `ReSharper`, `Rider`, `RubyMine`, `RustRover`, `WebStorm`) | macOS, Windows, Linux | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | Fleet reads 13 products installed under the `JetBrains` directory. Learn more in the [jetbrains_plugins](https://fleetdm.com/tables/jetbrains_plugins) reference. |
 | Google Antigravity, Kiro, and code-server | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | These use the VS Code extension format, but Fleet doesn't read their directories yet. |
 | JetBrains: Android Studio, DataSpell, Aqua, and Writerside | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Android Studio installs under a `Google` directory. The rest aren't in Fleet's list. |
 | Zed, Sublime Text, Neovim/Vim, and Emacs | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't read them. |
@@ -143,8 +143,8 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 | Type | Collected on | Name | Version | Publisher | Plugin ID | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Adobe CEP extensions for Photoshop, Illustrator, Premiere Pro, After Effects, InDesign, InCopy, Animate, Dreamweaver, Audition, Bridge, Lightroom, Lightroom Classic, XD, and Prelude | macOS, Windows | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ Adobe files CVEs against the host application, which Fleet detects under Apps. | Adobe ships no Linux applications. The **Type** column shows "Plugin (Adobe)" for every host application, because the host application is read from the manifest but not stored. |
-| Adobe UXP plugins for Photoshop, XD, InDesign, InCopy, and Premiere Pro | macOS, Windows | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | Fleet scans the shared `Adobe/UXP/extensions` directory. Plugins that Creative Cloud installs under `Adobe/UXP/PluginsStorage` haven't been verified. |
+| Adobe CEP extensions for Photoshop, Illustrator, Premiere Pro, After Effects, InDesign, InCopy, Animate, Dreamweaver, Audition, Bridge, Lightroom, Lightroom Classic, XD, and Prelude (`source`: `adobe_plugins`) | macOS, Windows | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ Adobe files CVEs against the host application, which Fleet detects under Apps. | Adobe ships no Linux applications. The **Type** column shows "Plugin (Adobe)" for every host application, because the host application is read from the manifest but not stored. |
+| Adobe UXP plugins for Photoshop, XD, InDesign, InCopy, and Premiere Pro (`source`: `adobe_plugins`) | macOS, Windows | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | Fleet scans the shared `Adobe/UXP/extensions` directory. Plugins that Creative Cloud installs under `Adobe/UXP/PluginsStorage` haven't been verified. |
 | Adobe native plug-ins for Photoshop, Premiere Pro, After Effects, and Illustrator | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Reported only by a deep-scan mode Fleet doesn't ingest. Native plug-ins have no manifest, so they have no version. |
 | Adobe native plug-ins for Acrobat, InDesign, Lightroom Classic, and Substance 3D, and MediaCore shared plug-ins | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't scan these locations. MediaCore is where third-party effects such as Boris FX, Red Giant, Sapphire, and Neat Video install. |
 | Xcode | macOS, as an app | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Collected under Apps, with everything a macOS app reports. Xcode source editor extensions ship inside apps that already appear under Apps, and Xcode has no separate plugin system. |
@@ -173,51 +173,9 @@ Fleet's agent includes an [ai_tools](https://github.com/fleetdm/fleet/blob/main/
 
 | Type | Collected on | Name | Version | Publisher | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Go binaries | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ When the NVD has a matching entry. | Collected from each user's `~/go/bin` directory. Needs Fleet's agent. Learn more in the [go_binaries](https://github.com/fleetdm/fleet/tree/main/orbit/pkg/table/go_binaries) reference. |
+| Go binaries (`source`: `go_binaries`) | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ When the NVD has a matching entry. | Collected from each user's `~/go/bin` directory. Needs Fleet's agent. Learn more in the [go_binaries](https://github.com/fleetdm/fleet/tree/main/orbit/pkg/table/go_binaries) reference. |
 | macOS widgets | macOS, as part of their app | ✅ | ✅ | ✅ | ✅ | ✅ | Collected under Apps. Widgets are WidgetKit extensions that ship inside apps that already appear there. |
 | Shortcuts and Android ringtones | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | No MDM API exposes them. |
-
-## API filter values
-
-Use these values with the `source` and `extension_for` filters on the [List software](https://fleetdm.com/docs/rest-api/rest-api#list-software), [List software versions](https://fleetdm.com/docs/rest-api/rest-api#list-software-versions), [Get host's software](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-software), and [Get host's software by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-software-by-fleet-desktop-token) endpoints.
-
-| `source` | Software |
-| --- | --- |
-| `adobe_plugins` | Adobe plugins |
-| `android_apps` | Android apps |
-| `apps` | macOS apps |
-| `chocolatey_packages` | Chocolatey packages |
-| `chrome_extensions` | Chromium-based browser extensions |
-| `deb_packages` | Debian packages |
-| `firefox_addons` | Firefox add-ons |
-| `go_binaries` | Go binaries |
-| `homebrew_packages` | Homebrew packages |
-| `ie_extensions` | Internet Explorer extensions |
-| `ios_apps` | iOS apps |
-| `ipados_apps` | iPadOS apps |
-| `jetbrains_plugins` | JetBrains IDE plugins |
-| `npm_packages` | npm packages |
-| `pacman_packages` | pacman packages |
-| `pkg_packages` | macOS packages (`.pkg`) |
-| `portage_packages` | Portage packages |
-| `programs` | Windows apps |
-| `ps1_packages` | Script-only packages (Windows) |
-| `py_packages` | Script-only packages (macOS and Linux) |
-| `python_packages` | Python packages |
-| `rpm_packages` | RPM packages |
-| `safari_extensions` | Safari extensions |
-| `sh_packages` | Script-only packages (macOS and Linux) |
-| `tgz_packages` | tar packages |
-| `vscode_extensions` | VS Code-based IDE extensions |
-
-`extension_for` narrows a browser or IDE extension source to specific browsers or IDEs:
-
-| `source` | `extension_for` |
-| --- | --- |
-| `chrome_extensions` | `chrome`, `chromium`, `brave`, `edge`, `edge_beta`, `opera`, `yandex` |
-| `firefox_addons` | `firefox` |
-| `vscode_extensions` | `vscode`, `vscode_insiders`, `vscodium`, `vscodium_insiders`, `cursor`, `windsurf`, `trae` |
-| `jetbrains_plugins` | `CLion`, `DataGrip`, `GoLand`, `IntelliJIdea`, `IntelliJIdeaCommunityEdition`, `PhpStorm`, `PyCharm`, `PyCharmCommunityEdition`, `ReSharper`, `Rider`, `RubyMine`, `RustRover`, `WebStorm` |
 
 ## Data collected
 
