@@ -10,7 +10,7 @@
 #   -h  show this help
 #
 # Compares releases oldest first, then origin/main, then HEAD with -b. Releases are fleet-vX.Y.Z tags, or origin/rc-minor-fleet-vX.Y.Z /
-# origin/rc-patch-fleet-vX.Y.Z branches for versions not tagged yet, labeled with their version. origin/main is labeled main.
+# origin/rc-patch-fleet-vX.Y.Z branches for versions not tagged yet, labeled with their version. origin/main is labeled main, and HEAD is labeled with base_ref as "HEAD (target main)".
 # Rows added or renamed in HEAD are marked with <-- NEW, and other rows whose label differs from the last row not marked NEW with <--
 
 set -euo pipefail
@@ -93,9 +93,13 @@ fi
 echo "version id | earliest release tag or branch that includes this migration"
 # Pair each listed number with the first release that has it, or a blank label if no compared ref has it, then keep the last count rows
 awk 'FILENAME == ARGV[1] { if (!($1 in first)) first[$1] = $2; next } { print $1 " " (($1 in first) ? first[$1] : "") }' "$work_dir/numbers_with_version" "$work_dir/listed_numbers" \
-  | sort -k1,1 | tail -n "$count" | awk '
+  | sort -k1,1 | tail -n "$count" | awk -v target="${base_ref#origin/}" '
   FILENAME == ARGV[1] { new[$1] = 1; next }
-  { rows++; number[rows] = $1; label[rows] = $2; if (length($2) > width) width = length($2) }
+  {
+    # Show the branch HEAD merges into after HEAD, such as "HEAD (target main)"
+    shown = ($2 == "HEAD" && target != "") ? "HEAD (target " target ")" : $2
+    rows++; number[rows] = $1; label[rows] = shown; if (length(shown) > width) width = length(shown)
+  }
   END {
     # Pad labels to the longest one, mark rows in new_numbers with <-- NEW, and other rows whose label differs from the last row not in new_numbers with <--
     previous = ""
