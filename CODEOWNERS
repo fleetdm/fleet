@@ -72,6 +72,7 @@ go.mod @fleetdm/go
 /orbit/pkg/zenity/             @fleetdm/go
 /orbit/pkg/go-paniclog/        @fleetdm/go
 /orbit/pkg/lvm/                @fleetdm/go
+/orbit/tools/                  @fleetdm/go
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.
