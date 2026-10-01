@@ -201,6 +201,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Amazon Chime":                 "IN ('amazon chime.exe','chime.exe')",
 	"Android Studio":               "= 'studio64.exe'",
 	"Beyond Compare":               "= 'bcompare.exe'",
+	"Citrix Workspace":             "IN ('wfica32.exe','cdviewer.exe','citrix.desktopviewer.app.exe')",
 	"CLion":                        "IN ('clion.exe','clion64.exe')",
 	"DataGrip":                     "IN ('datagrip.exe','datagrip64.exe')",
 	"DataSpell":                    "IN ('dataspell.exe','dataspell64.exe')",

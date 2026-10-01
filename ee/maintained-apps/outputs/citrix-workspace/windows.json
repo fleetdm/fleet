@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name GLOB 'Citrix Workspace [0-9][0-9][0-9][0-9]*' AND publisher = 'Citrix Systems, Inc.' AND NOT EXISTS (SELECT 1 FROM registry WHERE key IN ('HKEY_LOCAL_MACHINE\\SOFTWARE\\Citrix\\ICA Client\\AutoUpdate\\Commandline Policy', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Citrix\\ICA Client\\AutoUpdate\\Commandline Policy') AND name = 'LTSROnly' AND data = 'true');",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name GLOB 'Citrix Workspace [0-9][0-9][0-9][0-9]*' AND publisher = 'Citrix Systems, Inc.' AND NOT EXISTS (SELECT 1 FROM registry WHERE key IN ('HKEY_LOCAL_MACHINE\\SOFTWARE\\Citrix\\ICA Client\\AutoUpdate\\Commandline Policy', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Citrix\\ICA Client\\AutoUpdate\\Commandline Policy') AND name = 'LTSROnly' AND data = 'true') AND version_compare(version, '26.3.11.10') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'citrix workspace.exe');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('wfica32.exe','cdviewer.exe','citrix.desktopviewer.app.exe'));"
       },
       "installer_url": "https://downloadplugins.citrix.com/ReceiverUpdates/Prod/Receiver/Win/CitrixWorkspaceApp_x64_26.3.11.10.exe",
       "install_script_ref": "4925eff7",
