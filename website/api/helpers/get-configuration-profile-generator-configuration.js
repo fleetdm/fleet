@@ -462,6 +462,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
         ],
         rules: [
           'A configuration profile sets preferences and restrictions. It cannot start, stop, load, or unload a system service or daemon, run a command, change a file or its permissions, or change a local account\'s state. If the only way to satisfy the request is one of those, return `couldNotGenerateProfile` and name the mechanism that does it (a script, launchctl, systemsetup).',
+          'A key that stops users changing a setting (an allow*Modification key) leaves the setting in whatever state it is already in.  When the request is to turn that setting on or off and the lock is the only documented key for it, generate the lock and say in "deliveryNotes" that it does not change the current state, naming what does (a script, launchctl, systemsetup).  Hiding a whole System Settings pane with DisabledSystemSettings is not a lock on one setting, so never use it to stand in for one.',
           // Third-party payloads.
           'If this is an attempt to change a third-party application\'s settings, use that application\'s preference domain -- com.google.Chrome, us.zoom.config and its keys must come from the ProfileManifests reference.',
           // Document shape.
@@ -484,7 +485,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           // Identifiers.
           'Take every PayloadUUID from the list of UUIDs provided with the instructions, in the order given, and never invent one.  Two dicts sharing a UUID is a profile that installs unpredictably, so use each one exactly once.',
           'PayloadIdentifier is reverse-DNS.  Each payload dict\'s identifier is the root identifier plus a distinguishing suffix, and no two identifiers in the profile are the same.',
-          'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile does.',
+          'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile actually enforces, which is not always what was asked for: a profile that only sets allowBluetoothModification is "Bluetooth Settings Locked", not "Disable Bluetooth".  PayloadDescription follows the same rule.',
           // Structure.
           'Put every key for one payload domain in a single dict inside PayloadContent.  Do not emit several dicts with the same PayloadType.',
 
