@@ -100,25 +100,37 @@ export const editorModeForContentType = (
   }
 };
 
-/** Detects the profile type from pasted text. JSON is a declaration when it
- * carries an Apple `Type`, otherwise Android; XML is a mobileconfig when it is
- * a plist, otherwise Windows SyncML. Returns null for anything else. */
+const startsUpper = (key: string) =>
+  key.charAt(0) !== key.charAt(0).toLowerCase();
+const startsLower = (key: string) =>
+  key.charAt(0) !== key.charAt(0).toUpperCase();
+
+/** Detects the profile type from pasted text. JSON is a declaration when its
+ * top-level keys start uppercase, Android when they start lowercase; XML is a
+ * mobileconfig when it is a plist, otherwise Windows SyncML. Returns null for
+ * anything else. */
 export const detectProfileContentType = (
   text: string
 ): ProfileContentType | null => {
   const trimmed = text.trim();
   if (trimmed.startsWith("{")) {
-    // same rule as the server: a top-level Apple Type is a declaration, any
-    // other object is an Android profile
     try {
       const parsed = JSON.parse(trimmed);
       if (parsed === null || typeof parsed !== "object") {
         return null;
       }
-      return typeof parsed.Type === "string" &&
-        parsed.Type.startsWith("com.apple.")
-        ? "declaration"
-        : "android";
+      // the server's rule: top-level key casing decides the type
+      const keys = Object.keys(parsed);
+      const upper = keys.some(startsUpper);
+      const lower = keys.some(startsLower);
+      if (upper && !lower) {
+        return "declaration";
+      }
+      if (lower && !upper) {
+        return "android";
+      }
+      // the server rejects mixed keys either way; guess so its error shows
+      return "Type" in parsed ? "declaration" : "android";
     } catch {
       // the server reads unparseable JSON with a secret as a declaration
       return trimmed.includes(SERVER_SECRET_PREFIX) ? "declaration" : null;

@@ -228,11 +228,23 @@ describe("detectProfileContentType", () => {
     ).toBe("declaration");
     // a lone placeholder says nothing about the type
     expect(detectProfileContentType("$FLEET_SECRET_PROFILE")).toBeNull();
-    // only a top-level Apple Type makes a declaration
+    // top-level key casing decides, as on the server; nested keys don't count
     expect(
       detectProfileContentType(
         '{"applications": [{"Type": "com.apple.not.top.level"}]}'
       )
+    ).toBe("android");
+    // uppercase keys without a Type still read as a declaration, so the
+    // server can report the missing Type
+    expect(detectProfileContentType('{"Identifier": "x", "Payload": {}}')).toBe(
+      "declaration"
+    );
+    // mixed casing is rejected by the server; a Type points at a declaration
+    expect(
+      detectProfileContentType('{"Type": "com.apple.x", "payload": {}}')
+    ).toBe("declaration");
+    expect(
+      detectProfileContentType('{"Name": "x", "cameraDisabled": true}')
     ).toBe("android");
     expect(detectProfileContentType("{not json")).toBeNull();
     expect(detectProfileContentType("[]")).toBeNull();

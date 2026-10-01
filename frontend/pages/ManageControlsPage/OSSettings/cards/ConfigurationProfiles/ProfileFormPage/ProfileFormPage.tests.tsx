@@ -495,6 +495,24 @@ describe("ProfileFormPage", () => {
     );
   });
 
+  it("gates JSON with uppercase keys on Apple MDM, as the server types it", () => {
+    renderPage(
+      undefined,
+      makeRenderer({}, false, {
+        ...mdmConfig,
+        enabled_and_configured: true,
+        windows_enabled_and_configured: false,
+        android_enabled_and_configured: false,
+      })
+    );
+
+    // missing Type, which the server reports for a declaration
+    setContents('{"Identifier": "x", "Payload": {}}');
+
+    expect(screen.getByText("Declaration (DDM)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add profile" })).toBeEnabled();
+  });
+
   it("sends SyncML behind an XML declaration as Windows", async () => {
     const { user } = renderPage(
       undefined,
@@ -760,6 +778,21 @@ describe("ProfileFormPage", () => {
       "readonly"
     );
     expect(screen.getByRole("button", { name: /Add profile/ })).toBeDisabled();
+  });
+
+  it("keeps the leave-page prompt while saving", async () => {
+    jest
+      .mocked(mdmAPI.uploadProfile)
+      .mockReturnValue(new Promise(() => undefined));
+    const { user } = renderPage();
+
+    setContents(WINDOWS_XML);
+    await user.click(screen.getByRole("button", { name: "Add profile" }));
+    await waitFor(() => expect(screen.getByLabelText("Name")).toBeDisabled());
+
+    const leave = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(leave);
+    expect(leave.defaultPrevented).toBe(true);
   });
 
   it("falls back to the plain default when the name lookup fails", async () => {

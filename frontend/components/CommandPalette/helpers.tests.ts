@@ -427,6 +427,19 @@ describe("CommandPalette helpers", () => {
       );
     });
 
+    it("gives Add profile single-word keywords that don't repeat the label", () => {
+      const keywords =
+        buildPaletteItems(BASE_CONTEXT).find((i) => i.id === "add-profile")
+          ?.keywords ?? [];
+      expect(keywords).toEqual(
+        expect.arrayContaining(["create", "new", "csp", "windows"])
+      );
+      keywords.forEach((keyword) => {
+        expect(keyword).not.toMatch(/\s/);
+        expect(["add", "profile"]).not.toContain(keyword);
+      });
+    });
+
     it("shows which fleet Add profile lands on from All fleets", () => {
       const availableTeams = [
         { id: -1, name: "All fleets" },

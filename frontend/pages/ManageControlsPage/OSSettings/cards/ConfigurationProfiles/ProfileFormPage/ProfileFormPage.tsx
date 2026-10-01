@@ -241,7 +241,7 @@ const ProfileForm = ({
     JSON.stringify(labelKey) !== JSON.stringify(initialLabelKey);
   const hasChanges =
     nameChanged || descriptionChanged || contentsChanged || targetChanged;
-  useBlockNavigation(hasChanges && !isSubmitting);
+  useBlockNavigation(hasChanges || isSubmitting);
 
   const onFileSelected = async (files: FileList | null) => {
     if (!files || files.length === 0) {
