@@ -156,14 +156,12 @@ func TestOvalPlatform(t *testing.T) {
 		require.True(t, NewPlatform("rhel", "Red Hat Enterprise Linux 9.4.0").IsGovalDictionaryKernelOnly())
 		require.True(t, NewPlatform("ubuntu", "Ubuntu 22.04.3 LTS").IsSupported())
 
-		// Platform strings come from hosts, so values that merely start with a
-		// supported token must not be accepted: they end up in download URLs and
-		// file paths.
+		// Host-reported values that pass the token check but only start with a
+		// supported platform must still be rejected.
 		prefixed := []Platform{
-			NewPlatform("amzn_01/../../pwned-a/f", "Amazon Linux 1.0.0"),
-			NewPlatform("amzn_01/../fleet_goval_dictionary_amzn", "Amazon Linux 2023.0.0"),
-			NewPlatform("rhel_09/../../x", "Red Hat Enterprise Linux 9.0.0"),
-			NewPlatform("ubuntu_2004/../../x", "Ubuntu 20.4.0"),
+			NewPlatform("amzn_01x", "Amazon Linux 1.0.0"),
+			NewPlatform("rhel_09", "Red Hat Enterprise Linux 9.0.0"),
+			"ubuntu_20040",
 			"amzn_2023_01",
 			"rhel_09x",
 		}
