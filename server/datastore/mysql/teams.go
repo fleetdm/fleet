@@ -200,7 +200,6 @@ var teamRefs = []string{
 	"software_title_icons",
 	"software_title_display_names",
 	"software_title_team_pins",
-	"vpp_app_configurations",
 	"software_categories",
 }
 

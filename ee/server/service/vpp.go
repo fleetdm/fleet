@@ -574,6 +574,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	// Apply auto-update config for iOS/iPadOS VPP apps
 	// First, get existing auto-update schedules to know which apps already have configs
+	// TODO(JK): apply each version's auto-update settings to its own instance, this applies them per title
 	existingIosAppSchedules, err := svc.ds.ListSoftwareAutoUpdateSchedules(ctx, tmID, "ios_apps")
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "listing existing auto-update schedules for ios apps")

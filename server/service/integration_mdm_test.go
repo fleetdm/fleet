@@ -1070,11 +1070,6 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		return err
 	})
 
-	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "DELETE FROM android_app_configurations;")
-		return err
-	})
-
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM nano_enrollment_queue")
 		return err

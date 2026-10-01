@@ -3460,8 +3460,8 @@ type Datastore interface {
 	GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*SoftwareInstallerStatusSummary, error)
 
 	// GetSummaryHostVPPAppInstalls returns the VPP app install summary for the
-	// given team and VPP app adam_id.
-	GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID VPPAppID) (*VPPAppStatusSummary, error)
+	// given vpp_apps_teams row.
+	GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*VPPAppStatusSummary, error)
 
 	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
 
@@ -3533,7 +3533,7 @@ type Datastore interface {
 	GetVPPApps(ctx context.Context, teamID *uint) ([]VPPAppResponse, error)
 	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) (bool, error)
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
-	GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]string, error)
+	GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]VPPAppTeam, error)
 
 	// GetAllVPPApps returns all the VPP apps in Fleet, across all teams.
 	GetAllVPPApps(ctx context.Context) ([]*VPPApp, error)

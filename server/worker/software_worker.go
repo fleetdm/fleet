@@ -424,9 +424,13 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	// the enrollment team's setup experience software, do we still run those installs?
 	// my guess is yes (because we don't _uninstall_ on team transfers, so it should be
 	// expected that the original team's software gets installed despite being transferred).
-	appIDs, err := v.Datastore.GetVPPAppsToInstallDuringSetupExperience(ctx, &hostEnrollTeamID, string(fleet.AndroidPlatform))
+	setupApps, err := v.Datastore.GetVPPAppsToInstallDuringSetupExperience(ctx, &hostEnrollTeamID, string(fleet.AndroidPlatform))
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting vpp apps to install during setup experience for team %d", hostEnrollTeamID)
+	}
+	appIDs := make([]string, 0, len(setupApps))
+	for _, app := range setupApps {
+		appIDs = append(appIDs, app.AdamID)
 	}
 
 	if len(appIDs) > 0 {
@@ -460,7 +464,7 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 		for _, req := range hostToPolicyRequest {
 			policyRequest = req
 		}
-		for _, appID := range appIDs {
+		for _, app := range setupApps {
 			// NOTE: there is a unique index on the command uuid, so we cannot use the
 			// Android request's UUID for this, as we currently add many apps in the same request
 			// per host. For the moment, this is fine as we don't store any response of the request
@@ -472,9 +476,10 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 			// So in the meantime we use a random uuid in this place.
 			err := v.Datastore.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
 				HostID:            host.Host.ID,
-				AdamID:            appID,
+				AdamID:            app.AdamID,
 				CommandUUID:       uuid.NewString(),
 				AssociatedEventID: fmt.Sprint(policyRequest.PolicyVersion.V),
+				VPPAppTeamID:      app.AppTeamID,
 			})
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting android setup experience install request")

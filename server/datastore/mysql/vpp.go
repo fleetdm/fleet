@@ -42,7 +42,11 @@ FROM
 	vpp_apps vap
 	INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
 WHERE
-	vap.title_id = ? %s`
+	vap.title_id = ? %s
+ORDER BY vat.id
+LIMIT 1`
+
+	tmID := ptr.ValOrZero(teamID)
 
 	// when team id is not nil, we need to filter by the global or team id given.
 	args := []any{titleID}
@@ -98,11 +102,6 @@ WHERE
 	}
 	app.Categories = categories
 
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
-
 	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get display name for app store app")
@@ -110,23 +109,15 @@ WHERE
 
 	app.DisplayName = displayName
 
-	switch app.Platform {
-	case fleet.AndroidPlatform:
-		config, err := ds.GetAndroidAppConfiguration(ctx, app.AdamID, tmID) // tmID can be used as globalOrTeamID
-		if err != nil && !fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, err, "get android configuration for app store app")
-		}
-		if config != nil {
-			app.Configuration = config
-		}
-	case fleet.IOSPlatform, fleet.IPadOSPlatform:
-		config, err := ds.GetVPPAppConfiguration(ctx, app.Platform, app.AdamID, tmID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, err, "get vpp configuration for app store app")
-		}
-		if config != nil {
-			app.Configuration = config
-		}
+	// Select configuration separately because we can't scan NULL into json.RawMessage
+	var configuration []byte
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &configuration,
+		`SELECT configuration FROM vpp_apps_teams WHERE id = ? AND global_or_team_id = ?`, app.VPPAppsTeamsID, tmID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, err, "get configuration for app store app")
+	}
+	if configuration != nil {
+		app.Configuration = configuration
 	}
 
 	if teamID != nil {
@@ -190,7 +181,7 @@ WHERE
 	return labels, nil
 }
 
-func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID fleet.VPPAppID) (*fleet.VPPAppStatusSummary,
+func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary,
 	error,
 ) {
 	var dest fleet.VPPAppStatusSummary
@@ -211,12 +202,9 @@ upcoming AS (
 		FROM
 			upcoming_activities ua
 			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-			JOIN hosts h ON ua.host_id = h.id
 		WHERE
 			ua.activity_type = 'vpp_app_install'
-			AND vaua.adam_id = :adam_id
-			AND vaua.platform = :platform
-			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+			AND vaua.vpp_app_team_id = :vpp_app_team_id
 	) ranked
 	WHERE rn = 1
 ),
@@ -245,6 +233,7 @@ past AS (
 			hvsi.command_uuid,
 			hvsi.verification_at,
 			hvsi.verification_failed_at,
+			hvsi.platform,
 			h.uuid AS host_uuid,
 			ROW_NUMBER() OVER (
 				PARTITION BY hvsi.host_id
@@ -254,9 +243,7 @@ past AS (
 			host_vpp_software_installs hvsi
 			JOIN hosts h ON hvsi.host_id = h.id
 		WHERE
-			hvsi.adam_id = :adam_id
-			AND hvsi.platform = :platform
-			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+			hvsi.vpp_app_team_id = :vpp_app_team_id
 			AND hvsi.removed = 0
 			AND hvsi.canceled = 0
 	) ranked
@@ -273,7 +260,7 @@ past AS (
 		-- branches. This check runs after ranking, so a host whose most recent
 		-- row lacks a command result is dropped rather than falling back to an
 		-- older row.
-		AND (ncr.id IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
+		AND (ncr.id IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (ranked.platform = 'android' AND ncr.id IS NULL))
 		AND ranked.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 )
 
@@ -296,15 +283,8 @@ SELECT
 FROM upcoming
 ) t`
 
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
-
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"adam_id":                   appID.AdamID,
-		"platform":                  appID.Platform,
-		"team_id":                   tmID,
+		"vpp_app_team_id":           vppAppTeamID,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
@@ -567,20 +547,19 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			switch toAdd.Platform {
 			case fleet.AndroidPlatform:
 				if toAdd.Configuration != nil {
-					if err := ds.updateAndroidAppConfigurationTx(ctx, tx, ptr.ValOrZero(teamID), toAdd.AdamID, toAdd.Configuration); err != nil {
+					if err := ds.updateAndroidAppConfigurationTx(ctx, tx, vppAppTeamID, toAdd.Configuration); err != nil {
 						return ctxerr.Wrap(ctx, err, "setting configuration for android app")
 					}
 				}
 			case fleet.IOSPlatform, fleet.IPadOSPlatform:
 				if len(toAdd.Configuration) > 0 {
-					if err := ds.updateVPPAppConfigurationTx(ctx, tx, toAdd.Platform, ptr.ValOrZero(teamID), toAdd.AdamID, toAdd.Configuration); err != nil {
+					if err := ds.updateVPPAppConfigurationTx(ctx, tx, vppAppTeamID, toAdd.Configuration); err != nil {
 						return ctxerr.Wrap(ctx, err, "setting configuration for vpp app")
 					}
 				} else {
 					// Empty incoming = delete intent. Removing the configuration from
 					// the YAML / API payload clears the stored config.
-					_, err := tx.ExecContext(ctx, `DELETE FROM vpp_app_configurations WHERE application_id = ? AND team_id = ? AND platform = ?`,
-						toAdd.AdamID, ptr.ValOrZero(teamID), toAdd.Platform)
+					_, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = NULL WHERE id = ?`, vppAppTeamID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "clearing configuration for vpp app")
 					}
@@ -735,7 +714,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		if app.Configuration != nil {
 			switch app.Platform {
 			case fleet.AndroidPlatform:
-				if err := ds.updateAndroidAppConfigurationTx(ctx, tx, ptr.ValOrZero(teamID), app.AdamID, app.Configuration); err != nil {
+				if err := ds.updateAndroidAppConfigurationTx(ctx, tx, vppAppTeamID, app.Configuration); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting configuration for android app")
 				}
 			case fleet.IOSPlatform, fleet.IPadOSPlatform:
@@ -743,12 +722,11 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 				// bytes upsert. Mirrors the batch path above so single-app and batch
 				// flows behave the same way.
 				if len(app.Configuration) > 0 {
-					if err := ds.updateVPPAppConfigurationTx(ctx, tx, app.Platform, ptr.ValOrZero(teamID), app.AdamID, app.Configuration); err != nil {
+					if err := ds.updateVPPAppConfigurationTx(ctx, tx, vppAppTeamID, app.Configuration); err != nil {
 						return ctxerr.Wrap(ctx, err, "setting configuration for vpp app")
 					}
 				} else {
-					if _, err := tx.ExecContext(ctx, `DELETE FROM vpp_app_configurations WHERE application_id = ? AND team_id = ? AND platform = ?`,
-						app.AdamID, ptr.ValOrZero(teamID), app.Platform); err != nil {
+					if _, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = NULL WHERE id = ?`, vppAppTeamID); err != nil {
 						return ctxerr.Wrap(ctx, err, "clearing configuration for vpp app")
 					}
 				}
@@ -854,9 +832,9 @@ ON DUPLICATE KEY UPDATE
 func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID *uint) (uint, error) {
 	stmt := `
 INSERT INTO vpp_apps_teams
-	(adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id, install_during_setup)
+	(adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id, install_during_setup, name)
 VALUES
-	(?, ?, ?, ?, ?, ?, COALESCE(?, false))
+	(?, ?, ?, ?, ?, ?, COALESCE(?, false), 'Default version')
 ON DUPLICATE KEY UPDATE
 	self_service = VALUES(self_service),
 	install_during_setup = COALESCE(?, install_during_setup)
@@ -887,7 +865,7 @@ ON DUPLICATE KEY UPDATE
 	if insertOnDuplicateDidInsertOrUpdate(res) {
 		id, _ = res.LastInsertId()
 	} else {
-		stmt := `SELECT id FROM vpp_apps_teams WHERE adam_id = ? AND platform = ? AND global_or_team_id = ?`
+		stmt := `SELECT id FROM vpp_apps_teams WHERE adam_id = ? AND platform = ? AND global_or_team_id = ? AND name = 'Default version'`
 		if err := sqlx.GetContext(ctx, tx, &id, stmt, appID.AdamID, appID.Platform, globalOrTmID); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "vpp app teams id")
 		}
@@ -909,16 +887,6 @@ func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPA
 	_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = ?`, appID.AdamID, tmID, appID.Platform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting vpp app from team")
-	}
-
-	_, err = tx.ExecContext(ctx, `DELETE FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`, appID.AdamID, tmID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting android app configuration")
-	}
-
-	_, err = tx.ExecContext(ctx, `DELETE FROM vpp_app_configurations WHERE application_id = ? AND team_id = ? AND platform = ?`, appID.AdamID, tmID, appID.Platform)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting vpp app configuration")
 	}
 
 	return nil
@@ -995,6 +963,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 
 func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appID fleet.VPPAppID) error {
 	// allow delete only if install_during_setup is false
+	// TODO(JK): delete a single instance, with several instances of the app in the fleet this deletes the ones not installed during setup and reports success
 	const stmt = `DELETE FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ? AND platform = ? AND install_during_setup = 0`
 
 	var globalOrTeamID uint
@@ -1026,7 +995,7 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 		// setup, do additional check.
 		var installDuringSetup bool
 		if err := sqlx.GetContext(ctx, tx, &installDuringSetup,
-			`SELECT install_during_setup FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ? AND platform = ?`, globalOrTeamID, appID.AdamID, appID.Platform); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			`SELECT install_during_setup FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ? AND platform = ? ORDER BY id LIMIT 1`, globalOrTeamID, appID.AdamID, appID.Platform); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return ctxerr.Wrap(ctx, err, "check if vpp app is installed during setup")
 		}
 		if installDuringSetup {
@@ -1040,19 +1009,6 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 		software_title_id IN (SELECT title_id FROM vpp_apps WHERE adam_id = ?)`, globalOrTeamID, appID.AdamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete software title display name")
-	}
-
-	switch appID.Platform {
-	case fleet.AndroidPlatform:
-		err := ds.DeleteAndroidAppConfiguration(ctx, appID.AdamID, globalOrTeamID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "deleting android app configuration")
-		}
-	case fleet.IOSPlatform, fleet.IPadOSPlatform:
-		err := ds.DeleteVPPAppConfiguration(ctx, appID.Platform, appID.AdamID, globalOrTeamID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "deleting vpp app configuration")
-		}
 	}
 
 	return nil
@@ -1097,6 +1053,8 @@ func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context
 	FROM vpp_apps va
 	JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform AND vat.global_or_team_id = ?
 	WHERE va.adam_id = ? AND va.platform = ?
+	ORDER BY vat.id
+	LIMIT 1
   `
 
 	// when team id is not nil, we need to filter by the global or team id given.
@@ -1134,6 +1092,8 @@ SELECT
 FROM vpp_apps va
 JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 WHERE vat.global_or_team_id = ? AND va.title_id = ?
+ORDER BY vat.id
+LIMIT 1
   `
 
 	var tmID uint
@@ -1172,9 +1132,9 @@ VALUES
 
 		insertVAUAStmt = `
 INSERT INTO vpp_app_upcoming_activities
-	(upcoming_activity_id, adam_id, platform, policy_id)
+	(upcoming_activity_id, adam_id, platform, policy_id, vpp_app_team_id)
 VALUES
-	(?, ?, ?, ?)`
+	(?, ?, ?, ?, ?)`
 
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
 	)
@@ -1217,6 +1177,7 @@ VALUES
 			appID.AdamID,
 			appID.Platform,
 			opts.PolicyID,
+			ptr.UintOrNilIfZero(opts.VPPAppTeamID),
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert vpp install request join table")
@@ -1485,9 +1446,9 @@ func (ds *Datastore) RecordFailedVPPAppInstall(ctx context.Context, hostID uint,
 
 	const insStmt = `
 INSERT INTO host_vpp_software_installs
-	(host_id, adam_id, platform, command_uuid, user_id, self_service, policy_id, verification_failed_at)
+	(host_id, adam_id, platform, command_uuid, user_id, self_service, policy_id, verification_failed_at, vpp_app_team_id)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6))`
+	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6), ?)`
 
 	var (
 		user *fleet.User
@@ -1496,6 +1457,7 @@ VALUES
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx, insStmt,
 			hostID, appID.AdamID, appID.Platform, commandUUID, userID, opts.SelfService, opts.PolicyID,
+			ptr.UintOrNilIfZero(opts.VPPAppTeamID),
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert failed vpp install")
 		}
@@ -2962,10 +2924,12 @@ FROM (
 	return applicationIDs, err
 }
 
-func (ds *Datastore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]string, error) {
+func (ds *Datastore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error) {
 	stmt := `
 SELECT
-	adam_id
+	id,
+	adam_id,
+	platform
 FROM
 	vpp_apps_teams vat
 WHERE
@@ -2978,11 +2942,11 @@ WHERE
 		tmID = *teamID
 	}
 
-	var ids []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, tmID, platform); err != nil {
+	var apps []fleet.VPPAppTeam
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, stmt, tmID, platform); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get VPP apps to install during setup experience")
 	}
-	return ids, nil
+	return apps, nil
 }
 
 type appStoreAppChanges struct {
@@ -3372,17 +3336,19 @@ SELECT EXISTS(
 func (ds *Datastore) HasVPPAppConfigurationChanged(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error) {
 	const stmt = `
 SELECT
-	BINARY COALESCE(?, '') != configuration AS has_changed
+	COALESCE(BINARY COALESCE(?, '') != configuration, ?) AS has_changed
 FROM
-	vpp_app_configurations
+	vpp_apps_teams
 WHERE
-	application_id = ? AND
-	team_id = ? AND
+	adam_id = ? AND
+	global_or_team_id = ? AND
 	platform = ?
+ORDER BY id
+LIMIT 1
 `
 
 	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, adamID, teamID, platform)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, len(newConfig) > 0, adamID, teamID, platform)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return len(newConfig) > 0, nil
@@ -3393,7 +3359,8 @@ WHERE
 }
 
 func (ds *Datastore) GetVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error) {
-	const stmt = `SELECT configuration FROM vpp_app_configurations WHERE application_id = ? AND team_id = ? AND platform = ?`
+	// TODO(JK): read the configuration of the instance being installed, this reads the first-added instance
+	const stmt = `SELECT configuration FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = ? ORDER BY id LIMIT 1`
 
 	var config []byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, adamID, teamID, platform)
@@ -3402,6 +3369,9 @@ func (ds *Datastore) GetVPPAppConfiguration(ctx context.Context, platform fleet.
 			return nil, ctxerr.Wrap(ctx, notFound("VPPAppConfiguration"))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get vpp app configuration")
+	}
+	if config == nil {
+		return nil, ctxerr.Wrap(ctx, notFound("VPPAppConfiguration"))
 	}
 
 	return config, nil
@@ -3416,16 +3386,17 @@ func (ds *Datastore) BulkGetVPPAppConfigurationsTx(ctx context.Context, tx sqlx.
 }
 
 func (ds *Datastore) bulkGetVPPAppConfigurations(ctx context.Context, q sqlx.QueryerContext, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
+	// TODO(JK): key the configurations by instance, with several instances of an app in the fleet the map keeps the last one read
 	if len(adamIDs) == 0 {
 		return nil, nil
 	}
 
 	const bulkGetStmt = `
 SELECT
-	application_id,
+	adam_id AS application_id,
 	configuration
-FROM vpp_app_configurations
-WHERE application_id IN (?) AND team_id = ? AND platform = ?
+FROM vpp_apps_teams
+WHERE adam_id IN (?) AND global_or_team_id = ? AND platform = ? AND configuration IS NOT NULL
 `
 
 	stmt, args, err := sqlx.In(bulkGetStmt, adamIDs, teamID, platform)
@@ -3450,7 +3421,7 @@ WHERE application_id IN (?) AND team_id = ? AND platform = ?
 }
 
 func (ds *Datastore) DeleteVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) error {
-	const stmt = `DELETE FROM vpp_app_configurations WHERE application_id = ? AND team_id = ? AND platform = ?`
+	const stmt = `UPDATE vpp_apps_teams SET configuration = NULL WHERE adam_id = ? AND global_or_team_id = ? AND platform = ? AND configuration IS NOT NULL`
 
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, adamID, teamID, platform)
 	if err != nil {
@@ -3469,20 +3440,12 @@ func (ds *Datastore) DeleteVPPAppConfiguration(ctx context.Context, platform fle
 	return nil
 }
 
-func (ds *Datastore) updateVPPAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, platform fleet.InstallableDevicePlatform, teamID uint, adamID string, config []byte) error {
+func (ds *Datastore) updateVPPAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint, config []byte) error {
 	if err := fleet.ValidateAppleAppConfiguration(config); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating vpp app configuration")
 	}
 
-	const stmt = `
-INSERT INTO
-	vpp_app_configurations (application_id, team_id, platform, configuration)
-VALUES (?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE
-	configuration = VALUES(configuration)
-`
-
-	_, err := tx.ExecContext(ctx, stmt, adamID, teamID, platform, config)
+	_, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = ? WHERE id = ?`, config, vppAppTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updateVPPAppConfiguration")
 	}

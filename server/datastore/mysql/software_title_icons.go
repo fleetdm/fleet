@@ -167,9 +167,10 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 		LEFT JOIN in_house_apps ON in_house_apps.title_id = software_titles.id
 			AND in_house_apps.global_or_team_id = software_title_icons.team_id
 		LEFT JOIN vpp_apps ON vpp_apps.title_id = software_titles.id
-		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.adam_id = vpp_apps.adam_id
-			AND vpp_apps_teams.platform = vpp_apps.platform
-			AND vpp_apps_teams.global_or_team_id = software_title_icons.team_id
+		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = (
+			SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+			WHERE vat2.adam_id = vpp_apps.adam_id AND vat2.platform = vpp_apps.platform AND vat2.global_or_team_id = software_title_icons.team_id
+		)
 		WHERE software_title_icons.team_id = ? AND software_title_icons.software_title_id = ?
 	`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &details, query, teamID, titleID)

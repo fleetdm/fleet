@@ -1882,7 +1882,7 @@ type GetAndroidAppsInScopeForHostFunc func(ctx context.Context, hostID uint) (ap
 
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
-type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID) (*fleet.VPPAppStatusSummary, error)
+type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error)
 
 type GetSoftwareInstallResultsFunc func(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error)
 
@@ -1942,7 +1942,7 @@ type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.V
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
-type GetVPPAppsToInstallDuringSetupExperienceFunc func(ctx context.Context, teamID *uint, platform string) ([]string, error)
+type GetVPPAppsToInstallDuringSetupExperienceFunc func(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error)
 
 type GetAllVPPAppsFunc func(ctx context.Context) ([]*fleet.VPPApp, error)
 
@@ -12721,11 +12721,11 @@ func (s *DataStore) GetSummaryHostSoftwareInstalls(ctx context.Context, installe
 	return s.GetSummaryHostSoftwareInstallsFunc(ctx, installerID)
 }
 
-func (s *DataStore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID fleet.VPPAppID) (*fleet.VPPAppStatusSummary, error) {
+func (s *DataStore) GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error) {
 	s.mu.Lock()
 	s.GetSummaryHostVPPAppInstallsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSummaryHostVPPAppInstallsFunc(ctx, teamID, appID)
+	return s.GetSummaryHostVPPAppInstallsFunc(ctx, vppAppTeamID)
 }
 
 func (s *DataStore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
@@ -12931,7 +12931,7 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
 }
 
-func (s *DataStore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]string, error) {
+func (s *DataStore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error) {
 	s.mu.Lock()
 	s.GetVPPAppsToInstallDuringSetupExperienceFuncInvoked = true
 	s.mu.Unlock()

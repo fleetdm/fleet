@@ -6204,6 +6204,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	if host.Platform == string(fleet.IPadOSPlatform) {
 		source = "ipados_apps"
 	}
+	// TODO(JK): use the schedule of the instance the host is in scope for, this lists one schedule per instance and updates by title
 	softwaresWithAutoUpdateSchedule, err := svc.ds.ListSoftwareAutoUpdateSchedules(
 		ctx,
 		teamID,

@@ -4865,7 +4865,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	//
 	// Is that how we want it to work?
 	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(t.Context(), `DELETE FROM android_app_configurations WHERE application_id = ?`, app3.VPPAppID.AdamID)
+		_, err := tx.ExecContext(t.Context(), `UPDATE vpp_apps_teams SET configuration = NULL WHERE adam_id = ? AND platform = 'android'`, app3.VPPAppID.AdamID)
 		return err
 	})
 
