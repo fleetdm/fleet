@@ -1613,7 +1613,9 @@ func newCleanupsAndAggregationSchedule(
 			}
 			// A staging object only exists once its PUT completes, so the cutoff only
 			// has to outlast the gap between upload and finalize.
-			_, err := stagedUploadStore.Cleanup(ctx, nil, time.Now().Add(-24*time.Hour))
+			workCtx, cancel := context.WithTimeout(ctx, installerCleanupMaxRunTime)
+			defer cancel()
+			_, err := stagedUploadStore.Cleanup(workCtx, nil, time.Now().Add(-24*time.Hour))
 			return err
 		}),
 		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {

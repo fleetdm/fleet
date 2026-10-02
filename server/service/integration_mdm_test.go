@@ -1,6 +1,7 @@
 package service
 
 import (
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -30390,4 +30391,40 @@ func (s *integrationMDMTestSuite) TestStagedUpload() {
 	newSha := sha256.Sum256(newScript)
 	require.Equal(t, fmt.Sprintf("%x", newSha), storageID)
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", scriptTitleID), nil, http.StatusNoContent, "fleet_id", "0")
+
+	// in-house apps take the same staged add and edit paths
+	uploadID = stage(fleet.StagedUploadTargetSoftwarePackage, readTestdata("software-installers", "ipa_test.ipa"))
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		StagedUploadID: uploadID, Filename: "ipa_test.ipa", TeamID: new(uint(0)),
+	}, http.StatusOK, "")
+	requireGone(uploadID, true)
+	var ipaTitleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &ipaTitleID, `SELECT title_id FROM in_house_apps WHERE filename = 'ipa_test.ipa'`)
+	})
+	// Same app, different bytes: copy the archive and add an entry.
+	ipa := readTestdata("software-installers", "ipa_test.ipa")
+	zr, err := zip.NewReader(bytes.NewReader(ipa), int64(len(ipa)))
+	require.NoError(t, err)
+	var ipaV2 bytes.Buffer
+	zw := zip.NewWriter(&ipaV2)
+	for _, f := range zr.File {
+		require.NoError(t, zw.Copy(f))
+	}
+	_, err = zw.Create("extra.txt")
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+	uploadID = stage(fleet.StagedUploadTargetSoftwarePackage, ipaV2.Bytes())
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: ipaTitleID, TeamID: new(uint(0)), StagedUploadID: uploadID, Filename: "ipa_test_v2.ipa",
+	}, http.StatusOK, "")
+	requireGone(uploadID, true)
+	var ipaFilename, ipaStorageID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return q.QueryRowxContext(t.Context(), `SELECT filename, storage_id FROM in_house_apps WHERE title_id = ?`, ipaTitleID).Scan(&ipaFilename, &ipaStorageID)
+	})
+	ipaV2Sha := sha256.Sum256(ipaV2.Bytes())
+	require.Equal(t, "ipa_test_v2.ipa", ipaFilename)
+	require.Equal(t, fmt.Sprintf("%x", ipaV2Sha), ipaStorageID)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", ipaTitleID), nil, http.StatusNoContent, "fleet_id", "0")
 }
