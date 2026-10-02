@@ -2330,7 +2330,7 @@ Modifies the Fleet's configuration with the supplied information.
     "databases_path": ""
   },
   "fleet_desktop": {
-    "transparency_url": "https://fleetdm.com/better",
+    "about_url": "https://fleetdm.com/better",
     "alternative_browser_host": "fleet-desktop.example.com",
     "sso_enabled": false
   },
@@ -2594,7 +2594,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------- |
-| transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop.      |
+| about_url                  | string  | The URL used to display information about Fleet Desktop to end users.      |
 | alternative_browser_host          | string  | The hostname used to navigate Fleet Desktop traffic through.                     |
 | sso_enabled                       | boolean | Whether end users must [sign in via SSO](https://fleetdm.com/guides/fleet-desktop#single-sign-on-sso-for-fleet-desktop-authenticated-routes) before accessing Fleet Desktop. Requires an IdP configured. |
 
@@ -2607,7 +2607,7 @@ _Available in Fleet Premium._
 ```json
 {
   "fleet_desktop": {
-    "transparency_url": "https://fleetdm.com/better",
+    "about_url": "https://fleetdm.com/better",
     "alternative_browser_host": "fleet-desktop.example.com",
     "sso_enabled": false
   }
