@@ -13,6 +13,7 @@ Fleet is hosting its first virtual summit on Tuesday, November 10, 2026, at 11 A
 ### Device management finally gets a deployment pipeline
 
 Engineering teams version-control production infrastructure, review changes in pull requests, and roll back with a merge. Device management is one of the last IT functions still changed by hand in a console. Practitioners who moved their device configuration into Git share what it unlocked for shipping changes, compliance evidence, and recovering from mistakes.
+[Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-infrastructure-as-code)
 
 Panelists:
 
@@ -24,6 +25,7 @@ Panelists:
 ### Why open source ate the enterprise fleet
 
 Open source runs most enterprise infrastructure, but the tools that manage employee devices are still mostly closed. This panel covers why organizations choose auditable code and portable data, and how that choice plays out in procurement, security reviews, and vendor negotiations.
+[Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-open-source-in-device-management)
 
 Panelists:
 
@@ -34,6 +36,7 @@ Panelists:
 ### AI agents need endpoints too
 
 AI agents are showing up on employee devices faster than IT can inventory them. They read files, call APIs, and act with the permissions of whoever installed them. At the same time, AI-driven exploits are shrinking the time between disclosure and attack. This panel covers both sides of the problem.
+[Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem)
 
 Panelists:
 
@@ -44,6 +47,7 @@ Panelists:
 ### Device management 2030
 
 The devices IT manages, the tools it uses, and the skills the job requires will look different four years from now. Practitioners who are already placing bets on that future talk about where IT teams, tools, and the definition of an endpoint are headed.
+[Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030)
 
 Panelists:
 
