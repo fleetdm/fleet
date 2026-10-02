@@ -7967,10 +7967,10 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 	}
 
 	cases := []struct {
-		name         string
-		status       string
-		raw          []byte
-		errorChain   []mdm.ErrorChain
+		name          string
+		status        string
+		raw           []byte
+		errorChain    []mdm.ErrorChain
 		notFound      bool // UpdateHostDeviceNameStatusFromCommand returns not-found (stale)
 		wantStatus    fleet.MDMDeliveryStatus
 		wantDetail    string
