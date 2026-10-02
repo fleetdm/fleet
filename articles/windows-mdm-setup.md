@@ -480,7 +480,7 @@ With the setting enabled:
 - If you delete a Windows host in Fleet, it enrolls again on its own. [Learn more](https://fleetdm.com/guides/enroll-hosts#delete-a-host).
 - fleetd packages built with a global or fleet-level enroll secret can't enroll a host that has MDM turned on or is registered in Windows Autopilot.
 
-Fleet isn't notified when MDM is turned off on a device, for example when it's re-imaged. Fleet still counts the host as having MDM turned on, so a fleetd package built with a global or fleet-level enroll secret can't enroll it. To learn how to bring these hosts back, see [Delete a host](https://fleetdm.com/guides/enroll-hosts#delete-a-host).
+Fleet isn't notified when MDM is turned off on a device, for example when it's re-imaged. To re-enroll these hosts, see [Delete a host](https://fleetdm.com/guides/enroll-hosts#delete-a-host).
 
 If you turn the setting off, hosts that enrolled with a one-time enroll secret can't enroll again until you turn it back on or reinstall fleetd with a package built with a global or fleet-level enroll secret.
 
