@@ -27698,12 +27698,16 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setFleetMDMData(macHost.ID, false)
 
-	// A macOS host whose name already matches the resolved template: verified
-	// directly, no command.
+	// A macOS host whose name already matches the resolved template and that has
+	// reported since it enrolled: verified directly, no command.
 	matchingHost, matchingDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setFleetMDMData(matchingHost.ID, false)
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE hosts SET computer_name = ? WHERE id = ?`, "WS-"+matchingHost.HardwareSerial, matchingHost.ID)
+		if _, err := q.ExecContext(ctx, `UPDATE hosts SET computer_name = ?, detail_updated_at = NOW() WHERE id = ?`,
+			"WS-"+matchingHost.HardwareSerial, matchingHost.ID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE nano_devices SET authenticate_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE id = ?`, matchingHost.UUID)
 		return err
 	})
 
@@ -28106,6 +28110,60 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: ""}, http.StatusNoContent)
 	_, err = s.ds.DeleteSecretVariable(ctx, secretID)
 	require.NoError(t, err)
+}
+
+func (s *integrationMDMTestSuite) TestHostNameTemplateReenrollWithStaleName() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", manualProfileIf(false)))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"}, http.StatusNoContent)
+	want := "WS-" + host.HardwareSerial
+
+	// A re-provisioned device: Fleet's host record still carries the template name
+	// from before the device was erased, and its last report predates the
+	// re-enrollment below.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE hosts SET computer_name = ?, detail_updated_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE id = ?`, want, host.ID)
+		return err
+	})
+	require.NoError(t, device.Enroll())
+
+	row, err := s.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, row.Status, "re-enrollment should queue the host")
+
+	// The stored name is stale, so the cron must send the rename instead of
+	// trusting it and marking the host verified.
+	require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	row, err = s.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, row.Status)
+	require.Equal(t, fleet.MDMDeliveryPending, *row.Status)
+	require.NotNil(t, row.CommandUUID)
+
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	require.Equal(t, *row.CommandUUID, cmd.CommandUUID)
+	_, err = device.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// The first report after re-enrollment matches, so no retry is spent.
+	_, err = s.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, want)
+	require.NoError(t, err)
+	row, err = s.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMDeliveryVerified, *row.Status)
+	require.Zero(t, row.Retries)
 }
 
 func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
