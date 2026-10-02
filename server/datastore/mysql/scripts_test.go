@@ -33,6 +33,7 @@ func TestScripts(t *testing.T) {
 		{"ListScripts", testListScripts},
 		{"GetHostScriptDetails", testGetHostScriptDetails},
 		{"BatchSetScripts", testBatchSetScripts},
+		{"BatchSetScriptsDoesNotLockOtherPolicies", testBatchSetScriptsDoesNotLockOtherPolicies},
 		{"TestLockHostViaScript", testLockHostViaScript},
 		{"TestUnlockHostViaScript", testUnlockHostViaScript},
 		{"TestLockUnlockWipeViaScripts", testLockUnlockWipeViaScripts},
@@ -827,6 +828,52 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 		_, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{OrderKey: "h.node_key"}, "darwin")
 		require.Error(t, err)
 	})
+}
+
+func testBatchSetScriptsDoesNotLockOtherPolicies(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	scripts := make([]*fleet.Script, 0, 12)
+	for i := range 12 {
+		scripts = append(scripts, &fleet.Script{Name: fmt.Sprintf("s%d.sh", i), ScriptContents: fmt.Sprintf("echo %d", i)})
+	}
+	set, err := ds.BatchSetScripts(ctx, &tm.ID, scripts)
+	require.NoError(t, err)
+	scriptIDs := make(map[string]uint)
+	for _, s := range set {
+		scriptIDs[s.Name] = s.ID
+	}
+
+	kept, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name() + " kept", Query: "SELECT 1", ScriptID: new(scriptIDs["s0.sh"])})
+	require.NoError(t, err)
+	removed, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name() + " removed", Query: "SELECT 1", ScriptID: new(scriptIDs["s11.sh"])})
+	require.NoError(t, err)
+	global, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name() + " global", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	// Hold the lock a host's policy_membership write takes on its policy.
+	hostTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = hostTx.Rollback() }()
+	_, err = hostTx.ExecContext(ctx, `SELECT id FROM policies WHERE id = ? FOR SHARE`, global.ID)
+	require.NoError(t, err)
+
+	for _, batch := range [][]*fleet.Script{scripts, scripts[:1]} {
+		applyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		_, err = ds.BatchSetScripts(applyCtx, &tm.ID, batch)
+		cancel()
+		require.NoError(t, err)
+	}
+	require.NoError(t, hostTx.Rollback())
+
+	kept, err = ds.Policy(ctx, kept.ID)
+	require.NoError(t, err)
+	require.Equal(t, scriptIDs["s0.sh"], *kept.ScriptID)
+	removed, err = ds.Policy(ctx, removed.ID)
+	require.NoError(t, err)
+	require.Nil(t, removed.ScriptID)
 }
 
 func testBatchSetScripts(t *testing.T, ds *Datastore) {

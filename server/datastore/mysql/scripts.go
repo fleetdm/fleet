@@ -1227,10 +1227,11 @@ WHERE
 			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
 
-	const unsetScriptsNotInListFromPolicies = `
-UPDATE policies SET script_id = NULL
-WHERE script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))
-`
+	const loadScriptsNotInList = `SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?)`
+
+	// Without the hint MySQL can pick a full scan, which locks every policy row until commit and
+	// blocks all hosts' policy result writes.
+	const unsetScriptsFromPolicies = `UPDATE policies FORCE INDEX (fk_policies_script_id) SET script_id = NULL WHERE script_id IN (?)`
 
 	const deleteScriptsNotInList = `
 DELETE FROM
@@ -1368,9 +1369,19 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete scripts")
 			}
 
-			policiesStmt, policiesArgs, err = sqlx.In(unsetScriptsNotInListFromPolicies, globalOrTeamID, keepNames)
+			loadObsoleteStmt, args, err := sqlx.In(loadScriptsNotInList, globalOrTeamID, keepNames)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete scripts from policies")
+				return ctxerr.Wrap(ctx, err, "build query to load obsolete scripts")
+			}
+			var obsoleteIDs []uint
+			if err := sqlx.SelectContext(ctx, tx, &obsoleteIDs, loadObsoleteStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "load obsolete scripts")
+			}
+			if len(obsoleteIDs) > 0 {
+				policiesStmt, policiesArgs, err = sqlx.In(unsetScriptsFromPolicies, obsoleteIDs)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build statement to unset obsolete scripts from policies")
+				}
 			}
 
 			executionsStmt, executionsArgs, err = sqlx.In(clearPendingExecutionsNotInListHSR, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
@@ -1409,8 +1420,10 @@ ON DUPLICATE KEY UPDATE
 			extraExecStmt = clearAllPendingExecutionsUA
 			extraExecArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
 		}
-		if _, err := tx.ExecContext(ctx, policiesStmt, policiesArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "unset obsolete scripts from policies")
+		if policiesStmt != "" {
+			if _, err := tx.ExecContext(ctx, policiesStmt, policiesArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "unset obsolete scripts from policies")
+			}
 		}
 		if _, err := tx.ExecContext(ctx, executionsStmt, executionsArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear obsolete script pending executions")
