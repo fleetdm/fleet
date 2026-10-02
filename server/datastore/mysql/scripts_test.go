@@ -35,6 +35,7 @@ func TestScripts(t *testing.T) {
 		{"BatchSetScripts", testBatchSetScripts},
 		{"BatchSetScriptsDoesNotLockOtherPolicies", testBatchSetScriptsDoesNotLockOtherPolicies},
 		{"BatchSetScriptsUnsetsScriptAddedMidApply", testBatchSetScriptsUnsetsScriptAddedMidApply},
+		{"BatchSetScriptsLocksUnsetPolicyAtEnd", testBatchSetScriptsLocksUnsetPolicyAtEnd},
 		{"TestLockHostViaScript", testLockHostViaScript},
 		{"TestUnlockHostViaScript", testUnlockHostViaScript},
 		{"TestLockUnlockWipeViaScripts", testLockUnlockWipeViaScripts},
@@ -853,21 +854,26 @@ func testBatchSetScriptsDoesNotLockOtherPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	global, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name() + " global", Query: "SELECT 1"})
 	require.NoError(t, err)
+	noScript, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name() + " no script", Query: "SELECT 1"})
+	require.NoError(t, err)
 
 	// Hold the lock a host's policy_membership write takes on its policy.
 	hostTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	require.NoError(t, err)
 	defer func() { _ = hostTx.Rollback() }()
-	_, err = hostTx.ExecContext(ctx, `SELECT id FROM policies WHERE id = ? FOR SHARE`, global.ID)
-	require.NoError(t, err)
-
-	for _, batch := range [][]*fleet.Script{scripts, scripts[:1]} {
-		applyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		_, err = ds.BatchSetScripts(applyCtx, &tm.ID, batch)
-		cancel()
+	for _, id := range []uint{global.ID, noScript.ID} {
+		_, err = hostTx.ExecContext(ctx, `SELECT id FROM policies WHERE id = ? FOR SHARE`, id)
 		require.NoError(t, err)
 	}
-	require.NoError(t, hostTx.Rollback())
+
+	apply := func(batch []*fleet.Script) {
+		applyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		_, err := ds.BatchSetScripts(applyCtx, &tm.ID, batch)
+		require.NoError(t, err)
+	}
+	apply(scripts)
+	apply(scripts[:1])
 
 	kept, err = ds.Policy(ctx, kept.ID)
 	require.NoError(t, err)
@@ -875,6 +881,64 @@ func testBatchSetScriptsDoesNotLockOtherPolicies(t *testing.T, ds *Datastore) {
 	removed, err = ds.Policy(ctx, removed.ID)
 	require.NoError(t, err)
 	require.Nil(t, removed.ScriptID)
+
+	// GitOps sends an empty list on every run for a fleet with no scripts.
+	apply(nil)
+	apply(nil)
+	apply(scripts)
+	require.NoError(t, hostTx.Rollback())
+}
+
+func testBatchSetScriptsLocksUnsetPolicyAtEnd(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	kept := []*fleet.Script{{Name: "a.sh", ScriptContents: "echo a"}, {Name: "b.sh", ScriptContents: "echo b"}}
+	set, err := ds.BatchSetScripts(ctx, &tm.ID, append(kept, &fleet.Script{Name: "gone.sh", ScriptContents: "echo gone"}))
+	require.NoError(t, err)
+	var goneID uint
+	for _, s := range set {
+		if s.Name == "gone.sh" {
+			goneID = s.ID
+		}
+	}
+	policy, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", ScriptID: &goneID})
+	require.NoError(t, err)
+
+	// Park the apply inside its per-script loop by holding a script contents row it upserts.
+	blockTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = blockTx.Rollback() }()
+	_, err = blockTx.ExecContext(ctx, `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?) FOR UPDATE`, md5ChecksumScriptContent("echo a"))
+	require.NoError(t, err)
+
+	applyErr := make(chan error, 1)
+	go func() {
+		_, err := ds.BatchSetScripts(ctx, &tm.ID, kept)
+		applyErr <- err
+	}()
+	// innodb_trx only refreshes when it hasn't been read for 100ms, so poll slower than that.
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &waiting, `SELECT COUNT(*) FROM information_schema.innodb_trx WHERE trx_state = 'LOCK WAIT'`)
+		return err == nil && waiting > 0
+	}, 5*time.Second, 250*time.Millisecond)
+
+	// A host writing that policy's result isn't blocked while the apply is still working.
+	probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	probeTx, err := ds.writer(ctx).BeginTxx(probeCtx, nil)
+	require.NoError(t, err)
+	_, err = probeTx.ExecContext(probeCtx, `SELECT id FROM policies WHERE id = ? FOR SHARE`, policy.ID)
+	require.NoError(t, err)
+	require.NoError(t, probeTx.Rollback())
+
+	require.NoError(t, blockTx.Rollback())
+	require.NoError(t, <-applyErr)
+	policy, err = ds.Policy(ctx, policy.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy.ScriptID)
 }
 
 func testBatchSetScriptsUnsetsScriptAddedMidApply(t *testing.T, ds *Datastore) {
