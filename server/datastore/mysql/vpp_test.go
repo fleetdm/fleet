@@ -4559,7 +4559,7 @@ func testAppStoreAppVersionsEditAndDelete(t *testing.T, ds *Datastore) {
 		t.Log(c.name)
 		fleetID := c.fleetID
 
-		// add the app to the fleet under the default name, then add a second version named "Second"
+		// add the app to the fleet under the default name, then add a second version named "Beta"
 		var firstVersion *fleet.VPPApp
 		if c.fleetID == 0 {
 			firstVersion, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID, fleet.IOSPlatform, nil)
@@ -4578,7 +4578,7 @@ func testAppStoreAppVersionsEditAndDelete(t *testing.T, ds *Datastore) {
 			BundleIdentifier: "com.example." + adamID,
 			AdamID:           adamID,
 			Platform:         fleet.IOSPlatform,
-			VersionName:      "Second",
+			VersionName:      "Beta",
 		}, &fleetID, nil)
 		require.NoError(t, err)
 		require.NotEqual(t, firstVersion.AppTeamID, secondVersion.AppTeamID)
@@ -4592,10 +4592,23 @@ func testAppStoreAppVersionsEditAndDelete(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Empty(t, configsByAdamID)
 
-		// read the version names and versions, both should be returned first-added first
-		names, err := ds.GetVPPAppVersionNames(ctx, &fleetID, firstVersion.VPPAppID)
-		require.NoError(t, err)
-		require.Equal(t, []string{fleet.DefaultAppStoreAppVersionName, "Second"}, names)
+		// count the versions with names that differ from "Beta" by accent, case, or trailing space, the names should match "Beta"
+		for _, matchingName := range []string{"Bêta", "BETA", "Beta "} {
+			versionCount, versionNameExists, err := ds.GetVPPAppVersionCount(ctx, &fleetID, firstVersion.VPPAppID, matchingName)
+			require.NoError(t, err)
+			require.Equal(t, uint(2), versionCount, matchingName)
+			require.True(t, versionNameExists, matchingName)
+		}
+
+		// count the versions with names that differ from "Beta" by a leading space or extra letters, the names should not match
+		for _, otherName := range []string{" Beta", "Betas"} {
+			versionCount, versionNameExists, err := ds.GetVPPAppVersionCount(ctx, &fleetID, firstVersion.VPPAppID, otherName)
+			require.NoError(t, err)
+			require.Equal(t, uint(2), versionCount, otherName)
+			require.False(t, versionNameExists, otherName)
+		}
+
+		// read the versions, both should be returned first-added first
 		versions, err := ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, secondVersion.TitleID)
 		require.NoError(t, err)
 		require.Len(t, versions, 2)
@@ -4627,10 +4640,8 @@ func testAppStoreAppVersionsEditAndDelete(t *testing.T, ds *Datastore) {
 		secondVersion.VersionName = fleet.DefaultAppStoreAppVersionName
 		_, err = ds.InsertVPPAppWithTeam(ctx, secondVersion, &fleetID, &secondVersion.AppTeamID)
 		require.Error(t, err)
-		var existsErr interface {
-			IsExists() bool
-		}
-		require.ErrorAs(t, err, &existsErr)
+		var conflictErr fleet.ConflictError
+		require.ErrorAs(t, err, &conflictErr)
 		secondVersion.VersionName = "Renamed"
 
 		// read the versions after the failed rename, the first version should not have changed

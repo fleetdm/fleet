@@ -1944,7 +1944,7 @@ type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.V
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*fleet.VPPApp, error)
 
-type GetVPPAppVersionNamesFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID) ([]string, error)
+type GetVPPAppVersionCountFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID, versionName string) (versionCount uint, versionNameExists bool, err error)
 
 type GetVPPAppsToInstallDuringSetupExperienceFunc func(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error)
 
@@ -5385,8 +5385,8 @@ type DataStore struct {
 	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
 	InsertVPPAppWithTeamFuncInvoked bool
 
-	GetVPPAppVersionNamesFunc        GetVPPAppVersionNamesFunc
-	GetVPPAppVersionNamesFuncInvoked bool
+	GetVPPAppVersionCountFunc        GetVPPAppVersionCountFunc
+	GetVPPAppVersionCountFuncInvoked bool
 
 	GetVPPAppsToInstallDuringSetupExperienceFunc        GetVPPAppsToInstallDuringSetupExperienceFunc
 	GetVPPAppsToInstallDuringSetupExperienceFuncInvoked bool
@@ -12948,11 +12948,11 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID, existingVPPAppTeamID)
 }
 
-func (s *DataStore) GetVPPAppVersionNames(ctx context.Context, teamID *uint, appID fleet.VPPAppID) ([]string, error) {
+func (s *DataStore) GetVPPAppVersionCount(ctx context.Context, teamID *uint, appID fleet.VPPAppID, versionName string) (versionCount uint, versionNameExists bool, err error) {
 	s.mu.Lock()
-	s.GetVPPAppVersionNamesFuncInvoked = true
+	s.GetVPPAppVersionCountFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPAppVersionNamesFunc(ctx, teamID, appID)
+	return s.GetVPPAppVersionCountFunc(ctx, teamID, appID, versionName)
 }
 
 func (s *DataStore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error) {

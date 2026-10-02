@@ -1005,6 +1005,15 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 		Name:       "TEST",
 	}, http.StatusConflict)
 
+	// add the iOS app with the existing name written with an accent, the request should conflict instead of updating the existing version
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:      &team.ID,
+		AppStoreID:  iosAdamID,
+		Platform:    fleet.IOSPlatform,
+		Name:        "Tëst",
+		SelfService: true,
+	}, http.StatusConflict)
+
 	// add the macOS app twice, the second version should conflict
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 		TeamID:     &team.ID,

@@ -3537,8 +3537,8 @@ type Datastore interface {
 	// InsertVPPAppWithTeam writes the VPP app version to the team. A non-nil existingVPPAppTeamID updates that version by id,
 	// nil inserts the version or updates the one with the same name.
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*VPPApp, error)
-	// GetVPPAppVersionNames returns the names of the versions of the VPP app on the team, first-added first.
-	GetVPPAppVersionNames(ctx context.Context, teamID *uint, appID VPPAppID) ([]string, error)
+	// GetVPPAppVersionCount returns how many versions of the VPP app are on the team, and whether one of them is named versionName.
+	GetVPPAppVersionCount(ctx context.Context, teamID *uint, appID VPPAppID, versionName string) (versionCount uint, versionNameExists bool, err error)
 	GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]VPPAppTeam, error)
 
 	// GetAllVPPApps returns all the VPP apps in Fleet, across all teams.

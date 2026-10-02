@@ -813,27 +813,24 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	// Check if an existing version uses this name
-	existingVersionNames, err := svc.ds.GetVPPAppVersionNames(ctx, teamID, appID.VPPAppID)
+	existingVersionCount, versionNameExists, err := svc.ds.GetVPPAppVersionCount(ctx, teamID, appID.VPPAppID, appID.VersionName)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing app store app versions")
 	}
 
-	// Compare names without case to match the collation of the unique key on the version name
-	if slices.ContainsFunc(existingVersionNames, func(name string) bool {
-		return strings.EqualFold(name, appID.VersionName)
-	}) {
+	if versionNameExists {
 		return nil, ctxerr.Wrap(ctx, fleet.ConflictError{
 			Message: fmt.Sprintf("Couldn't add. A version named %q already exists for this app in the %s fleet.", appID.VersionName, teamName),
 		}, "adding app store app version")
 	}
 
-	if appID.Platform == fleet.MacOSPlatform && len(existingVersionNames) > 0 {
+	if appID.Platform == fleet.MacOSPlatform && existingVersionCount > 0 {
 		return nil, ctxerr.Wrap(ctx, fleet.ConflictError{
 			Message: fmt.Sprintf("Couldn't add. macOS App Store apps can only have one version in the %s fleet.", teamName),
 		}, "adding app store app version")
 	}
 
-	if len(existingVersionNames) >= fleet.MaxAppStoreAppVersions {
+	if existingVersionCount >= fleet.MaxAppStoreAppVersions {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("Couldn't add. An app can have at most %d versions per fleet.", fleet.MaxAppStoreAppVersions),
 		}, "adding app store app version")
@@ -1291,13 +1288,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 		if utf8.RuneCountInString(versionName) > fleet.MaxAppStoreAppVersionNameLength {
 			return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("Couldn't edit. The version name can't be longer than %d characters.", fleet.MaxAppStoreAppVersionNameLength))
-		}
-		for _, version := range versions {
-			if version.VPPAppsTeamsID != meta.VPPAppsTeamsID && strings.EqualFold(version.VersionName, versionName) {
-				return nil, nil, ctxerr.Wrap(ctx, fleet.ConflictError{
-					Message: fmt.Sprintf("Couldn't edit. A version named %q already exists for this app in this fleet.", versionName),
-				}, "renaming app store app version")
-			}
 		}
 	}
 

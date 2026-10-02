@@ -903,6 +903,12 @@ ON DUPLICATE KEY UPDATE
 		existingVPPAppTeamID, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID, appID.InstallDuringSetup, versionName,
 		appID.InstallDuringSetup, appID.AutoUpdateEnabled, startTime, startTime, endTime, endTime)
 	if err != nil {
+		if IsDuplicate(err) && existingVPPAppTeamID != nil {
+			// Return the rename conflict from the unique key on the name, it compares names the same way the column collation does
+			return 0, ctxerr.Wrap(ctx, fleet.ConflictError{
+				Message: fmt.Sprintf("Couldn't edit. A version named %q already exists for this app in this fleet.", versionName),
+			}, "renaming app store app version")
+		}
 		if IsDuplicate(err) {
 			err = &existsError{
 				Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),
@@ -3527,13 +3533,15 @@ func (ds *Datastore) updateVPPAppConfigurationTx(ctx context.Context, tx sqlx.Ex
 	return nil
 }
 
-func (ds *Datastore) GetVPPAppVersionNames(ctx context.Context, teamID *uint, appID fleet.VPPAppID) ([]string, error) {
-	var names []string
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &names,
-		`SELECT name FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ? AND platform = ? ORDER BY id`,
-		ptr.ValOrZero(teamID), appID.AdamID, appID.Platform)
+func (ds *Datastore) GetVPPAppVersionCount(ctx context.Context, teamID *uint, appID fleet.VPPAppID, versionName string) (uint, bool, error) {
+	// Compare the name in SQL so the column collation decides which names match, the same way the unique key on the name does
+	var versionCount uint
+	var versionNameExists bool
+	err := ds.reader(ctx).QueryRowxContext(ctx,
+		`SELECT COUNT(*), COALESCE(MAX(name = ?), 0) FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ? AND platform = ?`,
+		versionName, ptr.ValOrZero(teamID), appID.AdamID, appID.Platform).Scan(&versionCount, &versionNameExists)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get vpp app version names")
+		return 0, false, ctxerr.Wrap(ctx, err, "get vpp app version count")
 	}
-	return names, nil
+	return versionCount, versionNameExists, nil
 }
