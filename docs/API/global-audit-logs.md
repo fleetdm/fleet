@@ -662,7 +662,7 @@ This activity contains the following fields:
 Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
-- "host_id": ID of the host. Omitted when the host is not yet known at enrollment time (Windows Azure automatic enrollments, which are linked to their host when the device reports its serial number on the first management session).
+- "host_id": ID of the host. Omitted only on activities recorded before this field was added.
 - "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
@@ -676,7 +676,6 @@ This activity contains the following fields:
 {
   "host_id": 42,
   "host_serial": "C08VQ2AXHT96",
-  "host_id": "123",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
   "mdm_platform": "apple",
@@ -1706,7 +1705,7 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "status": "pending",
+  "status": "pending_install",
   "source": "pkg_packages",
   "policy_id": 1337,
   "policy_name": "Ensure 1Password is installed and up to date",
@@ -2061,12 +2060,15 @@ This activity contains the following fields:
 - "self_service": App installation was initiated by device owner.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
+- "software_display_name": Custom display name of the app, if one is set. Omitted otherwise.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
+- "host_platform": Platform of the host (e.g., "darwin", "ios", "ipados", "android").
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
+- "from_auto_update": Whether the app was installed by an automatic update.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
 
 #### Example
@@ -2079,9 +2081,12 @@ This activity contains the following fields:
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+  "status": "installed",
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro",
-  "from_setup_experience": false
+  "host_platform": "darwin",
+  "from_setup_experience": false,
+  "from_auto_update": false
 }
 ```
 
@@ -2639,6 +2644,7 @@ This activity contains the following fields:
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
 - "software_title_id": ID of the software title.
+- "from_setup_experience": Whether the install was part of the setup experience.
 
 #### Example
 
@@ -2681,6 +2687,7 @@ This activity contains the following fields:
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
 - "software_title_id": ID of the software title.
+- "from_setup_experience": Whether the install was part of the setup experience.
 
 #### Example
 
