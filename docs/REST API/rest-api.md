@@ -16495,8 +16495,7 @@ _Available in Fleet Premium_
 | integrations                                            | object  | body | Integrations settings for the fleet. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
 | mdm                                                     | object  | body | MDM settings for the fleet. See [mdm](#mdm2) for details.                                                                                                                                                                                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the fleet. See [host_expiry_settings](#host-expiry-settings2) for details.   |
-| enable_software_inventory                               | boolean | body | Whether to enable software inventory for this fleet. If this key is omitted, the previously-configured value does not change. |
-| historical_data                                         | object  | body | Historical data collection settings for this fleet. See [historical_data](#historical-data) below. |
+| features                                                | object  | body | Per-fleet feature toggles. Accepts only certain sub-fields; other `features` sub-fields are writable per-fleet only via GitOps. See [features](#features2) below. |
 
 #### Example (transfer hosts to a fleet)
 
@@ -16917,8 +16916,6 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 
 #### host_expiry_settings
 
-`host_expiry_settings` is an object with the following structure:
-
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | host_expiry_enabled                         | boolean | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. When disabled, defaults to the global setting.                                               |
@@ -16938,9 +16935,16 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 }
 ```
 
-#### historical_data
+#### features
 
-`historical_data` is an object with the following structure:
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_software_inventory         | boolean  | Whether to enable software inventory for this fleet. If this key is omitted, the previously-configured value does not change. |
+| historical_data         | object  | See [features.historical_data](#features-historical-data). |
+
+##### features.historical_data
+
+`features.historical_data` is an object with the following structure:
 
 | Name              | Type    | Description                                                                                                |
 | ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
@@ -16952,17 +16956,29 @@ Sub-keys mirror the global `features.historical_data` shape and default to
 global sub-key AND this fleet's sub-key are `true`. Sub-keys omitted from
 the PATCH body retain their current stored value.
 
+###### Example request body
+
+```json
+{
+  "features": {
+    "historical_data": {
+      "vulnerabilities": false
+    }
+  }
+}
+```
 
 ###### Example request body
 
 ```json
 {
-  "historical_data": {
-    "vulnerabilities": false
+  "features": {
+    "historical_data": {
+      "vulnerabilities": false
+    }
   }
 }
 ```
-
 
 ### Add users to fleet
 
