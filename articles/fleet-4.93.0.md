@@ -88,7 +88,7 @@ GitHub issue: [#43723](https://github.com/fleetdm/fleet/issues/43723)
 
 ## Changes
 
-<!-- TODO: Populate from the fleet-v4.93.0 changelog once it ships. -->
+TODO
 
 See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.93.0).
 
