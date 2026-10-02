@@ -909,9 +909,18 @@ type HostDeviceNameEnforcement struct {
 	// until the template is resolved and the command is enqueued.
 	ExpectedDeviceName *string   `db:"expected_device_name"`
 	Detail             string    `db:"detail"`
+	Retries            uint      `db:"retries"`
 	CreatedAt          time.Time `db:"created_at"`
 	UpdatedAt          time.Time `db:"updated_at"`
 }
+
+type DeviceNameRetryOutcome int
+
+const (
+	DeviceNameNotRetried DeviceNameRetryOutcome = iota
+	DeviceNameRetried
+	DeviceNameRetriesExhausted
+)
 
 // HostDeviceNamePending carries the host details the cron needs to resolve the
 // host-name template and enqueue a Settings/DeviceName command for a host whose

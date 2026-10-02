@@ -6970,9 +6970,9 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 // command sent to enforce a team's host name template. On acknowledgment the
 // host is renamed in Fleet right away — the device just applied the name, so
 // the next osquery/DeviceInformation ingest confirms the rename (verifying →
-// verified) instead of reverting an optimistic early write. On error the
-// enforcement row lands failed with Apple's error chain; the cron only picks
-// up queued rows, so a failed command is not retried until an admin resends.
+// verified) instead of reverting an optimistic early write. On error the row is
+// re-queued until the retry budget (mdm.MaxAppleDeviceNameRetries) is used up,
+// then lands failed with Apple's error chain until an admin resends.
 func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx context.Context, cmdResult *mdm.CommandResults) error {
 	status := cmdResult.Status
 	detail := ""
@@ -6998,15 +6998,20 @@ func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx c
 		// tracks a newer command (template re-saved or resend clicked before this
 		// result arrived); this result is stale and the newer command's result
 		// carries the final name, so it's ignored.
-		if err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, true, ""); err != nil && !fleet.IsNotFound(err) {
+		if _, err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, true, ""); err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "update device name row from acknowledged command")
 		}
 		return nil
 	}
 
-	if err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, false, detail); err != nil && !fleet.IsNotFound(err) {
+	outcome, err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, false, detail)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
 		return ctxerr.Wrap(ctx, err, "update device name row from failed command")
 	}
+	logDeviceNameRetry(ctx, svc.logger, outcome, "command failed", "host_uuid", cmdResult.UDID, "command_uuid", cmdResult.CommandUUID, "detail", detail)
 	return nil
 }
 
@@ -7177,14 +7182,17 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 
 	if deviceNameOK && deviceName != "" && fleet.IsAppleMobilePlatform(host.Platform) {
 		// Reconcile the host-name enforcement row (if any) against the name the
-		// device reported: confirms a rename (verifying → verified) or records
-		// drift (verified → failed). No-op for hosts without a row. A failure here
+		// device reported: confirms a rename (verifying → verified) or re-queues
+		// enforcement on drift. No-op for hosts without a row. A failure here
 		// is logged rather than returned: the refetch results are already
 		// persisted, this is a non-critical verify transition the next refetch
 		// will redo, and aborting would fail the whole MDM check-in. Mirrors the
 		// macOS osquery hook (server/service/osquery.go).
-		if err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, deviceName); err != nil {
+		outcome, err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, deviceName)
+		if err != nil {
 			svc.logger.ErrorContext(ctx, "update host device name status from refetch", "host_uuid", host.UUID, "err", err)
+		} else {
+			logDeviceNameRetry(ctx, svc.logger, outcome, "renamed on device", "host_uuid", host.UUID, "reported_name", deviceName)
 		}
 	}
 
