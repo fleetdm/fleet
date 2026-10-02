@@ -44,12 +44,12 @@ variable "database_instance_count" {
 }
 
 variable "mysql_max_open_conns" {
-  description = "Max open MySQL connections per Fleet container, applied to both the writer and read-replica pools. A single Aurora instance sees roughly fleet_task_count * mysql_max_open_conns, up to 2x that on one instance during a failover or with no read replicas (when reader traffic falls back to the writer). Unset, it follows the reference architecture for database_instance_size: 10 on T-class instances, 20 otherwise."
+  description = "Max open MySQL connections per Fleet container, applied to both the writer and read-replica pools. A single Aurora instance sees roughly fleet_task_count * mysql_max_open_conns, up to 2x that on one instance during a failover or with no read replicas (when reader traffic falls back to the writer)."
   type        = number
-  default     = null
+  default     = 10
 
   validation {
-    condition     = coalesce(var.mysql_max_open_conns, 1) > 0
+    condition     = var.mysql_max_open_conns > 0
     error_message = "var.mysql_max_open_conns must be greater than 0 (0 means unlimited in database/sql, which can exhaust Aurora max_connections)."
   }
 }

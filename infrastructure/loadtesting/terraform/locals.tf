@@ -49,8 +49,3 @@ locals {
   }]
   cloudfront_key_basename = "cloudfront"
 }
-
-locals {
-  # Reference architecture pool sizes: T-class Aurora instances allow only ~90-135 connections in total.
-  mysql_max_open_conns = coalesce(var.mysql_max_open_conns, startswith(var.db_instance_type, "db.t") ? 10 : 20)
-}

@@ -38,10 +38,10 @@ on:
         default: 2
         required: true
       fleet_mysql_max_open_conns:
-        description: "MySQL connections per Fleet task, for the writer and replica pools each. Empty: 10 on T-class databases, 20 otherwise"
+        description: "MySQL connections per Fleet task, for the writer and replica pools each (reference architecture: 10 up to 10k hosts, 20 above)"
         type: string
-        default: ""
-        required: false
+        default: "10"
+        required: true
       fleet_redis_instance_size:
         description: "AWS Instance size for the Fleet redis instances"
         type: string
@@ -105,6 +105,7 @@ env:
   TF_VAR_fleet_task_cpu: "${{ inputs.fleet_task_cpu }}"
   TF_VAR_database_instance_size: "${{ inputs.fleet_database_instance_size }}"
   TF_VAR_database_instance_count: "${{ inputs.fleet_database_instance_count }}"
+  TF_VAR_mysql_max_open_conns: "${{ inputs.fleet_mysql_max_open_conns }}"
   TF_VAR_redis_instance_size: "${{ inputs.fleet_redis_instance_size }}"
   TF_VAR_redis_instance_count: "${{ inputs.fleet_redis_instance_count }}"
   TF_VAR_redis_engine: "${{ inputs.fleet_redis_engine }}"
@@ -145,14 +146,6 @@ jobs:
         with:
           terraform_version: 1.12.0
           terraform_wrapper: false
-      - name: Set MySQL pool size
-        if: inputs.fleet_mysql_max_open_conns != ''
-        env:
-          POOL: ${{ inputs.fleet_mysql_max_open_conns }}
-        run: |
-          # Exported only when set: an empty TF_VAR_ fails the number type instead of falling back to the default.
-          [[ "$POOL" =~ ^[1-9][0-9]*$ ]] || { echo "fleet_mysql_max_open_conns must be a positive integer"; exit 1; }
-          echo "TF_VAR_mysql_max_open_conns=$POOL" >> "$GITHUB_ENV"
       - name: Terraform Init
         id: init
         run: terraform init

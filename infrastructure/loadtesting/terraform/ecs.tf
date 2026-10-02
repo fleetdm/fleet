@@ -151,7 +151,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_MAX_OPEN_CONNS"
-            value = tostring(local.mysql_max_open_conns)
+            value = tostring(var.mysql_max_open_conns)
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
@@ -167,7 +167,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS"
-            value = tostring(local.mysql_max_open_conns)
+            value = tostring(var.mysql_max_open_conns)
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
