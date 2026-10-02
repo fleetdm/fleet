@@ -2560,8 +2560,8 @@ WHERE
 // HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
 // identified by application_id and global_or_team_id is different from the existing one. This
 // is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
-func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error) {
-	const stmt = `
+func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error) {
+	stmt := `
 SELECT
 	COALESCE(CAST(? AS JSON) != CAST(configuration AS JSON), ?) AS has_changed
 FROM
@@ -2570,21 +2570,28 @@ WHERE
 	adam_id = ? AND
 	global_or_team_id = ? AND
 	platform = 'android'
-ORDER BY id
-LIMIT 1
 `
 
 	newConfigStr := string(newConfig)
+	newConfigIsSet := true
 	if len(newConfigStr) == 0 {
 		newConfigStr = "{}" // consider an empty config as an empty JSON for comparison's sake
+		newConfigIsSet = false
 	}
 
+	args := []any{newConfigStr, newConfigIsSet, applicationID, teamID}
+	if vppAppTeamID != nil {
+		stmt += ` AND id = ?`
+		args = append(args, *vppAppTeamID)
+	}
+	stmt += ` ORDER BY id LIMIT 1`
+
 	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, len(newConfig) > 0, applicationID, teamID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// old config does not exist, so old one is changed if not empty
-			return len(newConfig) > 0, nil
+			return newConfigIsSet, nil
 		}
 		return false, ctxerr.Wrap(ctx, err, "compare android app configuration")
 	}
@@ -2631,13 +2638,17 @@ func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, 
 }
 
 func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error) {
-	// TODO(JK): key the configurations by instance, with several instances of an app in the fleet the map keeps the last one read
+	// TODO(JK): read the configuration of the version the host is in scope for, this reads the first-added version of each app
 	const bulkGetStmt = `
 	SELECT
-		adam_id AS application_id,
-		configuration
-	FROM vpp_apps_teams
-	WHERE adam_id IN (?) AND global_or_team_id = ? AND platform = 'android' AND configuration IS NOT NULL
+		vat.adam_id AS application_id,
+		vat.configuration
+	FROM vpp_apps_teams vat
+	WHERE vat.adam_id IN (?) AND vat.global_or_team_id = ? AND vat.platform = 'android' AND vat.configuration IS NOT NULL
+		AND vat.id = (
+			SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+			WHERE vat2.adam_id = vat.adam_id AND vat2.platform = vat.platform AND vat2.global_or_team_id = vat.global_or_team_id
+		)
 	`
 
 	if len(appIDs) == 0 {

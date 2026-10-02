@@ -7576,7 +7576,7 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 			VPPAppsTeamsID: team.ID,
 		}, nil
 	}
-	ds.InsertVPPAppWithTeamFunc = func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+	ds.InsertVPPAppWithTeamFunc = func(ctx context.Context, app *fleet.VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*fleet.VPPApp, error) {
 		return app, nil
 	}
 	ds.UpdateSoftwareTitleAutoUpdateConfigFunc = func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {

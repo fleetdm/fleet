@@ -4061,7 +4061,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 			VPPAppID:      fleet.VPPAppID{AdamID: "something_android_app_1", Platform: fleet.AndroidPlatform},
 			Configuration: testConfig,
 		},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	app2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -4070,7 +4070,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 			VPPAppID:      fleet.VPPAppID{AdamID: "adam_vpp_app_forapple_1", Platform: fleet.IOSPlatform},
 			Configuration: []byte(`<dict><key>FromIOSTest</key><true/></dict>`),
 		},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// Get android app without team
@@ -4094,7 +4094,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	// Edit android app
 	newConfig := []byte(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
 	app1.VPPAppTeam.Configuration = newConfig
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// Check that configuration was changed
@@ -4106,11 +4106,11 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	// Add invalid configuration
 	badConfig := []byte(`"-": "-"`)
 	app1.VPPAppTeam.Configuration = badConfig
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
 	require.Error(t, err)
 
 	// Delete app, should delete configuration
-	require.NoError(t, ds.DeleteVPPAppFromTeam(ctx, &team1.ID, app1.VPPAppID))
+	require.NoError(t, ds.DeleteVPPAppFromTeam(ctx, &team1.ID, app1.VPPAppID, nil))
 	_, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
 	require.ErrorContains(t, err, "not found")
 	_, err = ds.GetAndroidAppConfiguration(ctx, app1.AdamID, team1.ID)
@@ -4196,7 +4196,7 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			got, err := ds.HasAndroidAppConfigurationChanged(ctx, c.compareAppID, 0, json.RawMessage(c.newConfig))
+			got, err := ds.HasAndroidAppConfigurationChanged(ctx, c.compareAppID, 0, nil, json.RawMessage(c.newConfig))
 			require.NoError(t, err)
 			require.Equal(t, c.changed, got)
 		})
@@ -4329,7 +4329,7 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.app.vpp1", Platform: fleet.AndroidPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	// installKinds are seeded for both hosts; only "pending" may be failed by the reset.

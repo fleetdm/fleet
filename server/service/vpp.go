@@ -62,20 +62,25 @@ type addAppStoreAppRequest struct {
 	LabelsIncludeAll []string                        `json:"labels_include_all"`
 	Categories       []string                        `json:"categories"`
 	Configuration    json.RawMessage                 `json:"configuration,omitempty"`
+	Name             string                          `json:"name"`
 }
 
 type addAppStoreAppResponse struct {
 	TitleID uint   `json:"software_title_id,omitempty"`
 	Name    string `json:"name,omitempty"`
-	Err     error  `json:"error,omitempty"`
+	// TODO(JK) document this
+	VersionID uint  `json:"version_id,omitempty"`
+	Err       error `json:"error,omitempty"`
 }
 
 func (r addAppStoreAppResponse) Error() error { return r.Err }
 
 func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addAppStoreAppRequest)
-	titleID, name, err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
-		VPPAppID:             fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform},
+	addedApp, err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
+		AdamID:               req.AppStoreID,
+		Platform:             req.Platform,
+		VersionName:          req.Name,
 		SelfService:          req.SelfService,
 		LabelsIncludeAny:     req.LabelsIncludeAny,
 		LabelsExcludeAny:     req.LabelsExcludeAny,
@@ -88,15 +93,15 @@ func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.
 		return &addAppStoreAppResponse{Err: err}, nil
 	}
 
-	return &addAppStoreAppResponse{TitleID: titleID, Name: name}, nil
+	return &addAppStoreAppResponse{TitleID: addedApp.TitleID, Name: addedApp.Name, VersionID: addedApp.AppTeamID}, nil
 }
 
-func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam) (uint, string, error) {
+func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam) (*fleet.VPPApp, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return 0, "", fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -106,6 +111,8 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppT
 type updateAppStoreAppRequest struct {
 	TitleID           uint            `url:"title_id"`
 	TeamID            *uint           `json:"team_id" renameto:"fleet_id"`
+	VersionID         *uint           `json:"version_id"`
+	Name              *string         `json:"name"`
 	SelfService       *bool           `json:"self_service"`
 	LabelsIncludeAny  []string        `json:"labels_include_any"`
 	LabelsExcludeAny  []string        `json:"labels_exclude_any"`
@@ -124,8 +131,8 @@ type updateAppStoreAppRequest struct {
 }
 
 type updateAppStoreAppResponse struct {
-	AppStoreApp *fleet.VPPAppStoreApp `json:"app_store_app,omitempty"`
-	Err         error                 `json:"error,omitempty"`
+	AppStoreApp *fleet.AppStoreAppVersion `json:"app_store_app,omitempty"`
+	Err         error                     `json:"error,omitempty"`
 }
 
 func (r updateAppStoreAppResponse) Error() error { return r.Err }
@@ -134,6 +141,8 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 	req := request.(*updateAppStoreAppRequest)
 
 	updatedApp, activity, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, fleet.AppStoreAppUpdatePayload{
+		VersionID:        req.VersionID,
+		VersionName:      req.Name,
 		SelfService:      req.SelfService,
 		LabelsIncludeAny: req.LabelsIncludeAny,
 		LabelsExcludeAny: req.LabelsExcludeAny,
@@ -151,36 +160,12 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		return updateAppStoreAppResponse{Err: err}, nil
 	}
 
-	if req.AutoUpdateEnabled != nil {
-		// Update AutoUpdateConfig separately
-		err = svc.UpdateSoftwareTitleAutoUpdateConfig(ctx, req.TitleID, req.TeamID, fleet.SoftwareAutoUpdateConfig{
-			AutoUpdateEnabled:   req.AutoUpdateEnabled,
-			AutoUpdateStartTime: req.AutoUpdateStartTime,
-			AutoUpdateEndTime:   req.AutoUpdateEndTime,
-		})
-		if err != nil {
-			return updateAppStoreAppResponse{Err: err}, nil
-		}
-	}
-
-	// Re-fetch the software title to get the updated auto-update config.
-	updatedTitle, err := svc.SoftwareTitleByID(ctx, req.TitleID, req.TeamID)
-	if err != nil {
-		return updateAppStoreAppResponse{Err: err}, nil
-	}
-	if updatedTitle.AutoUpdateEnabled != nil {
-		activity.AutoUpdateEnabled = updatedTitle.AutoUpdateEnabled
-		if *updatedTitle.AutoUpdateEnabled {
-			activity.AutoUpdateStartTime = updatedTitle.AutoUpdateStartTime
-			activity.AutoUpdateEndTime = updatedTitle.AutoUpdateEndTime
-		}
-	}
-
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
 	}
 
-	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
+	updatedVersion := updatedApp.AppStoreAppVersion()
+	return updateAppStoreAppResponse{AppStoreApp: &updatedVersion}, nil
 }
 
 func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error) {

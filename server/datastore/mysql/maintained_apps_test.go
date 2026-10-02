@@ -399,7 +399,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		},
 		BundleIdentifier: "irrelevant_2",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppIrrelevant, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppIrrelevant, &team1.ID, nil)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
@@ -419,7 +419,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		},
 		BundleIdentifier: "fleet.maintained2",
 	}
-	vppApp, err := ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team2.ID)
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team2.ID, nil)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
@@ -440,7 +440,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "fleet.maintained3",
 	}
 
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained3, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained3, &team1.ID, nil)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
@@ -454,7 +454,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, maintained3, gotApp)
 
 	// right vpp app, right team
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team1.ID, nil)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})

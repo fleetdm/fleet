@@ -138,6 +138,9 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				}
 				return &fleet.VPPAppStoreApp{VPPAppsTeamsID: *tt.teamID}, nil
 			}
+			ds.GetVPPAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
+				return []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: teamID}}, nil
+			}
 			ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
 			}
@@ -191,7 +194,7 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				checkAuthErr(t, tt.shouldFailRead, err)
 			}
 
-			err = svc.DeleteSoftwareInstaller(ctx, 1, tt.teamID, nil)
+			err = svc.DeleteSoftwareInstaller(ctx, 1, tt.teamID, nil, nil)
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {
@@ -207,7 +210,7 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				checkAuthErr(t, true, err)
 			}
 
-			_, _, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
+			_, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{AdamID: "123", Platform: fleet.IOSPlatform})
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else if tt.shouldFailWrite {

@@ -356,7 +356,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -657,14 +657,14 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.IOSPlatform}},
-	}, &team2.ID)
+	}, &team2.ID, nil)
 	require.NoError(t, err)
 
 	// create a VPP app for "No team", allowing self-service
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}, SelfService: true},
-	}, ptr.Uint(0))
+	}, new(uint(0)), nil)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -1037,7 +1037,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app,vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	titles, counts, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
@@ -1147,22 +1147,22 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.example.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.example.vpp2",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.IPadOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.example.vpp2",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	vpp2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.example.vpp2",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.IOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	// insert a policy referring to one of the VPP apps
@@ -1388,7 +1388,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "Canva", BundleIdentifier: "com.example.canva",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_canva", Platform: fleet.IOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// Create a macOS Canva installer on "team1".
@@ -1396,7 +1396,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "Canva", BundleIdentifier: "com.example.canva",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_canva", Platform: fleet.MacOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// Create an iPadOS Canva installer on "team2".
@@ -1404,7 +1404,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "Canva", BundleIdentifier: "com.example.canva",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_canva", Platform: fleet.IPadOSPlatform}},
-	}, &team2.ID)
+	}, &team2.ID, nil)
 	require.NoError(t, err)
 
 	// Add a macOS host on "No team" with some software.
@@ -2603,7 +2603,7 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// create a couple in-house apps (they always create both ios and ipados entries)
@@ -2915,18 +2915,18 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform}},
-	}, teamID)
+	}, teamID, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.IPadOSPlatform}},
-	}, teamID)
+	}, teamID, nil)
 	require.NoError(t, err)
 	// Create one VPP app for iOS on the team.
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.IOSPlatform}},
-	}, teamID)
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{

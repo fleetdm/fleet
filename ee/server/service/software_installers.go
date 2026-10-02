@@ -1210,7 +1210,7 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 	return false, nil, nil
 }
 
-func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error {
+func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint, appStoreAppVersionID *uint) error {
 	if teamID == nil {
 		return fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
@@ -1223,7 +1223,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 
 	// metaInstaller is fully hydrated (incl. the title-level icon) which the per-package reads below lack.
 	metaInstaller, errInstaller := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
-	metaVPP, errVPP := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	versionsVPP, errVPP := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, *teamID, titleID)
 	metaInHouse, errInHouse := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 
 	switch {
@@ -1253,6 +1253,15 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", *installerID)
 	}
 
+	if appStoreAppVersionID != nil {
+		for _, version := range versionsVPP {
+			if version.VPPAppsTeamsID == *appStoreAppVersionID {
+				return svc.deleteVPPApp(ctx, teamID, titleID, version)
+			}
+		}
+		return ctxerr.Wrapf(ctx, &notFoundError{}, "app store app version %d does not belong to this title and team", *appStoreAppVersionID)
+	}
+
 	switch {
 	case metaInstaller != nil:
 		// Delete every package on the title. FMA titles keep one active row, so this
@@ -1269,15 +1278,21 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 			}
 		}
 		return nil
-	case metaVPP != nil:
-		return svc.deleteVPPApp(ctx, teamID, metaVPP)
+	case len(versionsVPP) > 0:
+		for _, version := range versionsVPP {
+			err := svc.deleteVPPApp(ctx, teamID, titleID, version)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	case metaInHouse != nil:
 		return svc.deleteSoftwareInstaller(ctx, metaInHouse)
 	}
 	return ctxerr.Wrap(ctx, &notFoundError{}, "getting software installer")
 }
 
-func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.VPPAppStoreApp) error {
+func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, titleID uint, meta *fleet.VPPAppStoreApp) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return fleet.ErrNoContext
@@ -1292,10 +1307,31 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope")
 		}
+		// Skip the uninstall on hosts that another version of the app still targets
+		// TODO(JK) #53639: send the configuration of the earliest-added remaining version to hosts where this version was in effect, link their installs to that version, and uninstall once without re-sends when every version is deleted
+		var versions []*fleet.VPPAppStoreApp
+		versions, err = svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, ptr.ValOrZero(teamID), titleID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete app store app: getting versions of the app")
+		}
+		for _, otherVersion := range versions {
+			if otherVersion.VPPAppsTeamsID == meta.VPPAppsTeamsID {
+				continue
+			}
+			var otherVersionHosts map[string]string
+			otherVersionHosts, err = svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, otherVersion.VPPAppsTeamsID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope of other versions")
+			}
+			for hostUUID := range otherVersionHosts {
+				delete(hosts, hostUUID)
+			}
+		}
 		androidHostsUUIDToPolicyID = hosts
 	}
 
-	if err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.VPPAppID); err != nil {
+	err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.VPPAppID, &meta.VPPAppsTeamsID)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting VPP app")
 	}
 
@@ -1333,6 +1369,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		LabelsExcludeAny: actLabelsExclAny,
 		LabelsIncludeAll: actLabelsInclAll,
 		SoftwareIconURL:  meta.IconURL,
+		VersionName:      meta.VersionName,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}

@@ -278,7 +278,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 					},
 					BundleIdentifier: "b5",
 				}
-				_, err = ds.InsertVPPAppWithTeam(t.Context(), vppApp, &team.ID)
+				_, err = ds.InsertVPPAppWithTeam(t.Context(), vppApp, &team.ID, nil)
 				require.NoError(t, err)
 
 				// Record a label membership on the team label.

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -874,4 +876,345 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		require.Equal(t, []string{cancelDev.SerialNumber}, got.SerialNumbers)
 		require.Empty(t, got.ClientUserIds, "device-enrolled host must disassociate by serial, not clientUserId")
 	})
+
+	t.Run("install with two versions carries the first-added version's Configuration", func(t *testing.T) {
+		titleID := titleIDFor(adamMulti, fleet.IOSPlatform)
+		const firstCfg = `<dict><key>K</key><string>first</string></dict>`
+		const secondCfg = `<dict><key>K</key><string>second</string></dict>`
+
+		// set the first version's configuration, then add a second version with another configuration
+		s.DoJSON("PATCH",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+			&updateAppStoreAppRequest{TeamID: &team.ID, Configuration: asJSONString(firstCfg)},
+			http.StatusOK, &updateAppStoreAppResponse{})
+		var addResp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID: &team.ID, AppStoreID: adamMulti, Platform: fleet.IOSPlatform, Name: "Second",
+			Configuration: asJSONString(secondCfg),
+		}, http.StatusOK, &addResp)
+
+		// install on the iOS host, the command should carry the first version's configuration
+		raw := string(installAndCaptureCmd(t, iosHost, iosDev, titleID, app2Installed))
+		require.Contains(t, raw, "<string>first</string>")
+		require.NotContains(t, raw, "<string>second</string>")
+
+		// read the title, the install should be counted under the first version only
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+			"fleet_id", fmt.Sprint(team.ID))
+		require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 2)
+		require.NotZero(t, titleResp.SoftwareTitle.AppStoreApps[0].Status.Installed)
+		require.Equal(t, &fleet.VPPAppStatusSummary{}, titleResp.SoftwareTitle.AppStoreApps[1].Status)
+
+		// delete the second version so the title has one version again
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
+			"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addResp.VersionID))
+	})
+}
+
+func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "app-store-app-versions-team"})
+	require.NoError(t, err)
+	otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "app-store-app-versions-other-team"})
+	require.NoError(t, err)
+
+	orgName := "Fleet Device Management Inc."
+	token := "appstoreappversionstoken" //nolint:gosec // G101: test value, not a real credential
+	expDate := time.Now().Add(200 * time.Hour).UTC().Round(time.Second).Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":%q,"token":%q,"orgName":%q}`, expDate, token, orgName)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+
+	// Adam ID "1" is macOS, "2" is iOS, "3" is iPadOS in the mock VPP server.
+	const macOSAdamID = "1"
+	const iosAdamID = "2"
+	const ipadOSAdamID = "3"
+
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken",
+		[]byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+	// Assign the token to all fleets so the apps can be added to Unassigned too
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID),
+		patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+
+	asJSONString := func(s string) json.RawMessage {
+		b, err := json.Marshal(s)
+		require.NoError(t, err)
+		return json.RawMessage(b)
+	}
+
+	lastActivityVersionName := func(activityType string) string {
+		var listActivities listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities,
+			"order_key", "id", "order_direction", "desc", "per_page", "1")
+		require.Len(t, listActivities.Activities, 1)
+		require.Equal(t, activityType, listActivities.Activities[0].Type)
+		var details struct {
+			VersionName string `json:"version_name"`
+		}
+		require.NoError(t, json.Unmarshal(*listActivities.Activities[0].Details, &details))
+		return details.VersionName
+	}
+
+	const productionPlist = `<dict><key>ServerURL</key><string>https://production.example.com</string></dict>`
+	const testPlist = `<dict><key>ServerURL</key><string>https://test.example.com</string></dict>`
+
+	// add the iOS app without a name, the version should be named "Default version"
+	var addDefaultResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:        &team.ID,
+		AppStoreID:    iosAdamID,
+		Platform:      fleet.IOSPlatform,
+		Configuration: asJSONString(productionPlist),
+	}, http.StatusOK, &addDefaultResp)
+	require.NotZero(t, addDefaultResp.VersionID)
+	require.Equal(t, fleet.DefaultAppStoreAppVersionName, lastActivityVersionName(fleet.ActivityAddedAppStoreApp{}.ActivityName()))
+	titleID := addDefaultResp.TitleID
+
+	// add the iOS app again with a new name, a second version should be added to the same title
+	var addTestResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:        &team.ID,
+		AppStoreID:    iosAdamID,
+		Platform:      fleet.IOSPlatform,
+		Name:          "Test",
+		Configuration: asJSONString(testPlist),
+	}, http.StatusOK, &addTestResp)
+	require.Equal(t, titleID, addTestResp.TitleID)
+	require.NotEqual(t, addDefaultResp.VersionID, addTestResp.VersionID)
+	require.Equal(t, "Test", lastActivityVersionName(fleet.ActivityAddedAppStoreApp{}.ActivityName()))
+
+	// add the iOS app with a name that already exists, the request should conflict
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: iosAdamID,
+		Platform:   fleet.IOSPlatform,
+		Name:       "Test",
+	}, http.StatusConflict)
+
+	// add the iOS app with the existing name in a different case, the request should conflict
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: iosAdamID,
+		Platform:   fleet.IOSPlatform,
+		Name:       "TEST",
+	}, http.StatusConflict)
+
+	// add the iOS app with the existing name written with an accent, the request should conflict instead of updating the existing version
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:      &team.ID,
+		AppStoreID:  iosAdamID,
+		Platform:    fleet.IOSPlatform,
+		Name:        "Tëst",
+		SelfService: true,
+	}, http.StatusConflict)
+
+	// add the macOS app twice, the second version should conflict
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: macOSAdamID,
+		Platform:   fleet.MacOSPlatform,
+	}, http.StatusOK, &addAppStoreAppResponse{})
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: macOSAdamID,
+		Platform:   fleet.MacOSPlatform,
+		Name:       "Second",
+	}, http.StatusConflict)
+
+	// get the title, both versions should be listed and app_store_app should match the first-added version
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"fleet_id", fmt.Sprint(team.ID))
+	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 2)
+	require.Equal(t, addDefaultResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[0].ID)
+	require.Equal(t, fleet.DefaultAppStoreAppVersionName, titleResp.SoftwareTitle.AppStoreApps[0].Name)
+	require.Equal(t, addTestResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[1].ID)
+	require.Equal(t, "Test", titleResp.SoftwareTitle.AppStoreApps[1].Name)
+	var gotTestPlist string
+	require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.AppStoreApps[1].Configuration, &gotTestPlist))
+	require.Equal(t, testPlist, gotTestPlist)
+	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApp)
+	require.Equal(t, iosAdamID, titleResp.SoftwareTitle.AppStoreApp.AdamID)
+	var gotFirstPlist string
+	require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.AppStoreApp.Configuration, &gotFirstPlist))
+	require.Equal(t, productionPlist, gotFirstPlist)
+
+	// edit the title without a version id, the request should be rejected since the title has two versions
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(true)}, http.StatusBadRequest)
+
+	// edit the title with the version id of another title, the version should not be found
+	var addIPadOSResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: ipadOSAdamID,
+		Platform:   fleet.IPadOSPlatform,
+	}, http.StatusOK, &addIPadOSResp)
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addIPadOSResp.VersionID, SelfService: new(true)}, http.StatusNotFound)
+
+	// edit the title in another fleet with this fleet's version id, the version should not be found
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &otherTeam.ID,
+		AppStoreID: iosAdamID,
+		Platform:   fleet.IOSPlatform,
+	}, http.StatusOK, &addAppStoreAppResponse{})
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &otherTeam.ID, VersionID: &addTestResp.VersionID, SelfService: new(true)}, http.StatusNotFound)
+
+	// rename the second version to the first version's name, the request should conflict
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addTestResp.VersionID, Name: new(fleet.DefaultAppStoreAppVersionName)}, http.StatusConflict)
+
+	// rename the second version to the first version's name in a different case, the request should conflict
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addTestResp.VersionID, Name: new("DEFAULT VERSION")}, http.StatusConflict)
+
+	// rename the second version to a blank name, the request should be rejected
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addTestResp.VersionID, Name: new("  ")}, http.StatusUnprocessableEntity)
+
+	// add and rename a version to a 256 character name, both requests should be rejected with the length limit
+	longName := strings.Repeat("a", fleet.MaxAppStoreAppVersionNameLength+1)
+	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: iosAdamID,
+		Platform:   fleet.IOSPlatform,
+		Name:       longName,
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "can't be longer than 255 characters")
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addTestResp.VersionID, Name: &longName}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "can't be longer than 255 characters")
+
+	// edit the second version's name, configuration, and auto updates, only the second version should change
+	const editedTestPlist = `<dict><key>ServerURL</key><string>https://edited-test.example.com</string></dict>`
+	var updResp updateAppStoreAppResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{
+			TeamID:              &team.ID,
+			VersionID:           &addTestResp.VersionID,
+			Name:                new("Staging"),
+			Configuration:       asJSONString(editedTestPlist),
+			AutoUpdateEnabled:   new(true),
+			AutoUpdateStartTime: new("01:00"),
+			AutoUpdateEndTime:   new("03:00"),
+		}, http.StatusOK, &updResp)
+	require.NotNil(t, updResp.AppStoreApp)
+	require.Equal(t, addTestResp.VersionID, updResp.AppStoreApp.ID)
+	require.Equal(t, "Staging", updResp.AppStoreApp.Name)
+	require.NotNil(t, updResp.AppStoreApp.AutoUpdateEnabled)
+	require.True(t, *updResp.AppStoreApp.AutoUpdateEnabled)
+	require.Equal(t, "Staging", lastActivityVersionName(fleet.ActivityEditedAppStoreApp{}.ActivityName()))
+
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"fleet_id", fmt.Sprint(team.ID))
+	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 2)
+	firstVersion := titleResp.SoftwareTitle.AppStoreApps[0]
+	secondVersion := titleResp.SoftwareTitle.AppStoreApps[1]
+	require.Equal(t, fleet.DefaultAppStoreAppVersionName, firstVersion.Name)
+	require.Nil(t, firstVersion.AutoUpdateEnabled)
+	require.NoError(t, json.Unmarshal(firstVersion.Configuration, &gotFirstPlist))
+	require.Equal(t, productionPlist, gotFirstPlist)
+	require.Equal(t, "Staging", secondVersion.Name)
+	require.NotNil(t, secondVersion.AutoUpdateEnabled)
+	require.True(t, *secondVersion.AutoUpdateEnabled)
+	require.Equal(t, "01:00", *secondVersion.AutoUpdateStartTime)
+	require.Equal(t, "03:00", *secondVersion.AutoUpdateEndTime)
+	require.NoError(t, json.Unmarshal(secondVersion.Configuration, &gotTestPlist))
+	require.Equal(t, editedTestPlist, gotTestPlist)
+
+	// get the title without a fleet, no App Store app versions should be returned
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp)
+	require.Nil(t, titleResp.SoftwareTitle.AppStoreApps)
+	require.Nil(t, titleResp.SoftwareTitle.AppStoreApp)
+
+	// rename the other fleet's only version, then apply GitOps with the app, the fleet should have one version with the new name
+	otherVersions, err := s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, otherTeam.ID, titleID)
+	require.NoError(t, err)
+	require.Len(t, otherVersions, 1)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &otherTeam.ID, Name: new("Renamed")}, http.StatusOK, &updateAppStoreAppResponse{})
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, SelfService: true}}},
+		http.StatusOK, &batchAssociateAppStoreAppsResponse{}, "fleet_name", otherTeam.Name)
+	otherVersions, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, otherTeam.ID, titleID)
+	require.NoError(t, err)
+	require.Len(t, otherVersions, 1)
+	require.Equal(t, "Renamed", otherVersions[0].VersionName)
+	require.True(t, otherVersions[0].SelfService)
+
+	// set a display name and a custom icon, then delete the second version, the first version should still show both
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, VersionID: &addDefaultResp.VersionID, DisplayName: new("Renamed app")},
+		http.StatusOK, &updateAppStoreAppResponse{})
+	iconBytes, err := os.ReadFile("testdata/icons/valid-icon.png")
+	require.NoError(t, err)
+	iconBody, iconHeaders := generateMultipartRequest(t, "icon", "icon.png", iconBytes, s.token, nil)
+	s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", titleID, team.ID),
+		iconBody.Bytes(), http.StatusOK, iconHeaders)
+
+	// delete the title with the version id of another title, the version should not be found
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNotFound,
+		"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addIPadOSResp.VersionID))
+
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
+		"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addTestResp.VersionID))
+	require.Equal(t, "Staging", lastActivityVersionName(fleet.ActivityDeletedAppStoreApp{}.ActivityName()))
+
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"fleet_id", fmt.Sprint(team.ID))
+	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 1)
+	require.Equal(t, addDefaultResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[0].ID)
+	require.Equal(t, "Renamed app", titleResp.SoftwareTitle.AppStoreApps[0].DisplayName)
+	_, err = s.ds.GetSoftwareTitleIcon(ctx, team.ID, titleID)
+	require.NoError(t, err)
+
+	// edit the title without a version id now that it has one version, the edit should apply to that version
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(true)}, http.StatusOK, &updateAppStoreAppResponse{})
+
+	// add the iOS app to Unassigned under ten names, the eleventh version should be rejected
+	for i := range fleet.MaxAppStoreAppVersions {
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID:     new(uint(0)),
+			AppStoreID: iosAdamID,
+			Platform:   fleet.IOSPlatform,
+			Name:       fmt.Sprintf("Version %d", i),
+		}, http.StatusOK, &addAppStoreAppResponse{})
+	}
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     new(uint(0)),
+		AppStoreID: iosAdamID,
+		Platform:   fleet.IOSPlatform,
+		Name:       "One too many",
+	}, http.StatusBadRequest)
+
+	// delete the title in Unassigned without a version id, every version should be deleted
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
+		"fleet_id", "0")
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusNotFound, "fleet_id", "0")
+
+	// delete the last version in the fleet, the display name and icon should be deleted with it
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
+		"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addDefaultResp.VersionID))
+	_, err = s.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
+	require.True(t, fleet.IsNotFound(err))
+	var displayNameCount int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &displayNameCount,
+			`SELECT COUNT(*) FROM software_title_display_names WHERE team_id = ? AND software_title_id = ?`, team.ID, titleID)
+	})
+	require.Zero(t, displayNameCount)
+	_, err = s.ds.GetSoftwareTitleIcon(ctx, team.ID, titleID)
+	require.True(t, fleet.IsNotFound(err))
 }

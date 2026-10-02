@@ -1705,7 +1705,7 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: "darwin"}, DisplayName: ptr.String("VPP 1")},
 		Name:             "vpp1",
 		BundleIdentifier: "com.app.vpp1",
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	getAllDisplayNames := func() []string {
@@ -1788,7 +1788,7 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	payload := fleet.UploadSoftwareInstallerPayload{

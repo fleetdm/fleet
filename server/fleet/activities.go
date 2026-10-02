@@ -1646,6 +1646,7 @@ type ActivityAddedAppStoreApp struct {
 	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 	LabelsIncludeAll []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
 	Configuration    json.RawMessage           `json:"configuration,omitempty"`
+	VersionName      string                    `json:"version_name"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -1662,6 +1663,7 @@ type ActivityDeletedAppStoreApp struct {
 	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 	LabelsIncludeAll []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
+	VersionName      string                    `json:"version_name"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {
@@ -1682,6 +1684,7 @@ type ActivityInstalledAppStoreApp struct {
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	FromAutoUpdate      bool    `json:"from_auto_update"`
 	FailureReason       string  `json:"failure_reason,omitempty"`
+	VersionName         string  `json:"version_name,omitempty"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -1724,6 +1727,7 @@ type ActivityEditedAppStoreApp struct {
 	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
+	VersionName         string                    `json:"version_name"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
