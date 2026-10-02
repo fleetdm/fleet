@@ -151,6 +151,8 @@ Pay attention to the verbs `<Add>` vs `<Replace>` when creating as these need to
 
 The section above covers ADMX policies that ship with Windows (like `WindowsPowerShell`). But many applications — Microsoft Edge, Google Chrome, Firefox, Adobe products, and others — ship their own ADMX templates that aren't included in the OS. To use these with MDM, you need to **ingest** the ADMX file to the device first, and then configure the policies it defines.
 
+> New in Fleet 4.93.0: You can now upload `.admx` files directly to Fleet (no manual SyncML wrapping required). Fleet automatically handles the `ADMXInstall` ingestion and wraps the file for delivery to the device. The manual steps below are still useful for understanding the underlying mechanism or for advanced use cases.
+
 This is a two-step process:
 1. **Ingest the ADMX file** — tell the device about the new policy definitions
 2. **Configure the policies** — set the actual values using the ingested definitions
@@ -163,7 +165,11 @@ Download the ADMX template for the application you want to manage. Common source
 - **Google Chrome**: Download from [Chrome Enterprise](https://chromeenterprise.google/intl/en_us/browser/download/#manage-policies-tab) and extract `chrome.admx`
 - **Third-party apps**: Check the vendor's documentation for their ADMX templates
 
+Once you have the `.admx` file, you can upload it directly as a Windows configuration profile in Fleet (UI, REST API, or GitOps YAML). Fleet accepts `.admx` and `.xml` file types for Windows profiles.
+
 ### Step 2: Ingest the ADMX file
+
+> If you uploaded the `.admx` file directly to Fleet, skip this step. Fleet generates the `ADMXInstall` SyncML block automatically. The following is only needed if you're manually crafting the XML.
 
 The ADMX file content is sent to the device using the `ADMXInstall` URI:
 
@@ -227,6 +233,8 @@ For example, to configure an Edge policy after ingesting with `AppName` = `MSEdg
 
 ### Putting it together with Fleet
 
+When you upload an `.admx` file directly, Fleet handles both the ingestion (`<Add>` with `ADMXInstall`) and policy configuration (`<Replace>`) automatically. You only need to create a separate `.xml` profile to configure the policies defined in the ingested ADMX. The combined XML below illustrates what Fleet generates under the hood.
+
 In Fleet, both the ADMX ingestion and the policy configuration go in the same configuration profile XML file. The ingestion `<Add>` block should come **before** any `<Replace>` blocks that reference the ingested policies:
 
 ```xml
@@ -264,6 +272,7 @@ In Fleet, both the ADMX ingestion and the policy configuration go in the same co
 - **The `~Policy~` separator is required**: The LocURI always includes `~Policy~` between the `{AppName}` and the category path.
 - **Ingestion only needs to happen once**: After the ADMX is ingested, the device remembers it. Fleet will re-send the profile on each check-in, but the device handles this gracefully.
 - **Registry key restrictions**: Windows blocks custom ADMX policies from writing to most `Software\Microsoft` and `Software\Policies\Microsoft` registry locations, with [specific exceptions](https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration) for apps like Edge, Office, and OneDrive.
+- **Direct upload**: When you upload `.admx` directly, Fleet chooses the `{AppName}` and `{AdmxFileName}` automatically based on the uploaded file name.
 
 ## Migrating from Intune
 
