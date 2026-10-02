@@ -7159,18 +7159,17 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	u, err := url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q := u.Query()
-	user1EnrollRef := q.Get("enrollment_reference")
+	user1EnrollRef := s.mdmIdPAccountUUID(t, "sso_user@example.com")
 	// without an EULA uploaded
 	require.False(t, q.Has("eula_token"))
 	require.True(t, q.Has("profile_token"))
-	require.True(t, q.Has("enrollment_reference"))
+	require.False(t, q.Has("enrollment_reference"))
 	require.False(t, q.Has("error"))
 	// the url retrieves a valid profile
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath:  "/api/mdm/apple/enroll",
-		enrollRef: q.Get("enrollment_reference"),
-		token:     q.Get("profile_token"),
-		diParam:   di,
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
 	})
 
 	// IdP info stored is accurate for the account
@@ -7180,7 +7179,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	staticProf, err := s.ds.GetMDMAppleEnrollmentProfileByType(t.Context(), fleet.MDMAppleEnrollmentTypeAutomatic)
 	require.NoError(t, err)
 	require.NotEqual(t, staticProf.Token, q.Get("profile_token"))
-	s.checkOneTimeDEPEnrollmentToken(t, di, user1EnrollRef, q.Get("profile_token"), staticProf.Token)
+	s.checkOneTimeDEPEnrollmentToken(t, di, q.Get("profile_token"))
 
 	res = s.LoginMDMSSOUser("sso_user", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
@@ -7189,18 +7188,16 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	u, err = url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q = u.Query()
-	user1EnrollRef = q.Get("enrollment_reference")
 	// without an EULA uploaded
 	require.False(t, q.Has("eula_token"))
 	require.True(t, q.Has("profile_token"))
-	require.True(t, q.Has("enrollment_reference"))
+	require.False(t, q.Has("enrollment_reference"))
 	require.False(t, q.Has("error"))
 	// the url retrieves a valid profile
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath:  "/api/mdm/apple/enroll",
-		enrollRef: q.Get("enrollment_reference"),
-		token:     q.Get("profile_token"),
-		diParam:   di,
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
 	})
 
 	// IdP info stored is accurate for the account
@@ -7213,7 +7210,6 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	u, err = url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q = u.Query()
-	user1EnrollRef = q.Get("enrollment_reference")
 
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
@@ -7229,16 +7225,13 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// with an EULA uploaded, all values are present
 	require.True(t, q.Has("eula_token"))
 	require.True(t, q.Has("profile_token"))
-	require.True(t, q.Has("enrollment_reference"))
+	require.False(t, q.Has("enrollment_reference"))
 	require.False(t, q.Has("error"))
-	// the enrollment reference is the same for the same user
-	require.Equal(t, user1EnrollRef, q.Get("enrollment_reference"))
 	// the url retrieves a valid profile
 	prof := s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath:  "/api/mdm/apple/enroll",
-		enrollRef: user1EnrollRef,
-		token:     q.Get("profile_token"),
-		diParam:   di,
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
 	})
 
 	// the url retrieves a valid EULA
@@ -7454,19 +7447,18 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	u, err = url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q = u.Query()
-	user2EnrollRef := q.Get("enrollment_reference")
+	user2EnrollRef := s.mdmIdPAccountUUID(t, "sso_user2@example.com")
 	require.True(t, q.Has("eula_token"))
 	require.True(t, q.Has("profile_token"))
-	require.True(t, q.Has("enrollment_reference"))
+	require.False(t, q.Has("enrollment_reference"))
 	require.False(t, q.Has("error"))
 	// the enrollment reference is different to the one used for the previous user
 	require.NotEqual(t, user1EnrollRef, user2EnrollRef)
 	// the url retrieves a valid profile
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath:  "/api/mdm/apple/enroll",
-		enrollRef: user2EnrollRef,
-		token:     q.Get("profile_token"),
-		diParam:   di,
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
 	})
 
 	// the url retrieves a valid EULA
@@ -7870,6 +7862,12 @@ func (s *integrationMDMTestSuite) TestMDMSSOSetupExperienceHostBinding() {
 	})
 }
 
+func (s *integrationMDMTestSuite) mdmIdPAccountUUID(t *testing.T, email string) string {
+	acc, err := s.ds.GetMDMIdPAccountByEmail(t.Context(), email)
+	require.NoError(t, err)
+	return acc.UUID
+}
+
 func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, username, fullname, email string) {
 	acc, err := s.ds.GetMDMIdPAccountByUUID(context.Background(), uuid)
 	require.NoError(t, err)
@@ -7901,13 +7899,12 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	u, err := url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q := u.Query()
-	user1EnrollRef := q.Get("enrollment_reference")
+	user1EnrollRef := s.mdmIdPAccountUUID(t, "sso_user_no_displayname@example.com")
 	// the url retrieves a valid profile
 	prof := s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath:  "/api/mdm/apple/enroll",
-		enrollRef: user1EnrollRef,
-		token:     q.Get("profile_token"),
-		diParam:   di,
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
 	})
 
 	// IdP info stored is accurate for the account
@@ -8222,18 +8219,17 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	u, err = url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q = u.Query()
-	user2EnrollRef := q.Get("enrollment_reference")
+	user2EnrollRef := s.mdmIdPAccountUUID(t, "sso_user2@example.com")
 	require.True(t, q.Has("profile_token"))
-	require.True(t, q.Has("enrollment_reference"))
+	require.False(t, q.Has("enrollment_reference"))
 	require.False(t, q.Has("error"))
 	// the enrollment reference is not same as the one used for the previous user
 	require.NotEqual(t, user1EnrollRef, user2EnrollRef)
 	// the url retrieves a valid profile
 	prof = s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath:  "/api/mdm/apple/enroll",
-		enrollRef: user2EnrollRef,
-		token:     q.Get("profile_token"),
-		diParam:   di,
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
 	})
 
 	// IdP info stored is accurate for the account
@@ -8429,28 +8425,21 @@ type enrollmentProfile struct {
 
 // checkOneTimeDEPEnrollmentToken checks that usedToken, a one-time token
 // already redeemed by the device that presented deviceInfo, can't be redeemed
-// again, and that fresh one-time tokens are refused for the wrong device, the
-// wrong IdP account, or after they expire. It also checks that the static
-// token is refused with an enrollment reference.
-func (s *integrationMDMTestSuite) checkOneTimeDEPEnrollmentToken(t *testing.T, deviceInfo, idpAccountUUID, usedToken, staticToken string) {
-	requireEnrollStatus := func(token, ref, di string, wantStatus int) {
+// again, and that fresh one-time tokens are refused for the wrong device or
+// after they expire.
+func (s *integrationMDMTestSuite) checkOneTimeDEPEnrollmentToken(t *testing.T, deviceInfo, usedToken string) {
+	requireRefused := func(token, di string) {
 		t.Helper()
-		params := []string{"token", token, "deviceinfo", di}
-		if ref != "" {
-			params = append(params, "enrollment_reference", ref)
-		}
-		res := s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, wantStatus, params...)
-		if wantStatus == http.StatusUnauthorized {
-			require.Contains(t, extractServerErrorText(res.Body), "Authentication failed")
-		}
+		res := s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, "token", token, "deviceinfo", di)
+		require.Contains(t, extractServerErrorText(res.Body), "Authentication failed")
 	}
-	newToken := func() (token, ref string) {
+	newToken := func() string {
 		t.Helper()
 		res := s.LoginMDMSSOUser("sso_user", "user123#", deviceInfo)
 		require.Equal(t, http.StatusSeeOther, res.StatusCode)
 		u, err := url.Parse(res.Header.Get("Location"))
 		require.NoError(t, err)
-		return u.Query().Get("profile_token"), u.Query().Get("enrollment_reference")
+		return u.Query().Get("profile_token")
 	}
 	parsed, _, err := apple_mdm.ParseDeviceinfo(deviceInfo)
 	require.NoError(t, err)
@@ -8461,30 +8450,23 @@ func (s *integrationMDMTestSuite) checkOneTimeDEPEnrollmentToken(t *testing.T, d
 	require.NoError(t, err)
 
 	// reused
-	requireEnrollStatus(usedToken, idpAccountUUID, deviceInfo, http.StatusUnauthorized)
+	requireRefused(usedToken, deviceInfo)
 
 	// redeemed by another device, which uses it up for the right device too
-	token, ref := newToken()
-	requireEnrollStatus(token, ref, otherDeviceInfo, http.StatusUnauthorized)
-	requireEnrollStatus(token, ref, deviceInfo, http.StatusUnauthorized)
-
-	// with another IdP account's reference
-	token, _ = newToken()
-	requireEnrollStatus(token, uuid.NewString(), deviceInfo, http.StatusUnauthorized)
+	token := newToken()
+	requireRefused(token, otherDeviceInfo)
+	requireRefused(token, deviceInfo)
 
 	// expired
-	token, ref = newToken()
+	token = newToken()
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(t.Context(), `UPDATE mdm_apple_dep_enrollment_challenges SET expires_at = NOW(6) - INTERVAL 1 SECOND WHERE challenge = ?`, token)
 		return err
 	})
-	requireEnrollStatus(token, ref, deviceInfo, http.StatusUnauthorized)
+	requireRefused(token, deviceInfo)
 
-	// static token with an enrollment reference
-	requireEnrollStatus(staticToken, idpAccountUUID, deviceInfo, http.StatusUnauthorized)
-
-	// without a reference, a fresh one-time token still works
-	token, _ = newToken()
+	// a fresh one-time token still works
+	token = newToken()
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{token: token, diParam: deviceInfo})
 
 	// initiating the flow requires the device's deviceinfo
@@ -8492,11 +8474,10 @@ func (s *integrationMDMTestSuite) checkOneTimeDEPEnrollmentToken(t *testing.T, d
 }
 
 type optsDownloadEnrollProf struct {
-	basePath  string
-	token     string
-	enrollRef string
-	diParam   string
-	diHeader  string
+	basePath string
+	token    string
+	diParam  string
+	diHeader string
 }
 
 func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(t *testing.T, opts optsDownloadEnrollProf) *enrollmentProfile {
@@ -8513,9 +8494,6 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(t *testing.
 	var queryParams []string
 	if opts.token != "" {
 		queryParams = append(queryParams, "token", opts.token)
-	}
-	if opts.enrollRef != "" {
-		queryParams = append(queryParams, "enrollment_reference", opts.enrollRef)
 	}
 	if opts.diParam != "" {
 		queryParams = append(queryParams, "deviceinfo", opts.diParam)

@@ -2600,9 +2600,6 @@ func (svc *Service) EnqueueMDMAppleCommand(
 type mdmAppleEnrollRequest struct {
 	// Token is expected to be a UUID string that identifies a template MDM Apple enrollment profile.
 	Token string `query:"token"`
-	// EnrollmentReference is expected to be a UUID string that identifies the MDM IdP account used
-	// to authenticate the end user as part of the MDM IdP flow.
-	EnrollmentReference string `query:"enrollment_reference,optional"`
 	// DeviceInfo is expected to be a base64 encoded string extracted during MDM IdP enrollment from the
 	// x-apple-aspen-deviceinfo header of the original configuration web view request and
 	// persisted by the client in local storage for inclusion in a subsequent enrollment request as
@@ -2624,9 +2621,6 @@ func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request)
 		}
 	}
 	decoded.Token = tok
-
-	er := r.URL.Query().Get("enrollment_reference")
-	decoded.EnrollmentReference = er
 
 	// Parse the machine info from the request header or URL query param.
 	di := r.Header.Get("x-apple-aspen-deviceinfo")
@@ -2767,7 +2761,7 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 	ctx = ctxdb.RequirePrimary(ctx, true)
 
 	// Authenticate before doing anything with the machine info.
-	idpAccountUUID, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, req.Token, req.EnrollmentReference, req.MachineInfo)
+	idpAccountUUID, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, req.Token, req.MachineInfo)
 	if err != nil {
 		return mdmAppleEnrollResponse{Err: err}, nil
 	}
@@ -2786,8 +2780,7 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 		}
 	}
 
-	// The device is linked to the IdP account it authenticated as, never to the
-	// caller-supplied enrollment reference.
+	// An empty account (the automatic enrollment token) clears any previous IdP link.
 	legacyRef, err := svc.ReconcileMDMAppleEnrollRef(ctx, idpAccountUUID, req.MachineInfo)
 	if err != nil {
 		return mdmAppleEnrollResponse{Err: err}, nil
@@ -2956,7 +2949,7 @@ func (svc *Service) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef st
 	return legacyRef, nil
 }
 
-func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (idpAccountUUID string, err error) {
+func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token string, machineInfo *fleet.MDMAppleMachineInfo) (idpAccountUUID string, err error) {
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -2974,7 +2967,7 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 		}
 	}()
 
-	idpAccountUUID, err = svc.authenticateMDMAppleDEPEnrollmentToken(ctx, token, enrollRef, machineInfo)
+	idpAccountUUID, err = svc.authenticateMDMAppleDEPEnrollmentToken(ctx, token, machineInfo)
 	if err != nil {
 		return "", err
 	}
@@ -2994,17 +2987,12 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 // authenticateMDMAppleDEPEnrollmentToken checks the token is the automatic
 // enrollment profile's token or a one-time challenge issued to this device,
 // consuming the challenge. It returns the challenge's IdP account, if any.
-func (svc *Service) authenticateMDMAppleDEPEnrollmentToken(ctx context.Context, token, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
+func (svc *Service) authenticateMDMAppleDEPEnrollmentToken(ctx context.Context, token string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
 	profile, err := svc.ds.GetMDMAppleEnrollmentProfileByToken(ctx, token)
 	switch {
 	case err == nil:
 		if profile.Type != fleet.MDMAppleEnrollmentTypeAutomatic {
 			return "", fleet.NewAuthFailedError("enrollment profile is not for automatic enrollment")
-		}
-		// Only a one-time challenge proves end user authentication, so a
-		// reference must not ride along with the static token.
-		if enrollRef != "" {
-			return "", fleet.NewAuthFailedError("automatic enrollment token presented with an enrollment reference")
 		}
 		return "", nil
 	case !fleet.IsNotFound(err):
@@ -3022,9 +3010,6 @@ func (svc *Service) authenticateMDMAppleDEPEnrollmentToken(ctx context.Context, 
 	}
 	if !depEnrollmentChallengeIssuedTo(chal, machineInfo) {
 		return "", fleet.NewAuthFailedError("automatic enrollment challenge was issued to a different device")
-	}
-	if enrollRef != "" && enrollRef != chal.IdPAccountUUID {
-		return "", fleet.NewAuthFailedError("enrollment reference does not match the automatic enrollment challenge")
 	}
 	return chal.IdPAccountUUID, nil
 }

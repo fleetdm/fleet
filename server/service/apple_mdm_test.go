@@ -10545,7 +10545,7 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 
 	t.Run("unknown token fails before any serial lookup", func(t *testing.T) {
 		resetMocks()
-		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "unknown-token", "", machineInfo)
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "unknown-token", machineInfo)
 		requireAuthFailed(t, err)
 		require.True(t, ds.ConsumeMDMAppleDEPEnrollmentChallengeFuncInvoked)
 		require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
@@ -10556,7 +10556,7 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 		ds.GetMDMAppleEnrollmentProfileByTokenFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
 			return &fleet.MDMAppleEnrollmentProfile{ID: 2, Token: token, Type: fleet.MDMAppleEnrollmentTypeManual}, nil
 		}
-		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "manual-token", "", machineInfo)
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "manual-token", machineInfo)
 		requireAuthFailed(t, err)
 		require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
 	})
@@ -10566,7 +10566,7 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 		ds.GetMDMAppleEnrollmentProfileByTokenFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
 			return nil, errors.New("boom")
 		}
-		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", "", machineInfo)
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
 		require.ErrorContains(t, err, "get enrollment profile")
 		require.False(t, ds.ConsumeMDMAppleDEPEnrollmentChallengeFuncInvoked)
 		require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
@@ -10574,7 +10574,7 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 
 	t.Run("missing machine info is a bad request before any lookup", func(t *testing.T) {
 		resetMocks()
-		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", "", nil)
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", nil)
 		var badReq *fleet.BadRequestError
 		require.ErrorAs(t, err, &badReq)
 		require.False(t, ds.GetMDMAppleEnrollmentProfileByTokenFuncInvoked)
@@ -10588,7 +10588,7 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 				require.Equal(t, machineInfo.Serial, serial)
 				return nil, nil
 			}
-			_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, token, "", machineInfo)
+			_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, token, machineInfo)
 			requireAuthFailed(t, err)
 			require.True(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
 		}
@@ -10599,13 +10599,13 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 		ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
 			return nil, errors.New("boom")
 		}
-		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", "", machineInfo)
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
 		require.ErrorContains(t, err, "get host dep assignments")
 	})
 
 	t.Run("valid token and DEP-assigned serial succeeds", func(t *testing.T) {
 		resetMocks()
-		gotIdPAccount, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", "", machineInfo)
+		gotIdPAccount, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
 		require.NoError(t, err)
 		require.Empty(t, gotIdPAccount)
 		require.True(t, ds.GetMDMAppleEnrollmentProfileByTokenFuncInvoked)
@@ -10613,30 +10613,13 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 		require.True(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
 	})
 
-	t.Run("static token with an enrollment reference fails", func(t *testing.T) {
-		resetMocks()
-		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", idpAccountUUID, machineInfo)
-		requireAuthFailed(t, err)
-		require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
-	})
-
 	t.Run("valid challenge returns its IdP account", func(t *testing.T) {
-		for _, ref := range []string{"", idpAccountUUID} {
-			resetMocks()
-			gotIdPAccount, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-challenge", ref, machineInfo)
-			require.NoError(t, err)
-			require.Equal(t, idpAccountUUID, gotIdPAccount)
-			require.True(t, ds.ConsumeMDMAppleDEPEnrollmentChallengeFuncInvoked)
-			require.True(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
-		}
-	})
-
-	t.Run("challenge with a different enrollment reference fails", func(t *testing.T) {
 		resetMocks()
-		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-challenge", "other-account", machineInfo)
-		requireAuthFailed(t, err)
+		gotIdPAccount, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-challenge", machineInfo)
+		require.NoError(t, err)
+		require.Equal(t, idpAccountUUID, gotIdPAccount)
 		require.True(t, ds.ConsumeMDMAppleDEPEnrollmentChallengeFuncInvoked)
-		require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
+		require.True(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
 	})
 
 	t.Run("challenge issued to a different device fails", func(t *testing.T) {
@@ -10645,7 +10628,7 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 			{Serial: machineInfo.Serial, UDID: "other-udid"},
 		} {
 			resetMocks()
-			_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-challenge", "", other)
+			_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-challenge", other)
 			requireAuthFailed(t, err)
 			require.True(t, ds.ConsumeMDMAppleDEPEnrollmentChallengeFuncInvoked)
 			require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
@@ -10657,7 +10640,7 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 		ds.ConsumeMDMAppleDEPEnrollmentChallengeFunc = func(ctx context.Context, challenge string) (*fleet.MDMAppleDEPEnrollmentChallenge, error) {
 			return nil, errors.New("boom")
 		}
-		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-challenge", "", machineInfo)
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-challenge", machineInfo)
 		require.ErrorContains(t, err, "consume automatic enrollment challenge")
 		var authErr *fleet.AuthFailedError
 		require.NotErrorAs(t, err, &authErr)
@@ -10670,7 +10653,7 @@ func TestMDMAppleEnrollEndpointAuthenticatesBeforeProcessing(t *testing.T) {
 
 	newSvc := func(idpAccountUUID string, authErr error) *svcmock.Service {
 		svc := &svcmock.Service{}
-		svc.AuthenticateMDMAppleDEPEnrollmentFunc = func(ctx context.Context, token, ref string, mi *fleet.MDMAppleMachineInfo) (string, error) {
+		svc.AuthenticateMDMAppleDEPEnrollmentFunc = func(ctx context.Context, token string, mi *fleet.MDMAppleMachineInfo) (string, error) {
 			require.True(t, ctxdb.IsPrimaryRequired(ctx))
 			return idpAccountUUID, authErr
 		}
@@ -10710,13 +10693,12 @@ func TestMDMAppleEnrollEndpointAuthenticatesBeforeProcessing(t *testing.T) {
 		require.Equal(t, []byte("profile"), resp.(mdmAppleEnrollResponse).Profile)
 	})
 
-	t.Run("device is linked to the authenticated IdP account, not the request's reference", func(t *testing.T) {
+	t.Run("device is linked to the IdP account the challenge was issued for", func(t *testing.T) {
 		svc := newSvc("authenticated-account", nil)
 		resp, err := mdmAppleEnrollEndpoint(ctx, &mdmAppleEnrollRequest{
-			Token:               "challenge",
-			EnrollmentReference: "caller-supplied-account",
-			DeviceInfo:          "di",
-			MachineInfo:         machineInfo,
+			Token:       "challenge",
+			DeviceInfo:  "di",
+			MachineInfo: machineInfo,
 		}, svc)
 		require.NoError(t, err)
 		require.NoError(t, resp.Error())

@@ -1125,9 +1125,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		}
 	}
 
-	q := url.Values{
-		"enrollment_reference": {enrollmentRef},
-	}
+	q := url.Values{}
 	if eulaToken != "" {
 		q.Add("eula_token", eulaToken)
 	}
