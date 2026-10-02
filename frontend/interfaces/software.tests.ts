@@ -1,291 +1,199 @@
 import {
   formatSoftwareType,
   formatSoftwareVersion,
+  getSoftwareTypesForPlatform,
+  parseSoftwareTypesParam,
+  SOFTWARE_TYPES,
   SoftwareExtensionFor,
+  SoftwareSource,
+  softwareTypesToApiParams,
 } from "./software";
 
 describe("formatSoftwareType", () => {
-  describe("basic source type conversion", () => {
-    const testCases = [
-      {
-        source: "apps" as const,
-        expected: "Application (macOS)",
-        description: "macOS applications",
-      },
-      {
-        source: "ios_apps" as const,
-        expected: "Application (iOS)",
-        description: "iOS applications",
-      },
-      {
-        source: "ipados_apps" as const,
-        expected: "Application (iPadOS)",
-        description: "iPadOS applications",
-      },
-      {
-        source: "programs" as const,
-        expected: "Application (Windows)",
-        description: "Windows programs",
-      },
-      {
-        source: "deb_packages" as const,
-        expected: "Package (deb)",
-        description: "Debian packages",
-      },
-      {
-        source: "rpm_packages" as const,
-        expected: "Package (RPM)",
-        description: "RPM packages",
-      },
-      {
-        source: "npm_packages" as const,
-        expected: "Package (npm)",
-        description: "NPM packages",
-      },
-      {
-        source: "python_packages" as const,
-        expected: "Package (Python)",
-        description: "Python packages",
-      },
-      {
-        source: "homebrew_packages" as const,
-        expected: "Package (Homebrew)",
-        description: "Homebrew packages",
-      },
-      {
-        source: "chocolatey_packages" as const,
-        expected: "Package (Chocolatey)",
-        description: "Chocolatey packages",
-      },
-      {
-        source: "pkg_packages" as const,
-        expected: "Package (pkg)",
-        description: "macOS pkg packages",
-      },
-      {
-        source: "go_binaries" as const,
-        expected: "Binary (Go)",
-        description: "Go binaries",
-      },
-      {
-        source: "adobe_plugins" as const,
-        expected: "Plugin (Adobe)",
-        description: "Adobe plugins",
-      },
-    ];
+  it.each<[SoftwareSource, SoftwareExtensionFor | undefined, string]>([
+    ["apps", undefined, "macOS app"],
+    ["deb_packages", "", "deb package"],
+    ["chrome_extensions", "brave", "Brave extension"],
+    ["vscode_extensions", "vscode", "VS Code extension"],
+    ["jetbrains_plugins", "IntelliJIdea", "IntelliJ IDEA extension"],
+  ])("formats %s / %s as %s", (source, extension_for, expected) => {
+    expect(formatSoftwareType({ source, extension_for })).toBe(expected);
+  });
 
-    testCases.forEach(({ source, expected, description }) => {
-      it(`should format ${description} correctly`, () => {
-        expect(formatSoftwareType({ source })).toBe(expected);
-      });
+  it("falls back to a generic label when extension_for is empty", () => {
+    expect(formatSoftwareType({ source: "chrome_extensions" })).toBe(
+      "Browser extension"
+    );
+    expect(
+      formatSoftwareType({ source: "firefox_addons", extension_for: "" })
+    ).toBe("Browser extension");
+    expect(formatSoftwareType({ source: "vscode_extensions" })).toBe(
+      "IDE extension"
+    );
+    expect(formatSoftwareType({ source: "jetbrains_plugins" })).toBe(
+      "IDE extension"
+    );
+  });
+
+  it("ignores extension_for on sources that aren't extensions", () => {
+    expect(
+      formatSoftwareType({
+        source: "apps",
+        extension_for: "chrome",
+      })
+    ).toBe("macOS app");
+  });
+
+  it("names unknown browsers and IDEs after their extension_for value", () => {
+    expect(
+      formatSoftwareType({
+        source: "chrome_extensions",
+        extension_for: "arc" as SoftwareExtensionFor,
+      })
+    ).toBe("arc extension");
+  });
+
+  it("keeps labels for legacy sources", () => {
+    expect(formatSoftwareType({ source: "apt_sources" })).toBe("APT package");
+    expect(formatSoftwareType({ source: "yum_sources" })).toBe("YUM package");
+    expect(formatSoftwareType({ source: "atom_packages" })).toBe(
+      "Atom package"
+    );
+  });
+
+  it("returns Unknown for unknown sources", () => {
+    expect(
+      formatSoftwareType({ source: "unknown_source" as SoftwareSource })
+    ).toBe("Unknown");
+  });
+
+  it("labels every catalog type with its display name", () => {
+    SOFTWARE_TYPES.forEach((t) => {
+      expect(
+        formatSoftwareType({ source: t.source, extension_for: t.extensionFor })
+      ).toBe(t.displayName);
+    });
+  });
+});
+
+describe("SOFTWARE_TYPES", () => {
+  it("has 50 types with unique keys", () => {
+    expect(SOFTWARE_TYPES).toHaveLength(50);
+    expect(new Set(SOFTWARE_TYPES.map((t) => t.key)).size).toBe(50);
+  });
+
+  it("sorts case-insensitively by display name", () => {
+    const names = SOFTWARE_TYPES.map((t) => t.displayName);
+    const lowerNames = names.map((name) => name.toLowerCase());
+    expect(lowerNames).toEqual([...lowerNames].sort());
+  });
+});
+
+describe("getSoftwareTypesForPlatform", () => {
+  const installerOnlyKeys = [
+    "macos_package_pkg",
+    "tarball_tar_gz",
+    "script_only_package_py",
+    "script_only_package_sh",
+    "script_only_package_ps1",
+  ];
+  const keysFor = (platform: string) =>
+    getSoftwareTypesForPlatform(platform, { hostPage: true }).map((t) => t.key);
+
+  it.each([
+    ["darwin", 35],
+    ["windows", 34],
+    ["ubuntu", 33],
+    ["rhel", 32],
+    ["arch", 33],
+    ["gentoo", 33],
+    ["linux", 33],
+    ["chrome", 1],
+    ["ios", 1],
+    ["ipados", 1],
+    ["android", 1],
+  ])("lists %s host types", (platform, count) => {
+    const keys = keysFor(platform);
+    expect(keys).toHaveLength(count);
+    installerOnlyKeys.forEach((key) => expect(keys).not.toContain(key));
+  });
+
+  it("includes installer-only types outside host pages", () => {
+    const keys = getSoftwareTypesForPlatform("darwin").map((t) => t.key);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        "macos_package_pkg",
+        "script_only_package_py",
+        "script_only_package_sh",
+      ])
+    );
+  });
+
+  // Per the planning sheet, RPM package is listed on deb hosts but deb package
+  // is not listed on rpm hosts.
+  it("lists the platform's package managers", () => {
+    expect(keysFor("chrome")).toEqual(["chrome_extension"]);
+    expect(keysFor("ubuntu")).toEqual(
+      expect.arrayContaining(["deb_package", "rpm_package"])
+    );
+    expect(keysFor("rhel")).toContain("rpm_package");
+    expect(keysFor("rhel")).not.toContain("deb_package");
+    expect(keysFor("arch")).toEqual(
+      expect.arrayContaining(["pacman_package", "portage_package"])
+    );
+    expect(keysFor("arch")).not.toContain("rpm_package");
+  });
+
+  it("returns no types for an unknown platform", () => {
+    expect(keysFor("unknown")).toEqual([]);
+  });
+});
+
+describe("softwareTypesToApiParams", () => {
+  it("translates type keys into source and extension_for", () => {
+    expect(
+      softwareTypesToApiParams([
+        "macos_app",
+        "brave_extension",
+        "cursor_extension",
+      ])
+    ).toEqual({
+      source: "apps,chrome_extensions,vscode_extensions",
+      extension_for: "brave,cursor",
     });
   });
 
-  describe("browser extensions with extension_for", () => {
-    const testCases = [
-      {
-        source: "chrome_extensions" as const,
-        extension_for: "chrome" as const,
-        expected: "Browser plugin (Chrome)",
-        description: "Chrome extensions",
-      },
-      {
-        source: "chrome_extensions" as const,
-        extension_for: "edge" as const,
-        expected: "Browser plugin (Edge)",
-        description: "Edge extensions",
-      },
-      {
-        source: "chrome_extensions" as const,
-        extension_for: "brave" as const,
-        expected: "Browser plugin (Brave)",
-        description: "Brave extensions",
-      },
-      {
-        source: "chrome_extensions" as const,
-        extension_for: "opera" as const,
-        expected: "Browser plugin (Opera)",
-        description: "Opera extensions",
-      },
-      {
-        source: "chrome_extensions" as const,
-        extension_for: "chromium" as const,
-        expected: "Browser plugin (Chromium)",
-        description: "Chromium extensions",
-      },
-      {
-        source: "firefox_addons" as const,
-        extension_for: "firefox" as const,
-        expected: "Browser plugin (Firefox)",
-        description: "Firefox add-ons",
-      },
-      {
-        source: "safari_extensions" as const,
-        extension_for: undefined,
-        expected: "Browser plugin (Safari)",
-        description: "Safari extensions without extension_for",
-      },
-      {
-        source: "ie_extensions" as const,
-        extension_for: undefined,
-        expected: "Browser plugin (IE)",
-        description: "IE extensions without extension_for",
-      },
-    ];
-
-    testCases.forEach(({ source, extension_for, expected, description }) => {
-      it(`should format ${description} correctly`, () => {
-        expect(formatSoftwareType({ source, extension_for })).toBe(expected);
-      });
+  it("omits extension_for when no extension type is selected", () => {
+    expect(softwareTypesToApiParams(["macos_app", "deb_package"])).toEqual({
+      source: "apps,deb_packages",
     });
   });
 
-  describe("IDE extensions with extension_for", () => {
-    const testCases = [
-      {
-        source: "vscode_extensions" as const,
-        extension_for: "vscode" as const,
-        expected: "IDE extension (VSCode)",
-        description: "VSCode extensions",
-      },
-      {
-        source: "vscode_extensions" as const,
-        extension_for: "vscode_insiders" as const,
-        expected: "IDE extension (VSCode Insiders)",
-        description: "VSCode Insiders extensions",
-      },
-      {
-        source: "vscode_extensions" as const,
-        extension_for: "vscodium" as const,
-        expected: "IDE extension (VSCodium)",
-        description: "VSCodium extensions",
-      },
-      {
-        source: "vscode_extensions" as const,
-        extension_for: "cursor" as const,
-        expected: "IDE extension (Cursor)",
-        description: "Cursor extensions",
-      },
-      {
-        source: "vscode_extensions" as const,
-        extension_for: "trae" as const,
-        expected: "IDE extension (Trae)",
-        description: "Trae extensions",
-      },
-      {
-        source: "vscode_extensions" as const,
-        extension_for: "windsurf" as const,
-        expected: "IDE extension (Windsurf)",
-        description: "Windsurf extensions",
-      },
-      {
-        source: "jetbrains_plugins" as const,
-        extension_for: "intellij_idea" as const,
-        expected: "IDE extension (IntelliJ IDEA)",
-        description: "IntelliJ IDEA plugins",
-      },
-    ];
-
-    testCases.forEach(({ source, extension_for, expected, description }) => {
-      it(`should format ${description} correctly`, () => {
-        expect(formatSoftwareType({ source, extension_for })).toBe(expected);
-      });
-    });
+  it("dedupes sources and ignores unknown keys", () => {
+    expect(
+      softwareTypesToApiParams(["chrome_extension", "edge_extension", "foo"])
+    ).toEqual({ source: "chrome_extensions", extension_for: "chrome,edge" });
   });
 
-  describe("unknown extension_for values", () => {
-    it("should use startCase for unknown extension_for values", () => {
-      expect(
-        formatSoftwareType({
-          source: "chrome_extensions",
-          extension_for: "unknown_browser" as SoftwareExtensionFor,
-        })
-      ).toBe("Browser plugin (Unknown Browser)");
-    });
+  it("returns no params for an empty selection", () => {
+    expect(softwareTypesToApiParams([])).toEqual({});
+  });
+});
 
-    it("should use startCase for unknown vscode extension_for values", () => {
-      expect(
-        formatSoftwareType({
-          source: "vscode_extensions",
-          extension_for: "unknown_editor" as SoftwareExtensionFor,
-        })
-      ).toBe("IDE extension (Unknown Editor)");
-    });
+describe("parseSoftwareTypesParam", () => {
+  it("returns undefined when the param is absent", () => {
+    expect(parseSoftwareTypesParam(undefined)).toBeUndefined();
   });
 
-  describe("edge cases", () => {
-    it("should handle unknown source types", () => {
-      expect(
-        formatSoftwareType({
-          source: "unknown_source" as any,
-        })
-      ).toBe("Unknown");
-    });
-
-    it("should handle empty extension_for", () => {
-      expect(
-        formatSoftwareType({
-          source: "chrome_extensions",
-          extension_for: "",
-        })
-      ).toBe("Browser plugin");
-    });
-
-    it("should handle undefined extension_for", () => {
-      expect(
-        formatSoftwareType({
-          source: "chrome_extensions",
-          extension_for: undefined,
-        })
-      ).toBe("Browser plugin");
-    });
-
-    it("should handle null extension_for", () => {
-      expect(
-        formatSoftwareType({
-          source: "chrome_extensions",
-          extension_for: null as any,
-        })
-      ).toBe("Browser plugin");
-    });
+  it("drops unknown keys", () => {
+    expect(parseSoftwareTypesParam("foo,macos_app")).toEqual(["macos_app"]);
+    expect(parseSoftwareTypesParam("foo")).toEqual([]);
   });
 
-  describe("all source types without extension_for", () => {
-    const allSourceTypes = [
-      "apt_sources",
-      "deb_packages",
-      "portage_packages",
-      "rpm_packages",
-      "yum_sources",
-      "pacman_packages",
-      "npm_packages",
-      "atom_packages",
-      "python_packages",
-      "tgz_packages",
-      "apps",
-      "ios_apps",
-      "ipados_apps",
-      "chrome_extensions",
-      "firefox_addons",
-      "safari_extensions",
-      "homebrew_packages",
-      "programs",
-      "ie_extensions",
-      "chocolatey_packages",
-      "pkg_packages",
-      "vscode_extensions",
-      "go_binaries",
-      "adobe_plugins",
-    ] as const;
-
-    allSourceTypes.forEach((source) => {
-      it(`should format ${source} without extension_for`, () => {
-        const result = formatSoftwareType({ source });
-        expect(result).toBeDefined();
-        expect(typeof result).toBe("string");
-        expect(result.length).toBeGreaterThan(0);
-      });
-    });
+  it("dedupes keys", () => {
+    expect(parseSoftwareTypesParam("macos_app,macos_app")).toEqual([
+      "macos_app",
+    ]);
   });
 });
 
