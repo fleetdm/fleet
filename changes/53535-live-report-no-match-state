@@ -1,0 +1,1 @@
+- Fixed report tables with per-column filter inputs (live report, host details report) to show a "No items match the current search criteria" message when a column filter matches zero rows, instead of a blank table body.

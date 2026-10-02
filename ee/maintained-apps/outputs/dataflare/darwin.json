@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.2.3",
+      "version": "3.2.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.dataflare.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.dataflare.desktop' AND version_compare(bundle_short_version, '3.2.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.dataflare.desktop' AND version_compare(bundle_short_version, '3.2.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'app.dataflare.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://assets.dataflare.app/release/darwin/aarch64/Dataflare-3.2.3.dmg",
+      "installer_url": "https://assets.dataflare.app/release/darwin/aarch64/Dataflare-3.2.4.dmg",
       "install_script_ref": "d96ff327",
       "uninstall_script_ref": "bf5b4266",
-      "sha256": "44d8d572fd4292768874931885704010e6048e7165f5247bf9e45b670be31e81",
+      "sha256": "abedf89657ef5fa7d2ac758b705bb2a8748e6b465ba4534712af4241eb81bb74",
       "default_categories": [
         "Developer tools"
       ]

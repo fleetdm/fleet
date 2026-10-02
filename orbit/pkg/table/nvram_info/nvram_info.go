@@ -8,7 +8,6 @@ import (
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
 	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -31,14 +30,10 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 func getAMFIEnabled(ctx context.Context) (amfiEnabled string, err error) {
 	res, err := runCommand(ctx, "/usr/sbin/nvram", "-p")
-	amfiEnabled = ""
-	if err == nil {
-		amfiEnabled = "0"
-		if !strings.Contains(res, "amfi_get_out_of_my_way=1") {
-			amfiEnabled = "1"
-		}
+	if err != nil {
+		return "", err
 	}
-	return amfiEnabled, err
+	return amfiEnabledFromNVRAM(res), nil
 }
 
 func runCommand(ctx context.Context, name string, arg ...string) (res string, err error) {
