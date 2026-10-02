@@ -92,8 +92,6 @@ GitHub issue: [#43723](https://github.com/fleetdm/fleet/issues/43723)
 
 TODO
 
-See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.93.0).
-
 ## Ready to upgrade?
 
 Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs to update to Fleet 4.93.0.
