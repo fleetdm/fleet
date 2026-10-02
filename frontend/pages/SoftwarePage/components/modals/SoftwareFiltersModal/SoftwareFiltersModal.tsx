@@ -1,10 +1,12 @@
 import React, { useRef, useState } from "react";
 
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import Slider from "components/forms/fields/Slider";
 import Modal from "components/Modal";
 import SeverityFilter, {
+  ANY_SEVERITY_VALUE,
   ISeverityFieldErrors,
   ISeverityFilterValue,
   severityFilters,
@@ -13,15 +15,20 @@ import SeverityFilter, {
   SeverityValue,
   validateSeverityScores,
 } from "components/SeverityFilter";
-import { ISoftwareVulnFiltersParams } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
+import { ISoftwareType } from "interfaces/software";
+import { ISoftwareFilters } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
+
+import SoftwareTypesPicker from "./SoftwareTypesPicker";
 
 const baseClass = "software-filters-modal";
 
 interface ISoftwareFiltersModalProps {
   onExit: () => void;
-  onSubmit: (vulnFilters: ISoftwareVulnFiltersParams) => void;
-  vulnFilters: ISoftwareVulnFiltersParams;
+  onSubmit: (filters: ISoftwareFilters) => void;
+  filters: ISoftwareFilters;
   isPremiumTier: boolean;
+  /** Types offered in the picker. The picker is hidden when omitted. */
+  availableTypes?: readonly ISoftwareType[];
 }
 
 type IFormData = {
@@ -32,23 +39,34 @@ type IFormData = {
 const SoftwareFiltersModal = ({
   onExit,
   onSubmit,
-  vulnFilters,
+  filters,
   isPremiumTier,
+  availableTypes,
 }: ISoftwareFiltersModalProps) => {
+  const [selectedTypes, setSelectedTypes] = useState(filters.types ?? []);
   const [vulnSoftwareFilterEnabled, setVulnSoftwareFilterEnabled] = useState(
-    vulnFilters.vulnerable || false
+    filters.vulnerable || false
   );
   const [severity, setSeverity] = useState<SeverityValue>(
-    severityForRange(vulnFilters.minCvssScore, vulnFilters.maxCvssScore)
+    severityForRange(filters.minCvssScore, filters.maxCvssScore)
   );
   // Unified form state:
   const [formData, setFormData] = useState<IFormData>({
-    minScore: vulnFilters.minCvssScore?.toString() ?? "",
-    maxScore: vulnFilters.maxCvssScore?.toString() ?? "",
+    minScore: filters.minCvssScore?.toString() ?? "",
+    maxScore: filters.maxCvssScore?.toString() ?? "",
   });
-  const [hasKnownExploit, setHasKnownExploit] = useState(vulnFilters.exploit);
+  const [hasKnownExploit, setHasKnownExploit] = useState(filters.exploit);
   const [formErrors, setFormErrors] = useState<ISeverityFieldErrors>({});
   const dirtyFields = useRef(new Set<SeverityScoreField>());
+  // Collapsed by default, but an applied severity shouldn't be hidden. Bounds
+  // only apply while the vulnerable filter is on.
+  const [showAdvanced, setShowAdvanced] = useState(
+    !!filters.vulnerable && severity !== ANY_SEVERITY_VALUE
+  );
+  // Keep the section open while it holds an error, or Apply would fail with
+  // nothing visible to fix.
+  const advancedVisible =
+    showAdvanced || !!(formErrors.minScore || formErrors.maxScore);
 
   const onChangeSeverity = ({
     severity: nextSeverity,
@@ -107,12 +125,20 @@ const SoftwareFiltersModal = ({
       exploit: hasKnownExploit || undefined,
       minCvssScore: min,
       maxCvssScore: max,
+      types: selectedTypes,
     });
   };
 
   const renderModalContent = () => {
     return (
       <form onSubmit={handleSubmit}>
+        {availableTypes && (
+          <SoftwareTypesPicker
+            availableTypes={availableTypes}
+            selectedKeys={selectedTypes}
+            onChange={setSelectedTypes}
+          />
+        )}
         <Slider
           value={vulnSoftwareFilterEnabled}
           onChange={onToggleVulnSoftware}
@@ -121,28 +147,43 @@ const SoftwareFiltersModal = ({
         />
         {isPremiumTier && (
           <>
-            <SeverityFilter
-              severity={severity}
-              minScore={formData.minScore}
-              maxScore={formData.maxScore}
-              onChange={onChangeSeverity}
-              disabled={!vulnSoftwareFilterEnabled}
-              errors={formErrors}
-              onScoreBlur={onScoreBlur}
-              onScoreFocus={onScoreFocus}
+            <div className={`${baseClass}__kev`}>
+              <h3 className={`${baseClass}__section-title`}>
+                CISA known exploit (KEV)
+              </h3>
+              <Checkbox
+                onChange={({ value }: { value: boolean }) =>
+                  setHasKnownExploit(value)
+                }
+                name="hasKnownExploit"
+                value={hasKnownExploit}
+                parseTarget
+                helpText="Software has vulnerabilities that have been actively exploited in the wild."
+                disabled={!vulnSoftwareFilterEnabled}
+              >
+                Has known exploit
+              </Checkbox>
+            </div>
+            <RevealButton
+              className={`${baseClass}__advanced-toggle`}
+              isShowing={advancedVisible}
+              showText="Advanced"
+              hideText="Advanced"
+              caretPosition="after"
+              onClick={() => setShowAdvanced(!advancedVisible)}
             />
-            <Checkbox
-              onChange={({ value }: { value: boolean }) =>
-                setHasKnownExploit(value)
-              }
-              name="hasKnownExploit"
-              value={hasKnownExploit}
-              parseTarget
-              helpText="Software has vulnerabilities that have been actively exploited in the wild."
-              disabled={!vulnSoftwareFilterEnabled}
-            >
-              Has known exploit
-            </Checkbox>
+            {advancedVisible && (
+              <SeverityFilter
+                severity={severity}
+                minScore={formData.minScore}
+                maxScore={formData.maxScore}
+                onChange={onChangeSeverity}
+                disabled={!vulnSoftwareFilterEnabled}
+                errors={formErrors}
+                onScoreBlur={onScoreBlur}
+                onScoreFocus={onScoreFocus}
+              />
+            )}
           </>
         )}
         <div className="modal-cta-wrap">

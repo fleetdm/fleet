@@ -18,9 +18,9 @@ import {
 import { IHostSoftware, ISoftware } from "interfaces/software";
 import SoftwareFiltersModal from "pages/SoftwarePage/components/modals/SoftwareFiltersModal";
 import {
-  buildSoftwareVulnFiltersQueryParams,
-  getSoftwareVulnFiltersFromQueryParams,
-  ISoftwareVulnFiltersParams,
+  buildSoftwareFiltersQueryParams,
+  getSoftwareFiltersFromQueryParams,
+  ISoftwareFilters,
 } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import deviceAPI, {
   IDeviceSoftwareQueryKey,
@@ -100,9 +100,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     ? parseInt(queryParams.page, 10)
     : DEFAULT_PAGE;
   const pageSize = DEFAULT_PAGE_SIZE;
-  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
-    queryParams
-  );
+  const softwareFilters = getSoftwareFiltersFromQueryParams(queryParams);
   const categoryId = queryParams?.category_id
     ? parseInt(queryParams.category_id, 10)
     : undefined;
@@ -125,11 +123,11 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     order_key: sortHeader,
     order_direction: sortDirection,
     per_page: pageSize,
-    vulnerable: softwareVulnFilters.vulnerable,
-    min_cvss_score: softwareVulnFilters.minCvssScore,
-    max_cvss_score: softwareVulnFilters.maxCvssScore,
+    vulnerable: softwareFilters.vulnerable,
+    min_cvss_score: softwareFilters.minCvssScore,
+    max_cvss_score: softwareFilters.maxCvssScore,
     self_service: selfService,
-    exploit: softwareVulnFilters.exploit,
+    exploit: softwareFilters.exploit,
     available_for_install: false, // always false for host software
     category_id: categoryId,
     fleet_id: teamId,
@@ -237,10 +235,11 @@ const HostSoftware = ({
     setShowSoftwareFiltersModal(!showSoftwareFiltersModal);
   }, [setShowSoftwareFiltersModal, showSoftwareFiltersModal]);
 
-  /**  Compares vuln filters to current vuln query params */
-  const determineVulnFilterChange = useCallback(
-    (vulnFilters: ISoftwareVulnFiltersParams) => {
-      const changedEntry = Object.entries(vulnFilters).find(([key, val]) => {
+  /** Returns the first filter that differs from the current query params.
+   * Only vulnerability filters are compared; the host modal doesn't offer types. */
+  const determineFilterChange = useCallback(
+    (filters: ISoftwareFilters) => {
+      const changedEntry = Object.entries(filters).find(([key, val]) => {
         switch (key) {
           case "vulnerable":
           case "exploit": {
@@ -262,7 +261,7 @@ const HostSoftware = ({
     [queryParams]
   );
 
-  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
+  const onApplyFilters = (filters: ISoftwareFilters) => {
     const newQueryParams = {
       query: queryParams.query,
       orderDirection: queryParams.order_direction,
@@ -270,16 +269,16 @@ const HostSoftware = ({
       perPage: queryParams.per_page,
       page: 0, // resets page index
       fleet_id: queryParams.fleet_id,
-      // Preserve an explicit macOS /Applications filter selection across vuln
+      // Preserve an explicit macOS /Applications filter selection across
       // filter changes. Left undefined when not set so the platform default
       // continues to apply.
       macos_applications: queryParams.macos_applications,
-      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+      ...buildSoftwareFiltersQueryParams(filters),
     };
 
     // We want to determine which query param has changed in order to
     // reset the page index to 0 if any other param has changed.
-    const changedParam = determineVulnFilterChange(vulnFilters);
+    const changedParam = determineFilterChange(filters);
 
     // Update the route only if a change is detected
     if (changedParam) {
@@ -343,7 +342,7 @@ const HostSoftware = ({
             searchQuery={queryParams.query}
             page={queryParams.page}
             pagePath={pathname}
-            vulnFilters={getSoftwareVulnFiltersFromQueryParams({
+            filters={getSoftwareFiltersFromQueryParams({
               vulnerable: queryParams.vulnerable,
               exploit: queryParams.exploit,
               min_cvss_score: queryParams.min_cvss_score,
@@ -360,8 +359,8 @@ const HostSoftware = ({
         {showSoftwareFiltersModal && (
           <SoftwareFiltersModal
             onExit={toggleSoftwareFiltersModal}
-            onSubmit={onApplyVulnFilters}
-            vulnFilters={getSoftwareVulnFiltersFromQueryParams({
+            onSubmit={onApplyFilters}
+            filters={getSoftwareFiltersFromQueryParams({
               vulnerable: queryParams.vulnerable,
               exploit: queryParams.exploit,
               min_cvss_score: queryParams.min_cvss_score,

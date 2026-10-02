@@ -1,4 +1,10 @@
-import { getVulnerabilities, getVulnFilterRenderDetails } from "./helpers";
+import {
+  buildSoftwareFiltersQueryParams,
+  getFilterRenderDetails,
+  getSoftwareFiltersFromQueryParams,
+  getVulnerabilities,
+  getVulnFilterRenderDetails,
+} from "./helpers";
 
 const versions = [
   {
@@ -110,5 +116,65 @@ describe("getVulnFilterRenderDetails", () => {
     });
     expect(filterCount).toBe(0);
     expect(buttonText).toBe("Add filters");
+  });
+});
+
+describe("getSoftwareFiltersFromQueryParams", () => {
+  it("parses types through the catalog", () => {
+    expect(
+      getSoftwareFiltersFromQueryParams({ types: "foo,macos_app" }).types
+    ).toEqual(["macos_app"]);
+  });
+});
+
+describe("buildSoftwareFiltersQueryParams", () => {
+  it("emits sorted types even when the vulnerable filter is off", () => {
+    expect(
+      buildSoftwareFiltersQueryParams({
+        vulnerable: false,
+        types: ["macos_app", "cursor_extension", "brave_extension"],
+      })
+    ).toEqual({ types: "brave_extension,cursor_extension,macos_app" });
+  });
+
+  it("emits types alongside the vulnerability params", () => {
+    expect(
+      buildSoftwareFiltersQueryParams({
+        vulnerable: true,
+        exploit: true,
+        types: ["macos_app"],
+      })
+    ).toEqual({ types: "macos_app", vulnerable: true, exploit: true });
+  });
+
+  it("omits types when none are selected", () => {
+    expect(
+      buildSoftwareFiltersQueryParams({ vulnerable: false, types: [] })
+    ).toEqual({});
+  });
+});
+
+describe("getFilterRenderDetails", () => {
+  it.each([
+    {
+      name: "nothing",
+      filters: { vulnerable: false, types: [] },
+      isFiltered: false,
+    },
+    {
+      name: "only types",
+      filters: { vulnerable: false, types: ["macos_app"] },
+      isFiltered: true,
+    },
+    {
+      name: "only vulnerable",
+      filters: { vulnerable: true },
+      isFiltered: true,
+    },
+  ])("is filtered by $name: $isFiltered", ({ filters, isFiltered }) => {
+    expect(getFilterRenderDetails(filters)).toEqual({
+      isFiltered,
+      buttonText: isFiltered ? "Filtered" : "Add filters",
+    });
   });
 });
