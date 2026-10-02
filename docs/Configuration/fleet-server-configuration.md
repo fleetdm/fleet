@@ -821,14 +821,6 @@ A DNS name entry allows the destination regardless of what IP it resolves to. An
 
 **If using an HTTP proxy:** The allow-list must include the IP or hostname of the proxy server, not the final destination.
 
-**Migrating from `server_allow_private_network_integrations`:** the legacy boolean setting (`allow_private_network_integrations` in YAML, `FLEET_SERVER_ALLOW_PRIVATE_NETWORK_INTEGRATIONS` as an environment variable) is deprecated but still supported. It allowed all private network addresses but kept loopback and cloud metadata blocked. The equivalent allow-list value is:
-
-```
-10.0.0.0/8, 100.64.0.0/10, 172.16.0.0/12, 192.0.0.0/24, 192.168.0.0/16, 198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24, 224.0.0.0/4, 240.0.0.0/4, fc00::/7, ff00::/8
-```
-
-If both settings are present, the Fleet server will exit with an error.
-
 - Default value: `""` (empty, no exceptions)
 - Environment variable: `FLEET_SERVER_PRIVATE_NETWORK_ALLOW_LIST`
 - Config file format (comma-separated string):
