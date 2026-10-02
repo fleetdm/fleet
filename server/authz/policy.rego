@@ -1249,6 +1249,19 @@ allow {
   action == [read, write][_]
 }
 
+# The Windows end user agreement has the same access as the macOS one.
+allow {
+  object.type == "mdm_windows_eula"
+  subject.global_role == admin
+  action == [read, write, list][_]
+}
+
+allow {
+  object.type == "mdm_windows_eula"
+  subject.global_role == gitops
+  action == [read, write][_]
+}
+
 ##
 # MDM Apple Setup Assistant
 ##

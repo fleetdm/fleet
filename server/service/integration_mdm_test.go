@@ -5401,7 +5401,10 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	platform_http.MaxRequestBodySize = oldLimit
 
 	// admin is able to upload a new EULA
-	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
+	// a path in the uploaded name is dropped, since generate-gitops writes the
+	// stored name to disk
+	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: `..\..\` + pdfName}, http.StatusOK, "")
+	s.lastActivityMatches(fleet.ActivityTypeAddedEndUserAgreement{}.ActivityName(), `{"platform":"darwin"}`, 0)
 
 	// get EULA metadata
 	metadataResp = getMDMEULAMetadataResponse{}
@@ -5430,10 +5433,195 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	// delete EULA
 	var deleteResp deleteMDMEULAResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", eulaToken), nil, http.StatusOK, &deleteResp)
+	s.lastActivityMatches(fleet.ActivityTypeDeletedEndUserAgreement{}.ActivityName(), `{"platform":"darwin"}`, 0)
 	metadataResp = getMDMEULAMetadataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", eulaToken), nil, http.StatusNotFound, &metadataResp)
 	// trying to delete again is a bad request
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", eulaToken), nil, http.StatusNotFound, &deleteResp)
+}
+
+func (s *integrationMDMTestSuite) TestWindowsEULA() {
+	t := s.T()
+	// Tests after this one expect no agreement, so clean up even on failure.
+	t.Cleanup(func() {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), "DELETE FROM eulas")
+			return err
+		})
+	})
+
+	// The terms page needs the bundled templates, which require `-tags full`.
+	defer func() {
+		if panicVal := recover(); panicVal != nil {
+			if msg, ok := panicVal.(string); ok && strings.Contains(msg, "Assets may not be used when running Fleet as a library") {
+				t.Skip("skipping, test will fail due to assets not built (requires '-tags full')")
+			}
+			panic(panicVal)
+		}
+	}()
+	_, _ = bindata.Asset("check if assets are build")
+
+	mdBytes := []byte("# Acme terms\n\nBy continuing you accept the **Acme** device policy.\n\n[Read more](https://acme.example/policy)\n")
+	mdName := "terms.md"
+	mdHash := sha256.Sum256(mdBytes)
+
+	tosURL := microsoft_mdm.MDE2TOSPath + "?api-version=1.0&redirect_uri=ms-appx-web%3a%2f%2fMicrosoft.AAD.BrokerPlugin&client-request-id=f2cf3127-1e80-4d73-965d-42a3b84bdb40"
+	tosPage := func() string {
+		resp := s.DoRaw("GET", tosURL, nil, http.StatusOK)
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		return string(b)
+	}
+
+	// nothing uploaded yet: metadata is a 404 and the device sees Fleet's default terms
+	var metadataResp getMDMWindowsEULAMetadataResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/windows_eula/metadata", nil, http.StatusNotFound, &metadataResp)
+	require.Contains(t, tosPage(), "Fleet is open-source software")
+
+	// validation: markdown only, non-empty, UTF-8, within the size limit
+	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: []byte("%PDF-1.7"), Name: "terms.pdf"}, http.StatusBadRequest, "must be a markdown (.md) file")
+	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: []byte("  \n\t"), Name: "terms.md"}, http.StatusBadRequest, "The file is empty")
+	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: []byte{0xff, 0xfe, 0x41}, Name: "terms.md"}, http.StatusBadRequest, "UTF-8")
+	// an HTML block would be dropped with its text, and a page with nothing to read is useless
+	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: []byte("# Terms\n\n<div>\nClause 4 applies.\n</div>\n"), Name: "terms.md"},
+		http.StatusBadRequest, "contains HTML")
+	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: []byte("<!-- draft -->\n"), Name: "terms.md"}, http.StatusBadRequest, "no text to show")
+	// the 512 KB limit is reported clearly up to the route's 1 MiB body limit
+	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: bytes.Repeat([]byte("Clause.\n"), 70_000), Name: "oversize.md"},
+		http.StatusBadRequest, "512 KB or smaller")
+	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: bytes.Repeat([]byte("A"), int(fleet.MaxWindowsEULARequestSize)+1), Name: "oversize.md"},
+		http.StatusRequestEntityTooLarge, "Request exceeds the max size limit")
+	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: bytes.Repeat([]byte("A"), 9000), Name: "terms.md"},
+		http.StatusBadRequest, "line longer than 8 KB")
+
+	// a dry run validates without storing anything
+	s.uploadWindowsEULAWithQuery(&fleet.MDMEULA{Bytes: []byte("<!-- draft -->\n"), Name: mdName}, "dry_run=true", http.StatusBadRequest, "no text to show")
+	s.uploadWindowsEULAWithQuery(&fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, "dry_run=true", http.StatusOK, "")
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/windows_eula/metadata", nil, http.StatusNotFound, &metadataResp)
+
+	// upload; a path in the uploaded name is dropped, since generate-gitops
+	// writes the stored name to disk
+	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: mdBytes, Name: `..\..\` + mdName}, http.StatusOK, "")
+	s.lastActivityMatches(fleet.ActivityTypeAddedEndUserAgreement{}.ActivityName(), `{"platform":"windows"}`, 0)
+
+	// metadata
+	metadataResp = getMDMWindowsEULAMetadataResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/windows_eula/metadata", nil, http.StatusOK, &metadataResp)
+	require.NotEmpty(t, metadataResp.Token)
+	require.NotEmpty(t, metadataResp.CreatedAt)
+	require.Equal(t, mdName, metadataResp.Name)
+	require.Equal(t, mdHash[:], metadataResp.Sha256)
+	winToken := metadataResp.Token
+
+	// download, as an attachment and never as a renderable page
+	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/windows_eula/%s", winToken), nil, http.StatusOK)
+	require.EqualValues(t, len(mdBytes), resp.ContentLength)
+	require.Equal(t, "text/markdown; charset=utf-8", resp.Header.Get("Content-Type"))
+	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment")
+	require.Contains(t, resp.Header.Get("Content-Disposition"), mdName)
+	require.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+	got, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, mdBytes, got)
+
+	var downloadResp getMDMWindowsEULAResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/windows_eula/bad-token", nil, http.StatusNotFound, &downloadResp)
+
+	// the device now sees the rendered agreement in place of the default terms,
+	// with the link flattened to its text
+	page := tosPage()
+	require.Contains(t, page, `<div class="eula-custom"><h1>Acme terms</h1>`)
+	require.Contains(t, page, "<strong>Acme</strong>")
+	require.Contains(t, page, "Read more")
+	require.NotContains(t, page, "acme.example")
+	require.NotContains(t, page, "Fleet is open-source software")
+	require.Contains(t, page, "IsAccepted=true")
+
+	// one agreement per platform
+	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: mdBytes, Name: "again.md"}, http.StatusConflict, "")
+
+	// replacing the agreement shows the new one on the next request, not the
+	// previously rendered page
+	var replaceResp deleteMDMWindowsEULAResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/windows_eula/%s", winToken), nil, http.StatusOK, &replaceResp)
+	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: []byte("# Revised terms\n"), Name: mdName}, http.StatusOK, "")
+	page = tosPage()
+	require.Contains(t, page, "<h1>Revised terms</h1>")
+	require.NotContains(t, page, "Acme terms")
+	metadataResp = getMDMWindowsEULAMetadataResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/windows_eula/metadata", nil, http.StatusOK, &metadataResp)
+	winToken = metadataResp.Token
+
+	// the two platforms are isolated: a token only works on its own platform's endpoints
+	pdfBytes := []byte("%PDF-1.pdf-contents")
+	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: "eula.pdf"}, http.StatusOK, "")
+	var macMeta getMDMEULAMetadataResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata", nil, http.StatusOK, &macMeta)
+	macToken := macMeta.Token
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/windows_eula/%s", macToken), nil, http.StatusNotFound, &downloadResp)
+	var macDownload getMDMEULAResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", winToken), nil, http.StatusNotFound, &macDownload)
+	var deleteResp deleteMDMWindowsEULAResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/windows_eula/%s", macToken), nil, http.StatusNotFound, &deleteResp)
+	var macDelete deleteMDMEULAResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", winToken), nil, http.StatusNotFound, &macDelete)
+
+	// a dry run delete keeps the agreement
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/windows_eula/%s?dry_run=true", winToken), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/windows_eula/metadata", nil, http.StatusOK, &metadataResp)
+
+	// delete the Windows agreement; macOS keeps its EULA and the device is back on the default terms
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/windows_eula/%s", winToken), nil, http.StatusOK, &deleteResp)
+	s.lastActivityMatches(fleet.ActivityTypeDeletedEndUserAgreement{}.ActivityName(), `{"platform":"windows"}`, 0)
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/windows_eula/metadata", nil, http.StatusNotFound, &metadataResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/windows_eula/%s", winToken), nil, http.StatusNotFound, &deleteResp)
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata", nil, http.StatusOK, &macMeta)
+	require.Contains(t, tosPage(), "Fleet is open-source software")
+
+	// leave the suite as it was found
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", macToken), nil, http.StatusOK, &macDelete)
+}
+
+func (s *integrationMDMTestSuite) uploadWindowsEULA(
+	eula *fleet.MDMEULA,
+	expectedStatus int,
+	wantErr string,
+) {
+	s.uploadWindowsEULAWithQuery(eula, "", expectedStatus, wantErr)
+}
+
+func (s *integrationMDMTestSuite) uploadWindowsEULAWithQuery(
+	eula *fleet.MDMEULA,
+	query string,
+	expectedStatus int,
+	wantErr string,
+) {
+	t := s.T()
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+	fw, err := w.CreateFormFile("windows_eula", eula.Name)
+	require.NoError(t, err)
+	_, err = io.Copy(fw, bytes.NewBuffer(eula.Bytes))
+	require.NoError(t, err)
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+
+	path := "/api/latest/fleet/setup_experience/windows_eula"
+	if query != "" {
+		path += "?" + query
+	}
+	res := s.DoRawWithHeaders("POST", path, b.Bytes(), expectedStatus, headers)
+
+	if wantErr != "" {
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, wantErr)
+	}
 }
 
 func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -1390,4 +1391,62 @@ func TestDeleteABMTokenSyncsAppConfig(t *testing.T) {
 		assert.Equal(t, "org2", got.OrganizationName)
 		assert.False(t, got.Default)
 	})
+}
+
+func TestValidateMarkdownEULA(t *testing.T) {
+	t.Parallel()
+
+	table := strings.Repeat("| h ", 100) + "|\n" + strings.Repeat("| - ", 100) + "|\n" + strings.Repeat("| x |\n", 100)
+	cases := []struct {
+		name, file, content, want string
+	}{
+		{"valid", "terms.md", "# Terms\n", ""},
+		{"not markdown", "terms.pdf", "# Terms\n", "The file must be a markdown (.md) file."},
+		{"name too long", strings.Repeat("a", 253) + ".md", "# Terms\n", "The file name must be 255 characters or fewer."},
+		{"empty", "terms.md", " \n\t", "The file is empty."},
+		{"too large", "terms.md", strings.Repeat("Clause.\n", 70_000), "The file must be 512 KB or smaller."},
+		{"not utf-8", "terms.md", "\xff\xfeA", "The file must be UTF-8 text."},
+		{"line too long", "terms.md", strings.Repeat("a", 9000), "The file has a line longer than 8 KB. Split long paragraphs into shorter lines and upload again."},
+		{"nested too deep", "terms.md", strings.Repeat("> ", 40) + "Clause\n", "The file nests lists or quotes too deeply."},
+		{"tables too large", "terms.md", table, "The file's tables have more than 10,000 cells in total."},
+		{"rendered too large", "terms.md", strings.Repeat(strings.Repeat("`<` ", 2_000)+"\n", 64), "The file is too large to show. Make it shorter and upload again."},
+		{"too many lines", "terms.md", strings.Repeat("a\n", 10_001), "The file has more than 10,000 lines."},
+		{"too much formatting", "terms.md", strings.Repeat("**a** ", 600) + "\n", "The file has too much formatting in one paragraph or list. Add blank lines between paragraphs and upload again."},
+		{"html", "terms.md", "<div>\nClause 4.\n</div>\n", "The file contains HTML. Convert it to markdown and upload again."},
+		{"nothing to show", "terms.md", "<!-- draft -->\n", "The file has no text to show."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateMarkdownEULA(tc.file, []byte(tc.content))
+			if tc.want == "" {
+				require.NoError(t, err)
+				return
+			}
+			var bre *fleet.BadRequestError
+			require.ErrorAs(t, err, &bre)
+			require.Equal(t, tc.want, bre.Message)
+		})
+	}
+}
+
+func TestEULAMetadataBypassesCache(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{ds: ds, authz: authorizer}
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
+
+	var platforms []string
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+		require.True(t, ctxdb.IsCachedMysqlBypassed(ctx), platform)
+		platforms = append(platforms, platform)
+		return &fleet.MDMEULA{}, nil
+	}
+	_, err = svc.MDMGetEULAMetadata(ctx)
+	require.NoError(t, err)
+	_, err = svc.MDMGetWindowsEULAMetadata(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []string{fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows}, platforms)
 }

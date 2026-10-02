@@ -2227,6 +2227,18 @@ func (ds *Datastore) MDMGetEULABytes(ctx context.Context, platform, token string
 	return &eula, nil
 }
 
+func (ds *Datastore) MDMGetEULA(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+	stmt := "SELECT name, bytes, token, sha256, created_at, platform FROM eulas WHERE platform = ?"
+	var eula fleet.MDMEULA
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, platform); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMEULA"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get EULA")
+	}
+	return &eula, nil
+}
+
 func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) error {
 	switch eula.Platform {
 	case fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows:

@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
@@ -324,8 +325,52 @@ type MDMEULA struct {
 	Platform string `json:"-" db:"platform"`
 }
 
+// MDMEULAMetadataLookup is the cached result of looking up a platform's EULA
+// metadata. A nil EULA records that none is uploaded: that is the usual answer,
+// and caching it is what keeps the Windows terms page off the database.
+type MDMEULAMetadataLookup struct {
+	EULA *MDMEULA
+}
+
+// Clone implements Cloner.
+func (l *MDMEULAMetadataLookup) Clone() (Cloner, error) {
+	clone := &MDMEULAMetadataLookup{}
+	if l.EULA != nil {
+		eula := *l.EULA
+		eula.Bytes = bytes.Clone(l.EULA.Bytes)
+		eula.Sha256 = bytes.Clone(l.EULA.Sha256)
+		clone.EULA = &eula
+	}
+	return clone, nil
+}
+
+// MaxEULAFileNameLength matches the eulas.name column, varchar(255).
+const MaxEULAFileNameLength = 255
+
 func (e MDMEULA) AuthzType() string {
+	if e.Platform == MDMEULAPlatformWindows {
+		return "mdm_windows_eula"
+	}
 	return "mdm_apple_eula"
+}
+
+// SanitizeEULAFileName returns the last element of an uploaded EULA file name,
+// splitting on both "/" and "\", without control or format characters (such as
+// a right-to-left override that disguises the extension). fleetctl
+// generate-gitops writes the stored name to disk on any OS, so it must not
+// carry a path. It returns "" when nothing usable is left.
+func SanitizeEULAFileName(name string) string {
+	name = name[strings.LastIndexAny(name, `/\`)+1:]
+	name = strings.TrimSpace(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, name))
+	if name == "." || name == ".." {
+		return ""
+	}
+	return name
 }
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
