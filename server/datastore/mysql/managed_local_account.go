@@ -368,14 +368,14 @@ func (ds *Datastore) InitiateManagedLocalAccountRotation(ctx context.Context, ho
 
 	// Diagnose the cause to give the caller a typed error.
 	var dest struct {
-		HasPassword bool           `db:"has_password"`
-		HasUUID     bool           `db:"has_uuid"`
-		HasPending  bool           `db:"has_pending"`
-		Status      sql.NullString `db:"status"`
+		HasEncrypted bool           `db:"has_encrypted"`
+		HasUUID      bool           `db:"has_uuid"`
+		HasPending   bool           `db:"has_pending"`
+		Status       sql.NullString `db:"status"`
 	}
 	const checkStmt = `
 		SELECT
-			encrypted_password IS NOT NULL AS has_password,
+			encrypted_password IS NOT NULL AS has_encrypted,
 			account_uuid IS NOT NULL AS has_uuid,
 			pending_encrypted_password IS NOT NULL AS has_pending,
 			status
@@ -395,7 +395,7 @@ func (ds *Datastore) InitiateManagedLocalAccountRotation(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, fleet.ErrManagedLocalAccountRotationPending, fmt.Sprintf("host %s", hostUUID))
 	}
 	return ctxerr.Wrap(ctx, fleet.ErrManagedLocalAccountNotEligible, fmt.Sprintf("host %s (status=%v has_password=%v has_uuid=%v)",
-		hostUUID, dest.Status.String, dest.HasPassword, dest.HasUUID))
+		hostUUID, dest.Status.String, dest.HasEncrypted, dest.HasUUID))
 }
 
 // MarkManagedLocalAccountRotationDeferred records a manual rotation that couldn't
