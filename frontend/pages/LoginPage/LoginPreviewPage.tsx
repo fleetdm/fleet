@@ -10,7 +10,6 @@ import { AppContext } from "context/app";
 import paths from "router/paths";
 import sessionsAPI from "services/entities/sessions";
 import authToken from "utilities/auth_token";
-import local from "utilities/local";
 
 interface ILoginPreviewPageProps {
   router: InjectedRouter; // v3

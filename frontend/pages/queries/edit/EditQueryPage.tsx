@@ -134,7 +134,6 @@ const EditQueryPage = ({
   const {
     isLoading: isStoredQueryLoading,
     data: storedQuery,
-    refetch: refetchStoredQuery,
   } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
     ["query", queryId],
     () => queryAPI.load(queryId as number),

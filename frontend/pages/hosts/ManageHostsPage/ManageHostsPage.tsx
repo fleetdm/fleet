@@ -263,7 +263,8 @@ const ManageHostsPage = ({
     if (canEnrollHosts) {
       setShowAddHostsModal(true);
     }
-    const { add_hosts, ...rest } = queryParams;
+    const rest = { ...queryParams };
+    delete rest.add_hosts;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     queryParams,
@@ -282,7 +283,8 @@ const ManageHostsPage = ({
     if (canEnrollHosts) {
       setShowEnrollSecretModal(true);
     }
-    const { manage_enroll_secrets, ...rest } = queryParams;
+    const rest = { ...queryParams };
+    delete rest.manage_enroll_secrets;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     queryParams,

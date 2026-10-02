@@ -91,7 +91,8 @@ const SelfServiceCategoriesPage = ({
     if (canManage) {
       setShowAddModal(true);
     }
-    const { add_category, ...rest } = location.query;
+    const rest = { ...location.query };
+    delete rest.add_category;
     router.replace({ pathname: location.pathname, query: rest });
   }, [location.query, location.pathname, router, canManage]);
   const [

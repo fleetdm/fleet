@@ -179,7 +179,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     if (canEditActivityFeedAutomations) {
       setShowActivityFeedAutomationsModal(true);
     }
-    const { manage_automations, ...rest } = location.query;
+    const rest = { ...location.query };
+    delete rest.manage_automations;
     router.replace({ pathname, query: rest });
   }, [
     location.query,

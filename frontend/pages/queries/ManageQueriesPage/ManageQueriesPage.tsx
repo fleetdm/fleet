@@ -91,9 +91,7 @@ const ManageQueriesPage = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
-    isOnlyObserver,
     isObserverPlus,
-    isAnyTeamObserverPlus,
     isOnGlobalTeam,
     setFilteredQueriesPath,
     filteredQueriesPath,
@@ -191,7 +189,8 @@ const ManageQueriesPage = ({
     if (canManageAutomations && isManageAutomationsEnabled) {
       setShowManageAutomationsModal(true);
     }
-    const { manage_automations, ...rest } = location.query;
+    const rest = { ...location.query };
+    delete rest.manage_automations;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     location.query,
@@ -321,9 +320,6 @@ const ManageQueriesPage = ({
         onDeleteQueryClick={onDeleteQueryClick}
         onAddReportClick={onCreateQueryClick}
         canAddReport={canCustomQuery}
-        isOnlyObserver={isOnlyObserver}
-        isObserverPlus={isObserverPlus}
-        isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
         // changes in table state are propagated to the API call on this page via this router pushing to the URL
         router={router}
         queryParams={location.query}

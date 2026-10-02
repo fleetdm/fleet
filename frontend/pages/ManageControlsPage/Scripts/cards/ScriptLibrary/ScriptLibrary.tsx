@@ -65,7 +65,8 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     if (!isTechnician) {
       setShowAddScriptModal(true);
     }
-    const { add_script, ...rest } = location.query;
+    const rest = { ...location.query };
+    delete rest.add_script;
     router.replace({ pathname: location.pathname, query: rest });
   }, [location.query, location.pathname, router, isTechnician]);
 

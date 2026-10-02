@@ -18,7 +18,6 @@ import {
   IAppStoreApp,
   ISoftwareTitle,
   ISoftwareInstallPolicyUI,
-  ISoftwareInstallPolicy,
   SoftwareInstallPolicyTypeSet,
 } from "interfaces/software";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
