@@ -10,7 +10,7 @@ This webhook sends the same payload format as [Global audit logs](./global-audit
 
 ## Configure
 
-Host audit logs are configured per fleet, using the `host_activities_webhook` object under `webhook_settings`. Configure it from the Hosts page in the Fleet UI, the [fleets API](./rest-api.md#update-fleet), or [Fleet's GitOps YAML](https://fleetdm.com/docs/configuration/yaml-files#host-activities-webhook):
+Configure host audit logs per fleet, using the `host_activities_webhook` object under `webhook_settings`. Set it from the Hosts page in the Fleet UI, the [fleets API](./rest-api.md#update-fleet), or [Fleet's GitOps YAML](https://fleetdm.com/docs/configuration/yaml-files#host-activities-webhook):
 
 ```yaml
 name: Workstations
@@ -21,11 +21,13 @@ team_settings:
       destination_url: https://example.org/webhook_handler
 ```
 
-This can also be configured for "Unassigned" hosts, in `unassigned.yml`.
+You can also configure this for "Unassigned" hosts in `unassigned.yml`.
 
 ## Activity types
 
-## reset_policy
+Each activity below includes its fields and an example payload.
+
+### reset_policy
 
 Generated when a user resets policy results, either for a single host or for every host the policy applies to.
 
@@ -50,7 +52,7 @@ This activity contains the following fields:
 }
 ```
 
-## host_enrollment_rejected
+### host_enrollment_rejected
 
 Generated when Fleet refuses an orbit or osquery enrollment because of the one-time enroll secret rules. Recorded by Fleet, rate-limited per host and reason.
 
@@ -77,7 +79,7 @@ This activity contains the following fields:
 }
 ```
 
-## mdm_enrolled
+### mdm_enrolled
 
 Generated when a host is enrolled in Fleet's MDM.
 
@@ -104,7 +106,7 @@ This activity contains the following fields:
 }
 ```
 
-## mdm_unenrolled
+### mdm_unenrolled
 
 Generated when a host is unenrolled from Fleet's MDM.
 
@@ -129,7 +131,7 @@ This activity contains the following fields:
 }
 ```
 
-## read_host_disk_encryption_key
+### read_host_disk_encryption_key
 
 Generated when a user reads the disk encryption key for a host.
 
@@ -146,7 +148,7 @@ This activity contains the following fields:
 }
 ```
 
-## viewed_host_recovery_lock_password
+### viewed_host_recovery_lock_password
 
 Generated when a user views the Recovery Lock password for a host.
 
@@ -163,7 +165,7 @@ This activity contains the following fields:
 }
 ```
 
-## retrieved_host_my_device_url
+### retrieved_host_my_device_url
 
 Generated when a global admin retrieves a host's "My device" page URL (a credential-bearing link that opens the end user's device page). Fleet logs this for every retrieval, including reuse of an existing token.
 
@@ -180,7 +182,7 @@ This activity contains the following fields:
 }
 ```
 
-## set_host_recovery_lock_password
+### set_host_recovery_lock_password
 
 Generated when Fleet sets the Recovery Lock password on a host.
 
@@ -197,7 +199,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_managed_local_account
+### created_managed_local_account
 
 Generated when a local managed account and password is created for a host.
 
@@ -214,7 +216,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_disk_encryption_pin
+### created_disk_encryption_pin
 
 Generated when a BitLocker PIN is created.
 
@@ -231,7 +233,7 @@ This activity contains the following fields:
 }
 ```
 
-## read_managed_local_account
+### read_managed_local_account
 
 Generated when a user reads the information for the local managed account for a host.
 
@@ -248,7 +250,7 @@ This activity contains the following fields:
 }
 ```
 
-## ran_script
+### ran_script
 
 Generated when a script is sent to be run for a host.
 
@@ -279,7 +281,7 @@ This activity contains the following fields:
 }
 ```
 
-## ran_custom_mdm_command
+### ran_custom_mdm_command
 
 Generated when a user runs a custom MDM command via API or the fleetctl CLI.
 
@@ -317,7 +319,7 @@ Android example:
 }
 ```
 
-## locked_host
+### locked_host
 
 Generated when a user sends a request to lock a host.
 
@@ -336,7 +338,7 @@ This activity contains the following fields:
 }
 ```
 
-## unlocked_host
+### unlocked_host
 
 Generated when a user sends a request to unlock a host.
 
@@ -355,7 +357,7 @@ This activity contains the following fields:
 }
 ```
 
-## wiped_host
+### wiped_host
 
 Generated when a user sends a request to wipe a host.
 
@@ -374,7 +376,7 @@ This activity contains the following fields:
 }
 ```
 
-## failed_wipe
+### failed_wipe
 
 Generated when a Windows host reports that a wipe MDM command failed.
 
@@ -393,7 +395,7 @@ This activity contains the following fields:
 }
 ```
 
-## rotated_host_recovery_lock_password
+### rotated_host_recovery_lock_password
 
 Generated when the Recovery Lock password for a host is rotated, either by a user or automatically by Fleet after the password is viewed.
 
@@ -410,7 +412,7 @@ This activity contains the following fields:
 }
 ```
 
-## rotated_disk_encryption_key
+### rotated_disk_encryption_key
 
 Generated when a user requests a rotation of a host's disk encryption key. Recorded when the command is enqueued.
 
@@ -427,7 +429,7 @@ This activity contains the following fields:
 }
 ```
 
-## failed_to_rotate_disk_encryption_key
+### failed_to_rotate_disk_encryption_key
 
 Generated when a host reports it failed to rotate its disk encryption key.
 
@@ -446,7 +448,7 @@ This activity contains the following fields:
 }
 ```
 
-## rotated_managed_local_account_password
+### rotated_managed_local_account_password
 
 Generated when a managed local account password is rotated.
 
@@ -463,7 +465,7 @@ This activity contains the following fields:
 }
 ```
 
-## failed_to_rotate_managed_local_account_password
+### failed_to_rotate_managed_local_account_password
 
 Generated when a host reports it failed to rotate the managed local account password.
 
@@ -482,7 +484,7 @@ This activity contains the following fields:
 }
 ```
 
-## resent_configuration_profile
+### resent_configuration_profile
 
 Generated when a user resends a configuration profile to a host.
 
@@ -507,7 +509,7 @@ This activity contains the following fields:
 }
 ```
 
-## installed_software
+### installed_software
 
 Generated when a Fleet-maintained app or custom package is installed on a host.
 
@@ -548,7 +550,7 @@ This activity contains the following fields:
 }
 ```
 
-## notified_end_user_before_patching
+### notified_end_user_before_patching
 
 Generated when Fleet notifies the end user that software will be patched on their host.
 
@@ -581,7 +583,7 @@ This activity contains the following fields:
 }
 ```
 
-## uninstalled_software
+### uninstalled_software
 
 Generated when a Fleet-maintained app or custom package is uninstalled on a host.
 
@@ -609,7 +611,7 @@ This activity contains the following fields:
 }
 ```
 
-## installed_all_self_service_software
+### installed_all_self_service_software
 
 Generated when an end user clicks **Install all** on the **My device > Self-service** page. A separate [`installed_software`](#installed_software) activity is also generated for each queued title.
 
@@ -632,7 +634,7 @@ This activity contains the following fields:
 }
 ```
 
-## installed_app_store_app
+### installed_app_store_app
 
 Generated when an App Store app is installed on a device.
 
@@ -671,7 +673,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_run_script
+### canceled_run_script
 
 Generated when upcoming activity `ran_script` is canceled.
 
@@ -690,7 +692,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_mdm_command
+### canceled_mdm_command
 
 Generated when a user cancels an upcoming MDM command.
 
@@ -709,7 +711,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_install_software
+### canceled_install_software
 
 Generated when upcoming activity `installed_software` is canceled.
 
@@ -732,7 +734,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_uninstall_software
+### canceled_uninstall_software
 
 Generated when upcoming activity `uninstalled_software` is canceled.
 
@@ -754,7 +756,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_install_app_store_app
+### canceled_install_app_store_app
 
 Generated when upcoming activity `installed_app_store_app` is canceled.
 
@@ -777,7 +779,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_custom_host_vital_value
+### edited_custom_host_vital_value
 
 Generated when a user edits the value of a custom host vital on a host.
 
@@ -798,7 +800,7 @@ This activity contains the following fields:
 }
 ```
 
-## resent_certificate
+### resent_certificate
 
 Generated when a user resends a certificate to a host.
 
@@ -819,7 +821,7 @@ This activity contains the following fields:
 }
 ```
 
-## installed_certificate
+### installed_certificate
 
 Generated when a certificate is installed on a host or fails to install.
 
@@ -856,7 +858,7 @@ This activity contains the following fields:
 }
 ```
 
-## cleared_passcode
+### cleared_passcode
 
 Generated when a user clears the passcode on a host.
 
@@ -873,7 +875,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_setup_experience
+### canceled_setup_experience
 
 Generated when macOS setup experience is canceled due to software install failure.
 
@@ -895,7 +897,7 @@ This activity contains the following fields:
 }
 ```
 
-## failed_enrollment_profile_renewal
+### failed_enrollment_profile_renewal
 
 Generated when an enrollment profile renewal (SCEP or ACME) has failed.
 
@@ -914,7 +916,7 @@ This activity contains the following fields:
 }
 ```
 
-## ran_automation_ticket
+### ran_automation_ticket
 
 Generated when a failing-policy ticket automation (Jira or Zendesk) creates a ticket. One activity is recorded per created ticket and is associated with every host in that batch.
 
@@ -936,7 +938,7 @@ This activity contains the following fields:
 }
 ```
 
-## failed_automation_ticket
+### failed_automation_ticket
 
 Generated when a failing-policy ticket automation (Jira or Zendesk) fails to create a ticket. One activity is recorded per failed attempt and is associated with every host in that batch.
 
@@ -957,7 +959,7 @@ This activity contains the following fields:
 }
 ```
 
-## failed_automation_calendar_event
+### failed_automation_calendar_event
 
 Generated when a failing-calendar-policy automation fails. The activity is associated with the affected host.
 
@@ -977,7 +979,7 @@ This activity contains the following fields:
 }
 ```
 
-## ran_automation_calendar_event
+### ran_automation_calendar_event
 
 Generated when a failing calendar policy results in a calendar event. The activity is associated with the affected host.
 
@@ -994,7 +996,7 @@ This activity contains the following fields:
 }
 ```
 
-## failed_automation_webhook
+### failed_automation_webhook
 
 Generated when a failing-policy webhook automation batch is rejected by the destination server. One activity is recorded per failed batch POST and is associated with every host in that batch.
 
@@ -1015,7 +1017,7 @@ This activity contains the following fields:
 }
 ```
 
-## ran_automation_webhook
+### ran_automation_webhook
 
 Generated when a failing-policy webhook automation batch is accepted by the destination server. One activity is recorded per successful batch POST and is associated with every host in that batch.
 
@@ -1034,7 +1036,7 @@ This activity contains the following fields:
 }
 ```
 
-## failed_automation_conditional_access
+### failed_automation_conditional_access
 
 Generated when a failing-policy conditional access automation fails to push a host's compliance status to the provider. The activity is associated with the affected host.
 
@@ -1055,7 +1057,7 @@ This activity contains the following fields:
 }
 ```
 
-## ran_automation_conditional_access
+### ran_automation_conditional_access
 
 Generated when a failing-policy conditional access automation pushes a host's compliance status to the provider as non-compliant. The activity is associated with the affected host.
 
@@ -1072,7 +1074,7 @@ This activity contains the following fields:
 }
 ```
 
-## released_from_ab
+### released_from_ab
 
 Generated when a host has been released from Apple Business (AB).
 
@@ -1091,7 +1093,7 @@ This activity contains the following fields:
 }
 ```
 
-## installed_opt_in_configuration_profile
+### installed_opt_in_configuration_profile
 
 Generated when an opt-in configuration profile is installed on a host.
 
@@ -1112,7 +1114,7 @@ This activity contains the following fields:
 }
 ```
 
-## uninstalled_opt_in_configuration_profile
+### uninstalled_opt_in_configuration_profile
 
 Generated when an opt-in configuration profile is removed from a host.
 
