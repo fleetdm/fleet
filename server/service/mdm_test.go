@@ -5249,6 +5249,69 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "even updated=false must refresh in-memory HostUUID")
 		assert.False(t, hasGetForDevDetailSerial(cmds), "in-memory HostUUID is now set; no redundant Get")
 	})
+
+	t.Run("ZTDID linkage", func(t *testing.T) {
+		const (
+			testZTDID          = "ztd-registration-id"
+			claimantHardwareID = "claimant-hardware-id"
+		)
+		cases := []struct {
+			name              string
+			hostUUID          string
+			hardwareID        string
+			conflictErr       error
+			conflicted        bool
+			wantConflictCheck bool
+			wantLinked        bool
+		}{
+			{name: "host not held by other hardware: linked", hostUUID: testHostUUID, hardwareID: testHardwareID,
+				wantConflictCheck: true, wantLinked: true},
+			// The ZTDID is device-supplied and not secret, so a device presenting the victim's ZTDID must not take its host.
+			{name: "host already held by other hardware: refused", hostUUID: testHostUUID, hardwareID: claimantHardwareID,
+				conflicted: true, wantConflictCheck: true},
+			{name: "conflict lookup fails: refused", hostUUID: testHostUUID, hardwareID: testHardwareID,
+				conflictErr: errors.New("db is down"), wantConflictCheck: true},
+			{name: "pending autopilot host without uuid: deferred before the conflict check", hostUUID: "", hardwareID: testHardwareID},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				svc, ds, _, ctx := newSvc(t)
+				enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+					MDMDeviceID: testDeviceID, MDMHardwareID: tc.hardwareID, ZTDRegistrationID: testZTDID,
+				}
+				stubLink(t, ds, true)
+				ds.HostIDByAutopilotDeviceIDFunc = func(_ context.Context, autopilotDeviceID string) (uint, error) {
+					assert.Equal(t, testZTDID, autopilotDeviceID)
+					return testHostID, nil
+				}
+				ds.HostLiteFunc = func(_ context.Context, hostID uint) (*fleet.Host, error) {
+					assert.Equal(t, testHostID, hostID)
+					return &fleet.Host{ID: testHostID, UUID: tc.hostUUID}, nil
+				}
+				ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
+					assert.Equal(t, testHostUUID, hostUUID)
+					assert.Equal(t, tc.hardwareID, mdmHardwareID)
+					if tc.conflicted {
+						return true, testHardwareID, nil
+					}
+					return false, "", tc.conflictErr
+				}
+
+				// The device also reports a serial, so a refused or deferred ZTDID link must not fall through to the serial branch.
+				_, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
+				require.NoError(t, err, "the session must continue whether or not the link happens")
+				assert.True(t, ds.HostIDByAutopilotDeviceIDFuncInvoked)
+				assert.False(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked, "a ZTDID match decides the link on its own")
+				assert.Equal(t, tc.wantConflictCheck, ds.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked)
+				assert.Equal(t, tc.wantLinked, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+				if tc.wantLinked {
+					assert.Equal(t, testHostUUID, enrolledDevice.HostUUID)
+				} else {
+					assert.Empty(t, enrolledDevice.HostUUID)
+				}
+			})
+		}
+	})
 }
 
 // mockAndroidService is a minimal mock of android.Service for RunMDMCommand tests.
