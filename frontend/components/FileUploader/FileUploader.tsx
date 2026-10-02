@@ -39,6 +39,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-ps1"
   | "file-py"
   | "file-script"
+  | "file-md"
   | "file-pdf"
   | "file-pkg"
   | "file-p7m"

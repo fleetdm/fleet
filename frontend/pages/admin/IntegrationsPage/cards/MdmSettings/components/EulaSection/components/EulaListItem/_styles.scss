@@ -1,3 +1,7 @@
 .eula-list-item {
   @include list-item;
+
+  &__list-item-actions {
+    gap: $pad-small;
+  }
 }
