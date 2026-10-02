@@ -10,50 +10,66 @@ Fleet is hosting its first virtual summit on Tuesday, November 10, 2026, at 11 A
 
 ## The sessions
 
-### Device management finally gets a deployment pipeline
+### Infrastructure as code for device management
 
 Engineering teams version-control production infrastructure, review changes in pull requests, and roll back with a merge. Device management is one of the last IT functions still changed by hand in a console. Practitioners who moved their device configuration into Git share what it unlocked for shipping changes, compliance evidence, and recovering from mistakes.
+- **Date:** Tuesday, November 10, 2026
+- **Time:** 11 AM ET / 8 AM PT / 4 PM GMT
+
+Panelists:
+
+- [Adam Anklewicz](https://www.linkedin.com/in/ankle/), Thumbtack, Manager of IT Systems Engineering
+- [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/), Treeline, Platform Architect
+- [Viktor Filipsson](https://www.linkedin.com/in/viktoralexfilipsson/?isSelfProfile=false), Sonos, Senior IT System Engineer
+- [Betsy Keiser](https://www.linkedin.com/in/betsykeiser/), SandboxAQ, Staff Client Platform Engineer
+
 [Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-infrastructure-as-code)
 
-Panelists:
 
-- Adam Anklewicz, Thumbtack
-- Brock Walters, Treeline
-- Viktor Filipsson, Sonos
-- Betsy Keiser, SandboxAQ
-
-### Why open source ate the enterprise fleet
+### Open source in enterprise device management
 
 Open source runs most enterprise infrastructure, but the tools that manage employee devices are still mostly closed. This panel covers why organizations choose auditable code and portable data, and how that choice plays out in procurement, security reviews, and vendor negotiations.
+- **Date:** Tuesday, November 10, 2026
+- **Time:** 11:30 AM ET / 8:30 AM PT / 4:30 PM GMT
+
+Panelists:
+
+- [Daniel Moore](https://www.linkedin.com/in/sodahabit/), Red Hat, Manager and Mac Admin, Endpoint Systems
+- [Jarryd Stanbrook](https://www.linkedin.com/in/jarrydstanbrook/), Easygo, IT Systems Administrator
+- [Patricia Egger](https://www.linkedin.com/in/patricia-egger/), Proton, Head of Security
+
 [Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-open-source-in-device-management)
 
-Panelists:
 
-- Daniel Moore, Red Hat
-- Jarryd Stanbrook, Easygo
-- Patricia Egger, Proton
-
-### AI agents need endpoints too
+### AI agents as a device management problem
 
 AI agents are showing up on employee devices faster than IT can inventory them. They read files, call APIs, and act with the permissions of whoever installed them. At the same time, AI-driven exploits are shrinking the time between disclosure and attack. This panel covers both sides of the problem.
-[Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem)
+- **Date:** Tuesday, November 10, 2026
+- **Time:** 12:00 PM ET / 9:00 AM PT / 5:00 PM GMT
 
 Panelists:
 
-- Dustin Davis, Pinterest
-- Jason Walton, Schrödinger
+- [Dustin Davis](https://www.linkedin.com/in/1dustindavis/), Pinterest, Sr Manager of IT Platform Engineering
+- [Jason Walton](https://www.linkedin.com/in/cjasonwalton/), Schrödinger, VP of Information Security
 - More panelists to be announced
+
+[Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem)
+
 
 ### Device management 2030
 
 The devices IT manages, the tools it uses, and the skills the job requires will look different four years from now. Practitioners who are already placing bets on that future talk about where IT teams, tools, and the definition of an endpoint are headed.
-[Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030)
+- **Date:** Tuesday, November 10, 2026
+- **Time:** 12:30 PM ET / 9:30 AM PT / 5:30 PM GMT
 
 Panelists:
 
-- Mohammed Saqr, Block
-- Dave Hannigan, former CISO, Nubank
+- [Mohammed Saqr](https://www.linkedin.com/in/mohammed-saqr/), Block, Manager of Infrastructure and Platform Engineering
+- [Dave Hannigan](https://www.linkedin.com/in/dave-c-a50a4a187/?isSelfProfile=false), former CISO, Nubank
 - More panelists to be announced
+
+[Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030)
+
 
 ## How to watch
 
