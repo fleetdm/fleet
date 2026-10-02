@@ -10744,19 +10744,15 @@ func TestRotateMDMAppleAutomaticEnrollmentToken(t *testing.T) {
 	ctx = adminCtx(ctx)
 	expiresAt := time.Now().Add(time.Hour)
 	var gotGracePeriod time.Duration
-	var gotToken string
-	ds.RotateMDMAppleAutomaticEnrollmentTokenFunc = func(ctx context.Context, newToken string, gracePeriod time.Duration) (*time.Time, error) {
+	var gotToken, gotJobName, gotJobTask string
+	ds.RotateMDMAppleAutomaticEnrollmentTokenFunc = func(ctx context.Context, newToken string, gracePeriod time.Duration, job *fleet.Job) (*time.Time, error) {
 		gotToken, gotGracePeriod = newToken, gracePeriod
-		return &expiresAt, nil
-	}
-	var queuedTasks []string
-	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		var args struct {
 			Task string `json:"task"`
 		}
 		require.NoError(t, json.Unmarshal(*job.Args, &args))
-		queuedTasks = append(queuedTasks, args.Task)
-		return job, nil
+		gotJobName, gotJobTask = job.Name, args.Task
+		return &expiresAt, nil
 	}
 
 	t.Run("grace period out of range", func(t *testing.T) {
@@ -10769,14 +10765,15 @@ func TestRotateMDMAppleAutomaticEnrollmentToken(t *testing.T) {
 		}
 	})
 
-	t.Run("defaults to 24 hours and re-registers the profiles", func(t *testing.T) {
-		queuedTasks = nil
+	t.Run("defaults to 24 hours and re-registers the profiles in the same transaction", func(t *testing.T) {
 		got, err := svc.RotateMDMAppleAutomaticEnrollmentToken(ctx, nil)
 		require.NoError(t, err)
 		require.Equal(t, &expiresAt, got)
 		require.Equal(t, 24*time.Hour, gotGracePeriod)
 		require.NotEmpty(t, gotToken)
-		require.Equal(t, []string{"update_all_profiles"}, queuedTasks)
+		require.Equal(t, "macos_setup_assistant", gotJobName)
+		require.Equal(t, "update_all_profiles", gotJobTask)
+		require.False(t, ds.NewJobFuncInvoked, "the job must not be queued outside the rotation transaction")
 	})
 
 	t.Run("explicit grace period", func(t *testing.T) {
@@ -10788,13 +10785,12 @@ func TestRotateMDMAppleAutomaticEnrollmentToken(t *testing.T) {
 	})
 
 	t.Run("no automatic enrollment profile", func(t *testing.T) {
-		ds.RotateMDMAppleAutomaticEnrollmentTokenFunc = func(ctx context.Context, newToken string, gracePeriod time.Duration) (*time.Time, error) {
+		ds.RotateMDMAppleAutomaticEnrollmentTokenFunc = func(ctx context.Context, newToken string, gracePeriod time.Duration, job *fleet.Job) (*time.Time, error) {
 			return nil, newNotFoundError()
 		}
-		queuedTasks = nil
 		_, err := svc.RotateMDMAppleAutomaticEnrollmentToken(ctx, nil)
 		require.True(t, fleet.IsNotFound(err))
-		require.Empty(t, queuedTasks)
+		require.False(t, ds.NewJobFuncInvoked)
 	})
 }
 

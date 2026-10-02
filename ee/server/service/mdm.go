@@ -883,15 +883,15 @@ func (svc *Service) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, 
 			fmt.Sprintf("must be between 0 and %d", fleet.MaxAutomaticEnrollmentTokenGracePeriodHours)))
 	}
 
-	expiresAt, err := svc.ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, uuid.NewString(), time.Duration(hours)*time.Hour)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "rotate automatic enrollment token")
-	}
-
 	// Apple only learns the new URL when each fleet's profile is re-defined and
 	// its devices re-assigned.
-	if err := svc.mdmAppleSyncDEPProfiles(ctx); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "queue automatic enrollment profile updates")
+	job, err := worker.NewMacosSetupAssistantJob(worker.MacosSetupAssistantUpdateAllProfiles, nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build automatic enrollment profile update job")
+	}
+	expiresAt, err := svc.ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, uuid.NewString(), time.Duration(hours)*time.Hour, job)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "rotate automatic enrollment token")
 	}
 	return expiresAt, nil
 }

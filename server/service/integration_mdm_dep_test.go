@@ -3738,19 +3738,19 @@ func (s *integrationMDMTestSuite) TestRotateAutomaticEnrollmentToken() {
 			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
 		case "/profile":
 			var prof godep.Profile
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&prof))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&prof))
 			mu.Lock()
 			definedProfileURLs = append(definedProfileURLs, prof.URL)
 			mu.Unlock()
-			require.NoError(t, json.NewEncoder(w).Encode(godep.ProfileResponse{ProfileUUID: uuid.NewString()}))
+			assert.NoError(t, json.NewEncoder(w).Encode(godep.ProfileResponse{ProfileUUID: uuid.NewString()}))
 		case "/profile/devices":
 			var req profileAssignmentReq
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			resp := godep.ProfileResponse{ProfileUUID: req.ProfileUUID, Devices: map[string]string{}}
 			for _, d := range req.Devices {
 				resp.Devices[d] = string(fleet.DEPAssignProfileResponseSuccess)
 			}
-			require.NoError(t, json.NewEncoder(w).Encode(resp))
+			assert.NoError(t, json.NewEncoder(w).Encode(resp))
 		default:
 			_, _ = w.Write([]byte(`{}`))
 		}

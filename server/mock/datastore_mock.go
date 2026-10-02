@@ -1134,7 +1134,7 @@ type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayloa
 
 type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error)
 
-type RotateMDMAppleAutomaticEnrollmentTokenFunc func(ctx context.Context, newToken string, gracePeriod time.Duration) (previousTokenExpiresAt *time.Time, err error)
+type RotateMDMAppleAutomaticEnrollmentTokenFunc func(ctx context.Context, newToken string, gracePeriod time.Duration, profileUpdateJob *fleet.Job) (previousTokenExpiresAt *time.Time, err error)
 
 type GetMDMAppleEnrollmentProfileByTypeFunc func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error)
 
@@ -10223,11 +10223,11 @@ func (s *DataStore) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	return s.GetMDMAppleEnrollmentProfileByTokenFunc(ctx, token)
 }
 
-func (s *DataStore) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, newToken string, gracePeriod time.Duration) (previousTokenExpiresAt *time.Time, err error) {
+func (s *DataStore) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, newToken string, gracePeriod time.Duration, profileUpdateJob *fleet.Job) (previousTokenExpiresAt *time.Time, err error) {
 	s.mu.Lock()
 	s.RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked = true
 	s.mu.Unlock()
-	return s.RotateMDMAppleAutomaticEnrollmentTokenFunc(ctx, newToken, gracePeriod)
+	return s.RotateMDMAppleAutomaticEnrollmentTokenFunc(ctx, newToken, gracePeriod, profileUpdateJob)
 }
 
 func (s *DataStore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {

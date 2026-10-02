@@ -1779,9 +1779,10 @@ type Datastore interface {
 
 	// RotateMDMAppleAutomaticEnrollmentToken replaces the automatic enrollment profile's token with
 	// newToken. The current token becomes the previous token, valid for gracePeriod, or is
-	// discarded if gracePeriod is 0. It returns when the previous token expires, or nil if it was
-	// discarded, and a not found error if there is no automatic enrollment profile with a token.
-	RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, newToken string, gracePeriod time.Duration) (previousTokenExpiresAt *time.Time, err error)
+	// discarded if gracePeriod is 0. profileUpdateJob is queued in the same transaction. It returns
+	// when the previous token expires, or nil if it was discarded, and a not found error if there is
+	// no automatic enrollment profile with a token.
+	RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, newToken string, gracePeriod time.Duration, profileUpdateJob *Job) (previousTokenExpiresAt *time.Time, err error)
 
 	// GetMDMAppleEnrollmentProfileByType loads the enrollment profile from its type (e.g. manual, automatic).
 	GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ MDMAppleEnrollmentType) (*MDMAppleEnrollmentProfile, error)

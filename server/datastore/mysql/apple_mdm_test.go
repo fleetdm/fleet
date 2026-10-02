@@ -14286,8 +14286,24 @@ func testMDMAppleDEPEnrollmentChallenges(t *testing.T, ds *Datastore) {
 func testRotateMDMAppleAutomaticEnrollmentToken(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	_, err := ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", time.Hour)
+	const jobName = "test_profile_update"
+	newJob := func() *fleet.Job {
+		args := json.RawMessage(`{"task":"update_all_profiles"}`)
+		return &fleet.Job{Name: jobName, Args: &args, State: fleet.JobStateQueued}
+	}
+	queuedJobs := func() int {
+		t.Helper()
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM jobs WHERE name = ?`, jobName)
+		})
+		return n
+	}
+
+	// a failed rotation queues no job
+	_, err := ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", time.Hour, newJob())
 	require.True(t, fleet.IsNotFound(err), err)
+	require.Zero(t, queuedJobs())
 
 	_, err = ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
 		Token: "token-0",
@@ -14321,17 +14337,24 @@ func testRotateMDMAppleAutomaticEnrollmentToken(t *testing.T, ds *Datastore) {
 		return row.PreviousToken, row.PreviousTokenExpiresAt
 	}
 
-	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "", time.Hour)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "", time.Hour, newJob())
 	require.Error(t, err)
-	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", -time.Hour)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", -time.Hour, newJob())
 	require.Error(t, err)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", time.Hour, nil)
+	require.Error(t, err)
+	require.Zero(t, queuedJobs())
+	requireTokenValid("token-0", true)
 
 	// rotate with a grace period
-	expiresAt, err := ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", 24*time.Hour)
+	expiresAt, err := ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", 24*time.Hour, newJob())
 	require.NoError(t, err)
+	require.Equal(t, 1, queuedJobs())
 	require.NotNil(t, expiresAt)
 	require.WithinDuration(t, time.Now().Add(24*time.Hour), *expiresAt, time.Minute)
 	prev, prevExpiresAt := previousToken()
+	require.NotNil(t, prev)
+	require.NotNil(t, prevExpiresAt)
 	require.Equal(t, "token-0", *prev)
 	require.Equal(t, *expiresAt, *prevExpiresAt)
 	requireTokenValid("token-1", true)
@@ -14353,16 +14376,16 @@ func testRotateMDMAppleAutomaticEnrollmentToken(t *testing.T, ds *Datastore) {
 	requireTokenValid("token-1", true)
 
 	// rotating again during a grace period replaces the previous token
-	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-2", 24*time.Hour)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-2", 24*time.Hour, newJob())
 	require.NoError(t, err)
-	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-3", 24*time.Hour)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-3", 24*time.Hour, newJob())
 	require.NoError(t, err)
 	requireTokenValid("token-3", true)
 	requireTokenValid("token-2", true)
 	requireTokenValid("token-1", false)
 
 	// no grace period revokes the previous token immediately
-	expiresAt, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-4", 0)
+	expiresAt, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-4", 0, newJob())
 	require.NoError(t, err)
 	require.Nil(t, expiresAt)
 	prev, prevExpiresAt = previousToken()
@@ -14372,7 +14395,7 @@ func testRotateMDMAppleAutomaticEnrollmentToken(t *testing.T, ds *Datastore) {
 	requireTokenValid("token-3", false)
 
 	// re-creating the automatic profile leaves the previous token alone
-	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-5", time.Hour)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-5", time.Hour, newJob())
 	require.NoError(t, err)
 	_, err = ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
 		Token: "token-6",
@@ -14380,6 +14403,7 @@ func testRotateMDMAppleAutomaticEnrollmentToken(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	prev, _ = previousToken()
+	require.NotNil(t, prev)
 	require.Equal(t, "token-4", *prev)
 	requireTokenValid("token-6", true)
 	requireTokenValid("token-4", true)
