@@ -494,6 +494,848 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/alf_explicit_auths.yml"
   },
   {
+    "name": "amcache_application_files",
+    "description": "Executable files recorded in the Windows Amcache hive by the Microsoft Compatibility Appraiser, with the file's SHA-1, path and PE metadata.",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "notes": "Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.\n\nA value that is absent from the record or that cannot be decoded leaves the column empty. On a\ntext column that is the empty string. On an integer or bigint column osquery renders an empty\nvalue as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to\nan empty string.\n\nThis table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is\nnot a core osquery table and is only available on hosts where that extension is loaded, for\nexample through fleetd's extensions agent option or osquery's extensions.load file.\n\nA row means the appraiser saw the file. It is not evidence that the file was executed.\n\nOn Windows 11 roughly three quarters of the rows carry only a program id, a hash and a write time,\nwith no path, name, size or version metadata at all, and most of the remaining rows carry a path\nbut no hash, so fewer than one row in ten carries both. A query that joins or filters on path and\nreports sha1, or the reverse, therefore reaches a small minority of the table on that family. That\nis normal appraiser behaviour and not a fault in this extension. Windows 10 and Windows Server 2022\npopulate both on every record and most other columns on most rows.\n\nThis table can hold tens of thousands of rows, so a scheduled SELECT * will exceed Fleet's 1 MB\nper log line and truncate. Constrain on program_id, sha1 or last_write_time. Those are populated\non every Windows family, whereas path is empty on most Windows 11 rows and makes a poor filter\nthere.",
+    "examples": "Find executables under user-writable directories that no installed application accounts for.\n\n```\nSELECT path, name, sha1, last_write_time\nFROM amcache_application_files\nWHERE path LIKE 'c:\\users\\%'\n  AND program_id NOT IN (SELECT program_id FROM amcache_applications);\n```",
+    "columns": [
+      {
+        "name": "path",
+        "type": "text",
+        "description": "Full path of the file, lowercased, as the appraiser recorded it. On Windows 11 roughly three quarters of the rows in this table carry no path at all, only a program id, a hash and a write time, so a filter on path silently skips most of the table on that family.",
+        "required": false
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "description": "File name as the appraiser recorded it. This is a separate recorded value, not derived from the path or from the subkey name, and it differs from the last component of the path on a material fraction of rows.",
+        "required": false
+      },
+      {
+        "name": "sha1",
+        "type": "text",
+        "description": "SHA-1 of the file as lowercase hexadecimal, taken from the record's FileId value and never from its ProgramId. Windows hashes only the first 31,457,280 bytes of a file, so this differs from a whole-file SHA-1 for anything larger. SQLite compares strings case sensitively, so an uppercase literal in an IOC sweep returns no rows on a host where the file exists.",
+        "required": false
+      },
+      {
+        "name": "program_id",
+        "type": "text",
+        "description": "Identifier of the application this file belongs to. Joins amcache_applications.program_id and amcache_application_shortcuts.program_id.",
+        "required": false
+      },
+      {
+        "name": "publisher",
+        "type": "text",
+        "description": "Company name from the file's PE version resource. This is attacker-influenced metadata that the appraiser copies without validating.",
+        "required": false
+      },
+      {
+        "name": "original_file_name",
+        "type": "text",
+        "description": "Original file name from the file's PE version resource. A value that disagrees with name is a sign the file was renamed on disk.",
+        "required": false
+      },
+      {
+        "name": "version",
+        "type": "text",
+        "description": "File version string from the file's PE version resource.",
+        "required": false
+      },
+      {
+        "name": "bin_file_version",
+        "type": "text",
+        "description": "File version from the PE fixed version header. A disagreement with version is a masquerading tell, because the two are written from different places in the binary.",
+        "required": false
+      },
+      {
+        "name": "product_name",
+        "type": "text",
+        "description": "Product name from the file's PE version resource.",
+        "required": false
+      },
+      {
+        "name": "product_version",
+        "type": "text",
+        "description": "Product version string from the file's PE version resource.",
+        "required": false
+      },
+      {
+        "name": "bin_product_version",
+        "type": "text",
+        "description": "Product version from the PE fixed version header. A disagreement with product_version is a masquerading tell.",
+        "required": false
+      },
+      {
+        "name": "binary_type",
+        "type": "text",
+        "description": "Architecture of the binary as the appraiser classified it, for example pe64_amd64 or pe32_i386.",
+        "required": false
+      },
+      {
+        "name": "size",
+        "type": "bigint",
+        "description": "Size of the file in bytes.",
+        "required": false
+      },
+      {
+        "name": "link_time",
+        "type": "bigint",
+        "description": "Link timestamp from the file's PE header, as a unix epoch. Interpreted as UTC. This is attacker-influenced metadata that the appraiser copies without validating, and it is not a record of when the file was installed or run. Roughly 13 percent of the values on an observed Windows 11 host are not timestamps at all and this column is empty for those rows. Every such value observed was a byte-for-byte copy of the same record's product version, but that is an observation rather than a rule and the decoder simply rejects anything that is not a date.",
+        "required": false
+      },
+      {
+        "name": "language",
+        "type": "integer",
+        "description": "Language identifier, an LCID, from the file's PE version resource.",
+        "required": false
+      },
+      {
+        "name": "os_component",
+        "type": "integer",
+        "description": "Value is 1 if the appraiser marked the file as an operating system component. The appraiser writes this value only when it is true, so on every host observed the column is 1 or empty and never 0, and a filter of os_component = 0 matches nothing.",
+        "required": false
+      },
+      {
+        "name": "usn",
+        "type": "bigint",
+        "description": "USN change journal update sequence number recorded for the file at inventory time.",
+        "required": false
+      },
+      {
+        "name": "long_path_hash",
+        "type": "text",
+        "description": "Windows 10 only. Hash of the file's long path that the appraiser writes alongside the path. Absent from every Windows 11 and Windows Server 2022 record observed.",
+        "required": false
+      },
+      {
+        "name": "appx_package_full_name",
+        "type": "text",
+        "description": "Full package name when the file belongs to an APPX or MSIX package.",
+        "required": false
+      },
+      {
+        "name": "last_write_time",
+        "type": "bigint",
+        "description": "Time the record was last written by the Microsoft Compatibility Appraiser, as a unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the device was connected.",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/amcache_application_files",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/amcache_application_files.yml"
+  },
+  {
+    "name": "amcache_application_shortcuts",
+    "description": "Start Menu shortcuts recorded in the Windows Amcache hive by the Microsoft Compatibility Appraiser.",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "notes": "Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.\n\nA value that is absent from the record or that cannot be decoded leaves the column empty. On a\ntext column that is the empty string. On an integer or bigint column osquery renders an empty\nvalue as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to\nan empty string.\n\nThis table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is\nnot a core osquery table and is only available on hosts where that extension is loaded, for\nexample through fleetd's extensions agent option or osquery's extensions.load file.\n\nOnly Start Menu shortcuts are recorded here.\n\nOn Windows Server 2022 the appraiser writes only the shortcut path, so target_path, aumid and\nprogram_id are empty on every record observed there. On Windows 10 and Windows 11 all four columns\ncarry data.",
+    "examples": "List Start Menu shortcuts whose target sits outside the usual program directories.\n\n```\nSELECT path, target_path, program_id\nFROM amcache_application_shortcuts\nWHERE target_path != ''\n  AND LOWER(target_path) NOT LIKE 'c:\\program files%'\n  AND LOWER(target_path) NOT LIKE 'c:\\windows\\%';\n```",
+    "columns": [
+      {
+        "name": "path",
+        "type": "text",
+        "description": "Path of the Start Menu shortcut file.",
+        "required": false
+      },
+      {
+        "name": "target_path",
+        "type": "text",
+        "description": "Path the shortcut points at. Absent from every Windows Server 2022 record observed, where the appraiser writes the shortcut path and nothing else.",
+        "required": false
+      },
+      {
+        "name": "aumid",
+        "type": "text",
+        "description": "Application user model id the shortcut launches. Absent from every Windows Server 2022 record observed, where the appraiser writes the shortcut path and nothing else.",
+        "required": false
+      },
+      {
+        "name": "program_id",
+        "type": "text",
+        "description": "Identifier of the application the shortcut points at. Joins amcache_applications.program_id. Absent from every Windows Server 2022 record observed, where the appraiser writes the shortcut path and nothing else.",
+        "required": false
+      },
+      {
+        "name": "last_write_time",
+        "type": "bigint",
+        "description": "Time the record was last written by the Microsoft Compatibility Appraiser, as a unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the device was connected.",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/amcache_application_shortcuts",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/amcache_application_shortcuts.yml"
+  },
+  {
+    "name": "amcache_applications",
+    "description": "Applications recorded in the Windows Amcache hive by the Microsoft Compatibility Appraiser, one row per program id.",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "notes": "Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.\n\nA value that is absent from the record or that cannot be decoded leaves the column empty. On a\ntext column that is the empty string. On an integer or bigint column osquery renders an empty\nvalue as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to\nan empty string.\n\nThis table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is\nnot a core osquery table and is only available on hosts where that extension is loaded, for\nexample through fleetd's extensions agent option or osquery's extensions.load file.\n\nAn application that is uninstalled disappears from this key while its files usually remain in\namcache_application_files. That is what makes a search for files whose program_id has no row here\na useful way to find executables that were installed and then removed.",
+    "examples": "List applications that did not arrive through Windows Installer or the Microsoft Store and that\nname no publisher.\n\n```\nSELECT program_id, name, version, source, install_time\nFROM amcache_applications\nWHERE publisher = '' AND source NOT IN ('Msi', 'AppxPackage');\n```",
+    "columns": [
+      {
+        "name": "program_id",
+        "type": "text",
+        "description": "Identifier of the application, taken from the Amcache subkey name. Joins amcache_application_files.program_id and amcache_application_shortcuts.program_id.",
+        "required": false
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "description": "Display name of the application.",
+        "required": false
+      },
+      {
+        "name": "version",
+        "type": "text",
+        "description": "Version of the application as the installer reported it.",
+        "required": false
+      },
+      {
+        "name": "publisher",
+        "type": "text",
+        "description": "Publisher of the application as the installer reported it.",
+        "required": false
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "description": "Windows 10 only. Kind of entry the appraiser recorded, for example Application or Hotfix. Absent from every Windows 11 and Windows Server 2022 record observed.",
+        "required": false
+      },
+      {
+        "name": "source",
+        "type": "text",
+        "description": "Where the appraiser learned about the application, for example AddRemoveProgram, Msi or AppxPackage.",
+        "required": false
+      },
+      {
+        "name": "store_app_type",
+        "type": "text",
+        "description": "Store package type when the application came from the Microsoft Store.",
+        "required": false
+      },
+      {
+        "name": "install_time",
+        "type": "bigint",
+        "description": "Time the appraiser recorded as the install time, as a unix epoch. Interpreted as UTC. The appraiser derives this heuristically, most often from folder dates, so treat it as an approximation rather than an installer-reported fact.",
+        "required": false
+      },
+      {
+        "name": "msi_install_time",
+        "type": "bigint",
+        "description": "Install time reported by Windows Installer, as a unix epoch. Interpreted as UTC. Read from the record's MsiInstallDate value, which is absent from every Windows 10 record observed.",
+        "required": false
+      },
+      {
+        "name": "root_dir_path",
+        "type": "text",
+        "description": "Installation directory of the application.",
+        "required": false
+      },
+      {
+        "name": "uninstall_string",
+        "type": "text",
+        "description": "Command the Add or Remove Programs entry runs to uninstall the application.",
+        "required": false
+      },
+      {
+        "name": "registry_key_path",
+        "type": "text",
+        "description": "Registry path of the application's Add or Remove Programs entry.",
+        "required": false
+      },
+      {
+        "name": "msi_product_code",
+        "type": "text",
+        "description": "Windows Installer product code GUID. The programs table stores the same GUID uppercased, so join it as UPPER(msi_product_code) = programs.identifying_number.",
+        "required": false
+      },
+      {
+        "name": "msi_package_code",
+        "type": "text",
+        "description": "Windows Installer package code GUID.",
+        "required": false
+      },
+      {
+        "name": "package_full_name",
+        "type": "text",
+        "description": "Full package name when the application is an APPX or MSIX package.",
+        "required": false
+      },
+      {
+        "name": "manifest_path",
+        "type": "text",
+        "description": "Path of the application's package manifest.",
+        "required": false
+      },
+      {
+        "name": "hidden_arp",
+        "type": "integer",
+        "description": "Value is 1 if the application is hidden from Add or Remove Programs.",
+        "required": false
+      },
+      {
+        "name": "inbox_modern_app",
+        "type": "integer",
+        "description": "Value is 1 if the application is a modern app that ships with Windows.",
+        "required": false
+      },
+      {
+        "name": "language",
+        "type": "integer",
+        "description": "Language identifier, an LCID, recorded for the application.",
+        "required": false
+      },
+      {
+        "name": "os_version_at_install",
+        "type": "text",
+        "description": "Windows 10 only. Windows version quad recorded when the application was installed. Every value observed is a version quad and none is a date, which is why this column is text and is not named with a time suffix even though the registry value it reads is OSVersionAtInstallTime. Absent from every Windows 11 and Windows Server 2022 record observed.",
+        "required": false
+      },
+      {
+        "name": "program_instance_id",
+        "type": "text",
+        "description": "Identifier the appraiser derives from the file identifiers of the application's files.",
+        "required": false
+      },
+      {
+        "name": "user_sid",
+        "type": "text",
+        "description": "Security identifier of the user the application was installed for. Recorded on Windows 10 records but empty on almost all of them, and recorded on only a small minority of Windows 11 records.",
+        "required": false
+      },
+      {
+        "name": "last_write_time",
+        "type": "bigint",
+        "description": "Time the record was last written by the Microsoft Compatibility Appraiser, as a unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the device was connected.",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/amcache_applications",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/amcache_applications.yml"
+  },
+  {
+    "name": "amcache_device_containers",
+    "description": "Device containers recorded in the Windows Amcache hive by the Microsoft Compatibility Appraiser, one row per physical device grouping its Plug and Play device nodes.",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "notes": "Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.\n\nA value that is absent from the record or that cannot be decoded leaves the column empty. On a\ntext column that is the empty string. On an integer or bigint column osquery renders an empty\nvalue as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to\nan empty string.\n\nThis table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is\nnot a core osquery table and is only available on hosts where that extension is loaded, for\nexample through fleetd's extensions agent option or osquery's extensions.load file.\n\nA container groups the Plug and Play device nodes that belong to one physical device, so a USB\nstick or a printer appears here once rather than several times.\n\nContainers persist after the device is removed, so connected and active describe the state when\nthe appraiser last wrote the record and not the present moment.",
+    "examples": "List removable drives this host has ever seen, most recently recorded first.\n\n```\nSELECT container_id, friendly_name, manufacturer, model_name, connected,\n       last_write_time\nFROM amcache_device_containers\nWHERE primary_category LIKE 'Storage.Removable%'\nORDER BY last_write_time DESC;\n```",
+    "columns": [
+      {
+        "name": "container_id",
+        "type": "text",
+        "description": "Container GUID, lowercased, taken from the Amcache subkey name. Joins amcache_device_pnp.container_id.",
+        "required": false
+      },
+      {
+        "name": "friendly_name",
+        "type": "text",
+        "description": "Friendly name of the device as Windows displays it.",
+        "required": false
+      },
+      {
+        "name": "manufacturer",
+        "type": "text",
+        "description": "Manufacturer of the device.",
+        "required": false
+      },
+      {
+        "name": "model_name",
+        "type": "text",
+        "description": "Model name of the device.",
+        "required": false
+      },
+      {
+        "name": "model_number",
+        "type": "text",
+        "description": "Model number of the device.",
+        "required": false
+      },
+      {
+        "name": "model_id",
+        "type": "text",
+        "description": "Model identifier of the device.",
+        "required": false
+      },
+      {
+        "name": "primary_category",
+        "type": "text",
+        "description": "Primary category Windows assigned to the device, for example the removable drive category, which is what makes USB storage history queryable from this table.",
+        "required": false
+      },
+      {
+        "name": "categories",
+        "type": "text",
+        "description": "All categories Windows assigned to the device, as a comma-separated list.",
+        "required": false
+      },
+      {
+        "name": "discovery_method",
+        "type": "text",
+        "description": "How Windows discovered the device.",
+        "required": false
+      },
+      {
+        "name": "state",
+        "type": "bigint",
+        "description": "Container state flags word. This is a flags word rather than a small integer, which is why the column is bigint. The bits confirmed by measurement on the reference hives are 0x1 connected, 0x2 networked, 0x4 paired, 0x8 active and 0x10 machine container, and each agrees with the matching boolean column on every record observed. No higher bit is set on any record observed, so treat one as unknown rather than as unset.",
+        "required": false
+      },
+      {
+        "name": "active",
+        "type": "integer",
+        "description": "Value is 1 if Windows marked the container active. Agrees with bit 0x8 of state on every record observed.",
+        "required": false
+      },
+      {
+        "name": "connected",
+        "type": "integer",
+        "description": "Value is 1 if the device was connected when the appraiser wrote the record. Agrees with bit 0x1 of state on every record observed. This is not a statement about the present moment.",
+        "required": false
+      },
+      {
+        "name": "paired",
+        "type": "integer",
+        "description": "Value is 1 if the device is paired. Agrees with bit 0x4 of state on every record observed.",
+        "required": false
+      },
+      {
+        "name": "networked",
+        "type": "integer",
+        "description": "Value is 1 if the device is reached over the network. Agrees with bit 0x2 of state on every record observed.",
+        "required": false
+      },
+      {
+        "name": "machine_container",
+        "type": "integer",
+        "description": "Value is 1 if the container represents the machine itself rather than an attached device. Agrees with bit 0x10 of state on every record observed.",
+        "required": false
+      },
+      {
+        "name": "last_write_time",
+        "type": "bigint",
+        "description": "Time the record was last written by the Microsoft Compatibility Appraiser, as a unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the device was connected.",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/amcache_device_containers",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/amcache_device_containers.yml"
+  },
+  {
+    "name": "amcache_device_pnp",
+    "description": "Plug and Play devices recorded in the Windows Amcache hive by the Microsoft Compatibility Appraiser, including devices that are no longer attached.",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "notes": "Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.\n\nA value that is absent from the record or that cannot be decoded leaves the column empty. On a\ntext column that is the empty string. On an integer or bigint column osquery renders an empty\nvalue as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to\nan empty string.\n\nThis table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is\nnot a core osquery table and is only available on hosts where that extension is loaded, for\nexample through fleetd's extensions agent option or osquery's extensions.load file.\n\nDevices stay in this key long after they are removed, which is what makes removable-media history\nqueryable here. A row is therefore not evidence that the device is attached now.\n\nA small number of rows on every host observed carry a container_id with no matching row in\namcache_device_containers, so join the two tables with a LEFT JOIN or those rows disappear from\nthe result.",
+    "examples": "List every USB mass storage device this host has seen, with the container that names it.\n\n```\nSELECT p.device_instance_id, p.first_install_time, p.install_time,\n       c.friendly_name, c.primary_category\nFROM amcache_device_pnp p\nLEFT JOIN amcache_device_containers c ON c.container_id = p.container_id\nWHERE UPPER(p.enumerator) = 'USBSTOR'\nORDER BY p.first_install_time DESC;\n```",
+    "columns": [
+      {
+        "name": "device_instance_id",
+        "type": "text",
+        "description": "Plug and Play device instance id, taken from the Amcache subkey name with forward slashes rewritten to backslashes. Joins LOWER(drivers.device_id), and it is what parent_id points at.",
+        "required": false
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "description": "Device description as Windows reports it.",
+        "required": false
+      },
+      {
+        "name": "bus_reported_description",
+        "type": "text",
+        "description": "Device description as the bus driver reported it. This comes from the device rather than from the INF, so it is the more useful of the two descriptions for identifying an unexpected peripheral.",
+        "required": false
+      },
+      {
+        "name": "class",
+        "type": "text",
+        "description": "Device setup class, stored lowercase, for example usb or diskdrive. Compare through UPPER() or LOWER() rather than matching the casing Windows shows elsewhere.",
+        "required": false
+      },
+      {
+        "name": "class_guid",
+        "type": "text",
+        "description": "GUID of the device setup class.",
+        "required": false
+      },
+      {
+        "name": "enumerator",
+        "type": "text",
+        "description": "Bus the device was enumerated on, stored lowercase, for example usb, usbstor, pci, bth or swd. Compare through UPPER() or LOWER() rather than matching the casing Windows shows elsewhere.",
+        "required": false
+      },
+      {
+        "name": "manufacturer",
+        "type": "text",
+        "description": "Manufacturer as the INF or the device reported it.",
+        "required": false
+      },
+      {
+        "name": "model",
+        "type": "text",
+        "description": "Model as the INF or the device reported it.",
+        "required": false
+      },
+      {
+        "name": "provider",
+        "type": "text",
+        "description": "Provider named in the INF that installed the device.",
+        "required": false
+      },
+      {
+        "name": "service",
+        "type": "text",
+        "description": "Name of the service driving the device. Joins services.name.",
+        "required": false
+      },
+      {
+        "name": "driver_name",
+        "type": "text",
+        "description": "File name of the driver serving the device.",
+        "required": false
+      },
+      {
+        "name": "sha1",
+        "type": "text",
+        "description": "SHA-1 of the driver serving the device, as lowercase hexadecimal, taken from the record's DriverId value. Joins amcache_driver_binaries.sha1.",
+        "required": false
+      },
+      {
+        "name": "driver_ver_version",
+        "type": "text",
+        "description": "Driver version declared in the INF DriverVer directive.",
+        "required": false
+      },
+      {
+        "name": "driver_ver_time",
+        "type": "bigint",
+        "description": "Driver date declared in the INF DriverVer directive, as a unix epoch. Interpreted as UTC. The appraiser stores this one month first and dash separated, which is a different layout from the same field on amcache_driver_packages.",
+        "required": false
+      },
+      {
+        "name": "driver_package_strong_name",
+        "type": "text",
+        "description": "Strong name of the driver package serving the device.",
+        "required": false
+      },
+      {
+        "name": "inf",
+        "type": "text",
+        "description": "Name of the INF that installed the device. Joins amcache_driver_packages.inf.",
+        "required": false
+      },
+      {
+        "name": "hwids",
+        "type": "text",
+        "description": "Hardware ids reported for the device, as a comma-separated list. Individual ids can themselves contain commas, so match this column with LIKE rather than by equality.",
+        "required": false
+      },
+      {
+        "name": "compids",
+        "type": "text",
+        "description": "Compatible ids reported for the device, as a comma-separated list. Individual ids can themselves contain commas, so match this column with LIKE rather than by equality.",
+        "required": false
+      },
+      {
+        "name": "matching_id",
+        "type": "text",
+        "description": "Hardware or compatible id that the installed INF matched.",
+        "required": false
+      },
+      {
+        "name": "parent_id",
+        "type": "text",
+        "description": "Device instance id of this device's parent in the Plug and Play tree. Windows already stores this one with backslashes, so it is passed through unchanged. Self joins device_instance_id on this table.",
+        "required": false
+      },
+      {
+        "name": "container_id",
+        "type": "text",
+        "description": "Container the device belongs to. Joins amcache_device_containers.container_id, but a small number of rows on every host observed name a container that has no record, so make that a LEFT JOIN or those rows disappear from the result.",
+        "required": false
+      },
+      {
+        "name": "install_state",
+        "type": "integer",
+        "description": "Device install state, stored by Windows as decimal text. Windows documents 0 as installed, 1 as needs reinstall, 2 as failed install and 3 as finish install. Only 0 occurs on the reference hives.",
+        "required": false
+      },
+      {
+        "name": "device_state",
+        "type": "bigint",
+        "description": "Devnode status flags word for the device. This is a flags word rather than a small integer, which is why the column is bigint. The documented DN_ flags reach 0x80000000, which would render as a negative number in an integer column. Only 0x20 and 0x40 are set on any record observed, so treat any other bit as unverified rather than as unset.",
+        "required": false
+      },
+      {
+        "name": "problem_code",
+        "type": "integer",
+        "description": "Configuration Manager problem code for the device, stored by Windows as decimal text. Value 0 means no problem, and only 0 occurs on the reference hives.",
+        "required": false
+      },
+      {
+        "name": "install_time",
+        "type": "bigint",
+        "description": "Time the device was installed as the appraiser recorded it, as a unix epoch. Interpreted as UTC.",
+        "required": false
+      },
+      {
+        "name": "first_install_time",
+        "type": "bigint",
+        "description": "Time the device was first installed as the appraiser recorded it, as a unix epoch. Interpreted as UTC. A value earlier than install_time means the device was attached, removed and attached again.",
+        "required": false
+      },
+      {
+        "name": "lower_filters",
+        "type": "text",
+        "description": "Lower filter drivers in the device stack, as a comma-separated list. Device stack filters load with the device and are a known persistence location, which is why this column exists.",
+        "required": false
+      },
+      {
+        "name": "upper_filters",
+        "type": "text",
+        "description": "Upper filter drivers in the device stack, as a comma-separated list. Device stack filters load with the device and are a known persistence location, which is why this column exists.",
+        "required": false
+      },
+      {
+        "name": "last_write_time",
+        "type": "bigint",
+        "description": "Time the record was last written by the Microsoft Compatibility Appraiser, as a unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the device was connected.",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/amcache_device_pnp",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/amcache_device_pnp.yml"
+  },
+  {
+    "name": "amcache_driver_binaries",
+    "description": "Driver binaries recorded in the Windows Amcache hive by the Microsoft Compatibility Appraiser, with the driver's SHA-1 and the appraiser's signing assessment.",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "notes": "Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.\n\nA value that is absent from the record or that cannot be decoded leaves the column empty. On a\ntext column that is the empty string. On an integer or bigint column osquery renders an empty\nvalue as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to\nan empty string.\n\nThis table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is\nnot a core osquery table and is only available on hosts where that extension is loaded, for\nexample through fleetd's extensions agent option or osquery's extensions.load file.\n\nThe signed, inbox and kernel_mode columns are the appraiser's assessment recorded at inventory\ntime, not a live signature check. A driver that was signed when it was inventoried still reads as\nsigned after its certificate is revoked.",
+    "examples": "List kernel-mode drivers that Windows did not ship and that the appraiser did not assess as\nsigned, which is the shape a bring-your-own-vulnerable-driver load leaves behind.\n\n```\nSELECT path, driver_name, sha1, driver_version, link_time\nFROM amcache_driver_binaries\nWHERE kernel_mode = 1 AND inbox = 0 AND signed = 0;\n```",
+    "columns": [
+      {
+        "name": "path",
+        "type": "text",
+        "description": "Full path of the driver binary, lowercased, taken from the Amcache subkey name with forward slashes rewritten to backslashes. Joins LOWER(drivers.image) and authenticode.path.",
+        "required": false
+      },
+      {
+        "name": "driver_name",
+        "type": "text",
+        "description": "File name of the driver binary.",
+        "required": false
+      },
+      {
+        "name": "sha1",
+        "type": "text",
+        "description": "SHA-1 of the driver binary as lowercase hexadecimal, taken from the record's DriverId value and never from a program id. Windows hashes only the first 31,457,280 bytes of a file, so this differs from a whole-file SHA-1 for anything larger. SQLite compares strings case sensitively, so an uppercase literal in an IOC sweep returns no rows on a host where the file exists.",
+        "required": false
+      },
+      {
+        "name": "signed",
+        "type": "integer",
+        "description": "Value is 1 if the appraiser assessed the driver as signed. This is the assessment recorded at inventory time and not a live signature check.",
+        "required": false
+      },
+      {
+        "name": "inbox",
+        "type": "integer",
+        "description": "Value is 1 if the appraiser assessed the driver as shipping with Windows. This is the assessment recorded at inventory time.",
+        "required": false
+      },
+      {
+        "name": "kernel_mode",
+        "type": "integer",
+        "description": "Value is 1 if the appraiser assessed the driver as running in kernel mode. This is the assessment recorded at inventory time.",
+        "required": false
+      },
+      {
+        "name": "driver_type",
+        "type": "bigint",
+        "description": "Flags word the appraiser records for the driver. The bits confirmed by measurement on the reference hives are 0x2 kernel mode, 0x4 user mode, 0x8 signed, 0x10 inbox, 0x20 self-signed and 0x40000 AMD64, and the first three agree with kernel_mode, signed and inbox on every record observed. Further bits are set on real records whose meaning is not established here, so treat an unlisted bit as unknown rather than as unset.",
+        "required": false
+      },
+      {
+        "name": "driver_version",
+        "type": "text",
+        "description": "Version of the driver binary.",
+        "required": false
+      },
+      {
+        "name": "product",
+        "type": "text",
+        "description": "Product name from the driver binary's PE version resource.",
+        "required": false
+      },
+      {
+        "name": "product_version",
+        "type": "text",
+        "description": "Product version from the driver binary's PE version resource.",
+        "required": false
+      },
+      {
+        "name": "driver_company",
+        "type": "text",
+        "description": "Company name from the driver binary's PE version resource.",
+        "required": false
+      },
+      {
+        "name": "service",
+        "type": "text",
+        "description": "Name of the service the driver is registered under. Joins services.name.",
+        "required": false
+      },
+      {
+        "name": "inf",
+        "type": "text",
+        "description": "Name of the INF that installed the driver. Joins amcache_driver_packages.inf and amcache_device_pnp.inf.",
+        "required": false
+      },
+      {
+        "name": "driver_package_strong_name",
+        "type": "text",
+        "description": "Strong name of the driver package in the driver store.",
+        "required": false
+      },
+      {
+        "name": "image_size",
+        "type": "bigint",
+        "description": "Size of the driver image in bytes as recorded in its PE header.",
+        "required": false
+      },
+      {
+        "name": "checksum",
+        "type": "bigint",
+        "description": "Checksum from the driver binary's PE header.",
+        "required": false
+      },
+      {
+        "name": "link_time",
+        "type": "bigint",
+        "description": "Link timestamp from the driver binary's PE header, as a unix epoch. Interpreted as UTC. Windows stores this one as a number rather than as a date string. It is attacker-influenced PE metadata and not a record of when the driver was loaded, and it is the column that forces the bigint type, because 42 percent of the values on the reference hives exceed 2,147,483,647 and would render as a negative epoch in an integer column.",
+        "required": false
+      },
+      {
+        "name": "modified_time",
+        "type": "bigint",
+        "description": "Last write time of the driver file on disk as the appraiser recorded it, as a unix epoch. Interpreted as UTC. This mirrors shimcache.modified_time.",
+        "required": false
+      },
+      {
+        "name": "last_write_time",
+        "type": "bigint",
+        "description": "Time the record was last written by the Microsoft Compatibility Appraiser, as a unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the device was connected.",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/amcache_driver_binaries",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/amcache_driver_binaries.yml"
+  },
+  {
+    "name": "amcache_driver_packages",
+    "description": "Driver packages recorded in the Windows Amcache hive by the Microsoft Compatibility Appraiser, one row per INF in the driver store.",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "notes": "Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.\n\nA value that is absent from the record or that cannot be decoded leaves the column empty. On a\ntext column that is the empty string. On an integer or bigint column osquery renders an empty\nvalue as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to\nan empty string.\n\nThis table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is\nnot a core osquery table and is only available on hosts where that extension is loaded, for\nexample through fleetd's extensions agent option or osquery's extensions.load file.\n\nThis table holds only tens of rows, so filtering does not reduce its cost. The size problem here\nis row width rather than row count. One observed row carries thousands of comma-separated hardware\nids in hwids and is roughly half a megabyte on its own, so two such rows exceed Fleet's 1 MB per\nlog line by themselves. Select the columns you need rather than SELECT *, and leave hwids out\nunless you are searching it.",
+    "examples": "List third-party driver packages that were never submitted to the Windows Hardware Quality Labs,\nselecting named columns so the half-megabyte hwids value stays out of the result.\n\n```\nSELECT inf, class, provider, version, driver_ver_time\nFROM amcache_driver_packages\nWHERE inbox = 0 AND submission_id = '';\n```",
+    "columns": [
+      {
+        "name": "inf",
+        "type": "text",
+        "description": "Name of the INF that defines the driver package. Joins amcache_driver_binaries.inf and amcache_device_pnp.inf.",
+        "required": false
+      },
+      {
+        "name": "directory",
+        "type": "text",
+        "description": "Driver store directory holding the package. Its last component is the package strong name.",
+        "required": false
+      },
+      {
+        "name": "sys_file",
+        "type": "text",
+        "description": "Driver file the package installs.",
+        "required": false
+      },
+      {
+        "name": "class",
+        "type": "text",
+        "description": "Device setup class of the package, for example Net or Display.",
+        "required": false
+      },
+      {
+        "name": "class_guid",
+        "type": "text",
+        "description": "GUID of the device setup class.",
+        "required": false
+      },
+      {
+        "name": "provider",
+        "type": "text",
+        "description": "Provider named in the INF.",
+        "required": false
+      },
+      {
+        "name": "version",
+        "type": "text",
+        "description": "Driver version declared in the INF.",
+        "required": false
+      },
+      {
+        "name": "driver_ver_time",
+        "type": "bigint",
+        "description": "Driver date declared in the INF DriverVer directive, as a unix epoch. Interpreted as UTC. The appraiser stores this one year first with an unpadded month and day, which is a different layout from every other date in the hive.",
+        "required": false
+      },
+      {
+        "name": "inbox",
+        "type": "integer",
+        "description": "Value is 1 if the appraiser assessed the package as shipping with Windows.",
+        "required": false
+      },
+      {
+        "name": "submission_id",
+        "type": "text",
+        "description": "Windows Hardware Quality Labs submission identifier. An empty value means the package carries no submission id.",
+        "required": false
+      },
+      {
+        "name": "hwids",
+        "type": "text",
+        "description": "Hardware ids the package matches, as a comma-separated list. Individual ids can themselves contain commas, so match this column with LIKE rather than by equality. A single row can hold thousands of ids and be hundreds of kilobytes on its own, so leave this column out of a scheduled query unless you are searching it.",
+        "required": false
+      },
+      {
+        "name": "last_write_time",
+        "type": "bigint",
+        "description": "Time the record was last written by the Microsoft Compatibility Appraiser, as a unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the device was connected.",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/amcache_driver_packages",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/amcache_driver_packages.yml"
+  },
+  {
     "name": "apfs_crypto_users",
     "platforms": [
       "darwin"

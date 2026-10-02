@@ -1,0 +1,145 @@
+name: amcache_application_files
+description: Executable files recorded in the Windows Amcache hive by the Microsoft Compatibility
+  Appraiser, with the file's SHA-1, path and PE metadata.
+platforms:
+  - windows
+evented: false
+notes: |-
+  Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.
+
+  A value that is absent from the record or that cannot be decoded leaves the column empty. On a
+  text column that is the empty string. On an integer or bigint column osquery renders an empty
+  value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
+  an empty string.
+
+  This table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is
+  not a core osquery table and is only available on hosts where that extension is loaded, for
+  example through fleetd's extensions agent option or osquery's extensions.load file.
+
+  A row means the appraiser saw the file. It is not evidence that the file was executed.
+
+  On Windows 11 roughly three quarters of the rows carry only a program id, a hash and a write time,
+  with no path, name, size or version metadata at all, and most of the remaining rows carry a path
+  but no hash, so fewer than one row in ten carries both. A query that joins or filters on path and
+  reports sha1, or the reverse, therefore reaches a small minority of the table on that family. That
+  is normal appraiser behaviour and not a fault in this extension. Windows 10 and Windows Server 2022
+  populate both on every record and most other columns on most rows.
+
+  This table can hold tens of thousands of rows, so a scheduled SELECT * will exceed Fleet's 1 MB
+  per log line and truncate. Constrain on program_id, sha1 or last_write_time. Those are populated
+  on every Windows family, whereas path is empty on most Windows 11 rows and makes a poor filter
+  there.
+examples: |-
+  Find executables under user-writable directories that no installed application accounts for.
+
+  ```
+  SELECT path, name, sha1, last_write_time
+  FROM amcache_application_files
+  WHERE path LIKE 'c:\users\%'
+    AND program_id NOT IN (SELECT program_id FROM amcache_applications);
+  ```
+columns:
+  - name: path
+    type: text
+    description: Full path of the file, lowercased, as the appraiser recorded it. On Windows 11
+      roughly three quarters of the rows in this table carry no path at all, only a program id, a
+      hash and a write time, so a filter on path silently skips most of the table on that family.
+    required: false
+  - name: name
+    type: text
+    description: File name as the appraiser recorded it. This is a separate recorded value, not
+      derived from the path or from the subkey name, and it differs from the last component of the
+      path on a material fraction of rows.
+    required: false
+  - name: sha1
+    type: text
+    description: SHA-1 of the file as lowercase hexadecimal, taken from the record's FileId value
+      and never from its ProgramId. Windows hashes only the first 31,457,280 bytes of a file, so
+      this differs from a whole-file SHA-1 for anything larger. SQLite compares strings case
+      sensitively, so an uppercase literal in an IOC sweep returns no rows on a host where the file
+      exists.
+    required: false
+  - name: program_id
+    type: text
+    description: Identifier of the application this file belongs to. Joins
+      amcache_applications.program_id and amcache_application_shortcuts.program_id.
+    required: false
+  - name: publisher
+    type: text
+    description: Company name from the file's PE version resource. This is attacker-influenced
+      metadata that the appraiser copies without validating.
+    required: false
+  - name: original_file_name
+    type: text
+    description: Original file name from the file's PE version resource. A value that disagrees with
+      name is a sign the file was renamed on disk.
+    required: false
+  - name: version
+    type: text
+    description: File version string from the file's PE version resource.
+    required: false
+  - name: bin_file_version
+    type: text
+    description: File version from the PE fixed version header. A disagreement with version is a
+      masquerading tell, because the two are written from different places in the binary.
+    required: false
+  - name: product_name
+    type: text
+    description: Product name from the file's PE version resource.
+    required: false
+  - name: product_version
+    type: text
+    description: Product version string from the file's PE version resource.
+    required: false
+  - name: bin_product_version
+    type: text
+    description: Product version from the PE fixed version header. A disagreement with
+      product_version is a masquerading tell.
+    required: false
+  - name: binary_type
+    type: text
+    description: Architecture of the binary as the appraiser classified it, for example pe64_amd64
+      or pe32_i386.
+    required: false
+  - name: size
+    type: bigint
+    description: Size of the file in bytes.
+    required: false
+  - name: link_time
+    type: bigint
+    description: Link timestamp from the file's PE header, as a unix epoch. Interpreted as UTC. This
+      is attacker-influenced metadata that the appraiser copies without validating, and it is not a
+      record of when the file was installed or run. Roughly 13 percent of the values on an observed
+      Windows 11 host are not timestamps at all and this column is empty for those rows. Every such
+      value observed was a byte-for-byte copy of the same record's product version, but that is an
+      observation rather than a rule and the decoder simply rejects anything that is not a date.
+    required: false
+  - name: language
+    type: integer
+    description: Language identifier, an LCID, from the file's PE version resource.
+    required: false
+  - name: os_component
+    type: integer
+    description: Value is 1 if the appraiser marked the file as an operating system component. The
+      appraiser writes this value only when it is true, so on every host observed the column is 1 or
+      empty and never 0, and a filter of os_component = 0 matches nothing.
+    required: false
+  - name: usn
+    type: bigint
+    description: USN change journal update sequence number recorded for the file at inventory time.
+    required: false
+  - name: long_path_hash
+    type: text
+    description: Windows 10 only. Hash of the file's long path that the appraiser writes alongside
+      the path. Absent from every Windows 11 and Windows Server 2022 record observed.
+    required: false
+  - name: appx_package_full_name
+    type: text
+    description: Full package name when the file belongs to an APPX or MSIX package.
+    required: false
+  - name: last_write_time
+    type: bigint
+    description: Time the record was last written by the Microsoft Compatibility Appraiser, as a
+      unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the
+      device was connected.
+    required: false
