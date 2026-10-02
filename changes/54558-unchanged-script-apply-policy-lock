@@ -1,0 +1,1 @@
+- Fixed re-applying scripts to a fleet via GitOps blocking every host's policy result reporting until the apply finished.

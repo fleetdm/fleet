@@ -75,6 +75,7 @@ module.exports = {
     idpSCIMConfigured: {required: true, type: 'boolean'},
     idpGoogleWorkspaceConfigured: {required: true, type: 'boolean'},
     certificateAuthorityConfigured: {required: true, type: 'boolean'},
+    numPoliciesAutomationEnabledSoftware: {required: true, type: 'number'},
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝
