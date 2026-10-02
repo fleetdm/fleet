@@ -1,4 +1,4 @@
-# Three conditions decide whether Windows 11 26H2 backs up a PC's settings to Microsoft's cloud without asking
+# Windows settings backup is on by default in 26H2. Here's what to check next.
 
 *Windows settings backup is now on by default for eligible devices. Whether yours qualify depends on a policy you may never have set.*
 
@@ -9,7 +9,7 @@
 - **"Not Configured" is now a decision.** The default applies only when nobody set the backup policy. A policy you never touched is the one that changed meaning.
 - **Eligibility has more than one condition.** Reports describe a device on 26H2, outside Digital Markets Act regions and sovereign or restricted clouds, joined to Microsoft Entra ID, with the policy left unset. Each condition can differ from one device to the next.
 - **Intune and Group Policy settings still win.** An explicit enable or disable overrides the default, so the fix for an unwanted default is a deliberate setting, not a hope.
-- **Verify the device, not the console.** Fleet's agent reports the Windows build and configuration on every host, so you can see which devices picked up 26H2 and which setting each one carries.
+- **Explicit settings still win, and Fleet can set them.** An explicit enable or disable overrides the default. Fleet can deploy that setting as a Windows configuration profile, report which devices picked up 26H2, and trigger an automation when one is missing the setting.
 
 <a purpose="cta-button" href="https://fleetdm.com/device-management">See how Fleet reports Windows device state</a>
 
@@ -27,19 +27,19 @@ That's a smaller footprint than a full device backup. It is still data about how
 
 Based on the reporting, the default switches on only when a device meets all of these:
 
-1. It runs Windows 11 version 26H2.
+1. It runs Windows 11 version 26H2 or later.
 2. It's outside regions regulated by the EU Digital Markets Act.
 3. It isn't in a sovereign or restricted cloud environment.
-4. Nobody has set the backup policy, so it is still Not Configured.
+4. The backup policy is still Not Configured.
 5. It is joined to Microsoft Entra ID, or hybrid joined.
 
-The first three are facts about the device and where it lives. The fourth is a fact about your management. That's the one you control, and it's the easy one to miss, because a setting nobody configured looks the same in a console as a setting nobody thought about.
+Devices that started on Windows 11 version 26H1 aren't exempt either. Microsoft says they get the same default-on treatment when they move to a later supported feature release.
 
 ## What your management tools tell you
 
 Intune and Group Policy can both set the policy explicitly, and an explicit setting takes precedence over the default. That's your opt-out, or your deliberate opt-in.
 
-Neither tool answers a different question: which devices are on 26H2 right now, and which of them are running without an explicit setting? A policy assigned to a group covers only the devices in that group. A device that hasn't checked in yet hasn't received anything. A machine that moved to 26H2 earlier than your rollout plan expected is the one most likely to surprise you.
+None of these tools answers a different question on its own: which devices are on 26H2 right now, and which of them are running without an explicit setting? A policy assigned to a group covers only the devices in that group. A device that hasn't checked in yet hasn't received anything. A machine that moved to 26H2 earlier than your rollout plan expected is the one most likely to surprise you.
 
 ## Checking the device itself
 
@@ -47,7 +47,7 @@ Fleet's agent reports the exact Windows build and configuration from each host. 
 
 Where the backup policy is stored on a device is something to confirm on a test machine before you write a check. Set the policy through Intune or Group Policy on one device, find where the value lands, and then query for that location across your fleet. A device with no value there, on 26H2, is a candidate for the new default.
 
-Fleet's agent can tell you what a device is configured to do. Whether a given device has actually uploaded anything is a question for Microsoft's side, so treat the device check as evidence of eligibility, not proof of a backup.
+Once you know what to look for, a Fleet policy can keep asking. Policy automations can send a webhook, open a ticket, or run a script when a host starts failing, so a 26H2 device without an explicit setting gets flagged to the right team instead of waiting for someone to check a dashboard. And because policies and profiles can live in Git as [YAML](https://fleetdm.com/docs/configuration/yaml-files), updating the check for the next feature release is a pull request someone reviews, not a console edit someone has to remember.
 
 ## Where this leaves you
 
@@ -59,6 +59,10 @@ Either way, a default changed under a setting you never configured. The teams th
 
 - **Get a demo** to see Windows device state reported across your own fleet: [fleetdm.com/contact](https://fleetdm.com/contact)
 - **Read how Fleet handles device management:** [fleetdm.com/device-management](https://fleetdm.com/device-management)
+## More from Fleet
+
+- [WSL containers are now on Windows. Can you see them?](https://fleetdm.com/industry-news/wsl-containers-registry-allow-list-visibility)
+- [Creating Windows CSPs](https://fleetdm.com/guides/creating-windows-csps)
 
 ## Sources
 
@@ -67,7 +71,7 @@ Either way, a default changed under a setting you never configured. The teams th
 - heise online, [Windows settings backup becomes default in Windows 11 26H2](https://www.heise.de/en/news/Windows-settings-backup-becomes-default-in-Windows-11-26H2-11472934.html).
 - Microsoft 365 message center, [MC1483538](https://mc.merill.net/message/MC1483538).
 
-<meta name="articleTitle" value="Three conditions decide whether Windows 11 26H2 backs up a PC's settings to Microsoft's cloud without asking">
+<meta name="articleTitle" value="Windows settings backup is on by default in 26H2. Here's what to check next.">
 <meta name="authorFullName" value="Aube Paul">
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
