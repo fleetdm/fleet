@@ -1445,6 +1445,7 @@ module.exports.routes = {
   'GET /learn-more-about/policy-automation-resend-configuration-profile': '/guides/policy-automation-resend-configuration-profile',
   'GET /learn-more-about/device-attestation': '/guides/what-is-device-attestation',
   'GET /learn-more-about/default-ab-token': '/guides/apple-mdm-setup#restrict-apple-account-sign-in-managed-apple-accounts',
+  'GET /learn-more-about/patching-end-user-experience': '/guides/patching-end-user-experience',
 
   // Sitemap
   // =============================================================================================================
