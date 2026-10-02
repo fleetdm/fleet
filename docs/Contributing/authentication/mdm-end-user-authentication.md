@@ -25,14 +25,13 @@ If the IT admin configured end user authentication, we change the `configuration
 Key points about the flow:
 
 1. The SSO flow ends with a callback to the Fleet server which contains information about the user that just logged in. We store this information in the `mdm_idp_accounts` table. Because at this point we don't know from which host UUID the request is coming in, we generate a random UUID as the key to look up this information (stored as `mdm_idp_accounts.uuid`). It is called `enrollment_reference` on the `/mdm/apple/enroll` endpoint.
-2. The `/mdm/sso` page starts SSO with `initiator=mdm_sso` and the `deviceinfo` Setup Assistant sent in the `x-apple-aspen-deviceinfo` header. Fleet verifies it (see `mdm.apple_machineinfo_verify`) and keeps the device's serial number and UDID in the SSO session. The callback then returns a one-time `profile_token`, stored in `mdm_apple_dep_enrollment_challenges`. It's bound to the IdP account from step 1 and to that serial number and UDID, and it expires after 1 hour. The first `/api/mdm/apple/enroll` request that presents it uses it up, whether or not that request succeeds, so a refresh of the callback page shows an authentication error and the end user signs in again.
-3. The Fleet server responds with an enrollment profile, that contains a special `ServerURL` with a query parameter `enroll_reference` (note the name difference). This parameter has the random UUID generated in step 1. This value is also called `EnrollmentRef` or `EnrollmentReference` in the codebase. The device is linked to the IdP account the one-time token was issued for, never to the `enrollment_reference` in the request.
-4. During MDM enrollment, we grab the `enroll_reference` parameter, if present, and we try to match it to a host. This allows us to link end user IdP accounts used during enrollment with a host.
-5. Before releasing the device from awaiting configuration, we send an [AccountConfiguration command](https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary) to the host, to pre-set the macOS local account username to the value we got stored in `mdm_idp_accounts`. The command sets the following properties:
+2. The Fleet server responds with an enrollment profile, that contains a special `ServerURL` with a query parameter `enroll_reference` (note the name difference). This parameter has the random UUID generated in step 1. This value is also called `EnrollmentRef` or `EnrollmentReference` in the codebase.
+3. During MDM enrollment, we grab the `enroll_reference` parameter, if present, and we try to match it to a host. This allows us to link end user IdP accounts used during enrollment with a host.
+4. Before releasing the device from awaiting configuration, we send an [AccountConfiguration command](https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary) to the host, to pre-set the macOS local account username to the value we got stored in `mdm_idp_accounts`. The command sets the following properties:
   - LockPrimaryAccountInfo=true
   - PrimaryAccountUserName
   - PrimaryAccountFullName
-6. During a subsequent osquery device refresh, we lookup the `email` from `mdm_idp_accounts` and save it in `host_emails` table. This email shows up in host details.
+5. During a subsequent osquery device refresh, we lookup the `email` from `mdm_idp_accounts` and save it in `host_emails` table. This email shows up in host details.
 
 ## Diagrams
 
@@ -67,10 +66,8 @@ sequenceDiagram
     activate fleet
     fleet->>fleet: Validate SSO session valid and not expired
     fleet->>fleet: Save username and display name
-    fleet->>fleet: Create one-time token for this device and IdP account
     fleet-->>host: Redirect UI to enroll endpoint
     deactivate fleet
-    host->>fleet: Download enrollment profile with the one-time token
     host->>host: Continue setup experience
     host->>+fleet: MDM TokenUpdate
     deactivate host
