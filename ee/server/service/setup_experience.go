@@ -381,10 +381,19 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 				if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
 					return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install failure")
 				}
+				var softwareDisplayName *string
+				if sw.SoftwareTitleID != nil {
+					dn, dnErr := svc.ds.GetSoftwareTitleDisplayName(ctx, host.TeamID, *sw.SoftwareTitleID)
+					if dnErr != nil {
+						svc.logger.WarnContext(ctx, "failed to look up software display name for VPP install failure activity", "err", dnErr)
+					}
+					softwareDisplayName = dn
+				}
 				failActivity := fleet.ActivityInstalledAppStoreApp{
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					SoftwareTitle:       sw.Name,
+					SoftwareDisplayName: softwareDisplayName,
 					AppStoreID:          ptr.ValOrZero(sw.VPPAppAdamID),
 					Status:              string(fleet.SoftwareInstallFailed),
 					HostPlatform:        host.Platform,

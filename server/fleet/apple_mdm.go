@@ -55,6 +55,7 @@ type MDMAppleCommandIssuer interface {
 	RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error
 	ClearPasscode(ctx context.Context, hostUUID []string, cmdUUID string) error
+	RotateFileVaultKey(ctx context.Context, hostUUID, cmdUUID string, replyCertDER []byte) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -1808,6 +1809,7 @@ const (
 	VerifyRecoveryLockCmdName   = "VerifyRecoveryLock"
 	AccountConfigurationCmdName = "AccountConfiguration"
 	SetAutoAdminPasswordCmdName = "SetAutoAdminPassword"
+	RotateFileVaultKeyCmdName   = "RotateFileVaultKey"
 )
 
 // CancelableAppleMDMRequestTypes are the request types of Apple MDM commands

@@ -2764,28 +2764,62 @@ func TestGetESPCommands(t *testing.T) {
 	})
 
 	t.Run("pending with host UUID transitions to active", func(t *testing.T) {
-		ds, svc := newSvc(t)
+		// On orbit link, the enrollment moves to Active and a single InstallationState=3 advances the ESP to
+		// account setup. The release comes later, via ServerHasFinishedProvisioning.
+		//
+		// DevDetail linking can set HostUUID on any message, so the transition is not gated to session start.
+		for _, tc := range []struct {
+			name string
+			msg  *fleet.SyncML
+		}{
+			{"no message", nil},
+			{"session start", &fleet.SyncML{SyncHdr: fleet.SyncHdr{MsgID: "2"}}},
+			{"mid-session", &fleet.SyncML{SyncHdr: fleet.SyncHdr{MsgID: "7"}}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ds, svc := newSvc(t)
+				device := &fleet.MDMWindowsEnrolledDevice{
+					MDMDeviceID:           deviceID,
+					HostUUID:              hostUUID,
+					AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending,
+				}
+				transitioned := false
+				ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+					transitioned = true
+					return true, nil
+				}
+
+				cmds, err := svc.getESPCommands(t.Context(), device, tc.msg)
+				require.NoError(t, err)
+				require.Len(t, cmds, 1)
+				assert.Contains(t, cmds[0].GetTargetURI(), "DevicePreparation/PolicyProviders/")
+				assert.Contains(t, cmds[0].GetTargetURI(), "/InstallationState")
+				assert.True(t, transitioned)
+			})
+		}
+	})
+
+	t.Run("pending hold commands are only sent at session start", func(t *testing.T) {
+		_, svc := newSvc(t)
 		device := &fleet.MDMWindowsEnrolledDevice{
 			MDMDeviceID:           deviceID,
-			HostUUID:              hostUUID,
 			AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending,
 		}
-		transitioned := false
-		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
-			transitioned = true
-			return true, nil
+		msg := func(msgID string) *fleet.SyncML {
+			return &fleet.SyncML{SyncHdr: fleet.SyncHdr{MsgID: msgID}}
 		}
 
-		// At orbit-link transition, handleESPHoldOrTransition flips awaiting_configuration to Active and
-		// returns a single DevicePreparation/InstallationState=3 command to advance the ESP from the
-		// Device-setup phase to the Account-setup phase. ESP release itself is signaled later via
-		// ServerHasFinishedProvisioning from buildESPReleaseCommands.
-		cmds, err := svc.getESPCommands(t.Context(), device, nil)
-		require.NoError(t, err)
-		require.Len(t, cmds, 1)
-		assert.Contains(t, cmds[0].GetTargetURI(), "DevicePreparation/PolicyProviders/")
-		assert.Contains(t, cmds[0].GetTargetURI(), "/InstallationState")
-		assert.True(t, transitioned)
+		for _, id := range []string{"1", "2", " 2 ", "not-a-number", ""} {
+			cmds, err := svc.getESPCommands(t.Context(), device, msg(id))
+			require.NoError(t, err)
+			assert.NotEmpty(t, cmds, "MsgID %q should get the hold commands", id)
+		}
+		// An empty response lets the device end the session.
+		for _, id := range []string{"3", "28"} {
+			cmds, err := svc.getESPCommands(t.Context(), device, msg(id))
+			require.NoError(t, err)
+			assert.Empty(t, cmds, "MsgID %q is mid-session and should get no hold commands", id)
+		}
 	})
 
 	t.Run("active with pending profiles waits", func(t *testing.T) {
@@ -3553,6 +3587,50 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			})
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantPresent, present)
+		})
+	}
+}
+
+// TestReleaseUnusedFleetdInstallSecret covers the gates around the deletion. TestIsFleetdPresentOnDevice covers the presence decision.
+func TestReleaseUnusedFleetdInstallSecret(t *testing.T) {
+	t.Parallel()
+
+	enrolledAt := time.Date(2026, 6, 10, 9, 36, 32, 0, time.UTC)
+	for _, tc := range []struct {
+		name        string
+		disabled    bool          // windows one-time enroll secrets turned off
+		enrollUser  string        // a UPN for a user-driven enrollment, a device token for a programmatic one
+		seenOffset  time.Duration // host's last check-in, relative to the enrollment's created_at
+		wantDeleted bool
+	}{
+		{name: "the linked host's fleetd is already running", enrollUser: "alice@example.com", seenOffset: time.Minute, wantDeleted: true},
+		{name: "a re-imaged device's old host keeps it for the install", enrollUser: "alice@example.com", seenOffset: -20 * 24 * time.Hour},
+		{name: "windows one-time enroll secrets disabled", disabled: true, enrollUser: "alice@example.com", seenOffset: time.Minute},
+		{name: "programmatic enrollment", enrollUser: "device-token", seenOffset: time.Minute},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ds := new(mock.Store)
+			ds.HostLiteByIdentifierFunc = func(context.Context, string) (*fleet.HostLite, error) {
+				return &fleet.HostLite{ID: 1, SeenTime: enrolledAt.Add(tc.seenOffset)}, nil
+			}
+			ds.GetHostOrbitInfoFunc = func(context.Context, uint) (*fleet.HostOrbitInfo, error) {
+				return &fleet.HostOrbitInfo{Version: "1.63.0"}, nil
+			}
+			ds.WindowsMDMEnrollSecretUsedByOrbitFunc = func(context.Context, uint) (bool, error) {
+				return false, nil
+			}
+			ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc = func(ctx context.Context, enrollmentID uint) error {
+				assert.EqualValues(t, 17, enrollmentID)
+				return nil
+			}
+			svc := &Service{ds: ds, config: config.FleetConfig{MDM: config.MDMConfig{WindowsOneTimeEnrollSecrets: !tc.disabled}}}
+
+			svc.releaseUnusedFleetdInstallSecret(t.Context(), &fleet.MDMWindowsEnrolledDevice{
+				ID: 17, MDMEnrollUserID: tc.enrollUser, HostUUID: "host-1", CreatedAt: enrolledAt,
+			})
+			require.Equal(t, tc.wantDeleted, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked)
 		})
 	}
 }
