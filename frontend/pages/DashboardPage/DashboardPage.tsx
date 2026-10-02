@@ -946,6 +946,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         <div className={`${baseClass}__platforms`}>
           <span>Platform:&nbsp;</span>
           <DropdownWrapper
+            ariaLabel="Filter by platform"
             name="platform-filter"
             value={selectedPlatform || ""}
             className={`${baseClass}__platform-filter`}

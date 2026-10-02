@@ -233,6 +233,7 @@ const SoftwareOSTable = ({
   const renderPlatformDropdown = () => {
     return (
       <DropdownWrapper
+        ariaLabel="Filter by OS platform"
         name="os-platform-dropdown"
         value={platform || "all"}
         className={`${baseClass}__platform-dropdown`}

@@ -183,6 +183,7 @@ export const PatchOptionSelector = ({
         />
         {showEndUserExperienceDropdown && (
           <DropdownWrapper
+            ariaLabel="End user experience"
             name="end-user-experience"
             label="End user experience"
             options={END_USER_EXPERIENCE_OPTIONS}

@@ -259,6 +259,7 @@ const QueriesTable = ({
   const renderPlatformDropdown = useCallback(() => {
     return (
       <DropdownWrapper
+        ariaLabel="Filter by platform"
         name="platform-dropdown"
         value={curTargetedPlatformFilter}
         className={`${baseClass}__platform-dropdown`}

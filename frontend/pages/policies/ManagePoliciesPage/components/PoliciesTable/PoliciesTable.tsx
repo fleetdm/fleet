@@ -143,6 +143,7 @@ const PoliciesTable = ({
   const renderPlatformDropdown = useCallback(() => {
     return (
       <DropdownWrapper
+        ariaLabel="Filter by platform"
         name="platform-dropdown"
         value={platform}
         className={`${baseClass}__platform-dropdown`}

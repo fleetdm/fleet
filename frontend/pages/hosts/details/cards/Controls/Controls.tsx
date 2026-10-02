@@ -244,6 +244,7 @@ const Controls = ({
     return (
       <>
         <DropdownWrapper
+          ariaLabel="Filter by type"
           className={`${baseClass}__filter`}
           variant="table-filter"
           name="type-filter"

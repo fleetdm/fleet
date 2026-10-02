@@ -242,6 +242,7 @@ const HostSoftwareTable = ({
 
   const renderApplicationsFilter = () => (
     <DropdownWrapper
+      ariaLabel="Filter host applications"
       name="host-software-applications-filter"
       className={`${baseClass}__software-filter`}
       options={applicationsFilterOptions}
