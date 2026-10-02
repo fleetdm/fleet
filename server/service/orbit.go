@@ -452,7 +452,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	} else if euaDeviceID != "" {
 		// LinkWindowsHostMDMEnrollment performs the full post-link bookkeeping: SCIM user mapping, plus IdP device mapping, the DEP flag,
 		// and the Windows enrollment default fleet assignment for newly created hosts.
-		if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, euaDeviceID); err != nil {
+		if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, euaDeviceID, true); err != nil {
 			svc.logger.ErrorContext(ctx, "failed to link windows mdm enrollment to orbit host via EUA token",
 				"err", err, "host_uuid", host.UUID, "device_id", euaDeviceID)
 		}
@@ -471,7 +471,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			// Same trust as the DevDetail path this mirrors: the serial on the unlinked enrollment was asserted by the
 			// device, so it must not claim a host that already belongs to different hardware.
 			if !svc.windowsHostClaimedByOtherHardware(ctx, device, host.UUID, "hardware_serial", hostInfo.HardwareSerial) {
-				if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID); err != nil {
+				if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID, true); err != nil {
 					svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
 						"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
 				} else {

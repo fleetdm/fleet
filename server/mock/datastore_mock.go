@@ -2100,6 +2100,8 @@ type MintWindowsMDMOneTimeEnrollSecretFunc func(ctx context.Context, enrollmentI
 
 type QueueWindowsMDMEnrollSecretPushFunc func(ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd *fleet.MDMWindowsCommand, installCmd *fleet.MDMWindowsCommand) (bool, error)
 
+type DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc func(ctx context.Context, enrollmentID uint) error
+
 type WindowsMDMEnrollSecretPushedFunc func(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error)
 
 type CreateCustomHostVitalFunc func(ctx context.Context, name string) (fleet.CustomHostVital, error)
@@ -5644,6 +5646,9 @@ type DataStore struct {
 
 	QueueWindowsMDMEnrollSecretPushFunc        QueueWindowsMDMEnrollSecretPushFunc
 	QueueWindowsMDMEnrollSecretPushFuncInvoked bool
+
+	DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc        DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc
+	DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked bool
 
 	WindowsMDMEnrollSecretPushedFunc        WindowsMDMEnrollSecretPushedFunc
 	WindowsMDMEnrollSecretPushedFuncInvoked bool
@@ -13557,6 +13562,13 @@ func (s *DataStore) QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollm
 	s.QueueWindowsMDMEnrollSecretPushFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueueWindowsMDMEnrollSecretPushFunc(ctx, enrollmentID, mdmDeviceID, pushCmd, installCmd)
+}
+
+func (s *DataStore) DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx context.Context, enrollmentID uint) error {
+	s.mu.Lock()
+	s.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc(ctx, enrollmentID)
 }
 
 func (s *DataStore) WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error) {
