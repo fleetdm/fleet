@@ -4804,6 +4804,13 @@
       "description": "KeyStore Explorer is a GUI replacement for the Java command-line utilities keytool and jarsigner."
     },
     {
+      "name": "KiCad",
+      "slug": "kicad/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.kicad.kicad",
+      "description": "KiCad is an electronics design automation suite for schematic capture and PCB layout."
+    },
+    {
       "name": "Kiro CLI",
       "slug": "kiro-cli/darwin",
       "platform": "darwin",

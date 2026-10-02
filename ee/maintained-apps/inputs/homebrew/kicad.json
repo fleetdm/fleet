@@ -1,0 +1,10 @@
+{
+  "name": "KiCad",
+  "slug": "kicad/darwin",
+  "unique_identifier": "org.kicad.kicad",
+  "token": "kicad",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/kicad-install.sh",
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/kicad-uninstall.sh"
+}
