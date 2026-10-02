@@ -98,7 +98,7 @@ trash() {
 for app in "$APPDIR/KiCad"/*.app; do
   [[ -d "$app" ]] || continue
   bundle_id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$app/Contents/Info.plist" 2>/dev/null)
-  [[ -n "$bundle_id" ]] && quit_application "$bundle_id"
+  [[ "$bundle_id" =~ ^[A-Za-z0-9._-]+$ ]] && quit_application "$bundle_id"
 done
 sudo rm -rf "$APPDIR/KiCad"
 sudo rm -rf '/Library/Application Support/kicad'

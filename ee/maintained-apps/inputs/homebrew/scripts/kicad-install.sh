@@ -107,7 +107,7 @@ installed_bundle_ids() {
   local app
   for app in "$APPDIR/KiCad"/*.app; do
     [[ -d "$app" ]] || continue
-    /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$app/Contents/Info.plist" 2>/dev/null
+    /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$app/Contents/Info.plist" 2>/dev/null | grep -E '^[A-Za-z0-9._-]+$'
   done
 }
 
@@ -135,7 +135,7 @@ if [ -d "$APPDIR/KiCad" ]; then
 		exit 1
 	fi
 fi
-if ! sudo ditto "$MOUNT_POINT/KiCad" "$APPDIR/KiCad"; then
+if ! sudo cp -R "$MOUNT_POINT/KiCad" "$APPDIR"; then
 	# remove the partial copy so a failed install isn't inventoried as the new
 	# version, then restore the previous version if there was one
 	sudo rm -rf "$APPDIR/KiCad"
