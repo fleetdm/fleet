@@ -122,6 +122,11 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 		return nil, nil, fleet.ErrMissingLicense
 	}
 
+	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// default sort order to hosts_count descending
 	if opt.ListOptions.OrderKey == "" {
 		opt.ListOptions.OrderKey = "hosts_count"
@@ -276,6 +281,11 @@ func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	// Vulnerability filters are only available in premium
 	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
 		return 0, fleet.ErrMissingLicense
+	}
+
+	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
+	if err != nil {
+		return 0, err
 	}
 
 	// required for vulnerability filters

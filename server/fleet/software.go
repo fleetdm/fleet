@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -614,6 +616,95 @@ type SoftwareTitleListResult struct {
 	SoftwareAutoUpdateConfig
 }
 
+// softwareTypeFilterSources maps every source accepted by the `source` filter to the `extension_for`
+// values accepted for it.
+var softwareTypeFilterSources = map[string][]string{
+	"adobe_plugins":       nil,
+	"android_apps":        nil,
+	"apps":                nil,
+	"chocolatey_packages": nil,
+	"deb_packages":        nil,
+	"go_binaries":         nil,
+	"homebrew_packages":   nil,
+	"ie_extensions":       nil,
+	"ios_apps":            nil,
+	"ipados_apps":         nil,
+	"npm_packages":        nil,
+	"pacman_packages":     nil,
+	"pkg_packages":        nil,
+	"portage_packages":    nil,
+	"programs":            nil,
+	"ps1_packages":        nil,
+	"py_packages":         nil,
+	"python_packages":     nil,
+	"rpm_packages":        nil,
+	"safari_extensions":   nil,
+	"sh_packages":         nil,
+	"tgz_packages":        nil,
+	"chrome_extensions":   {"chrome", "chromium", "brave", "edge", "edge_beta", "opera", "yandex"},
+	"firefox_addons":      {"firefox"},
+	"vscode_extensions":   {"vscode", "vscode_insiders", "vscodium", "vscodium_insiders", "cursor", "windsurf", "trae"},
+	"jetbrains_plugins": {
+		"CLion", "DataGrip", "GoLand", "IntelliJIdea", "IntelliJIdeaCommunityEdition", "PhpStorm", "PyCharm",
+		"PyCharmCommunityEdition", "ReSharper", "Rider", "RubyMine", "RustRover", "WebStorm",
+	},
+}
+
+// softwareTypeFilterSourceByExtensionFor maps each accepted extension_for value back to its source. It
+// panics at startup if a value is listed under two sources, which would make the lookup ambiguous.
+var softwareTypeFilterSourceByExtensionFor = func() map[string]string {
+	bySource := make(map[string]string)
+	for source, exts := range softwareTypeFilterSources {
+		for _, ext := range exts {
+			if other, ok := bySource[ext]; ok {
+				panic(fmt.Sprintf("extension_for %q is listed under both %q and %q", ext, other, source))
+			}
+			bySource[ext] = source
+		}
+	}
+	return bySource
+}()
+
+// SoftwareTypeFilter is the validated form of the `source` and `extension_for` query parameters. It
+// maps each selected source to the extension_for values that narrow it; a source with no values
+// matches all of its rows.
+type SoftwareTypeFilter map[string][]string
+
+// ParseSoftwareTypeFilter validates the comma-separated `source` and `extension_for` query
+// parameters, trimming spaces and ignoring empty values. It returns nil when neither selects anything.
+// Values are checked against the allowlist before they're kept, so the result stays bounded whatever
+// the input size.
+func ParseSoftwareTypeFilter(source, extensionFor string) (SoftwareTypeFilter, error) {
+	filter := make(SoftwareTypeFilter)
+	for _, s := range str.ParseStringList(source) {
+		if _, ok := softwareTypeFilterSources[s]; !ok {
+			return nil, NewInvalidArgumentError("source", fmt.Sprintf(InvalidSoftwareSourceErrMsg, s))
+		}
+		filter[s] = nil
+	}
+
+	for _, ext := range str.ParseStringList(extensionFor) {
+		if len(filter) == 0 {
+			return nil, NewInvalidArgumentError("extension_for", SoftwareExtensionForRequiresSourceErrMsg)
+		}
+		extSource, ok := softwareTypeFilterSourceByExtensionFor[ext]
+		if !ok {
+			return nil, NewInvalidArgumentError("extension_for", fmt.Sprintf(InvalidSoftwareExtensionForErrMsg, ext))
+		}
+		if _, ok := filter[extSource]; !ok {
+			return nil, NewInvalidArgumentError("extension_for", fmt.Sprintf(SoftwareExtensionForSourceNotSelectedErrMsg, ext, extSource))
+		}
+		if !slices.Contains(filter[extSource], ext) {
+			filter[extSource] = append(filter[extSource], ext)
+		}
+	}
+
+	if len(filter) == 0 {
+		return nil, nil
+	}
+	return filter, nil
+}
+
 type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`
@@ -629,6 +720,11 @@ type SoftwareTitleListOptions struct {
 	Platform            string  `query:"platform,optional"`
 	HashSHA256          string  `query:"hash_sha256,optional"`
 	PackageName         string  `query:"package_name,optional"`
+	Source              string  `query:"source,optional"`
+	ExtensionFor        string  `query:"extension_for,optional"`
+
+	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
+	TypeFilter SoftwareTypeFilter
 
 	// ForSetupExperience is an internal flag set when listing software via the
 	// setup experience endpoint, so that it filters out any software available
@@ -666,6 +762,12 @@ type HostSoftwareTitleListOptions struct {
 	// MacOSApplicationsOnly limits the returned software to apps installed at the
 	// top level of the macOS /Applications folder. Ignored for non-macOS hosts.
 	MacOSApplicationsOnly bool `query:"macos_applications,optional"`
+
+	Source       string `query:"source,optional"`
+	ExtensionFor string `query:"extension_for,optional"`
+
+	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
+	TypeFilter SoftwareTypeFilter
 
 	// Non-MDM-enabled hosts cannot install VPP apps
 	IsMDMEnrolled bool
@@ -771,6 +873,11 @@ type SoftwareListOptions struct {
 	KnownExploit                bool    `query:"exploit,optional"`
 	MinimumCVSS                 float64 `query:"min_cvss_score,optional"`
 	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
+	Source                      string  `query:"source,optional"`
+	ExtensionFor                string  `query:"extension_for,optional"`
+
+	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
+	TypeFilter SoftwareTypeFilter
 
 	// WithHostCounts indicates that the list of software should include the
 	// counts of hosts per software, and include only those software that have
