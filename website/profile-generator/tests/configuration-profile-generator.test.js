@@ -10,7 +10,7 @@
  * deliberately:
  *
  *   sails_custom__anthropicSecret='…' npm run test-profile-generator
- *   sails_custom__anthropicSecret='…' BASE_MODEL=claude-sonnet-5 npm run test-profile-generator
+ *   sails_custom__anthropicSecret='…' BASE_MODEL=claude-sonnet-5-5 npm run test-profile-generator
  *   sails_custom__anthropicSecret='…' LOG_ALL_GENERATIONS=1 npm run test-profile-generator
  *   sails_custom__anthropicSecret='…' REPEATS=1 npm run test-profile-generator
  *

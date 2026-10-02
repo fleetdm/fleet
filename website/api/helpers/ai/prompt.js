@@ -18,18 +18,18 @@ module.exports = {
     baseModel: {
       type: 'string',
       description: 'The base model to use.',
-      example: 'claude-sonnet-5',
-      // 'claude-sonnet-5'
+      example: 'claude-sonnet-5-5',
+      // 'claude-sonnet-5-5'
       // 'claude-haiku-4-5'
       // 'claude-opus-4-8'
       moreInfoUrl: 'https://docs.anthropic.com/en/docs/about-claude/models',
-      defaultsTo: 'claude-sonnet-5',
+      defaultsTo: 'claude-sonnet-5-5',
     },
     expectJson: { type: 'boolean', defaultsTo: false },
     systemPrompt: { type: 'string', example: 'Here is data about each computer, as JSON: ```[ … ]```' },
     effort: {
       type: 'string',
-      description: 'Optional effort level for adaptive thinking (controls thinking depth vs. token/latency cost).  Only supported on Anthropic models with output_config.effort support (e.g. Claude Sonnet 5, Claude Opus 4.6+).  Ignored for models that don\'t support it (e.g. Claude Haiku 4.5).',
+      description: 'Optional effort level for adaptive thinking (controls thinking depth vs. token/latency cost).  Only supported on Anthropic models with output_config.effort support (e.g. Claude Sonnet 5.5, Claude Opus 4.6+).  Ignored for models that don\'t support it (e.g. Claude Haiku 4.5).',
       example: 'low'
     },
   },
@@ -74,7 +74,7 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
 
     let requestData = {
       model: baseModel,
-      // Bumped from 4096 so that models with adaptive thinking on by default (e.g. Claude Sonnet 5)
+      // Bumped from 4096 so that models with adaptive thinking on by default (e.g. Claude Sonnet 5.5)
       // have enough headroom for thinking tokens without truncating the actual response.
       max_tokens: 8192,// eslint-disable-line camelcase
       messages: [
@@ -95,17 +95,30 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
       }
     }
 
-    let anthropicResponse = await sails.helpers.http.post('https://api.anthropic.com/v1/messages', requestData, {
+    let requestHeaders = {
       'x-api-key': sails.config.custom.anthropicSecret,
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
-    })
+    };
+    // Claude Sonnet 5.5's safety classifiers can decline benign security-adjacent prompts (e.g. osquery
+    // SQL for finding vulnerable hosts).  Server-side fallback re-runs a declined request on the model
+    // Anthropic recommends for that refusal category.  Other models (e.g. Claude Haiku 4.5) don't accept it.
+    if (baseModel === 'claude-sonnet-5-5') {
+      requestData.fallbacks = 'default';
+      requestHeaders['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+    }
+
+    let anthropicResponse = await sails.helpers.http.post('https://api.anthropic.com/v1/messages', requestData, requestHeaders)
     .intercept('non200Response', (serverResponse)=>{
       return new Error('Failed to generate result.  Error details from LLM: '+serverResponse);
     })
     .intercept((err)=>{
       return new Error('Failed to generate result.  Error communicating with LLM: '+err.stack);
     });
+
+    if (anthropicResponse.stop_reason === 'refusal') {
+      throw new Error('The LLM declined to respond to this prompt.  Refusal details: '+require('util').inspect(anthropicResponse.stop_details, {depth: 3}));
+    }
 
     // With adaptive thinking enabled, the first content block can be a `thinking` (or
     // `redacted_thinking`) block rather than the actual answer, so scan for the first `text`

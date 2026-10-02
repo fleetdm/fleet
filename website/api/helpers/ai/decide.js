@@ -65,7 +65,7 @@ module.exports = {
 
     let decision = await sails.helpers.flow.build(async ()=>{
       let parsedPromptResponse = await sails.helpers.ai.prompt.with({
-        baseModel: 'claude-sonnet-5',
+        baseModel: 'claude-sonnet-5-5',
         prompt: prompt,
       });
 

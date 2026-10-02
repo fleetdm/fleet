@@ -45,7 +45,7 @@ module.exports = {
       newPrompt = await sails.helpers.flow.build(async ()=>{
         // FUTURE: Add an option to run multiple times.
         let parsedPromptResponse = await sails.helpers.ai.prompt.with({
-          baseModel: 'claude-sonnet-5',
+          baseModel: 'claude-sonnet-5-5',
           prompt: improverPrompt,
         });
         return parsedPromptResponse;

@@ -68,7 +68,7 @@ module.exports = {
 
     return await sails.helpers.ai.prompt.with({
       expectJson: true,
-      baseModel: 'claude-sonnet-5',
+      baseModel: 'claude-sonnet-5-5',
       prompt: prompt,
     })
     .retry('jsonExpectationFailed');
