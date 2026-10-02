@@ -1830,24 +1830,7 @@ scan:
 		}
 		return false
 	}
-	// The serial arrives in the device's own DevDetail response and nothing corroborates it, so it must not be able to
-	// take over a host that already belongs to different hardware. Refusing here costs the device nothing: the fleetd
-	// installer is enqueued by MDM device ID, so an unlinked enrollment still receives it, and osquery's
-	// directIngestMDMDeviceIDWindows backstop then links this enrollment to whichever host actually reports this MDM
-	// device ID.
-	conflicted, conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, enrolledDevice.MDMHardwareID)
-	if err != nil {
-		svc.logger.ErrorContext(ctx, "windows mdm: conflicting enrollment lookup failed",
-			"err", err, "device_id", enrolledDevice.MDMDeviceID)
-		ctxerr.Handle(ctx, err)
-		return false
-	}
-	if conflicted {
-		svc.logger.WarnContext(ctx, "windows mdm: refusing to link enrollment to a host already claimed by other hardware",
-			"device_id", enrolledDevice.MDMDeviceID,
-			"hardware_serial", serial,
-			"host_uuid", host.UUID,
-			"claimed_by_hardware_id", conflictingHardwareID)
+	if svc.windowsHostClaimedByOtherHardware(ctx, enrolledDevice, host.UUID, "hardware_serial", serial) {
 		return false
 	}
 
@@ -1863,6 +1846,31 @@ scan:
 		svc.releaseUnusedFleetdInstallSecret(ctx, enrolledDevice)
 	}
 	return updated
+}
+
+// windowsHostClaimedByOtherHardware reports whether linking the enrollment to hostUUID must be refused because the host
+// already holds an enrollment from different hardware, failing closed when that cannot be determined. The identifiers an
+// unlinked enrollment is matched by (the DevDetail serial, the Autopilot ZTDID) are asserted by the device and nothing
+// corroborates them, so they must not be able to take over a host that already belongs to other hardware. Refusing costs the device
+// nothing: the fleetd installer is enqueued by MDM device ID, so an unlinked enrollment still receives it, and osquery's
+// directIngestMDMDeviceIDWindows backstop then links this enrollment to whichever host actually reports this MDM device ID.
+func (svc *Service) windowsHostClaimedByOtherHardware(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, hostUUID string,
+	logAttrs ...any,
+) bool {
+	conflicted, conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, enrolledDevice.MDMHardwareID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: conflicting enrollment lookup failed",
+			"err", err, "device_id", enrolledDevice.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
+		return true
+	}
+	if conflicted {
+		svc.logger.WarnContext(ctx, "windows mdm: refusing to link enrollment to a host already claimed by other hardware",
+			append([]any{"device_id", enrolledDevice.MDMDeviceID, "host_uuid", hostUUID, "claimed_by_hardware_id", conflictingHardwareID},
+				logAttrs...)...)
+		return true
+	}
+	return false
 }
 
 // linkWindowsHostMDMEnrollmentByHostID links an enrollment to a host resolved by an identifier other than the serial.
@@ -1881,6 +1889,9 @@ func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, en
 	if host.UUID == "" {
 		svc.logger.DebugContext(ctx, "windows mdm: autopilot host has no uuid yet, deferring link until fleetd enrolls",
 			"device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
+		return false
+	}
+	if svc.windowsHostClaimedByOtherHardware(ctx, enrolledDevice, host.UUID, "host_id", hostID) {
 		return false
 	}
 
