@@ -359,7 +359,7 @@ func logDeviceNameRetry(ctx context.Context, logger *slog.Logger, outcome fleet.
 	attrs = append(attrs, "reason", reason)
 	switch outcome {
 	case fleet.DeviceNameRetried:
-		logger.InfoContext(ctx, "re-enforcing host name template", attrs...)
+		logger.DebugContext(ctx, "re-enforcing host name template", attrs...)
 	case fleet.DeviceNameRetriesExhausted:
 		logger.WarnContext(ctx, "host name template retries exhausted, marked failed", attrs...)
 	}

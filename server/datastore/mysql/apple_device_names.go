@@ -353,7 +353,8 @@ func (ds *Datastore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, h
 		return fleet.DeviceNameNotRetried, nil
 	}
 
-	const driftDetail = "Host was renamed on the device and no longer matches the fleet's naming template."
+	driftDetail := fmt.Sprintf("Host was renamed on the device and no longer matches the fleet's naming template. "+
+		"Fleet re-applied the template %d times. Select Resend to try again.", mdm.MaxAppleDeviceNameRetries)
 	res, err := ds.writer(ctx).ExecContext(ctx, `
 		UPDATE host_mdm_apple_device_names
 		SET status = ?, detail = ?`+driftWhere+`

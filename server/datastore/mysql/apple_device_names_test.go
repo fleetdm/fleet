@@ -1078,6 +1078,7 @@ func testHostDeviceNamesDriftRetryCap(t *testing.T, ds *Datastore) {
 	row := getDeviceNameRow(t, ds, host.UUID)
 	require.Equal(t, fleet.MDMDeliveryFailed, *row.Status)
 	require.Contains(t, row.Detail, "renamed on the device")
+	require.Contains(t, row.Detail, fmt.Sprintf("re-applied the template %d times", mdm.MaxAppleDeviceNameRetries))
 	require.EqualValues(t, mdm.MaxAppleDeviceNameRetries, row.Retries)
 	require.Equal(t, fleet.DeviceNameNotRetried, reportDeviceName(t, ds, host.UUID, "renamed-again"))
 
