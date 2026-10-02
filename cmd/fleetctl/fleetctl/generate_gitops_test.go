@@ -38,6 +38,11 @@ type MockClient struct {
 	WithActivations  bool
 	// adds two Windows profiles whose names sanitize to the same file name
 	WithCollidingProfileNames bool
+	// override the stored EULA file names, which come from the uploader
+	EULAName        string
+	WindowsEULAName string
+	// no EULA uploaded on either platform
+	WithoutEULAs bool
 }
 
 func (c MockClient) GetProfileActivation(profileID string) ([]byte, error) {
@@ -870,15 +875,40 @@ func (MockClient) Me() (*fleet.User, error) {
 	}, nil
 }
 
-func (MockClient) GetEULAMetadata() (*fleet.MDMEULA, error) {
+func (c MockClient) GetEULAMetadata() (*fleet.MDMEULA, error) {
+	if c.WithoutEULAs {
+		return nil, &client.NotFoundErr{}
+	}
+	name := "test.pdf"
+	if c.EULAName != "" {
+		name = c.EULAName
+	}
 	return &fleet.MDMEULA{
-		Name:  "test.pdf",
+		Name:  name,
 		Token: "test-eula-token",
 	}, nil
 }
 
 func (MockClient) GetEULAContent(token string) ([]byte, error) {
 	return []byte("This is the EULA content."), nil
+}
+
+func (c MockClient) GetWindowsEULAMetadata() (*fleet.MDMEULA, error) {
+	if c.WithoutEULAs {
+		return nil, &client.NotFoundErr{}
+	}
+	name := "terms.md"
+	if c.WindowsEULAName != "" {
+		name = c.WindowsEULAName
+	}
+	return &fleet.MDMEULA{
+		Name:  name,
+		Token: "test-windows-eula-token",
+	}, nil
+}
+
+func (MockClient) GetWindowsEULAContent(token string) ([]byte, error) {
+	return []byte("# Windows terms\n"), nil
 }
 
 func (MockClient) GetOrgLogoContent(mode fleet.OrgLogoMode) ([]byte, string, error) {
@@ -1311,6 +1341,72 @@ func TestGenerateGitopsWithoutMDM(t *testing.T) {
 			t.Fatalf("failed to remove temp dir: %v", err)
 		}
 	})
+}
+
+func TestGenerateGitopsWindowsEULA(t *testing.T) {
+	configureFMAManifestServer(t)
+
+	cases := []struct {
+		name                          string
+		eulaName, windowsName         string
+		wantEULAPath, wantWindowsPath string
+	}{
+		{
+			// Names are what the uploader sent; "\" is a separator on Windows.
+			"names carrying paths", `..\..\..\Startup\run.pdf`, "../../agreement.md",
+			"lib/eula/run.pdf", "lib/eula/agreement.md",
+		},
+		{"names that collide", "terms.md", "terms.md", "lib/eula/terms.md", "lib/eula/windows-terms.md"},
+		{"names that differ only in case", "Terms.md", "terms.md", "lib/eula/Terms.md", "lib/eula/windows-terms.md"},
+		{"characters windows rejects", "eula.pdf", `Terms: v2?.md`, "lib/eula/eula.pdf", "lib/eula/Terms- v2-.md"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fleetClient := &MockClient{EULAName: tc.eulaName, WindowsEULAName: tc.windowsName}
+			action := createGenerateGitopsAction(fleetClient)
+			buf := new(bytes.Buffer)
+			tempDir := t.TempDir()
+			flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+			flagSet.String("dir", tempDir, "")
+
+			cliContext := cli.NewContext(&cli.App{
+				Name:      "test",
+				Usage:     "test",
+				Writer:    buf,
+				ErrWriter: buf,
+			}, flagSet, nil)
+			require.NoError(t, action(cliContext), buf.String())
+
+			defaultYML, err := os.ReadFile(filepath.Join(tempDir, "default.yml"))
+			require.NoError(t, err)
+			assert.Contains(t, string(defaultYML), "end_user_license_agreement: ./"+tc.wantEULAPath)
+			assert.Contains(t, string(defaultYML), "windows_eula: ./"+tc.wantWindowsPath)
+
+			content, err := os.ReadFile(filepath.Join(tempDir, filepath.FromSlash(tc.wantWindowsPath)))
+			require.NoError(t, err)
+			assert.Equal(t, "# Windows terms\n", string(content))
+			_, err = os.Stat(filepath.Join(tempDir, filepath.FromSlash(tc.wantEULAPath)))
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestGenerateGitopsWithoutEULAs(t *testing.T) {
+	configureFMAManifestServer(t)
+	action := createGenerateGitopsAction(&MockClient{WithoutEULAs: true})
+	buf := new(bytes.Buffer)
+	tempDir := t.TempDir()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+
+	cliContext := cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)
+	require.NoError(t, action(cliContext), buf.String())
+
+	defaultYML, err := os.ReadFile(filepath.Join(tempDir, "default.yml"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(defaultYML), "lib/eula")
+	_, err = os.Stat(filepath.Join(tempDir, "lib", "eula"))
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestGenerateGitopsFree(t *testing.T) {
@@ -2979,6 +3075,7 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 		"apple_server_url",
 		"end_user_authentication",
 		"end_user_license_agreement",
+		"windows_eula",
 		"volume_purchasing_program",
 	} {
 		require.Contains(t, mdmRaw, key)

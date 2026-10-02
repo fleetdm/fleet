@@ -79,6 +79,8 @@ type generateGitopsClient interface {
 	DownloadDDMAsset(assetUUID string) ([]byte, error)
 	GetEULAMetadata() (*fleet.MDMEULA, error)
 	GetEULAContent(token string) ([]byte, error)
+	GetWindowsEULAMetadata() (*fleet.MDMEULA, error)
+	GetWindowsEULAContent(token string) ([]byte, error)
 	GetOrgLogoContent(mode fleet.OrgLogoMode) (body []byte, contentType string, err error)
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
@@ -1248,30 +1250,60 @@ func orgLogoExtFromContentType(contentType string) (string, error) {
 }
 
 func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {
-	// Download the eula metadata for the token.
-	eulaMetadata, err := cmd.Client.GetEULAMetadata()
+	return cmd.writeEULA("eula", fleet.MDMEULADefaultDarwinFileName, "macos-", cmd.Client.GetEULAMetadata, cmd.Client.GetEULAContent)
+}
+
+func (cmd *GenerateGitopsCommand) generateWindowsEULA() (string, error) {
+	return cmd.writeEULA("Windows EULA", "terms.md", "windows-", cmd.Client.GetWindowsEULAMetadata, cmd.Client.GetWindowsEULAContent)
+}
+
+// writeEULA adds an uploaded EULA, macOS or Windows, to lib/eula and returns
+// its path for the YAML, or "" when none is uploaded.
+func (cmd *GenerateGitopsCommand) writeEULA(
+	label, defaultName, collisionPrefix string,
+	getMetadata func() (*fleet.MDMEULA, error),
+	getContent func(token string) ([]byte, error),
+) (string, error) {
+	metadata, err := getMetadata()
 	if err != nil {
-		// not found is OK, it means the user has not uploaded a EULA yet.
-		if strings.Contains(err.Error(), "Resource Not Found") {
+		// not found is OK, it means the user has not uploaded one yet.
+		if service.IsNotFoundErr(err) {
 			return "", nil
 		}
-
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting eula metadata: %s\n", err)
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting %s metadata: %s\n", label, err)
 		return "", err
 	}
 
-	// now we want the eula contents, which is a PDF.
-	eulaContent, err := cmd.Client.GetEULAContent(eulaMetadata.Token)
+	content, err := getContent(metadata.Token)
 	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting eula contents: %s\n", err)
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting %s contents: %s\n", label, err)
 		return "", err
 	}
 
-	fileName := fmt.Sprintf("lib/eula/%s", eulaMetadata.Name)
-	cmd.FilesToWrite[fileName] = string(eulaContent)
-	path := fmt.Sprintf("./%s", fileName)
-
-	return path, nil
+	// The stored name is whatever the uploader sent, so keep only its last
+	// element: a path in it would write outside the output directory.
+	name := fleet.SanitizeEULAFileName(metadata.Name)
+	if name == "" {
+		name = defaultName
+	}
+	// Characters Windows rejects in file names would fail the write there.
+	name = strings.Map(func(r rune) rune {
+		if strings.ContainsRune(`<>:"|?*`, r) {
+			return '-'
+		}
+		return r
+	}, name)
+	fileName := "lib/eula/" + name
+	// Both EULAs go to the same folder; keep both when their names match,
+	// ignoring case as macOS and Windows file systems do.
+	for existing := range cmd.FilesToWrite {
+		if strings.EqualFold(existing, fileName) {
+			fileName = "lib/eula/" + collisionPrefix + name
+			break
+		}
+	}
+	cmd.FilesToWrite[fileName] = string(content)
+	return "./" + fileName, nil
 }
 
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
@@ -1311,6 +1343,16 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 			}
 		}
 		result[jsonFieldName(t, "EndUserLicenseAgreement")] = eulaPath
+
+		var windowsEULAPath string
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
+			var err error
+			windowsEULAPath, err = cmd.generateWindowsEULA()
+			if err != nil {
+				return nil, err
+			}
+		}
+		result[jsonFieldName(t, "WindowsEULA")] = windowsEULAPath
 	}
 
 	if !cmd.CLI.Bool("insecure") {
