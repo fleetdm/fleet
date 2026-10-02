@@ -1711,7 +1711,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
-	man.addConfigBool("server.allow_private_network_integrations", false, "Deprecated: use server.private_network_allow_list instead. Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
+	man.addConfigBool("server.allow_private_network_integrations", false, "Deprecated: use server.private_network_allow_list instead. Server startup will fail if this setting is enabled.")
 	man.addConfigString("server.private_network_allow_list", "", "Comma-separated list of IP addresses, CIDR networks, DNS names, or wildcard patterns (e.g. *.example.com) that bypass outbound SSRF blocking. Entries may include an optional port (e.g. 10.0.0.1:8080, [::1]:443). Supersedes server.allow_private_network_integrations.")
 	man.addConfigBool("server.bypass_network_blocking", false, "Disable all outbound network blocking protections for integration HTTP requests (loopback, cloud metadata, and private network addresses). Only intended for environments where egress is already constrained by external infrastructure (e.g. an egress proxy or firewall) that Fleet's own checks would otherwise conflict with. This is an infrastructure-level setting and cannot be changed at runtime.")
 	man.addConfigBool("server.allow_request_certificate_any_idp", false,

@@ -166,8 +166,6 @@ func networkBlockingModeFor(devModeEnabled bool, serverConfig configpkg.ServerCo
 	switch {
 	case devModeEnabled, serverConfig.BypassNetworkBlocking:
 		return fleethttp.BlockingBypassAll
-	case serverConfig.AllowPrivateNetworkIntegrations:
-		return fleethttp.BlockingPrivateAllowed
 	default:
 		return fleethttp.BlockingFull
 	}
@@ -184,15 +182,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Set network blocking mode for outbound integration requests.
 	fleethttp.SetNetworkBlockingMode(networkBlockingModeFor(dev_mode.IsEnabled, config.Server))
 
+	if config.Server.AllowPrivateNetworkIntegrations {
+		err := errors.New("use of deprecated configuration settings")
+		initFatal(
+			err,
+			`the "server_allow_private_network_integrations" setting is deprecated; please set `+
+				`"server_private_network_allow_list" as per: `+
+				`https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-network-allow-list`,
+		)
+	}
+
 	if config.Server.PrivateNetworkAllowList != "" {
-		if config.Server.AllowPrivateNetworkIntegrations {
-			err := errors.New("use of mutually-exclusive configuration settings")
-			initFatal(
-				err,
-				`the "server_allow_private_network_integrations" and `+
-					`"server_private_network_allow_list" settings are are mutually exclusive`,
-			)
-		}
 		allowList, err := fleethttp.ParseNetworkAllowList(config.Server.PrivateNetworkAllowList)
 		if err != nil {
 			initFatal(err, "failed to parse server.private_network_allow_list")

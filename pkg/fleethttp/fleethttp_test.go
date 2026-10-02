@@ -133,8 +133,8 @@ func TestIpInCIDRs(t *testing.T) {
 	}
 }
 
-func TestAlwaysBlockedIPs(t *testing.T) {
-	// These IPs are always blocked, even with --allow_private_network_integrations.
+func TestPrivateNetworkBlockedIPs(t *testing.T) {
+	// These IPs are blocked unless allow-listed in --server_private_network_allow_list.
 	cases := []struct {
 		ip      string
 		blocked bool
@@ -144,19 +144,27 @@ func TestAlwaysBlockedIPs(t *testing.T) {
 		{"127.0.0.2", true},
 		{"169.254.169.254", true}, // AWS IMDS
 		{"169.254.0.1", true},
-		{"::", true},           // IPv6 unspecified; connects to loopback
-		{"::127.0.0.1", true},  // deprecated IPv4-compatible form
-		{"::1", true},          // IPv6 loopback
-		{"fe80::1", true},      // IPv6 link-local
-		{"8.8.8.8", false},     // public
-		{"10.0.0.1", false},    // RFC 1918 -- not in always-blocked
-		{"192.168.1.1", false}, // RFC 1918 -- not in always-blocked
+		{"::", true},          // IPv6 unspecified; connects to loopback
+		{"::127.0.0.1", true}, // deprecated IPv4-compatible form
+		{"::1", true},         // IPv6 loopback
+		{"fe80::1", true},     // IPv6 link-local
+		{"8.8.8.8", false},    // public
+		{"10.0.0.1", true},    // RFC 1918
+		{"192.168.1.1", true}, // RFC 1918 -- not in always-blocked
+		{"10.255.255.255", true},
+		{"172.16.0.1", true},
+		{"172.31.255.255", true},
+		{"192.168.1.1", true},
+		{"fc00::1", true},     // IPv6 unique local
+		{"8.8.8.8", false},    // public
+		{"1.1.1.1", false},    // public
+		{"172.32.0.1", false}, // just outside 172.16.0.0/12
 	}
 	for _, c := range cases {
 		t.Run(c.ip, func(t *testing.T) {
 			ip := net.ParseIP(c.ip)
 			require.NotNil(t, ip)
-			assert.Equal(t, c.blocked, ipInCIDRs(ip, alwaysBlockedCIDRs))
+			assert.Equal(t, c.blocked, ipInCIDRs(ip, privateNetworkCIDRs))
 		})
 	}
 }
@@ -195,14 +203,6 @@ func TestNAT64EmbeddedIPv4(t *testing.T) {
 		_, err := NewClient(WithTimeout(3 * time.Second)).Get(target)
 		return err
 	}
-	t.Run("embedded internal address is blocked", func(t *testing.T) {
-		for _, ip := range []string{"64:ff9b::7f00:1", "64:ff9b::a9fe:a9fe"} {
-			err := blocked(t, "http://["+ip+"]:80/", BlockingPrivateAllowed)
-			require.ErrorIs(t, err, ErrPrivateNetworkBlocked, ip)
-		}
-		err := blocked(t, "http://[64:ff9b::a00:1]:80/", BlockingFull)
-		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
-	})
 	t.Run("embedded public address is not blocked", func(t *testing.T) {
 		// Reaching it may fail for unrelated reasons; it must not be the guard.
 		err := blocked(t, "http://[64:ff9b::808:808]:80/", BlockingFull)
@@ -210,32 +210,6 @@ func TestNAT64EmbeddedIPv4(t *testing.T) {
 			assert.NotErrorIs(t, err, ErrPrivateNetworkBlocked)
 		}
 	})
-}
-
-func TestPrivateNetworkCIDRs(t *testing.T) {
-	// These IPs are blocked when private network blocking is enabled.
-	cases := []struct {
-		ip      string
-		private bool
-	}{
-		{"10.0.0.1", true},
-		{"10.255.255.255", true},
-		{"172.16.0.1", true},
-		{"172.31.255.255", true},
-		{"192.168.1.1", true},
-		{"fc00::1", true},     // IPv6 unique local
-		{"0.0.0.0", false},    // always-blocked instead, so not listed here
-		{"8.8.8.8", false},    // public
-		{"1.1.1.1", false},    // public
-		{"172.32.0.1", false}, // just outside 172.16.0.0/12
-	}
-	for _, c := range cases {
-		t.Run(c.ip, func(t *testing.T) {
-			ip := net.ParseIP(c.ip)
-			require.NotNil(t, ip)
-			assert.Equal(t, c.private, ipInCIDRs(ip, privateNetworkCIDRs))
-		})
-	}
 }
 
 func setBlockingMode(t *testing.T, mode NetworkBlockingMode) {
@@ -355,7 +329,6 @@ func TestCheckIPAllowed(t *testing.T) {
 
 		// Tier 2: private networks, only in BlockingFull.
 		{"RFC1918 blocked in full mode", "10.0.0.1", 80, BlockingFull, "", true},
-		{"RFC1918 allowed in private-allowed mode", "10.0.0.1", 80, BlockingPrivateAllowed, "", false},
 
 		// Public IPs pass.
 		{"public IPv4", "8.8.8.8", 80, BlockingFull, "", false},
@@ -446,14 +419,6 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 		assert.Contains(t, err.Error(), "127.0.0.1")
 	})
 
-	t.Run("loopback blocked even with allow_private_network flag", func(t *testing.T) {
-		// Tier 1 (always-blocked) cannot be overridden by the flag.
-		setBlockingMode(t, BlockingPrivateAllowed)
-		client := NewClient(WithTimeout(5 * time.Second))
-		_, err := client.Get(ts.URL)
-		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
-	})
-
 	t.Run("unspecified address cannot reach a loopback-only service", func(t *testing.T) {
 		// Connecting to an unspecified address reaches services listening on
 		// loopback, so it has to be blocked like loopback itself.
@@ -487,11 +452,9 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, marker, string(body))
 
-			for _, mode := range []NetworkBlockingMode{BlockingFull, BlockingPrivateAllowed} {
-				setBlockingMode(t, mode)
-				_, err := NewClient(WithTimeout(5 * time.Second)).Get(url)
-				require.ErrorIs(t, err, ErrPrivateNetworkBlocked, "%s in mode %v", url, mode)
-			}
+			setBlockingMode(t, BlockingFull)
+			_, err = NewClient(WithTimeout(5 * time.Second)).Get(url)
+			require.ErrorIs(t, err, ErrPrivateNetworkBlocked, "%s in mode %v", url, BlockingFull)
 		}
 	})
 
@@ -707,11 +670,9 @@ func TestSizeLimitedClientBlocksPrivateNetworks(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, marker, string(body))
 
-			for _, mode := range []NetworkBlockingMode{BlockingFull, BlockingPrivateAllowed} {
-				setBlockingMode(t, mode)
-				_, err := newClient(maxSize).Get(ts.URL)
-				require.ErrorIs(t, err, ErrPrivateNetworkBlocked, "mode %v", mode)
-			}
+			setBlockingMode(t, BlockingFull)
+			_, err = newClient(maxSize).Get(ts.URL)
+			require.ErrorIs(t, err, ErrPrivateNetworkBlocked, "mode %v", BlockingFull)
 		})
 	}
 }

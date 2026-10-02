@@ -30,11 +30,6 @@ const (
 	// BlockingFull blocks both the always-blocked tier (loopback, IMDS) and
 	// private networks (RFC 1918, etc.). This is the production default.
 	BlockingFull
-	// BlockingPrivateAllowed blocks the always-blocked tier only. Private
-	// networks are allowed for environments with on-prem integrations
-	// (e.g. EJBCA, Jira, SCEP servers). Set via
-	// --server_allow_private_network_integrations.
-	BlockingPrivateAllowed
 	// BlockingBypassAll performs no filtering at all. Used in dev mode, and
 	// can also be set in production via --server_bypass_network_blocking as
 	// an infra-level escape hatch for environments where egress is already
@@ -72,23 +67,21 @@ func SetNetworkAllowList(al *NetworkAllowList) {
 // address is blocked.
 var ErrPrivateNetworkBlocked = errors.New("connections to private network addresses are blocked")
 
-// alwaysBlockedCIDRs are blocked unconditionally, even when
-// --allow_private_network_integrations is set. No legitimate integration
-// should ever target these addresses.
-var alwaysBlockedCIDRs = parseCIDRs([]string{
+// privateNetworkCIDRs are blocked when private network blocking is enabled.
+// Customers with on-prem integrations (e.g. EJBCA, Jira, SCEP servers on
+// private networks) can disable this with --allow_private_network_integrations.
+// Historical note: the first four entries were previously in a separate list
+// called alwaysBlockedCIDRs. As the name implies, these addresses could only
+// be allowed when the hidden setting FLEET_SERVER_BYPASS_NETWORK_BLOCKING=true
+// was set.
+var privateNetworkCIDRs = parseCIDRs([]string{
 	"0.0.0.0/8",      // "this" network (RFC 1122); 0.0.0.0 itself routes to loopback
 	"127.0.0.0/8",    // loopback
 	"169.254.0.0/16", // link-local (includes cloud IMDS at 169.254.169.254)
 	// Covers the unspecified address (::), IPv6 loopback (::1) and the
 	// deprecated IPv4-compatible form (::a.b.c.d, e.g. ::127.0.0.1).
 	"::/96",
-	"fe80::/10", // IPv6 link-local
-})
-
-// privateNetworkCIDRs are blocked when private network blocking is enabled.
-// Customers with on-prem integrations (e.g. EJBCA, Jira, SCEP servers on
-// private networks) can disable this with --allow_private_network_integrations.
-var privateNetworkCIDRs = parseCIDRs([]string{
+	"fe80::/10",       // IPv6 link-local
 	"10.0.0.0/8",      // RFC 1918 private
 	"100.64.0.0/10",   // shared address space (RFC 6598)
 	"172.16.0.0/12",   // RFC 1918 private
@@ -242,13 +235,8 @@ func checkIPAllowed(ip net.IPAddr, portNum int, mode NetworkBlockingMode, allowL
 		if allowList.MatchesIP(check, portNum) {
 			continue
 		}
-		// Tier 1: always blocked (loopback, cloud IMDS). Cannot be
-		// overridden with --server_allow_private_network_integrations.
-		if ipInCIDRs(check, alwaysBlockedCIDRs) {
-			return ErrPrivateNetworkBlocked
-		}
-		// Tier 2: private networks. Only blocked in BlockingFull mode.
-		if mode == BlockingFull && ipInCIDRs(check, privateNetworkCIDRs) {
+		// Block any private network CIDRs that are not explicitly allowed.
+		if ipInCIDRs(check, privateNetworkCIDRs) {
 			return ErrPrivateNetworkBlocked
 		}
 	}
