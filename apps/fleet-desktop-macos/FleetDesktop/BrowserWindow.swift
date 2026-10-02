@@ -23,6 +23,10 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
     /// Fleet's MDM enrollment page, while it's open in a sheet over the device page.
     private var enrollmentSheet: EnrollmentSheet?
 
+    /// Downloads started in the enrollment sheet, recorded when they start because
+    /// `WKDownload.webView` is weak and the sheet may close before they finish.
+    private var enrollmentSheetDownloads = Set<WKDownload>()
+
     /// Host of the external IdP page an SSO/auth flow is currently on. Non-nil
     /// while a flow is in progress; external redirects are kept in the WebView
     /// so the full redirect chain completes in-app, but navigation is restricted
@@ -293,11 +297,15 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
         guard let window = window, let fleetHost = fleetHost, let mainWebView = webView else { return }
         let sheet = EnrollmentSheet(
             fleetHost: fleetHost,
-            websiteDataStore: mainWebView.configuration.websiteDataStore,
-            downloadDelegate: self
+            websiteDataStore: mainWebView.configuration.websiteDataStore
         )
         sheet.onClose = { [weak self] in
             self?.enrollmentSheet = nil
+        }
+        sheet.onDownload = { [weak self] download in
+            guard let self = self else { return }
+            self.enrollmentSheetDownloads.insert(download)
+            download.delegate = self
         }
         enrollmentSheet = sheet
         sheet.present(on: window, request: request)
@@ -642,6 +650,7 @@ extension BrowserWindow: WKDownloadDelegate {
     }
 
     func downloadDidFinish(_ download: WKDownload) {
+        let fromEnrollmentSheet = enrollmentSheetDownloads.remove(download) != nil
         guard let url = download.progress.fileURL else { return }
 
         // Only auto-open .mobileconfig files (MDM enrollment profiles).
@@ -652,7 +661,7 @@ extension BrowserWindow: WKDownloadDelegate {
 
             // From the enrollment sheet, stay put: its remaining steps walk the
             // user through installing the profile in System Settings.
-            if let source = download.webView, source === enrollmentSheet?.webView { return }
+            if fromEnrollmentSheet { return }
 
             // Navigate back to the Fleet self-service homepage
             navigateHome()
@@ -660,6 +669,7 @@ extension BrowserWindow: WKDownloadDelegate {
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+        enrollmentSheetDownloads.remove(download)
         NSLog("Fleet Desktop: Download failed: %@", error.localizedDescription)
     }
 }

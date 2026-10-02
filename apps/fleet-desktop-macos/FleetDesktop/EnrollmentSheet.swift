@@ -15,8 +15,11 @@ final class EnrollmentSheet: NSObject {
     /// Called once the sheet has been dismissed.
     var onClose: (() -> Void)?
 
+    /// Called when a navigation in the sheet becomes a download, so the owner can
+    /// set its delegate to save and open the enrollment profile.
+    var onDownload: ((WKDownload) -> Void)?
+
     private let fleetHost: String
-    private weak var downloadDelegate: WKDownloadDelegate?
     private let panel: NSWindow
     private let buttonBar = NSView()
     private weak var parent: NSWindow?
@@ -45,11 +48,8 @@ final class EnrollmentSheet: NSObject {
     .device-instructions-content li { gap: 10px; }
     """
 
-    /// `downloadDelegate` saves and opens the enrollment profile (`BrowserWindow`
-    /// handles downloads for both WebViews).
-    init(fleetHost: String, websiteDataStore: WKWebsiteDataStore, downloadDelegate: WKDownloadDelegate) {
+    init(fleetHost: String, websiteDataStore: WKWebsiteDataStore) {
         self.fleetHost = fleetHost
-        self.downloadDelegate = downloadDelegate
         let config = WKWebViewConfiguration()
         config.websiteDataStore = websiteDataStore
         webView = WKWebView(frame: .zero, configuration: config)
@@ -302,11 +302,11 @@ extension EnrollmentSheet: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
-        download.delegate = downloadDelegate
+        onDownload?(download)
     }
 
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
-        download.delegate = downloadDelegate
+        onDownload?(download)
     }
 }
 
