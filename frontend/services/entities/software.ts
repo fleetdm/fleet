@@ -283,19 +283,17 @@ const appendPackageFile = async (
   onUploadProgress?: (progressEvent: AxiosProgressEvent) => void,
   signal?: AbortSignal
 ) => {
-  const uploadId =
-    directUpload &&
-    (await uploadToStorage({
-      target: "software_package",
-      file,
-      teamId,
-      onUploadProgress,
-      signal,
-    }));
-  if (!uploadId) {
+  if (!directUpload) {
     formData.append("software", file);
     return;
   }
+  const uploadId = await uploadToStorage({
+    target: "software_package",
+    file,
+    teamId,
+    onUploadProgress,
+    signal,
+  });
   formData.append("upload_id", uploadId);
   formData.append("filename", file.name);
 };
@@ -632,7 +630,9 @@ export default {
       customHeaders: { [SCRIPTS_ENCODED_HEADER]: "base64" },
       timeout,
       skipParseError: true,
-      onUploadProgress,
+      onUploadProgress: formData.has("upload_id")
+        ? undefined
+        : onUploadProgress,
       signal,
     });
   },
@@ -714,7 +714,9 @@ export default {
       customHeaders: { [SCRIPTS_ENCODED_HEADER]: "base64" },
       timeout,
       skipParseError: true,
-      onUploadProgress,
+      onUploadProgress: formData.has("upload_id")
+        ? undefined
+        : onUploadProgress,
       signal,
     });
   },

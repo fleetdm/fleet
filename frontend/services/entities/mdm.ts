@@ -308,11 +308,11 @@ const mdmService = {
     const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
 
     const formData = new FormData();
-    const uploadId =
-      directUpload &&
-      (await uploadToStorage({ target: "bootstrap_package", file, teamId }));
-    if (uploadId) {
-      formData.append("upload_id", uploadId);
+    if (directUpload) {
+      formData.append(
+        "upload_id",
+        await uploadToStorage({ target: "bootstrap_package", file, teamId })
+      );
       formData.append("filename", file.name);
     } else {
       formData.append("package", file);

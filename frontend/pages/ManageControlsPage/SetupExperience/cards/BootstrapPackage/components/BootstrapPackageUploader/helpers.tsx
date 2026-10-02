@@ -4,6 +4,7 @@ import React from "react";
 import CustomLink from "components/CustomLink";
 import { IApiError } from "interfaces/errors";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import endpoints from "utilities/endpoints";
 
 export const UPLOAD_ERROR_MESSAGES = {
   wrongType: {
@@ -48,7 +49,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
 
   if (!error) {
     // Only the upload URL request's reasons are written for admins.
-    return err.config?.url?.includes("staged_upload")
+    return err.config?.url?.endsWith(endpoints.STAGED_UPLOAD)
       ? `Couldn’t upload. ${apiReason}`
       : UPLOAD_ERROR_MESSAGES.default.message;
   }

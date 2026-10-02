@@ -12,7 +12,7 @@ const STORAGE_URL = "https://storage.example/uploads/up1";
 const setup = (
   registerPath: string,
   method: "post" | "patch" = "post",
-  storageReachable = true
+  { presignStatus = 200, storage = "ok" as "ok" | "403" | "network" } = {}
 ) => {
   const seen: {
     presign?: unknown;
@@ -22,13 +22,21 @@ const setup = (
   mockServer.use(
     http.post(baseUrl("/staged_upload"), async ({ request }) => {
       seen.presign = await request.json();
-      return HttpResponse.json({ upload_id: "up1", url: STORAGE_URL });
+      return presignStatus === 200
+        ? HttpResponse.json({ upload_id: "up1", url: STORAGE_URL })
+        : HttpResponse.json(
+            {
+              errors: [
+                { name: "base", reason: "Direct upload isn't available." },
+              ],
+            },
+            { status: presignStatus }
+          );
     }),
     http.put(STORAGE_URL, ({ request }) => {
       seen.storageAuth = request.headers.get("Authorization");
-      return storageReachable
-        ? new HttpResponse(null, { status: 200 })
-        : HttpResponse.error();
+      if (storage === "network") return HttpResponse.error();
+      return new HttpResponse(null, { status: storage === "ok" ? 200 : 403 });
     }),
     http[method](baseUrl(registerPath), async ({ request }) => {
       seen.form = await request.formData();
@@ -70,16 +78,29 @@ describe("direct upload to storage", () => {
     expect(seen.form?.has("upload_id")).toBe(false);
   });
 
-  it("falls back to sending the file to Fleet when storage is unreachable", async () => {
-    const seen = setup("/software/package", "post", false);
-    await softwareAPI.addSoftwarePackage({
-      data: { software: file, selfService: false } as never,
-      teamId: 3,
-      directUpload: true,
-    });
-    expect(seen.presign).toBeDefined();
-    expect(seen.form?.has("software")).toBe(true);
-    expect(seen.form?.has("upload_id")).toBe(false);
+  it.each(["403", "network"] as const)(
+    "a %s storage failure rejects without registering or sending the file to Fleet",
+    async (storage) => {
+      const seen = setup("/software/package", "post", { storage });
+      await expect(
+        softwareAPI.addSoftwarePackage({
+          data: { software: file, selfService: false } as never,
+          teamId: 3,
+          directUpload: true,
+        })
+      ).rejects.toBeDefined();
+      expect(seen.storageAuth).toBeNull();
+      expect(seen.form).toBeUndefined();
+    }
+  );
+
+  it("a failed upload URL request stops before the storage PUT", async () => {
+    const seen = setup("/bootstrap", "post", { presignStatus: 400 });
+    await expect(
+      mdmAPI.uploadBootstrapPackage(file, 0, true)
+    ).rejects.toMatchObject({ status: 400 });
+    expect(seen.storageAuth).toBeUndefined();
+    expect(seen.form).toBeUndefined();
   });
 
   it("edit package uploads a replacement file to storage", async () => {
