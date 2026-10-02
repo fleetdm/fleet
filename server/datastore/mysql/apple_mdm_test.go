@@ -2241,14 +2241,24 @@ func testBatchSetMDMAppleProfilesRenameChainAndSwap(t *testing.T, ds *Datastore)
 	// time; the fourth keeps its name
 	afterCycle := apply(map[string]string{"I1": "C", "I2": "E", "I3": "D", "I4": "B"})
 
+	// a profile may be named like the placeholder a renamed profile is moved
+	// to; neither an incoming nor an existing one may be matched by it
+	i2 := before["I2"]
+	require.NotNil(t, i2)
+	placeholder := "fleet-renaming-" + i2.ProfileUUID
+	afterIncomingClash := apply(map[string]string{"I1": placeholder, "I2": "F", "I3": "D", "I4": "B"})
+	afterExistingClash := apply(map[string]string{"I1": placeholder, "I2": "G", "I3": "D", "I4": "B"})
+
 	for identifier, p := range before {
-		chained, cycled := afterChain[identifier], afterCycle[identifier]
-		require.NotNil(t, chained, identifier)
-		require.NotNil(t, cycled, identifier)
-		// still the same profiles, and a rename alone isn't a new upload
-		require.Equal(t, p.ProfileUUID, chained.ProfileUUID, identifier)
-		require.Equal(t, p.ProfileUUID, cycled.ProfileUUID, identifier)
-		require.True(t, p.UploadedAt.Equal(cycled.UploadedAt), identifier)
+		for _, after := range []map[string]*fleet.MDMAppleConfigProfile{
+			afterChain, afterCycle, afterIncomingClash, afterExistingClash,
+		} {
+			got := after[identifier]
+			require.NotNil(t, got, identifier)
+			// still the same profiles, and a rename alone isn't a new upload
+			require.Equal(t, p.ProfileUUID, got.ProfileUUID, identifier)
+			require.True(t, p.UploadedAt.Equal(got.UploadedAt), identifier)
+		}
 	}
 }
 

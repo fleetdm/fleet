@@ -2999,15 +2999,13 @@ WHERE
   identifier IN (?)
 `
 
-	// a placeholder no real profile is named, unique per profile
-	const moveRenamedProfilesAside = `
+	const moveRenamedProfileAside = `
 UPDATE
   mdm_apple_configuration_profiles
 SET
-  name = CONCAT('fleet-renaming-', profile_uuid)
+  name = ?
 WHERE
-  team_id = ? AND
-  identifier IN (?)
+  profile_uuid = ?
 `
 
 	const deleteProfilesNotInList = `
@@ -3140,20 +3138,30 @@ ON DUPLICATE KEY UPDATE
 	// The upserts below run one at a time in map order and (team_id, name) is
 	// unique, so a chain or swap of names would fail unless each profile
 	// happened to be renamed after the one holding its new name. Moving the
-	// renamed ones aside first makes any order work.
-	var renamedIdents []string
+	// renamed ones aside first makes any order work. The temporary name must
+	// not be in use by any kept or incoming profile: the upsert matches on any
+	// unique key, so a clash would update the wrong row through the name.
+	takenNames := make(map[string]struct{}, len(existingProfiles)+len(incomingProfs))
 	for _, p := range existingProfiles {
-		if newP := incomingProfs[p.Identifier]; newP != nil && newP.Name != p.Name {
-			renamedIdents = append(renamedIdents, p.Identifier)
-		}
+		takenNames[p.Name] = struct{}{}
 	}
-	if len(renamedIdents) > 0 {
-		stmt, args, err = sqlx.In(moveRenamedProfilesAside, profTeamID, renamedIdents)
-		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "build statement to move renamed profiles aside")
+	for _, p := range incomingProfs {
+		takenNames[p.Name] = struct{}{}
+	}
+	for _, p := range existingProfiles {
+		if newP := incomingProfs[p.Identifier]; newP == nil || newP.Name == p.Name {
+			continue
 		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "move renamed profiles aside")
+		tmpName := "fleet-renaming-" + p.ProfileUUID
+		for i := 2; ; i++ {
+			if _, taken := takenNames[tmpName]; !taken {
+				break
+			}
+			tmpName = fmt.Sprintf("fleet-renaming-%s-%d", p.ProfileUUID, i)
+		}
+		takenNames[tmpName] = struct{}{}
+		if _, err := tx.ExecContext(ctx, moveRenamedProfileAside, tmpName, p.ProfileUUID); err != nil {
+			return false, ctxerr.Wrapf(ctx, err, "move renamed profile with identifier %q aside", p.Identifier)
 		}
 	}
 
