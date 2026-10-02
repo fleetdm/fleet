@@ -103,7 +103,7 @@ On manually enrolled hosts, Apple blocks Managed Apple Account sign-in if:
 - You've added more than one AB and none is set as the default.
 - The Managed Apple Account belongs to a different AB than the default.
 
-> - Hosts enrolled before Fleet 4.93 don't support these restrictions until their next enrollment profile renewal (which happens approximately every 6 months). Hosts that enroll on Fleet 4.93 or later support them right away.
+> - Hosts enrolled before Fleet 4.93 can't sign in to Managed Apple Accounts while these restrictions are on, until their next enrollment profile renewal (approximately every 6 months). To apply the restrictions sooner, re-enroll these hosts. Hosts that enroll on Fleet 4.93 or later support them right away.
 > - Virtual machines (VMs) don't support Managed Apple Accounts and never have. After going through the SSO flow, the VM shows a sign-in verification failure (verified on macOS 26 and macOS 15).
 
 ### Renew AB:
