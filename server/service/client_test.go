@@ -124,6 +124,24 @@ spec:
 			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
 		},
 		{
+			"name and description on the legacy apply path",
+			`
+apiVersion: v1
+kind: config
+spec:
+  org_info:
+    org_name: "Fleet"
+  mdm:
+    macos_settings:
+      custom_settings:
+        - path: "a"
+          name: "Wi-Fi"
+          description: "Joins the office network"
+        - path: "b"
+`,
+			[]fleet.MDMProfileSpec{{Path: "a", Name: "Wi-Fi", Description: "Joins the office network"}, {Path: "b"}},
+		},
+		{
 			"old empty and invalid custom settings",
 			`
 apiVersion: v1
@@ -1507,4 +1525,46 @@ func TestApplySoftwareInstallersProgress(t *testing.T) {
 			require.Equal(t, tt.wantLines, lines)
 		})
 	}
+}
+
+func TestGetProfilesContentsNameAndDescription(t *testing.T) {
+	tempDir := t.TempDir()
+	macPath := filepath.Join(tempDir, "apple.mobileconfig")
+	require.NoError(t, os.WriteFile(macPath, mobileconfigForTest("Payload Name", "com.test.named"), 0o644))
+	winPath := filepath.Join(tempDir, "firewall.xml")
+	require.NoError(t, os.WriteFile(winPath, syncMLForTest("./some/path"), 0o644))
+	androidPath := filepath.Join(tempDir, "android.json")
+	require.NoError(t, os.WriteFile(androidPath, []byte(`{"name": "android"}`), 0o644))
+
+	got, err := getProfilesContents(tempDir,
+		[]fleet.MDMProfileSpec{{Path: macPath, Name: "Custom Apple", Description: "apple desc"}},
+		[]fleet.MDMProfileSpec{{Path: winPath, Description: "windows desc"}},
+		[]fleet.MDMProfileSpec{{Path: androidPath, Name: "Custom Android"}},
+		false)
+	require.NoError(t, err)
+
+	byName := make(map[string]fleet.MDMProfileBatchPayload, len(got))
+	for _, p := range got {
+		byName[p.Name] = p
+	}
+	// the YAML name replaces the PayloadDisplayName and the file name alike
+	require.Contains(t, byName, "Custom Apple")
+	require.Equal(t, "apple desc", byName["Custom Apple"].Description)
+	require.Contains(t, byName, "firewall")
+	require.Equal(t, "windows desc", byName["firewall"].Description)
+	require.Contains(t, byName, "Custom Android")
+	require.Empty(t, byName["Custom Android"].Description)
+
+	// a YAML name colliding with another profile's name is still a duplicate
+	_, err = getProfilesContents(tempDir,
+		[]fleet.MDMProfileSpec{{Path: macPath, Name: "firewall"}},
+		[]fleet.MDMProfileSpec{{Path: winPath}},
+		nil, false)
+	require.ErrorContains(t, err, "firewall")
+
+	// a name of only spaces is refused, as the batch endpoint does, rather
+	// than silently falling back to the derived name
+	_, err = getProfilesContents(tempDir, nil,
+		[]fleet.MDMProfileSpec{{Path: winPath, Name: "   "}}, nil, false)
+	require.ErrorContains(t, err, "Profile name can't be empty.")
 }

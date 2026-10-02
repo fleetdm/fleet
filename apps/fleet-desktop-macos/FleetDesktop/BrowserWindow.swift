@@ -329,6 +329,47 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
         return true
     }
 
+    /// Whether the URL is Fleet's device transparency endpoint
+    /// (`<prefix>/api/<version>/fleet/device/<token>/transparency`), which
+    /// redirects to the admin-configured transparency page. Loaded in the
+    /// WebView, that redirect off the Fleet host looks like the start of an
+    /// SSO flow, so the external page would render in-app with no way back.
+    private func isTransparencyEndpoint(_ url: URL) -> Bool {
+        guard url.host?.lowercased() == fleetHost else { return false }
+        let parts = Array(url.pathComponents.suffix(6))
+        return parts.count == 6 && parts[0] == "api" && parts[2] == "fleet"
+            && parts[3] == "device" && parts[5] == "transparency"
+    }
+
+    /// Resolves the transparency endpoint's redirect natively and opens the
+    /// destination in the default browser. Opening the endpoint itself in the
+    /// browser would put the device token in its address bar and history. For
+    /// the same reason only an absolute `Location` is opened: the server
+    /// accepts a relative transparency URL and sends it verbatim, and resolving
+    /// it against the endpoint would keep the token in the path.
+    private func openTransparencyPage(_ url: URL) {
+        let task = URLSession.shared.dataTask(with: url) { [weak self] _, response, error in
+            let http = response as? HTTPURLResponse
+            let status = http?.statusCode ?? 0
+            guard (300...399).contains(status),
+                  let location = http?.value(forHTTPHeaderField: "Location"),
+                  let target = URL(string: location), target.scheme != nil else {
+                // The page's links embed the token it was rendered with, so a
+                // rejection means it rotated. Recover the same way as a 401/403
+                // inside the WebView: re-read the token and reload the page.
+                if status == 401 || status == 403 {
+                    DispatchQueue.main.async { self?.onNavigationError?() }
+                }
+                NSLog("Fleet Desktop: Transparency redirect failed (HTTP %d): %@",
+                      status, error?.localizedDescription ?? "no absolute redirect target")
+                return
+            }
+            DispatchQueue.main.async { self?.openExternalURL(target) }
+        }
+        task.delegate = RedirectBlocker.shared
+        task.resume()
+    }
+
     // MARK: - Title Centering
 
     private func centerTitleTextField(in window: NSWindow) {
@@ -473,6 +514,12 @@ extension BrowserWindow: WKNavigationDelegate {
 
         let requestHost = requestURL.host?.lowercased()
 
+        if isTransparencyEndpoint(requestURL) {
+            decisionHandler(.cancel)
+            openTransparencyPage(requestURL)
+            return
+        }
+
         // Always allow same-host and about: URLs
         if requestHost == fleetHost || requestURL.scheme == "about" {
             decisionHandler(.allow)
@@ -553,6 +600,8 @@ extension BrowserWindow: WKUIDelegate {
             let host = url.host?.lowercased()
             if isEnrollmentPage(url) {
                 presentEnrollmentSheet(url: url)
+            } else if isTransparencyEndpoint(url) {
+                openTransparencyPage(url)
             } else if host == fleetHost || (ssoFlowActive && host == ssoHost && !ssoFlowExpired) {
                 webView.load(URLRequest(url: url))
             } else if !launchAuthenticatorIfRequested(url) {
@@ -612,6 +661,24 @@ extension BrowserWindow: WKDownloadDelegate {
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
         NSLog("Fleet Desktop: Download failed: %@", error.localizedDescription)
+    }
+}
+
+// MARK: - Redirect Blocker
+
+/// Stops a URLSession task at the first redirect so the caller can read the
+/// `Location` header instead of following it.
+private final class RedirectBlocker: NSObject, URLSessionTaskDelegate {
+    static let shared = RedirectBlocker()
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        completionHandler(nil)
     }
 }
 

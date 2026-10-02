@@ -75,7 +75,7 @@ describe("Self-service - UpdateSoftwareItem component", () => {
     // Spinner should exist (by role or other query, depending on how your Spinner renders)
   });
 
-  it("shows install failed status and a 'Failed' button", async () => {
+  it("shows install failed status with a red error icon and 'Retry' primary button", async () => {
     const handleShowDetails = jest.fn();
 
     const software: IDeviceSoftwareWithUiStatus = {
@@ -92,9 +92,16 @@ describe("Self-service - UpdateSoftwareItem component", () => {
         onShowInstallerDetails={handleShowDetails}
       />
     );
-    // Button should exist ("Failed" text is rendered as button)
+    // Primary action reads "Retry" when a prior install failed, not "Update".
+    expect(screen.getByRole("button", { name: /^Retry$/ })).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: /^Update$/ })
+    ).not.toBeInTheDocument();
+
+    // Failed status button is red (the error icon, not the grey error-outline).
     const failedButton = screen.getByRole("button", { name: "Failed" });
     expect(failedButton).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
     await user.hover(failedButton);
 
