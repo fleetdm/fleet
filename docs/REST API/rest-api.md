@@ -3069,7 +3069,7 @@ _Available in Fleet Premium._
       "deadline_days": 5,
       "grace_period_days": 1
     },
-    "f": {
+    "apple_settings": {
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
