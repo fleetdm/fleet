@@ -168,7 +168,7 @@ func (ds *Datastore) SetHostDeviceNameStatus(ctx context.Context, hostUUID strin
 	return nil
 }
 
-func (ds *Datastore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) (fleet.DeviceNameRetryOutcome, error) {
+func (ds *Datastore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string, retryable bool) (fleet.DeviceNameRetryOutcome, error) {
 	var outcome fleet.DeviceNameRetryOutcome
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		outcome = fleet.DeviceNameNotRetried
@@ -178,23 +178,25 @@ func (ds *Datastore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, 
 		// same host (the row keeps only the latest) or the row was deleted. Either
 		// way the result is stale and callers must treat this not-found as ignorable.
 		if !acknowledged {
-			// Re-queue for the cron while retries remain, keeping the device's error
-			// as the detail until the next attempt; command_uuid is cleared so a late
-			// result for this command can't match the row again.
-			res, err := tx.ExecContext(ctx, `
-				UPDATE host_mdm_apple_device_names
-				SET status = NULL, command_uuid = NULL, detail = ?, retries = retries + 1
-				WHERE command_uuid = ? AND retries < ?`,
-				detail, commandUUID, mdm.MaxAppleDeviceNameRetries)
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "retry host device name from failed command %s", commandUUID)
-			}
-			if affected, _ := res.RowsAffected(); affected > 0 {
-				outcome = fleet.DeviceNameRetried
-				return nil
+			if retryable {
+				// Re-queue for the cron while retries remain, keeping the device's error
+				// as the detail until the next attempt; command_uuid is cleared so a late
+				// result for this command can't match the row again.
+				res, err := tx.ExecContext(ctx, `
+					UPDATE host_mdm_apple_device_names
+					SET status = NULL, command_uuid = NULL, detail = ?, retries = retries + 1
+					WHERE command_uuid = ? AND retries < ?`,
+					detail, commandUUID, mdm.MaxAppleDeviceNameRetries)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "retry host device name from failed command %s", commandUUID)
+				}
+				if affected, _ := res.RowsAffected(); affected > 0 {
+					outcome = fleet.DeviceNameRetried
+					return nil
+				}
 			}
 
-			res, err = tx.ExecContext(ctx, `
+			res, err := tx.ExecContext(ctx, `
 				UPDATE host_mdm_apple_device_names
 				SET status = ?, detail = ?
 				WHERE command_uuid = ?`,
@@ -205,7 +207,9 @@ func (ds *Datastore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, 
 			if affected, _ := res.RowsAffected(); affected == 0 {
 				return ctxerr.Wrap(ctx, notFound("HostDeviceNameEnforcement").WithName(commandUUID))
 			}
-			outcome = fleet.DeviceNameRetriesExhausted
+			if retryable {
+				outcome = fleet.DeviceNameRetriesExhausted
+			}
 			return nil
 		}
 

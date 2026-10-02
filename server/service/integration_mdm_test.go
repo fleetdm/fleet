@@ -27934,32 +27934,44 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.NoError(t, err)
 	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
 
-	// --- iOS failure: the device errors the command (e.g. unsupervised) ---
+	// --- iOS failure: the device errors the command ---
 	// Each error re-queues the row until the retries are used up, then it fails.
-	failIOSCommand := func() {
+	failIOSCommand := func(errChain mdm.ErrorChain) {
 		cmd, err := iosFailDevice.Idle()
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
 		require.Equal(t, "Settings", cmd.Command.RequestType)
-		_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{
-			{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
-		})
+		_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{errChain})
 		require.NoError(t, err)
 	}
+	transientErr := mdm.ErrorChain{ErrorCode: 99, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "Something went wrong."}
 	for i := 1; i <= servermdm.MaxAppleDeviceNameRetries; i++ {
-		failIOSCommand()
+		failIOSCommand(transientErr)
 		retriedRow := requireRowStatus(iosFailHost.UUID, nil)
 		require.EqualValues(t, i, retriedRow.Retries)
 		runDeviceNameCron()
 		requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryPending)
 	}
-	failIOSCommand()
+	failIOSCommand(transientErr)
 	failedRow := requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
-	require.Contains(t, failedRow.Detail, "The device is not supervised.")
+	require.Contains(t, failedRow.Detail, "Something went wrong.")
 
 	// once retries are used up, the failed command is not re-sent by subsequent cron runs
 	runDeviceNameCron()
 	requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	cmd, err = iosFailDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// An unsupervised device can never apply the rename, so after a resend that
+	// rejection fails the row right away instead of using retries.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/name_template/resend", iosFailHost.ID), nil, http.StatusAccepted)
+	runDeviceNameCron()
+	failIOSCommand(mdm.ErrorChain{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."})
+	failedRow = requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, failedRow.Detail, "The device is not supervised.")
+	require.Zero(t, failedRow.Retries)
+	runDeviceNameCron()
 	cmd, err = iosFailDevice.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
