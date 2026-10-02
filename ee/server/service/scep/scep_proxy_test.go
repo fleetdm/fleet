@@ -1,6 +1,7 @@
 package scep
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/binary"
@@ -48,7 +49,8 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	}
 
 	returnStatus = http.StatusNotFound
-	logger := slog.New(slog.DiscardHandler)
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	svc := NewSCEPConfigService(logger, nil)
 	err := svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "unexpected status code")
@@ -102,6 +104,8 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	}
 	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.NoError(t, err)
+	// the challenge is a one-time credential and must never reach the logs
+	assert.NotContains(t, logs.String(), "8CE317021F690069")
 
 	// Test UTF-8 response (like Okta returns) - should also work with auto-detection
 	returnPage = func() []byte {
@@ -1415,15 +1419,25 @@ func TestNDESChallengeErrorToDetail(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			detail := NDESChallengeErrorToDetail(tc.err)
-			for _, want := range tc.wantContains {
-				assert.Contains(t, detail, want)
-			}
-			for _, notWant := range tc.wantNotContains {
-				assert.NotContains(t, detail, notWant)
+			for _, detail := range []string{NDESChallengeErrorToDetail(tc.err), NDESChallengeErrorToScriptDetail(tc.err)} {
+				for _, want := range tc.wantContains {
+					assert.Contains(t, detail, want)
+				}
+				for _, notWant := range tc.wantNotContains {
+					assert.NotContains(t, detail, notWant)
+				}
 			}
 		})
 	}
+
+	// only profile delivery leaves the work queued, so only its message promises a retry
+	t.Run("transient", func(t *testing.T) {
+		err := NewNDESTransientError("NDES admin URL returned status 503")
+		assert.Equal(t, "Fleet couldn't reach NDES to populate "+varName+" and will try again. NDES admin URL returned status 503",
+			NDESChallengeErrorToDetail(err))
+		assert.Equal(t, "Fleet couldn't reach NDES to populate "+varName+". NDES admin URL returned status 503",
+			NDESChallengeErrorToScriptDetail(err))
+	})
 }
 
 // Every non-200 from the NDES admin URL used to collapse into NDESInvalidError, so an IIS restart (503) was

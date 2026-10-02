@@ -11,11 +11,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"golang.org/x/oauth2"
 )
 
 // NetworkBlockingMode controls how outbound HTTP connections are filtered.
@@ -189,6 +189,8 @@ type clientOpts struct {
 	noFollow    bool
 	cookieJar   http.CookieJar
 	maxRespSize int64
+
+	responseHeaderTimeout time.Duration
 }
 
 // ClientOpt is the type for the client-specific options.
@@ -206,6 +208,14 @@ func WithTimeout(t time.Duration) ClientOpt {
 func WithNoTimeout() ClientOpt {
 	return func(o *clientOpts) {
 		o.timeout = 0
+	}
+}
+
+// WithResponseHeaderTimeout bounds how long the client waits for response
+// headers after sending the request. Without it, the client waits indefinitely.
+func WithResponseHeaderTimeout(t time.Duration) ClientOpt {
+	return func(o *clientOpts) {
+		o.responseHeaderTimeout = t
 	}
 }
 
@@ -275,6 +285,9 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	} else {
 		baseTransport = defaultBaseTransport()
 	}
+	if tr, ok := baseTransport.(*http.Transport); ok {
+		tr.ResponseHeaderTimeout = co.responseHeaderTimeout
+	}
 	if co.maxRespSize > 0 {
 		baseTransport = newSizeLimitTransport(baseTransport, co.maxRespSize)
 	}
@@ -324,8 +337,6 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	})
-	// Timeout on response headers missing after fully sending the request if 45 seconds pass.
-	tr.ResponseHeaderTimeout = 45 * time.Second
 	return tr
 }
 
@@ -333,23 +344,58 @@ func noFollowRedirect(*http.Request, []*http.Request) error {
 	return http.ErrUseLastResponse
 }
 
+// githubAPIHost is the only host that receives the GitHub token. Tests override it.
+var githubAPIHost = "api.github.com"
+
 // NewGithubClient returns an HTTP client customized for accessing Github.
 //
-// - If the NETWORK_TEST_GITHUB_TOKEN variable is empty, then this is equivalent to
-// call `NewClient(WithNoTimeout())`.
-// - If the NETWORK_TEST_GITHUB_TOKEN variable is set, then the client will use the
-// token for authentication (as OAuth2 static token).
+// The token is read from NETWORK_TEST_GITHUB_TOKEN (network tests) or, if that
+// is empty, FLEET_VULNERABILITIES_GITHUB_TOKEN.
+//
+// - If no token is set, then this is equivalent to call `NewClient(WithNoTimeout())`.
+// - If a token is set, then the client sends it as a bearer token, but only on
+// HTTPS requests to the GitHub API host.
+//
+// Ambient variables such as GITHUB_TOKEN or GH_TOKEN are deliberately ignored so
+// that a Fleet server never authenticates to GitHub unless explicitly configured to.
 func NewGithubClient() *http.Client {
-	if githubToken := os.Getenv("NETWORK_TEST_GITHUB_TOKEN"); githubToken != "" {
-		cli := oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
-			&oauth2.Token{
-				AccessToken: githubToken,
-			},
-		))
-		cli.Transport = otelhttp.NewTransport(cli.Transport)
-		return cli
+	cli := NewClient(WithNoTimeout())
+	githubToken := os.Getenv("NETWORK_TEST_GITHUB_TOKEN")
+	if githubToken == "" {
+		// Internal only, not a supported Fleet server setting. The generate-cve
+		// workflow in fleetdm/vulnerabilities sets it to the job's GITHUB_TOKEN:
+		// that runner's IP is shared with other Actions jobs, so the anonymous
+		// limit of 60 requests an hour can run out before the CVE generator
+		// finds the latest release.
+		githubToken = os.Getenv("FLEET_VULNERABILITIES_GITHUB_TOKEN")
 	}
-	return NewClient(WithNoTimeout())
+	if githubToken != "" {
+		cli.Transport = &githubTokenTransport{token: githubToken, base: cli.Transport}
+	}
+	return cli
+}
+
+// githubTokenTransport authenticates HTTPS requests to the GitHub API only. The same
+// client also downloads from configurable mirror URLs and follows redirects to
+// asset hosts, none of which should see the token. Deciding per request (rather
+// than setting the header once) also covers redirects, because the client
+// re-sends each hop through the transport.
+type githubTokenTransport struct {
+	token string
+	base  http.RoundTripper
+}
+
+func (t *githubTokenTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Scheme != "https" || !strings.EqualFold(req.URL.Host, githubAPIHost) {
+		return t.base.RoundTrip(req)
+	}
+	// A RoundTripper must not modify the caller's request.
+	req = req.Clone(req.Context())
+	if req.Header == nil {
+		req.Header = make(http.Header)
+	}
+	req.Header.Set("Authorization", "Bearer "+t.token)
+	return t.base.RoundTrip(req)
 }
 
 // HostnamesMatch is an utility function to parse two strings as

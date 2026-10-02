@@ -1709,7 +1709,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 	}
 
 	// for the remaining apps, mark as failed if non-conformant
-	for packageName := range pendingByPackageName {
+	for packageName, install := range pendingByPackageName {
 		if _, ok := markVerified[packageName]; ok {
 			// already marked as verified
 			continue
@@ -1734,13 +1734,17 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			continue
 		}
 
-		// no non-compliance report, but also not reported as installed, give it another
-		// chance later if the applied version == requested version? For now, marking as
-		// failed, we don't know how long it might take for the device to receive another
-		// policy, it may never happen.
-		markVerified[packageName] = false
-		svc.logger.ErrorContext(ctx, "Software failed to install without non-compliance report", "host_uuid", hostUUID, "package_name", packageName,
-			"installation_failure_reason", "unknown - no non-compliance report received")
+		// Absent from both reports is not a failure by itself: a real one arrives as a
+		// non-compliance report, so wait for a later message as the in-progress case above
+		// does. But an app that left the host's policy before installing (fleet transfer, app
+		// deleted, GitOps) is never reported again, so give up once the install is too old.
+		if svc.installReapTimeout > 0 && install.CreatedAt != nil && svc.clock.Since(*install.CreatedAt) >= svc.installReapTimeout {
+			markVerified[packageName] = false
+			svc.logger.WarnContext(ctx, "Software failed to install: not reported by the device within the install timeout", "host_uuid", hostUUID, "package_name", packageName,
+				"install_created_at", *install.CreatedAt, "install_reap_timeout", svc.installReapTimeout)
+			continue
+		}
+		svc.logger.DebugContext(ctx, "Software not reported as installed or failed yet, will remain pending", "host_uuid", hostUUID, "package_name", packageName)
 	}
 
 	var toVerifyUUIDs, toFailUUIDs []string

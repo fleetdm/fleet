@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.0.0",
+      "version": "4.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.audacityteam.audacity';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.audacityteam.audacity' AND version_compare(bundle_short_version, '4.0.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.audacityteam.audacity' AND version_compare(bundle_short_version, '4.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.audacityteam.audacity' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/audacity/audacity/releases/download/Audacity-4.0.0/audacity-macOS-4.0.0-arm64.dmg",
+      "installer_url": "https://github.com/audacity/audacity/releases/download/Audacity-4.0.1/audacity-macOS-4.0.1-arm64.dmg",
       "install_script_ref": "35276360",
       "uninstall_script_ref": "1eb94892",
-      "sha256": "266201f3151b09e46a5ab8e0ce1a16cefdd53a66fc7c979e943b2c88d6500c51",
+      "sha256": "278c8647b78c77af7f07dbd5e7d9bfc950bc14168047b65738716b61d12055ec",
       "default_categories": [
         "Productivity"
       ]
