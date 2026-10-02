@@ -800,6 +800,21 @@ func generateFilename(name string) string {
 	return fileName
 }
 
+// uniqueFilename numbers fileName ("a-b-2.xml") when it's already taken:
+// distinct names can sanitize alike ("A B" and "a-b"), and since each YAML
+// entry carries its own name, a shared file would apply one profile's
+// contents under both names.
+func uniqueFilename(fileName string, taken map[string]bool) string {
+	ext := filepath.Ext(fileName)
+	base := strings.TrimSuffix(fileName, ext)
+	candidate := fileName
+	for i := 2; taken[candidate]; i++ {
+		candidate = fmt.Sprintf("%s-%d%s", base, i, ext)
+	}
+	taken[candidate] = true
+	return candidate
+}
+
 func scriptExtensionForPlatform(platform string) string {
 	if platform == "windows" {
 		return ".ps1"
@@ -1626,6 +1641,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 	appleProfilesSlice := make([]map[string]interface{}, 0)
 	windowsProfilesSlice := make([]map[string]interface{}, 0)
 	androidProfilesSlice := make([]map[string]interface{}, 0)
+	usedFilenames := make(map[string]bool, len(profiles))
 	for _, profile := range profiles {
 		profileSpec := map[string]interface{}{}
 		// Parse any labels.
@@ -1663,6 +1679,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		if generatedFilename == "" {
 			continue // Error logged inside generateProfileFilename
 		}
+		generatedFilename = uniqueFilename(generatedFilename, usedFilenames)
 
 		fileName := fmt.Sprintf("profiles/%s", generatedFilename)
 		if teamId == nil {
@@ -1680,6 +1697,12 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 
 		profileSpec["path"] = path
+		// Always emitted: the file name is a sanitized copy of the name, so
+		// omitting it would rename profiles whose name the file can't carry.
+		profileSpec["name"] = profile.Name
+		if profile.Description != "" {
+			profileSpec["description"] = profile.Description
+		}
 
 		// Only declarations can carry one, and the list endpoint doesn't return
 		// activations, so it takes a second call.

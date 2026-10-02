@@ -1,0 +1,1 @@
+- Reduced Windows MDM load during enrollment. Fleet now sends the Autopilot Enrollment Status Page hold commands and the device serial number request once per management session instead of on every message. Sessions end normally while the device waits for fleetd to link it.
