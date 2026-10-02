@@ -5288,7 +5288,8 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 					assert.Equal(t, testHostID, hostID)
 					return &fleet.Host{ID: testHostID, UUID: tc.hostUUID}, nil
 				}
-				ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
+				ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(ctx context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
+					assert.True(t, ctxdb.IsPrimaryRequired(ctx), "a replica-lag read could miss an incumbent linked moments ago")
 					assert.Equal(t, testHostUUID, hostUUID)
 					assert.Equal(t, tc.hardwareID, mdmHardwareID)
 					if tc.conflicted {

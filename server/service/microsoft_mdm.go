@@ -1857,7 +1857,10 @@ scan:
 func (svc *Service) windowsHostClaimedByOtherHardware(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, hostUUID string,
 	logAttrs ...any,
 ) bool {
-	conflicted, conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, enrolledDevice.MDMHardwareID)
+	// Require the primary DB: the incumbent may have been linked moments ago (orbit enroll, the osquery backstop), and a
+	// replica-lag read that misses it would let this unverified claim through.
+	conflicted, conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctxdb.RequirePrimary(ctx, true), hostUUID,
+		enrolledDevice.MDMHardwareID)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "windows mdm: conflicting enrollment lookup failed",
 			"err", err, "device_id", enrolledDevice.MDMDeviceID)
