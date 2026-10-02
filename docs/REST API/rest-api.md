@@ -10174,11 +10174,15 @@ Example VPP `InstallApplication` command result metadata:
 
 > Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
 
+Fleet deletes old MDM command history on a schedule. Once a command is deleted, its results are no longer returned. Learn more in the [MDM commands guide](https://fleetdm.com/guides/mdm-commands#command-history-retention).
+
 ### List MDM commands
 
 > `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below.  [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#list-custom-mdm-commands) is available for the deprecated endpoint.
 
 This endpoint returns the list of custom MDM commands that have been executed.
+
+Fleet deletes old MDM command history on a schedule, so older commands may not be listed. Learn more in the [MDM commands guide](https://fleetdm.com/guides/mdm-commands#command-history-retention).
 
 `GET /api/v1/fleet/commands`
 
