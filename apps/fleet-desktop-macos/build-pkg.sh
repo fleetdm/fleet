@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$SCRIPT_DIR/build"
 APP_DIR="$BUILD_DIR/Fleet Desktop.app"
 PKG_DIR="$BUILD_DIR/pkg"
+PAYLOAD_DIR="$BUILD_DIR/payload"
 DIST_DIR="$BUILD_DIR/dist"
 
 # Package + app bundle identifier. Override for a dev-team build so the pkg and
@@ -26,10 +27,12 @@ else
 fi
 
 echo "Preparing package structure..."
-rm -rf "$PKG_DIR" "$DIST_DIR"
-mkdir -p "$PKG_DIR/Applications"
+rm -rf "$PKG_DIR" "$PAYLOAD_DIR" "$DIST_DIR"
+# pkgbuild bundles everything in $PKG_DIR as installer scripts, so the app
+# payload is staged outside it to keep a second copy of the app out of the pkg.
+mkdir -p "$PKG_DIR" "$PAYLOAD_DIR"
 # Use ditto to preserve extended attributes and signatures
-ditto "$APP_DIR" "$PKG_DIR/Applications/Fleet Desktop.app"
+ditto "$APP_DIR" "$PAYLOAD_DIR/Fleet Desktop.app"
 
 # Create preinstall script to check MDM and quit the app if running
 cat > "$PKG_DIR/preinstall" << 'PREINSTALL_EOF'
@@ -138,7 +141,7 @@ echo "Building component package..."
 mkdir -p "$DIST_DIR"
 COMPONENT_PKG="$BUILD_DIR/fleet-desktop-component.pkg"
 pkgbuild \
-    --root "$PKG_DIR/Applications" \
+    --root "$PAYLOAD_DIR" \
     --scripts "$PKG_DIR" \
     --identifier "$APP_BUNDLE_ID" \
     --version "${VERSION}" \

@@ -59,6 +59,7 @@ type DetailsForSoftwareIconActivity struct {
 	VPPAppTeamID        *uint                      `db:"vpp_app_team_id"`
 	VPPIconUrl          *string                    `db:"vpp_icon_url"`
 	SoftwareTitle       string                     `db:"software_title"`
+	SoftwareDisplayName string                     `db:"software_display_name"`
 	Filename            *string                    `db:"filename"`
 	TeamName            *string                    `db:"team_name"`
 	TeamID              uint                       `db:"team_id"`

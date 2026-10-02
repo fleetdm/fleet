@@ -67,6 +67,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestHostDetailsMDMProfilesIOSIPadOS", testHostDetailsMDMProfilesIOSIPadOS},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
+		{"TestBatchSetMDMAppleProfilesRenameChainAndSwap", testBatchSetMDMAppleProfilesRenameChainAndSwap},
 		{"TestBatchSetMDMAppleProfilesClearsStaleBrokenLabels", testBatchSetMDMAppleProfilesClearsStaleBrokenLabels},
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
@@ -2197,6 +2198,68 @@ func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 	// cleaning profiles still leaves the profile managed by Fleet
 	applyAndExpect(nil, nil, fleetProfiles)
 	applyAndExpect(nil, ptr.Uint(1), expectFleetProfiles)
+}
+
+// Renames within one batch can take a name another profile in the batch is
+// giving up. A swap failed in any order and a chain only in the right one.
+func testBatchSetMDMAppleProfilesRenameChainAndSwap(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	// same contents under a new name, as a rename through GitOps sends
+	named := func(identifier, name string) *fleet.MDMAppleConfigProfile {
+		p := configProfileForTest(t, "Display "+identifier, identifier, identifier)
+		p.Name = name
+		return p
+	}
+	apply := func(names map[string]string) map[string]*fleet.MDMAppleConfigProfile {
+		profs := make([]*fleet.MDMAppleConfigProfile, 0, len(names))
+		for identifier, name := range names {
+			profs = append(profs, named(identifier, name))
+		}
+		require.NoError(t, ds.BatchSetMDMAppleProfiles(ctx, nil, profs))
+
+		var got []*fleet.MDMAppleConfigProfile
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &got,
+				`SELECT profile_uuid, identifier, name, uploaded_at FROM mdm_apple_configuration_profiles WHERE team_id = 0`)
+		})
+		byIdent := make(map[string]*fleet.MDMAppleConfigProfile, len(got))
+		for _, p := range got {
+			byIdent[p.Identifier] = p
+		}
+		require.Len(t, byIdent, len(names))
+		for identifier, name := range names {
+			require.Equal(t, name, byIdent[identifier].Name, identifier)
+		}
+		return byIdent
+	}
+
+	before := apply(map[string]string{"I1": "A", "I2": "B", "I3": "C", "I4": "D"})
+
+	// a chain: each profile takes the name of the next one
+	afterChain := apply(map[string]string{"I1": "B", "I2": "C", "I3": "D", "I4": "E"})
+	// a cycle: three profiles trade names, which no order can do one at a
+	// time; the fourth keeps its name
+	afterCycle := apply(map[string]string{"I1": "C", "I2": "E", "I3": "D", "I4": "B"})
+
+	// a profile may be named like the placeholder a renamed profile is moved
+	// to; neither an incoming nor an existing one may be matched by it
+	i2 := before["I2"]
+	require.NotNil(t, i2)
+	placeholder := "fleet-renaming-" + i2.ProfileUUID
+	afterIncomingClash := apply(map[string]string{"I1": placeholder, "I2": "F", "I3": "D", "I4": "B"})
+	afterExistingClash := apply(map[string]string{"I1": placeholder, "I2": "G", "I3": "D", "I4": "B"})
+
+	for identifier, p := range before {
+		for _, after := range []map[string]*fleet.MDMAppleConfigProfile{
+			afterChain, afterCycle, afterIncomingClash, afterExistingClash,
+		} {
+			got := after[identifier]
+			require.NotNil(t, got, identifier)
+			// still the same profiles, and a rename alone isn't a new upload
+			require.Equal(t, p.ProfileUUID, got.ProfileUUID, identifier)
+			require.True(t, p.UploadedAt.Equal(got.UploadedAt), identifier)
+		}
+	}
 }
 
 // Regression test for https://github.com/fleetdm/fleet/issues/42637.

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-24T22:23:11.593Z",
+  "generatedAt": "2026-09-30T18:47:16.683Z",
   "source": "https://github.com/apple/device-management/tree/release/declarative/declarations/configurations",
   "entries": [
     {
@@ -42,7 +42,7 @@
         {
           "key": "VisibleName",
           "type": "string",
-          "description": "The name that apps show to the user for this calendar account. If not present, the system generates…"
+          "description": "The name that apps show to the user for this calendar account. If not present, the system generates a suitable default."
         },
         {
           "key": "HostName",
@@ -63,7 +63,7 @@
         {
           "key": "AuthenticationCredentialsAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration that contains the credentials for this account. Set the…"
+          "description": "The identifier of an asset declaration that contains the credentials for this account."
         }
       ]
     },
@@ -81,7 +81,7 @@
         {
           "key": "VisibleName",
           "type": "string",
-          "description": "The name that apps show to the user for this address book account. If not present, the system…"
+          "description": "The name that apps show to the user for this address book account. If not present, the system generates a suitable default."
         },
         {
           "key": "HostName",
@@ -102,7 +102,7 @@
         {
           "key": "AuthenticationCredentialsAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration that contains the credentials for this account. Set the…"
+          "description": "The identifier of an asset declaration that contains the credentials for this account."
         }
       ]
     },
@@ -120,13 +120,13 @@
         {
           "key": "VisibleName",
           "type": "string",
-          "description": "The name that apps show to the user for this Exchange account. If not present, the system generates…"
+          "description": "The name that apps show to the user for this Exchange account. If not present, the system generates a suitable default."
         },
         {
           "key": "EnabledProtocolTypes",
           "type": "array",
           "required": true,
-          "description": "The set of protocol types to enable on the Exchange server, in order of preference. This is an…",
+          "description": "The set of protocol types to enable on the Exchange server, in order of preference.",
           "subkeys": [
             {
               "key": "EnabledProtocolTypesItem",
@@ -143,7 +143,7 @@
           "key": "UserIdentityAssetReference",
           "type": "string",
           "gloss": "The corresponding asset must be of type UserIdentity.",
-          "description": "The identifier of an asset declaration that contains the user identity for this account. The…"
+          "description": "The identifier of an asset declaration that contains the user identity for this account. The corresponding asset must be of type UserIdentity."
         },
         {
           "key": "HostName",
@@ -153,12 +153,12 @@
         {
           "key": "Port",
           "type": "integer",
-          "description": "The port number of the EWS server. The system uses this only when this declaration has a HostName…"
+          "description": "The port number of the EWS server. The system uses this only when this declaration has a HostName value. Applicable for \"EWS\" only."
         },
         {
           "key": "Path",
           "type": "string",
-          "description": "The path of the EWS server. The system uses this only when this declaration has a HostName value.…"
+          "description": "The path of the EWS server. The system uses this only when this declaration has a HostName value. Applicable for \"EWS\" only."
         },
         {
           "key": "ExternalHostName",
@@ -168,12 +168,12 @@
         {
           "key": "ExternalPort",
           "type": "integer",
-          "description": "The external port number of the EWS server. The system uses this only when this declaration has an…"
+          "description": "The external port number of the EWS server. The system uses this only when this declaration has an ExternalHostName value. Applicable for \"EWS\" only."
         },
         {
           "key": "External Path",
           "type": "string",
-          "description": "The external path of the EWS server. The system uses this only when this declaration has an…"
+          "description": "The external path of the EWS server. The system uses this only when this declaration has an ExternalHostName value. Applicable for \"EWS\" only."
         },
         {
           "key": "OAuth",
@@ -189,24 +189,24 @@
             {
               "key": "SignInURL",
               "type": "string",
-              "description": "The URL that this account uses for signing in with OAuth. The system ignores this value unless…"
+              "description": "The URL that this account uses for signing in with OAuth. The system ignores this value unless Enabled is true."
             },
             {
               "key": "TokenRequestURL",
               "type": "string",
-              "description": "The URL that this account uses for token requests with OAuth. The system ignores this value unless…"
+              "description": "The URL that this account uses for token requests with OAuth. The system ignores this value unless Enabled is true. Applicable for \"EAS\" only."
             }
           ]
         },
         {
           "key": "AuthenticationCredentialsAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration that contains the credentials for this account to…"
+          "description": "The identifier of an asset declaration that contains the credentials for this account to authenticate with an Exchange server."
         },
         {
           "key": "AuthenticationIdentityAssetReference",
           "type": "string",
-          "description": "The identifier of a credential asset declaration that contains the identity that this account…"
+          "description": "The identifier of a credential asset declaration that contains the identity that this account requires to authenticate with the Exchange server."
         },
         {
           "key": "SMIME",
@@ -227,7 +227,7 @@
                 {
                   "key": "IdentityAssetReference",
                   "type": "string",
-                  "description": "The identifier of an asset declaration containing the identity required for S/MIME signing of…"
+                  "description": "The identifier of an asset declaration containing the identity required for S/MIME signing of messages sent from this account."
                 },
                 {
                   "key": "UserOverrideable",
@@ -252,18 +252,18 @@
                   "key": "Enabled",
                   "type": "boolean",
                   "required": true,
-                  "description": "If true, the system enables S/MIME encryption by default, which the user can't override if…"
+                  "description": "If true, the system enables S/MIME encryption by default, which the user can't override if PerMessageSwitchEnabled is false."
                 },
                 {
                   "key": "IdentityAssetReference",
                   "type": "string",
-                  "description": "The identifier of an asset declaration containing the identity required for S/MIME encryption. The…"
+                  "description": "The identifier of an asset declaration containing the identity required for S/MIME encryption."
                 },
                 {
                   "key": "UserOverrideable",
                   "type": "boolean",
                   "default": false,
-                  "description": "If true, the user can turn S/MIME encryption by default on or off in Settings. Applicable for \"EAS\"…"
+                  "description": "If true, the user can turn S/MIME encryption by default on or off in Settings. Applicable for \"EAS\" only."
                 },
                 {
                   "key": "IdentityUserOverrideable",
@@ -275,7 +275,7 @@
                   "key": "PerMessageSwitchEnabled",
                   "type": "boolean",
                   "default": false,
-                  "description": "If true, the system enables the per-message encryption switch in the compose view. Applicable for…"
+                  "description": "If true, the system enables the per-message encryption switch in the compose view. Applicable for \"EAS\" only."
                 }
               ]
             }
@@ -291,7 +291,7 @@
           "key": "LockMailService",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system prevents the user from changing the status of the mail service for this…"
+          "description": "If true, the system prevents the user from changing the status of the mail service for this account. Applicable for \"EAS\" only."
         },
         {
           "key": "ContactsServiceActive",
@@ -303,7 +303,7 @@
           "key": "LockContactsService",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system prevents the user from changing the status of the address book service for this…"
+          "description": "If true, the system prevents the user from changing the status of the address book service for this account. Applicable for \"EAS\" only."
         },
         {
           "key": "CalendarServiceActive",
@@ -315,7 +315,7 @@
           "key": "LockCalendarService",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system prevents the user from changing the status of the calendar service for this…"
+          "description": "If true, the system prevents the user from changing the status of the calendar service for this account. Applicable for \"EAS\" only."
         },
         {
           "key": "RemindersServiceActive",
@@ -327,7 +327,7 @@
           "key": "LockRemindersService",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system prevents the user from changing the status of the reminders service for this…"
+          "description": "If true, the system prevents the user from changing the status of the reminders service for this account. Applicable for \"EAS\" only."
         },
         {
           "key": "NotesServiceActive",
@@ -339,7 +339,7 @@
           "key": "LockNotesService",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system prevents the user from changing the status of the notes service for this…"
+          "description": "If true, the system prevents the user from changing the status of the notes service for this account. Applicable for \"EAS\" only."
         }
       ]
     },
@@ -357,13 +357,13 @@
         {
           "key": "VisibleName",
           "type": "string",
-          "description": "The name that apps show to the user for this Google account. If not present, the system generates a…"
+          "description": "The name that apps show to the user for this Google account. If not present, the system generates a suitable default."
         },
         {
           "key": "UserIdentityAssetReference",
           "type": "string",
           "required": true,
-          "description": "The identifier of an asset declaration that contains the user identity for this Google account. Set…"
+          "description": "The identifier of an asset declaration that contains the user identity for this Google account."
         }
       ]
     },
@@ -381,7 +381,7 @@
         {
           "key": "VisibleName",
           "type": "string",
-          "description": "The name that apps show to the user for this LDAP account. If not present, the system generates a…"
+          "description": "The name that apps show to the user for this LDAP account. If not present, the system generates a suitable default."
         },
         {
           "key": "HostName",
@@ -397,13 +397,13 @@
         {
           "key": "AuthenticationCredentialsAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration that contains the credentials for this account. Set the…"
+          "description": "The identifier of an asset declaration that contains the credentials for this account."
         },
         {
           "key": "SearchSettings",
           "type": "array",
           "gloss": "There must be at least one node for this account to be useful.",
-          "description": "The array of nodes to start LDAP searches from. There must be at least one node for this account to…",
+          "description": "The array of nodes to start LDAP searches from. There must be at least one node for this account to be useful.",
           "subkeys": [
             {
               "key": "SearchSettingsItem",
@@ -412,7 +412,7 @@
                 {
                   "key": "VisibleDescription",
                   "type": "string",
-                  "description": "The description of this search setting in the Contacts and Settings apps. If not present, the apps…"
+                  "description": "The description of this search setting in the Contacts and Settings apps. If not present, the apps display no name."
                 },
                 {
                   "key": "SearchBase",
@@ -430,7 +430,7 @@
                     "Subtree"
                   ],
                   "default": "Subtree",
-                  "description": "The type of recursion to use in the search: - Base: The search uses only the SearchBase node. -…"
+                  "description": "The type of recursion to use in the search: - Base: The search uses only the SearchBase node. - OneLevel: The search uses the SearchBase node and its immediate children. - Subtree: The search uses the SearchBase node and all its children, regardless of depth."
                 }
               ]
             }
@@ -452,12 +452,12 @@
         {
           "key": "VisibleName",
           "type": "string",
-          "description": "The name that apps show to the user for this mail account. If not present, the system generates a…"
+          "description": "The name that apps show to the user for this mail account. If not present, the system generates a suitable default."
         },
         {
           "key": "UserIdentityAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration that contains the user identity for this account. Set the…"
+          "description": "The identifier of an asset declaration that contains the user identity for this account. Set the corresponding asset type to UserIdentity."
         },
         {
           "key": "IncomingServer",
@@ -503,7 +503,7 @@
               "key": "AuthenticationCredentialsAssetReference",
               "type": "string",
               "gloss": "The corresponding asset must be of type CredentialUserNameAndPassword. If the AuthenticationMethod is None, this field must be blank.",
-              "description": "The identifier of an asset declaration that contains the credentials for this account to…"
+              "description": "The identifier of an asset declaration that contains the credentials for this account to authenticate with an incoming mail server. If the AuthenticationMethod is None, this field must be blank."
             },
             {
               "key": "IMAPPathPrefix",
@@ -546,7 +546,7 @@
               "key": "AuthenticationCredentialsAssetReference",
               "type": "string",
               "gloss": "The corresponding asset must be of type CredentialUserNameAndPassword. If the AuthenticationMethod is None, this field must be blank.",
-              "description": "The identifier of an asset declaration that contains the credentials for this account to…"
+              "description": "The identifier of an asset declaration that contains the credentials for this account to authenticate with an outgoing mail server. If the AuthenticationMethod is None, this field must be blank."
             }
           ]
         },
@@ -569,7 +569,7 @@
                 {
                   "key": "IdentityAssetReference",
                   "type": "string",
-                  "description": "Specifies the identifier of an asset declaration containing the identity required for S/MIME…"
+                  "description": "Specifies the identifier of an asset declaration containing the identity required for S/MIME signing of messages sent from this account."
                 },
                 {
                   "key": "UserOverrideable",
@@ -594,12 +594,12 @@
                   "key": "Enabled",
                   "type": "boolean",
                   "required": true,
-                  "description": "If true, the system enables S/MIME encryption by default, which the user can't override if…"
+                  "description": "If true, the system enables S/MIME encryption by default, which the user can't override if PerMessageSwitchEnabled is false."
                 },
                 {
                   "key": "IdentityAssetReference",
                   "type": "string",
-                  "description": "Specifies the identifier of an asset declaration containing the identity required for S/MIME…"
+                  "description": "Specifies the identifier of an asset declaration containing the identity required for S/MIME encryption."
                 },
                 {
                   "key": "UserOverrideable",
@@ -639,7 +639,7 @@
         {
           "key": "VisibleName",
           "type": "string",
-          "description": "The name that apps show to the user for this calendar account. If not present, the system generates…"
+          "description": "The name that apps show to the user for this calendar account. If not present, the system generates a suitable default."
         },
         {
           "key": "CalendarURL",
@@ -650,7 +650,7 @@
         {
           "key": "AuthenticationCredentialsAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration that contains the credentials for this account to…"
+          "description": "The identifier of an asset declaration that contains the credentials for this account to authenticate with a calendar server."
         }
       ]
     },
@@ -668,29 +668,29 @@
         {
           "key": "AppStoreID",
           "type": "string",
-          "description": "The App Store ID of the managed app that's downloaded from the App Store. Only one of AppStoreID,…"
+          "description": "The App Store ID of the managed app that's downloaded from the App Store. Only one of AppStoreID, BundleID, ManifestURL, or AppComposedIdentifier needs to be present."
         },
         {
           "key": "BundleID",
           "type": "string",
-          "description": "The bundle ID of the managed app that's downloaded from the App Store. Only one of AppStoreID,…"
+          "description": "The bundle ID of the managed app that's downloaded from the App Store. Only one of AppStoreID, BundleID, ManifestURL, or AppComposedIdentifier needs to be present."
         },
         {
           "key": "ManifestURL",
           "type": "string",
-          "description": "The URL of the manifest for the managed app that the device downloads from a web site. The manifest…"
+          "description": "The URL of the manifest for the managed app that the device downloads from a web site. The manifest is a ManifestURL property list. Only one of AppStoreID, BundleID, ManifestURL, or AppComposedIdentifier needs to be present."
         },
         {
           "key": "AppComposedIdentifier",
           "type": "string",
           "gloss": "The device uses this to take over management of an app installed by some other process, for example installed manually by the user, or via a package configuration. For example, \"com.example.app\" for the bundle ID format, or \"com.example.app (ABCD1234)\" for…",
-          "description": "A string that specifies the composed identifier of an existing app that needs to be managed. The…"
+          "description": "A string that specifies the composed identifier of an existing app that needs to be managed. The following rules apply when the device takes over management: - If the InstallBehavior.Install key is set to Required, the device takes over management of the app."
         },
         {
           "key": "iOSApp",
           "type": "boolean",
           "default": false,
-          "description": "If true, the device installs an iOS or iPadOS app that runs on a Mac with Apple silicon. This is…"
+          "description": "If true, the device installs an iOS or iPadOS app that runs on a Mac with Apple silicon. This is only used when the app is an App Store app."
         },
         {
           "key": "InstallBehavior",
@@ -705,7 +705,7 @@
                 "Required"
               ],
               "default": "Optional",
-              "description": "A string that specifies if the app needs to remain on the device at all times or if the user can…"
+              "description": "A string that specifies if the app needs to remain on the device at all times or if the user can freely install and remove it, which is one of the…"
             },
             {
               "key": "License",
@@ -719,14 +719,14 @@
                     "Device",
                     "User"
                   ],
-                  "description": "The type of license that the app uses for installation through the App Store, which is one of the…"
+                  "description": "The type of license that the app uses for installation through the App Store, which is one of the following values: - Device: The app has a device…"
                 }
               ]
             },
             {
               "key": "Version",
               "type": "integer",
-              "description": "The App Store external version identifier (EVID) of the version of the app the device installs. You…"
+              "description": "The App Store external version identifier (EVID) of the version of the app the device installs. You can retrieve this value from the App Store."
             },
             {
               "key": "AllowDownloadsOverCellular",
@@ -737,7 +737,7 @@
                 "StoreSettings"
               ],
               "default": "StoreSettings",
-              "description": "Indicates how the device uses a cellular network when it downloads the app for automatic install or…"
+              "description": "Indicates how the device uses a cellular network when it downloads the app for automatic install or update operations: - AlwaysOn: The device…"
             }
           ]
         },
@@ -755,7 +755,7 @@
                 "AlwaysOff",
                 "StoreSettings"
               ],
-              "description": "Specifies whether the device automatically updates the app: - AlwaysOn: The device automatically…"
+              "description": "Specifies whether the device automatically updates the app: - AlwaysOn: The device automatically updates the app to the latest version."
             }
           ]
         },
@@ -792,7 +792,7 @@
             {
               "key": "CellularSliceUUID",
               "type": "string",
-              "description": "The cellular slice identifier, which can be the data network name (DNN) or app category. For DNN,…"
+              "description": "The cellular slice identifier, which can be the data network name (DNN) or app category."
             },
             {
               "key": "ContentFilterUUID",
@@ -808,13 +808,13 @@
               "key": "Hideable",
               "type": "boolean",
               "default": true,
-              "description": "If false, the system prevents the user from hiding the app. It doesn't affect the user's ability to…"
+              "description": "If false, the system prevents the user from hiding the app."
             },
             {
               "key": "Lockable",
               "type": "boolean",
               "default": true,
-              "description": "If false, the system prevents the user from locking the app. This also prevents the user from…"
+              "description": "If false, the system prevents the user from locking the app. This also prevents the user from hiding the app."
             },
             {
               "key": "RelayUUID",
@@ -826,7 +826,7 @@
               "type": "boolean",
               "default": false,
               "gloss": "If true, the device automatically locks after every transaction that requires a customer's card PIN. If false, the user can choose the behavior.",
-              "description": "If true, the device automatically locks after every transaction that requires a customer's card…"
+              "description": "If true, the device automatically locks after every transaction that requires a customer's card PIN. If false, the user can choose the behavior."
             },
             {
               "key": "VPNUUID",
@@ -843,12 +843,12 @@
             {
               "key": "DataAssetReference",
               "type": "string",
-              "description": "Specifies the identifier of an asset declaration containing a reference to the app or extension…"
+              "description": "Specifies the identifier of an asset declaration containing a reference to the app or extension config data."
             },
             {
               "key": "Passwords",
               "type": "array",
-              "description": "Provides passwords to the managed app or extension. Each element in the array contains a password…",
+              "description": "Provides passwords to the managed app or extension.",
               "subkeys": [
                 {
                   "key": "PasswordAppConfigItem",
@@ -860,13 +860,13 @@
                       "key": "Identifier",
                       "type": "string",
                       "required": true,
-                      "description": "The app or extension uses this identifier to fetch the corresponding password using the ManagedApp…"
+                      "description": "The app or extension uses this identifier to fetch the corresponding password using the ManagedApp framework."
                     },
                     {
                       "key": "AssetReference",
                       "type": "string",
                       "required": true,
-                      "description": "Specifies the identifier of an asset declaration containing a username and password. The ManagedApp…"
+                      "description": "Specifies the identifier of an asset declaration containing a username and password."
                     }
                   ]
                 }
@@ -875,7 +875,7 @@
             {
               "key": "Identities",
               "type": "array",
-              "description": "Provides identities to the managed app or extension. Each element in the array contains an identity…",
+              "description": "Provides identities to the managed app or extension.",
               "subkeys": [
                 {
                   "key": "IdentityAppConfigItem",
@@ -887,7 +887,7 @@
                       "key": "Identifier",
                       "type": "string",
                       "required": true,
-                      "description": "The app or extension uses this identifier to fetch the corresponding identity using the ManagedApp…"
+                      "description": "The app or extension uses this identifier to fetch the corresponding identity using the ManagedApp framework."
                     },
                     {
                       "key": "AssetReference",
@@ -902,7 +902,7 @@
             {
               "key": "Certificates",
               "type": "array",
-              "description": "Provides certificates to the managed app or extension. Each element in the array contains a…",
+              "description": "Provides certificates to the managed app or extension.",
               "subkeys": [
                 {
                   "key": "CertificateAppConfigItem",
@@ -914,7 +914,7 @@
                       "key": "Identifier",
                       "type": "string",
                       "required": true,
-                      "description": "The app or extension uses this identifier to fetch the corresponding certificate using the…"
+                      "description": "The app or extension uses this identifier to fetch the corresponding certificate using the ManagedApp framework."
                     },
                     {
                       "key": "AssetReference",
@@ -936,14 +936,14 @@
             {
               "key": "ANY",
               "type": "dictionary",
-              "description": "A dictionary mapping extension composed identifiers to the extension config data and credentials.…"
+              "description": "A dictionary mapping extension composed identifiers to the extension config data and credentials."
             }
           ]
         },
         {
           "key": "LegacyAppConfigAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration containing a reference to the app config data. The device…"
+          "description": "The identifier of an asset declaration containing a reference to the app config data."
         }
       ]
     },
@@ -967,7 +967,7 @@
             {
               "key": "AllowedApps",
               "type": "array",
-              "description": "If present, the device only shows or launches apps with bundle IDs in the array. Include the value…",
+              "description": "If present, the device only shows or launches apps with bundle IDs in the array. Include the value com.apple.webapp to allow all webclips.",
               "subkeys": [
                 {
                   "key": "AppIdentifier",
@@ -981,12 +981,12 @@
               "key": "DeniedApps",
               "type": "array",
               "gloss": "For example, denying the App Store app may prevent users from accepting the terms and conditions for the user-based Volume Purchase Program (VPP).",
-              "description": "If present, the device prevents showing or launching apps with bundle IDs in the array. Include the…"
+              "description": "If present, the device prevents showing or launching apps with bundle IDs in the array. Include the value com.apple.webapp to restrict all webclips."
             },
             {
               "key": "AllowedBinaries",
               "type": "array",
-              "description": "If present, the device only allows binaries that match the binary identifier properties to run. A…",
+              "description": "If present, the device only allows binaries that match the binary identifier properties to run.",
               "subkeys": [
                 {
                   "key": "BinaryIdentifier",
@@ -1007,7 +1007,7 @@
                     {
                       "key": "TeamID",
                       "type": "string",
-                      "description": "The code signature team identifier of the binary. Use the value \"\\*APPLE\\*\" instead of an empty…"
+                      "description": "The code signature team identifier of the binary."
                     },
                     {
                       "key": "PathPrefix",
@@ -1035,13 +1035,13 @@
             {
               "key": "DeniedBinaries",
               "type": "array",
-              "description": "If present, the device doesn't allow binaries that match the binary identifier properties to run. A…"
+              "description": "If present, the device doesn't allow binaries that match the binary identifier properties to run."
             },
             {
               "key": "AlwaysAllowManagedApps",
               "type": "boolean",
               "default": false,
-              "description": "If true, the device implicitly includes managed apps in the effective allow list when…"
+              "description": "If true, the device implicitly includes managed apps in the effective allow list when AllowedBinaries is present."
             }
           ]
         },
@@ -1053,7 +1053,7 @@
             {
               "key": "PermissionDefaults",
               "type": "dictionary",
-              "description": "The dictionary of app privacy permission defaults. Each key in the dictionary is an app identifier.…",
+              "description": "The dictionary of app privacy permission defaults. Each key in the dictionary is an app identifier.",
               "subkeys": [
                 {
                   "key": "ANY",
@@ -1064,7 +1064,7 @@
                       "key": "OrganizationJustification",
                       "type": "string",
                       "required": true,
-                      "description": "Text you provide that clearly explains to the user the reason why the organization requires these…"
+                      "description": "Text you provide that clearly explains to the user the reason why the organization requires these app permission defaults."
                     },
                     {
                       "key": "Accessibility",
@@ -1073,7 +1073,7 @@
                         "None",
                         "Allow"
                       ],
-                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission…"
+                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission default is set for use of accessibility."
                     },
                     {
                       "key": "Bluetooth",
@@ -1082,7 +1082,7 @@
                         "None",
                         "Allow"
                       ],
-                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission…"
+                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission default is set for use of Bluetooth."
                     },
                     {
                       "key": "Camera",
@@ -1091,7 +1091,7 @@
                         "None",
                         "Allow"
                       ],
-                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission…"
+                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission default is set for use of the camera."
                     },
                     {
                       "key": "Dictation",
@@ -1100,7 +1100,7 @@
                         "None",
                         "Allow"
                       ],
-                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission…"
+                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission default is set for use of dictation."
                     },
                     {
                       "key": "LocalNetwork",
@@ -1109,7 +1109,7 @@
                         "None",
                         "Allow"
                       ],
-                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission…"
+                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission default is set for use of the local network."
                     },
                     {
                       "key": "Location",
@@ -1119,7 +1119,7 @@
                         "WhileUsing",
                         "Always"
                       ],
-                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission…"
+                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission default is set for access to location."
                     },
                     {
                       "key": "LocationAccuracy",
@@ -1129,7 +1129,7 @@
                         "Approximate",
                         "Precise"
                       ],
-                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission…"
+                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission default is set for access to precise location."
                     },
                     {
                       "key": "Microphone",
@@ -1138,7 +1138,7 @@
                         "None",
                         "Allow"
                       ],
-                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission…"
+                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission default is set for use of the microphone."
                     }
                   ]
                 }
@@ -1160,7 +1160,7 @@
         {
           "key": "TemporaryPairing",
           "type": "dictionary",
-          "description": "A dictionary that describes audio accessory temporary pairing behavior. The device enables…",
+          "description": "A dictionary that describes audio accessory temporary pairing behavior.",
           "subkeys": [
             {
               "key": "Disabled",
@@ -1171,13 +1171,13 @@
             {
               "key": "Configuration",
               "type": "dictionary",
-              "description": "A dictionary providing configuration for temporary pairing. Required if Disabled isn't present or…",
+              "description": "A dictionary providing configuration for temporary pairing. Required if Disabled isn't present or is false.",
               "subkeys": [
                 {
                   "key": "UnpairingTime",
                   "type": "dictionary",
                   "required": true,
-                  "description": "A dictionary that describes when the device automatically unpairs temporarily paired audio…",
+                  "description": "A dictionary that describes when the device automatically unpairs temporarily paired audio accessories.",
                   "subkeys": [
                     {
                       "key": "Policy",
@@ -1187,14 +1187,14 @@
                         "None",
                         "Hour"
                       ],
-                      "description": "A string that specifies the device's unpairing policy. - None: The device doesn't automatically…"
+                      "description": "A string that specifies the device's unpairing policy. - None: The device doesn't automatically unpair. - Hour: The device automatically unpairs temporarily paired audio accessories at the local time that the Hour key specifies."
                     },
                     {
                       "key": "Hour",
                       "type": "integer",
                       "min": 0,
                       "max": 23,
-                      "description": "The local time hour (24-hour clock) when the device automatically unpairs temporarily paired audio…"
+                      "description": "The local time hour (24-hour clock) when the device automatically unpairs temporarily paired audio accessories. Required when setting the Policy key to Hour."
                     }
                   ]
                 }
@@ -1217,50 +1217,50 @@
           "key": "AllowCacheDelete",
           "type": "boolean",
           "default": true,
-          "description": "If true, the system purges content from the cache automatically when it needs disk space for other…"
+          "description": "If true, the system purges content from the cache automatically when it needs disk space for other apps when free disk space runs low on the computer."
         },
         {
           "key": "AllowPersonalCaching",
           "type": "boolean",
           "default": true,
-          "description": "If true, the system caches the user's iCloud data. Changes to this value don't have an immediate…"
+          "description": "If true, the system caches the user's iCloud data. Changes to this value don't have an immediate effect. > Note: > At least one of the AllowPersonalCaching or AllowSharedCaching keys need to be true."
         },
         {
           "key": "AllowSharedCaching",
           "type": "boolean",
           "default": true,
-          "description": "If true, the system caches non-iCloud content, such as apps and software updates. Changes to this…"
+          "description": "If true, the system caches non-iCloud content, such as apps and software updates. Changes to this value don't have an immediate effect. > Note: > At least one of the AllowPersonalCaching or AllowSharedCaching keys need to be true."
         },
         {
           "key": "AutoActivation",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system automatically activates the content cache when possible and prevents disabling…"
+          "description": "If true, the system automatically activates the content cache when possible and prevents disabling it."
         },
         {
           "key": "AutoEnableTetheredCaching",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system automatically enables Internet connection sharing when possible and prevent…"
+          "description": "If true, the system automatically enables Internet connection sharing when possible and prevent disabling Internet connection sharing. DenyTetheredCaching overrides AutoEnableTetheredCaching."
         },
         {
           "key": "CacheLimit",
           "type": "integer",
           "default": 0,
-          "description": "The maximum number of bytes of disk space to use for the content cache. Set to 0 for unlimited disk…"
+          "description": "The maximum number of bytes of disk space to use for the content cache. Set to 0 for unlimited disk space. Also serves as the upper bound to the PersonalCacheLimit."
         },
         {
           "key": "DataPath",
           "type": "string",
           "default": "/Library/Application Support/Apple/AssetCache/Data",
           "gloss": "The value must be (or end with) /Library/Application Support/Apple/AssetCache/Data.",
-          "description": "The path to the directory used to store cached content. Changing this setting manually doesn't…"
+          "description": "The path to the directory used to store cached content."
         },
         {
           "key": "DenyActivation",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system disables Content Caching. This is the inverse of the allowContentCaching…"
+          "description": "If true, the system disables Content Caching. This is the inverse of the allowContentCaching restriction in MDM. It overrides the AutoActivation key."
         },
         {
           "key": "DenyTetheredCaching",
@@ -1274,19 +1274,19 @@
           "min": 300,
           "max": 86400,
           "default": 0,
-          "description": "The time interval in seconds the system uses to update the StatusContentCacheInfo declarative…"
+          "description": "The time interval in seconds the system uses to update the StatusContentCacheInfo declarative status item."
         },
         {
           "key": "DisplayAlerts",
           "type": "boolean",
           "default": false,
-          "description": "If true, Content Caching displays exceptional conditions (alerts) as system notifications in the…"
+          "description": "If true, Content Caching displays exceptional conditions (alerts) as system notifications in the upper corner of the screen."
         },
         {
           "key": "KeepAwake",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system prevents the computer from sleeping as long as Content Caching is on (System…"
+          "description": "If true, the system prevents the computer from sleeping as long as Content Caching is on (System Preferences > Sharing > Content Caching is on)."
         },
         {
           "key": "ListenRanges",
@@ -1334,13 +1334,13 @@
           "key": "ListenWithPeersAndParents",
           "type": "boolean",
           "default": true,
-          "description": "If true, the content cache provides content to the clients in the union of the ListenRanges,…"
+          "description": "If true, the content cache provides content to the clients in the union of the ListenRanges, PeerListenRanges and Parents."
         },
         {
           "key": "LocalSubnetsOnly",
           "type": "boolean",
           "default": true,
-          "description": "If true, the content cache offers content to clients only on the same immediate local network only.…"
+          "description": "If true, the content cache offers content to clients only on the same immediate local network only. If LocalSubnetsOnly is true, the system ignores ListenRanges."
         },
         {
           "key": "LogClientIdentity",
@@ -1351,7 +1351,7 @@
         {
           "key": "Parents",
           "type": "array",
-          "description": "An array of the local IP addresses of other content caches that this cache should download from or…",
+          "description": "An array of the local IP addresses of other content caches that this cache should download from or upload to, instead of downloading from or…",
           "subkeys": [
             {
               "key": "ParentsItem",
@@ -1372,46 +1372,46 @@
             "sticky-available"
           ],
           "default": "round-robin",
-          "description": "The policy to implement when choosing among more than one configured parent content cache. With…"
+          "description": "The policy to implement when choosing among more than one configured parent content cache. Allowed values: - first-available: Always use the first available parent in the Parents list."
         },
         {
           "key": "PeerFilterRanges",
           "type": "array",
-          "description": "An array of dictionaries describing a range of peer IP addresses that the content cache uses to…"
+          "description": "An array of dictionaries describing a range of peer IP addresses that the content cache uses to filter its list of peers to query for content."
         },
         {
           "key": "PeerListenRanges",
           "type": "array",
-          "description": "An array of dictionaries describing a range of peer IP addresses the content cache responds to.…"
+          "description": "An array of dictionaries describing a range of peer IP addresses the content cache responds to."
         },
         {
           "key": "PeerLocalSubnetsOnly",
           "type": "boolean",
           "default": true,
           "gloss": "If true, the content cache only peers with other content caches on the same immediate local network, rather than with content caches that use the…",
-          "description": "If true, the content cache only peers with other content caches on the same immediate local…"
+          "description": "If true, the content cache only peers with other content caches on the same immediate local network, rather than with content caches that use the same public IP address as the device. When PeerLocalSubnetsOnly is true, it overrides the configuration of PeerFilterRanges and PeerListenRanges."
         },
         {
           "key": "PersonalCacheLimit",
           "type": "integer",
           "default": 0,
-          "description": "The maximum number of bytes of disk space to use for the personal content cache. The content cache…"
+          "description": "The maximum number of bytes of disk space to use for the personal content cache. The content cache limits the maximum value to the CacheLimit value. Set to 0 to use the overall CacheLimit."
         },
         {
           "key": "Port",
           "type": "integer",
           "default": 0,
-          "description": "The TCP port number on which the content cache accepts requests for uploads or downloads. Set to 0…"
+          "description": "The TCP port number on which the content cache accepts requests for uploads or downloads. Set to 0 to pick a random, available port."
         },
         {
           "key": "PublicRanges",
           "type": "array",
-          "description": "An array of dictionaries describing a range of public IP addresses that the cloud servers should…"
+          "description": "An array of dictionaries describing a range of public IP addresses that the cloud servers should use for matching clients to content caches."
         },
         {
           "key": "ManagementStatusTarget",
           "type": "string",
-          "description": "The target URL the system uses to send management statistics using an HTTP PUT request with a json…"
+          "description": "The target URL the system uses to send management statistics using an HTTP PUT request with a json dictionary as the payload. If the URL is an https URL (recommended) the ManagementSecurityConfig defines how the system secures the connection."
         },
         {
           "key": "ManagementSecurityConfig",
@@ -1422,7 +1422,7 @@
             "specificServerCert"
           ],
           "default": "no-cert",
-          "description": "If the ManagementStatusTarget is an https URL, the system uses this field to determine how the…"
+          "description": "If the ManagementStatusTarget is an https URL, the system uses this field to determine how the connection is secured. - signedByCACert: The system requires the https connection's certificate to be signed by the certificate provided in the ManagementStatusCertificateReference field."
         },
         {
           "key": "ManagementReportingInterval",
@@ -1430,12 +1430,12 @@
           "min": 60,
           "max": 86400,
           "default": 300,
-          "description": "The reporting interval in seconds the system uses when ManagementStatusTarget is present. The…"
+          "description": "The reporting interval in seconds the system uses when ManagementStatusTarget is present."
         },
         {
           "key": "ManagementStatusCertificateReference",
           "type": "string",
-          "description": "The identifier of an asset declaration that contains the certificate the system uses to verify the…"
+          "description": "The identifier of an asset declaration that contains the certificate the system uses to verify the security of the status reporting https connection. Required when ManagementSecurityConfig is set to signedByCACert or specificServerCert."
         }
       ]
     },
@@ -1461,7 +1461,7 @@
                 "ReadOnly",
                 "Disallowed"
               ],
-              "description": "Specifies the mount policy for external storage: - Allowed: The system can mount external storage…"
+              "description": "Specifies the mount policy for external storage: - Allowed: The system can mount external storage that's read-write or read-only."
             },
             {
               "key": "NetworkStorage",
@@ -1471,7 +1471,7 @@
                 "ReadOnly",
                 "Disallowed"
               ],
-              "description": "Specifies the mount policy for network storage: - Allowed: The system can mount network storage…"
+              "description": "Specifies the mount policy for network storage: - Allowed: The system can mount network storage that's read-write or read-only."
             }
           ]
         }
@@ -1493,7 +1493,7 @@
           "type": "string",
           "required": true,
           "gloss": "In iOS and visionOS, the identifier is a bundle ID, for example, \"com.example.app.sso-extension\". For example, \"com.example.app.sso-extension (ABCD1234)\".",
-          "description": "The identifier of the provider to use for this configuration. Useful for apps that contain more…"
+          "description": "The identifier of the provider to use for this configuration. Useful for apps that contain more than one DNS proxy extension."
         },
         {
           "key": "Type",
@@ -1508,7 +1508,7 @@
         {
           "key": "Realm",
           "type": "string",
-          "description": "The realm name for Credential payloads. Use proper capitalization for this value. Ignored for…"
+          "description": "The realm name for Credential payloads. Use proper capitalization for this value. Ignored for Redirect payloads."
         },
         {
           "key": "ExtensionData",
@@ -1525,7 +1525,7 @@
         {
           "key": "URLs",
           "type": "array",
-          "description": "An array of URL prefixes of identity providers where the app extension performs SSO. Required for…",
+          "description": "An array of URL prefixes of identity providers where the app extension performs SSO. Required for Redirect payloads. Ignored for Credential payloads.",
           "subkeys": [
             {
               "key": "URL",
@@ -1538,7 +1538,7 @@
         {
           "key": "Hosts",
           "type": "array",
-          "description": "An array of host or domain names that apps can authenticate through the app extension. Required for…",
+          "description": "An array of host or domain names that apps can authenticate through the app extension. Required for Credential payloads.",
           "subkeys": [
             {
               "key": "hostname",
@@ -1569,7 +1569,7 @@
             "DoNotHandle"
           ],
           "default": "Cancel",
-          "description": "If set to Cancel, the system cancels authentication requests when the screen is locked. If set to…"
+          "description": "If set to Cancel, the system cancels authentication requests when the screen is locked."
         },
         {
           "key": "PlatformSSO",
@@ -1585,12 +1585,12 @@
                 "SmartCard",
                 "OpenID"
               ],
-              "description": "The Platform SSO authentication method to use with the extension. Requires that the SSO Extension…"
+              "description": "The Platform SSO authentication method to use with the extension. Requires that the SSO Extension also support the method."
             },
             {
               "key": "RegistrationToken",
               "type": "string",
-              "description": "The token this device uses for registration with Platform SSO. Use it for silent registration with…"
+              "description": "The token this device uses for registration with Platform SSO. Use it for silent registration with the Identity Provider. Requires that AuthenticationMethod in PlatformSSO isn't empty."
             },
             {
               "key": "UseSharedDeviceKeys",
@@ -1603,7 +1603,7 @@
               "type": "integer",
               "min": 3600,
               "default": 64800,
-              "description": "The duration, in seconds, until the system requires a full login instead of a refresh. The default…"
+              "description": "The duration, in seconds, until the system requires a full login instead of a refresh. The default value is 64,800 (18 hours)."
             },
             {
               "key": "AllowDeviceIdentifiersInAttestation",
@@ -1638,24 +1638,24 @@
                   "key": "EnableAtLogin",
                   "type": "boolean",
                   "default": false,
-                  "description": "Enables creating users at the Login Window with an AuthenticationMethod of either Password or…"
+                  "description": "Enables creating users at the Login Window with an AuthenticationMethod of either Password or SmartCard. Requires that UseSharedDeviceKeys is true."
                 },
                 {
                   "key": "EnableFirstUserDuringSetup",
                   "type": "boolean",
                   "default": true,
-                  "description": "If true, the device uses Platform SSO to create the first user account on the Mac during Setup…"
+                  "description": "If true, the device uses Platform SSO to create the first user account on the Mac during Setup Assistant."
                 },
                 {
                   "key": "EnableRegistrationDuringSetup",
                   "type": "boolean",
                   "default": false,
-                  "description": "If true, the system enables the PlatformSSO registration process during Setup Assistant on devices…"
+                  "description": "If true, the system enables the PlatformSSO registration process during Setup Assistant on devices running macOS 26 and later."
                 },
                 {
                   "key": "NewUserAuthenticationMethods",
                   "type": "array",
-                  "description": "The set of authentication methods to use for newly created accounts at login or during Setup…",
+                  "description": "The set of authentication methods to use for newly created accounts at login or during Setup Assistant.",
                   "subkeys": [
                     {
                       "key": "NewUserAuthenticationMethod",
@@ -1666,7 +1666,7 @@
                         "AccessKey",
                         "OpenID"
                       ],
-                      "description": "An authentication method to use for newly created accounts at login or during Setup Assistant.…"
+                      "description": "An authentication method to use for newly created accounts at login or during Setup Assistant."
                     }
                   ]
                 },
@@ -1679,7 +1679,7 @@
                     "Groups",
                     "Temporary"
                   ],
-                  "description": "The permission to apply to newly created accounts at login. Allowed values: * Standard: The account…"
+                  "description": "The permission to apply to newly created accounts at login. Allowed values: * Standard: The account is a standard user."
                 },
                 {
                   "key": "TokenToUserMapping",
@@ -1702,7 +1702,7 @@
                   "key": "TemporarySessionQuickLogin",
                   "type": "boolean",
                   "default": false,
-                  "description": "If true, the system uses a quicker Authenticated Guest Mode login to Mac behavior. The system…"
+                  "description": "If true, the system uses a quicker Authenticated Guest Mode login to Mac behavior."
                 }
               ]
             },
@@ -1715,7 +1715,7 @@
                   "key": "EnableIdentityProviderAccounts",
                   "type": "boolean",
                   "default": false,
-                  "description": "Enables using identity provider accounts at authorization prompts. Requires that…"
+                  "description": "Enables using identity provider accounts at authorization prompts. Requires that UseSharedDeviceKeys is true. The system assigns groups using AdministratorGroups, AdditionalGroups, or AuthorizationGroups."
                 },
                 {
                   "key": "UserAuthorizationMode",
@@ -1725,12 +1725,12 @@
                     "Admin",
                     "Groups"
                   ],
-                  "description": "The permission to apply to an account each time the user authenticates. Allowed values: * Standard:…"
+                  "description": "The permission to apply to an account each time the user authenticates. Allowed values: * Standard: The account is a standard user. * Groups: The system assigns group to the account using AdministratorGroups, AdditionalGroups, or AuthorizationGroups."
                 },
                 {
                   "key": "AdministratorGroups",
                   "type": "array",
-                  "description": "The list of groups to use for administrator access. The system requests membership during…",
+                  "description": "The list of groups to use for administrator access. The system requests membership during authentication.",
                   "subkeys": [
                     {
                       "key": "Group",
@@ -1754,7 +1754,7 @@
                 {
                   "key": "AuthorizationGroups",
                   "type": "dictionary",
-                  "description": "The pairing of Authorization Rights to group names. When using this, the system updates the…",
+                  "description": "The pairing of Authorization Rights to group names. When using this, the system updates the Authorization Right to use the group.",
                   "subkeys": [
                     {
                       "key": "ANY",
@@ -1773,24 +1773,24 @@
                 {
                   "key": "ReaderGroupIdentifier",
                   "type": "data",
-                  "description": "The reader group identifier for use with the AccessKey. The value needs to match the configured…"
+                  "description": "The reader group identifier for use with the AccessKey. The value needs to match the configured access key."
                 },
                 {
                   "key": "TerminalIdentityAssetReference",
                   "type": "string",
-                  "description": "The identifier of an asset declaration that contains the identity to use as the Terminal identity…"
+                  "description": "The identifier of an asset declaration that contains the identity to use as the Terminal identity of the Access Key."
                 },
                 {
                   "key": "ReaderIssuerCertificateAssetReference",
                   "type": "string",
                   "gloss": "The key must be an elliptic curve key.",
-                  "description": "The identifier of an asset declaration that contains the certificate for the issuer certificate of…"
+                  "description": "The identifier of an asset declaration that contains the certificate for the issuer certificate of the Terminal identity of the access key."
                 },
                 {
                   "key": "AllowExpressMode",
                   "type": "boolean",
                   "default": false,
-                  "description": "If true, the system uses the access key in express mode, and doesn't require authentication before…"
+                  "description": "If true, the system uses the access key in express mode, and doesn't require authentication before use."
                 }
               ]
             },
@@ -1802,7 +1802,7 @@
                 {
                   "key": "FileVault",
                   "type": "array",
-                  "description": "The policy to apply when using Platform SSO at FileVault unlock on a Mac with Apple silicon. *…",
+                  "description": "The policy to apply when using Platform SSO at FileVault unlock on a Mac with Apple silicon. If the device is offline and AllowOfflineGracePeriod is enabled, then the device uses the offline OfflineGracePeriod to determine if the user can proceed or not.",
                   "subkeys": [
                     {
                       "key": "policy",
@@ -1824,7 +1824,7 @@
                 {
                   "key": "Login",
                   "type": "array",
-                  "description": "The policy to apply when using Platform SSO at the Login Window. * AttemptAuthentication: The…",
+                  "description": "The policy to apply when using Platform SSO at the Login Window. If the device is offline and AllowOfflineGracePeriod is enabled, then the device uses the offline OfflineGracePeriod to determine if the user can proceed or not.",
                   "subkeys": [
                     {
                       "key": "policy",
@@ -1846,7 +1846,7 @@
                 {
                   "key": "Unlock",
                   "type": "array",
-                  "description": "The policy to apply when using Platform SSO at screensaver unlock. * AttemptAuthentication: The…",
+                  "description": "The policy to apply when using Platform SSO at screensaver unlock. If the device is offline and AllowOfflineGracePeriod is enabled, then the offline OfflineGracePeriod is used to determine if the user can proceed or not. * AllowOfflineGracePeriod: The device allows the use of the OfflineGracePeriod.",
                   "subkeys": [
                     {
                       "key": "policy",
@@ -1869,17 +1869,17 @@
                 {
                   "key": "OfflineGracePeriod",
                   "type": "integer",
-                  "description": "The amount of time (in seconds) after the last successful Platform SSO login for using a local…"
+                  "description": "The amount of time (in seconds) after the last successful Platform SSO login for using a local account password offline."
                 },
                 {
                   "key": "AuthenticationGracePeriod",
                   "type": "integer",
-                  "description": "The amount of time (in seconds) after receiving or updating a Policies.FileVault, Policies.Login,…"
+                  "description": "The amount of time (in seconds) after receiving or updating a Policies.FileVault, Policies.Login, or Policies.Unlock that the system can use…"
                 },
                 {
                   "key": "NonPlatformSSOAccounts",
                   "type": "array",
-                  "description": "The list of local accounts that aren't subject to the Policies.FileVault, Policies.Login, or…",
+                  "description": "The list of local accounts that aren't subject to the Policies.FileVault, Policies.Login, or Policies.Unlock policies.",
                   "subkeys": [
                     {
                       "key": "username",
@@ -1899,7 +1899,7 @@
                 {
                   "key": "URLAllowList",
                   "type": "array",
-                  "description": "The set of allowed hosts that the system can load in the PSSO web view. Required if…",
+                  "description": "The set of allowed hosts that the system can load in the PSSO web view.",
                   "subkeys": [
                     {
                       "key": "Hosts",
@@ -1912,7 +1912,7 @@
                   "key": "AllowPasswordSync",
                   "type": "boolean",
                   "default": false,
-                  "description": "If true, the system detects the password during web authentication and synchronizes it to the local…"
+                  "description": "If true, the system detects the password during web authentication and synchronizes it to the local account password for the user."
                 }
               ]
             }
@@ -1946,7 +1946,7 @@
         {
           "key": "AllowedWorkspaceIDs",
           "type": "array",
-          "description": "An array of strings, but currently restricted to a single element. If present, Apple Intelligence…",
+          "description": "An array of strings, but currently restricted to a single element.",
           "subkeys": [
             {
               "key": "workspaceID",
@@ -2132,7 +2132,7 @@
           "key": "AllowMathKeyboardSuggestions",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables keyboard suggestions that include math solutions. This key is also supported by…"
+          "description": "If false, disables keyboard suggestions that include math solutions. This key is also supported by the math.settings configuration."
         },
         {
           "key": "AllowPredictiveText",
@@ -2176,12 +2176,12 @@
         {
           "key": "ProfileURL",
           "type": "string",
-          "description": "The URL of the profile to download and install, which needs to start with https://. The request…"
+          "description": "The URL of the profile to download and install, which needs to start with https://. One of ProfileURL or ProfileAssetReference needs to be present."
         },
         {
           "key": "ProfileAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration containing a reference to the profile data. The…"
+          "description": "The identifier of an asset declaration containing a reference to the profile data. The corresponding asset needs to be of type com.apple.asset.data. One of ProfileURL or ProfileAssetReference needs to be present."
         }
       ]
     },
@@ -2200,12 +2200,12 @@
         {
           "key": "ProfileURL",
           "type": "string",
-          "description": "The URL of the profile to download and install, which needs to start with https://. The request…"
+          "description": "The URL of the profile to download and install, which needs to start with https://. One of ProfileURL or ProfileAssetReference needs to be present."
         },
         {
           "key": "ProfileAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration containing a reference to the profile data. The…"
+          "description": "The identifier of an asset declaration containing a reference to the profile data. The corresponding asset needs to be of type com.apple.asset.data. One of ProfileURL or ProfileAssetReference needs to be present."
         },
         {
           "key": "VisibleName",
@@ -2284,7 +2284,7 @@
             "Unlocked"
           ],
           "default": "Installed",
-          "description": "The status the system reports back when the device implements the configuration. Use this to…"
+          "description": "The status the system reports back when the device implements the configuration. Use this to override the normal success result."
         }
       ]
     },
@@ -2313,14 +2313,14 @@
                   "type": "boolean",
                   "required": true,
                   "default": false,
-                  "description": "Add the square root button to the basic calculator by replacing the +/- button. Normally, the…"
+                  "description": "Add the square root button to the basic calculator by replacing the +/- button."
                 }
               ]
             },
             {
               "key": "ScientificMode",
               "type": "dictionary",
-              "description": "If present, configures the scientific mode of the calculator. If not present, scientific mode is…",
+              "description": "If present, configures the scientific mode of the calculator. If not present, scientific mode is enabled.",
               "subkeys": [
                 {
                   "key": "Enabled",
@@ -2334,7 +2334,7 @@
             {
               "key": "ProgrammerMode",
               "type": "dictionary",
-              "description": "If present, configures the programmer mode of the calculator. If not present, programmer mode is…",
+              "description": "If present, configures the programmer mode of the calculator. If not present, programmer mode is enabled.",
               "subkeys": [
                 {
                   "key": "Enabled",
@@ -2348,7 +2348,7 @@
             {
               "key": "MathNotesMode",
               "type": "dictionary",
-              "description": "If present, configures the Math Notes mode of the calculator. If not present, Math Notes mode is…",
+              "description": "If present, configures the Math Notes mode of the calculator. If not present, Math Notes mode is enabled.",
               "subkeys": [
                 {
                   "key": "Enabled",
@@ -2362,7 +2362,7 @@
             {
               "key": "InputModes",
               "type": "dictionary",
-              "description": "If present, controls global input options of the calculator. If not present, all input modes are…",
+              "description": "If present, controls global input options of the calculator. If not present, all input modes are enabled.",
               "subkeys": [
                 {
                   "key": "UnitConversion",
@@ -2392,7 +2392,7 @@
               "type": "boolean",
               "required": true,
               "default": true,
-              "description": "Controls whether keyboard suggestions include math solutions. This key is also supported by the…"
+              "description": "Controls whether keyboard suggestions include math solutions. This key is also supported by the keyboard.settings configuration."
             },
             {
               "key": "MathNotes",
@@ -2429,13 +2429,13 @@
           "key": "ExcludedPaths",
           "type": "array",
           "gloss": "An array of strings that represent files and directories relative to the user's home directory that the system excludes from migration. Directory paths need to include a trailing \"/\". For example, to exclude the \"Excluded\" directory in the \"Documents\" folder…",
-          "description": "An array of strings that represent files and directories relative to the user's home directory that…"
+          "description": "An array of strings that represent files and directories relative to the user's home directory that the system excludes from migration."
         },
         {
           "key": "RequiredPaths",
           "type": "array",
           "gloss": "An array of strings that represent files and directories relative to the user's home directory that the system needs to migrate. Directory paths need to include a trailing \"/\". For example, to require the \"Required\" directory in the \"Documents\" folder of a…",
-          "description": "An array of strings that represent files and directories relative to the user's home directory that…"
+          "description": "An array of strings that represent files and directories relative to the user's home directory that the system needs to migrate."
         },
         {
           "key": "ShouldMigrateSecurityPrivacySettings",
@@ -2472,7 +2472,7 @@
           "key": "ProviderComposedIdentifier",
           "type": "string",
           "gloss": "In iOS and visionOS, the identifier is a bundle ID, for example, \"com.example.app\". For example, \"com.example.app\" for the bundle ID format, or \"com.example.app {anchor apple generic}\" for the designated requirement format.",
-          "description": "The identifier of the provider to use for this configuration. Useful for apps that contain more…"
+          "description": "The identifier of the provider to use for this configuration. Useful for apps that contain more than one DNS proxy extension."
         },
         {
           "key": "ProviderConfiguration",
@@ -2489,7 +2489,7 @@
         {
           "key": "DNSProxyUUID",
           "type": "string",
-          "description": "A globally unique identifier for this DNS proxy configuration. The proxy processes DNS lookups…"
+          "description": "A globally unique identifier for this DNS proxy configuration."
         }
       ]
     },
@@ -2529,18 +2529,18 @@
             {
               "key": "ServerURL",
               "type": "string",
-              "description": "The URI template of a DNS-over-HTTPS server, as defined in RFC 8484. This URL needs to use the…"
+              "description": "The URI template of a DNS-over-HTTPS server, as defined in RFC 8484. If no ServerAddresses are provided, the system uses the hostname or address in the URL to determine the server addresses. Required if DNSProtocol is HTTPS."
             },
             {
               "key": "ServerName",
               "type": "string",
               "gloss": "This key must be present only if the DNSProtocol is TLS.",
-              "description": "The hostname of a DNS-over-TLS server used to validate the server certificate, as defined in RFC…"
+              "description": "The hostname of a DNS-over-TLS server used to validate the server certificate, as defined in RFC 7858. If no ServerAddresses are provided, the system uses the hostname to determine the server addresses. This key must be present only if the DNSProtocol is TLS."
             },
             {
               "key": "ServerAddresses",
               "type": "array",
-              "description": "An unordered list of DNS server IP address strings. These IP addresses can be a mixture of IPv4 and…",
+              "description": "An unordered list of DNS server IP address strings. These IP addresses can be a mixture of IPv4 and IPv6 addresses.",
               "subkeys": [
                 {
                   "key": "ServerAddressesElement",
@@ -2557,13 +2557,13 @@
             {
               "key": "IdentityAssetReference",
               "type": "string",
-              "description": "Specifies the identifier of an asset declaration containing an identity that the system uses to…"
+              "description": "Specifies the identifier of an asset declaration containing an identity that the system uses to authenticate the user to the DNS resolver."
             },
             {
               "key": "SupplementalMatchDomains",
               "type": "array",
               "gloss": "For example, both \\*.example.com and example.com match against mydomain.example.com and your.domain.example.com, but don't match against mydomain-example.com.",
-              "description": "A list of domain strings used to determine which DNS queries use the DNS server. If not set, all…",
+              "description": "A list of domain strings used to determine which DNS queries use the DNS server. If not set, all domains use the DNS server.",
               "subkeys": [
                 {
                   "key": "SupplementalMatchDomainsElement",
@@ -2576,7 +2576,7 @@
         {
           "key": "OnDemandRules",
           "type": "array",
-          "description": "An array of rules that define the DNS settings. If not set, the system always applies the DNS…",
+          "description": "An array of rules that define the DNS settings. If not set, the system always applies the DNS settings.",
           "subkeys": [
             {
               "key": "OnDemandRulesElement",
@@ -2591,17 +2591,17 @@
                     "Disconnect",
                     "EvaluateConnection"
                   ],
-                  "description": "The action to take if this dictionary matches the current network. Allowed values: - Connect: Apply…"
+                  "description": "The action to take if this dictionary matches the current network. Allowed values: - Connect: Apply DNS Settings when the dictionary matches."
                 },
                 {
                   "key": "ActionParameters",
                   "type": "array",
-                  "description": "An array of dictionaries that provide per-connection rules. The system uses this array only for…",
+                  "description": "An array of dictionaries that provide per-connection rules. The system uses this array only for settings where the Action value is EvaluateConnection.",
                   "subkeys": [
                     {
                       "key": "ActionParameter",
                       "type": "dictionary",
-                      "description": "A dictionary that provides per-connection rules. The keys allowed in each dictionary are described…"
+                      "description": "A dictionary that provides per-connection rules. The keys allowed in each dictionary are described below."
                     }
                   ]
                 },
@@ -2609,7 +2609,7 @@
                   "key": "DNSDomainMatch",
                   "type": "array",
                   "gloss": "For example, both \\*.example.com and example.com match against mydomain.example.com and your.domain.example.com, but don't match against mydomain-example.com.",
-                  "description": "An array of domain names. This rule matches if any of the domain names in the specified list…",
+                  "description": "An array of domain names. This rule matches if any of the domain names in the specified list matches any domain in the device's search domains list.",
                   "subkeys": [
                     {
                       "key": "DNSDomainMatchElement",
@@ -2621,7 +2621,7 @@
                   "key": "DNSServerAddressMatch",
                   "type": "array",
                   "gloss": "For example, 17.\\* matches any DNS server in the 17.0.0.0/8 subnet.",
-                  "description": "An array of IP addresses. This rule matches if any of the network's specified DNS servers match any…",
+                  "description": "An array of IP addresses. This rule matches if any of the network's specified DNS servers match any entry in the array.",
                   "subkeys": [
                     {
                       "key": "DNSServerAddressMatchElement",
@@ -2637,12 +2637,12 @@
                     "WiFi",
                     "Cellular"
                   ],
-                  "description": "An interface type. If specified, this rule matches only if the primary network interface hardware…"
+                  "description": "An interface type. If specified, this rule matches only if the primary network interface hardware matches the specified type."
                 },
                 {
                   "key": "SSIDMatch",
                   "type": "array",
-                  "description": "An array of SSIDs to match against the current network. If the network isn't a Wi-Fi network or if…",
+                  "description": "An array of SSIDs to match against the current network.",
                   "subkeys": [
                     {
                       "key": "SSIDMatchElement",
@@ -2653,7 +2653,7 @@
                 {
                   "key": "URLStringProbe",
                   "type": "string",
-                  "description": "A URL to probe. This rule matches if this URL is successfully fetched and returns a 200 HTTP status…"
+                  "description": "A URL to probe. This rule matches if this URL is successfully fetched and returns a 200 HTTP status code without redirection."
                 }
               ]
             }
@@ -2697,17 +2697,17 @@
                 {
                   "key": "HTTP3RelayURL",
                   "type": "string",
-                  "description": "The URL or URI template, as defined in RFC 9298, of a relay server that's reachable using HTTP/3…"
+                  "description": "The URL or URI template, as defined in RFC 9298, of a relay server that's reachable using HTTP/3 and supports proxying TCP and UDP using the CONNECT method. Each relay needs to include either HTTP2RelayURL or HTTP3RelayURL, or it can include both."
                 },
                 {
                   "key": "HTTP2RelayURL",
                   "type": "string",
-                  "description": "The URL or URI template, as defined in RFC 9298, of a relay server that's reachable using HTTP/2…"
+                  "description": "The URL or URI template, as defined in RFC 9298, of a relay server that's reachable using HTTP/2 and supports proxying TCP and UDP using the CONNECT method. Each relay needs to include either HTTP2RelayURL or HTTP3RelayURL, or it can include both."
                 },
                 {
                   "key": "AdditionalHTTPHeaderFields",
                   "type": "dictionary",
-                  "description": "A dictionary that contains custom HTTP header keys and values to add to each request. The…",
+                  "description": "A dictionary that contains custom HTTP header keys and values to add to each request.",
                   "subkeys": [
                     {
                       "key": "ANY",
@@ -2725,7 +2725,7 @@
                 {
                   "key": "PublicKeyData",
                   "type": "array",
-                  "description": "An array of references to data assets containing DER-encoded public key data that the system uses…",
+                  "description": "An array of references to data assets containing DER-encoded public key data that the system uses to authenticate the server during a TLS handshake.",
                   "subkeys": [
                     {
                       "key": "PublicKeyDataAssetReference",
@@ -2740,7 +2740,7 @@
         {
           "key": "MatchDomains",
           "type": "array",
-          "description": "A list of domain strings that the system uses to determine which connection to route through the…",
+          "description": "A list of domain strings that the system uses to determine which connection to route through the servers in Relays. Any connection that matches a domain in the list exactly or is a subdomain of the listed domain uses the relay servers, unless it matches a domain in ExcludedDomains.",
           "subkeys": [
             {
               "key": "MatchDomainsElement",
@@ -2751,7 +2751,7 @@
         {
           "key": "ExcludedDomains",
           "type": "array",
-          "description": "A list of domain strings to exclude from routing through the servers in Relays. Any connection that…",
+          "description": "A list of domain strings to exclude from routing through the servers in Relays.",
           "subkeys": [
             {
               "key": "ExcludedDomainsElement",
@@ -2762,7 +2762,7 @@
         {
           "key": "MatchFQDNs",
           "type": "array",
-          "description": "A list of Fully Qualified Domain Names (FQDNs) to route through the servers contained in Relays.…",
+          "description": "A list of Fully Qualified Domain Names (FQDNs) to route through the servers contained in Relays. If this list and MatchDomains are empty, the system routes traffic to all domains to the relay servers, except those that match an excluded domain or excluded FQDN.",
           "subkeys": [
             {
               "key": "MatchFQDNsElement",
@@ -2773,7 +2773,7 @@
         {
           "key": "ExcludedFQDNs",
           "type": "array",
-          "description": "A list of Fully Qualified Domain Names (FQDNs) to exclude from routing through the servers…",
+          "description": "A list of Fully Qualified Domain Names (FQDNs) to exclude from routing through the servers contained in Relays. When MatchDomains is also present, any FQDN listed in the list should be a subdomain of at least one MatchDomain value, otherwise it won't have any effect.",
           "subkeys": [
             {
               "key": "ExcludedFQDNsElement",
@@ -2784,7 +2784,7 @@
         {
           "key": "RelayUUID",
           "type": "string",
-          "description": "A globally unique identifier for this relay configuration. The system uses this UUID to route…"
+          "description": "A globally unique identifier for this relay configuration. The system uses this UUID to route managed apps through the servers in Relays."
         },
         {
           "key": "UIToggleEnabled",
@@ -2894,7 +2894,7 @@
                       "key": "UseConfigurationAttributeInternalIPSubnet",
                       "type": "boolean",
                       "default": false,
-                      "description": "If true, negotiations should use IKEv2 Configuration Attribute INTERNAL_IP4_SUBNET and…"
+                      "description": "If true, negotiations should use IKEv2 Configuration Attribute INTERNAL_IP4_SUBNET and INTERNAL_IP6_SUBNET."
                     },
                     {
                       "key": "DisableMOBIKE",
@@ -2906,19 +2906,19 @@
                       "key": "DisableRedirect",
                       "type": "boolean",
                       "default": false,
-                      "description": "If true, the system disables IKEv2 redirect. If not set, the system redirects an IKEv2 connection…"
+                      "description": "If true, the system disables IKEv2 redirect. If not set, the system redirects an IKEv2 connection when it receives a redirect request from the server."
                     },
                     {
                       "key": "EnableNATKeepAliveOffload",
                       "type": "boolean",
                       "default": true,
-                      "description": "If true, enables NAT keepalive offload for Always On VPN IKEv2 connections. The device sends…"
+                      "description": "If true, enables NAT keepalive offload for Always On VPN IKEv2 connections. Modify the keepalive interval through the NATKeepAliveInterval key."
                     },
                     {
                       "key": "NATKeepAliveInterval",
                       "type": "integer",
                       "default": 20,
-                      "description": "The NAT Keepalive interval for Always On VPN IKEv2 connections. This value controls the interval…"
+                      "description": "The NAT Keepalive interval for Always On VPN IKEv2 connections. This value controls the interval that the device sends keepalive offload packets."
                     },
                     {
                       "key": "EnablePFS",
@@ -2930,7 +2930,7 @@
                       "key": "EnableCertificateRevocationCheck",
                       "type": "boolean",
                       "default": false,
-                      "description": "If true, the system performs a certificate revocation check for IKEv2 connections. This is a…"
+                      "description": "If true, the system performs a certificate revocation check for IKEv2 connections."
                     },
                     {
                       "key": "MTU",
@@ -2938,13 +2938,13 @@
                       "min": 1280,
                       "max": 1400,
                       "default": 1280,
-                      "description": "The Maximum Transmission Unit (MTU) specifies the maximum size in bytes of each packet that the…"
+                      "description": "The Maximum Transmission Unit (MTU) specifies the maximum size in bytes of each packet that the system sends over the IKEv2 VPN interface."
                     },
                     {
                       "key": "EnforceStrictAlgorithmSelection",
                       "type": "boolean",
                       "default": false,
-                      "description": "If set to true, the device doesn't allow DES, 3DES, and Diffie-Hellman groups less than 14. Also…"
+                      "description": "If set to true, the device doesn't allow DES, 3DES, and Diffie-Hellman groups less than 14. Also the device requires the encryption algorithm specified in IKESecurityAssociationParameters to be at least as cryptographically strong as the algorithm specified in ChildSecurityAssociationParameters."
                     },
                     {
                       "key": "PostQuantumKeyExchange",
@@ -2954,7 +2954,7 @@
                     {
                       "key": "IKESecurityAssociationParameters",
                       "type": "dictionary",
-                      "description": "These parameters apply to Child Security Association unless ChildSecurityAssociationParameters is…"
+                      "description": "These parameters apply to Child Security Association unless ChildSecurityAssociationParameters is specified."
                     },
                     {
                       "key": "ChildSecurityAssociationParameters",
@@ -2986,7 +2986,7 @@
                     "CellularServices",
                     "DeviceCommunication"
                   ],
-                  "description": "The name of a service that's exempt from Always On VPN. CellularServices exempts VoLTE, IMS, MMS,…"
+                  "description": "The name of a service that's exempt from Always On VPN. CellularServices exempts VoLTE, IMS, MMS, and Wi-Fi calling."
                 },
                 {
                   "key": "Action",
@@ -3045,12 +3045,12 @@
           "key": "AllowAllCaptiveNetworkPlugins",
           "type": "boolean",
           "default": false,
-          "description": "If true, allows traffic from all captive networking apps outside the VPN tunnel to perform captive…"
+          "description": "If true, allows traffic from all captive networking apps outside the VPN tunnel to perform captive network handling."
         },
         {
           "key": "AllowedCaptiveNetworkPlugins",
           "type": "array",
-          "description": "The array of captive networking apps whose traffic is allowed outside the VPN tunnel, to perform…",
+          "description": "The array of captive networking apps whose traffic is allowed outside the VPN tunnel, to perform captive network handling. Used only when AllowAllCaptiveNetworkPlugins is false.",
           "subkeys": [
             {
               "key": "AllowedCaptiveNetworkPluginElement",
@@ -3119,12 +3119,12 @@
                 "SharedSecret",
                 "Certificate"
               ],
-              "description": "The type of authentication method for the VPN. To enable EAP-only authentication, set this to None…"
+              "description": "The type of authentication method for the VPN. To enable EAP-only authentication, set this to None and ExtendedAuthEnabled to true."
             },
             {
               "key": "CredentialsAssetReference",
               "type": "string",
-              "description": "The identifier of an asset declaration that contains the credentials (password) to authenticate…"
+              "description": "The identifier of an asset declaration that contains the credentials (password) to authenticate with the VPN server. Required when Authentication.Method is set to SharedSecret."
             },
             {
               "key": "IdentityCertificateType",
@@ -3137,12 +3137,12 @@
                 "RSA-PSS"
               ],
               "default": "RSA",
-              "description": "The type of key used by the identity set in the IdentityAssetReference to use for IKEv2 machine…"
+              "description": "The type of key used by the identity set in the IdentityAssetReference to use for IKEv2 machine authentication."
             },
             {
               "key": "IdentityAssetReference",
               "type": "string",
-              "description": "The identifier of a credential asset declaration that contains the identity that this account…"
+              "description": "The identifier of a credential asset declaration that contains the identity that this account requires to authenticate with the VPN server. Required when Authentication.Method is set to Certificate."
             },
             {
               "key": "ExtendedAuth",
@@ -3158,17 +3158,17 @@
                 {
                   "key": "CredentialsAssetReference",
                   "type": "string",
-                  "description": "The identifier of an asset declaration that contains the credentials (user name and password) to…"
+                  "description": "The identifier of an asset declaration that contains the credentials (user name and password) to authenticate with the VPN server. Required when Enabled is set to true."
                 },
                 {
                   "key": "ServerCertificateIssuerCommonName",
                   "type": "string",
-                  "description": "Common Name of the server certificate issuer. If set, this field causes IKE to send a certificate…"
+                  "description": "Common Name of the server certificate issuer. This key is required if the IdentityCertificateType key is included and the ExtendedAuth.Enabled key is true."
                 },
                 {
                   "key": "ServerCertificateCommonName",
                   "type": "string",
-                  "description": "The common name of the server certificate. The system uses this name to validate the certificate…"
+                  "description": "The common name of the server certificate. The system uses this name to validate the certificate sent by the IKE server."
                 },
                 {
                   "key": "TLSMinimumVersion",
@@ -3207,13 +3207,13 @@
               "key": "EnforceRoutes",
               "type": "boolean",
               "default": false,
-              "description": "If true, all the VPN's non-default routes take precedence over any locally defined routes. If…"
+              "description": "If true, all the VPN's non-default routes take precedence over any locally defined routes. If IncludeAllNetworks is true, the system ignores the value of EnforceRoutes."
             },
             {
               "key": "IncludeAllNetworks",
               "type": "boolean",
               "default": false,
-              "description": "If true, routes all traffic through the VPN, with some exclusions. Several of the exclusions can be…"
+              "description": "If true, routes all traffic through the VPN, with some exclusions. Several of the exclusions can be controlled with the ExcludeLocalNetworks, ExcludeCellularServices, ExcludeAPNs and ExcludeDeviceCommunication properties. See the ExcludeCellularServices property for more details."
             },
             {
               "key": "ExcludeLocalNetworks",
@@ -3224,19 +3224,19 @@
               "key": "ExcludeCellularServices",
               "type": "boolean",
               "default": true,
-              "description": "If true and IncludeAllNetworks is true, then the system excludes internet-routable network traffic…"
+              "description": "If true and IncludeAllNetworks is true, then the system excludes internet-routable network traffic for cellular services (VoLTE, Wi-Fi Calling, IMS,…"
             },
             {
               "key": "ExcludeAPNs",
               "type": "boolean",
               "default": true,
-              "description": "If true and IncludeAllNetworks is true, then the system excludes the network traffic for the Apple…"
+              "description": "If true and IncludeAllNetworks is true, then the system excludes the network traffic for the Apple Push Notification service (APNs) from the tunnel."
             },
             {
               "key": "ExcludeDeviceCommunication",
               "type": "boolean",
               "default": true,
-              "description": "If set to true and IncludeAllNetworks is set to true, the device excludes network traffic used for…"
+              "description": "If set to true and IncludeAllNetworks is set to true, the device excludes network traffic used for communicating with devices connected via USB or…"
             }
           ]
         },
@@ -3266,7 +3266,7 @@
                 "High"
               ],
               "default": "Medium",
-              "description": "One of the following: - None: No keepalive. - Low: Send keepalive every 30 minutes. - Medium: Send…"
+              "description": "One of the following: - None: No keepalive. - Low: Send keepalive every 30 minutes. - Medium: Send keepalive every 10 minutes."
             }
           ]
         },
@@ -3307,24 +3307,24 @@
                         "EvaluateConnection",
                         "Ignore"
                       ],
-                      "description": "The action to take if this dictionary matches the current network. Possible values are: - Allow:…"
+                      "description": "The action to take if this dictionary matches the current network. Possible values are: - Allow: Deprecated. - EvaluateConnection: Evaluate the ActionParameters array for each connection attempt."
                     },
                     {
                       "key": "ActionParameters",
                       "type": "array",
-                      "description": "An array of dictionaries that provides rules similar to the OnDemandRules dictionary, but evaluated…"
+                      "description": "An array of dictionaries that provides rules similar to the OnDemandRules dictionary, but evaluated on each connection instead of when the network changes. This value is only for use with dictionaries in which the Action value is EvaluateConnection."
                     },
                     {
                       "key": "DNSDomainMatch",
                       "type": "array",
                       "gloss": "For example, \\*.example.com matches against either mydomain.example.com or yourdomain.example.com.",
-                      "description": "An array of domain names. This rule matches if any of the domain names in the specified list…"
+                      "description": "An array of domain names. This rule matches if any of the domain names in the specified list matches any domain in the device's search domains list."
                     },
                     {
                       "key": "DNSServerAddressMatch",
                       "type": "array",
                       "gloss": "For example, 17.\\* matches any DNS server in the 17.0.0.0/8 subnet.",
-                      "description": "An array of IP addresses. This rule matches if any of the network's specified DNS servers match any…"
+                      "description": "An array of IP addresses. This rule matches if any of the network's specified DNS servers match any entry in the array."
                     },
                     {
                       "key": "InterfaceTypeMatch",
@@ -3334,17 +3334,17 @@
                         "WiFi",
                         "Cellular"
                       ],
-                      "description": "An interface type. If specified, this rule matches only if the primary network interface hardware…"
+                      "description": "An interface type. If specified, this rule matches only if the primary network interface hardware matches the specified type."
                     },
                     {
                       "key": "SSIDMatch",
                       "type": "array",
-                      "description": "An array of SSIDs to match against the current network. If the network isn't a Wi-Fi network or if…"
+                      "description": "An array of SSIDs to match against the current network."
                     },
                     {
                       "key": "URLStringProbe",
                       "type": "string",
-                      "description": "A URL to probe. This rule matches when this URL is successfully fetched (returns a 200 HTTP status…"
+                      "description": "A URL to probe. This rule matches when this URL is successfully fetched (returns a 200 HTTP status code) without redirection."
                     }
                   ]
                 }
@@ -3356,7 +3356,7 @@
           "key": "UseConfigurationAttributeInternalIPSubnet",
           "type": "boolean",
           "default": false,
-          "description": "If true, negotiations should use IKEv2 Configuration Attribute INTERNAL_IP4_SUBNET and…"
+          "description": "If true, negotiations should use IKEv2 Configuration Attribute INTERNAL_IP4_SUBNET and INTERNAL_IP6_SUBNET."
         },
         {
           "key": "DisableMOBIKE",
@@ -3368,7 +3368,7 @@
           "key": "DisableRedirect",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system disables IKEv2 redirect. If not set, the system redirects an IKEv2 connection…"
+          "description": "If true, the system disables IKEv2 redirect. If not set, the system redirects an IKEv2 connection when it receives a redirect request from the server."
         },
         {
           "key": "EnablePFS",
@@ -3380,13 +3380,13 @@
           "key": "EnableCertificateRevocationCheck",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system performs a certificate revocation check for IKEv2 connections. This is a…"
+          "description": "If true, the system performs a certificate revocation check for IKEv2 connections."
         },
         {
           "key": "EnableFallback",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system enables a tunnel over cellular data to carry traffic that's eligible for Wi-Fi…"
+          "description": "If true, the system enables a tunnel over cellular data to carry traffic that's eligible for Wi-Fi Assist and also requires VPN."
         },
         {
           "key": "MTU",
@@ -3394,13 +3394,13 @@
           "min": 1280,
           "max": 1400,
           "default": 1280,
-          "description": "The Maximum Transmission Unit (MTU) specifies the maximum size in bytes of each packet that the…"
+          "description": "The Maximum Transmission Unit (MTU) specifies the maximum size in bytes of each packet that the system sends over the IKEv2 VPN interface."
         },
         {
           "key": "EnforceStrictAlgorithmSelection",
           "type": "boolean",
           "default": false,
-          "description": "If set to true, the device doesn't allow DES, 3DES, and Diffie-Hellman groups less than 14. Also…"
+          "description": "If set to true, the device doesn't allow DES, 3DES, and Diffie-Hellman groups less than 14. Also the device requires the encryption algorithm specified in IKESecurityAssociationParameters to be at least as cryptographically strong as the algorithm specified in ChildSecurityAssociationParameters."
         },
         {
           "key": "PostQuantumKeyExchange",
@@ -3410,31 +3410,31 @@
             {
               "key": "PPK",
               "type": "data",
-              "description": "The Post-quantum Pre-shared key (PPK) the device uses for this VPN. This key is is used with VPN…"
+              "description": "The Post-quantum Pre-shared key (PPK) the device uses for this VPN. This key is is used with VPN servers that support RFC 8784. If this key is present PPKIdentifier must also be present."
             },
             {
               "key": "PPKIdentifier",
               "type": "string",
-              "description": "The identifier for the Post-quantum Pre-shared key (PPK) the device uses for this VPN. This key is…"
+              "description": "The identifier for the Post-quantum Pre-shared key (PPK) the device uses for this VPN. This key is is used with VPN servers that support RFC 8784. If this key is present PPK must also be present."
             },
             {
               "key": "PPKMandatory",
               "type": "boolean",
               "default": true,
-              "description": "If set to true, the VPN doesn't establish a connection if the server doesn't support RFC 8784 or…"
+              "description": "If set to true, the VPN doesn't establish a connection if the server doesn't support RFC 8784 or doesn't accept the PPK identifier specified in PPKIdentifier. The device ignores this key if PPK and PPKIdentifier aren't present."
             },
             {
               "key": "AllowFallback",
               "type": "boolean",
               "default": false,
-              "description": "If set to false, the VPN doesn't establish a connection if the server doesn't support or doesn't…"
+              "description": "If set to false, the VPN doesn't establish a connection if the server doesn't support or doesn't allow post-quantum key exchanges."
             }
           ]
         },
         {
           "key": "IKESecurityAssociationParameters",
           "type": "dictionary",
-          "description": "These parameters apply to Child Security Association unless ChildSecurityAssociationParameters is…",
+          "description": "These parameters apply to Child Security Association unless ChildSecurityAssociationParameters is specified.",
           "subkeys": [
             {
               "key": "EncryptionAlgorithm",
@@ -3481,7 +3481,7 @@
             {
               "key": "PostQuantumKeyExchangeMethods",
               "type": "array",
-              "description": "An array of integers representing postquantum key exchange methods the device uses during SA…",
+              "description": "An array of integers representing postquantum key exchange methods the device uses during SA establishment and rekey.",
               "subkeys": [
                 {
                   "key": "PostQuantumKeyExchangeMethod",
@@ -3518,7 +3518,7 @@
               "key": "ServerAddresses",
               "type": "array",
               "required": true,
-              "description": "The array of DNS server IP address strings. These IP addresses can be a mixture of IPv4 and IPv6…",
+              "description": "The array of DNS server IP address strings. These IP addresses can be a mixture of IPv4 and IPv6 addresses.",
               "subkeys": [
                 {
                   "key": "ServerAddressesElement",
@@ -3545,7 +3545,7 @@
             {
               "key": "SupplementalMatchDomains",
               "type": "array",
-              "description": "The list of domain strings used to determine which DNS queries use the DNS resolver settings in…",
+              "description": "The list of domain strings used to determine which DNS queries use the DNS resolver settings in ServerAddresses. If the VPN tunnel becomes the network's default route, the servers listed in ServerAddresses become the default resolver and the system ignores the SupplementalMatchDomains list.",
               "subkeys": [
                 {
                   "key": "SupplementalMatchDomainsElement",
@@ -3557,12 +3557,12 @@
               "key": "SupplementalMatchDomainsNoSearch",
               "type": "boolean",
               "default": false,
-              "description": "If true, don't append the domains in the SupplementalMatchDomains list to the resolver's list of…"
+              "description": "If true, don't append the domains in the SupplementalMatchDomains list to the resolver's list of search domains."
             },
             {
               "key": "IdentityAssetReference",
               "type": "string",
-              "description": "The identifier of a credential asset declaration that contains the identity that the system uses to…"
+              "description": "The identifier of a credential asset declaration that contains the identity that the system uses to authenticate the user to the DNS resolver."
             }
           ]
         },
@@ -3586,7 +3586,7 @@
             {
               "key": "AutoConfigURLString",
               "type": "string",
-              "description": "The URL to the location of the proxy auto-configuration file. Used only when ProxyAutoConfigEnable…"
+              "description": "The URL to the location of the proxy auto-configuration file. Used only when ProxyAutoConfigEnable is true."
             },
             {
               "key": "SupplementalMatchDomains",
@@ -3651,7 +3651,7 @@
                 {
                   "key": "CredentialsAssetReference",
                   "type": "string",
-                  "description": "The identifier of an asset declaration that contains the credentials (user name and password) to…"
+                  "description": "The identifier of an asset declaration that contains the credentials (user name and password) to authenticate with the proxy server."
                 }
               ]
             }
@@ -3701,17 +3701,17 @@
             {
               "key": "CredentialsAssetReference",
               "type": "string",
-              "description": "The identifier of an asset declaration that contains the credentials (password) to authenticate…"
+              "description": "The identifier of an asset declaration that contains the credentials (password) to authenticate with the VPN servers. Only use this with Cisco IPSec VPNs and if the Authentication.Method key is to SharedSecret."
             },
             {
               "key": "IdentityAssetReference",
               "type": "string",
-              "description": "The identifier of a credential asset declaration that contains the identity that this account…"
+              "description": "The identifier of a credential asset declaration that contains the identity that this account requires to authenticate with the VPN servers. Only use this with Cisco IPSec VPNs and if the Authentication.Method key is to Certificate."
             },
             {
               "key": "LocalIdentifier",
               "type": "string",
-              "description": "The name of the group. For hybrid authentication, the string needs to end with \"hybrid\". Present…"
+              "description": "The name of the group. For hybrid authentication, the string needs to end with \"hybrid\". Present only for Cisco IPSec if Authentication.Method is SharedSecret."
             },
             {
               "key": "LocalIdentifierType",
@@ -3720,7 +3720,7 @@
                 "KeyID"
               ],
               "default": "KeyID",
-              "description": "Present only if Authentication.Method is SharedSecret. The value is KeyID. The system uses this…"
+              "description": "Present only if Authentication.Method is SharedSecret. The value is KeyID. The system uses this value for Cisco IPSec VPNs."
             },
             {
               "key": "PromptForVPNPIN",
@@ -3742,7 +3742,7 @@
                 {
                   "key": "CredentialsAssetReference",
                   "type": "string",
-                  "description": "The identifier of an asset declaration that contains the credentials (user name and password)…"
+                  "description": "The identifier of an asset declaration that contains the credentials (user name and password) required for XAuth. Required when Enabled key is set to true."
                 },
                 {
                   "key": "PasswordEncryption",
@@ -3805,24 +3805,24 @@
                         "EvaluateConnection",
                         "Ignore"
                       ],
-                      "description": "The action to take if this dictionary matches the current network. Possible values are: - Allow:…"
+                      "description": "The action to take if this dictionary matches the current network. Possible values are: - Allow: Deprecated. - EvaluateConnection: Evaluate the ActionParameters array for each connection attempt."
                     },
                     {
                       "key": "ActionParameters",
                       "type": "array",
-                      "description": "An array of dictionaries that provides rules similar to the OnDemandRules dictionary, but evaluated…"
+                      "description": "An array of dictionaries that provides rules similar to the OnDemandRules dictionary, but evaluated on each connection instead of when the network changes. This value is only for use with dictionaries in which the Action value is EvaluateConnection."
                     },
                     {
                       "key": "DNSDomainMatch",
                       "type": "array",
                       "gloss": "For example, \\*.example.com matches against either mydomain.example.com or yourdomain.example.com.",
-                      "description": "An array of domain names. This rule matches if any of the domain names in the specified list…"
+                      "description": "An array of domain names. This rule matches if any of the domain names in the specified list matches any domain in the device's search domains list."
                     },
                     {
                       "key": "DNSServerAddressMatch",
                       "type": "array",
                       "gloss": "For example, 17.\\* matches any DNS server in the 17.0.0.0/8 subnet.",
-                      "description": "An array of IP addresses. This rule matches if any of the network's specified DNS servers match any…"
+                      "description": "An array of IP addresses. This rule matches if any of the network's specified DNS servers match any entry in the array."
                     },
                     {
                       "key": "InterfaceTypeMatch",
@@ -3832,17 +3832,17 @@
                         "WiFi",
                         "Cellular"
                       ],
-                      "description": "An interface type. If specified, this rule matches only if the primary network interface hardware…"
+                      "description": "An interface type. If specified, this rule matches only if the primary network interface hardware matches the specified type."
                     },
                     {
                       "key": "SSIDMatch",
                       "type": "array",
-                      "description": "An array of SSIDs to match against the current network. If the network isn't a Wi-Fi network or if…"
+                      "description": "An array of SSIDs to match against the current network."
                     },
                     {
                       "key": "URLStringProbe",
                       "type": "string",
-                      "description": "A URL to probe. This rule matches when this URL is successfully fetched (returns a 200 HTTP status…"
+                      "description": "A URL to probe. This rule matches when this URL is successfully fetched (returns a 200 HTTP status code) without redirection."
                     }
                   ]
                 }
@@ -3859,7 +3859,7 @@
               "key": "ServerAddresses",
               "type": "array",
               "required": true,
-              "description": "The array of DNS server IP address strings. These IP addresses can be a mixture of IPv4 and IPv6…",
+              "description": "The array of DNS server IP address strings. These IP addresses can be a mixture of IPv4 and IPv6 addresses.",
               "subkeys": [
                 {
                   "key": "ServerAddressesElement",
@@ -3886,7 +3886,7 @@
             {
               "key": "SupplementalMatchDomains",
               "type": "array",
-              "description": "The list of domain strings used to determine which DNS queries use the DNS resolver settings in…",
+              "description": "The list of domain strings used to determine which DNS queries use the DNS resolver settings in ServerAddresses. If the VPN tunnel becomes the network's default route, the servers listed in ServerAddresses become the default resolver and the system ignores the SupplementalMatchDomains list.",
               "subkeys": [
                 {
                   "key": "SupplementalMatchDomainsElement",
@@ -3898,12 +3898,12 @@
               "key": "SupplementalMatchDomainsNoSearch",
               "type": "boolean",
               "default": false,
-              "description": "If true, don't append the domains in the SupplementalMatchDomains list to the resolver's list of…"
+              "description": "If true, don't append the domains in the SupplementalMatchDomains list to the resolver's list of search domains."
             },
             {
               "key": "IdentityAssetReference",
               "type": "string",
-              "description": "The identifier of a credential asset declaration that contains the identity that the system uses to…"
+              "description": "The identifier of a credential asset declaration that contains the identity that the system uses to authenticate the user to the DNS resolver."
             }
           ]
         },
@@ -3927,7 +3927,7 @@
             {
               "key": "AutoConfigURLString",
               "type": "string",
-              "description": "The URL to the location of the proxy auto-configuration file. Used only when ProxyAutoConfigEnable…"
+              "description": "The URL to the location of the proxy auto-configuration file. Used only when ProxyAutoConfigEnable is true."
             },
             {
               "key": "SupplementalMatchDomains",
@@ -3992,7 +3992,7 @@
                 {
                   "key": "CredentialsAssetReference",
                   "type": "string",
-                  "description": "The identifier of an asset declaration that contains the credentials (user name and password) to…"
+                  "description": "The identifier of an asset declaration that contains the credentials (user name and password) to authenticate with the proxy server."
                 }
               ]
             }
@@ -4028,7 +4028,7 @@
           "key": "SubType",
           "type": "string",
           "required": true,
-          "description": "An identifier for a vendor-specified configuration dictionary. If the configuration targets a VPN…"
+          "description": "An identifier for a vendor-specified configuration dictionary."
         },
         {
           "key": "VendorConfig",
@@ -4038,7 +4038,7 @@
             {
               "key": "Realm",
               "type": "string",
-              "description": "The Kerberos realm name, which needs to be properly capitalized. Valid only for Juniper SSL and…"
+              "description": "The Kerberos realm name, which needs to be properly capitalized. Valid only for Juniper SSL and Pulse Secure."
             },
             {
               "key": "Role",
@@ -4077,12 +4077,12 @@
             {
               "key": "CredentialsAssetReference",
               "type": "string",
-              "description": "The identifier of an asset declaration that contains the credentials (user name and password) to…"
+              "description": "The identifier of an asset declaration that contains the credentials (user name and password) to authenticate with the VPN server. Required when Authentication.Method is set to Password."
             },
             {
               "key": "IdentityAssetReference",
               "type": "string",
-              "description": "The identifier of a credential asset declaration that contains the identity that this account…"
+              "description": "The identifier of a credential asset declaration that contains the identity that this account requires to authenticate with the VPN server. Required when Authentication.Method is set to Certificate."
             }
           ]
         },
@@ -4099,13 +4099,13 @@
                 "app-proxy"
               ],
               "default": "packet-tunnel",
-              "description": "The type of VPN service. If the value is app-proxy, the service tunnels traffic at the app level.…"
+              "description": "The type of VPN service. If the value is app-proxy, the service tunnels traffic at the app level."
             },
             {
               "key": "ComposedIdentifier",
               "type": "string",
               "gloss": "In iOS, tvOS, and visionOS, the identifier is a bundle ID, for example, \"com.example.app\". For example, \"com.example.app\" for the bundle ID format, or \"com.example.app {anchor apple generic}\" for the designated requirement format.",
-              "description": "If the SubType field contains the bundle identifier of an app that contains multiple VPN providers…"
+              "description": "If the SubType field contains the bundle identifier of an app that contains multiple VPN providers of the same type (app-proxy or packet-tunnel),…"
             }
           ]
         },
@@ -4118,13 +4118,13 @@
               "key": "EnforceRoutes",
               "type": "boolean",
               "default": false,
-              "description": "If true, all the VPN's non-default routes take precedence over any locally defined routes. If…"
+              "description": "If true, all the VPN's non-default routes take precedence over any locally defined routes. If IncludeAllNetworks is true, the system ignores the value of EnforceRoutes."
             },
             {
               "key": "IncludeAllNetworks",
               "type": "boolean",
               "default": false,
-              "description": "If true, routes all traffic through the VPN, with some exclusions. Several of the exclusions can be…"
+              "description": "If true, routes all traffic through the VPN, with some exclusions. Several of the exclusions can be controlled with the ExcludeLocalNetworks, ExcludeCellularServices, ExcludeAPNs and ExcludeDeviceCommunication properties. See the ExcludeCellularServices property for more details."
             },
             {
               "key": "ExcludeLocalNetworks",
@@ -4135,19 +4135,19 @@
               "key": "ExcludeCellularServices",
               "type": "boolean",
               "default": true,
-              "description": "If true and IncludeAllNetworks is true, then the system excludes internet-routable network traffic…"
+              "description": "If true and IncludeAllNetworks is true, then the system excludes internet-routable network traffic for cellular services (VoLTE, Wi-Fi Calling, IMS,…"
             },
             {
               "key": "ExcludeAPNs",
               "type": "boolean",
               "default": true,
-              "description": "If true and IncludeAllNetworks is true, then the system excludes the network traffic for the Apple…"
+              "description": "If true and IncludeAllNetworks is true, then the system excludes the network traffic for the Apple Push Notification service (APNs) from the tunnel."
             },
             {
               "key": "ExcludeDeviceCommunication",
               "type": "boolean",
               "default": true,
-              "description": "If set to true and IncludeAllNetworks is set to true, the device excludes network traffic used for…"
+              "description": "If set to true and IncludeAllNetworks is set to true, the device excludes network traffic used for communicating with devices connected via USB or…"
             }
           ]
         },
@@ -4206,24 +4206,24 @@
                         "EvaluateConnection",
                         "Ignore"
                       ],
-                      "description": "The action to take if this dictionary matches the current network. Possible values are: - Allow:…"
+                      "description": "The action to take if this dictionary matches the current network. Possible values are: - Allow: Deprecated. - EvaluateConnection: Evaluate the ActionParameters array for each connection attempt."
                     },
                     {
                       "key": "ActionParameters",
                       "type": "array",
-                      "description": "An array of dictionaries that provides rules similar to the OnDemandRules dictionary, but evaluated…"
+                      "description": "An array of dictionaries that provides rules similar to the OnDemandRules dictionary, but evaluated on each connection instead of when the network changes. This value is only for use with dictionaries in which the Action value is EvaluateConnection."
                     },
                     {
                       "key": "DNSDomainMatch",
                       "type": "array",
                       "gloss": "For example, \\*.example.com matches against either mydomain.example.com or yourdomain.example.com.",
-                      "description": "An array of domain names. This rule matches if any of the domain names in the specified list…"
+                      "description": "An array of domain names. This rule matches if any of the domain names in the specified list matches any domain in the device's search domains list."
                     },
                     {
                       "key": "DNSServerAddressMatch",
                       "type": "array",
                       "gloss": "For example, 17.\\* matches any DNS server in the 17.0.0.0/8 subnet.",
-                      "description": "An array of IP addresses. This rule matches if any of the network's specified DNS servers match any…"
+                      "description": "An array of IP addresses. This rule matches if any of the network's specified DNS servers match any entry in the array."
                     },
                     {
                       "key": "InterfaceTypeMatch",
@@ -4233,17 +4233,17 @@
                         "WiFi",
                         "Cellular"
                       ],
-                      "description": "An interface type. If specified, this rule matches only if the primary network interface hardware…"
+                      "description": "An interface type. If specified, this rule matches only if the primary network interface hardware matches the specified type."
                     },
                     {
                       "key": "SSIDMatch",
                       "type": "array",
-                      "description": "An array of SSIDs to match against the current network. If the network isn't a Wi-Fi network or if…"
+                      "description": "An array of SSIDs to match against the current network."
                     },
                     {
                       "key": "URLStringProbe",
                       "type": "string",
-                      "description": "A URL to probe. This rule matches when this URL is successfully fetched (returns a 200 HTTP status…"
+                      "description": "A URL to probe. This rule matches when this URL is successfully fetched (returns a 200 HTTP status code) without redirection."
                     }
                   ]
                 }
@@ -4260,7 +4260,7 @@
               "key": "ServerAddresses",
               "type": "array",
               "required": true,
-              "description": "The array of DNS server IP address strings. These IP addresses can be a mixture of IPv4 and IPv6…",
+              "description": "The array of DNS server IP address strings. These IP addresses can be a mixture of IPv4 and IPv6 addresses.",
               "subkeys": [
                 {
                   "key": "ServerAddressesElement",
@@ -4287,7 +4287,7 @@
             {
               "key": "SupplementalMatchDomains",
               "type": "array",
-              "description": "The list of domain strings used to determine which DNS queries use the DNS resolver settings in…",
+              "description": "The list of domain strings used to determine which DNS queries use the DNS resolver settings in ServerAddresses. If the VPN tunnel becomes the network's default route, the servers listed in ServerAddresses become the default resolver and the system ignores the SupplementalMatchDomains list.",
               "subkeys": [
                 {
                   "key": "SupplementalMatchDomainsElement",
@@ -4299,12 +4299,12 @@
               "key": "SupplementalMatchDomainsNoSearch",
               "type": "boolean",
               "default": false,
-              "description": "If true, don't append the domains in the SupplementalMatchDomains list to the resolver's list of…"
+              "description": "If true, don't append the domains in the SupplementalMatchDomains list to the resolver's list of search domains."
             },
             {
               "key": "IdentityAssetReference",
               "type": "string",
-              "description": "The identifier of a credential asset declaration that contains the identity that the system uses to…"
+              "description": "The identifier of a credential asset declaration that contains the identity that the system uses to authenticate the user to the DNS resolver."
             }
           ]
         },
@@ -4328,7 +4328,7 @@
             {
               "key": "AutoConfigURLString",
               "type": "string",
-              "description": "The URL to the location of the proxy auto-configuration file. Used only when ProxyAutoConfigEnable…"
+              "description": "The URL to the location of the proxy auto-configuration file. Used only when ProxyAutoConfigEnable is true."
             },
             {
               "key": "SupplementalMatchDomains",
@@ -4393,7 +4393,7 @@
                 {
                   "key": "CredentialsAssetReference",
                   "type": "string",
-                  "description": "The identifier of an asset declaration that contains the credentials (user name and password) to…"
+                  "description": "The identifier of an asset declaration that contains the credentials (user name and password) to authenticate with the proxy server."
                 }
               ]
             }
@@ -4414,7 +4414,7 @@
           "key": "ManifestURL",
           "type": "string",
           "required": true,
-          "description": "The URL of the manifest document for the package that the device downloads. The manifest is…"
+          "description": "The URL of the manifest document for the package that the device downloads. The manifest is returned as a ManifestURL property list."
         },
         {
           "key": "InstallBehavior",
@@ -4429,7 +4429,7 @@
                 "Required"
               ],
               "default": "Optional",
-              "description": "A string that specifies when the system installs the package: - Optional: The user can install the…"
+              "description": "A string that specifies when the system installs the package: - Optional: The user can install the package after the system activates the…"
             }
           ]
         },
@@ -4464,7 +4464,7 @@
           "key": "RequirePasscode",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system requires the user to set a passcode without any requirements about the length…"
+          "description": "If true, the system requires the user to set a passcode without any requirements about the length or quality of the passcode."
         },
         {
           "key": "RequireAlphanumericPasscode",
@@ -4476,7 +4476,7 @@
           "key": "RequireComplexPasscode",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system requires a complex passcode. A complex passcode is one that doesn't contain…"
+          "description": "If true, the system requires a complex passcode."
         },
         {
           "key": "MinimumLength",
@@ -4492,7 +4492,7 @@
           "min": 0,
           "max": 4,
           "default": 0,
-          "description": "Specifies the minimum number of complex characters in the password. A complex character is a…"
+          "description": "Specifies the minimum number of complex characters in the password."
         },
         {
           "key": "MaximumFailedAttempts",
@@ -4500,60 +4500,60 @@
           "min": 2,
           "max": 11,
           "default": 11,
-          "description": "The number of failed passcode attempts that the system allows the user before it erases or locks…"
+          "description": "The number of failed passcode attempts that the system allows the user before it erases or locks the device. On macOS, set FailedAttemptsResetInMinutes to define the time delay."
         },
         {
           "key": "FailedAttemptsResetInMinutes",
           "type": "integer",
-          "description": "The number of minutes before the login is reset after the maximum number of failed attempts. Also…"
+          "description": "The number of minutes before the login is reset after the maximum number of failed attempts. Also set the MaximumFailedAttempts key for this to take effect."
         },
         {
           "key": "MaximumGracePeriodInMinutes",
           "type": "integer",
-          "description": "The maximum period that a user can select, during which the user can unlock the device without a…"
+          "description": "The maximum period that a user can select, during which the user can unlock the device without a passcode."
         },
         {
           "key": "MaximumInactivityInMinutes",
           "type": "integer",
           "min": 0,
           "max": 15,
-          "description": "The maximum period that a user can select, during which the device can be idle before the system…"
+          "description": "The maximum period that a user can select, during which the device can be idle before the system automatically locks it."
         },
         {
           "key": "MaximumPasscodeAgeInDays",
           "type": "integer",
           "min": 0,
           "max": 730,
-          "description": "Specifies the maximum number of days that the passcode can remain unchanged. After this number of…"
+          "description": "Specifies the maximum number of days that the passcode can remain unchanged."
         },
         {
           "key": "PasscodeReuseLimit",
           "type": "integer",
           "min": 1,
           "max": 50,
-          "description": "The number of historical passcode entries the system checks when validating a new passcode. The…"
+          "description": "The number of historical passcode entries the system checks when validating a new passcode."
         },
         {
           "key": "ChangeAtNextAuth",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system forces a password reset the next time the user tries to authenticate. If you…"
+          "description": "If true, the system forces a password reset the next time the user tries to authenticate."
         },
         {
           "key": "CustomRegex",
           "type": "dictionary",
-          "description": "Specifies a regular expression, and its description, to enforce password compliance. Use the…",
+          "description": "Specifies a regular expression, and its description, to enforce password compliance.",
           "subkeys": [
             {
               "key": "Regex",
               "type": "string",
               "required": true,
-              "description": "A regular expression string to match against the password to determine whether it complies with a…"
+              "description": "A regular expression string to match against the password to determine whether it complies with a policy. The regular expression uses the ICU syntax."
             },
             {
               "key": "Description",
               "type": "dictionary",
-              "description": "A dictionary with supported OS language IDs for the keys (such as en-US), and values that represent…",
+              "description": "A dictionary with supported OS language IDs for the keys (such as en-US), and values that represent a localized description of the policy that the…",
               "subkeys": [
                 {
                   "key": "ANY",
@@ -4592,13 +4592,13 @@
                   "key": "GroupIdentifier",
                   "type": "string",
                   "required": true,
-                  "description": "A string that specifies the unique identifier for this group of managed bookmarks. Safari displays…"
+                  "description": "A string that specifies the unique identifier for this group of managed bookmarks. If multiple active configurations use the same value for this key, Safari displays a single group formed by merging the list of Bookmarks from each group."
                 },
                 {
                   "key": "Title",
                   "type": "string",
                   "required": true,
-                  "description": "The name of the bookmarks folder. Safari uses this as the title for the top-level managed bookmarks…"
+                  "description": "The name of the bookmarks folder. Safari uses this as the title for the top-level managed bookmarks item."
                 },
                 {
                   "key": "Bookmarks",
@@ -4611,7 +4611,7 @@
                       "key": "bookmarks-item",
                       "type": "dictionary",
                       "required": true,
-                      "description": "A bookmark that specifies a title, and either a URL for the bookmark, or a nested folder of…"
+                      "description": "A bookmark that specifies a title, and either a URL for the bookmark, or a nested folder of bookmarks."
                     }
                   ]
                 }
@@ -4635,12 +4635,12 @@
         {
           "key": "ManagedExtensions",
           "type": "dictionary",
-          "description": "The dictionary of managed extensions settings. Each key in the dictionary represents a composed…",
+          "description": "The dictionary of managed extensions settings.",
           "subkeys": [
             {
               "key": "ANY",
               "type": "dictionary",
-              "description": "The dictionary that defines the settings for a managed extension. Each key represents a specific…",
+              "description": "The dictionary that defines the settings for a managed extension.",
               "subkeys": [
                 {
                   "key": "State",
@@ -4650,7 +4650,7 @@
                     "AlwaysOn",
                     "AlwaysOff"
                   ],
-                  "description": "Controls whether an extension is allowed. The device uses this key when the extension identifier is…"
+                  "description": "Controls whether an extension is allowed. The device uses this key when the extension identifier is a composed identifier or a single \"\\*\" character."
                 },
                 {
                   "key": "PrivateBrowsing",
@@ -4660,12 +4660,12 @@
                     "AlwaysOn",
                     "AlwaysOff"
                   ],
-                  "description": "Controls whether an extension is allowed in Private Browsing. The device uses this key when the…"
+                  "description": "Controls whether an extension is allowed in Private Browsing."
                 },
                 {
                   "key": "AllowedDomains",
                   "type": "array",
-                  "description": "Controls the domains and sub-domains the extension can access. The device ignores this key when the…",
+                  "description": "Controls the domains and sub-domains the extension can access. The device ignores this key when the extension identifier is a single \"*\" character.",
                   "subkeys": [
                     {
                       "key": "Domain",
@@ -4677,7 +4677,7 @@
                 {
                   "key": "DeniedDomains",
                   "type": "array",
-                  "description": "Controls the domains and sub-domains the extension isn't allowed to access. The device uses this…",
+                  "description": "Controls the domains and sub-domains the extension isn't allowed to access.",
                   "subkeys": [
                     {
                       "key": "Domain",
@@ -4713,7 +4713,7 @@
             "Always"
           ],
           "default": "Always",
-          "description": "The policy Safari uses for managing cookies: - Never: Safari always blocks cookies. -…"
+          "description": "The policy Safari uses for managing cookies: - Never: Safari always blocks cookies."
         },
         {
           "key": "AllowDisablingFraudWarning",
@@ -4765,18 +4765,18 @@
                 "Home",
                 "Extension"
               ],
-              "description": "Sets the start page type in Safari: - Start - Safari uses the default start page. Safari disables…"
+              "description": "Sets the start page type in Safari: - Start - Safari uses the default start page. Safari disables the Homepage. - Home - Safari uses the page specified by HomepageURL, and Safari also sets that as the Homepage."
             },
             {
               "key": "HomepageURL",
               "type": "string",
-              "description": "The URL of the homepage which needs to start with https:// or http://. Required when setting…"
+              "description": "The URL of the homepage which needs to start with https:// or http://. Required when setting PageType to Home."
             },
             {
               "key": "ExtensionIdentifier",
               "type": "string",
               "gloss": "The required format is \"Identifier (TeamIdentifier)\", for example \"com.example.app (ABCD1234)\".",
-              "description": "The composed identifier of the extension that provides the start page. The required format is…"
+              "description": "The composed identifier of the extension that provides the start page. Required when setting PageType to Extension."
             }
           ]
         },
@@ -4788,7 +4788,7 @@
             {
               "key": "PermissionDefaults",
               "type": "dictionary",
-              "description": "The dictionary of website permission defaults. Each key in the dictionary represents a single…",
+              "description": "The dictionary of website permission defaults. Each key in the dictionary represents a single website, or a website and its sub-domains.",
               "subkeys": [
                 {
                   "key": "ANY",
@@ -4799,7 +4799,7 @@
                       "key": "OrganizationJustification",
                       "type": "string",
                       "required": true,
-                      "description": "Text that clearly explains to the Safari user the reason why the organization requires these…"
+                      "description": "Text that clearly explains to the Safari user the reason why the organization requires these website privacy permission defaults."
                     },
                     {
                       "key": "Camera",
@@ -4808,7 +4808,7 @@
                         "None",
                         "Allow"
                       ],
-                      "description": "Controls whether a website privacy permission default is set. * None: Safari sets no website…"
+                      "description": "Controls whether a website privacy permission default is set. * None: Safari sets no website privacy permission default for use of the camera."
                     },
                     {
                       "key": "Microphone",
@@ -4817,7 +4817,7 @@
                         "None",
                         "Allow"
                       ],
-                      "description": "Controls whether a website privacy permission default is set. * None: Safari sets no website…"
+                      "description": "Controls whether a website privacy permission default is set. * None: Safari sets no website privacy permission default for use of the microphone."
                     }
                   ]
                 }
@@ -4873,14 +4873,14 @@
                 "Virtual1",
                 "Virtual2"
               ],
-              "description": "The type of display for the connection, which has these allowed values: - Virtual1: Create one…"
+              "description": "The type of display for the connection, which has these allowed values: - Virtual1: Create one virtual display."
             }
           ]
         },
         {
           "key": "AuthenticationCredentialsAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration that contains the required credentials for this connection…"
+          "description": "The identifier of an asset declaration that contains the required credentials for this connection to authenticate with the screen-sharing server."
         }
       ]
     },
@@ -4909,7 +4909,7 @@
           "key": "Members",
           "type": "array",
           "required": true,
-          "description": "An array of ConnectionUUIDs that represent connections declared in ScreenSharingConnection…",
+          "description": "An array of ConnectionUUIDs that represent connections declared in ScreenSharingConnection configurations that are members of this group.",
           "subkeys": [
             {
               "key": "ConnectionUUID",
@@ -4940,7 +4940,7 @@
           "type": "integer",
           "min": 1024,
           "max": 65535,
-          "description": "The initial UDP port number to connect to the host. Screen sharing requires multiple connections,…"
+          "description": "The initial UDP port number to connect to the host."
         },
         {
           "key": "PreventCopyFilesFromHost",
@@ -5030,7 +5030,7 @@
           "key": "AttestationIdentityAssetReference",
           "type": "string",
           "required": true,
-          "description": "The identifier of an asset declaration that contains the identity to install and use for passkey…"
+          "description": "The identifier of an asset declaration that contains the identity to install and use for passkey attestation."
         },
         {
           "key": "AttestationIdentityKeyIsExtractable",
@@ -5065,7 +5065,7 @@
           "key": "TaskType",
           "type": "string",
           "required": true,
-          "description": "The unique identifier of the set of background tasks managed with this configuration. This should…"
+          "description": "The unique identifier of the set of background tasks managed with this configuration. This should be a reverse DNS style identifier."
         },
         {
           "key": "TaskDescription",
@@ -5076,12 +5076,12 @@
           "key": "ExecutableAssetReference",
           "type": "string",
           "gloss": "The corresponding asset must be of type com.apple.asset.data. The referenced data must be a zip archive of an entire directory that the device expands and stores in a well known location for the background task.",
-          "description": "Specifies the identifier of an asset declaration containing a reference to the files to be used for…"
+          "description": "Specifies the identifier of an asset declaration containing a reference to the files to be used for the background task configuration."
         },
         {
           "key": "LaunchdConfigurations",
           "type": "array",
-          "description": "An array of launchd configuration files used to run the background tasks. The device stores the…",
+          "description": "An array of launchd configuration files used to run the background tasks.",
           "subkeys": [
             {
               "key": "launchd-item",
@@ -5094,7 +5094,7 @@
                   "type": "string",
                   "required": true,
                   "gloss": "The referenced data must be a property list file conforming to the launchd.plist format.",
-                  "description": "Specifies the identifier of an asset declaration containing a reference to the launchd…"
+                  "description": "Specifies the identifier of an asset declaration containing a reference to the launchd configuration file for the background task."
                 },
                 {
                   "key": "Context",
@@ -5104,7 +5104,7 @@
                     "daemon",
                     "agent"
                   ],
-                  "description": "Indicates whether the device applies the launchd configuration file to the system daemon or system…"
+                  "description": "Indicates whether the device applies the launchd configuration file to the system daemon or system agent domain."
                 }
               ]
             }
@@ -5125,13 +5125,13 @@
           "key": "ServiceType",
           "type": "string",
           "required": true,
-          "description": "The identifier of the system service with managed configuration files. Use a reverse DNS style for…"
+          "description": "The identifier of the system service with managed configuration files. Use a reverse DNS style for this identifier."
         },
         {
           "key": "DataAssetReference",
           "type": "string",
           "required": true,
-          "description": "The identifier of an asset declaration that contains a reference to the files to use for system…"
+          "description": "The identifier of an asset declaration that contains a reference to the files to use for system service configuration."
         }
       ]
     },
@@ -5203,24 +5203,24 @@
           "type": "string",
           "required": true,
           "gloss": "This is the OS version number, for example, 16.1.",
-          "description": "The target OS version to update the device to by the appropriate time. This is the OS version…"
+          "description": "The target OS version to update the device to by the appropriate time. This is the OS version number, for example, 16.1."
         },
         {
           "key": "TargetBuildVersion",
           "type": "string",
           "gloss": "The target build version to update the device to by the appropriate time, for example, 20A242. The build version can include a supplemental version identifier, for example, 20A242a.",
-          "description": "The target build version to update the device to by the appropriate time, for example, 20A242. Use…"
+          "description": "The target build version to update the device to by the appropriate time, for example, 20A242."
         },
         {
           "key": "TargetLocalDateTime",
           "type": "string",
           "required": true,
-          "description": "The local date time value that specifies when to force install the software update. Use the format…"
+          "description": "The local date time value that specifies when to force install the software update."
         },
         {
           "key": "DetailsURL",
           "type": "string",
-          "description": "The URL of a web page that shows details that the organization provides about the enforced software…"
+          "description": "The URL of a web page that shows details that the organization provides about the enforced software update."
         }
       ]
     },
@@ -5240,40 +5240,40 @@
           "key": "Notifications",
           "type": "boolean",
           "default": true,
-          "description": "If set to true, the device shows all software update enforcement notifications. If set to false,…"
+          "description": "If set to true, the device shows all software update enforcement notifications."
         },
         {
           "key": "Deferrals",
           "type": "dictionary",
-          "description": "This object configures the deferral of software updates. Background Security Improvements aren't…",
+          "description": "This object configures the deferral of software updates.",
           "subkeys": [
             {
               "key": "CombinedPeriodInDays",
               "type": "integer",
               "min": 1,
               "max": 90,
-              "description": "Specifies the number of days to defer a major or minor OS software update on the device. When set,…"
+              "description": "Specifies the number of days to defer a major or minor OS software update on the device."
             },
             {
               "key": "MajorPeriodInDays",
               "type": "integer",
               "min": 1,
               "max": 90,
-              "description": "Specifies the number of days to defer a major OS software update on the device. When set, software…"
+              "description": "Specifies the number of days to defer a major OS software update on the device."
             },
             {
               "key": "MinorPeriodInDays",
               "type": "integer",
               "min": 1,
               "max": 90,
-              "description": "Specifies the number of days to defer a minor OS software update on the device. It also defers…"
+              "description": "Specifies the number of days to defer a minor OS software update on the device. It also defers major updates for iOS."
             },
             {
               "key": "SystemPeriodInDays",
               "type": "integer",
               "min": 1,
               "max": 90,
-              "description": "Specifies the number of days to defer system or non-OS updates. When set, updates only appear after…"
+              "description": "Specifies the number of days to defer system or non-OS updates."
             }
           ]
         },
@@ -5285,7 +5285,7 @@
             "Oldest",
             "Newest"
           ],
-          "description": "This string specifies how the device shows software updates to the user. When more than one update…"
+          "description": "This string specifies how the device shows software updates to the user."
         },
         {
           "key": "AutomaticActions",
@@ -5301,7 +5301,7 @@
                 "AlwaysOff"
               ],
               "default": "Allowed",
-              "description": "Specifies whether the user can control automatic downloads of available updates: - Allowed - the…"
+              "description": "Specifies whether the user can control automatic downloads of available updates: - Allowed - the user can enable or disable automatic downloads."
             },
             {
               "key": "InstallOSUpdates",
@@ -5312,7 +5312,7 @@
                 "AlwaysOff"
               ],
               "default": "Allowed",
-              "description": "Specifies whether the user can control automatic installation of available updates: - Allowed - the…"
+              "description": "Specifies whether the user can control automatic installation of available updates: - Allowed - the user can enable or disable automatic installation."
             },
             {
               "key": "InstallSecurityUpdate",
@@ -5323,7 +5323,7 @@
                 "AlwaysOff"
               ],
               "default": "Allowed",
-              "description": "Specifies whether the user can control automatic installation of available security updates: -…"
+              "description": "Specifies whether the user can control automatic installation of available security updates: - Allowed - the user can enable or disable automatic…"
             }
           ]
         },
@@ -5336,13 +5336,13 @@
               "key": "Enable",
               "type": "boolean",
               "default": true,
-              "description": "If set to false, Background Security Improvements aren't offered for user installation. The system…"
+              "description": "If set to false, Background Security Improvements aren't offered for user installation."
             },
             {
               "key": "EnableRollback",
               "type": "boolean",
               "default": true,
-              "description": "If set to false, the system doesn't offer Background Security Improvement rollbacks to the user. If…"
+              "description": "If set to false, the system doesn't offer Background Security Improvement rollbacks to the user."
             }
           ]
         },
@@ -5350,7 +5350,7 @@
           "key": "AllowStandardUserOSUpdates",
           "type": "boolean",
           "default": true,
-          "description": "If set to true, a standard user can perform Major and Minor Software Updates. If set to false, only…"
+          "description": "If set to true, a standard user can perform Major and Minor Software Updates."
         },
         {
           "key": "Beta",
@@ -5366,12 +5366,12 @@
                 "AlwaysOff"
               ],
               "default": "Allowed",
-              "description": "Specifies whether the user can control beta program enrollment in the software update settings UI:…"
+              "description": "Specifies whether the user can control beta program enrollment in the software update settings UI: - Allowed - the user can enroll in any applicable…"
             },
             {
               "key": "OfferPrograms",
               "type": "array",
-              "description": "An array of beta programs allowed on the device. This key must only be present if the…",
+              "description": "An array of beta programs allowed on the device. This key must only be present if the ProgramEnrollment key is set to Allowed or AlwaysOn. This key must not be present if the RequireProgram key is present.",
               "subkeys": [
                 {
                   "key": "Program",
@@ -5389,7 +5389,7 @@
                       "key": "Token",
                       "type": "string",
                       "required": true,
-                      "description": "The Apple School Manager or Apple Business seeding service token for the organization the MDM…"
+                      "description": "The Apple School Manager or Apple Business seeding service token for the organization the MDM server is part of."
                     }
                   ]
                 }
@@ -5398,7 +5398,7 @@
             {
               "key": "RequireProgram",
               "type": "dictionary",
-              "description": "The device automatically enrolls in this beta program. This key must only be present if the…",
+              "description": "The device automatically enrolls in this beta program. This key must only be present if the ProgramEnrollment key is set to AlwaysOn. The OfferPrograms key must not be present if this key is present.",
               "subkeys": [
                 {
                   "key": "Description",
@@ -5410,7 +5410,7 @@
                   "key": "Token",
                   "type": "string",
                   "required": true,
-                  "description": "The Apple School Manager or Apple Business seeding service token for the organization the MDM…"
+                  "description": "The Apple School Manager or Apple Business seeding service token for the organization the MDM server is part of."
                 }
               ]
             }
@@ -5431,12 +5431,12 @@
           "key": "EnrollmentProfileURL",
           "type": "string",
           "required": true,
-          "description": "The URL of the profile that the Apple Watch downloads and installs if the user opts in to…"
+          "description": "The URL of the profile that the Apple Watch downloads and installs if the user opts in to management during the pairing process, which needs to start…"
         },
         {
           "key": "AnchorCertificateAssetReferences",
           "type": "array",
-          "description": "An array of identifiers of asset declarations that contain anchor certificates to use to evaluate…",
+          "description": "An array of identifiers of asset declarations that contain anchor certificates to use to evaluate the trust of the enrollment profile server.",
           "subkeys": [
             {
               "key": "AnchorCertificateAssetReferenceItem",
@@ -5468,13 +5468,13 @@
           "key": "PluginBundleID",
           "type": "string",
           "required": true,
-          "description": "The bundle ID of the plug-in that provides filtering service. Consult your filtering solution…"
+          "description": "The bundle ID of the plug-in that provides filtering service. Consult your filtering solution vendor to determine what to specify for this value."
         },
         {
           "key": "ContentFilterUUID",
           "type": "string",
           "gloss": "This key must be present for unsupervised devices and user enrollment.",
-          "description": "A globally unique identifier for this content filter configuration. The content filter processes…"
+          "description": "A globally unique identifier for this content filter configuration."
         },
         {
           "key": "ServerAddress",
@@ -5507,12 +5507,12 @@
             {
               "key": "CredentialsAssetReference",
               "type": "string",
-              "description": "The identifier of an asset declaration that contains the credentials (user name and password) to…"
+              "description": "The identifier of an asset declaration that contains the credentials (user name and password) to authenticate with the service."
             },
             {
               "key": "IdentityAssetReference",
               "type": "string",
-              "description": "The identifier of a credential asset declaration that contains the identity that this account…"
+              "description": "The identifier of a credential asset declaration that contains the identity that this account requires to authenticate with the service."
             }
           ]
         },
@@ -5529,7 +5529,7 @@
                 "inspector"
               ],
               "default": "firewall",
-              "description": "The system uses this value to derive the relative order of content filters. Filters with a grade of…"
+              "description": "The system uses this value to derive the relative order of content filters."
             },
             {
               "key": "Browsers",
@@ -5559,7 +5559,7 @@
                   "key": "ProviderComposedIdentifier",
                   "type": "string",
                   "gloss": "In iOS and visionOS, the identifier is a bundle ID, for example, \"com.example.app\". For example, \"com.example.app {anchor apple generic}\".",
-                  "description": "The data provider identifier. This string identifies the filter data provider when the filter…"
+                  "description": "The data provider identifier. This string identifies the filter data provider when the filter starts running. Required when Enabled is true."
                 }
               ]
             },
@@ -5578,7 +5578,7 @@
                   "key": "ProviderComposedIdentifier",
                   "type": "string",
                   "gloss": "For example, \"com.example.app {anchor apple generic}\".",
-                  "description": "The packet provider identifier. This string identifies the filter data provider when the filter…"
+                  "description": "The packet provider identifier. This string identifies the filter data provider when the filter starts running. Required when Enabled is true."
                 }
               ]
             },
@@ -5603,7 +5603,7 @@
                       "type": "string",
                       "required": true,
                       "gloss": "In iOS, the identifier is a bundle ID, for example, \"com.example.app\". For example, \"com.example.app {anchor apple generic}\".",
-                      "description": "The URL filter control provider identifier. This string identifies the filter data provider when…"
+                      "description": "The URL filter control provider identifier. This string identifies the filter data provider when the filter starts running."
                     },
                     {
                       "key": "PIR",
@@ -5616,14 +5616,14 @@
                       "type": "boolean",
                       "default": false,
                       "gloss": "If true, the system blocks URLs if the filter is enabled, but it fails to make any filtering decision; for example, if there's a communication…",
-                      "description": "If true, the system blocks URLs if the filter is enabled, but it fails to make any filtering…"
+                      "description": "If true, the system blocks URLs if the filter is enabled, but it fails to make any filtering decision; for example, if there's a communication…"
                     },
                     {
                       "key": "PrefilterFetchFrequency",
                       "type": "integer",
                       "min": 2700,
                       "default": 86400,
-                      "description": "The time interval in seconds that the system uses to periodically run the…"
+                      "description": "The time interval in seconds that the system uses to periodically run the NEURLFilterControlProvider app extension."
                     }
                   ]
                 }

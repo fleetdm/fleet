@@ -31,7 +31,6 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	}
 
 	var hostID *uint
-
 	if auth.AuthnMethod() == authz.AuthnHTTPMessageSignature {
 		// Device-auth path
 		svc.authz.SkipAuthorization(ctx)
@@ -50,44 +49,62 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		return nil, err
 	}
 
-	ca, err := svc.ds.GetCertificateAuthorityByID(ctx, p.ID, true)
-	if err != nil {
-		return nil, err
-	}
-	if ca.Type != string(fleet.CATypeHydrant) && ca.Type != string(fleet.CATypeCustomESTProxy) {
-		return nil, &fleet.BadRequestError{Message: "This API currently only supports Hydrant and EST Certificate Authorities."}
-	}
-	if ca.Type == string(fleet.CATypeHydrant) {
-		if ca.ClientID == nil {
-			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a username configured."}
-		}
-		if ca.ClientSecret == nil {
-			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a client secret configured."}
-		}
-	}
-	if ca.Type == string(fleet.CATypeCustomESTProxy) {
-		if ca.Username == nil {
-			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a username configured."}
-		}
-		if ca.Password == nil {
-			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a password configured."}
-		}
-	}
-
 	certificateRequest, err := svc.parseCSR(ctx, p.CSR)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "Failed to parse CSR during certificate request", "err", err)
 		return nil, InvalidCSRError{}
 	}
 
+	ca, err := svc.ds.GetCertificateAuthorityByID(ctx, p.ID, true)
+	if err != nil {
+		return nil, err
+	}
+
+	issueCert, err := svc.newCertificateIssuer(ca)
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: err.Error(), InternalErr: err}
+	}
+
+	if err := svc.verifyRequesterIdentity(ctx, p, hostID, certificateRequest); err != nil {
+		return nil, err
+	}
+
+	envelope, err := issueCert(ctx, certificateRequest)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "Certificate request to the certificate authority failed", "ca_id", ca.ID, "ca_type", ca.Type, "err", err)
+		// A CA that could not serve the request gets a 503 with Retry-After, so curl --retry and
+		// similar clients wait and retry instead of failing the install.
+		if _, ok := errors.AsType[fleet.CertificateAuthorityTransientError](err); ok {
+			return nil, err
+		}
+		return nil, &fleet.BadRequestError{Message: err.Error(), InternalErr: err}
+	}
+
+	if !p.ReturnPEMCertificate {
+		// Wrap the certificate in a PEM block for easier consumption by the client.
+		return new("-----BEGIN PKCS7-----\n" + string(envelope) + "\n-----END PKCS7-----\n"), nil
+	}
+
+	pemCert, err := pkcs7EnvelopeToPEM(envelope)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "Failed to convert PKCS7 envelope to PEM certificate", "ca_id", ca.ID, "err", err)
+		return nil, ctxerr.Wrap(ctx, err, "converting PKCS7 envelope to PEM certificate")
+	}
+	return &pemCert, nil
+}
+
+// verifyRequesterIdentity applies the identity safeguards to the CSR: the IdP introspection
+// allowlist, the calling host's end-user binding, and IdP token introspection. hostID is the
+// calling host for device-signed requests and nil otherwise.
+func (svc *Service) verifyRequesterIdentity(ctx context.Context, p fleet.RequestCertificatePayload, hostID *uint, certificateRequest *x509.CertificateRequest) error {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading app config for certificate request")
+		return ctxerr.Wrap(ctx, err, "loading app config for certificate request")
 	}
 
 	idpProvided, err := p.IdPCredentialsProvided()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// server.allow_request_certificate_any_idp skips both identity safeguards: any endpoint may
@@ -95,7 +112,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	var bindHostID *uint
 	if !svc.config.Server.AllowRequestCertificateAnyIdP {
 		if err := appConfig.Integrations.CheckCertIdPIntrospection(p.IDPOauthURL, p.IDPClientID); err != nil {
-			return nil, err
+			return err
 		}
 		if !appConfig.Integrations.CertificatesDisableHostEndUserBinding.Value {
 			bindHostID = hostID
@@ -110,7 +127,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		csrEmail, csrUsername, err = svc.extractCSRUserInfo(ctx, certificateRequest)
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "CSR did not have expected format for identity verification", "err", err)
-			return nil, InvalidCSRError{}
+			return InvalidCSRError{}
 		}
 	}
 
@@ -119,7 +136,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	if bindHostID != nil {
 		if err := svc.verifyHostEndUserBinding(ctx, *bindHostID, csrEmail, csrUsername); err != nil {
 			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to host end user binding", "host_id", *bindHostID, "err", err)
-			return nil, err
+			return err
 		}
 	}
 
@@ -128,76 +145,101 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		introspectionResponse, err := svc.introspectIDPToken(ctx, *p.IDPClientID, *p.IDPToken, *p.IDPOauthURL)
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "Failed to introspect IDP token during certificate request", "idp_url", *p.IDPOauthURL, "err", err)
-			return nil, InvalidIDPTokenError{}
+			return InvalidIDPTokenError{}
 		}
 		if !introspectionResponse.Active {
 			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to inactive IDP token", "idp_url", *p.IDPOauthURL)
-			return nil, InvalidIDPTokenError{}
+			return InvalidIDPTokenError{}
 		}
 		// This field is technically optional in the spec though its omittance may indicate an incompatible IDP or setup
 		if introspectionResponse.Username == nil || len(*introspectionResponse.Username) == 0 {
 			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to missing username in IDP token introspection response")
-			return nil, InvalidIDPTokenError{}
+			return InvalidIDPTokenError{}
 		}
 
 		idpUsername = *introspectionResponse.Username
 
 		if !upnMatchesEmail(csrEmail, csrUsername) {
 			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to mismatch between CSR email and UPN", "csr_email", csrEmail, "csr_upn", csrUsername)
-			return nil, InvalidCSRError{}
+			return InvalidCSRError{}
 		}
 		if csrEmail != *introspectionResponse.Username {
 			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to mismatch between CSR email and IDP token username", "csr_email", csrEmail, "idp_username", *introspectionResponse.Username)
 			// The email in the CSR must match the username from the IDP token introspection
-			return nil, InvalidIDPTokenError{}
+			return InvalidIDPTokenError{}
 		}
 	}
 
-	csrForRequest := strings.ReplaceAll(p.CSR, "-----BEGIN CERTIFICATE REQUEST-----", "")
-	csrForRequest = strings.ReplaceAll(csrForRequest, "-----END CERTIFICATE REQUEST-----", "")
-	csrForRequest = strings.ReplaceAll(csrForRequest, "\\n", "")
+	svc.logger.InfoContext(ctx, "Retrieving certificate", "ca_id", p.ID, "idp_username", idpUsername)
+	return nil
+}
 
-	var estCA fleet.ESTProxyCA
-	if ca.Type == string(fleet.CATypeHydrant) {
-		estCA = fleet.ESTProxyCA{
-			Name:     *ca.Name,
-			URL:      *ca.URL,
-			Username: *ca.ClientID,
-			Password: *ca.ClientSecret,
-		}
-	} else {
-		estCA = fleet.ESTProxyCA{
-			Name:     *ca.Name,
-			URL:      *ca.URL,
-			Username: *ca.Username,
-			Password: *ca.Password,
-		}
-	}
+// certificateIssuer issues a certificate for a caller-supplied CSR from one certificate authority.
+// It returns the certificate as a base64-encoded PKCS7 envelope.
+type certificateIssuer func(ctx context.Context, csr *x509.CertificateRequest) ([]byte, error)
 
-	certificate, err := svc.estService.GetCertificate(ctx, estCA, csrForRequest) //nolint (staticheck bug)
-	if err != nil {
-		svc.logger.ErrorContext(ctx, "EST certificate request failed", "ca_id", ca.ID, "err", err)
-		// Bad request may seem like a strange error here but there are many cases where a malformed
-		// CSR can cause this error and Hydrant's API often returns a 5XX error even in these cases
-		// so it is not always possible to distinguish between an error caused by a bad request or
-		// an internal CA error.
-		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("EST certificate request failed: %s", err.Error())}
-	}
-	svc.logger.InfoContext(ctx, "Successfully retrieved a certificate from EST", "ca_id", ca.ID, "idp_username", idpUsername)
-
-	if p.ReturnPEMCertificate {
-		pemCert, err := pkcs7EnvelopeToPEM(certificate.Certificate)
+func (svc *Service) newCertificateIssuer(ca *fleet.CertificateAuthority) (certificateIssuer, error) {
+	switch fleet.CAType(ca.Type) {
+	case fleet.CATypeHydrant, fleet.CATypeCustomESTProxy:
+		estCA, err := ca.ESTProxyCA()
 		if err != nil {
-			svc.logger.ErrorContext(ctx, "Failed to convert PKCS7 envelope to PEM certificate", "ca_id", ca.ID, "err", err)
-			return nil, ctxerr.Wrap(ctx, err, "converting PKCS7 envelope to PEM certificate")
+			return nil, err
 		}
-		return &pemCert, nil
+		return func(ctx context.Context, csr *x509.CertificateRequest) ([]byte, error) {
+			return issueESTCertificate(ctx, svc.estService, estCA, csr)
+		}, nil
+	case fleet.CATypeNDESSCEPProxy:
+		if ca.URL == nil {
+			return nil, errors.New("Certificate authority does not have a SCEP URL configured.")
+		}
+		scepURL := *ca.URL
+		return func(ctx context.Context, csr *x509.CertificateRequest) ([]byte, error) {
+			return issueSCEPCertificate(ctx, svc.scepEnrollmentClient, scepURL, csr)
+		}, nil
+	default:
+		return nil, errors.New("This API currently only supports Hydrant, EST, and NDES Certificate Authorities.")
 	}
+}
 
-	// Wrap the certificate in a PEM block for easier consumption by the client. TODO: If we ever
-	// support CAs other than Hydrant/EST in this API, this may need to be modified to be aware of
-	// their formats.
-	return new("-----BEGIN PKCS7-----\n" + string(certificate.Certificate) + "\n-----END PKCS7-----\n"), nil
+// issueESTCertificate serves Hydrant and custom EST CAs.
+// The CSR is sent re-encoded from the DER that was parsed and checked, so
+// nothing else in the request payload reaches the CA. It is wrapped because EST bodies use MIME
+// base64 (RFC 7030 via RFC 2045), which limits lines to 76 characters.
+func issueESTCertificate(ctx context.Context, estService fleet.ESTService, ca fleet.ESTProxyCA, csr *x509.CertificateRequest) ([]byte, error) {
+	certificate, err := estService.GetCertificate(ctx, ca, string(wrapBase64(csr.Raw))) //nolint (staticheck bug)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "EST certificate request failed")
+	}
+	return certificate.Certificate, nil
+}
+
+// issueSCEPCertificate serves SCEP CAs. Any challenge the CA requires must already be in the
+// caller-signed CSR, since Fleet cannot add one without the CSR's private key.
+func issueSCEPCertificate(ctx context.Context, client fleet.SCEPEnrollmentClient, scepURL string, csr *x509.CertificateRequest) ([]byte, error) {
+	cert, err := client.GetCertificate(ctx, scepURL, csr)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "SCEP certificate request failed")
+	}
+	envelope, err := pkcs7.DegenerateCertificate(cert.Raw)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "encoding issued certificate as PKCS7")
+	}
+	return wrapBase64(envelope), nil
+}
+
+// wrapBase64 base64-encodes data in 64-character lines, which PEM (RFC 7468) requires and MIME
+// base64 (RFC 2045) allows. encoding/pem wraps only when writing a whole block with its armor.
+func wrapBase64(data []byte) []byte {
+	const lineLength = 64
+	encoded := base64.StdEncoding.EncodeToString(data)
+	var b strings.Builder
+	for len(encoded) > lineLength {
+		b.WriteString(encoded[:lineLength])
+		b.WriteByte('\n')
+		encoded = encoded[lineLength:]
+	}
+	b.WriteString(encoded)
+	return []byte(b.String())
 }
 
 // verifyHostEndUserBinding requires the CSR to name the identity the calling host is recorded as

@@ -1,7 +1,11 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
+import { createMockTeamSummary } from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
+import osqueryOptionsAPI from "services/entities/osquery_options";
+import { createGetConfigHandler } from "test/handlers/config-handlers";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
@@ -9,10 +13,6 @@ import {
   createMockRouter,
   createMockLocation,
 } from "test/test-utils";
-import { createGetConfigHandler } from "test/handlers/config-handlers";
-import createMockUser from "__mocks__/userMock";
-import { createMockTeamSummary } from "__mocks__/teamMock";
-import osqueryOptionsAPI from "services/entities/osquery_options";
 import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
 
 import AgentOptionsPage from "./AgentOptionsPage";

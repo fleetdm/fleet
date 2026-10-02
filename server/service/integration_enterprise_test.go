@@ -29203,7 +29203,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEnabled: new(false),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Do an update without auto-update fields to check that it still includes the auto-update values.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -36676,8 +36676,8 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariables() {
 		require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg)
 
 		// CA variables are profile-delivery machinery and are rejected in scripts
-		res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo $FLEET_VAR_NDES_SCEP_CHALLENGE"}, http.StatusUnprocessableEntity)
-		require.Contains(t, extractServerErrorText(res.Body), "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in scripts.")
+		res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo $FLEET_VAR_NDES_SCEP_PROXY_URL"}, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), "Fleet variable $FLEET_VAR_NDES_SCEP_PROXY_URL is not supported in scripts.")
 
 		var runResp fleet.RunScriptResponse
 		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: supportedVarContents}, http.StatusAccepted, &runResp)

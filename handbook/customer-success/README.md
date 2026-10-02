@@ -162,7 +162,7 @@ Health checks are conducted quarterly or bi-annually, in preparation for a quart
 
 Business reviews are conducted quarterly or bi-annually to ensure initial success criteria completion, ongoing adoption, alignment on goals, and delivery of value as a vendor. Use the meeting to assess customer priorities for the coming year, review performance metrics, address any challenges and showcase value in upcoming and unutilized features.
 1. Work with your champion to schedule the business review at a time their stakeholders are available (typically 90 days after kickoff and again, 90 days before renewal).
-2. Collect usage metrics from the [usage data report](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit?gid=0#gid=0) (internal Fleet document) and the following:
+2. Collect usage metrics from the [usage statistics Google sheet](https://docs.google.com/spreadsheets/d/1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI/edit) (internal Fleet document) and the following:
     - Optionally schedule a health check with day to day admins prior to the QBR to better understand how the product is being used and which features have been adopted.
     - Have a support engineer collect data on open and closed bugs from the previous quarter and highlight any P0 or P1 incidents along with a summary of the postmortem (search Unthread and GitHub for issues tagged with the customer codename and ':bug').
     - Summarize status updates for open feature requests and highlight delivered feature requests.
@@ -640,11 +640,9 @@ This will automatically be added to the `:help-customers` project board, with th
 
 ### Update premium usage stats
 
-Every month, the VP of Customer Success creates a new tab in the [usage stats Google Sheet](https://docs.google.com/spreadsheets/d/1ZcWXIShQyhHNXdaJ927_ykHcPk6DuZQewfk4egbM0bw/edit?gid=889119618#gid=889119618).
+The [usage statistics Google sheet](https://docs.google.com/spreadsheets/d/1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI/edit) (internal Fleet document) updates automatically every day with the latest usage statistics from each Fleet Premium deployment. There's no manual export. Use the **Customer view** tab to see a single deployment, or the **Dashboard** tab for totals across all customers.
 
-The Google sheet exists for historical purposes (e.g. how many hosts has a customer had enrolled on average over the course of 1 quarter) and to track customers with multiple Fleet environments.
-
-A Grafana dashboard is [coming soon](https://github.com/fleetdm/confidential/issues/15810).
+The sheet only shows each deployment's current state, not history. Deployments that haven't reported in the last 60 days drop off the sheet.
 
 ## Rituals
 

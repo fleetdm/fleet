@@ -38,6 +38,15 @@ const WelcomeHost = ({
     false
   );
 
+  /**
+   * Hides refetch spinner and resets refetch timer,
+   * ensuring no stale timeout triggers on new requests.
+   */
+  const resetHostRefetchStates = () => {
+    setShowRefetchLoadingSpinner(false);
+    setRefetchStartTime(null);
+  };
+
   const {
     isLoading: isLoadingHost,
     data: host,
@@ -66,7 +75,7 @@ const WelcomeHost = ({
                 fullyReloadHost();
               }, 1000);
             } else {
-              setShowRefetchLoadingSpinner(false);
+              resetHostRefetchStates();
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
@@ -79,13 +88,13 @@ const WelcomeHost = ({
                 notify.error(
                   `This host is offline. Please try refetching host vitals later.`
                 );
-                setShowRefetchLoadingSpinner(false);
+                resetHostRefetchStates();
               }
             } else {
               notify.error(
                 `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
               );
-              setShowRefetchLoadingSpinner(false);
+              resetHostRefetchStates();
             }
           }
         }
@@ -110,7 +119,7 @@ const WelcomeHost = ({
         notify.error(`Host "${host.display_name}" refetch error`, {
           response: error,
         });
-        setShowRefetchLoadingSpinner(false);
+        resetHostRefetchStates();
       }
     }
   };
