@@ -446,12 +446,14 @@ Toast does NOT notify people about:
 
 Fleet prefixes all GitHub labels with special characters or words to organize and categorize GitHub issues.
 
-| Prefix            | Label type  | Examples                            |
-|:------------------|:------------|:------------------------------------|
-| `:`               | Verb        | `:dev`, `:research`, `:design`
-| `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
-| `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `customer-leo`, `customer-sagittarius`
-| `#g-`             | Group issue | _An issue requesting something from a group at Fleet, such that it will be seen and processed on their kanban board within 1 business day._
+| Prefix            | Label type  | Color       | Examples                            |
+|:------------------|:------------|:------------|:------------------------------------|
+| `:`               | Verb        | -           | `:dev`, `:research`, `:design`
+| `~`               | Adjective   | -           | `~blocked`, `~frontend`, `~backend`
+| `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `#bfd4f2` | `customer-leo`, `customer-sagittarius`
+| `prospect-`       | [Prospect request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `#e8e8e8` | `prospect-takakura`, `prospect-nishiyama`
+| `partner-`        | Partner request | `#fef2c0` | `partner-atira`, `partner-pommard`
+| `#g-`             | Group issue | `#0052cc`   | _An issue requesting something from a group at Fleet, such that it will be seen and processed on their kanban board within 1 business day._
 
 Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
