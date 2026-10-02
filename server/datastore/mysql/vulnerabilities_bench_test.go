@@ -317,7 +317,7 @@ func BenchmarkListVulnerabilities(b *testing.B) {
 			},
 		},
 		{
-			name: "created_at_page0_legacy",
+			name: "created_at_page0",
 			opt: fleet.VulnListOptions{
 				IsEE: true,
 				ListOptions: fleet.ListOptions{

@@ -585,10 +585,10 @@ describe("getUiStatus", () => {
 });
 
 describe("getSoftwareSubheader", () => {
-  test("iOS device, MDM status 'On (manual - personal)', my device page", () => {
+  test("iOS device, MDM status 'On (personal)', my device page", () => {
     const result = getSoftwareSubheader({
       platform: "ios",
-      hostMdmEnrollmentStatus: "On (manual - personal)",
+      hostMdmEnrollmentStatus: "On (personal)",
       isMyDevicePage: true,
     });
     expect(result).toBe(
@@ -596,14 +596,25 @@ describe("getSoftwareSubheader", () => {
     );
   });
 
-  test("iOS device, MDM status 'On (manual - personal)', NOT my device page", () => {
+  test("iOS device, MDM status 'On (personal)', NOT my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (personal)",
+      isMyDevicePage: false,
+    });
+    expect(result).toBe(
+      "Software installed on work profile (Managed Apple Account)."
+    );
+  });
+
+  test("iOS device, MDM status 'On (manual - personal)'", () => {
     const result = getSoftwareSubheader({
       platform: "ios",
       hostMdmEnrollmentStatus: "On (manual - personal)",
       isMyDevicePage: false,
     });
     expect(result).toBe(
-      "Software installed on work profile (Managed Apple Account)."
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
     );
   });
 

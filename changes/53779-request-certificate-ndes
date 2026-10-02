@@ -1,0 +1,2 @@
+- Added support for NDES certificate authority type in the "Request certificate" API.
+- Added support for `$FLEET_VAR_NDES_SCEP_CHALLENGE` in scripts, so a script can request a certificate from an Okta or Microsoft NDES certificate authority through the request certificate API.

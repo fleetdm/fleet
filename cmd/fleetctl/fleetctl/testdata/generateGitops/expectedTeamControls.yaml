@@ -1,4 +1,3 @@
-android_enabled_and_configured: true
 android_settings:
   certificates:
   - certificate_authority_name: DIGIDOO
@@ -31,7 +30,6 @@ macos_updates:
 name_template: iPad $FLEET_VAR_HOST_HARDWARE_SERIAL
 scripts:
 - path: ../lib/some_team/scripts/Script B.ps1
-windows_enabled_and_configured: true
 windows_settings:
   enable_disk_encryption: true
   require_bitlocker_pin: false

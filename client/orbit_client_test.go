@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 	"time"
@@ -72,6 +74,24 @@ func clientWithConfig(cfg *fleet.OrbitConfig) *OrbitClient {
 	oc.configCache.config = cfg
 	oc.configCache.lastUpdated = time.Now().Add(1 * time.Hour)
 	return oc
+}
+
+func TestOrbitClientResponseHeaderTimeout(t *testing.T) {
+	orig := responseHeaderTimeout
+	responseHeaderTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { responseHeaderTimeout = orig })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(300 * time.Millisecond)
+		_, _ = w.Write([]byte("installer"))
+	}))
+	t.Cleanup(srv.Close)
+
+	oc, err := NewOrbitClient(t.TempDir(), srv.URL, "", true, "secret", nil,
+		fleet.OrbitHostInfo{HardwareUUID: "uuid", Hostname: "host"}, nil, nil, "", false)
+	require.NoError(t, err)
+	_, err = oc.DownloadSoftwareInstallerFromURL(srv.URL+"/app.pkg", "app.pkg", t.TempDir(), nil)
+	require.ErrorContains(t, err, "timeout awaiting response headers")
 }
 
 func TestConfigReceiverCalls(t *testing.T) {

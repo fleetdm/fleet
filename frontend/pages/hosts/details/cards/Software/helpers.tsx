@@ -2,7 +2,11 @@ import { flatMap } from "lodash";
 import { Row } from "react-table";
 
 import { IconNames } from "components/icons";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+import {
+  isBYODAccountDrivenUserEnrollment,
+  isBYODManualEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
 import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
 import {
   IHostSoftware,
@@ -184,7 +188,7 @@ export const compareVersions = (v1: string, v2: string): number => {
 
 // INSTALLER UTILITIES
 
-const getInstallerVersion = (software: IHostSoftware) => {
+export const getInstallerVersion = (software: IHostSoftware) => {
   if (software.software_package && software.software_package.version) {
     return software.software_package.version;
   }
@@ -459,7 +463,7 @@ const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
   "failed_install", // Failed
   "failed_script", // Failed to run (for script packages)
   "failed_uninstall", // Failed uninstall
-  "failed_install_update_available", // (Shows "Update available") Failed install with update available
+  "failed_install_update_available", // (Shows "Failed") Failed install with update available
   "failed_uninstall_update_available", // (Shows "Update available")  Failed uninstall with update available
   "skipped_install", // Patch skipped (deferred update)
   "update_available", // // Update available
@@ -521,12 +525,15 @@ export const getSoftwareSubheader = ({
   isMyDevicePage,
 }: IGetSoftwareSubheader): string => {
   if (isIPadOrIPhone(platform)) {
-    if (hostMdmEnrollmentStatus === "On (manual - personal)") {
+    if (isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus)) {
       return isMyDevicePage
         ? "Software installed on your work profile (Managed Apple Account)."
         : "Software installed on work profile (Managed Apple Account).";
     }
-    if (hostMdmEnrollmentStatus === "On (manual)") {
+    if (
+      hostMdmEnrollmentStatus === "On (manual)" ||
+      isBYODManualEnrollment(hostMdmEnrollmentStatus)
+    ) {
       return "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included.";
     }
   }
