@@ -36,3 +36,22 @@ func TestUp_20261002165514(t *testing.T) {
 	require.NoError(t, db.Get(&count, `SELECT COUNT(*) FROM software_install_upcoming_activities WHERE upcoming_activity_id = ?`, uaID))
 	require.Equal(t, 1, count)
 }
+
+func TestUp_20261002165514_PartiallyApplied(t *testing.T) {
+	db := applyUpToPrev(t)
+
+	// the first swap succeeded, the second didn't run
+	execNoErr(t, db, `ALTER TABLE software_install_upcoming_activities
+		DROP FOREIGN KEY fk_software_install_upcoming_activities_software_installer_id,
+		ADD CONSTRAINT fk_siua_software_installer_id_tmp FOREIGN KEY (software_installer_id)
+		REFERENCES software_installers (id) ON UPDATE CASCADE`)
+
+	applyNext(t, db)
+
+	var rules []string
+	require.NoError(t, db.Select(&rules, `
+		SELECT CONCAT(CONSTRAINT_NAME, ' ', DELETE_RULE) FROM information_schema.REFERENTIAL_CONSTRAINTS
+		WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'software_install_upcoming_activities'
+		AND REFERENCED_TABLE_NAME = 'software_installers'`))
+	require.Equal(t, []string{"fk_software_install_upcoming_activities_software_installer_id NO ACTION"}, rules)
+}
