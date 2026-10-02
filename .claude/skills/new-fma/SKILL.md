@@ -1,6 +1,6 @@
 ---
 name: new-fma
-description: Add a Fleet-maintained app (FMA) for macOS (Homebrew) and/or Windows (winget), or write/clean up an FMA's custom install or uninstall script. Use when asked to "add X as a macOS/Windows FMA", "add a Fleet-maintained app", to debug FMA validator failures, or to review comments in an FMA script. Emphasizes verifying installer metadata with real tools (msitools, plist) instead of guessing, proving where an installer actually lands when run as SYSTEM, and keeping shipped script comments admin-facing.
+description: Add a Fleet-maintained app (FMA) for macOS (Homebrew) and/or Windows (winget), or write/clean up an FMA's custom install or uninstall script. Use when asked to "add X as a macOS/Windows FMA", "add a Fleet-maintained app", to debug FMA validator failures, to check or fix an FMA's exists/patched/open queries or patch policy, or to review comments in an FMA script. Emphasizes verifying installer metadata with real tools (msitools, plist) instead of guessing, proving where an installer actually lands when run as SYSTEM, running the generated queries through real osquery, and keeping shipped script comments admin-facing.
 allowed-tools: Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch
 model: opus
 effort: high
@@ -152,7 +152,7 @@ Body comments follow the same rule — keep the one above a non-obvious registry
 go run cmd/maintained-apps/main.go --slug="<app>/<platform>" --debug
 ```
 - Output lands in `ee/maintained-apps/outputs/<slug>.json`; an entry is appended to `outputs/apps.json` with an **empty description** — fill it in (sentence case, "`<App>` is a(n)..."). The generator does NOT update `unique_identifier` on an existing apps.json entry — edit it manually if you change it.
-- Verify the generated SHA matches the manifest, and the exists/patched queries look right: `grep -E 'exists|patched|sha256' outputs/<slug>.json`.
+- Verify the generated SHA matches the manifest: `grep sha256 outputs/<slug>.json`. Then run the three generated queries through real osquery — see [Verifying the queries](#verifying-the-queries). Reading them is not verification.
 - `python3 -m json.tool ee/maintained-apps/outputs/apps.json >/dev/null` to confirm valid JSON.
 - **Icon**: check `frontend/pages/SoftwarePage/components/icons/index.ts` for a key matching the lowercased catalog `name`. If missing, generate via [tools/software/icons](../../../tools/software/icons) before merge. Icons key off the lowercased `name`, so platforms sharing a `name` share an icon. After generating, confirm the new `SOFTWARE_NAME_TO_ICON_MAP` key really is the lowercased `name` — when `name` and slug differ it is easy to end up keyed off the slug, and the lookup then misses. If an icon component for that name already exists, revert any regenerated `.tsx`/`.png` and reuse it.
 - The validator is a Windows/macOS host (often **ephemeral** — you can't query it after the run). To cross-compile the Windows validator after editing it: `GOOS=windows go build ./cmd/maintained-apps/validate/`.
@@ -225,7 +225,7 @@ Two details that avoid per-app data:
 
 **CI cannot catch SYSTEM-context bugs.** The Windows FMA validator's steps run as an interactive **`runneradmin`**, not SYSTEM. Per-user installers therefore land in an ordinary user profile, every path resolves, and the app passes — `signal/windows` passed its shard while broken in the field. If your change concerns scope, profile location or uninstall path resolution, a green CI run proves nothing.
 
-**A passing validator does not prove the shipped queries work.** `appExists` searches with its own fuzzy `LOWER(name) LIKE '%<name>%'`, so it finds an app whose real DisplayName the shipped exact `exists` query would never match. Read the validator log line — `Found app: 'Signal 8.18.0'` — and compare that string against the query you are shipping.
+**A passing validator does not prove the shipped queries work.** `appExists` searches with its own fuzzy `LOWER(name) LIKE '%<name>%'`, so it finds an app whose real DisplayName the shipped exact `exists` query would never match. Read the validator log line — `Found app: 'Signal 8.18.0'` — and compare that string against the query you are shipping. Then run the queries for real: [Verifying the queries](#verifying-the-queries).
 
 **`fuzzy_match_name` must be verified in both directions.** Inno/NSIS/Electron installers often register `"<Name> <version>"` (`Signal 8.24.1`, `Bdash 1.35.1`, `Notion Calendar 1.133.0`) — those need `fuzzy_match_name`. But plenty register a plain name (`Asana`, `Discord`, `Canva`, `Kiro (User)`) and must keep an exact match; setting `fuzzy_match_name` on those breaks them just as badly, because `name LIKE 'Asana %'` never matches `Asana`. Observe the DisplayName, then decide.
 
@@ -234,6 +234,64 @@ Two details that avoid per-app data:
 **Mind the test host's architecture.** An ARM64 VM (Parallels on Apple silicon) can only produce false *failures*, never false passes: the per-user/SYSTEM-profile behaviour and the `System32`→`SysWOW64` redirection are OS-level and identical on x64, but x64-only installers with a native-architecture `LaunchCondition` refuse to run at all. Inno says so plainly in `/LOG` — *"This program can only be installed on versions of Windows designed for the following processor architectures: x64"*. Do not read that as an app defect, and do not "fix" it; note that the app needs an x64 host. `kiro` and `antigravity-ide` are the same Inno 6.4.0.1 with identical switches, and only `kiro` runs on ARM64.
 
 **Get the installer's own diagnostics before guessing switches.** Inno takes `/LOG=<file>` and states its abort reason; a WiX Burn bundle takes `/log <file>` and reports blockers such as `Variable: RebootPending = 1` (which makes the inner MSI return 1603 and can survive a reboot on a dirty host). Four guessed switches taught nothing about `jetbrains-toolbox`; one log line explained `antigravity-ide` and `devtoys` completely.
+
+## Verifying the queries
+
+Every output carries three queries, and **CI runs none of them.** The validator installs the app and then looks for it with its *own* loose search (`bundle_identifier LIKE '%<id>%' OR name LIKE '%<name>%'` on macOS, `LOWER(name) LIKE '%<name>%'` on Windows), so a manifest whose shipped queries never match still validates green. The queries are what Fleet runs on hosts, so run them yourself.
+
+| Query | Fleet uses it for | Must return a row when | Must return no rows when |
+|-------|-------------------|------------------------|--------------------------|
+| `exists` | automatic-install policy; matching the app to inventory | the app is installed | it isn't |
+| `patched` | the patch policy | the host is up to date (or the app is absent) | an older build is installed |
+| `open` | the **Patch when closed** pre-install check | the app is closed (or absent) | the app is running |
+
+How to read them:
+- `patched` is `SELECT 1 WHERE NOT EXISTS (<exists body> AND version_compare(<column>, '<version>') < 0)`. It only inspects rows the exists body matches, so an identity bug that blanks `exists` makes `patched` pass forever (Fleet thinks nothing is outdated), and a version column that doesn't track the manifest version makes it fail forever or pass forever.
+- `open` on macOS joins `apps` to `processes` on the bundle's own executable path and needs no per-app data. On Windows it is `LOWER(name) = '<lowercased catalog name>.exe'` unless `windowsOpenQueryOverrides` in [pkg/patch_policy/patch_policy.go](../../../pkg/patch_policy/patch_policy.go) has an entry keyed by the catalog `name`. `NOT EXISTS` over a process name that never matches is always true: the app reads as permanently closed, the gate waves the install through over a running app, and nothing logs an error.
+
+### Run them through real osquery
+
+Any fleetd-enrolled Mac already has osquery, and it answers ad hoc queries without root:
+
+```bash
+OSQ=/opt/orbit/bin/osqueryd/macos-app/stable/osquery.app/Contents/MacOS/osqueryd
+# No fleetd on this Mac? brew fetch --cask osquery && pkgutil --expand-full "$(brew --cache --cask osquery)" osq
+# then OSQ=osq/Payload/opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd  (nothing installed, no sudo)
+M=ee/maintained-apps/outputs/<app>/darwin.json
+for q in exists patched open; do
+  printf '%-8s %s rows\n' "$q" "$("$OSQ" -S --json "$(jq -r ".versions[0].queries.$q" "$M")" | jq length)"
+done
+```
+
+On Windows, run `osqueryi.exe --json "<sql>"` (the osquery MSI puts it in `C:\Program Files\osquery\`) on the host where you installed the app as SYSTEM. Put the SQL in a `.ps1` and run it with `-File`: nesting the queries' single quotes through `-Command` or a bash heredoc breaks every time.
+
+Two parsing traps: an empty result renders as `[`, a blank line, `]` — not `[]` — so count rows (`jq length`; in PowerShell strip whitespace before comparing and filter nulls out of `ConvertFrom-Json`). And `version_compare(NULL, ...)` is an error, not false, so a `regex_match` override needs `COALESCE` around it.
+
+### `patched`: prove it can fail
+
+Four cases on a host with the app installed, not just the happy path:
+1. `exists` → at least one row.
+2. `patched` as generated, on an up-to-date install → one row. (Zero rows on a host that really is behind is the policy working; upgrade it or treat it as case 4.)
+3. `patched` with the version bumped past anything real (first segment +1000, e.g. `'1004.52.171'`) on the same host → **zero rows**. This is the case that catches false greens: a row here means the compared column is not something the manifest version can order against.
+4. If you can, the previous build. `git show origin/main:ee/maintained-apps/outputs/<app>/<platform>.json | jq -r '.versions[0].installer_url'` gives its URL; install it and expect zero rows, then install the new build on top — no uninstall in between, which is what Fleet's remediation does — and expect one row.
+
+Then look at the column itself:
+```sql
+-- macOS
+SELECT bundle_short_version, bundle_version, path FROM apps WHERE bundle_identifier = '<id>';
+-- Windows
+SELECT name, publisher, version FROM programs WHERE name LIKE '%<name>%';
+```
+`version_compare` has no notion of "unknown". `''` sorts below everything, so a missing `CFBundleShortVersionString` fails the policy forever (Steam). A marketing version sorts below the cask's build-suffixed version (`3.8.7` vs `3.8.7.19194` — Sonos, i1Profiler), same result. A longer registry version sorts *above* (`3.14.5150.0` vs `3.14.5` — python.org), which passes outdated hosts within the same minor. Fix each at the app, never in the shared generator: a per-token `bundle_version` or `regex_match`+`COALESCE` branch in the homebrew ingester (Steam, Sonos, R.app precedents), `use_display_version_for_patch` in a winget input, or `exists_query` shaping — then re-run the four cases against the override.
+
+On a dev Mac without the app, do not fabricate an `.app` in `/Applications` to test against: an enrolled Mac reports it to real inventory. Find an installed app with the same column shape instead (`SELECT bundle_identifier, bundle_short_version, bundle_version FROM apps WHERE bundle_short_version = '';`) and run the query shape against its bundle id.
+
+### `open`: run it with the app running
+
+Three states, in order: app closed → one row; launch it → **zero rows**; quit it → one row again. A query that stays at zero after quitting is matching a helper, updater, or trial-nag process that outlives the window; one that stays at one while the app is up matches nothing.
+
+- **macOS** needs no per-app data but still gets the three-state run: the join requires the live process path to be exactly `<app path>/Contents/MacOS/<CFBundleExecutable>`. Chromium browsers relaunch from a `.code_sign_clone` after updating themselves and would read as closed, which is why they carry a per-token override in the homebrew ingester.
+- **Windows**: get the real executable name, not the catalog name. Live: `Get-Process | Where-Object Path -like 'C:\Program Files\<Vendor>*' | Select-Object Name, Path` while the app is open. Offline: `msiinfo export app.msi Shortcut` (column 5, `[#_7zFM.exe]`), `unzip -p app.msix AppxManifest.xml | grep Executable=`, `7zz l app.exe` for NSIS. Pick the GUI executable(s) the user has open, separately named editions included (`Code - Insiders.exe`), and leave out updaters (`GUP.exe`) and short-lived CLIs (`7z.exe`). A multi-word catalog name guesses wrong by construction (`'amazon chime.exe'`), as does any app whose exe is not its name (`Android Studio` → `studio64.exe`): add the override, regenerate, and confirm the output's `open` changed.
 
 ## PowerShell traps in FMA scripts
 
@@ -257,6 +315,7 @@ Each of these silently produced a wrong answer in practice, not an error.
 | `program_publisher` (winget) | Overrides the exists-query publisher when registry Publisher ≠ winget locale Publisher. |
 | `fuzzy_match_name` (winget) | `true` → `name LIKE '<unique_identifier> %'`. A string → `name LIKE '<that string>'` verbatim (e.g. `"Mozilla Firefox % ESR %"`, `"IntelliJ IDEA 20%"`). |
 | `exists_query` (winget) | Replaces the generated exists query verbatim. The patched query is DERIVED from it (appends `AND version_compare(...) < 0`). |
+| `use_display_version_for_patch` (winget) | Compares the patch policy against the manifest's `DisplayVersion` instead of `PackageVersion`, for installers whose registry version has a different shape (python.org registers `3.14.5150.0` for `3.14.5`). Generation fails if the manifest has no `DisplayVersion`. |
 | `installer_scope` | Must match the winget manifest's Scope — you can't pick machine if only user exists. |
 
 `patch_policy_path` exists in the input struct but is **dead code** (unused since the patched query became auto-generated). Don't use it; there is no patched-query override other than shaping `exists_query` or a hard-coded per-app branch in the ingester (Docker Desktop precedent).
@@ -318,7 +377,10 @@ It also means the shipped `exists` query for such an app deserves a second look.
 - [ ] Custom uninstall (non-MSI-machine) uses the defensive UninstallString parser.
 - [ ] Custom script comments are admin-facing and short (~4 lines past the template header): no validator/CI/ingester references, no catalog archaeology, no debugging narrative, no first person. Internal rationale moved to the PR body.
 - [ ] Version reconciles with osquery (or a documented validator exception applies — not a blanket skip).
-- [ ] Generated SHA matches the manifest; exists/patched queries reviewed; `apps.json` valid + description filled.
+- [ ] Generated SHA matches the manifest; `apps.json` valid + description filled.
+- [ ] **Queries run through real osquery on a host with the app installed, not read**: `exists` ≥ 1 row; `patched` 1 row as generated and **0 rows with the version bumped**; `open` 0 rows while the app runs and 1 row after it quits.
+- [ ] The compared version column (`bundle_short_version` / `programs.version`) tracks the manifest version; if not, a per-app override (`bundle_version` branch, `regex_match`+`COALESCE`, `use_display_version_for_patch`) was added and re-run through the four cases.
+- [ ] Windows `open` matches the executable observed while the app runs; override added for multi-word names and renamed exes.
 - [ ] Icon exists or is generated.
 - [ ] Bootstrapper / per-user / latest-URL risks flagged in the PR if present.
 - [ ] **Scope proven, not assumed**: installed on a host as SYSTEM and confirmed where the payload and registration actually landed. Nothing under `S-1-5-18`/`.DEFAULT`.
