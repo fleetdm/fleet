@@ -1946,6 +1946,8 @@ type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamI
 
 type GetVPPAppVersionCountFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID, versionName string) (versionCount uint, versionNameExists bool, err error)
 
+type GetDuplicateStringGroupsUnderCollationFunc func(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error)
+
 type GetVPPAppsToInstallDuringSetupExperienceFunc func(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error)
 
 type GetAllVPPAppsFunc func(ctx context.Context) ([]*fleet.VPPApp, error)
@@ -5387,6 +5389,9 @@ type DataStore struct {
 
 	GetVPPAppVersionCountFunc        GetVPPAppVersionCountFunc
 	GetVPPAppVersionCountFuncInvoked bool
+
+	GetDuplicateStringGroupsUnderCollationFunc        GetDuplicateStringGroupsUnderCollationFunc
+	GetDuplicateStringGroupsUnderCollationFuncInvoked bool
 
 	GetVPPAppsToInstallDuringSetupExperienceFunc        GetVPPAppsToInstallDuringSetupExperienceFunc
 	GetVPPAppsToInstallDuringSetupExperienceFuncInvoked bool
@@ -12953,6 +12958,13 @@ func (s *DataStore) GetVPPAppVersionCount(ctx context.Context, teamID *uint, app
 	s.GetVPPAppVersionCountFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPAppVersionCountFunc(ctx, teamID, appID, versionName)
+}
+
+func (s *DataStore) GetDuplicateStringGroupsUnderCollation(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
+	s.mu.Lock()
+	s.GetDuplicateStringGroupsUnderCollationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDuplicateStringGroupsUnderCollationFunc(ctx, values)
 }
 
 func (s *DataStore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error) {

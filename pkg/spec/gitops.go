@@ -2554,11 +2554,10 @@ func validateAppStoreApp(item fleet.TeamSpecAppStoreApp, resolveDir string) (fle
 		if utf8.RuneCountInString(name) > fleet.MaxAppStoreAppVersionNameLength {
 			return item, fmt.Errorf("Couldn't add software (%q). The version name %q can't be longer than %d characters.", item.AppStoreID, name, fleet.MaxAppStoreAppVersionNameLength)
 		}
-		// Compare names without case to match the collation of the version name column
-		for _, existingName := range versionNames {
-			if strings.EqualFold(existingName, name) {
-				return item, fmt.Errorf("Couldn't add software (%q). More than one version is named %q.", item.AppStoreID, name)
-			}
+		if slices.ContainsFunc(versionNames, func(versionName string) bool {
+			return strings.EqualFold(versionName, name)
+		}) {
+			return item, fmt.Errorf("Couldn't add software (%q). More than one version is named %q.", item.AppStoreID, name)
 		}
 		versionNames = append(versionNames, name)
 	}

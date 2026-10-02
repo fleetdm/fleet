@@ -4817,11 +4817,30 @@ func testSetTeamVPPAppVersions(t *testing.T, ds *Datastore) {
 		require.Equal(t, fleet.DefaultAppStoreAppVersionName, versions[0].VersionName)
 		require.NotEqual(t, stagingID, versions[0].VPPAppsTeamsID)
 
+		// set a Beta version, then rename it to Bêta, the Beta version should be renamed and keep its id
+		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
+			{VPPAppID: app.VPPAppID, VersionName: "Beta", InstallDuringSetup: new(true), AutoUpdateEnabled: new(false)},
+		}, map[string]uint{})
+		require.NoError(t, err)
+		versions, err = ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 1)
+		betaID := versions[0].VPPAppsTeamsID
+		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
+			{VPPAppID: app.VPPAppID, VersionName: "Bêta", InstallDuringSetup: new(true), AutoUpdateEnabled: new(false)},
+		}, map[string]uint{})
+		require.NoError(t, err)
+		versions, err = ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 1)
+		require.Equal(t, betaID, versions[0].VPPAppsTeamsID)
+		require.Equal(t, "Bêta", versions[0].VersionName)
+
 		// set no apps, every version of the app should be deleted
 		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{}, map[string]uint{})
 		require.NoError(t, err)
-		names, err := ds.GetVPPAppVersionNames(ctx, &fleetID, app.VPPAppID)
+		versionCount, _, err := ds.GetVPPAppVersionCount(ctx, &fleetID, app.VPPAppID, "")
 		require.NoError(t, err)
-		require.Empty(t, names)
+		require.Zero(t, versionCount)
 	}
 }

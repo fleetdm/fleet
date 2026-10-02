@@ -454,11 +454,6 @@ func (ds *Datastore) getVPPAppTeamCategoryIDs(ctx context.Context, vppAppTeamID 
 }
 
 func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) (bool, error) {
-	type versionKey struct {
-		appID     fleet.VPPAppID
-		lowerName string
-	}
-
 	stmt := `
 SELECT
 	adam_id, platform, self_service, install_during_setup, id, created_at added_at, name version_name,
@@ -475,20 +470,61 @@ ORDER BY id
 		return false, ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing app versions")
 	}
 
-	// Index existing versions by app and lower-case name to match the collation of the version name column
-	existingVersionsByKey := make(map[versionKey]fleet.VPPAppTeam, len(existingVersions))
+	existingVersionsByID := make(map[uint]fleet.VPPAppTeam, len(existingVersions))
 	for _, existingVersion := range existingVersions {
-		existingVersionsByKey[versionKey{existingVersion.VPPAppID, strings.ToLower(existingVersion.VersionName)}] = existingVersion
+		existingVersionsByID[existingVersion.AppTeamID] = existingVersion
 	}
 
 	incomingVersions := make([]fleet.VPPAppTeam, 0, len(incomingApps))
-	incomingVersionKeys := make(map[versionKey]struct{}, len(incomingApps))
 	for _, incomingApp := range incomingApps {
 		if incomingApp.VersionName == "" {
 			incomingApp.VersionName = fleet.DefaultAppStoreAppVersionName
 		}
 		incomingVersions = append(incomingVersions, incomingApp)
-		incomingVersionKeys[versionKey{incomingApp.VPPAppID, strings.ToLower(incomingApp.VersionName)}] = struct{}{}
+	}
+
+	// Get the existing IDs in the database for each incoming version
+
+	versionNames := make([]string, 0, len(existingVersions)+len(incomingVersions))
+	for _, existingVersion := range existingVersions {
+		versionNames = append(versionNames, existingVersion.VersionName)
+	}
+	for _, incomingVersion := range incomingVersions {
+		versionNames = append(versionNames, incomingVersion.VersionName)
+	}
+
+	// Compare the names in MySQL since its collation also ignores accents, so "tëst" updates the existing "Test" version
+	equalNameGroups, err := ds.GetDuplicateStringGroupsUnderCollation(ctx, versionNames)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "SetTeamVPPApps comparing app version names")
+	}
+
+	// Match each incoming version to the existing version
+	incomingIndexByVersionID := make(map[uint]int, len(incomingVersions))
+	for _, group := range equalNameGroups {
+		// Collect the existing version of each app in the group, names only match within one app
+		existingVersionIDsByApp := make(map[fleet.VPPAppID]uint)
+		for _, nameIndex := range group.Indices {
+			if nameIndex < len(existingVersions) {
+				existingVersionIDsByApp[existingVersions[nameIndex].VPPAppID] = existingVersions[nameIndex].AppTeamID
+			}
+		}
+
+		// Give each incoming version in the group the id of the existing version of its app
+		for _, nameIndex := range group.Indices {
+			if nameIndex < len(existingVersions) {
+				continue
+			}
+
+			incomingIndex := nameIndex - len(existingVersions)
+			versionID, ok := existingVersionIDsByApp[incomingVersions[incomingIndex].VPPAppID]
+			if !ok {
+				continue
+			}
+
+			incomingVersions[incomingIndex].AppTeamID = versionID
+			incomingIndexByVersionID[versionID] = incomingIndex
+		}
 	}
 
 	// if we're batch-setting apps and replacing the ones installed during setup
@@ -504,11 +540,11 @@ ORDER BY id
 	var toRemoveVersionIDs []uint
 
 	// Install only the first-added version of each app during setup, the first existing version in the list or else the first new version
-	setupVersionNameByApp := make(map[fleet.VPPAppID]string)
+	setupIncomingIndexByApp := make(map[fleet.VPPAppID]int)
 	for _, existingVersion := range existingVersions {
-		if _, ok := incomingVersionKeys[versionKey{existingVersion.VPPAppID, strings.ToLower(existingVersion.VersionName)}]; ok {
-			if _, ok := setupVersionNameByApp[existingVersion.VPPAppID]; !ok {
-				setupVersionNameByApp[existingVersion.VPPAppID] = existingVersion.VersionName
+		if incomingIndex, ok := incomingIndexByVersionID[existingVersion.AppTeamID]; ok {
+			if _, ok := setupIncomingIndexByApp[existingVersion.VPPAppID]; !ok {
+				setupIncomingIndexByApp[existingVersion.VPPAppID] = incomingIndex
 			}
 			continue
 		}
@@ -521,19 +557,18 @@ ORDER BY id
 
 	appsWithChangedLabels := make(map[uint]map[uint]struct{})
 	var vppTokenRequired, setupExperienceChanged bool
-	for _, incomingApp := range incomingVersions {
+	for i, incomingApp := range incomingVersions {
 		if incomingApp.Platform.IsApplePlatform() {
 			vppTokenRequired = true
 		}
-		if _, ok := setupVersionNameByApp[incomingApp.VPPAppID]; !ok {
-			setupVersionNameByApp[incomingApp.VPPAppID] = incomingApp.VersionName
+		if _, ok := setupIncomingIndexByApp[incomingApp.VPPAppID]; !ok {
+			setupIncomingIndexByApp[incomingApp.VPPAppID] = i
 		}
-		if ptr.ValOrZero(incomingApp.InstallDuringSetup) && !strings.EqualFold(incomingApp.VersionName, setupVersionNameByApp[incomingApp.VPPAppID]) {
+		if ptr.ValOrZero(incomingApp.InstallDuringSetup) && setupIncomingIndexByApp[incomingApp.VPPAppID] != i {
 			incomingApp.InstallDuringSetup = new(false)
 		}
 		// upsert the app if anything changed
-		existingApp, isExistingApp := existingVersionsByKey[versionKey{incomingApp.VPPAppID, strings.ToLower(incomingApp.VersionName)}]
-		incomingApp.AppTeamID = existingApp.AppTeamID
+		existingApp, isExistingApp := existingVersionsByID[incomingApp.AppTeamID]
 
 		changed, err := ds.hasAppStoreAppChanged(ctx, teamID, incomingApp, existingApp, isExistingApp)
 		if err != nil {
@@ -3590,4 +3625,42 @@ func (ds *Datastore) GetVPPAppVersionCount(ctx context.Context, teamID *uint, ap
 		return 0, false, ctxerr.Wrap(ctx, err, "get vpp app version count")
 	}
 	return versionCount, versionNameExists, nil
+}
+
+// GetDuplicateStringGroupsUnderCollation returns groups of strings from values that are duplicates under the utf8mb4_unicode_ci collation,
+// as the indices of the strings in values, one group per set of duplicates.
+func (ds *Datastore) GetDuplicateStringGroupsUnderCollation(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
+	valuesJSON, err := json.Marshal(values)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshal values")
+	}
+
+	// Turn the JSON array into one row per string: '$[*]' reads each array element, PATH '$' reads the element itself,
+	// and FOR ORDINALITY numbers the rows from 1, so subtract 1 to get the index in values
+	var groupsJSON []string
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &groupsJSON, `
+SELECT JSON_ARRAYAGG(jt.value_index - 1)
+FROM JSON_TABLE(?, '$[*]' COLUMNS (
+	value_index FOR ORDINALITY,
+	value VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
+)) jt
+GROUP BY jt.value
+HAVING COUNT(*) > 1
+ORDER BY MIN(jt.value_index)`, valuesJSON)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get duplicate string groups")
+	}
+
+	groups := make([]fleet.DuplicateStringGroup, 0, len(groupsJSON))
+	for _, groupJSON := range groupsJSON {
+		var group fleet.DuplicateStringGroup
+		err = json.Unmarshal([]byte(groupJSON), &group.Indices)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshal duplicate string group")
+		}
+		// Sort the indices, JSON_ARRAYAGG doesn't keep the input order
+		slices.Sort(group.Indices)
+		groups = append(groups, group)
+	}
+	return groups, nil
 }

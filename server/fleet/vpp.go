@@ -398,3 +398,8 @@ type VPPInstallReleaseInfo struct {
 	AssociatedEventID     string
 	HasOtherActiveInstall bool
 }
+
+type DuplicateStringGroup struct {
+	// Indices in the provided input slice
+	Indices []int
+}

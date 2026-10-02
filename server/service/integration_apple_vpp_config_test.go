@@ -1315,12 +1315,40 @@ func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
 		require.True(t, *versions[0].AutoUpdateEnabled)
 
 		// dry run two versions with the same name in a different case, the request should fail
-		duplicateVersion := testVersion
-		duplicateVersion.VersionName = "test"
+		caseVersion := testVersion
+		caseVersion.VersionName = "test"
 		res := s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
-			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{testVersion, duplicateVersion}},
+			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{testVersion, caseVersion}},
 			http.StatusUnprocessableEntity, append([]string{"dry_run", "true"}, c.queryParams...)...)
 		require.Contains(t, extractServerErrorText(res.Body), `More than one version is named "test"`)
+
+		// dry run Test and Tëst, both names match the stored Test version in MySQL so the request should fail
+		accentVersion := testVersion
+		accentVersion.VersionName = "Tëst"
+		res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{productionVersion, testVersion, accentVersion}},
+			http.StatusUnprocessableEntity, append([]string{"dry_run", "true"}, c.queryParams...)...)
+		require.Contains(t, extractServerErrorText(res.Body), "More than one version is named")
+
+		// dry run two new versions named Beta and Bêta, MySQL compares the names as equal so the request should fail
+		betaVersion := fleet.VPPBatchPayload{AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, VersionName: "Beta"}
+		betaAccentVersion := fleet.VPPBatchPayload{AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, VersionName: "Bêta"}
+		res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{productionVersion, testVersion, betaVersion, betaAccentVersion}},
+			http.StatusUnprocessableEntity, append([]string{"dry_run", "true"}, c.queryParams...)...)
+		require.Contains(t, extractServerErrorText(res.Body), `More than one version is named "Bêta"`)
+
+		// apply the Test version renamed to tëst, the Test version should keep its id and take the new name
+		renamedTestVersion := testVersion
+		renamedTestVersion.VersionName = "tëst"
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{productionVersion, renamedTestVersion}},
+			http.StatusOK, &batchResp, c.queryParams...)
+		versions, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 2)
+		require.Equal(t, testID, versions[1].VPPAppsTeamsID)
+		require.Equal(t, "tëst", versions[1].VersionName)
 
 		// dry run the iOS app as an entry without versions and an entry with versions, the request should fail
 		unnamedVersion := testVersion

@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -242,14 +243,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				fmt.Sprintf("Couldn't edit app store app (%s). The version name can't be longer than %d characters.", payload.AppStoreID, fleet.MaxAppStoreAppVersionNameLength))
 		}
 
-		// Compare names without case to match the collation of the unique key on the version name
-		if slices.ContainsFunc(versionNamesByApp[appID], func(name string) bool {
-			return strings.EqualFold(name, versionName)
-		}) {
-			return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.name",
-				fmt.Sprintf("Couldn't edit app store app (%s). More than one version is named %q.", payload.AppStoreID, versionName))
-		}
-
 		versionNamesByApp[appID] = append(versionNamesByApp[appID], versionName)
 		if len(versionNamesByApp[appID]) > fleet.MaxAppStoreAppVersions {
 			return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.versions",
@@ -326,6 +319,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					AutoUpdateEndTime:   payload.AutoUpdateEndTime,
 				},
 			)
+			continue
 		}
 
 		payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
@@ -474,6 +468,31 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 		}
 
+		// Compare the version names in the batch in MySQL, its collation also ignores accents, and fail on two equal names for one app
+		incomingVersions := slices.Concat(incomingAppleApps, incomingAndroidApps)
+		versionNames := make([]string, 0, len(incomingVersions))
+		for _, incomingVersion := range incomingVersions {
+			versionNames = append(versionNames, cmp.Or(incomingVersion.VersionName, fleet.DefaultAppStoreAppVersionName))
+		}
+
+		var equalNameGroups []fleet.DuplicateStringGroup
+		equalNameGroups, err = svc.ds.GetDuplicateStringGroupsUnderCollation(ctx, versionNames)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "comparing app store app version names")
+		}
+
+		// If there are any duplicates, return detailed error message.
+		for _, group := range equalNameGroups {
+			appsInGroup := make(map[fleet.VPPAppID]struct{}, len(group.Indices))
+			for _, nameIndex := range group.Indices {
+				if _, ok := appsInGroup[incomingVersions[nameIndex].VPPAppID]; ok {
+					return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.name",
+						fmt.Sprintf("Couldn't edit app store app (%s). More than one version is named %q.", incomingVersions[nameIndex].AdamID, versionNames[nameIndex]))
+				}
+				appsInGroup[incomingVersions[nameIndex].VPPAppID] = struct{}{}
+			}
+		}
+
 		if len(incomingAppleApps) > 0 {
 			if dryRun {
 				// If we're doing a dry run, we stop here and return no error to avoid making any changes.
@@ -610,7 +629,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		validAppIDs[app.VPPAppID] = struct{}{}
 	}
 	validPlatformApps := make([]fleet.VPPAppTeam, 0, len(allPlatformApps))
-	macOSVersionNamesByAdamID := make(map[string][]string)
+	macOSVersionCountByAdamID := make(map[string]int)
 	for _, app := range allPlatformApps {
 		if _, ok := validAppIDs[app.VPPAppID]; !ok {
 			continue
@@ -621,13 +640,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		if app.Platform != fleet.MacOSPlatform {
 			continue
 		}
-		if slices.ContainsFunc(macOSVersionNamesByAdamID[app.AdamID], func(name string) bool {
-			return strings.EqualFold(name, app.VersionName)
-		}) {
-			continue
-		}
-		macOSVersionNamesByAdamID[app.AdamID] = append(macOSVersionNamesByAdamID[app.AdamID], app.VersionName)
-		if len(macOSVersionNamesByAdamID[app.AdamID]) > 1 {
+		macOSVersionCountByAdamID[app.AdamID]++
+		if macOSVersionCountByAdamID[app.AdamID] > 1 {
 			return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.versions",
 				fmt.Sprintf("Couldn't edit app store app (%s). macOS App Store apps can only have one version. Set \"platform\" to add versions for iOS or iPadOS only.", app.AdamID))
 		}
