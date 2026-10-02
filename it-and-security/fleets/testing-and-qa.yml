@@ -95,6 +95,9 @@ reports:
   - path: ../lib/windows/reports/collect-windows-11-hardware-readiness.yml
 software:
   packages:
+    # macOS apps
+    - path: ../lib/macos/software/microsoft-365-businesspro.yml
+      self_service: true
     # Linux apps
   fleet_maintained_apps:
     # macOS apps
