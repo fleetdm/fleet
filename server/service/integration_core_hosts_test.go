@@ -2040,6 +2040,22 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Len(t, getHostSoftwareResp.Software[3].InstalledVersions, 1)
 	require.Equal(t, []string{"/some/path/axios"}, getHostSoftwareResp.Software[3].InstalledVersions[0].InstalledPaths)
 	require.Nil(t, getHostSoftwareResp.Software[3].InstalledVersions[0].SignatureInformation)
+
+	// filter by source
+	for _, c := range softwareTypeFilterErrorCases {
+		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusUnprocessableEntity, c.params...)
+		require.Contains(t, extractServerErrorText(res.Body), c.reason)
+	}
+	getHostSoftwareResp = getHostSoftwareResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID),
+		nil, http.StatusOK, &getHostSoftwareResp,
+		"source", "homebrew_packages,npm_packages", "order_key", "name", "order_direction", "desc",
+	)
+	require.Equal(t, 2, getHostSoftwareResp.Count)
+	require.Len(t, getHostSoftwareResp.Software, 2)
+	require.Equal(t, "gh", getHostSoftwareResp.Software[0].Name)
+	require.Equal(t, "axios", getHostSoftwareResp.Software[1].Name)
 }
 
 func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
