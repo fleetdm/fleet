@@ -94,11 +94,18 @@ Apple Business has settings that restrict which Apple Accounts can sign in on yo
 
 Of the restrictions Apple lists, only the ones that mention the MDM `Get Token` message involve Fleet. All the others are enforced entirely by Apple Business and work without any Fleet involvement.
 
-When **Allow Managed Apple Account on** is set to **Managed devices only** or **Supervised devices only**, the device asks Fleet for a token during Managed Apple Account sign-in. Fleet signs the token with the MDM server UUID of the host's AB token. Hosts that aren't assigned to an AB token in Apple Business are signed with the default AB token.
+When **Allow Managed Apple Account on** is set to **Managed devices only** or **Supervised devices only**, the device asks Fleet to confirm it's managed during Managed Apple Account sign-in. Apple checks Fleet's response before allowing the sign-in.
 
-Apple verifies the token before allowing the sign-in.
+Hosts that automatically enroll (ADE) are tied to an AB, and Fleet uses that AB for sign-in. Manually enrolled hosts aren't tied to an AB, so Fleet uses your default AB for sign-in. If you've added one AB, it's the default. If you've added more than one, set the default in **Settings > Integrations > MDM > Apple Business (AB)**: select **Actions** next to an AB and select **Set as default for sign-in**.
 
-> - Hosts enrolled before Fleet 4.93 don't support these restrictions until their next enrollment profile renewal (which happens approximately every 6 months). Hosts that enroll on Fleet 4.93 or later support them right away.
+On manually enrolled hosts, Apple blocks Managed Apple Account sign-in if:
+
+- You've added more than one AB and none is set as the default.
+- The Managed Apple Account belongs to a different AB than the default.
+
+> - Only turn on these restrictions if you're just starting to roll out Managed Apple Account sign-in. If your end users already sign in with Managed Apple Accounts, leave them off for now. Hosts enrolled before Fleet 4.93 can't sign in to Managed Apple Accounts while these restrictions are on, until their next enrollment profile renewal (approximately every 6 months). Hosts that enroll on Fleet 4.93 or later support them right away.
+> - If end users on these hosts try to sign in, they see a **Verification Failed** dialog: "You can't sign into this device using this Apple ID. Contact your organization's administrator for assistance." On hosts enrolled with a Managed Apple Account (ADUE), they see **Sign-in Failed** with `AKAuthenticationError error -7013`.
+> - If you want to turn it on sooner, reach out to [Fleet support](https://fleetdm.com/support) to help you with enrollment profile renewal.
 > - Virtual machines (VMs) don't support Managed Apple Accounts and never have. After going through the SSO flow, the VM shows a sign-in verification failure (verified on macOS 26 and macOS 15).
 
 ### Renew AB:
