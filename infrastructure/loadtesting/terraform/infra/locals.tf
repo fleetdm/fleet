@@ -54,8 +54,8 @@ locals {
       FLEET_FILESYSTEM_STATUS_LOG_FILE           = "/dev/null"
       FLEET_OSQUERY_RESULT_LOG_PLUGIN            = "filesystem"
       FLEET_FILESYSTEM_RESULT_LOG_FILE           = "/dev/null"
-      FLEET_MYSQL_MAX_OPEN_CONNS                 = tostring(var.mysql_max_open_conns)
-      FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = tostring(var.mysql_max_open_conns)
+      FLEET_MYSQL_MAX_OPEN_CONNS                 = tostring(local.mysql_max_open_conns)
+      FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = tostring(local.mysql_max_open_conns)
       # 30 min: recycle connections often enough that pooled reader connections re-spread across replicas after a
       # replica reboot/failover, and proactively drop bad idles.
       FLEET_MYSQL_CONN_MAX_LIFETIME                  = "1800"
@@ -160,4 +160,9 @@ locals {
     #   essential = false
     # }
   ]
+}
+
+locals {
+  # Reference architecture pool sizes: T-class Aurora instances allow only ~90-135 connections in total.
+  mysql_max_open_conns = coalesce(var.mysql_max_open_conns, startswith(var.database_instance_size, "db.t") ? 10 : 20)
 }

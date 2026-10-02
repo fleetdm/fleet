@@ -37,6 +37,11 @@ on:
         type: string
         default: 2
         required: true
+      fleet_mysql_max_open_conns:
+        description: "MySQL connections per Fleet task, for the writer and replica pools each. Empty: 10 on T-class databases, 20 otherwise"
+        type: string
+        default: ""
+        required: false
       fleet_redis_instance_size:
         description: "AWS Instance size for the Fleet redis instances"
         type: string
@@ -140,6 +145,14 @@ jobs:
         with:
           terraform_version: 1.12.0
           terraform_wrapper: false
+      - name: Set MySQL pool size
+        if: inputs.fleet_mysql_max_open_conns != ''
+        env:
+          POOL: ${{ inputs.fleet_mysql_max_open_conns }}
+        run: |
+          # Exported only when set: an empty TF_VAR_ fails the number type instead of falling back to the default.
+          [[ "$POOL" =~ ^[1-9][0-9]*$ ]] || { echo "fleet_mysql_max_open_conns must be a positive integer"; exit 1; }
+          echo "TF_VAR_mysql_max_open_conns=$POOL" >> "$GITHUB_ENV"
       - name: Terraform Init
         id: init
         run: terraform init
