@@ -2097,7 +2097,7 @@ Example Fleet vulnerability advisory: [CVE-2022-23600](https://github.com/fleetd
 - For other Medium advisories and all Low advisories, don't request a CVE unless the reporter asks for one.
 - Don't request a CVE for hardening-level fixes.
 
-Published advisories for `github.com/fleetdm/fleet` are indexed in the GitHub Advisory Database and OSV without a CVE. Every CVE flows into customers' scanners and patch SLAs, so we reserve CVEs for issues where customers need to act urgently.
+Published advisories for `github.com/fleetdm/fleet` are indexed in the GitHub Advisory Database and OSV without a CVE. Every CVE flows into customers' scanners and patch SLAs, so we reserve CVEs for issues where self-hosted customers may need to act.
 
 
 ### Vulnerabilities in dependencies
