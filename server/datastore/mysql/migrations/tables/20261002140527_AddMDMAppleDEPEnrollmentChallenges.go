@@ -10,8 +10,6 @@ func init() {
 }
 
 func Up_20261002140527(tx *sql.Tx) error {
-	// No FK to hosts: host_uuid is the UDID from the device's deviceinfo, and
-	// the device may not have a host row yet.
 	if _, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS mdm_apple_dep_enrollment_challenges (
 	id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
