@@ -16,7 +16,7 @@ Built-in variables:
 
 | Name | Scripts | Configuration profiles | Managed app configuration | Description |
 |---|---|---|---|---|
-| <span style="display: inline-block; min-width: 240px;">`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`</span> | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | iOS and iPadOS | Host's IdP username (e.g. "user@example.com"). When this changes, Fleet will automatically resend the profile. |
+| <span style="display: inline-block; min-width: 240px;">`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`</span> | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's IdP username (e.g. "user@example.com"). When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's IdP full name. When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile. |

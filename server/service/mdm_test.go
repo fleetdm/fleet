@@ -4957,25 +4957,29 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 
 	// buildReqMsg builds a minimal valid SyncML request. extraBody (if non-empty) is inserted into <SyncBody>; use it to
 	// inject a <Results> with the device's reply to our DevDetail Get.
-	buildReqMsg := func(t *testing.T, extraBody string) *fleet.SyncML {
+	buildReqMsgWithID := func(t *testing.T, msgID, extraBody string) *fleet.SyncML {
 		t.Helper()
 		raw := fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
 			<SyncHdr>
 				<VerDTD>1.2</VerDTD>
 				<VerProto>DM/1.2</VerProto>
 				<SessionID>1</SessionID>
-				<MsgID>1</MsgID>
+				<MsgID>%s</MsgID>
 				<Source><LocURI>%s</LocURI></Source>
 			</SyncHdr>
 			<SyncBody>
 				%s
 				<Final/>
 			</SyncBody>
-		</SyncML>`, testDeviceID, extraBody)
+		</SyncML>`, msgID, testDeviceID, extraBody)
 		reqMsg := &fleet.SyncML{}
 		require.NoError(t, xml.Unmarshal([]byte(raw), reqMsg))
 		reqMsg.Raw = []byte(raw)
 		return reqMsg
+	}
+	buildReqMsg := func(t *testing.T, extraBody string) *fleet.SyncML {
+		t.Helper()
+		return buildReqMsgWithID(t, "1", extraBody)
 	}
 
 	// newSvc builds a service with the stubs that processIncomingMDMCmds always touches; per-subtest stubs override.
@@ -5091,6 +5095,25 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		assert.True(t, foundInternalCmdID, "expected to find the DevDetail Get among response commands")
 	})
 
+	t.Run("challenged session: Get goes out on the first trusted message", func(t *testing.T) {
+		svc, _, _, ctx := newSvc(t)
+		svc.keyValueStore = memoryKVStore()
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
+
+		// Real devices: MsgID 1 is challenged, MsgID 2 is the first trusted message, and MsgID 3 acks it.
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "1", ""), RequestAuthStateChallenge)
+		require.NoError(t, err)
+		assert.False(t, hasGetForDevDetailSerial(cmds), "a challenge response carries only the auth status")
+
+		cmds, err = svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "2", ""), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.True(t, hasGetForDevDetailSerial(cmds))
+
+		cmds, err = svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "3", ""), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.False(t, hasGetForDevDetailSerial(cmds))
+	})
+
 	t.Run("already-linked enrollment: no Get and no host lookup", func(t *testing.T) {
 		svc, ds, _, ctx := newSvc(t)
 		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: testHostUUID}
@@ -5101,6 +5124,24 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		assert.False(t, hasGetForDevDetailSerial(cmds), "linked enrollment must not inject a DevDetail Get")
 		assert.False(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
 		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+	})
+
+	t.Run("Results with SMBIOS serial trigger linkage and skip the redundant Get", func(t *testing.T) {
+		// Real devices answer the session-start Get mid-session (MsgID 3); linking is not gated to session start.
+		for _, msgID := range []string{"1", "3"} {
+			t.Run("MsgID "+msgID, func(t *testing.T) {
+				svc, ds, _, ctx := newSvc(t)
+				enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
+				stubLink(t, ds, true)
+
+				cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, msgID, serialResults(testSerial)), RequestAuthStateTrusted)
+				require.NoError(t, err)
+				assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+				assert.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+				assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "linkage should update in-memory HostUUID")
+				assert.False(t, hasGetForDevDetailSerial(cmds), "after successful linkage, no further Get should be injected")
+			})
+		}
 	})
 
 	t.Run("link guard by link source", func(t *testing.T) {

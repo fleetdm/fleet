@@ -3931,6 +3931,19 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`)
 
+	// a non-string profile description is rejected rather than dropped
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]any{"custom_settings": []any{
+				map[string]any{"path": "a.mobileconfig", "description": 123},
+			}},
+		},
+	}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.custom_settings.description': expected string but got float64`)
+
 	// apply an empty set of batch profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
 		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(team.ID), "team_name", team.Name)
@@ -10370,6 +10383,100 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		return d
 	}
 
+	// countSessionStartCmds counts the ESP hold bundles (by a command only the hold bundle carries) and the
+	// DevDetail serial Gets in a response.
+	countSessionStartCmds := func(cmds map[string]fleet.ProtoCmdOperation) (holds, devDetailGets int) {
+		for _, c := range cmds {
+			uri := c.Cmd.GetTargetURI()
+			switch {
+			case strings.HasSuffix(uri, "/FirstSyncStatus/SkipDeviceStatusPage"):
+				holds++
+			case c.Verb == fleet.CmdGet && uri == devDetailSMBIOSSerialNumberURI:
+				devDetailGets++
+			}
+		}
+		return holds, devDetailGets
+	}
+	// requireStatusOnly asserts a reply that lets the device end the session: the SyncHdr ack and no protocol
+	// commands.
+	requireStatusOnly := func(t *testing.T, cmds map[string]fleet.ProtoCmdOperation) {
+		require.NotEmpty(t, cmds, "the SyncHdr Status ack is always sent")
+		for _, c := range cmds {
+			assert.Equal(t, fleet.CmdStatus, c.Verb, "unexpected %s %s mid-session", c.Verb, c.Cmd.GetTargetURI())
+		}
+	}
+
+	t.Run("pending hold commands are only sent at session start", func(t *testing.T) {
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "esp-pending@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		require.NoError(t, d.Enroll())
+
+		// The test client retries a challenged request under the same MsgID, so both MsgID 1 and the MsgID 2
+		// ack are session start.
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		holds, gets := countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+		cmds = ackAll(t, d, cmds, "", "")
+		holds, gets = countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+
+		// MsgID 3 gets only Status acks.
+		cmds = ackAll(t, d, cmds, "", "")
+		requireStatusOnly(t, cmds)
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, awaiting(t, d))
+
+		// The next session re-sends them while still unlinked.
+		cmds, err = d.StartManagementSession()
+		require.NoError(t, err)
+		holds, gets = countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+	})
+
+	t.Run("serial reply links and transitions mid-session", func(t *testing.T) {
+		// The shape real devices follow: the DevDetail Get sent at session start is answered on MsgID 3, which
+		// links the host and moves the enrollment to Active in that same message.
+		host := createOrbitEnrolledHost(t, "windows", "esp-link", s.ds)
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "esp-link@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		require.NoError(t, d.Enroll())
+
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		cmds = ackAll(t, d, cmds, "", "")
+		holds, gets := countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+
+		// MsgID 3: ack the batch and answer the Get with the serial.
+		msgID, err := d.GetCurrentMsgID()
+		require.NoError(t, err)
+		d.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdResults},
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			MsgRef:  &msgID, CmdRef: new(fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"),
+			Cmd:   new(fleet.CmdGet),
+			Items: []fleet.CmdItem{{Source: new(devDetailSMBIOSSerialNumberURI), Data: &fleet.RawXmlData{Content: host.HardwareSerial}}},
+		})
+		cmds = ackAll(t, d, cmds, "", "")
+
+		holds, gets = countSessionStartCmds(cmds)
+		assert.Zero(t, holds, "no hold bundle once linked")
+		assert.Zero(t, gets, "no Get once linked")
+		var transition *fleet.ProtoCmdOperation
+		for _, c := range cmds {
+			if c.Verb == fleet.CmdReplace && strings.HasSuffix(c.Cmd.GetTargetURI(), "/DevicePreparation/PolicyProviders/"+syncml.DocProvisioningAppProviderID+"/InstallationState") {
+				transition = &c
+			}
+		}
+		require.NotNil(t, transition, "the reply must carry the DevicePreparation InstallationState=3")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d))
+		enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+		require.NoError(t, err)
+		assert.Equal(t, host.UUID, enrolledDevice.HostUUID)
+	})
+
 	t.Run("user-scope release rejected with 405 then retried until acked", func(t *testing.T) {
 		d := enrollToActive(t, "esp-retry@example.com", "esp-h1")
 
@@ -10389,10 +10496,10 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d),
 			"a 405 on the user-scope release must NOT complete the ESP")
 
-		// The server re-sends the user-scope Replace in its response to the ack: the test client enrolls without
-		// an auth-challenge round-trip, so its ack message carries MsgID 2, which is within the session-start
-		// retry gate (espRetryAllowedForMessage). Real devices observed live ack on MsgID 3+ and get the retry at
-		// the next session instead; that shape is covered by the "acked 405 mid-session" unit subtest.
+		// The server re-sends the user-scope Replace in its reply to the ack: the test client retries a
+		// challenged request under the same MsgID, so its ack carries MsgID 2, within the session-start retry
+		// gate (isOMADMSessionStart). Real devices ack on MsgID 3+ and get the retry at the next session
+		// instead; that shape is covered by the "acked 405 mid-session" unit subtest.
 		retry := findUserRelease(afterNack)
 		require.NotNil(t, retry, "the user-scope release must be re-sent after a 405")
 
