@@ -203,7 +203,10 @@ Deleting a host removes it from Fleet. It does not unenroll the device or change
 
 Because that assignment is still in place, deleting a host assigned to Fleet in AB brings it straight back as a **Pending** host. To remove it for good, release or reassign the device in AB first, then delete the host in Fleet. If Fleet can't reach AB to check the assignment, the delete fails. Retry once AB is reachable.
 
-If one-time enroll secrets are enabled, deleting a host also clears its one-time enroll secret. A deleted AB host shows up as a **Pending** host, but it won't re-enroll on its own. Wipe the host or run `sudo profiles renew -type enrollment` to re-enroll it. Fleet can't tell a genuinely pending host from a deleted host that can't re-enroll, so review **Pending** hosts that never check in.
+If [one-time enroll secrets](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) are enabled, deleting a macOS host that has MDM turned on also clears its one-time enroll secret, so the host doesn't come back on its own:
+
+- AB hosts show up as **Pending** but don't re-enroll. To re-enroll one, wipe it or run `sudo profiles renew -type enrollment` on it. Fleet can't tell a pending host from a deleted host that can't re-enroll, so review **Pending** hosts that never check in.
+- Other macOS hosts don't show up at all. To re-enroll one, turn on MDM again or reinstall fleetd.
 
 Deleting a host also cancels its upcoming activities and removes Fleet's record of the MDM commands it has already sent. Delete a host while a wipe or another command is still in flight, and Fleet can no longer report whether that command completed.
 
