@@ -30,6 +30,26 @@ describe("EnrollmentAttemptDetailsModal", () => {
     expect(screen.getByText("Host details > Controls")).toBeInTheDocument();
   });
 
+  it.each([
+    { platform: "darwin", profile: "Fleetd configuration" },
+    { platform: "windows", profile: "Fleetd enroll secret" },
+  ])(
+    "names the $profile profile for a spent secret on $platform",
+    ({ platform, profile }) => {
+      renderModal({
+        hostDisplayName: "Anna's laptop",
+        reason: "one_time_secret_spent",
+        platform,
+      });
+      expect(screen.getByText(profile)).toBeInTheDocument();
+      const otherProfile =
+        profile === "Fleetd configuration"
+          ? "Fleetd enroll secret"
+          : "Fleetd configuration";
+      expect(screen.queryByText(otherProfile)).not.toBeInTheDocument();
+    }
+  );
+
   it("describes an identifier mismatch in the headline with a support link", () => {
     renderModal({
       hostDisplayName: "Anna's MacBook Pro",

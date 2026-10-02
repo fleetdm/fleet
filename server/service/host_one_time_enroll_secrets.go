@@ -215,7 +215,7 @@ func (svc *Service) linkWindowsEnrollmentFromOneTimeSecret(ctx context.Context, 
 		return
 	}
 
-	linked, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID)
+	linked, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID, true)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "failed to link windows mdm enrollment from one-time enroll secret",
 			"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -45,6 +46,7 @@ type Service struct {
 	keyValueStore          fleet.KeyValueStore
 	installAttemptCounter  fleet.SoftwareInstallAttemptCounter
 	scepConfigService      fleet.SCEPConfigService
+	scepEnrollmentClient   fleet.SCEPEnrollmentClient
 	digiCertService        fleet.DigiCertService
 	androidModule          android.Service
 	estService             fleet.ESTService
@@ -104,6 +106,7 @@ func NewService(
 		keyValueStore:          keyValueStore,
 		installAttemptCounter:  installAttemptCounter,
 		scepConfigService:      scepConfigService,
+		scepEnrollmentClient:   scep.NewEnrollmentClient(logger),
 		digiCertService:        digiCertService,
 		androidModule:          androidService,
 		estService:             estService,

@@ -3931,6 +3931,19 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`)
 
+	// a non-string profile description is rejected rather than dropped
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]any{"custom_settings": []any{
+				map[string]any{"path": "a.mobileconfig", "description": 123},
+			}},
+		},
+	}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.custom_settings.description': expected string but got float64`)
+
 	// apply an empty set of batch profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
 		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(team.ID), "team_name", team.Name)
@@ -10370,6 +10383,100 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		return d
 	}
 
+	// countSessionStartCmds counts the ESP hold bundles (by a command only the hold bundle carries) and the
+	// DevDetail serial Gets in a response.
+	countSessionStartCmds := func(cmds map[string]fleet.ProtoCmdOperation) (holds, devDetailGets int) {
+		for _, c := range cmds {
+			uri := c.Cmd.GetTargetURI()
+			switch {
+			case strings.HasSuffix(uri, "/FirstSyncStatus/SkipDeviceStatusPage"):
+				holds++
+			case c.Verb == fleet.CmdGet && uri == devDetailSMBIOSSerialNumberURI:
+				devDetailGets++
+			}
+		}
+		return holds, devDetailGets
+	}
+	// requireStatusOnly asserts a reply that lets the device end the session: the SyncHdr ack and no protocol
+	// commands.
+	requireStatusOnly := func(t *testing.T, cmds map[string]fleet.ProtoCmdOperation) {
+		require.NotEmpty(t, cmds, "the SyncHdr Status ack is always sent")
+		for _, c := range cmds {
+			assert.Equal(t, fleet.CmdStatus, c.Verb, "unexpected %s %s mid-session", c.Verb, c.Cmd.GetTargetURI())
+		}
+	}
+
+	t.Run("pending hold commands are only sent at session start", func(t *testing.T) {
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "esp-pending@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		require.NoError(t, d.Enroll())
+
+		// The test client retries a challenged request under the same MsgID, so both MsgID 1 and the MsgID 2
+		// ack are session start.
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		holds, gets := countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+		cmds = ackAll(t, d, cmds, "", "")
+		holds, gets = countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+
+		// MsgID 3 gets only Status acks.
+		cmds = ackAll(t, d, cmds, "", "")
+		requireStatusOnly(t, cmds)
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, awaiting(t, d))
+
+		// The next session re-sends them while still unlinked.
+		cmds, err = d.StartManagementSession()
+		require.NoError(t, err)
+		holds, gets = countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+	})
+
+	t.Run("serial reply links and transitions mid-session", func(t *testing.T) {
+		// The shape real devices follow: the DevDetail Get sent at session start is answered on MsgID 3, which
+		// links the host and moves the enrollment to Active in that same message.
+		host := createOrbitEnrolledHost(t, "windows", "esp-link", s.ds)
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "esp-link@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		require.NoError(t, d.Enroll())
+
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		cmds = ackAll(t, d, cmds, "", "")
+		holds, gets := countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+
+		// MsgID 3: ack the batch and answer the Get with the serial.
+		msgID, err := d.GetCurrentMsgID()
+		require.NoError(t, err)
+		d.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdResults},
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			MsgRef:  &msgID, CmdRef: new(fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"),
+			Cmd:   new(fleet.CmdGet),
+			Items: []fleet.CmdItem{{Source: new(devDetailSMBIOSSerialNumberURI), Data: &fleet.RawXmlData{Content: host.HardwareSerial}}},
+		})
+		cmds = ackAll(t, d, cmds, "", "")
+
+		holds, gets = countSessionStartCmds(cmds)
+		assert.Zero(t, holds, "no hold bundle once linked")
+		assert.Zero(t, gets, "no Get once linked")
+		var transition *fleet.ProtoCmdOperation
+		for _, c := range cmds {
+			if c.Verb == fleet.CmdReplace && strings.HasSuffix(c.Cmd.GetTargetURI(), "/DevicePreparation/PolicyProviders/"+syncml.DocProvisioningAppProviderID+"/InstallationState") {
+				transition = &c
+			}
+		}
+		require.NotNil(t, transition, "the reply must carry the DevicePreparation InstallationState=3")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d))
+		enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+		require.NoError(t, err)
+		assert.Equal(t, host.UUID, enrolledDevice.HostUUID)
+	})
+
 	t.Run("user-scope release rejected with 405 then retried until acked", func(t *testing.T) {
 		d := enrollToActive(t, "esp-retry@example.com", "esp-h1")
 
@@ -10389,10 +10496,10 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d),
 			"a 405 on the user-scope release must NOT complete the ESP")
 
-		// The server re-sends the user-scope Replace in its response to the ack: the test client enrolls without
-		// an auth-challenge round-trip, so its ack message carries MsgID 2, which is within the session-start
-		// retry gate (espRetryAllowedForMessage). Real devices observed live ack on MsgID 3+ and get the retry at
-		// the next session instead; that shape is covered by the "acked 405 mid-session" unit subtest.
+		// The server re-sends the user-scope Replace in its reply to the ack: the test client retries a
+		// challenged request under the same MsgID, so its ack carries MsgID 2, within the session-start retry
+		// gate (isOMADMSessionStart). Real devices ack on MsgID 3+ and get the retry at the next session
+		// instead; that shape is covered by the "acked 405 mid-session" unit subtest.
 		retry := findUserRelease(afterNack)
 		require.NotNil(t, retry, "the user-scope release must be re-sent after a 405")
 
@@ -27591,12 +27698,16 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setFleetMDMData(macHost.ID, false)
 
-	// A macOS host whose name already matches the resolved template: verified
-	// directly, no command.
+	// A macOS host whose name already matches the resolved template and that has
+	// reported since it enrolled: verified directly, no command.
 	matchingHost, matchingDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setFleetMDMData(matchingHost.ID, false)
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE hosts SET computer_name = ? WHERE id = ?`, "WS-"+matchingHost.HardwareSerial, matchingHost.ID)
+		if _, err := q.ExecContext(ctx, `UPDATE hosts SET computer_name = ?, detail_updated_at = NOW() WHERE id = ?`,
+			"WS-"+matchingHost.HardwareSerial, matchingHost.ID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE nano_devices SET authenticate_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE id = ?`, matchingHost.UUID)
 		return err
 	})
 
@@ -27756,10 +27867,32 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	submitSystemInfo("WS-" + macHost.HardwareSerial)
 	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
 
-	// --- mac: the end user renames the device -> drift -> failed ---
+	// --- mac: the end user renames the device -> drift -> re-enforced ---
 	submitSystemInfo("Renamed by user")
-	driftedRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
-	require.Contains(t, driftedRow.Detail, "renamed on the device")
+	requireRowStatus(macHost.UUID, nil)
+	runDeviceNameCron()
+	reenforcedRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotEqual(t, *macRow.CommandUUID, *reenforcedRow.CommandUUID)
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, *reenforcedRow.CommandUUID, cmd.CommandUUID)
+	var reenforceCmd struct {
+		Command struct {
+			Settings []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &reenforceCmd))
+	require.Len(t, reenforceCmd.Command.Settings, 1)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, reenforceCmd.Command.Settings[0].DeviceName)
+	_, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+	submitSystemInfo("WS-" + macHost.HardwareSerial)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
 
 	// --- iOS: ack then verify through the DeviceInformation refetch path ---
 	cmd, err = iosDevice.Idle()
@@ -27770,38 +27903,65 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.NoError(t, err)
 	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
 
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", iosHost.ID), nil, http.StatusOK)
-	cmd, err = iosDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		switch cmd.Command.RequestType {
-		case "InstalledApplicationList":
-			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, nil)
-		case "CertificateList":
-			cmd, err = iosDevice.AcknowledgeCertificateList(iosDevice.UUID, cmd.CommandUUID, nil)
-		case "DeviceInformation":
-			cmd, err = iosDevice.AcknowledgeDeviceInformation(iosDevice.UUID, cmd.CommandUUID,
-				"WS-"+iosHost.HardwareSerial, "iPhone14,6", "America/Los_Angeles")
-		default:
-			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
-		}
+	refetchIOS := func(deviceName string) {
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", iosHost.ID), nil, http.StatusOK)
+		cmd, err := iosDevice.Idle()
 		require.NoError(t, err)
+		for cmd != nil {
+			switch cmd.Command.RequestType {
+			case "InstalledApplicationList":
+				cmd, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, nil)
+			case "CertificateList":
+				cmd, err = iosDevice.AcknowledgeCertificateList(iosDevice.UUID, cmd.CommandUUID, nil)
+			case "DeviceInformation":
+				cmd, err = iosDevice.AcknowledgeDeviceInformation(iosDevice.UUID, cmd.CommandUUID,
+					deviceName, "iPhone14,6", "America/Los_Angeles")
+			default:
+				cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+			}
+			require.NoError(t, err)
+		}
 	}
+	refetchIOS("WS-" + iosHost.HardwareSerial)
 	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerified)
 
-	// --- iOS failure: the device errors the command (e.g. unsupervised) ---
-	cmd, err = iosFailDevice.Idle()
+	// --- iOS: the end user renames the device -> drift -> re-enforced ---
+	refetchIOS("Renamed by user")
+	requireRowStatus(iosHost.UUID, nil)
+	runDeviceNameCron()
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryPending)
+	cmd, err = iosDevice.Idle()
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
 	require.Equal(t, "Settings", cmd.Command.RequestType)
-	_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{
-		{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
-	})
+	_, err = iosDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// --- iOS failure: the device errors the command (e.g. unsupervised) ---
+	// Each error re-queues the row until the retries are used up, then it fails.
+	failIOSCommand := func() {
+		cmd, err := iosFailDevice.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "Settings", cmd.Command.RequestType)
+		_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{
+			{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
+		})
+		require.NoError(t, err)
+	}
+	for i := 1; i <= servermdm.MaxAppleDeviceNameRetries; i++ {
+		failIOSCommand()
+		retriedRow := requireRowStatus(iosFailHost.UUID, nil)
+		require.EqualValues(t, i, retriedRow.Retries)
+		runDeviceNameCron()
+		requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryPending)
+	}
+	failIOSCommand()
 	failedRow := requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
 	require.Contains(t, failedRow.Detail, "The device is not supervised.")
 
-	// a failed command is not re-sent by subsequent cron runs
+	// once retries are used up, the failed command is not re-sent by subsequent cron runs
 	runDeviceNameCron()
 	requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
 	cmd, err = iosFailDevice.Idle()
@@ -27824,6 +27984,9 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.Nil(t, cmd)
 
 	// --- an APNs push failure doesn't lose or duplicate the command ---
+	// The mac already carries the template name, so rename it off-template (its
+	// failed row ignores the report) to make the cron send a command.
+	submitSystemInfo("Renamed by user")
 	// re-save the resolvable template to queue rows again
 	s.Do("POST", "/api/latest/fleet/host_name_template",
 		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
@@ -27949,6 +28112,60 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.NoError(t, err)
 }
 
+func (s *integrationMDMTestSuite) TestHostNameTemplateReenrollWithStaleName() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", manualProfileIf(false)))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"}, http.StatusNoContent)
+	want := "WS-" + host.HardwareSerial
+
+	// A re-provisioned device: Fleet's host record still carries the template name
+	// from before the device was erased, and its last report predates the
+	// re-enrollment below.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE hosts SET computer_name = ?, detail_updated_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE id = ?`, want, host.ID)
+		return err
+	})
+	require.NoError(t, device.Enroll())
+
+	row, err := s.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, row.Status, "re-enrollment should queue the host")
+
+	// The stored name is stale, so the cron must send the rename instead of
+	// trusting it and marking the host verified.
+	require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	row, err = s.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, row.Status)
+	require.Equal(t, fleet.MDMDeliveryPending, *row.Status)
+	require.NotNil(t, row.CommandUUID)
+
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	require.Equal(t, *row.CommandUUID, cmd.CommandUUID)
+	_, err = device.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// The first report after re-enrollment matches, so no retry is spent.
+	_, err = s.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, want)
+	require.NoError(t, err)
+	row, err = s.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMDeliveryVerified, *row.Status)
+	require.Zero(t, row.Retries)
+}
+
 func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
 	t := s.T()
 	ctx := t.Context()
@@ -28054,18 +28271,20 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
 	submitSystemInfo("WS-" + macHost.HardwareSerial)
 	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
 
-	// end user renames the device off-template → drift → failed
+	// end user renames the device off-template → drift → re-queued
 	submitSystemInfo("Renamed by user")
-	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+	requireRowStatus(macHost.UUID, nil)
 
 	// --- host detail exposes the host_name object for the No-team host ---
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", macHost.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings.HostName)
-	require.Equal(t, fleet.HostNameSettingFailed, getHostResp.Host.MDM.OSSettings.HostName.Status)
+	require.Equal(t, fleet.HostNameSettingPending, getHostResp.Host.MDM.OSSettings.HostName.Status)
 
 	// --- resend works for the No-team host (host-keyed, nil TeamID allowed) ---
+	// Queued rows can't be resent, so first simulate the device rejecting a command.
+	require.NoError(t, s.ds.SetHostDeviceNameStatus(ctx, macHost.UUID, fleet.MDMDeliveryFailed, nil, "", "rejected"))
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/name_template/resend", macHost.ID), nil, http.StatusAccepted)
 	requireRowStatus(macHost.UUID, nil) // reset to queued
 

@@ -79,12 +79,18 @@ csp cases report as not-checked either way.`
       type: 'boolean',
       defaultsTo: false,
       description: 'Whether or not to run the tests with a smaller response shape.'
+    },
+
+    lookupAppleSchemaKeys: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether or not to use the configuration helper\'s lookup functionality.'
     }
 
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, baseModel, verbose, validateWithContour, parallelTests, caseId, testLighterResponse}) {
+  fn: async function ({profileType, naturalLanguageInstructions, baseModel, verbose, validateWithContour, parallelTests, caseId, testLighterResponse, lookupAppleSchemaKeys}) {
 
     let path = require('path');
     let util = require('util');
@@ -186,6 +192,7 @@ csp cases report as not-checked either way.`
       `LLM model used: ${baseModel}\n` +
       (parallelTests > 1 ? `parallelTests: ${parallelTests}\n` : '') +
       `Using smaller response shape: ${testLighterResponse}\n` +
+      `Looking up apple payloads for mobileconfig profiles: ${lookupAppleSchemaKeys}\n` +
       `verbose: ${verbose}\n` +
       '----------'
     );
@@ -219,6 +226,7 @@ csp cases report as not-checked either way.`
             profileType: testCase.profileType,
             naturalLanguageInstructions: testCase.instructions,
             useLighterResponseShape: testLighterResponse,
+            useApplePayloadTypeLookup: lookupAppleSchemaKeys,
           });
           let rawResult = await sails.helpers.ai.prompt.with({
             systemPrompt: generatorConfiguration.systemPrompt,

@@ -98,13 +98,34 @@ describe('configuration profile generator', function() {
               // Never a rejected promise: a generation that throws resolves to its error instead, since a
               // repeat that blew up before its own test got to await it would otherwise take down the
               // whole run as an unhandled rejection.
-              let {rawResult, unexpectedError, elapsedMs} = await repeats[repeatIdx];
+              let {rawResult, unexpectedError, elapsedMs, windowsCspAreasProvided, applePayloadTypesProvided} = await repeats[repeatIdx];
 
               // Distinguished from an abstention on purpose: collapsing the two would report a
               // misconfigured anthropicSecret as a model that refused to answer.
               assert(!unexpectedError, `unexpected error: ${unexpectedError && unexpectedError.message}`);
 
               let expectations = testCase.expect || {};
+
+              // In every failure message, because a profile written from the wrong part of the schema and one
+              // written badly from the right part look identical: the first is a lookup problem, the second a
+              // prompt problem.  DDM has no lookup -- its whole schema always goes in -- so there is nothing to
+              // say for it.
+              let whatTheLookupProvided = '';
+              if(profileType === 'csp') {
+                let areas = windowsCspAreasProvided || [];
+                whatTheLookupProvided = `\n\nCSP areas provided: ${areas.length > 0 ? areas.join(', ') : '(none -- generated without the node reference)'}`;
+              } else if(profileType === 'mobileconfig') {
+                let payloadTypes = applePayloadTypesProvided || [];
+                whatTheLookupProvided = `\n\nPayload types provided: ${payloadTypes.length > 0 ? payloadTypes.join(', ') : '(none -- generated from the full schema, without key descriptions)'}`;
+              }
+
+              // The profile goes in the failure message rather than to stdout: a failure you cannot see is a
+              // failure you cannot act on, and mocha only shows what the assertion carried.
+              let generationForFailureMessage =
+                `\n\nprofileFilename: ${rawResult.profileFilename}` +
+                `\ndeliveryNotes: ${JSON.stringify(rawResult.deliveryNotes)}` +
+                `\n\n${rawResult.configurationProfile}\n\n` +
+                `settingsEnforced:\n${util.inspect(rawResult.settingsEnforced, { depth: 4, colors: false })}\n`;
 
               // Mirrors the action's own acceptance test: an abstention, or a response missing any
               // required key, is not a usable profile.
@@ -116,11 +137,17 @@ describe('configuration profile generator', function() {
               );
 
               if(expectations.expectFailure) {
-                assert(abstained, 'expected this request to be refused, but a profile was generated');
+                assert(
+                  abstained,
+                  'expected this request to be refused, but a profile was generated' +
+                  (testCase.readByEye ? `\n\nNote on this case: ${testCase.readByEye}` : '') +
+                  whatTheLookupProvided +
+                  generationForFailureMessage
+                );
                 return;
               }
 
-              assert(!abstained, `abstained but a profile was expected -- reason given: ${JSON.stringify(rawResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}`);
+              assert(!abstained, `abstained but a profile was expected -- reason given: ${JSON.stringify(rawResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}${whatTheLookupProvided}`);
 
               let generatedProfile = {
                 profile: rawResult.configurationProfile,
@@ -132,15 +159,11 @@ describe('configuration profile generator', function() {
               let checkFailures = checkExpectations(expectations, generatedProfile);
               assert.strictEqual(
                 checkFailures.length, 0,
-                // The profile goes in the message rather than to stdout: a failure you cannot see is a
-                // failure you cannot act on, and mocha only shows what the assertion carried.
                 `${testCase.canary ? 'CANARY -- ' : ''}${checkFailures.length} check(s) failed:\n` +
                 checkFailures.map((checkFailure)=>{ return `  - ${checkFailure}`; }).join('\n') +
                 (testCase.readByEye ? `\n\nNote on this case: ${testCase.readByEye}` : '') +
-                `\n\nprofileFilename: ${generatedProfile.profileFilename}` +
-                `\ndeliveryNotes: ${JSON.stringify(generatedProfile.deliveryNotes)}` +
-                `\n\n${generatedProfile.profile}\n\n` +
-                `settingsEnforced:\n${util.inspect(generatedProfile.items, { depth: 4, colors: false })}\n`
+                whatTheLookupProvided +
+                generationForFailureMessage
               );
 
               // Passing the assertions is not the same as being right -- the checks are substrings, and the
@@ -151,6 +174,7 @@ describe('configuration profile generator', function() {
                 console.log(
                   `\n      ---- ${testCase.id}${REPEATS > 1 ? ` #${repeatIdx + 1}` : ''}${testCase.canary ? ' (CANARY)' : ''} -- ${elapsedMs}ms ----\n` +
                   (testCase.readByEye ? `      CONFIRM BY EYE: ${testCase.readByEye}\n` : '') +
+                  (whatTheLookupProvided ? `      ${whatTheLookupProvided.trim()}\n` : '') +
                   `      profileFilename: ${generatedProfile.profileFilename}\n` +
                   `      deliveryNotes: ${JSON.stringify(generatedProfile.deliveryNotes)}\n\n` +
                   `${generatedProfile.profile}\n\n` +
@@ -178,7 +202,7 @@ describe('configuration profile generator', function() {
  * rejection and take the run with it.
  *
  * @param  {Dictionary} testCase
- * @returns {Dictionary}  {rawResult, elapsedMs} or {unexpectedError, elapsedMs}
+ * @returns {Dictionary}  {rawResult, elapsedMs, windowsCspAreasProvided, applePayloadTypesProvided} or {unexpectedError, elapsedMs}
  */
 async function generateOnce(testCase) {
   let startedAt = Date.now();
@@ -188,6 +212,7 @@ async function generateOnce(testCase) {
     let generatorConfiguration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({
       profileType: testCase.profileType,
       naturalLanguageInstructions: testCase.instructions,
+      useApplePayloadTypeLookup: true,
     });
     let rawResult = await sails.helpers.ai.prompt.with({
       systemPrompt: generatorConfiguration.systemPrompt,
@@ -195,7 +220,12 @@ async function generateOnce(testCase) {
       baseModel: BASE_MODEL,
       expectJson: true,
     });
-    return { rawResult, elapsedMs: Date.now() - startedAt };
+    return {
+      rawResult,
+      elapsedMs: Date.now() - startedAt,
+      windowsCspAreasProvided: generatorConfiguration.windowsCspAreasProvided,
+      applePayloadTypesProvided: generatorConfiguration.applePayloadTypesProvided,
+    };
   } catch (err) {
     return { unexpectedError: err, elapsedMs: Date.now() - startedAt };
   }

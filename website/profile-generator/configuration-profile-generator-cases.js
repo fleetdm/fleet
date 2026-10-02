@@ -548,10 +548,12 @@ const TEST_CASES = [
     instructions: 'Require a 12-character passcode with no simple passcodes, and turn on automatic checking for updates.',
     // The casing checks below all run against one document, so a model cannot pass them by being
     // self-consistently wrong: the lowercase passcode keys and the capitalized AutomaticCheckEnabled
-    // have to hold in the same profile.
+    // have to hold in the same profile.  forcePIN is not required: Apple documents that the passcode
+    // payload's presence is what makes the device ask for a passcode, so minLength and allowSimple
+    // enforce on their own.  A forcePIN that does appear still has to be cased correctly.
     readByEye: 'Two payload dicts should be present, each with its own PayloadUUID and an identifier suffix.',
     expect: {
-      mustContainElement: [['key', 'forcePIN'], ['key', 'minLength'], ['key', 'allowSimple'], ['key', 'AutomaticCheckEnabled']],
+      mustContainElement: [['key', 'minLength'], ['key', 'allowSimple'], ['key', 'AutomaticCheckEnabled']],
       mustNotContainElement: [['key', 'ForcePIN'], ['key', 'MinLength'], ['key', 'AllowSimple'], ['key', 'automaticCheckEnabled']]
     }
   },
@@ -608,7 +610,7 @@ const TEST_CASES = [
     id: 'mobileconfig-two-payloads',
     profileType: 'mobileconfig',
     instructions: 'Disable AirDrop and turn off Siri.',
-    readByEye: 'Two dicts, each with a distinct uppercase PayloadUUID and an identifier that is the root identifier plus a suffix.  Duplicate UUIDs install unpredictably and nothing here can detect them.',
+    readByEye: 'Both keys are com.apple.applicationaccess, so ONE dict inside PayloadContent, not two.  Its PayloadUUID must be distinct from the root\'s, and its identifier the root identifier plus a suffix.',
     expect: {
       mustContain: ['com.apple.applicationaccess', 'allowAirDrop', 'allowAssistant'],
     }
@@ -649,7 +651,7 @@ const TEST_CASES = [
     // false because the payload is named "restrictions".
     expect: {
       mustContain: ['com.apple.applicationaccess', '<key>allowBookstore</key><true/>'],
-      mustNotContain: ['allowBookstoreErotica', '<false/>'],
+      mustNotContain: ['allowBookstoreErotica', '<key>allowBookstore</key><false/>'],
       mustNotContainElement: [['key', 'AllowBookstore'], ['string', 'true']]
     }
   },
@@ -728,6 +730,263 @@ const TEST_CASES = [
       mustNotContainElement: [['key', 'IfLostReturnToMessage']]
     }
   },
+  // The mobileconfig-cis-* cases come from the "Profile Method" blocks in
+  // ee/cis/macos-26/cis-policy-queries.yml, which give the payload type, key and value.  Where CIS
+  // relies on a key Apple does not document, the case follows Apple's schema instead, since the
+  // prompt forbids undocumented keys.
+  {
+    id: 'mobileconfig-cis-auto-download-updates',
+    profileType: 'mobileconfig',
+    instructions: 'Download macOS updates automatically as soon as they are available.',
+    expect: {
+      mustContain: ['com.apple.SoftwareUpdate', '<key>AutomaticDownload</key><true/>'],
+      mustNotContain: ['AutomaticallyInstallMacOSUpdates'],
+      mustNotContainElement: [['string', 'true']],
+    }
+  },
+  {
+    id: 'mobileconfig-cis-install-macos-updates',
+    profileType: 'mobileconfig',
+    instructions: 'Install macOS updates automatically.',
+    expect: {
+      mustContain: ['com.apple.SoftwareUpdate', '<key>AutomaticallyInstallMacOSUpdates</key><true/>'],
+      mustNotContain: ['AutomaticallyInstallMacOSupdates', 'AutomaticallyInstallAppUpdates'],
+      mustNotContainElement: [['string', 'true']],
+    }
+  },
+  {
+    id: 'mobileconfig-cis-security-responses',
+    profileType: 'mobileconfig',
+    instructions: 'Install security responses and system data files automatically.',
+    readByEye: 'Both keys must sit in ONE com.apple.SoftwareUpdate dict.',
+    expect: {
+      mustContain: ['com.apple.SoftwareUpdate', '<key>ConfigDataInstall</key><true/>', '<key>CriticalUpdateInstall</key><true/>'],
+      mustNotContainElement: [['string', 'true']],
+    }
+  },
+  {
+    id: 'mobileconfig-cis-update-deferral',
+    profileType: 'mobileconfig',
+    instructions: 'Hold back macOS updates from users for 30 days after release.',
+    // forceDelayedSoftwareUpdates is what turns the delay on; the delay keys only set its length and
+    // default to 30, so omitting them is correct.  These live in com.apple.applicationaccess, not
+    // com.apple.SoftwareUpdate.  Apple removes them in macOS 27 in favour of DDM.
+    readByEye: 'If a delay key (enforcedSoftwareUpdateDelay or enforcedSoftwareUpdateMinorOSDeferredInstallDelay) is present, its value must be 30.',
+    expect: {
+      mustContain: ['com.apple.applicationaccess', '<key>forceDelayedSoftwareUpdates</key><true/>'],
+      mustNotContain: ['EnforcedSoftwareUpdateDelay', 'ForceDelayedSoftwareUpdates', 'com.apple.SoftwareUpdate', 'com.apple.configuration.softwareupdate'],
+      mustNotContainElement: [['string', 'true'], ['string', '30']],
+    }
+  },
+  {
+    id: 'mobileconfig-cis-media-sharing-modification',
+    profileType: 'mobileconfig',
+    instructions: 'Stop users from changing the Media Sharing settings.',
+    // CIS also sets allowMediaSharing, which is not in Apple's schema, so it is neither required nor
+    // forbidden here.
+    expect: {
+      mustContain: ['com.apple.applicationaccess', '<key>allowMediaSharingModification</key><false/>'],
+      mustNotContainElement: [['string', 'false']],
+    }
+  },
+  {
+    id: 'mobileconfig-cis-airplay-receiver',
+    profileType: 'mobileconfig',
+    instructions: 'Stop this Mac from accepting incoming AirPlay requests.',
+    expect: {
+      mustContain: ['com.apple.applicationaccess', '<key>allowAirPlayIncomingRequests</key><false/>'],
+      mustNotContain: ['AllowAirPlayIncomingRequests', 'allowAirplayIncomingRequests'],
+      mustNotContainElement: [['string', 'false']],
+    }
+  },
+  {
+    id: 'mobileconfig-cis-writing-tools',
+    profileType: 'mobileconfig',
+    instructions: 'Turn off Apple Intelligence Writing Tools.',
+    // The DDM spelling is AllowWritingTools in com.apple.configuration.intelligence.settings.
+    expect: {
+      mustContain: ['com.apple.applicationaccess', '<key>allowWritingTools</key><false/>'],
+      mustNotContain: ['AllowWritingTools', 'com.apple.configuration.intelligence'],
+      mustNotContainElement: [['string', 'false']],
+    }
+  },
+  {
+    id: 'mobileconfig-cis-prevent-filevault-disable',
+    profileType: 'mobileconfig',
+    instructions: 'Stop users from turning FileVault off.',
+    // dontAllowFDEEnable is the lookalike that does the opposite.
+    readByEye: 'The prompt says disk encryption is often managed natively by the MDM, so "deliveryNotes" should warn about a possible conflict -- one of the few cases where an empty deliveryNotes is wrong.',
+    expect: {
+      mustContain: ['com.apple.MCX', '<key>dontAllowFDEDisable</key><true/>'],
+      mustNotContain: ['DontAllowFDEDisable', 'dontAllowFDEEnable'],
+      mustNotContainElement: [['string', 'true']],
+    }
+  },
+  {
+    id: 'mobileconfig-cis-login-window-name-and-password',
+    profileType: 'mobileconfig',
+    instructions: 'Make the login window ask for a username and password instead of showing a list of accounts.',
+    // The inverse of mobileconfig-showfullname: true gives name-and-password fields.  Together the two
+    // catch a model that always emits the same value for SHOWFULLNAME.
+    expect: {
+      mustContain: ['com.apple.loginwindow', '<key>SHOWFULLNAME</key><true/>'],
+      mustNotContain: ['ShowFullName', 'showFullName'],
+      mustNotContainElement: [['string', 'true']],
+    }
+  },
+  {
+    id: 'mobileconfig-cis-password-hints',
+    profileType: 'mobileconfig',
+    instructions: 'Never show password hints on the login window.',
+    // Zero retries is what disables the hint; "disable means false" puts a boolean in an integer key.
+    expect: {
+      mustContain: ['com.apple.loginwindow', '<key>RetriesUntilHint</key><integer>0</integer>'],
+      mustNotContain: ['<key>RetriesUntilHint</key><false/>'],
+    }
+  },
+  // Apple preference domains with no payload manifest, so not in the provided schema and answered
+  // from recall.  The domain casing is the trap: com.apple.Safari, not com.apple.safari.
+  // 2026-10-01: eashaw: I commented out the four cases below because they rely on settings not included in the schema we are currently sending the LLM.
+  // FUTURE: uncomment these cases and update regenerate-apple-profile-schemas to add settings documented in the usnistgov/macos_security GitHub repo.
+  // {
+  //   id: 'mobileconfig-cis-bonjour-advertising',
+  //   profileType: 'mobileconfig',
+  //   instructions: 'Stop this Mac advertising services over Bonjour.',
+  //   expect: {
+  //     mustContain: ['com.apple.mDNSResponder', '<key>NoMulticastAdvertisements</key><true/>'],
+  //     mustNotContain: ['com.apple.mdnsresponder', 'com.apple.MDNSResponder'],
+  //     mustNotContainElement: [['string', 'true']],
+  //   }
+  // },
+  // {
+  //   id: 'mobileconfig-cis-safari-safe-downloads',
+  //   profileType: 'mobileconfig',
+  //   instructions: 'Stop Safari from automatically opening files it considers safe after downloading them.',
+  //   expect: {
+  //     mustContain: ['com.apple.Safari', '<key>AutoOpenSafeDownloads</key><false/>'],
+  //     mustNotContain: ['com.apple.safari'],
+  //     mustNotContainElement: [['string', 'false']],
+  //   }
+  // },
+  // {
+  //   id: 'mobileconfig-cis-safari-full-url',
+  //   profileType: 'mobileconfig',
+  //   instructions: 'Show the full website address in the Safari address bar.',
+  //   expect: {
+  //     mustContain: ['com.apple.Safari', '<key>ShowFullURLInSmartSearchField</key><true/>'],
+  //     mustNotContain: ['ShowFullUrlInSmartSearchField', 'com.apple.safari'],
+  //     mustNotContainElement: [['string', 'true']],
+  //   }
+  // },
+  // {
+  //   id: 'mobileconfig-cis-terminal-secure-keyboard',
+  //   profileType: 'mobileconfig',
+  //   instructions: 'Turn on secure keyboard entry in Terminal.',
+  //   expect: {
+  //     mustContain: ['com.apple.Terminal', '<key>SecureKeyboardEntry</key><true/>'],
+  //     mustNotContain: ['com.apple.terminal'],
+  //     mustNotContainElement: [['string', 'true']],
+  //   }
+  // },
+  {
+    id: 'mobileconfig-cis-password-policy-multi',
+    profileType: 'mobileconfig',
+    instructions: 'Require a password of at least 15 characters, lock the account after 5 failed attempts, expire passwords after 365 days, and stop the last 24 passwords being reused.',
+    // maxPINAgeInDays keeps a capital PIN mid-key; a model normalizing casing writes maxPinAgeInDays.
+    readByEye: 'All four keys must sit in ONE com.apple.mobiledevice.passwordpolicy dict.',
+    expect: {
+      mustContain: [
+        'com.apple.mobiledevice.passwordpolicy',
+        '<key>minLength</key><integer>15</integer>',
+        '<key>maxFailedAttempts</key><integer>5</integer>',
+        '<key>maxPINAgeInDays</key><integer>365</integer>',
+        '<key>pinHistory</key><integer>24</integer>'
+      ],
+      mustNotContain: ['MaxFailedAttempts', 'MinLength', 'maxPinAgeInDays', 'PinHistory'],
+    }
+  },
+  // Grouping: N settings across M payload domains must be M dicts inside PayloadContent -- not N,
+  // and not 1.  Dict counts are beyond a substring check, so each of these carries a readByEye.
+  {
+    id: 'mobileconfig-grouping-three-settings-two-domains',
+    profileType: 'mobileconfig',
+    instructions: 'Turn off AirDrop, turn off content caching, and start the screen saver after 10 minutes.',
+    readByEye: 'Exactly TWO dicts in PayloadContent: com.apple.applicationaccess with both allow* keys, and com.apple.screensaver.  Each with its own PayloadUUID and a distinct identifier.',
+    expect: {
+      mustContain: [
+        'com.apple.applicationaccess', '<key>allowAirDrop</key><false/>', '<key>allowContentCaching</key><false/>',
+        'com.apple.screensaver', '<key>idleTime</key><integer>600</integer>'
+      ],
+      mustNotContainElement: [['string', 'false']],
+    }
+  },
+  {
+    id: 'mobileconfig-grouping-four-settings-three-domains',
+    profileType: 'mobileconfig',
+    instructions: 'Show "Property of Acme Corp" on the login window, disable the guest account, turn off Siri, and stop diagnostics being sent to Apple.',
+    // Siri and diagnostics both belong to com.apple.applicationaccess (see mobileconfig-diagnostics),
+    // so four settings make three dicts.
+    readByEye: 'Exactly THREE dicts: com.apple.loginwindow, com.apple.MCX, and one com.apple.applicationaccess holding both allowAssistant and allowDiagnosticSubmission.  Distinct PayloadUUIDs and identifiers.',
+    expect: {
+      mustContain: [
+        'com.apple.loginwindow', '<key>LoginwindowText</key><string>Property of Acme Corp</string>',
+        'com.apple.MCX', '<key>DisableGuestAccount</key><true/>',
+        'com.apple.applicationaccess', '<key>allowAssistant</key><false/>', '<key>allowDiagnosticSubmission</key><false/>'
+      ],
+      mustNotContain: ['com.apple.SubmitDiagInfo', '<key>EnableGuestAccount</key><true/>'],
+    }
+  },
+  {
+    id: 'mobileconfig-grouping-same-domain-not-split',
+    profileType: 'mobileconfig',
+    instructions: 'Turn off AirDrop, turn off iCloud Desktop and Documents, turn off content caching, and block personalized ads.',
+    readByEye: 'All four keys are com.apple.applicationaccess, so ONE dict with four keys.  Four dicts sharing a PayloadType is what the prompt forbids and the likeliest shape for four separate asks.',
+    expect: {
+      mustContain: [
+        'com.apple.applicationaccess',
+        '<key>allowAirDrop</key><false/>',
+        '<key>allowCloudDesktopAndDocuments</key><false/>',
+        '<key>allowContentCaching</key><false/>',
+        '<key>allowApplePersonalizedAdvertising</key><false/>'
+      ],
+      mustNotContainElement: [['string', 'false']],
+    }
+  },
+  {
+    id: 'mobileconfig-grouping-mixed-value-types',
+    profileType: 'mobileconfig',
+    instructions: 'Show "Authorized use only" on the login window, never show password hints, and require the password immediately after the screen saver starts.',
+    // Three plist types in one profile: <string>, <integer>, and <true/>.
+    expect: {
+      mustContain: [
+        'com.apple.loginwindow', '<key>LoginwindowText</key><string>Authorized use only</string>', '<key>RetriesUntilHint</key><integer>0</integer>',
+        'com.apple.screensaver', '<key>askForPassword</key><true/>', '<key>askForPasswordDelay</key><integer>0</integer>'
+      ],
+      mustNotContainElement: [['string', 'true'], ['string', '0']],
+    }
+  },
+  {
+    id: 'mobileconfig-login-text-fidelity',
+    profileType: 'mobileconfig',
+    instructions: 'Show this on the login screen, exactly as written: Property of ACME-Corp (IT) — contact it@acme.example',
+    // The whole string as one needle, so re-capitalizing, turning the em dash into a hyphen, or
+    // entity-escaping a character that needs none all fail it.
+    expect: {
+      mustContain: ['com.apple.loginwindow', '<key>LoginwindowText</key><string>Property of ACME-Corp (IT) — contact it@acme.example</string>'],
+    }
+  },
+  {
+    id: 'mobileconfig-xml-escaping-in-value',
+    profileType: 'mobileconfig',
+    instructions: 'Set the login window message to: Research & Development — "restricted" <internal use only>',
+    // The one case where escaping is required: an unescaped & or < does not parse.  Whitespace is
+    // stripped before comparing, so the raw "Research&Development" is not a substring of the escaped
+    // "Research&amp;Development".  Quotes may legally be left as-is or written &quot;.
+    expect: {
+      mustContain: ['com.apple.loginwindow', 'LoginwindowText', 'Research &amp; Development', '&lt;internal use only'],
+      mustNotContain: ['Research & Development', '<internal use only>', '&amp;amp;'],
+    }
+  },
 
   //  ╔╦╗╔╦╗╔╦╗
   //   ║║ ║║║║║
@@ -748,7 +1007,7 @@ const TEST_CASES = [
   {
     id: 'ddm-beta-enroll',
     profileType: 'ddm',
-    instructions: 'Enroll devices in our beta program using the enrollment token BETA-TOKEN-123, shown to users as "Acme macOS Beta".',
+    instructions: 'Automatically enroll devices in our beta program using the enrollment token BETA-TOKEN-123, shown to users as "Acme macOS Beta".',
     expect: {
       mustContain: ['com.apple.configuration.softwareupdate.settings', 'RequireProgram', 'BETA-TOKEN-123']
     }
@@ -869,6 +1128,156 @@ const TEST_CASES = [
       ],
       mustNotContain: ['"Enabled"', '"InstallOSUpdates":"AlwaysOn"']
     }
+  },
+
+  {
+    id: 'ddm-safari-cookies-and-popups',
+    profileType: 'ddm',
+    instructions: 'In Safari, only accept cookies from sites people have actually visited, and block pop-ups.',
+    readByEye: 'AcceptCookies is an enum with exactly four values in the supplied schema (Never|CurrentWebsite|VisitedWebsites|Always).  "Sites people have visited" is VisitedWebsites -- confirm the model picked from the enum rather than inventing a boolean or a string like "visited".',
+    expect: {
+      mustContain: ['com.apple.configuration.safari.settings', '"AcceptCookies":"VisitedWebsites"', '"AllowPopups":false'],
+      mustNotContain: ['acceptCookies', 'allowPopups', 'allowPopUps'],
+    }
+  },
+  {
+    id: 'ddm-disk-management-external-readonly',
+    profileType: 'ddm',
+    instructions: 'Let people read from USB drives and other external disks, but not write to them.',
+    readByEye: 'Restrictions.ExternalStorage is a nested dictionary with the enum Allowed|ReadOnly|Disallowed.  ReadOnly is the answer; a boolean here is an unknown value in a known key.',
+    expect: {
+      mustContain: ['com.apple.configuration.diskmanagement.settings', '"Restrictions"', '"ExternalStorage":"ReadOnly"'],
+      mustNotContain: ['externalStorage', 'NetworkStorage'],
+    }
+  },
+  {
+    id: 'ddm-keyboard-restrictions',
+    profileType: 'ddm',
+    instructions: 'Turn off dictation and predictive text on the keyboard.',
+    expect: {
+      mustContain: ['com.apple.configuration.keyboard.settings', '"AllowDictation":false', '"AllowPredictiveText":false'],
+      mustNotContain: ['allowDictation', 'allowPredictiveText', 'AllowSpellCheck', 'AllowAutoCorrection'],
+    }
+  },
+  {
+    id: 'ddm-intelligence-nested-apps',
+    profileType: 'ddm',
+    canary: true,
+    instructions: 'Turn off Apple Intelligence summaries in Mail and Safari.',
+    readByEye: 'These two live in the nested Apps dictionary -- Apps.Mail.AllowSummary and Apps.Safari.AllowSummary -- not at the top level of the payload.  A flat AllowMailSummary key is an unknown key that enforces nothing.  Also confirm no top-level Allow* keys were set, since only the two summaries were asked for.',
+    expect: {
+      mustContain: ['com.apple.configuration.intelligence.settings', 'Apps', 'Mail', 'Safari', 'AllowSummary'],
+      mustNotContain: ['AllowMailSummary', 'AllowSafariSummary', 'AllowWritingTools', 'AllowGenmoji'],
+    }
+  },
+  {
+    id: 'ddm-screensharing-host-limits',
+    profileType: 'ddm',
+    instructions: 'On our screen sharing hosts, do not allow files to be copied in either direction, and cap virtual displays at 1.',
+    readByEye: 'MaximumVirtualDisplays has a documented range of 0-2, so 1 is in range -- confirm it was not clamped or turned into a boolean.',
+    expect: {
+      mustContain: ['com.apple.configuration.screensharing.host.settings', 'PreventCopyFilesFromHost', 'PreventCopyFilesToHost', 'MaximumVirtualDisplays'],
+      mustNotContain: ['preventCopyFilesFromHost', 'maximumVirtualDisplays'],
+    }
+  },
+  {
+    id: 'ddm-passcode-boundary-values',
+    profileType: 'ddm',
+    canary: true,
+    instructions: 'Require a 16-character passcode, lock after 11 failed attempts, and make people change it every 730 days.',
+    readByEye: 'Every one of these is the exact top of its documented range: MinimumLength 0-16, MaximumFailedAttempts 2-11, MaximumPasscodeAgeInDays 0-730.  All three are legal.  A model that "helpfully" reduces any of them to a safer-looking number has silently changed what the admin asked for.',
+    expect: {
+      mustContain: ['com.apple.configuration.passcode.settings', 'MinimumLength', 'MaximumFailedAttempts', 'MaximumPasscodeAgeInDays', '16', '11', '730'],
+      mustNotContain: ['minLength', 'forcePIN', 'maxFailedAttempts', 'RequirePasscode": false'],
+    }
+  },
+  {
+    id: 'ddm-softwareupdate-automatic-actions',
+    profileType: 'ddm',
+    instructions: 'Let macOS download updates on its own, but never install OS updates without us saying so.',
+    readByEye: 'AutomaticActions.Download and AutomaticActions.InstallOSUpdates each take the enum Allowed|AlwaysOn|AlwaysOff.  "Never install without approval" is AlwaysOff on InstallOSUpdates; a boolean false is an unknown value.',
+    expect: {
+      mustContain: ['com.apple.configuration.softwareupdate.settings', 'AutomaticActions', 'Download', 'InstallOSUpdates', 'AlwaysOff'],
+      mustNotContain: ['AutomaticCheckEnabled', 'AutomaticDownload', 'automaticActions'],
+    }
+  },
+  {
+    id: 'ddm-safari-extension-any-dict',
+    profileType: 'ddm',
+    canary: true,
+    instructions: 'Allow the Safari extension with identifier com.acme.toolbar to run, but never in private browsing.',
+    readByEye: 'ManagedExtensions is an ANY dictionary keyed by the extension identifier, so com.acme.toolbar must appear as a KEY with a {State, PrivateBrowsing} object under it -- not as the value of an "Identifier" field.  PrivateBrowsing takes Allowed|AlwaysOn|AlwaysOff, so "never" is AlwaysOff.',
+    expect: {
+      mustContain: ['com.apple.configuration.safari.extensions.settings', 'ManagedExtensions', 'com.acme.toolbar', 'PrivateBrowsing', 'AlwaysOff'],
+      mustNotContain: ['managedExtensions', 'privateBrowsing'],
+    }
+  },
+  //  ╔╗╔╔═╗╔═╗╔═╗╔╦╗╦╦  ╦╔═╗  ┌─┐┌─┐┌─┐┌─┐┌─┐
+  //  ║║║║╣ ║ ╦╠═╣ ║ ║╚╗╔╝║╣   │  ├─┤└─┐├┤ └─┐
+  //  ╝╚╝╚═╝╚═╝╩ ╩ ╩ ╩ ╚╝ ╚═╝  └─┘┴ ┴└─┘└─┘└─┘
+  //
+  // Every one of these is a real CIS macOS 26 benchmark item with no profile method, chosen because
+  // the control is enforced somewhere a configuration profile cannot reach.  The prompt has five
+  // separate "return couldNotGenerateProfile rather than guess" rules and the current suite tests
+  // none of them, so this is the whole of that coverage.
+  //
+  // What a failure means here: the tool invented a payload key that does not exist, wrote a profile
+  // that installs cleanly and enforces nothing, and told the admin they were compliant.
+  {
+    id: 'negative-screen-sharing-disabled',
+    profileType: 'mobileconfig',
+    instructions: 'Make sure Screen Sharing is turned off on every Mac.',
+    readByEye: 'Screen Sharing is a launchd service (com.apple.screensharing), toggled with launchctl, not a managed preference.  The right answer names that.  Do NOT accept a com.apple.screensharing payload -- the domain exists for connection settings, not for turning the service off.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-remote-login-disabled',
+    profileType: 'mobileconfig',
+    instructions: 'Turn off Remote Login so nobody can SSH into these Macs.',
+    readByEye: 'Remote Login is the ssh launchd job.  A profile cannot disable it.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-sip-enabled',
+    profileType: 'mobileconfig',
+    instructions: 'Make sure System Integrity Protection is enabled.',
+    readByEye: 'SIP is toggled with csrutil from recoveryOS and cannot be set by MDM at all.  This is the clearest negative in the set -- if anything passes here, the abstention rules are not working.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-root-account-disabled',
+    profileType: 'mobileconfig',
+    instructions: 'Make sure the root account is disabled.',
+    readByEye: 'Local account state, changed with dsenableroot. Not a profile setting.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-sudo-timeout-zero',
+    profileType: 'mobileconfig',
+    instructions: 'Set the sudo timeout period to zero.',
+    readByEye: 'This lives in /etc/sudoers.d and is a file, not a preference domain.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-security-auditing-enabled',
+    profileType: 'mobileconfig',
+    instructions: 'Make sure security auditing is turned on.',
+    readByEye: 'auditd is configured through /etc/security/audit_control.  No payload domain covers it.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-no-world-writable-library-folders',
+    profileType: 'mobileconfig',
+    instructions: 'Make sure there are no world-writable folders in the Library folder.',
+    readByEye: 'Filesystem permissions are an observation about the disk, not a setting that can be enforced.  A profile cannot express this at all.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-xprotect-running',
+    profileType: 'mobileconfig',
+    instructions: 'Make sure XProtect is running.',
+    readByEye: 'Another state-not-setting.  ConfigDataInstall (CIS 1.5) keeps XProtect definitions current but does not make XProtect run, so a profile carrying only that key answers a different request.',
+    expect: { expectFailure: true }
   },
 
 

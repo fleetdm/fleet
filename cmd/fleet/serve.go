@@ -498,6 +498,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		},
 		config.MDM.AndroidAgent,
 		redis_key_value.New(redisPool),
+		android_service.WithInstallReapTimeout(config.Server.VPPInstallReapTimeout),
 	)
 	if err != nil {
 		initFatal(err, "initializing android service")
