@@ -34,6 +34,7 @@ func TestScripts(t *testing.T) {
 		{"GetHostScriptDetails", testGetHostScriptDetails},
 		{"BatchSetScripts", testBatchSetScripts},
 		{"BatchSetScriptsDoesNotLockOtherPolicies", testBatchSetScriptsDoesNotLockOtherPolicies},
+		{"BatchSetScriptsUnsetsScriptAddedMidApply", testBatchSetScriptsUnsetsScriptAddedMidApply},
 		{"TestLockHostViaScript", testLockHostViaScript},
 		{"TestUnlockHostViaScript", testUnlockHostViaScript},
 		{"TestLockUnlockWipeViaScripts", testLockUnlockWipeViaScripts},
@@ -874,6 +875,50 @@ func testBatchSetScriptsDoesNotLockOtherPolicies(t *testing.T, ds *Datastore) {
 	removed, err = ds.Policy(ctx, removed.ID)
 	require.NoError(t, err)
 	require.Nil(t, removed.ScriptID)
+}
+
+func testBatchSetScriptsUnsetsScriptAddedMidApply(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	kept := []*fleet.Script{{Name: "kept.sh", ScriptContents: "echo kept"}}
+	_, err = ds.BatchSetScripts(ctx, &tm.ID, kept)
+	require.NoError(t, err)
+	policy, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	// Another request adds a script to the fleet and assigns it to the policy, committing after the
+	// apply has started.
+	otherTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = otherTx.Rollback() }()
+	res, err := insertScriptContents(ctx, otherTx, "echo late")
+	require.NoError(t, err)
+	contentID, _ := res.LastInsertId()
+	res, err = otherTx.ExecContext(ctx, `INSERT INTO scripts (team_id, global_or_team_id, name, script_content_id) VALUES (?, ?, 'late.sh', ?)`, tm.ID, tm.ID, contentID)
+	require.NoError(t, err)
+	lateID, _ := res.LastInsertId()
+	_, err = otherTx.ExecContext(ctx, `UPDATE policies SET script_id = ? WHERE id = ?`, lateID, policy.ID)
+	require.NoError(t, err)
+
+	applyErr := make(chan error, 1)
+	go func() {
+		_, err := ds.BatchSetScripts(ctx, &tm.ID, kept)
+		applyErr <- err
+	}()
+	// innodb_trx only refreshes when it hasn't been read for 100ms, so poll slower than that.
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &waiting, `SELECT COUNT(*) FROM information_schema.innodb_trx WHERE trx_state = 'LOCK WAIT'`)
+		return err == nil && waiting > 0
+	}, 5*time.Second, 250*time.Millisecond)
+	require.NoError(t, otherTx.Commit())
+	require.NoError(t, <-applyErr)
+
+	policy, err = ds.Policy(ctx, policy.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy.ScriptID)
 }
 
 func testBatchSetScripts(t *testing.T, ds *Datastore) {

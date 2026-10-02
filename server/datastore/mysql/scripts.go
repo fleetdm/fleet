@@ -1227,7 +1227,9 @@ WHERE
 			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
 
-	const loadScriptsNotInList = `SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?)`
+	// Locking read, so a script committed after this transaction's snapshot is still unset from
+	// its policies before the delete below removes it.
+	const loadScriptsNotInList = `SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?) FOR UPDATE`
 
 	// Without the hint MySQL can pick a full scan, which locks every policy row until commit and
 	// blocks all hosts' policy result writes.
