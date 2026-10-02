@@ -19,13 +19,13 @@ The high-level steps to complete the migration are:
    - [Extensions | Fleet](https://fleetdm.com/docs/configuration/agent-configuration#extensions)
    - [osquery Extensions](https://osquery.readthedocs.io/en/stable/development/osquery-sdk/#extensions)
 
-2. **Translate your osquery configuration to Fleet agent options.** This includes any "configuration as code" objects such as flagfiles. Keep in mind:
+2. **Translate your osquery configuration to Fleet agent options.** This includes any "configuration as code" objects, such as flagfiles. Keep in mind:
 
    - `options` are applied without restarting fleetd.
    - `command_line_flags` are only applied when fleetd restarts.
    - Leaving `command_line_flags` out of agent options preserves each host's existing osquery flags. Setting it to `{}` or `null` **clears all local osquery flags** on hosts. Don't use an empty value as a placeholder while translating.
    - `command_line_flags` isn't supported inside `overrides`.
-   - Agent options are validated against the latest osquery version. If you pin an older osquery version, you may need `fleetctl apply --force` to apply them.
+   - Agent options are validated against the latest osquery version. If you pin an older osquery version, you may need `fleetctl apply --force` to apply it.
 
    See:
 
@@ -44,13 +44,13 @@ The high-level steps to complete the migration are:
    - Confirm osquery has sent its buffered results (see [Avoiding data loss during cutover](#avoiding-data-loss-during-cutover)).
    - Stop and uninstall osquery.
    - Install fleetd using the fleet's enroll secret.
-   - Confirm the host checks in, appears as a single host record, returns report and policy results, and that logs arrive at your log destination.
+   - Confirm the host checks in, appears as a single host record, and returns report and policy results. Then confirm logs arrive at your log destination.
 
    See:
 
    - [Enroll hosts | Fleet](https://fleetdm.com/guides/enroll-hosts)
 
-5. **Roll out in waves.** Once the pilot is healthy, repeat the cutover for the remaining hosts in batches. osquery uninstallation steps differ by platform. See:
+5. **Roll out in waves.** Once the pilot is healthy, repeat the cutover for the remaining hosts in batches. Osquery uninstallation steps differ by platform. See:
 
    - [Installing osquery on Linux](https://osquery.readthedocs.io/en/stable/installation/install-linux/)
    - [Installing osquery on macOS](https://osquery.readthedocs.io/en/stable/installation/install-macos/) (includes a "Removing osquery" section)
@@ -281,7 +281,7 @@ This order prevents a race condition in which both agents check in to Fleet and 
 
 ### Avoiding data loss during cutover
 
-osquery buffers scheduled results locally before sending them to its logger. If you stop osquery and delete its database directory before the buffer is sent, those results are lost. Before removing osquery's files, wait at least one logger period (`logger_tls_period`, or the equivalent for your logger plugin) after the last scheduled run. Then confirm the host's most recent results have reached your log destination.
+Osquery buffers scheduled results locally before sending them to its logger. If you stop osquery and delete its database directory before the buffer is sent, those results are lost. Before removing osquery's files, wait at least one logger period (`logger_tls_period`, or the equivalent for your logger plugin) after the last scheduled run. Then confirm the host's most recent results have reached your log destination.
 
 ### Running osquery alongside fleetd
 
@@ -289,7 +289,7 @@ Fleet doesn't recommend running an osquery service and fleetd at the same time i
 
 Running both may be necessary if:
 
-- osquery is being used to collect data for an application other than Fleet.
+- Osquery is being used to collect data for an application other than Fleet.
 - Logging data during the migration must be captured for security or compliance purposes.
 
 In these cases, we recommend the following:
