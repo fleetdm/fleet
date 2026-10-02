@@ -141,7 +141,7 @@ func (ds *Datastore) GetHostManagedLocalAccountStatus(ctx context.Context, hostU
 		SELECT
 			status,
 			client_error,
-			encrypted_password IS NOT NULL AS has_password,
+			encrypted_password IS NOT NULL AS has_encrypted,
 			pending_encrypted_password IS NOT NULL AS pending_rotation,
 			auto_rotate_at,
 			-- Windows stages nothing server-side (fleetd generates the password on the device), so its in-flight
@@ -165,7 +165,7 @@ func (ds *Datastore) GetHostManagedLocalAccountStatus(ctx context.Context, hostU
 	var row struct {
 		Status            *string    `db:"status"`
 		ClientError       string     `db:"client_error"`
-		HasPassword       bool       `db:"has_password"`
+		HasEncrypted      bool       `db:"has_encrypted"`
 		PendingRotation   bool       `db:"pending_rotation"`
 		AutoRotateAt      *time.Time `db:"auto_rotate_at"`
 		RotationRequested *bool      `db:"rotation_requested"`
@@ -190,7 +190,7 @@ func (ds *Datastore) GetHostManagedLocalAccountStatus(ctx context.Context, hostU
 	//
 	// Windows keeps a failed row's password visible: the device left the old one in place, so it still works. macOS
 	// still hides it; a separate story covers aligning them.
-	passwordAvailable := row.HasPassword
+	passwordAvailable := row.HasEncrypted
 	isWindows := row.Platform != nil && fleet.IsWindowsPlatform(*row.Platform)
 	if !isWindows && status == string(fleet.MDMDeliveryFailed) {
 		passwordAvailable = false
@@ -593,12 +593,12 @@ func (ds *Datastore) initiateWindowsManagedLocalAccountRotation(ctx context.Cont
 		// Read eligibility rather than infer it from RowsAffected, which counts changed rows: a row already at
 		// status='pending' would look ineligible.
 		var acct struct {
-			HasPassword bool           `db:"has_password"`
-			Status      sql.NullString `db:"status"`
-			Due         bool           `db:"due"`
+			HasEncrypted bool           `db:"has_encrypted"`
+			Status       sql.NullString `db:"status"`
+			Due          bool           `db:"due"`
 		}
 		switch err := sqlx.GetContext(ctx, tx, &acct, `
-			SELECT encrypted_password IS NOT NULL AS has_password, status,
+			SELECT encrypted_password IS NOT NULL AS has_encrypted, status,
 			       auto_rotate_at IS NOT NULL AND auto_rotate_at <= NOW(6) AS due
 			FROM host_managed_local_account_passwords
 			WHERE host_uuid = ? AND deleted = 0
@@ -610,7 +610,7 @@ func (ds *Datastore) initiateWindowsManagedLocalAccountRotation(ctx context.Cont
 		}
 		// A failed row can be rotated again manually: its password stays visible, so the button stays enabled. Only
 		// the cron skips failed rows.
-		if !acct.HasPassword {
+		if !acct.HasEncrypted {
 			return ctxerr.Wrap(ctx, fleet.ErrManagedLocalAccountNotEligible,
 				fmt.Sprintf("host %s (has_password=false status=%v)", hostUUID, acct.Status.String))
 		}
