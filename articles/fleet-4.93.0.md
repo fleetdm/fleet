@@ -72,7 +72,7 @@ GitHub issue: [#45829](https://github.com/fleetdm/fleet/issues/45829)
 
 _Available in Fleet Premium_
 
-Hardware attestation (ACME), which Fleet already supported for Apple silicon Macs, now works for iPhones and iPads assigned to Fleet in Apple Business. With `apple_require_hardware_attestation` on, iPhones and iPads with an A11 Bionic chip or later, running iOS or iPadOS 16 or later, prove their hardware matches a known Apple Business record when they enroll. Hosts already enrolled with SCEP move to ACME on their next certificate renewal. Older devices keep enrolling with SCEP.
+Hardware attestation (ACME), which Fleet already supports for Apple silicon Macs, now works for iPhones and iPads assigned to Fleet in Apple Business. With `apple_require_hardware_attestation` on, iPhones and iPads from 2017 or later (with an A11 Bionic chip or later), running iOS or iPadOS 16 or later, prove their hardware matches a known Apple Business record when they enroll. Hosts already enrolled with SCEP move to ACME on their next certificate renewal. Older devices keep enrolling with SCEP.
 
 Learn more in the [GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#controls).
 
