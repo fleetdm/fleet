@@ -215,6 +215,13 @@ final class EnrollmentSheet: NSObject {
             return;
           }
           const style = document.createElement("style");
+          // Under Fleet's CSP (style-src 'self' 'nonce-…') an inline style needs the
+          // page's nonce. The attribute is hidden once the page loads; the property
+          // still returns it.
+          const nonce = document.querySelector("style[nonce], script[nonce]")?.nonce;
+          if (nonce) {
+            style.nonce = nonce;
+          }
           style.textContent = \(jsString(compactCSS));
           document.head.appendChild(style);
           const content = document.getElementById("main-content");
