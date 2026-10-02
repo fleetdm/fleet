@@ -6,5 +6,6 @@
   "slug": "wispr-flow/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/wispr-flow_install.sh"
 }
