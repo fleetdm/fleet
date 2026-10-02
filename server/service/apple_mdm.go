@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/md5" // nolint:gosec // used for declarative management token
 	"crypto/x509"
@@ -2996,19 +2997,22 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 // never contains the token, so the device got its enrollment configuration
 // before its fleet required end user authentication.
 func (svc *Service) checkAutomaticEnrollmentTokenAllowed(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo, assignments []*fleet.HostDEPAssignment) error {
-	platform := platformFromAppleProduct(machineInfo.Product)
-	host, teamID, err := svc.depAssignedHostAndTeam(ctx, platform, assignments)
-	if err != nil {
-		return err
-	}
-
 	euaTeamIDs, err := svc.ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get fleets that require end user authentication")
 	}
-	// TeamIDsWithSetupExperienceIdPEnabled uses 0 for "No team".
-	if !slices.Contains(euaTeamIDs, ptr.ValOrZero(teamID)) {
+	if len(euaTeamIDs) == 0 {
 		return nil
+	}
+	// TeamIDsWithSetupExperienceIdPEnabled uses 0 for "No team".
+	requiresEUA := func(teamID *uint) bool {
+		return slices.Contains(euaTeamIDs, ptr.ValOrZero(teamID))
+	}
+
+	platform := platformFromAppleProduct(machineInfo.Product)
+	host, refused, err := svc.depAssignedHostRequiringEUA(ctx, machineInfo, platform, assignments, requiresEUA)
+	if err != nil || !refused {
+		return err
 	}
 
 	var hostID *uint
@@ -3027,39 +3031,71 @@ func (svc *Service) checkAutomaticEnrollmentTokenAllowed(ctx context.Context, ma
 	return fleet.NewAuthFailedError("automatic enrollment token presented for a host in a fleet that requires end user authentication")
 }
 
-// depAssignedHostAndTeam returns the host that the serial's active DEP
-// assignments point at, and its fleet. If none of them resolves to a host, it
-// returns the AB token's default fleet for the platform, which is where Fleet
-// restores a deleted pending host.
-func (svc *Service) depAssignedHostAndTeam(ctx context.Context, platform string, assignments []*fleet.HostDEPAssignment) (*fleet.Host, *uint, error) {
+// depAssignedHostRequiringEUA reports whether the serial's active DEP
+// assignments require end user authentication, and returns the host that
+// does. Duplicate hosts can leave one serial with assignments in different
+// fleets, so any of them requiring it is enough. The host matching the
+// device's UDID, then the lowest host ID, is the one returned, so the
+// activity's rate limit applies to the same host every time. If none of the
+// assignments resolves to a host, the AB tokens' default fleets for the
+// platform decide, which is where Fleet restores a deleted pending host.
+func (svc *Service) depAssignedHostRequiringEUA(
+	ctx context.Context,
+	machineInfo *fleet.MDMAppleMachineInfo,
+	platform string,
+	assignments []*fleet.HostDEPAssignment,
+	requiresEUA func(teamID *uint) bool,
+) (*fleet.Host, bool, error) {
+	assignments = slices.SortedFunc(slices.Values(assignments), func(a, b *fleet.HostDEPAssignment) int {
+		return cmp.Compare(a.HostID, b.HostID)
+	})
+
+	var anyHost bool
+	var euaHost *fleet.Host
 	for _, a := range assignments {
 		host, err := svc.ds.HostLite(ctx, a.HostID)
-		switch {
-		case err == nil:
-			return host, host.TeamID, nil
-		case !fleet.IsNotFound(err):
-			return nil, nil, ctxerr.Wrap(ctx, err, "get DEP-assigned host")
+		if fleet.IsNotFound(err) {
+			continue
+		}
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get DEP-assigned host")
+		}
+		anyHost = true
+		if requiresEUA(host.TeamID) && (euaHost == nil || (host.UUID == machineInfo.UDID && euaHost.UUID != machineInfo.UDID)) {
+			euaHost = host
 		}
 	}
+	if anyHost {
+		return euaHost, euaHost != nil, nil
+	}
 
+	var anyToken bool
 	for _, a := range assignments {
 		if a.ABMTokenID == nil {
 			continue
 		}
 		tok, err := svc.ds.GetABMTokenByID(ctx, *a.ABMTokenID)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "get AB token of DEP assignment")
+			return nil, false, ctxerr.Wrap(ctx, err, "get AB token of DEP assignment")
 		}
-		switch platform {
-		case "ios":
-			return nil, tok.IOSDefaultTeamID, nil
-		case "ipados":
-			return nil, tok.IPadOSDefaultTeamID, nil
-		default:
-			return nil, tok.MacOSDefaultTeamID, nil
+		anyToken = true
+		if requiresEUA(abmTokenDefaultTeamID(tok, platform)) {
+			return nil, true, nil
 		}
 	}
-	return nil, nil, nil
+	// No AB token to read a default fleet from means "No team".
+	return nil, !anyToken && requiresEUA(nil), nil
+}
+
+func abmTokenDefaultTeamID(tok *fleet.ABMToken, platform string) *uint {
+	switch platform {
+	case "ios":
+		return tok.IOSDefaultTeamID
+	case "ipados":
+		return tok.IPadOSDefaultTeamID
+	default:
+		return tok.MacOSDefaultTeamID
+	}
 }
 
 func platformFromAppleProduct(product string) string {

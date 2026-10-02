@@ -10754,6 +10754,70 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 		require.Empty(t, rejections)
 	})
 
+	t.Run("duplicate hosts refuse the static token if any of their fleets requires end user authentication", func(t *testing.T) {
+		hostTeams := map[uint]*uint{1: new(otherTeamID), 2: new(euaTeamID), 3: new(euaTeamID), 4: new(euaTeamID)}
+		hostUUIDs := map[uint]string{1: machineInfo.UDID, 2: "other-udid", 3: machineInfo.UDID, 4: "another-udid"}
+		for _, tc := range []struct {
+			name       string
+			hostIDs    []uint
+			wantHostID uint
+		}{
+			{"EUA host listed second", []uint{1, 2}, 2},
+			{"EUA host listed first", []uint{2, 1}, 2},
+			{"host matching the device's UDID wins", []uint{2, 3}, 3},
+			{"host matching the device's UDID wins in any order", []uint{3, 2}, 3},
+			{"lowest host ID wins without a UDID match", []uint{4, 2}, 2},
+		} {
+			resetMocks()
+			ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+				var res []*fleet.HostDEPAssignment
+				for _, id := range tc.hostIDs {
+					res = append(res, &fleet.HostDEPAssignment{HostID: id, ABMTokenID: new(abmTokenID)})
+				}
+				return res, nil
+			}
+			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{ID: id, UUID: hostUUIDs[id], TeamID: hostTeams[id], Platform: "darwin"}, nil
+			}
+			_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
+			requireAuthFailed(t, err)
+			require.Len(t, rejections, 1, tc.name)
+			require.Equal(t, tc.wantHostID, *rejections[0].HostID, tc.name)
+		}
+	})
+
+	t.Run("without a host, any AB token's default fleet requiring end user authentication refuses the static token", func(t *testing.T) {
+		resetMocks()
+		ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+			return []*fleet.HostDEPAssignment{{HostID: 1, ABMTokenID: new(uint(1))}, {HostID: 2, ABMTokenID: new(uint(2))}}, nil
+		}
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return nil, newNotFoundError()
+		}
+		ds.GetABMTokenByIDFunc = func(ctx context.Context, id uint) (*fleet.ABMToken, error) {
+			if id == 1 {
+				return &fleet.ABMToken{MacOSDefaultTeamID: new(otherTeamID)}, nil
+			}
+			return &fleet.ABMToken{MacOSDefaultTeamID: new(euaTeamID)}, nil
+		}
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
+		requireAuthFailed(t, err)
+		require.Len(t, rejections, 1)
+		require.Nil(t, rejections[0].HostID)
+	})
+
+	t.Run("no fleet requiring end user authentication skips the host lookup", func(t *testing.T) {
+		resetMocks()
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+			return nil, nil
+		}
+		ds.HostLiteFuncInvoked = false
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
+		require.NoError(t, err)
+		require.False(t, ds.HostLiteFuncInvoked)
+		require.Empty(t, rejections)
+	})
+
 	t.Run("datastore error reading fleets with end user authentication is returned", func(t *testing.T) {
 		resetMocks()
 		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
