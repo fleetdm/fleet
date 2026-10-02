@@ -7207,10 +7207,6 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 
-	u, err = url.Parse(res.Header.Get("Location"))
-	require.NoError(t, err)
-	q = u.Query()
-
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
 	pdfName := "eula.pdf"
