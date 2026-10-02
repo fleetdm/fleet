@@ -466,6 +466,15 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 				}
 			}
 
+			// an explicit name replaces the derived one, for every type; the
+			// server stores it trimmed, so match that here
+			if profile.Name != "" {
+				name = strings.TrimSpace(profile.Name)
+				if name == "" {
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Profile name can't be empty.")
+				}
+			}
+
 			// check for duplicate names across all profiles
 			if _, isDuplicate := extByName[name]; isDuplicate {
 				return nil, errors.New(fmtDuplicateNameErrMsg(name))
@@ -486,6 +495,7 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 
 			result = append(result, fleet.MDMProfileBatchPayload{
 				Name:             name,
+				Description:      profile.Description,
 				Contents:         fileContents,
 				Labels:           profile.Labels,
 				LabelsIncludeAll: profile.LabelsIncludeAll,
@@ -1691,6 +1701,12 @@ func legacyExtractAppCfgCustomSettings(mmdm map[string]interface{}, platformKey 
 			// extract the Path field
 			if path, ok := m["path"].(string); ok {
 				profSpec.Path = path
+			}
+			if name, ok := m["name"].(string); ok {
+				profSpec.Name = name
+			}
+			if description, ok := m["description"].(string); ok {
+				profSpec.Description = description
 			}
 
 			// at this stage we extract and return all supported label fields, the

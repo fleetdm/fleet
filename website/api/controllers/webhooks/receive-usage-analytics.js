@@ -46,8 +46,8 @@ module.exports = {
     numHostsFleetDesktopEnabled: {type: 'number', defaultsTo: 0 },
     numQueries: {type: 'number', defaultsTo: 0 },
     numHostsABMPending: {type: 'number', defaultsTo: 0 },
-    fleetMaintainedAppsWindows: {type: ['string'], defaultsTo: [] },
-    fleetMaintainedAppsMacOS: {type: ['string'], defaultsTo: [] },
+    fleetMaintainedAppsWindows: {type: 'ref', defaultsTo: [] },
+    fleetMaintainedAppsMacOS: {type: 'ref', defaultsTo: [] },
     oktaConditionalAccessConfigured: {type: 'boolean', defaultsTo: false},
     entraConditionalAccessConfigured: {type: 'boolean', defaultsTo: false},
     conditionalAccessBypassDisabled: {type: 'boolean', defaultsTo: false},
@@ -71,6 +71,7 @@ module.exports = {
     idpSCIMConfigured: {type: 'boolean', defaultsTo: false},
     idpGoogleWorkspaceConfigured: {type: 'boolean', defaultsTo: false},
     certificateAuthorityConfigured: {type: 'boolean', defaultsTo: false},
+    numPoliciesAutomationEnabledSoftware: {type: 'number', defaultsTo: 0 },
   },
 
 
