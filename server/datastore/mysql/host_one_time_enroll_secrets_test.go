@@ -1167,19 +1167,27 @@ func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore)
 		name          string
 		teamID        *uint
 		deleteTeam    bool
+		notRecorded   bool
 		defaultFleet  *uint
 		wantSecretFor *uint
 	}{
 		{name: "back to its fleet", teamID: previous, wantSecretFor: previous},
 		{name: "fleet deleted since", teamID: newTeam("gone"), deleteTeam: true, defaultFleet: defaultFleet, wantSecretFor: defaultFleet},
-		{name: "no fleet", defaultFleet: defaultFleet, wantSecretFor: defaultFleet},
+		{name: "no fleet stays unassigned", defaultFleet: defaultFleet},
 		{name: "no fleet and no default fleet"},
+		{name: "fleet not recorded", teamID: previous, notRecorded: true, defaultFleet: defaultFleet, wantSecretFor: defaultFleet},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, tc.defaultFleet))
 			_, device := deleteHost(t, tc.name, tc.teamID)
 			if tc.deleteTeam {
 				require.NoError(t, ds.DeleteTeam(ctx, *tc.teamID))
+			}
+			if tc.notRecorded {
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET deleted_host_team_id = NULL WHERE id = ?`, device.ID)
+					return err
+				})
 			}
 			require.Equal(t, tc.wantSecretFor, nextSecret(t, device.ID).TeamID)
 		})
