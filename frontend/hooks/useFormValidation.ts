@@ -137,12 +137,12 @@ const NO_SKIP_TRIM: readonly never[] = [];
 const pruneErrors = (
   shown: IFormErrors,
   current: IFormErrors,
-  pinned: Set<string>
+  serverErrorFields: Set<string>
 ): IFormErrors => {
   const kept: IFormErrors = {};
   let dropped = false;
   Object.keys(shown).forEach((key) => {
-    if (current[key] || pinned.has(key)) {
+    if (current[key] || serverErrorFields.has(key)) {
       // Keep the message already on screen rather than the freshly computed
       // one — a server error must not be overwritten by a client rule.
       kept[key] = shown[key];
@@ -199,11 +199,10 @@ const useFormValidation = <TFormData extends object>({
 
   const formDataRef = useRef(formData);
   const dirtyFieldsRef = useRef(new Set<string>());
-  // Fields whose shown error came from the API or `setFieldError`. Client
-  // validation can't reproduce those (a duplicate email is still a well-formed
-  // email), so they are exempt from pruning and only leave on focus, submit,
-  // reset or clear.
-  const pinnedErrorFieldsRef = useRef(new Set<string>());
+  // Fields whose shown error came from the API. Client validation can't
+  // reproduce those (a duplicate email is still a well-formed email), so they
+  // are exempt from pruning and only leave on focus, submit, reset or clear.
+  const serverErrorFieldsRef = useRef(new Set<string>());
   const isSubmittingRef = useRef(false);
 
   const validateRef = useRef(validate);
@@ -248,7 +247,7 @@ const useFormValidation = <TFormData extends object>({
     if (!fresh.length) {
       return;
     }
-    fresh.forEach((field) => pinnedErrorFieldsRef.current.add(field));
+    fresh.forEach((field) => serverErrorFieldsRef.current.add(field));
     setErrors((prev) => {
       const next = { ...prev };
       fresh.forEach((field) => {
@@ -282,14 +281,14 @@ const useFormValidation = <TFormData extends object>({
 
     const currentErrors = validateRef.current(next);
     setErrors((prev) =>
-      pruneErrors(prev, currentErrors, pinnedErrorFieldsRef.current)
+      pruneErrors(prev, currentErrors, serverErrorFieldsRef.current)
     );
   }, []);
 
   const reset = useCallback((data: TFormData) => {
     formDataRef.current = data;
     dirtyFieldsRef.current = new Set<string>();
-    pinnedErrorFieldsRef.current = new Set<string>();
+    serverErrorFieldsRef.current = new Set<string>();
     setFormData(data);
     setErrors({});
     setIsDirty(false);
@@ -298,7 +297,7 @@ const useFormValidation = <TFormData extends object>({
   const getError = useCallback((name: string) => errors[name], [errors]);
 
   const clearFieldError = useCallback((name: string) => {
-    pinnedErrorFieldsRef.current.delete(name);
+    serverErrorFieldsRef.current.delete(name);
     setErrors((prev) => {
       if (!(name in prev)) {
         return prev;
@@ -310,7 +309,6 @@ const useFormValidation = <TFormData extends object>({
   }, []);
 
   const setFieldError = useCallback((name: string, message: string) => {
-    pinnedErrorFieldsRef.current.add(name);
     setErrors((prev) => ({ ...prev, [name]: message }));
   }, []);
 
@@ -320,14 +318,14 @@ const useFormValidation = <TFormData extends object>({
     }
     // Blur hands the field back to client validation, so a server verdict on it
     // no longer applies.
-    pinnedErrorFieldsRef.current.delete(name);
+    serverErrorFieldsRef.current.delete(name);
     const currentErrors = validateRef.current(formDataRef.current);
     const message = currentErrors[name];
     setErrors((prev) => {
       const pruned = pruneErrors(
         prev,
         currentErrors,
-        pinnedErrorFieldsRef.current
+        serverErrorFieldsRef.current
       );
       if (pruned[name] === message || (!message && !(name in pruned))) {
         return pruned;
@@ -343,7 +341,7 @@ const useFormValidation = <TFormData extends object>({
   }, []);
 
   const clearErrors = useCallback(() => {
-    pinnedErrorFieldsRef.current = new Set<string>();
+    serverErrorFieldsRef.current = new Set<string>();
     setErrors({});
   }, []);
 
@@ -367,7 +365,7 @@ const useFormValidation = <TFormData extends object>({
       // dropped here — a new request is about to supersede it anyway. Forget the
       // exemptions too, or `commitFields` would keep protecting fields that no
       // longer hold a server error.
-      pinnedErrorFieldsRef.current = new Set<string>();
+      serverErrorFieldsRef.current = new Set<string>();
 
       if (Object.keys(submitErrors).length) {
         // Submit is a checkpoint: it bypasses the dirty gate and reveals every

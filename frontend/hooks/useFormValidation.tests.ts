@@ -365,9 +365,10 @@ describe("useFormValidation", () => {
       });
     });
 
-    it("keeps an error set through setFieldError", () => {
+    it("keeps a setFieldError message while validate still flags that field", () => {
       const { result } = setupEitherOr();
 
+      act(() => result.current.setField("metadataUrl", "nope"));
       act(() =>
         result.current.setFieldError("metadataUrl", "Re-enter the metadata URL")
       );
@@ -377,6 +378,18 @@ describe("useFormValidation", () => {
       expect(result.current.getError("metadataUrl")).toBe(
         "Re-enter the metadata URL"
       );
+    });
+
+    it("drops a setFieldError message once validate no longer flags that field", () => {
+      const { result } = setupEitherOr();
+
+      act(() =>
+        result.current.setFieldError("metadataUrl", "Re-enter the metadata URL")
+      );
+      act(() => result.current.setField("metadata", "<xml/>"));
+      act(() => result.current.validateField("metadata"));
+
+      expect(result.current.getError("metadataUrl")).toBeUndefined();
     });
   });
 
