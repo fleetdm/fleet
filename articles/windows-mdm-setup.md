@@ -471,7 +471,7 @@ The Autopilot service may need a few minutes to sync after the device record cle
 
 By default, when Fleet installs fleetd on a Windows host that turns on MDM, the install command carries your global or fleet-level enroll secret. Anyone who can read that command or the MSI log on the device can use the secret to enroll other devices. To give each device its own single-use enroll secret instead, enable the [`mdm.windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) server setting.
 
-The setting only affects Windows hosts that have MDM turned on. Hosts that enroll with a fleetd package and don't turn on MDM keep using your global or fleet-level enroll secret. If fleetd was already installed when a host turned on MDM, Fleet doesn't reinstall it, so the host keeps using the enroll secret fleetd was installed with. The rest of this section still applies to that host.
+The setting only affects Windows hosts that have MDM turned on. Hosts that enroll manually with Fleet's agent (fleetd) and don't turn on MDM keep using your global or fleet-level enroll secret. If fleetd was already installed when a host turned on MDM, Fleet doesn't reinstall it, so the host keeps using the enroll secret fleetd was installed with.
 
 With the setting enabled:
 
