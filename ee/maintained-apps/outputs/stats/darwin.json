@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.0.18",
+      "version": "3.0.19",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats' AND version_compare(bundle_short_version, '3.0.18') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats' AND version_compare(bundle_short_version, '3.0.19') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'eu.exelban.Stats' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/exelban/stats/releases/download/v3.0.18/Stats.dmg",
+      "installer_url": "https://github.com/exelban/stats/releases/download/v3.0.19/Stats.dmg",
       "install_script_ref": "f0bd0f4d",
       "uninstall_script_ref": "46b4651c",
-      "sha256": "d862de04c0d2997688915e3947efc39a5bef6b88a84e92d3c0a1ca4bcd55ed9d",
+      "sha256": "09956be37fa8a71afd2dd1d3fe4582b1f3abb357faaea5cf342a1e7721bd0779",
       "default_categories": [
         "Productivity"
       ]

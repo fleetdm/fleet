@@ -686,7 +686,7 @@ func testUpdateMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 		Mobileconfig: mobileconfig.Mobileconfig([]byte("UploadedAtBytes")),
 	}, nil)
 	require.NoError(t, err)
-	require.Greater(t, renamedOnly.UploadedAt.Year(), 2020, "a rename must bump uploaded_at")
+	require.Equal(t, 2020, renamedOnly.UploadedAt.Year(), "a rename isn't resent, so it must not bump uploaded_at")
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET uploaded_at = '2020-01-01 00:00:00' WHERE profile_uuid = ?`, uploadedAtProfile.ProfileUUID)
@@ -701,6 +701,42 @@ func testUpdateMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 	require.Greater(t, contentChangedProf.UploadedAt.Year(), 2020, "a content change must bump uploaded_at")
+
+	// the description isn't part of the checksum, so changing it alone must
+	// not bump uploaded_at, while it is still written with a content change
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET uploaded_at = '2020-01-01 00:00:00' WHERE profile_uuid = ?`, uploadedAtProfile.ProfileUUID)
+		return err
+	})
+	// the repeat covers the skipped write when the description is unchanged
+	for _, desc := range []string{"new description", "new description"} {
+		_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			ProfileUUID: uploadedAtProfile.ProfileUUID,
+			Identifier:  uploadedAtProfile.Identifier,
+			TeamID:      uploadedAtProfile.TeamID,
+			Description: desc,
+		}, nil)
+		require.NoError(t, err)
+		storedCP, err = ds.GetMDMAppleConfigProfile(ctx, uploadedAtProfile.ProfileUUID)
+		require.NoError(t, err)
+		require.Equal(t, desc, storedCP.Description)
+		require.Equal(t, 2020, storedCP.UploadedAt.Year(), "a description-only edit must not bump uploaded_at")
+		require.Equal(t, contentChangedProf.Checksum, storedCP.Checksum)
+	}
+
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  uploadedAtProfile.ProfileUUID,
+		Identifier:   uploadedAtProfile.Identifier,
+		Name:         "Uploaded At Profile Renamed",
+		TeamID:       uploadedAtProfile.TeamID,
+		Description:  "description with content",
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("UploadedAtBytes v3")),
+	}, nil)
+	require.NoError(t, err)
+	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, uploadedAtProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "description with content", storedCP.Description)
+	require.Greater(t, storedCP.UploadedAt.Year(), 2020)
 }
 
 func testVerifyAppleConfigProfileScopesDoNotConflict(t *testing.T, ds *Datastore) {
@@ -7559,6 +7595,23 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 	d1tm1B, err = ds.GetMDMAppleDeclaration(ctx, d1tm1B.DeclarationUUID)
 	require.NoError(t, err)
 	require.Equal(t, d1tm1B.DeclarationUUID, d1tm1.DeclarationUUID)
+
+	// the description isn't part of the token, so changing it alone must not
+	// bump uploaded_at or the token, which would make hosts re-sync
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_declarations SET uploaded_at = '2020-01-01 00:00:00' WHERE declaration_uuid = ?`, d1tm1B.DeclarationUUID)
+		return err
+	})
+	before, err := ds.GetMDMAppleDeclaration(ctx, d1tm1B.DeclarationUUID)
+	require.NoError(t, err)
+	before.Description = "new description"
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, before, nil, fleet.MDMAppleActivationKeep)
+	require.NoError(t, err)
+	described, err := ds.GetMDMAppleDeclaration(ctx, d1tm1B.DeclarationUUID)
+	require.NoError(t, err)
+	require.Equal(t, "new description", described.Description)
+	require.Equal(t, 2020, described.UploadedAt.Year(), "a description-only edit must not bump uploaded_at")
+	require.Equal(t, before.Token, described.Token)
 }
 
 func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastore) {

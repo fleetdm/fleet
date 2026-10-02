@@ -44,7 +44,7 @@ func TestNewWindowsMDMProfileManagerWithoutConfig(t *testing.T) {
 	ds := new(mock.Store)
 	logger := slog.New(slog.DiscardHandler)
 
-	sch, err := newWindowsMDMProfileManagerSchedule(ctx, "foo", ds, logger)
+	sch, err := newWindowsMDMProfileManagerSchedule(ctx, "foo", ds, logger, false)
 	require.NotNil(t, sch)
 	require.NoError(t, err)
 }

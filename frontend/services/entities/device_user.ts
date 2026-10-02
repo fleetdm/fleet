@@ -235,6 +235,22 @@ export default {
     return sendRequest("POST", path);
   },
 
+  installProfile: (deviceToken: string, profileUUID: string) => {
+    const { DEVICE_INSTALL_PROFILE } = endpoints;
+    return sendRequest(
+      "POST",
+      DEVICE_INSTALL_PROFILE(deviceToken, profileUUID)
+    );
+  },
+
+  uninstallProfile: (deviceToken: string, profileUUID: string) => {
+    const { DEVICE_UNINSTALL_PROFILE } = endpoints;
+    return sendRequest(
+      "POST",
+      DEVICE_UNINSTALL_PROFILE(deviceToken, profileUUID)
+    );
+  },
+
   getMdmManualEnrollUrl: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
     return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));

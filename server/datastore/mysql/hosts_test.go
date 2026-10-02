@@ -5387,6 +5387,15 @@ func testHostsListByVulnerability(t *testing.T, ds *Datastore) {
 	for _, h := range list {
 		require.Contains(t, []uint{hosts[0].ID, hosts[1].ID}, h.ID)
 	}
+
+	// A dependent subquery re-runs the CVE lookup once per host row, which times
+	// out at scale for CVEs spanning many software versions.
+	ctx := t.Context()
+	opts := fleet.HostListOptions{VulnerabilityFilter: new("CVE-2021-1235")}
+	stmt, args := filterHostsByVulnerability("EXPLAIN FORMAT=TREE SELECT h.id FROM hosts h WHERE TRUE", opts, nil)
+	var plan string
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &plan, stmt, args...))
+	require.NotContains(t, plan, "dependent", "vulnerability filter must not run as a dependent subquery:\n%s", plan)
 }
 
 func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {

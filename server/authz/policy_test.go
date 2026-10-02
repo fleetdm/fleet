@@ -32,6 +32,7 @@ const (
 	transferHost       = fleet.ActionTransferHost
 	deleteHost         = fleet.ActionDeleteHost
 	clearPasscode      = fleet.ActionClearPasscode
+	rotateDiskKey      = fleet.ActionRotateDiskEncryptionKey
 	create             = fleet.ActionCreate
 	readSecrets        = fleet.ActionReadSecrets
 	writeMembers       = fleet.ActionWriteMembers
@@ -3072,6 +3073,27 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 		{user: test.UserTeamMaintainerTeam1, object: team1AndroidCommand, action: clearPasscode, allow: true},
 		{user: test.UserTeamTechnicianTeam1, object: team1AndroidCommand, action: clearPasscode, allow: false},
 		{user: test.UserTeamTechnicianTeam2, object: team1AndroidCommand, action: clearPasscode, allow: false},
+
+		// Rotating a disk encryption key is admin/maintainer only, narrower than writing MDM commands.
+		{user: test.UserNoRoles, object: globalCommand, action: rotateDiskKey, allow: false},
+		{user: test.UserAdmin, object: globalCommand, action: rotateDiskKey, allow: true},
+		{user: test.UserAdmin, object: team1Command, action: rotateDiskKey, allow: true},
+		{user: test.UserMaintainer, object: globalCommand, action: rotateDiskKey, allow: true},
+		{user: test.UserMaintainer, object: team1Command, action: rotateDiskKey, allow: true},
+		{user: test.UserGitOps, object: globalCommand, action: rotateDiskKey, allow: false},
+		{user: test.UserGitOps, object: team1Command, action: rotateDiskKey, allow: false},
+		{user: test.UserTechnician, object: team1Command, action: rotateDiskKey, allow: false},
+		{user: test.UserObserver, object: team1Command, action: rotateDiskKey, allow: false},
+		{user: test.UserObserverPlus, object: team1Command, action: rotateDiskKey, allow: false},
+		{user: test.UserTeamAdminTeam1, object: globalCommand, action: rotateDiskKey, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1Command, action: rotateDiskKey, allow: true},
+		{user: test.UserTeamAdminTeam2, object: team1Command, action: rotateDiskKey, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team1Command, action: rotateDiskKey, allow: true},
+		{user: test.UserTeamMaintainerTeam2, object: team1Command, action: rotateDiskKey, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Command, action: rotateDiskKey, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Command, action: rotateDiskKey, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1Command, action: rotateDiskKey, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Command, action: rotateDiskKey, allow: false},
 	})
 }
 
