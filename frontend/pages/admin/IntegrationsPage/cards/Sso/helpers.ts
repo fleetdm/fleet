@@ -25,22 +25,6 @@ export const newSsoFormData = (appConfig: IConfig): ISsoFormData => ({
     appConfig.sso_settings?.enable_jit_provisioning ?? false,
 });
 
-export type SsoTextField =
-  | "idpName"
-  | "entityId"
-  | "idpImageUrl"
-  | "metadata"
-  | "metadataUrl";
-
-/**
- * Either field satisfies the metadata requirement, so they share one error
- * message. Only `metadataUrl` can also hold a URL-format error.
- */
-export const METADATA_SIBLING: Partial<Record<SsoTextField, SsoTextField>> = {
-  metadata: "metadataUrl",
-  metadataUrl: "metadata",
-};
-
 export const validateSsoForm = (formData: ISsoFormData): IFormErrors => {
   const errors: IFormErrors = {};
 

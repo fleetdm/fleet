@@ -99,7 +99,7 @@ describe("EndUserAuthSection", () => {
     );
   });
 
-  it("drops the errors already on screen as soon as the form is fully emptied", async () => {
+  it("drops the errors already on screen once the last field is emptied and left", async () => {
     const { user } = renderEndUserAuthSection({
       endUserAuth: CONFIGURED_END_USER_AUTH,
     });
@@ -116,6 +116,7 @@ describe("EndUserAuthSection", () => {
 
     await user.clear(entityId);
     await user.clear(metadataUrl);
+    await user.tab();
 
     expect(screen.queryByText("Enter an identity provider name")).toBeNull();
     expect(screen.queryByText("Enter an entity ID")).toBeNull();
@@ -234,7 +235,7 @@ describe("EndUserAuthSection", () => {
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
   });
 
-  it("clears the paired metadata error once either field is filled", async () => {
+  it("clears the paired metadata error once either field is filled and left", async () => {
     const { user } = renderEndUserAuthSection();
 
     await user.type(screen.getByLabelText("Identity provider name"), "Okta");
@@ -247,6 +248,7 @@ describe("EndUserAuthSection", () => {
     ).toHaveLength(2);
 
     await user.type(metadataUrl, "https://idp.example.com/metadata");
+    await user.tab();
 
     expect(screen.queryByText("Enter metadata or a metadata URL")).toBeNull();
     // The errors the change didn't make irrelevant stay put.

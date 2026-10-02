@@ -101,11 +101,7 @@ const BitLockerPinModal = ({
   }, [isWaiting]);
 
   const {
-    formData,
-    setField,
-    getError,
-    clearFieldError,
-    validateField,
+    getFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IBitLockerPinFormData>({
@@ -175,13 +171,8 @@ const BitLockerPinModal = ({
         </p>
         <InputField
           label="BitLocker PIN"
-          name="pin"
+          {...getFieldProps("pin")}
           type="password"
-          value={formData.pin}
-          error={getError("pin")}
-          onChange={(value: string) => setField("pin", value)}
-          onFocus={() => clearFieldError("pin")}
-          onBlur={() => validateField("pin")}
           disabled={isDisabled}
           enableShowSecret
           blockAutoComplete
@@ -190,13 +181,8 @@ const BitLockerPinModal = ({
         />
         <InputField
           label="Confirm PIN"
-          name="confirmPin"
+          {...getFieldProps("confirmPin")}
           type="password"
-          value={formData.confirmPin}
-          error={getError("confirmPin")}
-          onChange={(value: string) => setField("confirmPin", value)}
-          onFocus={() => clearFieldError("confirmPin")}
-          onBlur={() => validateField("confirmPin")}
           disabled={isDisabled}
           enableShowSecret
           blockAutoComplete

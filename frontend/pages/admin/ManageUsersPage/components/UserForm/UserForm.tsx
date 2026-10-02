@@ -130,11 +130,9 @@ const UserForm = ({
 
   const {
     formData,
-    setField,
     commitFields,
     getError,
-    clearFieldError,
-    validateField,
+    getFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<UserFormState>({
@@ -398,13 +396,8 @@ const UserForm = ({
       <InputField
         label="Full name"
         autofocus
-        error={getError("name")}
-        name="name"
-        onChange={(value: string) => setField("name", value)}
-        onFocus={() => clearFieldError("name")}
-        onBlur={() => validateField("name")}
+        {...getFieldProps("name")}
         placeholder="Full name"
-        value={formData.name}
         disabled={isSubmitting}
         inputOptions={{
           maxLength: 80,
@@ -412,14 +405,9 @@ const UserForm = ({
       />
       <InputField
         label="Email"
-        error={getError("email")}
-        name="email"
+        {...getFieldProps("email")}
         type="email"
-        onChange={(value: string) => setField("email", value)}
-        onFocus={() => clearFieldError("email")}
-        onBlur={() => validateField("email")}
         placeholder="Email"
-        value={formData.email}
         disabled={isSubmitting}
         readOnly={isEmailReadOnly}
         tooltip={
@@ -483,13 +471,8 @@ const UserForm = ({
     <div className={`${baseClass}__${isNewUser ? "" : "edit-"}password`}>
       <InputField
         label="Password"
-        error={getError("password")}
-        name="password"
-        onChange={(value: string) => setField("password", value)}
-        onFocus={() => clearFieldError("password")}
-        onBlur={() => validateField("password")}
+        {...getFieldProps("password")}
         placeholder={isNewUser ? "Password" : "••••••••"}
-        value={formData.password}
         type="password"
         disabled={isSubmitting}
         helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
