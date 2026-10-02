@@ -9,7 +9,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -32,6 +34,9 @@ func TestDiskEncryption(t *testing.T) {
 		{"TestBitLockerPINRequestResubmitReplaces", testBitLockerPINRequestResubmitReplaces},
 		{"TestBitLockerPINRequestDelete", testBitLockerPINRequestDelete},
 		{"TestBitLockerPINRequestCleanup", testBitLockerPINRequestCleanup},
+		{"TestDiskEncryptionKeyRotation", testDiskEncryptionKeyRotation},
+		{"TestIsAppleMDMCommandPending", testIsAppleMDMCommandPending},
+		{"TestDiskEncryptionKeyRotationInProgress", testDiskEncryptionKeyRotationInProgress},
 	}
 
 	for _, c := range cases {
@@ -514,4 +519,206 @@ func testBitLockerPINRequestCleanup(t *testing.T, ds *Datastore) {
 	// The enrollment flag is what the config poll reads, so retiring a submission has to clear it.
 	require.False(t, bitLockerPINPending(t, ds, justExpired.UUID), "expiring a submission clears the enrollment flag")
 	require.True(t, bitLockerPINPending(t, ds, stillPending.UUID), "a collectable submission keeps the enrollment flag")
+}
+
+func testDiskEncryptionKeyRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "rotate.local", "1.1.1.1", "rotate-osquery", "rotate-node", time.Now())
+
+	ok, err := ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1")
+	require.NoError(t, err)
+	require.False(t, ok, "no key row to mark")
+
+	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "blob-1", "", new(true))
+	require.NoError(t, err)
+	backdate := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET updated_at = ? WHERE host_id = ?`, backdate, host.ID)
+		return err
+	})
+	requireUnchanged := func(t *testing.T) *fleet.HostDiskEncryptionKey {
+		key, err := ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		require.NoError(t, err)
+		require.True(t, backdate.Equal(key.UpdatedAt), "updated_at moved to %s", key.UpdatedAt)
+		return key
+	}
+	archiveRows := func(t *testing.T) int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n, `SELECT COUNT(*) FROM host_disk_encryption_keys_archive WHERE host_id = ?`, host.ID))
+		return n
+	}
+
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1")
+	require.NoError(t, err)
+	require.True(t, ok)
+	key := requireUnchanged(t)
+	require.Equal(t, new("cmd-1"), key.RotationCommandUUID)
+
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-2")
+	require.NoError(t, err)
+	require.False(t, ok, "a rotation is already pending")
+
+	got, err := ds.GetHostByDiskEncryptionKeyRotationCommand(ctx, "cmd-1")
+	require.NoError(t, err)
+	require.Equal(t, host.ID, got.ID)
+	_, err = ds.GetHostByDiskEncryptionKeyRotationCommand(ctx, "cmd-2")
+	require.True(t, fleet.IsNotFound(err))
+
+	// a superseded command UUID leaves the marker alone
+	require.NoError(t, ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-2"))
+	failed, err := ds.FailHostDiskEncryptionKeyRotation(ctx, host.ID, "cmd-2")
+	require.NoError(t, err)
+	require.False(t, failed)
+	key = requireUnchanged(t)
+	require.Equal(t, new("cmd-1"), key.RotationCommandUUID)
+	require.Equal(t, new(true), key.Decryptable)
+
+	require.NoError(t, ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1"))
+	key = requireUnchanged(t)
+	require.Nil(t, key.RotationCommandUUID)
+
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-3")
+	require.NoError(t, err)
+	require.True(t, ok)
+	failed, err = ds.FailHostDiskEncryptionKeyRotation(ctx, host.ID, "cmd-3")
+	require.NoError(t, err)
+	require.True(t, failed)
+	key = requireUnchanged(t)
+	require.Nil(t, key.RotationCommandUUID)
+	require.Equal(t, new(false), key.Decryptable)
+
+	archived := archiveRows(t)
+	require.NoError(t, ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, "blob-1", "blob-2"))
+	key = requireUnchanged(t)
+	require.Equal(t, "blob-2", key.Base64Encrypted)
+	require.Equal(t, new(false), key.Decryptable)
+	require.Equal(t, archived, archiveRows(t))
+
+	// the stored key changed since it was compared, so the swap doesn't apply
+	require.NoError(t, ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, "blob-1", "blob-3"))
+	require.Equal(t, "blob-2", requireUnchanged(t).Base64Encrypted)
+
+	requestedAt := func(t *testing.T) *time.Time {
+		var at *time.Time
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &at,
+			`SELECT rotation_requested_at FROM host_disk_encryption_keys WHERE host_id = ?`, host.ID))
+		return at
+	}
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-stale")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NotNil(t, requestedAt(t))
+	cleared, err := ds.ClearStaleHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-stale", time.Minute)
+	require.NoError(t, err)
+	require.False(t, cleared, "a just-requested rotation is not stale")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET rotation_requested_at = NOW(6) - INTERVAL 2 MINUTE, updated_at = updated_at WHERE host_id = ?`, host.ID)
+		return err
+	})
+	cleared, err = ds.ClearStaleHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "other-cmd", time.Minute)
+	require.NoError(t, err)
+	require.False(t, cleared, "only the named command is cleared")
+	cleared, err = ds.ClearStaleHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-stale", time.Minute)
+	require.NoError(t, err)
+	require.True(t, cleared)
+	key = requireUnchanged(t)
+	require.Nil(t, key.RotationCommandUUID)
+	require.Nil(t, requestedAt(t))
+
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-4")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NoError(t, clearHostDiskEncryptionKeyRotationByHostUUIDDB(ctx, ds.writer(ctx), host.UUID))
+	key = requireUnchanged(t)
+	require.Nil(t, key.RotationCommandUUID)
+}
+
+func testIsAppleMDMCommandPending(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "pending.local", "1.1.1.1", "pending-osquery", "pending-node", time.Now())
+	nanoEnroll(t, ds, host, false)
+	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
+
+	pending, err := ds.isAppleMDMCommandPending(ctx, host.UUID, "missing")
+	require.NoError(t, err)
+	require.False(t, pending)
+
+	enqueue := func() string {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, commander.EnqueueCommand(ctx, []string{host.UUID}, createRawAppleCmd(fleet.RotateFileVaultKeyCmdName, cmdUUID)))
+		return cmdUUID
+	}
+	report := func(cmdUUID, status string) {
+		require.NoError(t, storage.StoreCommandReport(&mdm.Request{EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: ctx},
+			&mdm.CommandResults{CommandUUID: cmdUUID, Status: status, Raw: []byte(`<?xml version="1.0"?><plist/>`)}))
+	}
+
+	queued := enqueue()
+	pending, err = ds.isAppleMDMCommandPending(ctx, host.UUID, queued)
+	require.NoError(t, err)
+	require.True(t, pending)
+
+	report(queued, fleet.MDMAppleStatusNotNow)
+	pending, err = ds.isAppleMDMCommandPending(ctx, host.UUID, queued)
+	require.NoError(t, err)
+	require.True(t, pending, "NotNow is retried")
+
+	for _, status := range fleet.MDMAppleTerminalStatuses {
+		answered := enqueue()
+		report(answered, status)
+		pending, err = ds.isAppleMDMCommandPending(ctx, host.UUID, answered)
+		require.NoError(t, err)
+		require.False(t, pending, status)
+	}
+
+	inactive := enqueue()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollment_queue SET active = 0 WHERE command_uuid = ?`, inactive)
+		return err
+	})
+	pending, err = ds.isAppleMDMCommandPending(ctx, host.UUID, inactive)
+	require.NoError(t, err)
+	require.False(t, pending)
+}
+
+func testDiskEncryptionKeyRotationInProgress(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "in-progress.local", "1.1.1.1", "in-progress-osquery", "in-progress-node", time.Now())
+	nanoEnroll(t, ds, host, false)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	_, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "blob-1", "", new(true))
+	require.NoError(t, err)
+
+	inProgress := func(t *testing.T, cmdUUID string) bool {
+		got, err := ds.IsHostDiskEncryptionKeyRotationInProgress(ctx, host.ID, host.UUID, cmdUUID, time.Minute)
+		require.NoError(t, err)
+		return got
+	}
+	backdate := func(t *testing.T) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET rotation_requested_at = NOW(6) - INTERVAL 2 MINUTE, updated_at = updated_at WHERE host_id = ?`, host.ID)
+			return err
+		})
+	}
+
+	require.False(t, inProgress(t, "none"), "no marker")
+
+	// not queued yet, but just requested
+	ok, err := ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.True(t, inProgress(t, "cmd-1"))
+	require.False(t, inProgress(t, "other"), "only the pending command counts")
+	backdate(t)
+	require.False(t, inProgress(t, "cmd-1"), "an old marker with no queued command is stale")
+	require.NoError(t, ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1"))
+
+	// queued and unanswered, however old
+	cmdUUID := uuid.NewString()
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NoError(t, commander.EnqueueCommand(ctx, []string{host.UUID}, createRawAppleCmd(fleet.RotateFileVaultKeyCmdName, cmdUUID)))
+	backdate(t)
+	require.True(t, inProgress(t, cmdUUID))
 }

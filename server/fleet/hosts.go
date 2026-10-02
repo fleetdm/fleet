@@ -909,9 +909,18 @@ type HostDeviceNameEnforcement struct {
 	// until the template is resolved and the command is enqueued.
 	ExpectedDeviceName *string   `db:"expected_device_name"`
 	Detail             string    `db:"detail"`
+	Retries            uint      `db:"retries"`
 	CreatedAt          time.Time `db:"created_at"`
 	UpdatedAt          time.Time `db:"updated_at"`
 }
+
+type DeviceNameRetryOutcome int
+
+const (
+	DeviceNameNotRetried DeviceNameRetryOutcome = iota
+	DeviceNameRetried
+	DeviceNameRetriesExhausted
+)
 
 // HostDeviceNamePending carries the host details the cron needs to resolve the
 // host-name template and enqueue a Settings/DeviceName command for a host whose
@@ -924,7 +933,11 @@ type HostDeviceNamePending struct {
 	// ComputerName is the host's current name in Fleet; the cron uses it to skip
 	// sending a command when the device already matches the resolved name.
 	ComputerName string `db:"computer_name"`
-	TeamID       *uint  `db:"team_id"`
+	// NameReportedSinceEnrollment is false when the host hasn't reported since its
+	// latest MDM enrollment, e.g. a wiped device re-enrolling into an existing host
+	// record, whose ComputerName is then stale and can't be trusted to skip the command.
+	NameReportedSinceEnrollment bool  `db:"name_reported_since_enrollment"`
+	TeamID                      *uint `db:"team_id"`
 }
 
 type DiskEncryptionStatus string
@@ -2099,7 +2112,15 @@ type HostDiskEncryptionKey struct {
 	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue      string    `json:"key" db:"-"`
 	ClientError         string    `json:"-" db:"client_error"`
+	RotationCommandUUID *string   `json:"-" db:"rotation_command_uuid"`
+	RotationPending     bool      `json:"rotation_pending" db:"-"`
 }
+
+// DiskEncryptionKeyRotationStaleAfter is how long a pending FileVault key rotation
+// whose command is no longer queued still counts as in progress. A marker is set
+// before its command is enqueued and cleared after its result is handled, so a
+// fresh one can look finished without being so.
+const DiskEncryptionKeyRotationStaleAfter = time.Minute
 
 type HostArchivedDiskEncryptionKey struct {
 	HostID              uint      `json:"-" db:"host_id"`

@@ -119,6 +119,10 @@ const (
 	OneTimeChallengeTTL = 1 * time.Hour
 )
 
+// NDESNotConfiguredMsg is the failure detail for a $FLEET_VAR_NDES_SCEP_CHALLENGE
+// reference when no NDES certificate authority is configured.
+const NDESNotConfiguredMsg = "NDES is not configured. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE."
+
 // HasCAVariables returns true if any of the given Fleet variable names
 // (as returned by variables.Find, without the FLEET_VAR_ prefix) correspond
 // to a certificate authority variable.
@@ -836,6 +840,12 @@ type MDMProfileSpec struct {
 	Path  string `json:"path,omitempty"`
 	Paths string `json:"paths,omitempty"`
 
+	// Name overrides the name derived from the file (PayloadDisplayName or
+	// file name). Only valid for a single file, so not with a multi-file glob.
+	Name string `json:"name,omitempty"`
+	// Description is free text shown next to the profile name.
+	Description string `json:"description,omitempty"`
+
 	// Activation is a path to a custom activation JSON file, only valid
 	// alongside an Apple declaration.
 	Activation string `json:"activation,omitempty"`
@@ -903,13 +913,9 @@ func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &backwardsCompat); err != nil {
 			return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
 		}
-		p.Path = backwardsCompat
-
-		// FIXME: equivalent of no label condition, should clear all labels slice?
-		// p.Labels = nil
-		// p.LabelsIncludeAll = nil
-		// p.LabelsIncludeAny = nil
-		// p.LabelsExcludeAny = nil
+		// replace the whole spec, as below: decoding into a reused slice
+		// element would otherwise keep its name, description and labels
+		*p = MDMProfileSpec{Path: backwardsCompat}
 		return nil
 	}
 
@@ -993,12 +999,25 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	for _, v := range a {
 		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
 	}
+	// name and description are admin-set metadata, so a change to either is
+	// a change to the spec even when the file and labels are the same;
+	// compared trimmed, as they are stored
+	metadata := func(v MDMProfileSpec) [2]string {
+		return [2]string{strings.TrimSpace(v.Name), strings.TrimSpace(v.Description)}
+	}
+	pathMetadata := make(map[string][2]string, len(a))
+	for _, v := range a {
+		pathMetadata[v.Path] = metadata(v)
+	}
 
 	for _, v := range b {
 		includeLabels, okIncl := pathLabelIncludeCounts[v.Path]
 		includeAnyLabels, okInclAny := pathLabelsIncludeAnyCounts[v.Path]
 		excludeLabels, okExcl := pathLabelExcludeCounts[v.Path]
 		if !okIncl || !okExcl || !okInclAny {
+			return false
+		}
+		if pathMetadata[v.Path] != metadata(v) {
 			return false
 		}
 
@@ -1302,7 +1321,7 @@ var AppleMDMStandardRetentionRequestTypes = []string{
 	"InstallEnterpriseApplication", "DeviceConfigured", "DeviceInformation",
 	"InstalledApplicationList", "CertificateList", "ProfileList", "SecurityInfo",
 	DeviceLocationCmdName, SetRecoveryLockCmdName, VerifyRecoveryLockCmdName, SetAutoAdminPasswordCmdName,
-	"UserList",
+	"UserList", RotateFileVaultKeyCmdName,
 }
 
 // AppleMDMInactivePurgeDenylist lists request types whose deactivated queue rows
