@@ -2699,8 +2699,9 @@ const deletableHostScriptResultHints = `/*+ NO_SEMIJOIN(@sesr) NO_SEMIJOIN(@hsi)
 // deletableHostScriptResultPredicate is shared whole by the select and the
 // delete, so the re-check on the primary cannot drift from the reader's. One
 // subquery per host_mdm_actions column. created_at is when the run was handed
-// out, so updated_at is what bounds the result.
-const deletableHostScriptResultPredicate = `(hsr.exit_code IS NOT NULL OR hsr.canceled = 1)
+// out, so updated_at is what bounds the result. A deleted host's pending run can
+// never report, so it doesn't need to finish first.
+const deletableHostScriptResultPredicate = `(hsr.exit_code IS NOT NULL OR hsr.canceled = 1 OR hsr.host_deleted_at IS NOT NULL)
 	AND hsr.created_at < ? AND hsr.updated_at < ?
 	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.lock_ref = hsr.execution_id)
 	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.unlock_ref = hsr.execution_id)

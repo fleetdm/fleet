@@ -2846,11 +2846,14 @@ WHERE
 // first clause reads the base columns because the generated status column is
 // NULL for both removed rows and successful uninstalls. updated_at implies
 // created_at, which is bounded anyway because the select's index ranges on it.
+// A deleted host's pending install can never report, so it doesn't need to
+// finish first.
 const deletableHostSoftwareInstallPredicate = `(hsi.canceled = 1 OR hsi.removed = 1
 		OR hsi.install_script_exit_code IS NOT NULL
 		OR hsi.post_install_script_exit_code IS NOT NULL
 		OR hsi.uninstall_script_exit_code IS NOT NULL
-		OR hsi.pre_install_query_output = '')
+		OR hsi.pre_install_query_output = ''
+		OR hsi.host_deleted_at IS NOT NULL)
 	AND hsi.created_at < ? AND hsi.updated_at < ?
 	AND NOT EXISTS (SELECT 1 FROM setup_experience_status_results sesr WHERE sesr.host_software_installs_execution_id = hsi.execution_id)`
 

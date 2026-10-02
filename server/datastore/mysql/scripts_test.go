@@ -3801,4 +3801,12 @@ func testCleanupHostScriptResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Zero(t, deleted)
 	assert.True(t, exists(deletedHost))
+
+	// A deleted host's pending run can never report, so it goes once the window passes.
+	deletedHostPending := seed(old, nil, false)
+	exec(`UPDATE host_script_results SET host_deleted_at = ?, updated_at = ? WHERE execution_id = ?`, old, old, deletedHostPending)
+	deleted, err = ds.CleanupHostScriptResults(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, deleted)
+	assert.False(t, exists(deletedHostPending))
 }
