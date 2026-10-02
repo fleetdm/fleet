@@ -245,6 +245,8 @@ export default {
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
   HOST_ENCRYPTION_KEY: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/encryption_key`,
+  HOST_ENCRYPTION_KEY_ROTATE: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/encryption_key/rotate`,
   HOST_RECOVERY_LOCK_PASSWORD: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password`,
   HOST_RECOVERY_LOCK_PASSWORD_ROTATE: (id: number) =>

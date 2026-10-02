@@ -1201,6 +1201,41 @@ func (a ActivityTypeRotatedHostRecoveryLockPassword) WasFromAutomation() bool {
 	return a.FleetInitiated
 }
 
+// ActivityTypeRotatedDiskEncryptionKey records that a user requested a FileVault key rotation. It is logged when the
+// command is enqueued; the new key arriving is recorded by ActivityTypeEscrowedDiskEncryptionKey.
+type ActivityTypeRotatedDiskEncryptionKey struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeRotatedDiskEncryptionKey) ActivityName() string {
+	return "rotated_disk_encryption_key"
+}
+
+func (a ActivityTypeRotatedDiskEncryptionKey) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+// ActivityTypeFailedToRotateDiskEncryptionKey is always attributed to Fleet: the failure arrives from the device or
+// from command delivery, outside any user context.
+type ActivityTypeFailedToRotateDiskEncryptionKey struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	Detail          string `json:"detail,omitempty"`
+}
+
+func (a ActivityTypeFailedToRotateDiskEncryptionKey) ActivityName() string {
+	return "failed_to_rotate_disk_encryption_key"
+}
+
+func (a ActivityTypeFailedToRotateDiskEncryptionKey) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeFailedToRotateDiskEncryptionKey) WasFromAutomation() bool {
+	return true
+}
+
 // ActivityTypeRotatedManagedLocalAccountPassword records a managed-local-account
 // password rotation. Manual rotations log with the calling user as actor;
 // auto-rotations log with no user and FleetInitiated=true. Rotations that were

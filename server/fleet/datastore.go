@@ -1480,6 +1480,30 @@ type Datastore interface {
 	// IsHostDiskEncryptionKeyArchived returns true if there is a disk encryption key archived
 	// for the given host ID.
 	IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error)
+	// SetHostDiskEncryptionKeyRotationCommand records cmdUUID as the host's pending FileVault key rotation. It
+	// returns false without writing when a rotation is already pending, so the in-progress check is atomic with
+	// the write.
+	SetHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string) (bool, error)
+	// ClearHostDiskEncryptionKeyRotationCommand clears the pending rotation only if it still points at cmdUUID, so
+	// a late result for a superseded command is a no-op.
+	ClearHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string) error
+	// ClearStaleHostDiskEncryptionKeyRotationCommand clears the pending rotation cmdUUID only if it was requested
+	// more than olderThan ago. It returns false when nothing was cleared.
+	ClearStaleHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string, olderThan time.Duration) (bool, error)
+	// FailHostDiskEncryptionKeyRotation clears the pending rotation cmdUUID and marks the stored key as not
+	// decryptable, which prompts the end user to regenerate it through Escrow Buddy. It returns false when cmdUUID
+	// is not the host's pending rotation.
+	FailHostDiskEncryptionKeyRotation(ctx context.Context, hostID uint, cmdUUID string) (bool, error)
+	// GetHostByDiskEncryptionKeyRotationCommand returns the host whose pending FileVault key rotation is cmdUUID,
+	// or a not found error.
+	GetHostByDiskEncryptionKeyRotationCommand(ctx context.Context, cmdUUID string) (*Host, error)
+	// ReplaceHostDiskEncryptionKeyBlob swaps the stored ciphertext for another encryption of the same key, only if
+	// the stored ciphertext is still currentBase64Encrypted. It leaves decryptable and updated_at unchanged and does
+	// not archive the blob.
+	ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error
+	// IsHostDiskEncryptionKeyRotationInProgress reports whether the host's pending FileVault key rotation cmdUUID
+	// is still queued with no terminal result, or was requested less than staleAfter ago.
+	IsHostDiskEncryptionKeyRotationInProgress(ctx context.Context, hostID uint, hostUUID, cmdUUID string, staleAfter time.Duration) (bool, error)
 	// GetHostEscrowState reports whether a LUKS escrow request is queued and how long ago the agent
 	// last showed activity on one in flight. No row means the zero state.
 	GetHostEscrowState(ctx context.Context, hostID uint) (*HostEscrowState, error)
@@ -2099,7 +2123,9 @@ type Datastore interface {
 	// host in Fleet in the same transaction — setting the host's computer name and
 	// hostname to the row's expected name and updating its display name — so the
 	// row transition and the Fleet-side rename are atomic; acknowledged=false (the
-	// device returned an error) moves the row to failed and records detail.
+	// device returned an error) records detail and re-queues the row while fewer
+	// than mdm.MaxAppleDeviceNameRetries retries were used, otherwise moves it to
+	// failed. The returned outcome says which applied.
 	//
 	// A host holds only its most recently sent command UUID (one row per host),
 	// so a result for a superseded command (e.g. the template was re-saved or the
@@ -2108,23 +2134,25 @@ type Datastore interface {
 	// command, ignore" (check fleet.IsNotFound) rather than a failure: the device
 	// processes commands FIFO and ends on the latest name, which the matching
 	// (newest) command's result records.
-	UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) error
+	UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) (DeviceNameRetryOutcome, error)
 
 	// UpdateHostDeviceNameStatusFromReport reconciles the enforcement row for a
 	// host against the name reported by the device (mutating). reportedName is the
 	// host's current name as observed at a name-ingestion site: the DeviceName in
 	// the iOS/iPadOS refetch result, or computer_name from macOS osquery
 	// system_info. It only acts on rows in the verifying or verified state: a
-	// match moves the row to verified; a mismatch moves it to failed (drift). Rows
-	// in any other state, or hosts with no row, are left untouched.
+	// match moves the row to verified; a mismatch (drift) re-queues the row, like
+	// ResendHostDeviceName, so the template is re-enforced, until
+	// mdm.MaxAppleDeviceNameRetries retries were used, after which it moves to
+	// failed. The returned outcome says which applied. Rows in any other state, or
+	// hosts with no row, are left untouched.
 	//
 	// A mismatch on a row that entered verifying only recently is ignored (the
 	// row stays verifying): a report generated before the device applied the
 	// rename can arrive after the acknowledgment and still carry the old name,
-	// and treating it as drift would strand the host at failed until an explicit
-	// resend. The stale window is the agent's collect-to-submit latency, so a
-	// small fixed grace covers it.
-	UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID, reportedName string) error
+	// and treating it as drift would send a needless rename. The stale window is
+	// the agent's collect-to-submit latency, so a small fixed grace covers it.
+	UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID, reportedName string) (DeviceNameRetryOutcome, error)
 
 	// GetHostDeviceNameEnforcement returns the host-name enforcement row for the
 	// given host, or a not-found error if the host has no row.
@@ -3839,6 +3867,10 @@ type Datastore interface {
 	// one, and queues pushCmd, which delivers it, plus installCmd when not nil, in one transaction. It does nothing and returns false
 	// when WindowsMDMEnrollSecretPushed reports the live secret as pushed.
 	QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd, installCmd *MDMWindowsCommand) (bool, error)
+
+	// DeleteUnusedWindowsMDMOneTimeEnrollSecrets deletes the unused one-time enroll secrets not bound to a host that were minted for
+	// the Windows MDM enrollment.
+	DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx context.Context, enrollmentID uint) error
 
 	// WindowsMDMEnrollSecretPushed reports whether a push of the Windows MDM enrollment's live one-time enroll secret, a command
 	// targeting pushLocURI queued since the secret was minted, is still pending or was delivered successfully. It is false when the

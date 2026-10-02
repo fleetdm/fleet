@@ -873,6 +873,8 @@ type CancelHostMDMCommandFunc func(ctx context.Context, hostID uint, commandUUID
 
 type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
 
+type RotateDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) error
+
 type GetHostManagedAccountPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error)
 
 type RotateManagedLocalAccountPasswordFunc func(ctx context.Context, hostID uint) error
@@ -2319,6 +2321,9 @@ type Service struct {
 
 	RotateRecoveryLockPasswordFunc        RotateRecoveryLockPasswordFunc
 	RotateRecoveryLockPasswordFuncInvoked bool
+
+	RotateDiskEncryptionKeyFunc        RotateDiskEncryptionKeyFunc
+	RotateDiskEncryptionKeyFuncInvoked bool
 
 	GetHostManagedAccountPasswordFunc        GetHostManagedAccountPasswordFunc
 	GetHostManagedAccountPasswordFuncInvoked bool
@@ -5555,6 +5560,13 @@ func (s *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) e
 	s.RotateRecoveryLockPasswordFuncInvoked = true
 	s.mu.Unlock()
 	return s.RotateRecoveryLockPasswordFunc(ctx, hostID)
+}
+
+func (s *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.RotateDiskEncryptionKeyFuncInvoked = true
+	s.mu.Unlock()
+	return s.RotateDiskEncryptionKeyFunc(ctx, hostID)
 }
 
 func (s *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {

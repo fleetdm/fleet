@@ -243,6 +243,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()
 	require.NoError(s.T(), err)
+	mdmStorage.SetNewActivityFunc(func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return s.fleetSvc.NewActivity(ctx, user, activity)
+	})
 	depStorage, err := s.ds.NewMDMAppleDEPStorage()
 	require.NoError(s.T(), err)
 	scepStorage, err := s.ds.NewSCEPDepot()
@@ -3932,6 +3935,19 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`)
+
+	// a non-string profile description is rejected rather than dropped
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]any{"custom_settings": []any{
+				map[string]any{"path": "a.mobileconfig", "description": 123},
+			}},
+		},
+	}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.custom_settings.description': expected string but got float64`)
 
 	// apply an empty set of batch profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
@@ -10372,6 +10388,100 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		return d
 	}
 
+	// countSessionStartCmds counts the ESP hold bundles (by a command only the hold bundle carries) and the
+	// DevDetail serial Gets in a response.
+	countSessionStartCmds := func(cmds map[string]fleet.ProtoCmdOperation) (holds, devDetailGets int) {
+		for _, c := range cmds {
+			uri := c.Cmd.GetTargetURI()
+			switch {
+			case strings.HasSuffix(uri, "/FirstSyncStatus/SkipDeviceStatusPage"):
+				holds++
+			case c.Verb == fleet.CmdGet && uri == devDetailSMBIOSSerialNumberURI:
+				devDetailGets++
+			}
+		}
+		return holds, devDetailGets
+	}
+	// requireStatusOnly asserts a reply that lets the device end the session: the SyncHdr ack and no protocol
+	// commands.
+	requireStatusOnly := func(t *testing.T, cmds map[string]fleet.ProtoCmdOperation) {
+		require.NotEmpty(t, cmds, "the SyncHdr Status ack is always sent")
+		for _, c := range cmds {
+			assert.Equal(t, fleet.CmdStatus, c.Verb, "unexpected %s %s mid-session", c.Verb, c.Cmd.GetTargetURI())
+		}
+	}
+
+	t.Run("pending hold commands are only sent at session start", func(t *testing.T) {
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "esp-pending@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		require.NoError(t, d.Enroll())
+
+		// The test client retries a challenged request under the same MsgID, so both MsgID 1 and the MsgID 2
+		// ack are session start.
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		holds, gets := countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+		cmds = ackAll(t, d, cmds, "", "")
+		holds, gets = countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+
+		// MsgID 3 gets only Status acks.
+		cmds = ackAll(t, d, cmds, "", "")
+		requireStatusOnly(t, cmds)
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, awaiting(t, d))
+
+		// The next session re-sends them while still unlinked.
+		cmds, err = d.StartManagementSession()
+		require.NoError(t, err)
+		holds, gets = countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+	})
+
+	t.Run("serial reply links and transitions mid-session", func(t *testing.T) {
+		// The shape real devices follow: the DevDetail Get sent at session start is answered on MsgID 3, which
+		// links the host and moves the enrollment to Active in that same message.
+		host := createOrbitEnrolledHost(t, "windows", "esp-link", s.ds)
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "esp-link@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		require.NoError(t, d.Enroll())
+
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		cmds = ackAll(t, d, cmds, "", "")
+		holds, gets := countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+
+		// MsgID 3: ack the batch and answer the Get with the serial.
+		msgID, err := d.GetCurrentMsgID()
+		require.NoError(t, err)
+		d.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdResults},
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			MsgRef:  &msgID, CmdRef: new(fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"),
+			Cmd:   new(fleet.CmdGet),
+			Items: []fleet.CmdItem{{Source: new(devDetailSMBIOSSerialNumberURI), Data: &fleet.RawXmlData{Content: host.HardwareSerial}}},
+		})
+		cmds = ackAll(t, d, cmds, "", "")
+
+		holds, gets = countSessionStartCmds(cmds)
+		assert.Zero(t, holds, "no hold bundle once linked")
+		assert.Zero(t, gets, "no Get once linked")
+		var transition *fleet.ProtoCmdOperation
+		for _, c := range cmds {
+			if c.Verb == fleet.CmdReplace && strings.HasSuffix(c.Cmd.GetTargetURI(), "/DevicePreparation/PolicyProviders/"+syncml.DocProvisioningAppProviderID+"/InstallationState") {
+				transition = &c
+			}
+		}
+		require.NotNil(t, transition, "the reply must carry the DevicePreparation InstallationState=3")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d))
+		enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+		require.NoError(t, err)
+		assert.Equal(t, host.UUID, enrolledDevice.HostUUID)
+	})
+
 	t.Run("user-scope release rejected with 405 then retried until acked", func(t *testing.T) {
 		d := enrollToActive(t, "esp-retry@example.com", "esp-h1")
 
@@ -10391,10 +10501,10 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d),
 			"a 405 on the user-scope release must NOT complete the ESP")
 
-		// The server re-sends the user-scope Replace in its response to the ack: the test client enrolls without
-		// an auth-challenge round-trip, so its ack message carries MsgID 2, which is within the session-start
-		// retry gate (espRetryAllowedForMessage). Real devices observed live ack on MsgID 3+ and get the retry at
-		// the next session instead; that shape is covered by the "acked 405 mid-session" unit subtest.
+		// The server re-sends the user-scope Replace in its reply to the ack: the test client retries a
+		// challenged request under the same MsgID, so its ack carries MsgID 2, within the session-start retry
+		// gate (isOMADMSessionStart). Real devices ack on MsgID 3+ and get the retry at the next session
+		// instead; that shape is covered by the "acked 405 mid-session" unit subtest.
 		retry := findUserRelease(afterNack)
 		require.NotNil(t, retry, "the user-scope release must be re-sent after a 405")
 
@@ -27593,12 +27703,16 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setFleetMDMData(macHost.ID, false)
 
-	// A macOS host whose name already matches the resolved template: verified
-	// directly, no command.
+	// A macOS host whose name already matches the resolved template and that has
+	// reported since it enrolled: verified directly, no command.
 	matchingHost, matchingDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setFleetMDMData(matchingHost.ID, false)
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE hosts SET computer_name = ? WHERE id = ?`, "WS-"+matchingHost.HardwareSerial, matchingHost.ID)
+		if _, err := q.ExecContext(ctx, `UPDATE hosts SET computer_name = ?, detail_updated_at = NOW() WHERE id = ?`,
+			"WS-"+matchingHost.HardwareSerial, matchingHost.ID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE nano_devices SET authenticate_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE id = ?`, matchingHost.UUID)
 		return err
 	})
 
@@ -27758,10 +27872,32 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	submitSystemInfo("WS-" + macHost.HardwareSerial)
 	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
 
-	// --- mac: the end user renames the device -> drift -> failed ---
+	// --- mac: the end user renames the device -> drift -> re-enforced ---
 	submitSystemInfo("Renamed by user")
-	driftedRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
-	require.Contains(t, driftedRow.Detail, "renamed on the device")
+	requireRowStatus(macHost.UUID, nil)
+	runDeviceNameCron()
+	reenforcedRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotEqual(t, *macRow.CommandUUID, *reenforcedRow.CommandUUID)
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, *reenforcedRow.CommandUUID, cmd.CommandUUID)
+	var reenforceCmd struct {
+		Command struct {
+			Settings []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &reenforceCmd))
+	require.Len(t, reenforceCmd.Command.Settings, 1)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, reenforceCmd.Command.Settings[0].DeviceName)
+	_, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+	submitSystemInfo("WS-" + macHost.HardwareSerial)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
 
 	// --- iOS: ack then verify through the DeviceInformation refetch path ---
 	cmd, err = iosDevice.Idle()
@@ -27772,38 +27908,65 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.NoError(t, err)
 	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
 
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", iosHost.ID), nil, http.StatusOK)
-	cmd, err = iosDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		switch cmd.Command.RequestType {
-		case "InstalledApplicationList":
-			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, nil)
-		case "CertificateList":
-			cmd, err = iosDevice.AcknowledgeCertificateList(iosDevice.UUID, cmd.CommandUUID, nil)
-		case "DeviceInformation":
-			cmd, err = iosDevice.AcknowledgeDeviceInformation(iosDevice.UUID, cmd.CommandUUID,
-				"WS-"+iosHost.HardwareSerial, "iPhone14,6", "America/Los_Angeles")
-		default:
-			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
-		}
+	refetchIOS := func(deviceName string) {
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", iosHost.ID), nil, http.StatusOK)
+		cmd, err := iosDevice.Idle()
 		require.NoError(t, err)
+		for cmd != nil {
+			switch cmd.Command.RequestType {
+			case "InstalledApplicationList":
+				cmd, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, nil)
+			case "CertificateList":
+				cmd, err = iosDevice.AcknowledgeCertificateList(iosDevice.UUID, cmd.CommandUUID, nil)
+			case "DeviceInformation":
+				cmd, err = iosDevice.AcknowledgeDeviceInformation(iosDevice.UUID, cmd.CommandUUID,
+					deviceName, "iPhone14,6", "America/Los_Angeles")
+			default:
+				cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+			}
+			require.NoError(t, err)
+		}
 	}
+	refetchIOS("WS-" + iosHost.HardwareSerial)
 	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerified)
 
-	// --- iOS failure: the device errors the command (e.g. unsupervised) ---
-	cmd, err = iosFailDevice.Idle()
+	// --- iOS: the end user renames the device -> drift -> re-enforced ---
+	refetchIOS("Renamed by user")
+	requireRowStatus(iosHost.UUID, nil)
+	runDeviceNameCron()
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryPending)
+	cmd, err = iosDevice.Idle()
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
 	require.Equal(t, "Settings", cmd.Command.RequestType)
-	_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{
-		{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
-	})
+	_, err = iosDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// --- iOS failure: the device errors the command (e.g. unsupervised) ---
+	// Each error re-queues the row until the retries are used up, then it fails.
+	failIOSCommand := func() {
+		cmd, err := iosFailDevice.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "Settings", cmd.Command.RequestType)
+		_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{
+			{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
+		})
+		require.NoError(t, err)
+	}
+	for i := 1; i <= servermdm.MaxAppleDeviceNameRetries; i++ {
+		failIOSCommand()
+		retriedRow := requireRowStatus(iosFailHost.UUID, nil)
+		require.EqualValues(t, i, retriedRow.Retries)
+		runDeviceNameCron()
+		requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryPending)
+	}
+	failIOSCommand()
 	failedRow := requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
 	require.Contains(t, failedRow.Detail, "The device is not supervised.")
 
-	// a failed command is not re-sent by subsequent cron runs
+	// once retries are used up, the failed command is not re-sent by subsequent cron runs
 	runDeviceNameCron()
 	requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
 	cmd, err = iosFailDevice.Idle()
@@ -27826,6 +27989,9 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.Nil(t, cmd)
 
 	// --- an APNs push failure doesn't lose or duplicate the command ---
+	// The mac already carries the template name, so rename it off-template (its
+	// failed row ignores the report) to make the cron send a command.
+	submitSystemInfo("Renamed by user")
 	// re-save the resolvable template to queue rows again
 	s.Do("POST", "/api/latest/fleet/host_name_template",
 		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
@@ -27951,6 +28117,60 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.NoError(t, err)
 }
 
+func (s *integrationMDMTestSuite) TestHostNameTemplateReenrollWithStaleName() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", manualProfileIf(false)))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"}, http.StatusNoContent)
+	want := "WS-" + host.HardwareSerial
+
+	// A re-provisioned device: Fleet's host record still carries the template name
+	// from before the device was erased, and its last report predates the
+	// re-enrollment below.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE hosts SET computer_name = ?, detail_updated_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE id = ?`, want, host.ID)
+		return err
+	})
+	require.NoError(t, device.Enroll())
+
+	row, err := s.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, row.Status, "re-enrollment should queue the host")
+
+	// The stored name is stale, so the cron must send the rename instead of
+	// trusting it and marking the host verified.
+	require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	row, err = s.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, row.Status)
+	require.Equal(t, fleet.MDMDeliveryPending, *row.Status)
+	require.NotNil(t, row.CommandUUID)
+
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	require.Equal(t, *row.CommandUUID, cmd.CommandUUID)
+	_, err = device.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// The first report after re-enrollment matches, so no retry is spent.
+	_, err = s.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, want)
+	require.NoError(t, err)
+	row, err = s.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMDeliveryVerified, *row.Status)
+	require.Zero(t, row.Retries)
+}
+
 func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
 	t := s.T()
 	ctx := t.Context()
@@ -28056,18 +28276,20 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
 	submitSystemInfo("WS-" + macHost.HardwareSerial)
 	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
 
-	// end user renames the device off-template → drift → failed
+	// end user renames the device off-template → drift → re-queued
 	submitSystemInfo("Renamed by user")
-	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+	requireRowStatus(macHost.UUID, nil)
 
 	// --- host detail exposes the host_name object for the No-team host ---
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", macHost.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings.HostName)
-	require.Equal(t, fleet.HostNameSettingFailed, getHostResp.Host.MDM.OSSettings.HostName.Status)
+	require.Equal(t, fleet.HostNameSettingPending, getHostResp.Host.MDM.OSSettings.HostName.Status)
 
 	// --- resend works for the No-team host (host-keyed, nil TeamID allowed) ---
+	// Queued rows can't be resent, so first simulate the device rejecting a command.
+	require.NoError(t, s.ds.SetHostDeviceNameStatus(ctx, macHost.UUID, fleet.MDMDeliveryFailed, nil, "", "rejected"))
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/name_template/resend", macHost.ID), nil, http.StatusAccepted)
 	requireRowStatus(macHost.UUID, nil) // reset to queued
 
@@ -28948,6 +29170,323 @@ func (s *integrationMDMTestSuite) submitDarwinFileVaultKey(ctx context.Context, 
 	}
 	var distributedResp submitDistributedQueryResultsResponse
 	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+}
+
+func (s *integrationMDMTestSuite) TestRotateFileVaultKey() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Escrow is the only setting rotation needs.
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": false, "enable_escrow_disk_encryption_key": true } }
+	}`), http.StatusOK)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": { "macos_settings": { "enable_escrow_disk_encryption_key": false } }
+		}`), http.StatusOK)
+	})
+
+	caKeyPair, err := assets.CAKeyPair(ctx, s.ds)
+	require.NoError(t, err)
+	encrypt := func(plain string) []byte {
+		b, err := pkcs7.Encrypt([]byte(plain), []*x509.Certificate{caKeyPair.Leaf})
+		require.NoError(t, err)
+		return b
+	}
+	storedKey := func(hostID uint) *fleet.HostDiskEncryptionKey {
+		key, err := s.ds.GetHostDiskEncryptionKey(ctx, hostID)
+		require.NoError(t, err)
+		return key
+	}
+	getKey := func(hostID uint) getHostEncryptionKeyResponse {
+		var resp getHostEncryptionKeyResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", hostID), nil, http.StatusOK, &resp)
+		return resp
+	}
+	countRows := func(query string, args ...any) int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, query, args...)
+		})
+		return n
+	}
+	archiveRows := func(hostID uint) int {
+		return countRows(`SELECT COUNT(*) FROM host_disk_encryption_keys_archive WHERE host_id = ?`, hostID)
+	}
+	hostActivities := func(hostID uint, activityType string) int {
+		// not every host activity is linked in activity_host_past, so match on details
+		return countRows(`
+			SELECT COUNT(*) FROM activity_past
+			WHERE activity_type = ? AND JSON_EXTRACT(details, '$.host_id') = ?`, activityType, hostID)
+	}
+	rotateURL := func(hostID uint) string {
+		return fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key/rotate", hostID)
+	}
+	// the device may have enrollment commands queued ahead of the rotation
+	nextRotateCommand := func(t *testing.T, mdmClient *mdmtest.TestAppleMDMClient) *mdm.Command {
+		cmd, err := mdmClient.Idle()
+		for ; err == nil && cmd != nil; cmd, err = mdmClient.Acknowledge(cmd.CommandUUID) {
+			if cmd.Command.RequestType == fleet.RotateFileVaultKeyCmdName {
+				return cmd
+			}
+		}
+		require.NoError(t, err)
+		return nil
+	}
+	newEscrowedHost := func(t *testing.T, recoveryKey string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+		host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, recoveryKey)
+		require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now()))
+		require.Nil(t, nextRotateCommand(t, mdmClient))
+		return host, mdmClient
+	}
+
+	t.Run("host acknowledges", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		before := getKey(host.ID)
+		require.Equal(t, "AAA-111-222", before.EncryptionKey.DecryptedValue)
+		require.False(t, before.EncryptionKey.RotationPending)
+		archivedBefore := archiveRows(host.ID)
+		escrowedBefore := hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
+		readBefore := hostActivities(host.ID, fleet.ActivityTypeReadHostDiskEncryptionKey{}.ActivityName())
+
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		s.lastActivityMatches(fleet.ActivityTypeRotatedDiskEncryptionKey{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+		require.Equal(t, readBefore, hostActivities(host.ID, fleet.ActivityTypeReadHostDiskEncryptionKey{}.ActivityName()),
+			"rotating does not read the key on the user's behalf")
+
+		marker := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, marker)
+		var storedCmd string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &storedCmd, `SELECT command FROM nano_commands WHERE command_uuid = ?`, *marker)
+		})
+		require.Contains(t, storedCmd, "$FLEET_HOST_SECRET_FILEVAULT_KEY")
+		require.NotContains(t, storedCmd, "AAA-111-222")
+
+		pending := getKey(host.ID)
+		require.True(t, pending.EncryptionKey.RotationPending)
+		require.Equal(t, "AAA-111-222", pending.EncryptionKey.DecryptedValue)
+		require.True(t, before.EncryptionKey.UpdatedAt.Equal(pending.EncryptionKey.UpdatedAt))
+
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusConflict)
+
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+		require.Equal(t, *marker, cmd.CommandUUID)
+		require.Contains(t, string(cmd.Raw), "AAA-111-222", "the device receives the current key")
+		require.NotContains(t, string(cmd.Raw), "FLEET_HOST_SECRET")
+
+		_, err := mdmClient.AcknowledgeRotateFileVaultKey(cmd.CommandUUID, encrypt("NEW-333-444"))
+		require.NoError(t, err)
+
+		after := getKey(host.ID)
+		require.Equal(t, "NEW-333-444", after.EncryptionKey.DecryptedValue)
+		require.False(t, after.EncryptionKey.RotationPending)
+		require.True(t, after.EncryptionKey.UpdatedAt.After(before.EncryptionKey.UpdatedAt))
+		require.Equal(t, new(true), storedKey(host.ID).Decryptable, "decryptable without waiting for the cron")
+		require.Equal(t, archivedBefore+1, archiveRows(host.ID))
+		require.Equal(t, escrowedBefore+1, hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName()))
+
+		// osquery then reports FileVaultPRK.dat: the same key in a different envelope
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "NEW-333-444")
+		ingested := storedKey(host.ID)
+		require.Equal(t, new(true), ingested.Decryptable)
+		require.True(t, after.EncryptionKey.UpdatedAt.Equal(ingested.UpdatedAt))
+		require.Equal(t, archivedBefore+1, archiveRows(host.ID))
+		require.Equal(t, escrowedBefore+1, hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName()))
+
+		// a report of a different key follows the normal path
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "OTHER-555")
+		require.Equal(t, archivedBefore+2, archiveRows(host.ID), "a different key still follows the normal path")
+		require.Nil(t, storedKey(host.ID).Decryptable)
+
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusUnprocessableEntity)
+	})
+
+	t.Run("osquery reports the new key before the acknowledgement", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "NEW-333-444")
+		reported := storedKey(host.ID)
+		require.Nil(t, reported.Decryptable)
+		archived := archiveRows(host.ID)
+		escrowed := hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
+
+		_, err := mdmClient.AcknowledgeRotateFileVaultKey(cmd.CommandUUID, encrypt("NEW-333-444"))
+		require.NoError(t, err)
+
+		acked := storedKey(host.ID)
+		require.Equal(t, reported.Base64Encrypted, acked.Base64Encrypted, "the reported copy is kept")
+		require.Equal(t, new(true), acked.Decryptable)
+		require.Nil(t, acked.RotationCommandUUID)
+		require.Equal(t, archived, archiveRows(host.ID))
+		require.Equal(t, escrowed, hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName()))
+		require.Equal(t, "NEW-333-444", getKey(host.ID).EncryptionKey.DecryptedValue)
+	})
+
+	t.Run("host returns an error", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+
+		_, err := mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{{
+			ErrorCode: 12, ErrorDomain: "MDMErrorDomain", USEnglishDescription: "The password is incorrect.",
+		}})
+		require.NoError(t, err)
+
+		key := storedKey(host.ID)
+		require.Nil(t, key.RotationCommandUUID)
+		require.Equal(t, new(false), key.Decryptable)
+		s.lastActivityMatches(fleet.ActivityTypeFailedToRotateDiskEncryptionKey{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "detail": "MDMErrorDomain (12): The password is incorrect."}`,
+				host.ID, host.DisplayName()), 0)
+
+		// the stored key is no longer usable, so there is nothing to rotate with
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusUnprocessableEntity)
+	})
+
+	t.Run("acknowledgement without a usable key", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+
+		_, err := mdmClient.AcknowledgeRotateFileVaultKey(cmd.CommandUUID, []byte("not cms"))
+		require.NoError(t, err)
+
+		key := storedKey(host.ID)
+		require.Nil(t, key.RotationCommandUUID)
+		require.Equal(t, new(false), key.Decryptable)
+		s.lastActivityMatches(fleet.ActivityTypeFailedToRotateDiskEncryptionKey{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "detail": "Fleet couldn't decrypt the new key returned by the host."}`,
+				host.ID, host.DisplayName()), 0)
+	})
+
+	t.Run("stored key changes before delivery", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		require.NoError(t, s.ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, storedKey(host.ID).Base64Encrypted,
+			base64.StdEncoding.EncodeToString([]byte("not cms"))))
+
+		require.Nil(t, nextRotateCommand(t, mdmClient), "a command that can't be expanded is not delivered")
+		key := storedKey(host.ID)
+		require.Nil(t, key.RotationCommandUUID)
+		require.Equal(t, new(false), key.Decryptable)
+		var listActivities listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc", "per_page", "1")
+		require.Len(t, listActivities.Activities, 1)
+		require.Equal(t, fleet.ActivityTypeFailedToRotateDiskEncryptionKey{}.ActivityName(), listActivities.Activities[0].Type)
+		require.Contains(t, string(*listActivities.Activities[0].Details), "failed to expand host secrets")
+	})
+
+	t.Run("transfer to a fleet without escrow while pending", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		rotation := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, rotation)
+		followUp := uuid.NewString()
+		require.NoError(t, s.mdmCommander.EnqueueCommand(ctx, []string{host.UUID}, fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>ProfileList</string>
+	</dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+</dict>
+</plist>`, followUp)))
+
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{host.ID}},
+			http.StatusOK, &addHostsToTeamResponse{})
+		_, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		require.True(t, fleet.IsNotFound(err), "the destination fleet doesn't escrow, so the key is dropped")
+
+		// The rotation can't be expanded any more. It must fail rather than block
+		// the commands queued behind it.
+		var delivered []string
+		cmd, err := mdmClient.Idle()
+		for i := 0; err == nil && i < 10; i++ {
+			if cmd != nil {
+				delivered = append(delivered, cmd.CommandUUID)
+				cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+			} else {
+				cmd, err = mdmClient.Idle()
+			}
+		}
+		require.NoError(t, err)
+		require.Contains(t, delivered, followUp)
+		require.NotContains(t, delivered, *rotation)
+
+		var status string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status, `SELECT status FROM nano_command_results WHERE id = ? AND command_uuid = ?`, host.UUID, *rotation)
+		})
+		require.Equal(t, fleet.MDMAppleStatusError, status)
+	})
+
+	t.Run("a marker whose command is gone is replaced after the grace period", func(t *testing.T) {
+		host, _ := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		first := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, first)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM nano_enrollment_queue WHERE command_uuid = ?`, *first)
+			return err
+		})
+
+		// indistinguishable from a request whose command isn't enqueued yet
+		require.True(t, getKey(host.ID).EncryptionKey.RotationPending)
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusConflict)
+
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				UPDATE host_disk_encryption_keys
+				SET rotation_requested_at = NOW(6) - INTERVAL 2 MINUTE, updated_at = updated_at
+				WHERE host_id = ?`, host.ID)
+			return err
+		})
+		// GET and rotate agree that the marker is stale
+		require.False(t, getKey(host.ID).EncryptionKey.RotationPending)
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		require.True(t, getKey(host.ID).EncryptionKey.RotationPending)
+		second := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, second)
+		require.NotEqual(t, *first, *second)
+	})
+
+	t.Run("re-enrollment clears a pending rotation", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		require.NotNil(t, storedKey(host.ID).RotationCommandUUID)
+
+		require.NoError(t, mdmClient.Authenticate())
+		key, err := s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		if !fleet.IsNotFound(err) {
+			require.NoError(t, err)
+			require.Nil(t, key.RotationCommandUUID)
+		}
+	})
+
+	t.Run("ineligible hosts", func(t *testing.T) {
+		s.Do("POST", rotateURL(0), nil, http.StatusNotFound)
+
+		windowsHost := createOrbitEnrolledHost(t, "windows", t.Name(), s.ds)
+		s.Do("POST", rotateURL(windowsHost.ID), nil, http.StatusBadRequest)
+
+		host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusUnprocessableEntity)
+	})
 }
 
 // Escrow without enforcement: status follows the escrowed key, not the disk

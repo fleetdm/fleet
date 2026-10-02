@@ -498,6 +498,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		},
 		config.MDM.AndroidAgent,
 		redis_key_value.New(redisPool),
+		android_service.WithInstallReapTimeout(config.Server.VPPInstallReapTimeout),
 	)
 	if err != nil {
 		initFatal(err, "initializing android service")
@@ -978,6 +979,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/", serveCSP), config)))
 
 	if len(config.Server.PrivateKey) > 0 {
+		mdmStorage.SetNewActivityFunc(svc.NewActivity)
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 		ddmService := service.NewMDMAppleDDMService(ds, logger)
 		getTokenService := service.NewMDMAppleGetTokenService(ds, logger)

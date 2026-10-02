@@ -853,6 +853,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// GET /hosts/:id/encryption_key.
 	ue.GET("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/encryption_key/rotate", rotateDiskEncryptionKeyEndpoint, rotateDiskEncryptionKeyRequest{})
 
 	// Deprecated: GET /mdm/profiles/summary is now deprecated, replaced by the
 	// GET /configuration_profiles/summary endpoint.

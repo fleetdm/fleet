@@ -2989,6 +2989,7 @@ func (ds *Datastore) batchSetMDMAppleProfilesDB(
 SELECT
   identifier,
   profile_uuid,
+  name,
   mobileconfig,
   secrets_updated_at
 FROM
@@ -2996,6 +2997,15 @@ FROM
 WHERE
   team_id = ? AND
   identifier IN (?)
+`
+
+	const moveRenamedProfileAside = `
+UPDATE
+  mdm_apple_configuration_profiles
+SET
+  name = ?
+WHERE
+  profile_uuid = ?
 `
 
 	const deleteProfilesNotInList = `
@@ -3122,6 +3132,36 @@ ON DUPLICATE KEY UPDATE
 		// cancel installs of the deleted profiles immediately
 		if err := cancelAppleHostInstallsForDeletedMDMProfiles(ctx, tx, deletedProfileUUIDs); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "cancel installs of deleted profiles")
+		}
+	}
+
+	// The upserts below run one at a time in map order and (team_id, name) is
+	// unique, so a chain or swap of names would fail unless each profile
+	// happened to be renamed after the one holding its new name. Moving the
+	// renamed ones aside first makes any order work. The temporary name must
+	// not be in use by any kept or incoming profile: the upsert matches on any
+	// unique key, so a clash would update the wrong row through the name.
+	takenNames := make(map[string]struct{}, len(existingProfiles)+len(incomingProfs))
+	for _, p := range existingProfiles {
+		takenNames[p.Name] = struct{}{}
+	}
+	for _, p := range incomingProfs {
+		takenNames[p.Name] = struct{}{}
+	}
+	for _, p := range existingProfiles {
+		if newP := incomingProfs[p.Identifier]; newP == nil || newP.Name == p.Name {
+			continue
+		}
+		tmpName := "fleet-renaming-" + p.ProfileUUID
+		for i := 2; ; i++ {
+			if _, taken := takenNames[tmpName]; !taken {
+				break
+			}
+			tmpName = fmt.Sprintf("fleet-renaming-%s-%d", p.ProfileUUID, i)
+		}
+		takenNames[tmpName] = struct{}{}
+		if _, err := tx.ExecContext(ctx, moveRenamedProfileAside, tmpName, p.ProfileUUID); err != nil {
+			return false, ctxerr.Wrapf(ctx, err, "move renamed profile with identifier %q aside", p.Identifier)
 		}
 	}
 
@@ -9101,6 +9141,29 @@ func (ds *Datastore) ResetPendingCertRenewals(ctx context.Context) error {
 			}
 		}
 	})
+}
+
+func (ds *Datastore) isAppleMDMCommandPending(ctx context.Context, hostUUID, cmdUUID string) (bool, error) {
+	var cmd struct {
+		Active            bool `db:"active"`
+		HasTerminalResult bool `db:"has_terminal_result"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &cmd, `
+SELECT
+	neq.active,
+	EXISTS (
+		SELECT 1 FROM nano_command_results ncr
+		WHERE ncr.id = neq.id AND ncr.command_uuid = neq.command_uuid AND ncr.status != 'NotNow'
+	) AS has_terminal_result
+FROM nano_enrollment_queue neq
+WHERE neq.id = ? AND neq.command_uuid = ?`, hostUUID, cmdUUID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "check apple mdm command pending")
+	}
+	return cmd.Active && !cmd.HasTerminalResult, nil
 }
 
 func (ds *Datastore) ApplyHostMDMProfileOptInChanges(ctx context.Context, changes *fleet.MDMProfileOptInChanges) error {

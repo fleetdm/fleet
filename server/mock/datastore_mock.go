@@ -964,6 +964,20 @@ type GetHostArchivedDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.
 
 type IsHostDiskEncryptionKeyArchivedFunc func(ctx context.Context, hostID uint) (bool, error)
 
+type SetHostDiskEncryptionKeyRotationCommandFunc func(ctx context.Context, hostID uint, cmdUUID string) (bool, error)
+
+type ClearHostDiskEncryptionKeyRotationCommandFunc func(ctx context.Context, hostID uint, cmdUUID string) error
+
+type ClearStaleHostDiskEncryptionKeyRotationCommandFunc func(ctx context.Context, hostID uint, cmdUUID string, olderThan time.Duration) (bool, error)
+
+type FailHostDiskEncryptionKeyRotationFunc func(ctx context.Context, hostID uint, cmdUUID string) (bool, error)
+
+type GetHostByDiskEncryptionKeyRotationCommandFunc func(ctx context.Context, cmdUUID string) (*fleet.Host, error)
+
+type ReplaceHostDiskEncryptionKeyBlobFunc func(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error
+
+type IsHostDiskEncryptionKeyRotationInProgressFunc func(ctx context.Context, hostID uint, hostUUID string, cmdUUID string, staleAfter time.Duration) (bool, error)
+
 type GetHostEscrowStateFunc func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error)
 
 type MarkEscrowSentToAgentFunc func(ctx context.Context, hostID uint) error
@@ -1268,9 +1282,9 @@ type DeactivateHostDeviceNameCommandsFunc func(ctx context.Context, hostUUIDs []
 
 type SetHostDeviceNameStatusFunc func(ctx context.Context, hostUUID string, status fleet.MDMDeliveryStatus, commandUUID *string, expectedName string, detail string) error
 
-type UpdateHostDeviceNameStatusFromCommandFunc func(ctx context.Context, commandUUID string, acknowledged bool, detail string) error
+type UpdateHostDeviceNameStatusFromCommandFunc func(ctx context.Context, commandUUID string, acknowledged bool, detail string) (fleet.DeviceNameRetryOutcome, error)
 
-type UpdateHostDeviceNameStatusFromReportFunc func(ctx context.Context, hostUUID string, reportedName string) error
+type UpdateHostDeviceNameStatusFromReportFunc func(ctx context.Context, hostUUID string, reportedName string) (fleet.DeviceNameRetryOutcome, error)
 
 type GetHostDeviceNameEnforcementFunc func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error)
 
@@ -2085,6 +2099,8 @@ type WindowsMDMEnrollSecretUsedByOrbitFunc func(ctx context.Context, enrollmentI
 type MintWindowsMDMOneTimeEnrollSecretFunc func(ctx context.Context, enrollmentID uint) error
 
 type QueueWindowsMDMEnrollSecretPushFunc func(ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd *fleet.MDMWindowsCommand, installCmd *fleet.MDMWindowsCommand) (bool, error)
+
+type DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc func(ctx context.Context, enrollmentID uint) error
 
 type WindowsMDMEnrollSecretPushedFunc func(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error)
 
@@ -3927,6 +3943,27 @@ type DataStore struct {
 	IsHostDiskEncryptionKeyArchivedFunc        IsHostDiskEncryptionKeyArchivedFunc
 	IsHostDiskEncryptionKeyArchivedFuncInvoked bool
 
+	SetHostDiskEncryptionKeyRotationCommandFunc        SetHostDiskEncryptionKeyRotationCommandFunc
+	SetHostDiskEncryptionKeyRotationCommandFuncInvoked bool
+
+	ClearHostDiskEncryptionKeyRotationCommandFunc        ClearHostDiskEncryptionKeyRotationCommandFunc
+	ClearHostDiskEncryptionKeyRotationCommandFuncInvoked bool
+
+	ClearStaleHostDiskEncryptionKeyRotationCommandFunc        ClearStaleHostDiskEncryptionKeyRotationCommandFunc
+	ClearStaleHostDiskEncryptionKeyRotationCommandFuncInvoked bool
+
+	FailHostDiskEncryptionKeyRotationFunc        FailHostDiskEncryptionKeyRotationFunc
+	FailHostDiskEncryptionKeyRotationFuncInvoked bool
+
+	GetHostByDiskEncryptionKeyRotationCommandFunc        GetHostByDiskEncryptionKeyRotationCommandFunc
+	GetHostByDiskEncryptionKeyRotationCommandFuncInvoked bool
+
+	ReplaceHostDiskEncryptionKeyBlobFunc        ReplaceHostDiskEncryptionKeyBlobFunc
+	ReplaceHostDiskEncryptionKeyBlobFuncInvoked bool
+
+	IsHostDiskEncryptionKeyRotationInProgressFunc        IsHostDiskEncryptionKeyRotationInProgressFunc
+	IsHostDiskEncryptionKeyRotationInProgressFuncInvoked bool
+
 	GetHostEscrowStateFunc        GetHostEscrowStateFunc
 	GetHostEscrowStateFuncInvoked bool
 
@@ -5609,6 +5646,9 @@ type DataStore struct {
 
 	QueueWindowsMDMEnrollSecretPushFunc        QueueWindowsMDMEnrollSecretPushFunc
 	QueueWindowsMDMEnrollSecretPushFuncInvoked bool
+
+	DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc        DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc
+	DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked bool
 
 	WindowsMDMEnrollSecretPushedFunc        WindowsMDMEnrollSecretPushedFunc
 	WindowsMDMEnrollSecretPushedFuncInvoked bool
@@ -9548,6 +9588,55 @@ func (s *DataStore) IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID 
 	return s.IsHostDiskEncryptionKeyArchivedFunc(ctx, hostID)
 }
 
+func (s *DataStore) SetHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string) (bool, error) {
+	s.mu.Lock()
+	s.SetHostDiskEncryptionKeyRotationCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostDiskEncryptionKeyRotationCommandFunc(ctx, hostID, cmdUUID)
+}
+
+func (s *DataStore) ClearHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string) error {
+	s.mu.Lock()
+	s.ClearHostDiskEncryptionKeyRotationCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearHostDiskEncryptionKeyRotationCommandFunc(ctx, hostID, cmdUUID)
+}
+
+func (s *DataStore) ClearStaleHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string, olderThan time.Duration) (bool, error) {
+	s.mu.Lock()
+	s.ClearStaleHostDiskEncryptionKeyRotationCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearStaleHostDiskEncryptionKeyRotationCommandFunc(ctx, hostID, cmdUUID, olderThan)
+}
+
+func (s *DataStore) FailHostDiskEncryptionKeyRotation(ctx context.Context, hostID uint, cmdUUID string) (bool, error) {
+	s.mu.Lock()
+	s.FailHostDiskEncryptionKeyRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.FailHostDiskEncryptionKeyRotationFunc(ctx, hostID, cmdUUID)
+}
+
+func (s *DataStore) GetHostByDiskEncryptionKeyRotationCommand(ctx context.Context, cmdUUID string) (*fleet.Host, error) {
+	s.mu.Lock()
+	s.GetHostByDiskEncryptionKeyRotationCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostByDiskEncryptionKeyRotationCommandFunc(ctx, cmdUUID)
+}
+
+func (s *DataStore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error {
+	s.mu.Lock()
+	s.ReplaceHostDiskEncryptionKeyBlobFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceHostDiskEncryptionKeyBlobFunc(ctx, hostID, currentBase64Encrypted, newBase64Encrypted)
+}
+
+func (s *DataStore) IsHostDiskEncryptionKeyRotationInProgress(ctx context.Context, hostID uint, hostUUID string, cmdUUID string, staleAfter time.Duration) (bool, error) {
+	s.mu.Lock()
+	s.IsHostDiskEncryptionKeyRotationInProgressFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsHostDiskEncryptionKeyRotationInProgressFunc(ctx, hostID, hostUUID, cmdUUID, staleAfter)
+}
+
 func (s *DataStore) GetHostEscrowState(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
 	s.mu.Lock()
 	s.GetHostEscrowStateFuncInvoked = true
@@ -10612,14 +10701,14 @@ func (s *DataStore) SetHostDeviceNameStatus(ctx context.Context, hostUUID string
 	return s.SetHostDeviceNameStatusFunc(ctx, hostUUID, status, commandUUID, expectedName, detail)
 }
 
-func (s *DataStore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) error {
+func (s *DataStore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) (fleet.DeviceNameRetryOutcome, error) {
 	s.mu.Lock()
 	s.UpdateHostDeviceNameStatusFromCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostDeviceNameStatusFromCommandFunc(ctx, commandUUID, acknowledged, detail)
 }
 
-func (s *DataStore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID string, reportedName string) error {
+func (s *DataStore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID string, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
 	s.mu.Lock()
 	s.UpdateHostDeviceNameStatusFromReportFuncInvoked = true
 	s.mu.Unlock()
@@ -13473,6 +13562,13 @@ func (s *DataStore) QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollm
 	s.QueueWindowsMDMEnrollSecretPushFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueueWindowsMDMEnrollSecretPushFunc(ctx, enrollmentID, mdmDeviceID, pushCmd, installCmd)
+}
+
+func (s *DataStore) DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx context.Context, enrollmentID uint) error {
+	s.mu.Lock()
+	s.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc(ctx, enrollmentID)
 }
 
 func (s *DataStore) WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error) {
