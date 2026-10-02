@@ -1517,6 +1517,7 @@ var HostLinuxOSs = []string{
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
+// IMPORTANT: When updating this, also make sure to update HOST_NEITHER_DEB_NOR_RPM_PLATFORMS in frontend code.
 var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"arch":        {},
 	"archarm":     {},
@@ -1533,6 +1534,7 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
+// IMPORTANT: When updating this, also make sure to update HOST_DEB_PACKAGE_PLATFORMS in frontend code.
 var HostDebPackageOSs = map[string]struct{}{
 	"linux":                           {}, // let DEBs through if we're looking at a generic Linux host
 	"ubuntu":                          {},
@@ -1547,6 +1549,7 @@ var HostDebPackageOSs = map[string]struct{}{
 }
 
 // HostRpmPackageOSs are the list of known Linux platforms that support RPM packages
+// IMPORTANT: When updating this, also make sure to update HOST_RPM_PACKAGE_PLATFORMS in frontend code.
 var HostRpmPackageOSs = map[string]struct{}{
 	"linux":               {}, // let RPMs through if we're looking at a generic Linux host
 	"rhel":                {},

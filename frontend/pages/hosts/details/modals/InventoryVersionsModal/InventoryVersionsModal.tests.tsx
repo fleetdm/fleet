@@ -25,7 +25,7 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("Version")).toBeVisible();
     expect(screen.getByText("1.0.0")).toBeVisible();
     expect(screen.getByText("Type")).toBeVisible();
-    expect(screen.getByText("Application (macOS)")).toBeVisible();
+    expect(screen.getByText("macOS app")).toBeVisible();
     expect(screen.getByText("Bundle identifier")).toBeVisible();
     expect(screen.getByText("com.test.mock")).toBeVisible();
     expect(screen.getByText("Last opened")).toBeVisible();
@@ -75,7 +75,7 @@ describe("SoftwareDetailsModal", () => {
       <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
     expect(screen.getByText("Type")).toBeVisible();
-    expect(screen.getByText("Application (macOS)")).toBeVisible();
+    expect(screen.getByText("macOS app")).toBeVisible();
     expect(screen.queryByText("Version")).not.toBeInTheDocument();
     expect(screen.queryByText("Path:")).not.toBeInTheDocument();
   });

@@ -124,6 +124,72 @@ export const HOST_LINUX_PLATFORMS = [
   "amd-ryzen-ai-developer-platform", // AMD Ryzen AI Developer Platform (Debian-based)
 ] as const;
 
+/**
+ * Linux package families as defined by the Fleet server.
+ * IMPORTANT: When updating these, also update fleet.HostDebPackageOSs,
+ * fleet.HostRpmPackageOSs and fleet.HostNeitherDebNorRpmPackageOSs in backend code.
+ */
+// Generic "linux" is in both the deb and rpm lists so those hosts get both.
+export const HOST_DEB_PACKAGE_PLATFORMS = [
+  "linux",
+  "ubuntu",
+  "zorin",
+  "debian",
+  "kali",
+  "pop",
+  "linuxmint",
+  "tuxedo",
+  "neon",
+  "amd-ryzen-ai-developer-platform",
+] as const;
+
+export const HOST_RPM_PACKAGE_PLATFORMS = [
+  "linux",
+  "rhel",
+  "centos",
+  "sles",
+  "amzn",
+  "opensuse-leap",
+  "opensuse-tumbleweed",
+] as const;
+
+export const HOST_NEITHER_DEB_NOR_RPM_PLATFORMS = [
+  "arch",
+  "archarm",
+  "gentoo",
+  "void",
+  "nixos",
+  "endeavouros",
+  "manjaro",
+  "manjaro-arm",
+  "flatcar",
+  "coreos",
+  "cachyos",
+  "omarchy",
+] as const;
+
+export type LinuxPackageFamily = "deb" | "rpm" | "other";
+
+/** A Linux platform in none of the family lists is treated like generic
+ * `linux` (deb and rpm). Every HOST_LINUX_PLATFORMS entry is listed today. */
+export const getLinuxPackageFamilies = (
+  platform: string
+): LinuxPackageFamily[] => {
+  if (
+    (HOST_NEITHER_DEB_NOR_RPM_PLATFORMS as readonly string[]).includes(platform)
+  ) {
+    return ["other"];
+  }
+  const families: LinuxPackageFamily[] = [];
+  if ((HOST_DEB_PACKAGE_PLATFORMS as readonly string[]).includes(platform)) {
+    families.push("deb");
+  }
+  if ((HOST_RPM_PACKAGE_PLATFORMS as readonly string[]).includes(platform)) {
+    families.push("rpm");
+  }
+  return families.length ? families : ["deb", "rpm"];
+};
+
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
 
 export type HostPlatform =

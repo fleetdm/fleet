@@ -1,4 +1,4 @@
-import { isMacOS, isWindows } from "./platform";
+import { getLinuxPackageFamilies, isMacOS, isWindows } from "./platform";
 
 describe("platform helpers", () => {
   describe("isMacOS", () => {
@@ -42,6 +42,18 @@ describe("platform helpers", () => {
 
     it("does not match an empty string", () => {
       expect(isWindows("")).toBe(false);
+    });
+  });
+
+  describe("getLinuxPackageFamilies", () => {
+    it.each([
+      ["ubuntu", ["deb"]],
+      ["rhel", ["rpm"]],
+      ["arch", ["other"]],
+      ["linux", ["deb", "rpm"]],
+      ["some-new-distro", ["deb", "rpm"]],
+    ])("returns the package families for %s", (platform, families) => {
+      expect(getLinuxPackageFamilies(platform)).toEqual(families);
     });
   });
 });

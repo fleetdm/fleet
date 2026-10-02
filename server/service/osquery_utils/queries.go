@@ -1237,7 +1237,7 @@ FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 //
 // Every one of those drops the title's INSERT IGNORE and leaves the software row with no title
 // at all: invisible on the Software page, and an error logged on every check-in. Nothing
-// user-facing is lost, because the Type column shows a flat "Plugin (Adobe)" and never displays
+// user-facing is lost, because the Type column shows a flat "Adobe plugin" and never displays
 // the host application.
 var softwareAdobePlugins = DetailQuery{
 	Query: `
