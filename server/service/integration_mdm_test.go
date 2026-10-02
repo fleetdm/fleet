@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -241,6 +242,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()
 	require.NoError(s.T(), err)
+	mdmStorage.SetNewActivityFunc(func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return s.fleetSvc.NewActivity(ctx, user, activity)
+	})
 	depStorage, err := s.ds.NewMDMAppleDEPStorage()
 	require.NoError(s.T(), err)
 	scepStorage, err := s.ds.NewSCEPDepot()
@@ -421,7 +425,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err := ReconcileWindowsProfiles(ctx, ds, logger)
+							err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -3926,6 +3930,19 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`)
+
+	// a non-string profile description is rejected rather than dropped
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]any{"custom_settings": []any{
+				map[string]any{"path": "a.mobileconfig", "description": 123},
+			}},
+		},
+	}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.custom_settings.description': expected string but got float64`)
 
 	// apply an empty set of batch profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
@@ -10366,6 +10383,100 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		return d
 	}
 
+	// countSessionStartCmds counts the ESP hold bundles (by a command only the hold bundle carries) and the
+	// DevDetail serial Gets in a response.
+	countSessionStartCmds := func(cmds map[string]fleet.ProtoCmdOperation) (holds, devDetailGets int) {
+		for _, c := range cmds {
+			uri := c.Cmd.GetTargetURI()
+			switch {
+			case strings.HasSuffix(uri, "/FirstSyncStatus/SkipDeviceStatusPage"):
+				holds++
+			case c.Verb == fleet.CmdGet && uri == devDetailSMBIOSSerialNumberURI:
+				devDetailGets++
+			}
+		}
+		return holds, devDetailGets
+	}
+	// requireStatusOnly asserts a reply that lets the device end the session: the SyncHdr ack and no protocol
+	// commands.
+	requireStatusOnly := func(t *testing.T, cmds map[string]fleet.ProtoCmdOperation) {
+		require.NotEmpty(t, cmds, "the SyncHdr Status ack is always sent")
+		for _, c := range cmds {
+			assert.Equal(t, fleet.CmdStatus, c.Verb, "unexpected %s %s mid-session", c.Verb, c.Cmd.GetTargetURI())
+		}
+	}
+
+	t.Run("pending hold commands are only sent at session start", func(t *testing.T) {
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "esp-pending@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		require.NoError(t, d.Enroll())
+
+		// The test client retries a challenged request under the same MsgID, so both MsgID 1 and the MsgID 2
+		// ack are session start.
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		holds, gets := countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+		cmds = ackAll(t, d, cmds, "", "")
+		holds, gets = countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+
+		// MsgID 3 gets only Status acks.
+		cmds = ackAll(t, d, cmds, "", "")
+		requireStatusOnly(t, cmds)
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, awaiting(t, d))
+
+		// The next session re-sends them while still unlinked.
+		cmds, err = d.StartManagementSession()
+		require.NoError(t, err)
+		holds, gets = countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+	})
+
+	t.Run("serial reply links and transitions mid-session", func(t *testing.T) {
+		// The shape real devices follow: the DevDetail Get sent at session start is answered on MsgID 3, which
+		// links the host and moves the enrollment to Active in that same message.
+		host := createOrbitEnrolledHost(t, "windows", "esp-link", s.ds)
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "esp-link@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		require.NoError(t, d.Enroll())
+
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		cmds = ackAll(t, d, cmds, "", "")
+		holds, gets := countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+
+		// MsgID 3: ack the batch and answer the Get with the serial.
+		msgID, err := d.GetCurrentMsgID()
+		require.NoError(t, err)
+		d.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdResults},
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			MsgRef:  &msgID, CmdRef: new(fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"),
+			Cmd:   new(fleet.CmdGet),
+			Items: []fleet.CmdItem{{Source: new(devDetailSMBIOSSerialNumberURI), Data: &fleet.RawXmlData{Content: host.HardwareSerial}}},
+		})
+		cmds = ackAll(t, d, cmds, "", "")
+
+		holds, gets = countSessionStartCmds(cmds)
+		assert.Zero(t, holds, "no hold bundle once linked")
+		assert.Zero(t, gets, "no Get once linked")
+		var transition *fleet.ProtoCmdOperation
+		for _, c := range cmds {
+			if c.Verb == fleet.CmdReplace && strings.HasSuffix(c.Cmd.GetTargetURI(), "/DevicePreparation/PolicyProviders/"+syncml.DocProvisioningAppProviderID+"/InstallationState") {
+				transition = &c
+			}
+		}
+		require.NotNil(t, transition, "the reply must carry the DevicePreparation InstallationState=3")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d))
+		enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+		require.NoError(t, err)
+		assert.Equal(t, host.UUID, enrolledDevice.HostUUID)
+	})
+
 	t.Run("user-scope release rejected with 405 then retried until acked", func(t *testing.T) {
 		d := enrollToActive(t, "esp-retry@example.com", "esp-h1")
 
@@ -10385,10 +10496,10 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d),
 			"a 405 on the user-scope release must NOT complete the ESP")
 
-		// The server re-sends the user-scope Replace in its response to the ack: the test client enrolls without
-		// an auth-challenge round-trip, so its ack message carries MsgID 2, which is within the session-start
-		// retry gate (espRetryAllowedForMessage). Real devices observed live ack on MsgID 3+ and get the retry at
-		// the next session instead; that shape is covered by the "acked 405 mid-session" unit subtest.
+		// The server re-sends the user-scope Replace in its reply to the ack: the test client retries a
+		// challenged request under the same MsgID, so its ack carries MsgID 2, within the session-start retry
+		// gate (isOMADMSessionStart). Real devices ack on MsgID 3+ and get the retry at the next session
+		// instead; that shape is covered by the "acked 405 mid-session" unit subtest.
 		retry := findUserRelease(afterNack)
 		require.NotNil(t, retry, "the user-scope release must be re-sent after a 405")
 
@@ -15941,7 +16052,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.JSONEq(
 				t,
 				fmt.Sprintf(
-					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
+					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 					installHost.ID,
 					installHost.DisplayName(),
 					app.Name,
@@ -16689,7 +16800,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			macOSApp.Name,
@@ -16810,7 +16921,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			macOSApp.Name,
@@ -26221,6 +26332,67 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
+	t.Run("a command whose host secret can't be expanded doesn't block the queue", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		var setCmd string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &setCmd,
+				`SELECT pending_set_command_uuid FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
+		})
+		require.NotEmpty(t, setCmd)
+
+		// The staged password is gone by the time the device fetches the command.
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(),
+				`UPDATE host_recovery_key_passwords SET pending_encrypted_password = NULL WHERE host_uuid = ?`, host.UUID)
+			return err
+		})
+		followUp := uuid.NewString()
+		require.NoError(t, s.mdmCommander.EnqueueCommand(t.Context(), []string{host.UUID}, fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>ProfileList</string>
+	</dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+</dict>
+</plist>`, followUp)))
+
+		var delivered []string
+		cmd, err := mdmClient.Idle()
+		for i := 0; err == nil && i < 10; i++ {
+			if cmd != nil {
+				delivered = append(delivered, cmd.CommandUUID)
+				cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+			} else {
+				cmd, err = mdmClient.Idle()
+			}
+		}
+		require.NoError(t, err)
+		require.NotContains(t, delivered, setCmd)
+		require.Contains(t, delivered, followUp, "the command behind the failed one is still delivered")
+
+		var status string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &status,
+				`SELECT status FROM nano_command_results WHERE id = ? AND command_uuid = ?`, host.UUID, setCmd)
+		})
+		require.Equal(t, fleet.MDMAppleStatusError, status)
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
 	// Final cleanup: ensure recovery lock is disabled
 	s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 		"mdm": map[string]any{"enable_recovery_lock_password": false},
@@ -28937,6 +29109,323 @@ func (s *integrationMDMTestSuite) submitDarwinFileVaultKey(ctx context.Context, 
 	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 }
 
+func (s *integrationMDMTestSuite) TestRotateFileVaultKey() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Escrow is the only setting rotation needs.
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": false, "enable_escrow_disk_encryption_key": true } }
+	}`), http.StatusOK)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": { "macos_settings": { "enable_escrow_disk_encryption_key": false } }
+		}`), http.StatusOK)
+	})
+
+	caKeyPair, err := assets.CAKeyPair(ctx, s.ds)
+	require.NoError(t, err)
+	encrypt := func(plain string) []byte {
+		b, err := pkcs7.Encrypt([]byte(plain), []*x509.Certificate{caKeyPair.Leaf})
+		require.NoError(t, err)
+		return b
+	}
+	storedKey := func(hostID uint) *fleet.HostDiskEncryptionKey {
+		key, err := s.ds.GetHostDiskEncryptionKey(ctx, hostID)
+		require.NoError(t, err)
+		return key
+	}
+	getKey := func(hostID uint) getHostEncryptionKeyResponse {
+		var resp getHostEncryptionKeyResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", hostID), nil, http.StatusOK, &resp)
+		return resp
+	}
+	countRows := func(query string, args ...any) int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, query, args...)
+		})
+		return n
+	}
+	archiveRows := func(hostID uint) int {
+		return countRows(`SELECT COUNT(*) FROM host_disk_encryption_keys_archive WHERE host_id = ?`, hostID)
+	}
+	hostActivities := func(hostID uint, activityType string) int {
+		// not every host activity is linked in activity_host_past, so match on details
+		return countRows(`
+			SELECT COUNT(*) FROM activity_past
+			WHERE activity_type = ? AND JSON_EXTRACT(details, '$.host_id') = ?`, activityType, hostID)
+	}
+	rotateURL := func(hostID uint) string {
+		return fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key/rotate", hostID)
+	}
+	// the device may have enrollment commands queued ahead of the rotation
+	nextRotateCommand := func(t *testing.T, mdmClient *mdmtest.TestAppleMDMClient) *mdm.Command {
+		cmd, err := mdmClient.Idle()
+		for ; err == nil && cmd != nil; cmd, err = mdmClient.Acknowledge(cmd.CommandUUID) {
+			if cmd.Command.RequestType == fleet.RotateFileVaultKeyCmdName {
+				return cmd
+			}
+		}
+		require.NoError(t, err)
+		return nil
+	}
+	newEscrowedHost := func(t *testing.T, recoveryKey string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+		host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, recoveryKey)
+		require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now()))
+		require.Nil(t, nextRotateCommand(t, mdmClient))
+		return host, mdmClient
+	}
+
+	t.Run("host acknowledges", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		before := getKey(host.ID)
+		require.Equal(t, "AAA-111-222", before.EncryptionKey.DecryptedValue)
+		require.False(t, before.EncryptionKey.RotationPending)
+		archivedBefore := archiveRows(host.ID)
+		escrowedBefore := hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
+		readBefore := hostActivities(host.ID, fleet.ActivityTypeReadHostDiskEncryptionKey{}.ActivityName())
+
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		s.lastActivityMatches(fleet.ActivityTypeRotatedDiskEncryptionKey{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+		require.Equal(t, readBefore, hostActivities(host.ID, fleet.ActivityTypeReadHostDiskEncryptionKey{}.ActivityName()),
+			"rotating does not read the key on the user's behalf")
+
+		marker := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, marker)
+		var storedCmd string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &storedCmd, `SELECT command FROM nano_commands WHERE command_uuid = ?`, *marker)
+		})
+		require.Contains(t, storedCmd, "$FLEET_HOST_SECRET_FILEVAULT_KEY")
+		require.NotContains(t, storedCmd, "AAA-111-222")
+
+		pending := getKey(host.ID)
+		require.True(t, pending.EncryptionKey.RotationPending)
+		require.Equal(t, "AAA-111-222", pending.EncryptionKey.DecryptedValue)
+		require.True(t, before.EncryptionKey.UpdatedAt.Equal(pending.EncryptionKey.UpdatedAt))
+
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusConflict)
+
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+		require.Equal(t, *marker, cmd.CommandUUID)
+		require.Contains(t, string(cmd.Raw), "AAA-111-222", "the device receives the current key")
+		require.NotContains(t, string(cmd.Raw), "FLEET_HOST_SECRET")
+
+		_, err := mdmClient.AcknowledgeRotateFileVaultKey(cmd.CommandUUID, encrypt("NEW-333-444"))
+		require.NoError(t, err)
+
+		after := getKey(host.ID)
+		require.Equal(t, "NEW-333-444", after.EncryptionKey.DecryptedValue)
+		require.False(t, after.EncryptionKey.RotationPending)
+		require.True(t, after.EncryptionKey.UpdatedAt.After(before.EncryptionKey.UpdatedAt))
+		require.Equal(t, new(true), storedKey(host.ID).Decryptable, "decryptable without waiting for the cron")
+		require.Equal(t, archivedBefore+1, archiveRows(host.ID))
+		require.Equal(t, escrowedBefore+1, hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName()))
+
+		// osquery then reports FileVaultPRK.dat: the same key in a different envelope
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "NEW-333-444")
+		ingested := storedKey(host.ID)
+		require.Equal(t, new(true), ingested.Decryptable)
+		require.True(t, after.EncryptionKey.UpdatedAt.Equal(ingested.UpdatedAt))
+		require.Equal(t, archivedBefore+1, archiveRows(host.ID))
+		require.Equal(t, escrowedBefore+1, hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName()))
+
+		// a report of a different key follows the normal path
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "OTHER-555")
+		require.Equal(t, archivedBefore+2, archiveRows(host.ID), "a different key still follows the normal path")
+		require.Nil(t, storedKey(host.ID).Decryptable)
+
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusUnprocessableEntity)
+	})
+
+	t.Run("osquery reports the new key before the acknowledgement", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "NEW-333-444")
+		reported := storedKey(host.ID)
+		require.Nil(t, reported.Decryptable)
+		archived := archiveRows(host.ID)
+		escrowed := hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
+
+		_, err := mdmClient.AcknowledgeRotateFileVaultKey(cmd.CommandUUID, encrypt("NEW-333-444"))
+		require.NoError(t, err)
+
+		acked := storedKey(host.ID)
+		require.Equal(t, reported.Base64Encrypted, acked.Base64Encrypted, "the reported copy is kept")
+		require.Equal(t, new(true), acked.Decryptable)
+		require.Nil(t, acked.RotationCommandUUID)
+		require.Equal(t, archived, archiveRows(host.ID))
+		require.Equal(t, escrowed, hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName()))
+		require.Equal(t, "NEW-333-444", getKey(host.ID).EncryptionKey.DecryptedValue)
+	})
+
+	t.Run("host returns an error", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+
+		_, err := mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{{
+			ErrorCode: 12, ErrorDomain: "MDMErrorDomain", USEnglishDescription: "The password is incorrect.",
+		}})
+		require.NoError(t, err)
+
+		key := storedKey(host.ID)
+		require.Nil(t, key.RotationCommandUUID)
+		require.Equal(t, new(false), key.Decryptable)
+		s.lastActivityMatches(fleet.ActivityTypeFailedToRotateDiskEncryptionKey{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "detail": "MDMErrorDomain (12): The password is incorrect."}`,
+				host.ID, host.DisplayName()), 0)
+
+		// the stored key is no longer usable, so there is nothing to rotate with
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusUnprocessableEntity)
+	})
+
+	t.Run("acknowledgement without a usable key", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+
+		_, err := mdmClient.AcknowledgeRotateFileVaultKey(cmd.CommandUUID, []byte("not cms"))
+		require.NoError(t, err)
+
+		key := storedKey(host.ID)
+		require.Nil(t, key.RotationCommandUUID)
+		require.Equal(t, new(false), key.Decryptable)
+		s.lastActivityMatches(fleet.ActivityTypeFailedToRotateDiskEncryptionKey{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "detail": "Fleet couldn't decrypt the new key returned by the host."}`,
+				host.ID, host.DisplayName()), 0)
+	})
+
+	t.Run("stored key changes before delivery", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		require.NoError(t, s.ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, storedKey(host.ID).Base64Encrypted,
+			base64.StdEncoding.EncodeToString([]byte("not cms"))))
+
+		require.Nil(t, nextRotateCommand(t, mdmClient), "a command that can't be expanded is not delivered")
+		key := storedKey(host.ID)
+		require.Nil(t, key.RotationCommandUUID)
+		require.Equal(t, new(false), key.Decryptable)
+		var listActivities listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc", "per_page", "1")
+		require.Len(t, listActivities.Activities, 1)
+		require.Equal(t, fleet.ActivityTypeFailedToRotateDiskEncryptionKey{}.ActivityName(), listActivities.Activities[0].Type)
+		require.Contains(t, string(*listActivities.Activities[0].Details), "failed to expand host secrets")
+	})
+
+	t.Run("transfer to a fleet without escrow while pending", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		rotation := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, rotation)
+		followUp := uuid.NewString()
+		require.NoError(t, s.mdmCommander.EnqueueCommand(ctx, []string{host.UUID}, fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>ProfileList</string>
+	</dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+</dict>
+</plist>`, followUp)))
+
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{host.ID}},
+			http.StatusOK, &addHostsToTeamResponse{})
+		_, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		require.True(t, fleet.IsNotFound(err), "the destination fleet doesn't escrow, so the key is dropped")
+
+		// The rotation can't be expanded any more. It must fail rather than block
+		// the commands queued behind it.
+		var delivered []string
+		cmd, err := mdmClient.Idle()
+		for i := 0; err == nil && i < 10; i++ {
+			if cmd != nil {
+				delivered = append(delivered, cmd.CommandUUID)
+				cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+			} else {
+				cmd, err = mdmClient.Idle()
+			}
+		}
+		require.NoError(t, err)
+		require.Contains(t, delivered, followUp)
+		require.NotContains(t, delivered, *rotation)
+
+		var status string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status, `SELECT status FROM nano_command_results WHERE id = ? AND command_uuid = ?`, host.UUID, *rotation)
+		})
+		require.Equal(t, fleet.MDMAppleStatusError, status)
+	})
+
+	t.Run("a marker whose command is gone is replaced after the grace period", func(t *testing.T) {
+		host, _ := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		first := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, first)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM nano_enrollment_queue WHERE command_uuid = ?`, *first)
+			return err
+		})
+
+		// indistinguishable from a request whose command isn't enqueued yet
+		require.True(t, getKey(host.ID).EncryptionKey.RotationPending)
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusConflict)
+
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				UPDATE host_disk_encryption_keys
+				SET rotation_requested_at = NOW(6) - INTERVAL 2 MINUTE, updated_at = updated_at
+				WHERE host_id = ?`, host.ID)
+			return err
+		})
+		// GET and rotate agree that the marker is stale
+		require.False(t, getKey(host.ID).EncryptionKey.RotationPending)
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		require.True(t, getKey(host.ID).EncryptionKey.RotationPending)
+		second := storedKey(host.ID).RotationCommandUUID
+		require.NotNil(t, second)
+		require.NotEqual(t, *first, *second)
+	})
+
+	t.Run("re-enrollment clears a pending rotation", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		require.NotNil(t, storedKey(host.ID).RotationCommandUUID)
+
+		require.NoError(t, mdmClient.Authenticate())
+		key, err := s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		if !fleet.IsNotFound(err) {
+			require.NoError(t, err)
+			require.Nil(t, key.RotationCommandUUID)
+		}
+	})
+
+	t.Run("ineligible hosts", func(t *testing.T) {
+		s.Do("POST", rotateURL(0), nil, http.StatusNotFound)
+
+		windowsHost := createOrbitEnrolledHost(t, "windows", t.Name(), s.ds)
+		s.Do("POST", rotateURL(windowsHost.ID), nil, http.StatusBadRequest)
+
+		host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusUnprocessableEntity)
+	})
+}
+
 // Escrow without enforcement: status follows the escrowed key, not the disk
 // state — action required (turn on encryption while the disk is off, rotate
 // key once it is on) → verifying → verified.
@@ -29476,6 +29965,215 @@ func (s *integrationMDMTestSuite) TestAppleMDMCommandCleanup() {
 	cmd, err = iphone.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
+}
+
+func (s *integrationMDMTestSuite) TestConfigProfileNameAndDescription() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	teamFields := func(extra map[string][]string) map[string][]string {
+		fields := map[string][]string{"team_id": {fmt.Sprint(team.ID)}}
+		maps.Copy(fields, extra)
+		return fields
+	}
+
+	create := func(fileName string, content []byte, extra map[string][]string, wantStatus int) string {
+		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, teamFields(extra))
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
+		defer res.Body.Close()
+		if wantStatus != http.StatusOK {
+			return ""
+		}
+		var resp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp.ProfileUUID
+	}
+	update := func(profileUUID, fileName string, content []byte, fields map[string][]string, wantStatus int) {
+		body, headers := generateMultipartRequest(t, "profile", fileName, content, s.token, fields)
+		res := s.DoRawWithHeaders("PATCH", "/api/latest/fleet/configuration_profiles/"+profileUUID, body.Bytes(), wantStatus, headers)
+		res.Body.Close()
+	}
+	get := func(profileUUID string) *fleet.MDMConfigProfilePayload {
+		var resp getMDMConfigProfileResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/"+profileUUID, getMDMConfigProfileRequest{}, http.StatusOK, &resp)
+		return resp.MDMConfigProfilePayload
+	}
+	list := func() map[string]*fleet.MDMConfigProfilePayload {
+		var resp listMDMConfigProfilesResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+		byUUID := make(map[string]*fleet.MDMConfigProfilePayload, len(resp.Profiles))
+		for _, p := range resp.Profiles {
+			byUUID[p.ProfileUUID] = p
+		}
+		return byUUID
+	}
+
+	// create: explicit name and description on every type, derived
+	// name otherwise
+	appleUUID := create("apple.mobileconfig", mobileconfigForTest("Payload Apple", "com.test.named.apple"),
+		map[string][]string{"name": {"Custom Apple"}, "description": {"Blocks the camera"}}, http.StatusOK)
+	appleDerivedUUID := create("apple2.mobileconfig", mobileconfigForTest("Payload Apple 2", "com.test.derived.apple"), nil, http.StatusOK)
+	winUUID := create("firewall.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Firewall/Test"),
+		map[string][]string{"name": {"Custom Windows"}, "description": {"Firewall rules"}}, http.StatusOK)
+	winDerivedUUID := create("bitlocker-report.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bitlocker/Test"), nil, http.StatusOK)
+	declUUID := create("decl.json", declBytesForTest("com.test.named.decl", "named"),
+		map[string][]string{"name": {"Custom Declaration"}, "description": {"A declaration"}}, http.StatusOK)
+
+	apple := get(appleUUID)
+	require.Equal(t, "Custom Apple", apple.Name)
+	require.Equal(t, "Blocks the camera", apple.Description)
+	require.Equal(t, "Payload Apple", apple.PayloadDisplayName)
+
+	appleDerived := get(appleDerivedUUID)
+	require.Equal(t, "Payload Apple 2", appleDerived.Name)
+	require.Empty(t, appleDerived.Description)
+	require.Equal(t, "Payload Apple 2", appleDerived.PayloadDisplayName)
+
+	win := get(winUUID)
+	require.Equal(t, "Custom Windows", win.Name)
+	require.Equal(t, "Firewall rules", win.Description)
+	require.Empty(t, win.PayloadDisplayName)
+	require.Equal(t, "bitlocker-report", get(winDerivedUUID).Name)
+
+	decl := get(declUUID)
+	require.Equal(t, "Custom Declaration", decl.Name)
+	require.Equal(t, "A declaration", decl.Description)
+	require.Empty(t, decl.PayloadDisplayName)
+
+	listed := list()
+	require.Len(t, listed, 5)
+	listedApple, listedAppleDerived, listedWin, listedDecl := listed[appleUUID], listed[appleDerivedUUID], listed[winUUID], listed[declUUID]
+	require.NotNil(t, listedApple)
+	require.NotNil(t, listedAppleDerived)
+	require.NotNil(t, listedWin)
+	require.NotNil(t, listedDecl)
+	require.Equal(t, "Blocks the camera", listedApple.Description)
+	require.Equal(t, "Payload Apple", listedApple.PayloadDisplayName)
+	require.Equal(t, "Payload Apple 2", listedAppleDerived.PayloadDisplayName)
+	require.Equal(t, "Firewall rules", listedWin.Description)
+	require.Empty(t, listedWin.PayloadDisplayName)
+	require.Equal(t, "A declaration", listedDecl.Description)
+
+	// create: validation
+	create("blank.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Blank/Test"),
+		map[string][]string{"name": {"   "}}, http.StatusUnprocessableEntity)
+	// Windows validation keeps its existing 400s for long and reserved names
+	create("long.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Long/Test"),
+		map[string][]string{"name": {strings.Repeat("n", fleet.MaxProfileNameLength+1)}}, http.StatusBadRequest)
+	create("longdesc.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/LongDesc/Test"),
+		map[string][]string{"description": {strings.Repeat("d", fleet.MDMProfileMaxDescriptionLen+1)}}, http.StatusUnprocessableEntity)
+	create("reserved.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Reserved/Test"),
+		map[string][]string{"name": {servermdm.FleetdConfigProfileName}}, http.StatusBadRequest)
+	create("secret.mobileconfig", mobileconfigForTest("Payload Secret", "com.test.secret.apple"),
+		map[string][]string{"name": {"Wi-Fi $FLEET_SECRET_PSK"}}, http.StatusUnprocessableEntity)
+	// same name as the Apple profile, on another platform, in the same team
+	create("dup.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Dup/Test"),
+		map[string][]string{"name": {"Custom Apple"}}, http.StatusConflict)
+
+	// update: description only, nothing else moves
+	update(appleUUID, "", nil, map[string][]string{"description": {"Blocks the camera for real"}}, http.StatusOK)
+	updated := get(appleUUID)
+	require.Equal(t, "Custom Apple", updated.Name)
+	require.Equal(t, "Blocks the camera for real", updated.Description)
+	require.Equal(t, apple.UploadedAt, updated.UploadedAt)
+	require.Equal(t, apple.Checksum, updated.Checksum)
+
+	// update: an empty description clears it
+	update(appleUUID, "", nil, map[string][]string{"description": {""}}, http.StatusOK)
+	require.Empty(t, get(appleUUID).Description)
+
+	// update: a replacement file with another PayloadDisplayName keeps the name
+	update(appleUUID, "apple.mobileconfig", mobileconfigForTest("Renamed Payload", "com.test.named.apple"), nil, http.StatusOK)
+	updated = get(appleUUID)
+	require.Equal(t, "Custom Apple", updated.Name)
+	require.Equal(t, "Renamed Payload", updated.PayloadDisplayName)
+	require.NotEqual(t, apple.Checksum, updated.Checksum)
+
+	// update: rename a Windows profile without new content
+	update(winUUID, "", nil, map[string][]string{"name": {"Renamed Windows"}}, http.StatusOK)
+	renamedWin := get(winUUID)
+	require.Equal(t, "Renamed Windows", renamedWin.Name)
+	require.Equal(t, "Firewall rules", renamedWin.Description)
+	require.Equal(t, win.UploadedAt, renamedWin.UploadedAt)
+
+	// update: a replacement Windows file doesn't rename from the file name
+	update(winUUID, "something-else.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Firewall/Test2"), nil, http.StatusOK)
+	require.Equal(t, "Renamed Windows", get(winUUID).Name)
+
+	// update: declarations can be renamed too
+	update(declUUID, "", nil, map[string][]string{"name": {"Renamed Declaration"}, "description": {""}}, http.StatusOK)
+	renamedDecl := get(declUUID)
+	require.Equal(t, "Renamed Declaration", renamedDecl.Name)
+	require.Empty(t, renamedDecl.Description)
+
+	// update: collisions and limits
+	update(winUUID, "", nil, map[string][]string{"name": {"Custom Apple"}}, http.StatusConflict)
+	update(declUUID, "", nil, map[string][]string{"name": {"Custom Apple"}}, http.StatusConflict)
+	update(appleUUID, "", nil, map[string][]string{"name": {" "}}, http.StatusUnprocessableEntity)
+	update(appleUUID, "", nil, map[string][]string{"name": {servermdm.FleetdConfigProfileName}}, http.StatusUnprocessableEntity)
+
+	// batch: name and description are stored, display_name still works
+	// as an alias
+	batch := func(profiles []fleet.BatchModifyMDMConfigProfilePayload, wantStatus int) {
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: profiles,
+		}, wantStatus, "team_id", fmt.Sprint(team.ID))
+	}
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		// padded like a hand-written YAML value; stored trimmed
+		{Profile: mobileconfigForTest("Payload Batch", "com.test.batch.apple"), Name: "  Batch Apple ", Description: " batch apple\n"},
+		{Profile: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Batch/Test"), DisplayName: "Batch Windows", Description: "batch windows"},
+		{Profile: declBytesForTest("com.test.batch.decl", "batch"), Name: "Batch Declaration"},
+	}, http.StatusNoContent)
+	listed = list()
+	require.Len(t, listed, 3)
+	byName := make(map[string]*fleet.MDMConfigProfilePayload, len(listed))
+	for _, p := range listed {
+		byName[p.Name] = p
+	}
+	batchApple, batchWin, batchDecl := byName["Batch Apple"], byName["Batch Windows"], byName["Batch Declaration"]
+	require.NotNil(t, batchApple)
+	require.NotNil(t, batchWin)
+	require.NotNil(t, batchDecl)
+	require.Equal(t, "batch apple", batchApple.Description)
+	require.Equal(t, "Payload Batch", batchApple.PayloadDisplayName)
+	require.Equal(t, "batch windows", batchWin.Description)
+	require.Empty(t, batchDecl.Description)
+
+	// batch: name and display_name must agree when both are given
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Batch/Test"), Name: "A", DisplayName: "B"},
+	}, http.StatusUnprocessableEntity)
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Batch/Test"), Name: "Same", DisplayName: "Same"},
+	}, http.StatusNoContent)
+	require.Len(t, list(), 1)
+
+	// a name of only whitespace is rejected rather than derived
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Batch/Test"), Name: "   "},
+	}, http.StatusUnprocessableEntity)
+
+	// display_name alone doesn't rename a .mobileconfig, but it still has to
+	// agree with name when both are given
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: mobileconfigForTest("Payload Alias", "com.test.batch.alias"), DisplayName: "Ignored"},
+	}, http.StatusNoContent)
+	listed = list()
+	require.Len(t, listed, 1)
+	for _, p := range listed {
+		require.Equal(t, "Payload Alias", p.Name)
+	}
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: mobileconfigForTest("Payload Alias", "com.test.batch.alias"), Name: "A", DisplayName: "B"},
+	}, http.StatusUnprocessableEntity)
+
+	// a PayloadDisplayName is held to the same length limit as a given name
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: mobileconfigForTest(strings.Repeat("p", fleet.MaxProfileNameLength+1), "com.test.batch.long")},
+	}, http.StatusUnprocessableEntity)
 }
 
 func manualProfileIf(personal bool) fleet.PersonalEnrollmentType {

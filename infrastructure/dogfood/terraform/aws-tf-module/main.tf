@@ -95,6 +95,7 @@ locals {
     FLEET_OSQUERY_CONFIG_ETAGS           = "true"
     FLEET_OSQUERY_REDIS_CONFIG_ETAGS     = "true"
     FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE = "true"
+    FLEET_SERVER_ENABLE_CSP              = "true"
 
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA                  = local.cert_path

@@ -541,6 +541,13 @@ type Host struct {
 	HostMDMAndroidDeviceVitals
 }
 
+func (h *Host) EffectiveTeamID() uint {
+	if h.TeamID == nil {
+		return 0
+	}
+	return *h.TeamID
+}
+
 type HostForeignVitalGroup struct {
 	Name  string
 	Query string
@@ -1277,6 +1284,7 @@ func (h *HostLite) DisplayName() string {
 type HostIssues struct {
 	FailingPoliciesCount         uint64  `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
 	FailingUnhiddenPoliciesCount *uint64 `json:"failing_unhidden_policies_count,omitempty" db:"-" csv:"-"`
+	HiddenPoliciesCount          *uint64 `json:"hidden_policies_count,omitempty" db:"-" csv:"-"`
 	CriticalVulnerabilitiesCount *uint64 `json:"critical_vulnerabilities_count,omitempty" db:"critical_vulnerabilities_count" csv:"-"` // We set it to nil if the license is not premium
 	TotalIssuesCount             uint64  `json:"total_issues_count" db:"total_issues_count" csv:"issues"`                              // when exporting in CSV, we want that value as the "issues" column
 }
@@ -2100,7 +2108,15 @@ type HostDiskEncryptionKey struct {
 	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue      string    `json:"key" db:"-"`
 	ClientError         string    `json:"-" db:"client_error"`
+	RotationCommandUUID *string   `json:"-" db:"rotation_command_uuid"`
+	RotationPending     bool      `json:"rotation_pending" db:"-"`
 }
+
+// DiskEncryptionKeyRotationStaleAfter is how long a pending FileVault key rotation
+// whose command is no longer queued still counts as in progress. A marker is set
+// before its command is enqueued and cleared after its result is handled, so a
+// fresh one can look finished without being so.
+const DiskEncryptionKeyRotationStaleAfter = time.Minute
 
 type HostArchivedDiskEncryptionKey struct {
 	HostID              uint      `json:"-" db:"host_id"`

@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	nvdsync "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/sync"
+	"github.com/google/go-github/v37/github"
 )
 
 const emptyData = `{
@@ -33,15 +34,39 @@ const emptyData = `{
 
 var cleanEnvVar = "VULNERABILITIES_CLEAN"
 
-// maxDecompressedBytes caps gunzip output to prevent decompression bombs (gosec G110).
-const maxDecompressedBytes int64 = 400 * 1024 * 1024
+const (
+	// seedRunTimeout bounds an incremental run. Runs are scheduled every 30 minutes
+	// and queue behind each other, so a run that outlives the schedule makes the
+	// next one wait and drops the ones queued after it. A healthy incremental run
+	// takes a few minutes; failing well before the next slot lets it take over.
+	seedRunTimeout = 25 * time.Minute
+
+	seedMaxAttempts   = 3
+	seedRetryInterval = 30 * time.Second
+	// maxRateLimitWait bounds how long to wait for GitHub to lift a rate limit.
+	// It must leave room for the sync itself within seedRunTimeout.
+	maxRateLimitWait = 10 * time.Minute
+	// rateLimitResetBuffer absorbs clock skew between the runner and GitHub.
+	rateLimitResetBuffer = 5 * time.Second
+
+	// maxDecompressedBytes caps gunzip output to prevent decompression bombs (gosec G110).
+	maxDecompressedBytes int64 = 400 * 1024 * 1024
+)
 
 func main() {
 	dbDir := flag.String("db_dir", "/tmp/vulndbs", "Path to the vulnerability database")
 	debug := flag.Bool("debug", false, "Sets debug mode")
 	flag.Parse()
 
+	seed := os.Getenv(cleanEnvVar) == "false"
+
 	ctx := context.Background()
+	// A full sync takes much longer and is bounded only by the CI job timeout.
+	if seed {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, seedRunTimeout)
+		defer cancel()
+	}
 
 	logLevel := slog.LevelInfo
 	if *debug {
@@ -53,27 +78,17 @@ func main() {
 		panic(err)
 	}
 
-	if os.Getenv(cleanEnvVar) == "false" {
+	if seed {
 		logger.InfoContext(ctx, "Downloading latest release")
-		maxRetries := 3
-		for i := 0; i < maxRetries; i++ {
-			err := downloadLatestRelease(*dbDir, *debug, logger)
-			if err == nil {
-				break
-			}
-
-			if i == maxRetries-1 {
-				logger.WarnContext(ctx, "Failed to download latest release. Continuing with full NVD Sync", "err", err)
-				break
-			}
-
-			logger.WarnContext(ctx, "Failed to download latest release. Retrying in 30 seconds", "err", err)
-			time.Sleep(30 * time.Second)
+		// Extracted as callback to make this testable ....
+		download := func() error { return downloadLatestRelease(ctx, *dbDir, *debug, logger) }
+		if err := seedFromLatestRelease(ctx, logger, download); err != nil {
+			panic(fmt.Errorf("download latest release (set %s=true to run a full NVD sync instead): %w", cleanEnvVar, err))
 		}
 	}
 
 	// Sync the CVE files
-	if err := nvd.GenerateCVEFeeds(*dbDir, *debug, logger); err != nil {
+	if err := nvd.GenerateCVEFeeds(ctx, *dbDir, *debug, logger); err != nil {
 		panic(err)
 	}
 
@@ -114,9 +129,63 @@ func main() {
 	createEmptyFiles(*dbDir, "recent")
 }
 
-func downloadLatestRelease(dbDir string, debug bool, logger *slog.Logger) error {
+// seedFromLatestRelease runs download with retries. When GitHub reports a rate
+// limit, it waits as long as GitHub asks instead of the fixed retry interval,
+// or fails immediately if that is longer than maxRateLimitWait.
+func seedFromLatestRelease(
+	ctx context.Context,
+	logger *slog.Logger,
+	download func() error,
+) error {
+	var err error
+	for attempt := 1; attempt <= seedMaxAttempts; attempt++ {
+		if err = download(); err == nil {
+			return nil
+		}
+		if attempt == seedMaxAttempts {
+			break
+		}
+
+		wait := seedRetryInterval
+		if retryAfter, ok := githubRetryAfter(err); ok {
+			if retryAfter > maxRateLimitWait {
+				return fmt.Errorf("github rate limit resets in %s, more than the %s cap: %w", retryAfter.Round(time.Second), maxRateLimitWait, err)
+			}
+			wait = retryAfter + rateLimitResetBuffer
+		}
+
+		logger.WarnContext(ctx, "Failed to download latest release. Retrying", "err", err, "attempt", attempt, "retry_in", wait.String())
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("waiting to retry: %w", ctx.Err())
+		case <-time.After(wait):
+		}
+	}
+	return err
+}
+
+// githubRetryAfter returns how long GitHub asked us to wait, for both primary
+// and secondary rate limits.
+func githubRetryAfter(err error) (time.Duration, bool) {
+	if rlErr, ok := errors.AsType[*github.RateLimitError](err); ok {
+		return max(time.Until(rlErr.Rate.Reset.Time), 0), true
+	}
+	if abuseErr, ok := errors.AsType[*github.AbuseRateLimitError](err); ok && abuseErr.RetryAfter != nil {
+		return max(*abuseErr.RetryAfter, 0), true
+	}
+	return 0, false
+}
+
+func downloadLatestRelease(ctx context.Context, dbDir string, debug bool, logger *slog.Logger) error {
+	// Resolve the release once so the feeds and last_mod_start_date.txt come from
+	// the same release even if a newer one is published mid-download.
+	assetPath, err := nvd.GetGitHubCVEAssetPath(ctx)
+	if err != nil {
+		return fmt.Errorf("get github cve asset path: %w", err)
+	}
+
 	// Download the latest release
-	err := nvd.DownloadCVEFeed(dbDir, "", debug, logger)
+	err = nvd.DownloadCVEFeed(dbDir, assetPath, debug, logger)
 	if err != nil {
 		return fmt.Errorf("download cve feed: %w", err)
 	}
@@ -134,7 +203,7 @@ func downloadLatestRelease(dbDir string, debug bool, logger *slog.Logger) error 
 	}
 
 	// Download the last mod start date
-	err = downloadLatestGitHubAsset(dbDir, "last_mod_start_date.txt")
+	err = downloadReleaseAsset(ctx, dbDir, assetPath, "last_mod_start_date.txt")
 	if err != nil {
 		return fmt.Errorf("downloading last_mod_start_date asset: %w", err)
 	}
@@ -142,34 +211,30 @@ func downloadLatestRelease(dbDir string, debug bool, logger *slog.Logger) error 
 	return nil
 }
 
-// downloadAsset downloads the asset from the latest release and writes it to a file
-func downloadLatestGitHubAsset(dbDir, fileName string) error {
-	assetPath, err := nvd.GetGitHubCVEAssetPath()
+// downloadReleaseAsset downloads fileName from the release at assetPath into dbDir.
+func downloadReleaseAsset(ctx context.Context, dbDir, assetPath, fileName string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, assetPath+fileName, nil)
 	if err != nil {
-		return fmt.Errorf("get github cve asset path: %w", err)
+		return fmt.Errorf("create %s request: %w", fileName, err)
 	}
-
 	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
-	resp, err := client.Get(assetPath + fileName)
+	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("get last mod start date: %w", err)
+		return fmt.Errorf("get %s: %w", fileName, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("get last mod start date: %w", fmt.Errorf("unexpected status code %d", resp.StatusCode))
+		return fmt.Errorf("get %s: unexpected status code %d", fileName, resp.StatusCode)
 	}
 
-	lastModStartDate, err := io.ReadAll(resp.Body)
+	contents, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("read last mod start date: %w", err)
+		return fmt.Errorf("read %s: %w", fileName, err)
 	}
 
-	// Write the last mod start date to a file
-	lastModStartDateFile := filepath.Join(dbDir, fileName)
-	err = os.WriteFile(lastModStartDateFile, lastModStartDate, 0o644)
-	if err != nil {
-		return fmt.Errorf("write last mod start date: %w", err)
+	if err := os.WriteFile(filepath.Join(dbDir, fileName), contents, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", fileName, err)
 	}
 
 	return nil

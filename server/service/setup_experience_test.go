@@ -299,6 +299,12 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 	// _, ctx := newTestService(t, ds, nil, nil, nil)
 	ctx := context.Background()
 
+	// Default stub: no display name override on any title. Subtests that need
+	// to assert the display-name lookup can override.
+	ds.GetSoftwareTitleDisplayNameFunc = func(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+		return nil, nil
+	}
+
 	hostUUID := "host-uuid"
 	scriptUUID := "script-uuid"
 	softwareUUID := "software-uuid"

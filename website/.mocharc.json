@@ -2,5 +2,6 @@
   "spec": ["profile-generator/tests/**/*.test.js"],
   "timeout": 60000,
   "slow": 10000,
-  "exit": true
+  "exit": true,
+  "reporter": "profile-generator/tests/summary-reporter.js"
 }
