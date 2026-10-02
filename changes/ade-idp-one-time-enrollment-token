@@ -1,1 +1,0 @@
-- Hardened automatic enrollment (ADE) for fleets that require IdP authentication: after the end user signs in, Fleet issues a one-time enrollment token that works only for the device that started sign-in and expires after 1 hour.
