@@ -1,0 +1,14 @@
+{
+  "name": "QGIS",
+  "slug": "qgis/windows",
+  "package_identifier": "OSGeo.QGIS",
+  "unique_identifier": "QGIS",
+  "fuzzy_match_name": true,
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version NOT LIKE '3.44.%';",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/qgis_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/qgis_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

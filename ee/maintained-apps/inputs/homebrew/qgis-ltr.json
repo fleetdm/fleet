@@ -1,0 +1,10 @@
+{
+  "name": "QGIS LTR",
+  "slug": "qgis-ltr/darwin",
+  "unique_identifier": "org.qgis.qgis3",
+  "token": "qgis@ltr",
+  "installer_format": "dmg",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/qgis-ltr-install.sh",
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/qgis-ltr-uninstall.sh",
+  "default_categories": ["Productivity"]
+}

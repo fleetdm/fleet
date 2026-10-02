@@ -1,0 +1,24 @@
+{
+  "versions": [
+    {
+      "version": "3.44.14",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%' AND version_compare(version, '3.44.14') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'qgis-ltr-bin.exe');"
+      },
+      "installer_url": "https://qgis.org/downloads/QGIS-OSGeo4W-3.44.14-1.msi",
+      "install_script_ref": "c1308e76",
+      "uninstall_script_ref": "c7c40f33",
+      "sha256": "0a579f980dcec85be2ecb47c5f08234ca6ce7b625c3cb9543eded1f43d445b46",
+      "default_categories": [
+        "Productivity"
+      ],
+      "upgrade_code": "{C9417C88-E128-1014-9195-A75173304312}"
+    }
+  ],
+  "refs": {
+    "c1308e76": "# Each QGIS release installs side by side under its own product code, so\n# installed QGIS LTR (3.44.x) releases are uninstalled first. Other QGIS\n# releases are left in place.\n\n$ltrSeries = '3.44.'\n$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\ntry {\n\n$uninstallRoots = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n$entries = @(Get-ItemProperty -Path $uninstallRoots -ErrorAction SilentlyContinue | Where-Object {\n  $_.DisplayName -like 'QGIS *' -and $_.Publisher -eq 'QGIS.org' -and\n  ([string]$_.DisplayVersion).StartsWith($ltrSeries) -and\n  $_.PSChildName -match '^\\{[0-9A-Fa-f-]+\\}$'\n})\nforeach ($entry in $entries) {\n  Write-Host \"Uninstalling $($entry.DisplayName) ($($entry.PSChildName))\"\n  $process = Start-Process msiexec.exe -ArgumentList \"/x $($entry.PSChildName) /qn /norestart\" -PassThru -Wait\n  # 1605 = the release was already uninstalled\n  if (($successCodes + 1605) -notcontains $process.ExitCode) {\n    Write-Host \"Uninstall of $($entry.DisplayName) failed with exit code $($process.ExitCode)\"\n    Exit $process.ExitCode\n  }\n}\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv `\"${logFile}`\" /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nif ($successCodes -contains $installProcess.ExitCode) {\n  Exit 0\n}\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "c7c40f33": "# Uninstalls every QGIS LTR (3.44.x) release on the host, since each release\n# installs side by side under its own product code. Other QGIS releases are\n# left in place.\n\n$ltrSeries = '3.44.'\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED, 1605 = already uninstalled.\n$successCodes = @(0, 3010, 1641, 1605)\n\ntry {\n\n$uninstallRoots = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n$entries = @(Get-ItemProperty -Path $uninstallRoots -ErrorAction SilentlyContinue | Where-Object {\n  $_.DisplayName -like 'QGIS *' -and $_.Publisher -eq 'QGIS.org' -and\n  ([string]$_.DisplayVersion).StartsWith($ltrSeries) -and\n  $_.PSChildName -match '^\\{[0-9A-Fa-f-]+\\}$'\n})\n\nif ($entries.Count -eq 0) {\n  Write-Host \"No QGIS LTR installation found.\"\n  Exit 1\n}\n\n$exitCode = 0\nforeach ($entry in $entries) {\n  Write-Host \"Uninstalling $($entry.DisplayName) ($($entry.PSChildName))\"\n  $process = Start-Process msiexec.exe -ArgumentList \"/x $($entry.PSChildName) /qn /norestart\" -PassThru -Wait\n  Write-Host \"Uninstall exit code: $($process.ExitCode)\"\n  if ($successCodes -notcontains $process.ExitCode) {\n    $exitCode = $process.ExitCode\n  }\n}\n\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}
