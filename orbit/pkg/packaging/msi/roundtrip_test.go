@@ -134,8 +134,8 @@ func readCFB(t *testing.T, raw []byte) *cfbFile {
 }
 
 func TestWriteCFBRoundTrip(t *testing.T) {
-	big := bytes.Repeat([]byte{0xAB, 0xCD, 0xEF}, 30000) // 90KB, FAT sectors
-	small := []byte("hello mini stream")                 // mini stream
+	big := bytes.Repeat([]byte{0xAB, 0xCD, 0xEF}, 30000)  // 90KB, FAT sectors
+	small := []byte("hello mini stream")                  // mini stream
 	boundary := bytes.Repeat([]byte{0x42}, cfbMiniCutoff) // exactly at cutoff: FAT
 	streams := []cfbStream{
 		{Name: "empty", Data: nil},

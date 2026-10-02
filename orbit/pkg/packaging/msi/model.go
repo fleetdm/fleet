@@ -19,7 +19,7 @@ type Options struct {
 	Version      string // product version, e.g. "1.58.0"
 
 	FleetURL                           string
-	EnrollSecret                       bool // include --enroll-secret-path in the service arguments
+	EnrollSecret                       bool // include ORBIT_ENROLL_SECRET_PATH in the service environment
 	FleetCertificate                   bool
 	Insecure                           bool
 	Debug                              bool
@@ -76,60 +76,53 @@ type fileRecord struct {
 	ModTimeSet  bool
 }
 
-// serviceArguments reproduces the ServiceInstall/@Arguments expression from
-// the main.wxs template, byte for byte (including its spacing quirks: the
-// always-present space after --enable-scripts and the space-prefixed
-// optional arguments).
-func serviceArguments(opt Options) string {
-	var b strings.Builder
-	b.WriteString(`--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" --fleet-url "[FLEET_URL]"`)
-	if opt.FleetCertificate {
-		b.WriteString(` --fleet-certificate "[ORBITROOT]fleet.pem"`)
+// serviceEnvironment returns the NAME=value entries of the "Fleet osquery"
+// service's per-service Environment registry value, in the order the
+// main.wxs template authored them. Orbit is configured through environment
+// variables rather than command-line arguments: the Service Control Manager
+// merges this value into the process environment on every start, and orbit
+// ignores variables it doesn't know, so downgrading to an orbit that predates
+// a setting can't fail on an unrecognized flag.
+func serviceEnvironment(opt Options) []string {
+	env := []string{
+		`ORBIT_ROOT_DIR=[ORBITROOT].`,
+		`ORBIT_LOG_FILE=[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log`,
+		`ORBIT_FLEET_URL=[FLEET_URL]`,
 	}
-	if opt.EnrollSecret {
-		b.WriteString(` --enroll-secret-path "[ORBITROOT]secret.txt"`)
+	add := func(cond bool, entry string) {
+		if cond {
+			env = append(env, entry)
+		}
 	}
-	if opt.Insecure {
-		b.WriteString(` --insecure`)
-	}
-	if opt.Debug {
-		b.WriteString(` --debug`)
-	}
-	if opt.UpdateURL != "" {
-		fmt.Fprintf(&b, ` --update-url "%s"`, opt.UpdateURL)
-	}
-	if opt.UpdateTLSServerCertificate {
-		b.WriteString(` --update-tls-certificate "[ORBITROOT]update.pem"`)
-	}
-	if opt.DisableUpdates {
-		b.WriteString(` --disable-updates`)
-	}
-	fmt.Fprintf(&b, ` --fleet-desktop="[FLEET_DESKTOP]" --desktop-channel %s`, opt.DesktopChannel)
-	if opt.FleetDesktopAlternativeBrowserHost != "" {
-		fmt.Fprintf(&b, ` --fleet-desktop-alternative-browser-host %s`, opt.FleetDesktopAlternativeBrowserHost)
-	}
-	fmt.Fprintf(&b, ` --orbit-channel "%s" --osqueryd-channel "%s" --enable-scripts="[ENABLE_SCRIPTS]" `, opt.OrbitChannel, opt.OsquerydChannel)
-	if opt.HostIdentifier != "" && opt.HostIdentifier != "uuid" {
-		fmt.Fprintf(&b, `--host-identifier=%s`, opt.HostIdentifier)
-	}
+	add(opt.FleetCertificate, `ORBIT_FLEET_CERTIFICATE=[ORBITROOT]fleet.pem`)
+	add(opt.EnrollSecret, `ORBIT_ENROLL_SECRET_PATH=[ORBITROOT]secret.txt`)
+	add(opt.Insecure, `ORBIT_INSECURE=true`)
+	add(opt.Debug, `ORBIT_DEBUG=true`)
+	add(opt.UpdateURL != "", `ORBIT_UPDATE_URL=`+opt.UpdateURL)
+	add(opt.UpdateTLSServerCertificate, `ORBIT_UPDATE_TLS_CERTIFICATE=[ORBITROOT]update.pem`)
+	add(opt.DisableUpdates, `ORBIT_DISABLE_UPDATES=true`)
+	env = append(env,
+		`ORBIT_UPDATE_INTERVAL=`+opt.OrbitUpdateInterval,
+		`ORBIT_FLEET_DESKTOP=[FLEET_DESKTOP]`,
+		`ORBIT_DESKTOP_CHANNEL=`+opt.DesktopChannel,
+	)
+	add(opt.FleetDesktopAlternativeBrowserHost != "", `ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST=`+opt.FleetDesktopAlternativeBrowserHost)
+	env = append(env,
+		`ORBIT_ORBIT_CHANNEL=`+opt.OrbitChannel,
+		`ORBIT_OSQUERYD_CHANNEL=`+opt.OsquerydChannel,
+		`ORBIT_ENABLE_SCRIPTS=[ENABLE_SCRIPTS]`,
+	)
+	add(opt.HostIdentifier != "" && opt.HostIdentifier != "uuid", `ORBIT_HOST_IDENTIFIER=`+opt.HostIdentifier)
 	if opt.EnableEndUserEmailProperty {
-		b.WriteString(` --end-user-email="[END_USER_EMAIL]"`)
+		env = append(env, `ORBIT_END_USER_EMAIL=[END_USER_EMAIL]`)
 	} else if opt.EndUserEmail != "" {
-		fmt.Fprintf(&b, ` --end-user-email "%s"`, opt.EndUserEmail)
+		env = append(env, `ORBIT_END_USER_EMAIL=`+opt.EndUserEmail)
 	}
-	if opt.EnableEUATokenProperty {
-		b.WriteString(` --eua-token="[EUA_TOKEN]"`)
-	}
-	if opt.OsqueryDB != "" {
-		fmt.Fprintf(&b, ` --osquery-db="%s"`, opt.OsqueryDB)
-	}
-	if opt.DisableSetupExperience {
-		b.WriteString(` --disable-setup-experience`)
-	}
-	if opt.BypassEndUserAuth {
-		b.WriteString(` --bypass-end-user-auth`)
-	}
-	return b.String()
+	add(opt.EnableEUATokenProperty, `ORBIT_EUA_TOKEN=[EUA_TOKEN]`)
+	add(opt.OsqueryDB != "", `ORBIT_OSQUERY_DB=`+opt.OsqueryDB)
+	add(opt.DisableSetupExperience, `ORBIT_DISABLE_SETUP_EXPERIENCE=true`)
+	add(opt.BypassEndUserAuth, `ORBIT_BYPASS_END_USER_AUTH=true`)
+	return env
 }
 
 const powershellPrefix = `"[POWERSHELLEXE]" -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass`
@@ -143,7 +136,13 @@ type customAction struct {
 	setSeq int    // InstallExecuteSequence position of the SetProperty action
 	seq    int    // InstallExecuteSequence position of the action itself
 	cond   string // condition of the action ("" = none)
+	// hideTarget keeps the formatted target out of the install log
+	// (msidbCustomActionTypeHideTarget), and adds the action to
+	// MsiHiddenProperties.
+	hideTarget bool
 }
+
+const customActionTypeHideTarget = 0x2000
 
 // fleetdCustomActions returns the custom actions in main.wxs authoring
 // order. The sequence numbers are where WiX scheduled them relative to the
@@ -169,7 +168,8 @@ func fleetdCustomActions() []customAction {
 			target: powershellPrefix + ` -File "[ORBITROOT]installer_utils.ps1" -updateSecret "[FLEET_SECRET]"`,
 			caType: 3073,
 			setSeq: 5798, seq: 5799, // Before InstallServices
-			cond: "NOT Installed",
+			cond:       "NOT Installed",
+			hideTarget: true,
 		},
 		{
 			name:   "CA_WaitOrbit",
@@ -359,9 +359,13 @@ func populate(db *database, opt Options, h *harvest, productCode string) ([]*fil
 	// WixUtilExtension ServiceConfig actions.
 	cas := fleetdCustomActions()
 	for _, ca := range cas {
+		caType := ca.caType
+		if ca.hideTarget {
+			caType |= customActionTypeHideTarget
+		}
 		if err := must(
 			ins("CustomAction", "Set"+ca.name, 51, ca.name, ca.target, nil),
-			ins("CustomAction", ca.name, ca.caType, "WixCA", "WixQuietExec64", nil),
+			ins("CustomAction", ca.name, caType, "WixCA", "WixQuietExec64", nil),
 		); err != nil {
 			return nil, err
 		}
@@ -397,11 +401,6 @@ func populate(db *database, opt Options, h *harvest, productCode string) ([]*fil
 				return nil, err
 			}
 		}
-	}
-
-	// Environment
-	if err := ins("Environment", "OrbitUpdateInterval", "=-*ORBIT_UPDATE_INTERVAL", opt.OrbitUpdateInterval, "C_ORBITBIN"); err != nil {
-		return nil, err
 	}
 
 	// Feature (Display="hidden" -> 0, Level 1)
@@ -452,7 +451,7 @@ func populate(db *database, opt Options, h *harvest, productCode string) ([]*fil
 		{"UnpublishFeatures", "", 1800},
 		{"StopServices", "VersionNT", 1900},
 		{"DeleteServices", "VersionNT", 2000},
-		{"RemoveEnvironmentStrings", "", 3300},
+		{"RemoveRegistryValues", "", 2600},
 	}
 	for _, ca := range cas {
 		iesRows = append(iesRows,
@@ -465,7 +464,7 @@ func populate(db *database, opt Options, h *harvest, productCode string) ([]*fil
 		seqRow{"RemoveFolders", "", 3600},
 		seqRow{"CreateFolders", "", 3700},
 		seqRow{"InstallFiles", "", 4000},
-		seqRow{"WriteEnvironmentStrings", "", 5200},
+		seqRow{"WriteRegistryValues", "", 5000},
 		seqRow{"InstallServices", "VersionNT", 5800},
 		seqRow{"SchedServiceConfig" + caSuffix, `NOT REMOVE~="ALL" AND VersionNT > 400`, 5801},
 		seqRow{"StartServices", "VersionNT", 5900},
@@ -567,6 +566,16 @@ func populate(db *database, opt Options, h *harvest, productCode string) ([]*fil
 		prop{"UpgradeCode", upgradeCode},
 		prop{"SecureCustomProperties", "ARPNOMODIFY;ARPNOREPAIR;WIX_UPGRADE_DETECTED"},
 	)
+	// WiX appends MsiHiddenProperties last: hidden custom actions, then
+	// Hidden="yes" properties, so the secret stays out of the install log.
+	var hidden []string
+	for _, ca := range cas {
+		if ca.hideTarget {
+			hidden = append(hidden, ca.name)
+		}
+	}
+	hidden = append(hidden, "FLEET_SECRET")
+	props = append(props, prop{"MsiHiddenProperties", strings.Join(hidden, ";")})
 	for _, p := range props {
 		if p.value == "" {
 			// MSI properties cannot hold empty values (candle rejected
@@ -576,6 +585,19 @@ func populate(db *database, opt Options, h *harvest, productCode string) ([]*fil
 		if err := ins("Property", p.name, p.value); err != nil {
 			return nil, err
 		}
+	}
+
+	// Registry: the service's multi-string Environment value (entries
+	// separated by [~]), with the id WiX generates for an id-less
+	// RegistryValue.
+	const (
+		regRootHKLM = 2
+		serviceKey  = `SYSTEM\CurrentControlSet\Services\Fleet osquery`
+		envName     = "Environment"
+	)
+	regID := wixIdentifier("reg", "C_ORBITBIN", fmt.Sprint(regRootHKLM), strings.ToLower(serviceKey), strings.ToLower(envName))
+	if err := ins("Registry", regID, regRootHKLM, serviceKey, envName, strings.Join(serviceEnvironment(opt), "[~]"), "C_ORBITBIN"); err != nil {
+		return nil, err
 	}
 
 	// RegLocator (Type 18 = raw value + 64-bit hive)
@@ -598,7 +620,7 @@ func populate(db *database, opt Options, h *harvest, productCode string) ([]*fil
 
 	// ServiceInstall (ownProcess=16, auto start=2, error ignore=0)
 	if err := ins("ServiceInstall", "Fleet_osquery", "Fleet osquery", nil, 16, 2, 0,
-		nil, nil, "LocalSystem", nil, serviceArguments(opt), "C_ORBITBIN",
+		nil, nil, "LocalSystem", nil, nil, "C_ORBITBIN",
 		"This service runs Fleet's osquery runtime and autoupdater (Orbit)."); err != nil {
 		return nil, err
 	}

@@ -108,12 +108,6 @@ var fleetdSchemas = []tableSchema{
 		{name: "Target", typ: 0x9dff, nullable: "Y", category: "Formatted", description: "Excecution parameter, depends on the type of custom action"},
 		{name: "ExtendedType", typ: 0x9104, nullable: "Y", minValue: i32(0), maxValue: i32(2147483647), description: "A numeric custom action type that extends code type or option flags of the Type column."},
 	}},
-	{name: "Environment", cols: []column{
-		{name: "Environment", typ: 0xad48, nullable: "N", category: "Identifier", description: "Unique identifier for the environmental variable setting"},
-		{name: "Name", typ: 0x8fff, nullable: "N", category: "Text", description: "The name of the environmental value."},
-		{name: "Value", typ: 0x9fff, nullable: "Y", category: "Formatted", description: "The value to set in the environmental settings."},
-		{name: "Component_", typ: 0x8d48, nullable: "N", keyTable: "Component", keyColumn: i16(1), category: "Identifier", description: "Foreign key into the Component table referencing component that controls the installing of the environmental value."},
-	}},
 	{name: "Feature", cols: []column{
 		{name: "Feature", typ: 0xad26, nullable: "N", category: "Identifier", description: "Primary key used to identify a particular feature record."},
 		{name: "Feature_Parent", typ: 0x9d26, nullable: "Y", keyTable: "Feature", keyColumn: i16(1), category: "Identifier", description: "Optional key of a parent record in the same table. If the parent is not selected, then the record will not be installed. Null indicates a root item."},
@@ -162,6 +156,14 @@ var fleetdSchemas = []tableSchema{
 		{name: "Table", typ: 0x8d20, nullable: "N", category: "Identifier", set: "CreateFolder;File;Registry;ServiceInstall", description: "Reference to another table name"},
 		{name: "SDDLText", typ: 0x8d00, nullable: "N", category: "FormattedSDDLText", description: "String to indicate permissions to be applied to the LockObject"},
 		{name: "Condition", typ: 0x9dff, nullable: "Y", category: "Formatted", description: "Expression which must evaluate to TRUE in order for this set of permissions to be applied"},
+	}},
+	{name: "Registry", cols: []column{
+		{name: "Registry", typ: 0xad48, nullable: "N", category: "Identifier", description: "Primary key, non-localized token."},
+		{name: "Root", typ: 0x8502, nullable: "N", minValue: i32(-1), maxValue: i32(3), description: "The predefined root key for the registry value, one of rrkEnum."},
+		{name: "Key", typ: 0x8fff, nullable: "N", category: "RegPath", description: "The key for the registry value."},
+		{name: "Name", typ: 0x9fff, nullable: "Y", category: "Formatted", description: "The registry value name."},
+		{name: "Value", typ: 0x9e00, nullable: "Y", category: "Formatted", description: "The registry value."},
+		{name: "Component_", typ: 0x8d48, nullable: "N", keyTable: "Component", keyColumn: i16(1), category: "Identifier", description: "Foreign key into the Component table referencing component that controls the installing of the registry value."},
 	}},
 	{name: "RegLocator", cols: []column{
 		{name: "Signature_", typ: 0xad48, nullable: "N", category: "Identifier", description: "The table key. The Signature_ represents a unique file signature and is also the foreign key in the Signature table. If the type is 0, the registry values refers a directory, and _Signature is not a foreign key."},

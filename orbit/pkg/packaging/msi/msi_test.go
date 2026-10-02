@@ -81,97 +81,170 @@ func baseOptions() Options {
 	}
 }
 
-func TestServiceArguments(t *testing.T) {
-	t.Run("default arguments match the WiX template output", func(t *testing.T) {
-		opt := baseOptions()
-		opt.EnableEndUserEmailProperty = true
-		opt.EnableEUATokenProperty = true
-		// Reference string extracted from the ServiceInstall table of a WiX
-		// 3.14-built fleetd MSI (byte for byte, including the double space
-		// after --enable-scripts when no host identifier is set).
-		want := `--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" --fleet-url "[FLEET_URL]" --enroll-secret-path "[ORBITROOT]secret.txt" --update-url "https://updates.fleetdm.com" --fleet-desktop="[FLEET_DESKTOP]" --desktop-channel stable --orbit-channel "stable" --osqueryd-channel "stable" --enable-scripts="[ENABLE_SCRIPTS]"  --end-user-email="[END_USER_EMAIL]" --eua-token="[EUA_TOKEN]"`
-		assert.Equal(t, want, serviceArguments(opt))
+func TestServiceEnvironment(t *testing.T) {
+	t.Run("minimal options", func(t *testing.T) {
+		assert.Equal(t, []string{
+			"ORBIT_ROOT_DIR=[ORBITROOT].",
+			`ORBIT_LOG_FILE=[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log`,
+			"ORBIT_FLEET_URL=[FLEET_URL]",
+			"ORBIT_ENROLL_SECRET_PATH=[ORBITROOT]secret.txt",
+			"ORBIT_UPDATE_URL=https://updates.fleetdm.com",
+			"ORBIT_UPDATE_INTERVAL=15m0s",
+			"ORBIT_FLEET_DESKTOP=[FLEET_DESKTOP]",
+			"ORBIT_DESKTOP_CHANNEL=stable",
+			"ORBIT_ORBIT_CHANNEL=stable",
+			"ORBIT_OSQUERYD_CHANNEL=stable",
+			"ORBIT_ENABLE_SCRIPTS=[ENABLE_SCRIPTS]",
+		}, serviceEnvironment(baseOptions()))
 	})
 
-	t.Run("eua token flag toggles with the property", func(t *testing.T) {
+	t.Run("all options", func(t *testing.T) {
 		opt := baseOptions()
-		opt.EnableEUATokenProperty = true
-		assert.Contains(t, serviceArguments(opt), ` --eua-token="[EUA_TOKEN]"`)
-		opt.EnableEUATokenProperty = false
-		assert.NotContains(t, serviceArguments(opt), "--eua-token")
-	})
-
-	t.Run("bypass end user auth", func(t *testing.T) {
-		opt := baseOptions()
-		opt.BypassEndUserAuth = true
-		assert.Contains(t, serviceArguments(opt), " --bypass-end-user-auth")
-		opt.BypassEndUserAuth = false
-		assert.NotContains(t, serviceArguments(opt), "--bypass-end-user-auth")
-	})
-
-	t.Run("host identifier uuid is omitted", func(t *testing.T) {
-		opt := baseOptions()
-		opt.HostIdentifier = "uuid"
-		assert.NotContains(t, serviceArguments(opt), "--host-identifier")
-		opt.HostIdentifier = "instance"
-		assert.Contains(t, serviceArguments(opt), `--host-identifier=instance`)
-	})
-
-	t.Run("optional flags", func(t *testing.T) {
-		opt := baseOptions()
+		opt.FleetCertificate = true
 		opt.Insecure = true
 		opt.Debug = true
-		opt.DisableUpdates = true
-		opt.FleetCertificate = true
 		opt.UpdateTLSServerCertificate = true
-		opt.OsqueryDB = `D:\osq`
+		opt.DisableUpdates = true
+		opt.FleetDesktopAlternativeBrowserHost = "localhost:8080"
+		opt.HostIdentifier = "instance"
+		opt.EnableEndUserEmailProperty = true
+		opt.EnableEUATokenProperty = true
+		opt.OsqueryDB = `C:\osquery.db`
 		opt.DisableSetupExperience = true
-		args := serviceArguments(opt)
+		opt.BypassEndUserAuth = true
+
+		env := serviceEnvironment(opt)
 		for _, want := range []string{
-			` --insecure`, ` --debug`, ` --disable-updates`,
-			` --fleet-certificate "[ORBITROOT]fleet.pem"`,
-			` --update-tls-certificate "[ORBITROOT]update.pem"`,
-			` --osquery-db="D:\osq"`, ` --disable-setup-experience`,
+			"ORBIT_FLEET_CERTIFICATE=[ORBITROOT]fleet.pem",
+			"ORBIT_INSECURE=true",
+			"ORBIT_DEBUG=true",
+			"ORBIT_UPDATE_TLS_CERTIFICATE=[ORBITROOT]update.pem",
+			"ORBIT_DISABLE_UPDATES=true",
+			"ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST=localhost:8080",
+			"ORBIT_HOST_IDENTIFIER=instance",
+			"ORBIT_END_USER_EMAIL=[END_USER_EMAIL]",
+			"ORBIT_EUA_TOKEN=[EUA_TOKEN]",
+			`ORBIT_OSQUERY_DB=C:\osquery.db`,
+			"ORBIT_DISABLE_SETUP_EXPERIENCE=true",
+			"ORBIT_BYPASS_END_USER_AUTH=true",
 		} {
-			assert.Contains(t, args, want)
+			assert.Contains(t, env, want)
 		}
+		for _, e := range env {
+			assert.Regexp(t, `^ORBIT_[A-Z_]+=`, e)
+			assert.NotContains(t, e, "[~]", "entries must not contain the multi-string separator")
+		}
+	})
+
+	t.Run("uuid host identifier is orbit's default and omitted", func(t *testing.T) {
+		opt := baseOptions()
+		opt.HostIdentifier = "uuid"
+		for _, e := range serviceEnvironment(opt) {
+			assert.NotContains(t, e, "ORBIT_HOST_IDENTIFIER")
+		}
+	})
+
+	t.Run("literal end user email without the MSI property", func(t *testing.T) {
+		opt := baseOptions()
+		opt.EndUserEmail = "user@example.com"
+		assert.Contains(t, serviceEnvironment(opt), "ORBIT_END_USER_EMAIL=user@example.com")
+	})
+
+	t.Run("eua token and bypass end user auth toggle", func(t *testing.T) {
+		opt := baseOptions()
+		assert.NotContains(t, serviceEnvironment(opt), "ORBIT_EUA_TOKEN=[EUA_TOKEN]")
+		assert.NotContains(t, serviceEnvironment(opt), "ORBIT_BYPASS_END_USER_AUTH=true")
+		opt.EnableEUATokenProperty = true
+		opt.BypassEndUserAuth = true
+		assert.Contains(t, serviceEnvironment(opt), "ORBIT_EUA_TOKEN=[EUA_TOKEN]")
+		assert.Contains(t, serviceEnvironment(opt), "ORBIT_BYPASS_END_USER_AUTH=true")
 	})
 }
 
+// populateForTest runs populate with a minimal harvest containing only the
+// authored orbit.exe.
+func populateForTest(t *testing.T, opt Options) *database {
+	t.Helper()
+	db := newDatabase()
+	require.NoError(t, db.addValidationRows())
+	h := &harvest{dirByID: map[string]*harvestedDir{}}
+	h.Components = []harvestedComponent{{File: &harvestedFile{
+		ComponentID:   "cmpX",
+		ComponentGUID: "{00000000-0000-4000-8000-000000000000}",
+		FileID:        "filX",
+		DirID:         orbitRootRef,
+		FileName:      "orbit.exe",
+		Path:          "root/bin/orbit/windows-arm64/stable/orbit.exe",
+	}}}
+	_, err := populate(db, opt, h, "{11111111-2222-4333-8444-555555555555}")
+	require.NoError(t, err)
+	return db
+}
+
+func tableRows(t *testing.T, db *database, name string) [][]cell {
+	t.Helper()
+	tbl, ok := db.tables[name]
+	require.True(t, ok, "table %s not found", name)
+	require.NotNil(t, tbl)
+	return tbl.rows
+}
+
+func propertyValues(t *testing.T, db *database) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	for _, row := range tableRows(t, db, "Property") {
+		out[row[0].(string)] = row[1].(string)
+	}
+	return out
+}
+
 func TestEUATokenProperty(t *testing.T) {
-	// The EUA_TOKEN property row must exist exactly when the option is set
-	// (formerly tested against the main.wxs template).
-	build := func(enable bool) *database {
-		opt := baseOptions()
-		opt.EnableEUATokenProperty = enable
-		db := newDatabase()
-		require.NoError(t, db.addValidationRows())
-		h := &harvest{dirByID: map[string]*harvestedDir{}}
-		// populate requires the authored orbit.exe to exist in the harvest;
-		// fake a minimal component for it.
-		h.Components = []harvestedComponent{{File: &harvestedFile{
-			ComponentID:   "cmpX",
-			ComponentGUID: "{00000000-0000-4000-8000-000000000000}",
-			FileID:        "filX",
-			DirID:         orbitRootRef,
-			FileName:      "orbit.exe",
-			Path:          "root/bin/orbit/windows-arm64/stable/orbit.exe",
-		}}}
-		_, err := populate(db, opt, h, "{11111111-2222-4333-8444-555555555555}")
-		require.NoError(t, err)
-		return db
-	}
+	opt := baseOptions()
+	opt.EnableEUATokenProperty = true
+	assert.Contains(t, propertyValues(t, populateForTest(t, opt)), "EUA_TOKEN")
+	opt.EnableEUATokenProperty = false
+	assert.NotContains(t, propertyValues(t, populateForTest(t, opt)), "EUA_TOKEN")
+}
 
-	props := func(db *database) []string {
-		var out []string
-		for _, row := range db.tables["Property"].rows {
-			out = append(out, row[0].(string))
+func TestServiceConfiguredThroughEnvironment(t *testing.T) {
+	opt := baseOptions()
+	opt.BypassEndUserAuth = true
+	db := populateForTest(t, opt)
+
+	// Expected id and value layout taken from a WiX 3.14-built fleetd MSI.
+	rows := tableRows(t, db, "Registry")
+	require.Len(t, rows, 1)
+	assert.Equal(t, []cell{
+		"regB26658E6B8B0ACF031C982078F375B22", 2, `SYSTEM\CurrentControlSet\Services\Fleet osquery`, "Environment",
+		strings.Join(serviceEnvironment(opt), "[~]"), "C_ORBITBIN",
+	}, rows[0])
+	assert.Contains(t, rows[0][4], "[~]ORBIT_BYPASS_END_USER_AUTH=true")
+
+	svc := tableRows(t, db, "ServiceInstall")
+	require.Len(t, svc, 1)
+	assert.Nil(t, svc[0][10], "orbit must be configured via environment, not ServiceInstall Arguments")
+
+	assert.NotContains(t, db.tables, "Environment", "the system-wide Environment table is no longer used")
+
+	var actions []string
+	for _, row := range tableRows(t, db, "InstallExecuteSequence") {
+		actions = append(actions, row[0].(string))
+	}
+	assert.Contains(t, actions, "WriteRegistryValues")
+	assert.Contains(t, actions, "RemoveRegistryValues")
+	assert.NotContains(t, actions, "WriteEnvironmentStrings")
+}
+
+func TestEnrollSecretHidden(t *testing.T) {
+	db := populateForTest(t, baseOptions())
+	assert.Equal(t, "CA_UpdateSecret;FLEET_SECRET", propertyValues(t, db)["MsiHiddenProperties"])
+	for _, row := range tableRows(t, db, "CustomAction") {
+		if row[0] == "CA_UpdateSecret" {
+			assert.Equal(t, 3073|customActionTypeHideTarget, row[1])
+			return
 		}
-		return out
 	}
-
-	assert.Contains(t, props(build(true)), "EUA_TOKEN")
-	assert.NotContains(t, props(build(false)), "EUA_TOKEN")
+	t.Fatal("CA_UpdateSecret custom action not found")
 }
 
 func TestSummaryTemplate(t *testing.T) {

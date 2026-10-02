@@ -10,8 +10,8 @@ import (
 )
 
 // TestBypassEndUserAuthTemplates verifies the --bypass-end-user-auth switch is wired into the generated Linux env file
-// when enabled, and absent when not. macOS is intentionally excluded. The Windows MSI service arguments are covered by
-// TestServiceArguments in orbit/pkg/packaging/msi.
+// when enabled, and absent when not. macOS is intentionally excluded. The Windows MSI service environment is covered by
+// TestServiceEnvironment in orbit/pkg/packaging/msi.
 func TestBypassEndUserAuthTemplates(t *testing.T) {
 	baseOpt := Options{
 		FleetURL:        "https://fleet.example.com",
