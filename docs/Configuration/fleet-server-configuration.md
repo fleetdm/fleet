@@ -3956,7 +3956,7 @@ Hosts that already enrolled before end user authentication was enabled are alway
 
 ### mdm.windows_one_time_enroll_secrets
 
-When enabled, Fleet installs fleetd on Windows hosts that turn on MDM (Microsoft Entra, Windows Autopilot, or **Settings > Accounts > Access work or school**) with a one-time enroll secret for that device instead of the global or fleet-level enroll secret. This keeps the shared enroll secret off the device. The setting only affects Windows hosts that have MDM turned on: hosts that enroll with a fleetd package and don't turn on MDM keep using the global or fleet-level enroll secret. A host that already had fleetd installed when it turned on MDM keeps its existing fleetd, and the recovery, deleted host, and shared enroll secret rules below apply to it.
+When enabled, Fleet installs fleetd on Windows hosts that turn on MDM (Microsoft Entra, Windows Autopilot, or **Settings > Accounts > Access work or school**) with a one-time enroll secret for that device instead of the global or fleet-level enroll secret. This keeps the shared enroll secret off the device. The setting only affects Windows hosts that have MDM turned on: hosts that enroll with a fleetd package and don't turn on MDM keep using the global or fleet-level enroll secret. If fleetd was already installed when a host turned on MDM, Fleet doesn't reinstall it, so the host keeps using the enroll secret fleetd was installed with. The recovery, deleted host, and shared enroll secret rules below still apply to that host.
 
 Fleet delivers the secret on the fleetd install command and through the Fleet-managed "Fleetd enroll secret" configuration profile. Orbit and osquery can each use the secret once, and the second one has to enroll within 60 minutes of the first.
 
