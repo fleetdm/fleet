@@ -1499,7 +1499,6 @@ func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, ti
 		endTime = *config.AutoUpdateEndTime
 	}
 
-	// TODO(JK): write GitOps auto-update settings to each version, this writes the schedule to every version of the title in the fleet
 	stmt := `
 UPDATE vpp_apps_teams vat
 JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform

@@ -925,6 +925,7 @@ func SoftwareFromOsqueryRow(
 
 type VPPBatchPayload struct {
 	AppStoreID         string   `json:"app_store_id"`
+	VersionName        string   `json:"name"`
 	SelfService        bool     `json:"self_service"`
 	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
@@ -952,6 +953,7 @@ func (v VPPBatchPayload) GetAppStoreID() string {
 
 type VPPBatchPayloadWithPlatform struct {
 	AppStoreID         string                    `json:"app_store_id"`
+	VersionName        string                    `json:"name"`
 	SelfService        bool                      `json:"self_service"`
 	Platform           InstallableDevicePlatform `json:"platform"`
 	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated

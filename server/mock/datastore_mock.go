@@ -2244,7 +2244,7 @@ type ListMDMAndroidUUIDsToHostIDsFunc func(ctx context.Context, hostIDs []uint) 
 
 type GetVPPAppConfigurationFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error)
 
-type HasVPPAppConfigurationChangedFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error)
+type HasVPPAppConfigurationChangedFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error)
 
 type BulkGetVPPAppConfigurationsFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error)
 
@@ -13998,11 +13998,11 @@ func (s *DataStore) GetVPPAppConfiguration(ctx context.Context, platform fleet.I
 	return s.GetVPPAppConfigurationFunc(ctx, platform, adamID, teamID)
 }
 
-func (s *DataStore) HasVPPAppConfigurationChanged(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error) {
+func (s *DataStore) HasVPPAppConfigurationChanged(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error) {
 	s.mu.Lock()
 	s.HasVPPAppConfigurationChangedFuncInvoked = true
 	s.mu.Unlock()
-	return s.HasVPPAppConfigurationChangedFunc(ctx, platform, adamID, teamID, newConfig)
+	return s.HasVPPAppConfigurationChangedFunc(ctx, platform, adamID, teamID, vppAppTeamID, newConfig)
 }
 
 func (s *DataStore) BulkGetVPPAppConfigurations(ctx context.Context, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {

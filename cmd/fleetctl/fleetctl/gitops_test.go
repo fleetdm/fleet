@@ -7491,11 +7491,7 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		Name:      teamName,
 	}
 
-	var autoUpdateCalls []struct {
-		titleID uint
-		teamID  uint
-		config  fleet.SoftwareAutoUpdateConfig
-	}
+	var setTeamVPPAppsCalls [][]fleet.VPPAppTeam
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == teamName && savedTeam != nil {
@@ -7579,13 +7575,9 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 	ds.InsertVPPAppWithTeamFunc = func(ctx context.Context, app *fleet.VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*fleet.VPPApp, error) {
 		return app, nil
 	}
-	ds.UpdateSoftwareTitleAutoUpdateConfigFunc = func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
-		autoUpdateCalls = append(autoUpdateCalls, struct {
-			titleID uint
-			teamID  uint
-			config  fleet.SoftwareAutoUpdateConfig
-		}{titleID, teamID, config})
-		return nil
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+		setTeamVPPAppsCalls = append(setTeamVPPAppsCalls, incomingApps)
+		return false, nil
 	}
 	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error { return nil }
 	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error { return nil }
@@ -7593,8 +7585,8 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 
-	t.Run("UpdateSoftwareTitleAutoUpdateConfig is applied for iOS VPP apps", func(t *testing.T) {
-		autoUpdateCalls = nil
+	t.Run("iOS VPP app with auto update settings sends the settings with its version", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
 		savedTeam = nil
 
 		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -7621,19 +7613,67 @@ software:
 
 		_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
-		require.Len(t, autoUpdateCalls, 1, "UpdateSoftwareTitleAutoUpdateConfig should be called once")
-		assert.Equal(t, uint(100), autoUpdateCalls[0].titleID)
-		assert.Equal(t, team.ID, autoUpdateCalls[0].teamID)
-		require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateEnabled)
-		assert.True(t, *autoUpdateCalls[0].config.AutoUpdateEnabled)
-		require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateStartTime)
-		assert.Equal(t, "01:00", *autoUpdateCalls[0].config.AutoUpdateStartTime)
-		require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateEndTime)
-		assert.Equal(t, "05:00", *autoUpdateCalls[0].config.AutoUpdateEndTime)
+		require.Len(t, setTeamVPPAppsCalls, 1, "SetTeamVPPApps should be called once")
+		require.Len(t, setTeamVPPAppsCalls[0], 1)
+		app := setTeamVPPAppsCalls[0][0]
+		assert.Equal(t, "2", app.AdamID)
+		require.NotNil(t, app.AutoUpdateEnabled)
+		assert.True(t, *app.AutoUpdateEnabled)
+		require.NotNil(t, app.AutoUpdateStartTime)
+		assert.Equal(t, "01:00", *app.AutoUpdateStartTime)
+		require.NotNil(t, app.AutoUpdateEndTime)
+		assert.Equal(t, "05:00", *app.AutoUpdateEndTime)
 	})
 
-	t.Run("UpdateSoftwareTitleAutoUpdateConfig is not called when no VPP apps provided", func(t *testing.T) {
-		autoUpdateCalls = nil
+	t.Run("iOS VPP app with two versions sends both versions in list order with their own settings", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
+		savedTeam = nil
+
+		teamFileVersions, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFileVersions.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+name: TeamAutoUpdate
+team_settings:
+  secrets:
+    - secret: test
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: "ios"
+      versions:
+        - name: Production
+          auto_update_enabled: true
+          auto_update_window_start: "01:00"
+          auto_update_window_end: "05:00"
+        - name: Test
+          self_service: true
+`)
+		require.NoError(t, err)
+
+		_ = runAppForTest(t, []string{"gitops", "-f", teamFileVersions.Name()})
+
+		require.Len(t, setTeamVPPAppsCalls, 1, "SetTeamVPPApps should be called once")
+		require.Len(t, setTeamVPPAppsCalls[0], 2)
+		production := setTeamVPPAppsCalls[0][0]
+		assert.Equal(t, "Production", production.VersionName)
+		assert.False(t, production.SelfService)
+		require.NotNil(t, production.AutoUpdateEnabled)
+		assert.True(t, *production.AutoUpdateEnabled)
+		require.NotNil(t, production.AutoUpdateStartTime)
+		assert.Equal(t, "01:00", *production.AutoUpdateStartTime)
+		testVersion := setTeamVPPAppsCalls[0][1]
+		assert.Equal(t, "Test", testVersion.VersionName)
+		assert.True(t, testVersion.SelfService)
+		require.NotNil(t, testVersion.AutoUpdateEnabled)
+		assert.False(t, *testVersion.AutoUpdateEnabled)
+	})
+
+	t.Run("no VPP apps sends no app versions", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
 		savedTeam = nil
 
 		teamFileNoApps, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -7654,11 +7694,12 @@ software:
 
 		_ = runAppForTest(t, []string{"gitops", "-f", teamFileNoApps.Name()})
 
-		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called when no VPP apps are provided")
+		require.Len(t, setTeamVPPAppsCalls, 1, "SetTeamVPPApps should be called once")
+		require.Empty(t, setTeamVPPAppsCalls[0], "no app versions should be sent when no VPP apps are provided")
 	})
 
-	t.Run("no auto update settings and no existing schedule does not call UpdateSoftwareTitleAutoUpdateConfig", func(t *testing.T) {
-		autoUpdateCalls = nil
+	t.Run("iOS VPP app without auto update settings sends automatic updates turned off", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
 		savedTeam = nil
 
 		// Ensure no existing schedules are returned for either source
@@ -7683,11 +7724,17 @@ software:
 
 		_ = runAppForTest(t, []string{"gitops", "-f", teamFileNoSettings.Name()})
 
-		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called when YAML omits settings and no schedule exists")
+		require.Len(t, setTeamVPPAppsCalls, 1, "SetTeamVPPApps should be called once")
+		require.Len(t, setTeamVPPAppsCalls[0], 1)
+		app := setTeamVPPAppsCalls[0][0]
+		require.NotNil(t, app.AutoUpdateEnabled)
+		assert.False(t, *app.AutoUpdateEnabled)
+		assert.Nil(t, app.AutoUpdateStartTime)
+		assert.Nil(t, app.AutoUpdateEndTime)
 	})
 
-	t.Run("invalid auto-update window triggers error and does not call UpdateSoftwareTitleAutoUpdateConfig", func(t *testing.T) {
-		autoUpdateCalls = nil
+	t.Run("invalid auto-update window fails before any app version is sent", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
 		savedTeam = nil
 
 		teamFileInvalidWindow, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -7714,7 +7761,7 @@ software:
 
 		_, runErr := runAppNoChecks([]string{"gitops", "-f", teamFileInvalidWindow.Name()})
 		require.Error(t, runErr, "Expected error for invalid auto-update window")
-		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called on invalid window")
+		require.Empty(t, setTeamVPPAppsCalls, "SetTeamVPPApps should not be called on invalid window")
 	})
 }
 

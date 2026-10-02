@@ -445,16 +445,59 @@ type TeamSpecAppStoreApp struct {
 	DisplayName        string                `json:"display_name,omitempty"`
 	Configuration      TeamSpecSoftwareAsset `json:"configuration"`
 	// Auto-update fields for VPP apps
-	AutoUpdateEnabled   *bool   `json:"auto_update_enabled,omitempty"`
-	AutoUpdateStartTime *string `json:"auto_update_window_start,omitempty"`
-	AutoUpdateEndTime   *string `json:"auto_update_window_end,omitempty"`
+	AutoUpdateEnabled   *bool                        `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string                      `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string                      `json:"auto_update_window_end,omitempty"`
+	Versions            []TeamSpecAppStoreAppVersion `json:"versions,omitempty"`
+}
+
+type TeamSpecAppStoreAppVersion struct {
+	Name                string                `json:"name"`
+	SelfService         bool                  `json:"self_service"`
+	LabelsIncludeAny    []string              `json:"labels_include_any"`
+	LabelsExcludeAny    []string              `json:"labels_exclude_any"`
+	LabelsIncludeAll    []string              `json:"labels_include_all"`
+	Categories          []string              `json:"categories"`
+	Configuration       TeamSpecSoftwareAsset `json:"configuration"`
+	AutoUpdateEnabled   *bool                 `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string               `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string               `json:"auto_update_window_end,omitempty"`
 }
 
 func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp {
 	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
 	spec.Configuration.Path = resolveApplyRelativePath(baseDir, spec.Configuration.Path)
 
+	// Copy the versions so resolving their paths doesn't change the spec they came from
+	if spec.Versions != nil {
+		versions := make([]TeamSpecAppStoreAppVersion, len(spec.Versions))
+		copy(versions, spec.Versions)
+		for i := range versions {
+			versions[i].Configuration.Path = resolveApplyRelativePath(baseDir, versions[i].Configuration.Path)
+		}
+		spec.Versions = versions
+	}
+
 	return spec
+}
+
+func (spec TeamSpecAppStoreApp) ListVersions() []TeamSpecAppStoreAppVersion {
+	if len(spec.Versions) > 0 {
+		return spec.Versions
+	}
+	// Return the app's own fields as one version with no name, the server names it.
+	// Build the version here instead of filling Versions while parsing the GitOps YAML, fleetctl apply files reach the batch payload builders without going through that parser.
+	return []TeamSpecAppStoreAppVersion{{
+		SelfService:         spec.SelfService,
+		LabelsIncludeAny:    spec.LabelsIncludeAny,
+		LabelsExcludeAny:    spec.LabelsExcludeAny,
+		LabelsIncludeAll:    spec.LabelsIncludeAll,
+		Categories:          spec.Categories,
+		Configuration:       spec.Configuration,
+		AutoUpdateEnabled:   spec.AutoUpdateEnabled,
+		AutoUpdateStartTime: spec.AutoUpdateStartTime,
+		AutoUpdateEndTime:   spec.AutoUpdateEndTime,
+	}}
 }
 
 type TeamMDM struct {

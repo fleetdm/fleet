@@ -71,6 +71,7 @@ func TestVPP(t *testing.T) {
 		{"VPPInstallLinksAppStoreAppInstance", testVPPInstallLinksAppStoreAppInstance},
 		{"TwoAppStoreAppInstancesInOneFleet", testTwoAppStoreAppInstancesInOneFleet},
 		{"AppStoreAppVersionsEditAndDelete", testAppStoreAppVersionsEditAndDelete},
+		{"SetTeamVPPAppVersions", testSetTeamVPPAppVersions},
 	}
 
 	for _, c := range cases {
@@ -3955,7 +3956,7 @@ func testHasVPPAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			got, err := ds.HasVPPAppConfigurationChanged(ctx, fleet.IOSPlatform, c.compareID, teamID, c.incoming)
+			got, err := ds.HasVPPAppConfigurationChanged(ctx, fleet.IOSPlatform, c.compareID, teamID, nil, c.incoming)
 			require.NoError(t, err)
 			require.Equal(t, c.want, got)
 		})
@@ -4678,5 +4679,149 @@ func testAppStoreAppVersionsEditAndDelete(t *testing.T, ds *Datastore) {
 		// delete the second version again, the version should not be found
 		err = ds.DeleteVPPAppFromTeam(ctx, &fleetID, secondVersion.VPPAppID, &secondVersion.AppTeamID)
 		require.True(t, fleet.IsNotFound(err))
+	}
+}
+
+func testSetTeamVPPAppVersions(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "set-versions-team"})
+	require.NoError(t, err)
+
+	app := &fleet.VPPApp{
+		Name:             "SetVersionsApp",
+		BundleIdentifier: "com.example.setversions",
+		LatestVersion:    "1.0",
+		AdamID:           "77776666",
+		Platform:         fleet.IOSPlatform,
+	}
+	err = ds.BatchInsertVPPApps(ctx, []*fleet.VPPApp{app})
+	require.NoError(t, err)
+
+	for _, fleetID := range []uint{0, team.ID} {
+		t.Logf("fleet %d", fleetID)
+
+		// set two new versions that both install during setup, they should be added in list order and only the first version should install during setup
+		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
+			{VPPAppID: app.VPPAppID, VersionName: "Production", InstallDuringSetup: new(true), Configuration: []byte("<dict>production</dict>")},
+			{
+				VPPAppID: app.VPPAppID, VersionName: "Test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict>test</dict>"),
+				AutoUpdateEnabled: new(true), AutoUpdateStartTime: new("01:00"), AutoUpdateEndTime: new("03:00"),
+			},
+		}, map[string]uint{})
+		require.NoError(t, err)
+		versions, err := ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 2)
+		productionID := versions[0].VPPAppsTeamsID
+		testID := versions[1].VPPAppsTeamsID
+		require.Equal(t, "Production", versions[0].VersionName)
+		require.False(t, versions[0].SelfService)
+		require.Equal(t, "<dict>production</dict>", string(versions[0].Configuration))
+		require.Nil(t, versions[0].AutoUpdateEnabled)
+		require.Equal(t, "Test", versions[1].VersionName)
+		require.True(t, versions[1].SelfService)
+		require.Equal(t, "<dict>test</dict>", string(versions[1].Configuration))
+		require.True(t, *versions[1].AutoUpdateEnabled)
+		require.Equal(t, "01:00", *versions[1].AutoUpdateStartTime)
+		require.Equal(t, "03:00", *versions[1].AutoUpdateEndTime)
+		forSetup, err := ds.GetVPPAppsToInstallDuringSetupExperience(ctx, &fleetID, string(fleet.IOSPlatform))
+		require.NoError(t, err)
+		require.Len(t, forSetup, 1)
+		require.Equal(t, productionID, forSetup[0].AppTeamID)
+
+		// set the same versions in reverse order, the versions should keep their ids and order
+		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
+			{
+				VPPAppID: app.VPPAppID, VersionName: "Test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict>test</dict>"),
+				AutoUpdateEnabled: new(true), AutoUpdateStartTime: new("01:00"), AutoUpdateEndTime: new("03:00"),
+			},
+			{VPPAppID: app.VPPAppID, VersionName: "Production", InstallDuringSetup: new(true), Configuration: []byte("<dict>production</dict>")},
+		}, map[string]uint{})
+		require.NoError(t, err)
+		versions, err = ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 2)
+		require.Equal(t, productionID, versions[0].VPPAppsTeamsID)
+		require.Equal(t, testID, versions[1].VPPAppsTeamsID)
+		forSetup, err = ds.GetVPPAppsToInstallDuringSetupExperience(ctx, &fleetID, string(fleet.IOSPlatform))
+		require.NoError(t, err)
+		require.Len(t, forSetup, 1)
+		require.Equal(t, productionID, forSetup[0].AppTeamID)
+
+		// change the configuration and turn off automatic updates of the Test version, only the Test version should change
+		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
+			{VPPAppID: app.VPPAppID, VersionName: "Production", InstallDuringSetup: new(true), Configuration: []byte("<dict>production</dict>")},
+			{VPPAppID: app.VPPAppID, VersionName: "Test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict>test v2</dict>"), AutoUpdateEnabled: new(false)},
+		}, map[string]uint{})
+		require.NoError(t, err)
+		versions, err = ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 2)
+		require.Equal(t, productionID, versions[0].VPPAppsTeamsID)
+		require.Equal(t, "<dict>production</dict>", string(versions[0].Configuration))
+		require.Equal(t, testID, versions[1].VPPAppsTeamsID)
+		require.Equal(t, "<dict>test v2</dict>", string(versions[1].Configuration))
+		require.False(t, *versions[1].AutoUpdateEnabled)
+
+		// remove the Production version, the Test version should be the only version left and install during setup
+		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
+			{VPPAppID: app.VPPAppID, VersionName: "Test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict>test v2</dict>"), AutoUpdateEnabled: new(false)},
+		}, map[string]uint{})
+		require.NoError(t, err)
+		versions, err = ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 1)
+		require.Equal(t, testID, versions[0].VPPAppsTeamsID)
+		forSetup, err = ds.GetVPPAppsToInstallDuringSetupExperience(ctx, &fleetID, string(fleet.IOSPlatform))
+		require.NoError(t, err)
+		require.Len(t, forSetup, 1)
+		require.Equal(t, testID, forSetup[0].AppTeamID)
+
+		// set the Test version with its name in lower case, the version should keep its id and take the lower case name
+		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
+			{VPPAppID: app.VPPAppID, VersionName: "test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict>test v2</dict>"), AutoUpdateEnabled: new(false)},
+		}, map[string]uint{})
+		require.NoError(t, err)
+		versions, err = ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 1)
+		require.Equal(t, testID, versions[0].VPPAppsTeamsID)
+		require.Equal(t, "test", versions[0].VersionName)
+
+		// rename the Test version to Staging, the Test version should be replaced by a new Staging version that installs during setup
+		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
+			{VPPAppID: app.VPPAppID, VersionName: "Staging", InstallDuringSetup: new(true), AutoUpdateEnabled: new(false)},
+		}, map[string]uint{})
+		require.NoError(t, err)
+		versions, err = ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 1)
+		require.Equal(t, "Staging", versions[0].VersionName)
+		require.NotEqual(t, testID, versions[0].VPPAppsTeamsID)
+		forSetup, err = ds.GetVPPAppsToInstallDuringSetupExperience(ctx, &fleetID, string(fleet.IOSPlatform))
+		require.NoError(t, err)
+		require.Len(t, forSetup, 1)
+		require.Equal(t, versions[0].VPPAppsTeamsID, forSetup[0].AppTeamID)
+		stagingID := versions[0].VPPAppsTeamsID
+
+		// set the app without a version name, the Staging version should be replaced by a new Default version
+		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
+			{VPPAppID: app.VPPAppID, InstallDuringSetup: new(true), AutoUpdateEnabled: new(false)},
+		}, map[string]uint{})
+		require.NoError(t, err)
+		versions, err = ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 1)
+		require.Equal(t, fleet.DefaultAppStoreAppVersionName, versions[0].VersionName)
+		require.NotEqual(t, stagingID, versions[0].VPPAppsTeamsID)
+
+		// set no apps, every version of the app should be deleted
+		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{}, map[string]uint{})
+		require.NoError(t, err)
+		names, err := ds.GetVPPAppVersionNames(ctx, &fleetID, app.VPPAppID)
+		require.NoError(t, err)
+		require.Empty(t, names)
 	}
 }

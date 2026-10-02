@@ -1137,10 +1137,11 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.Nil(t, titleResp.SoftwareTitle.AppStoreApps)
 	require.Nil(t, titleResp.SoftwareTitle.AppStoreApp)
 
-	// rename the other fleet's only version, then apply GitOps with the app, the fleet should have one version with the new name
+	// rename the other fleet's only version, then apply GitOps with the app without versions, the renamed version should be replaced by a new Default version
 	otherVersions, err := s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, otherTeam.ID, titleID)
 	require.NoError(t, err)
 	require.Len(t, otherVersions, 1)
+	renamedVersionID := otherVersions[0].VPPAppsTeamsID
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 		&updateAppStoreAppRequest{TeamID: &otherTeam.ID, Name: new("Renamed")}, http.StatusOK, &updateAppStoreAppResponse{})
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
@@ -1149,7 +1150,8 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	otherVersions, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, otherTeam.ID, titleID)
 	require.NoError(t, err)
 	require.Len(t, otherVersions, 1)
-	require.Equal(t, "Renamed", otherVersions[0].VersionName)
+	require.Equal(t, fleet.DefaultAppStoreAppVersionName, otherVersions[0].VersionName)
+	require.NotEqual(t, renamedVersionID, otherVersions[0].VPPAppsTeamsID)
 	require.True(t, otherVersions[0].SelfService)
 
 	// set a display name and a custom icon, then delete the second version, the first version should still show both
@@ -1217,4 +1219,153 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.Zero(t, displayNameCount)
 	_, err = s.ds.GetSoftwareTitleIcon(ctx, team.ID, titleID)
 	require.True(t, fleet.IsNotFound(err))
+}
+
+func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch-app-store-app-versions-team"})
+	require.NoError(t, err)
+
+	orgName := "Fleet Device Management Inc."
+	token := "batchappstoreappversionstoken" //nolint:gosec // G101: test value, not a real credential
+	expDate := time.Now().Add(200 * time.Hour).UTC().Round(time.Second).Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":%q,"token":%q,"orgName":%q}`, expDate, token, orgName)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+
+	// Adam ID "1" is macOS and "2" is iOS in the mock VPP server.
+	const macOSAdamID = "1"
+	const iosAdamID = "2"
+
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken",
+		[]byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+	// Assign the token to all fleets so the apps can be added to Unassigned too
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID),
+		patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+
+	asJSONString := func(s string) json.RawMessage {
+		b, err := json.Marshal(s)
+		require.NoError(t, err)
+		return json.RawMessage(b)
+	}
+
+	const productionPlist = `<dict><key>ServerURL</key><string>https://production.example.com</string></dict>`
+	const testPlist = `<dict><key>ServerURL</key><string>https://test.example.com</string></dict>`
+	productionVersion := fleet.VPPBatchPayload{
+		AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, VersionName: "Production", InstallDuringSetup: new(true),
+		Configuration: asJSONString(productionPlist), AutoUpdateEnabled: new(true), AutoUpdateStartTime: new("01:00"), AutoUpdateEndTime: new("03:00"),
+	}
+	testVersion := fleet.VPPBatchPayload{
+		AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, VersionName: "Test", InstallDuringSetup: new(true),
+		SelfService: true, Configuration: asJSONString(testPlist),
+	}
+
+	cases := []struct {
+		name        string
+		fleetID     uint
+		queryParams []string
+	}{
+		{name: "no team", fleetID: 0, queryParams: nil},
+		{name: "team", fleetID: team.ID, queryParams: []string{"fleet_name", team.Name}},
+	}
+	for _, c := range cases {
+		t.Log(c.name)
+		fleetID := c.fleetID
+
+		// apply two versions of the iOS app, both should be added in list order and only the first should install during setup
+		var batchResp batchAssociateAppStoreAppsResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{productionVersion, testVersion}},
+			http.StatusOK, &batchResp, c.queryParams...)
+		require.Len(t, batchResp.Apps, 2)
+		titleID := *batchResp.Apps[0].TitleID
+		versions, err := s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 2)
+		productionID := versions[0].VPPAppsTeamsID
+		testID := versions[1].VPPAppsTeamsID
+		require.Equal(t, "Production", versions[0].VersionName)
+		require.False(t, versions[0].SelfService)
+		require.Equal(t, productionPlist, string(versions[0].Configuration))
+		require.True(t, *versions[0].AutoUpdateEnabled)
+		require.Equal(t, "01:00", *versions[0].AutoUpdateStartTime)
+		require.Equal(t, "Test", versions[1].VersionName)
+		require.True(t, versions[1].SelfService)
+		require.Equal(t, testPlist, string(versions[1].Configuration))
+		require.Nil(t, versions[1].AutoUpdateEnabled)
+		forSetup, err := s.ds.GetVPPAppsToInstallDuringSetupExperience(ctx, &fleetID, string(fleet.IOSPlatform))
+		require.NoError(t, err)
+		require.Len(t, forSetup, 1)
+		require.Equal(t, productionID, forSetup[0].AppTeamID)
+
+		// apply the versions in reverse order, the versions should keep their ids and order
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{testVersion, productionVersion}},
+			http.StatusOK, &batchResp, c.queryParams...)
+		versions, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 2)
+		require.Equal(t, productionID, versions[0].VPPAppsTeamsID)
+		require.Equal(t, testID, versions[1].VPPAppsTeamsID)
+		require.True(t, *versions[0].AutoUpdateEnabled)
+
+		// dry run two versions with the same name in a different case, the request should fail
+		duplicateVersion := testVersion
+		duplicateVersion.VersionName = "test"
+		res := s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{testVersion, duplicateVersion}},
+			http.StatusUnprocessableEntity, append([]string{"dry_run", "true"}, c.queryParams...)...)
+		require.Contains(t, extractServerErrorText(res.Body), `More than one version is named "test"`)
+
+		// dry run the iOS app as an entry without versions and an entry with versions, the request should fail
+		unnamedVersion := testVersion
+		unnamedVersion.VersionName = ""
+		res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{unnamedVersion, testVersion}},
+			http.StatusUnprocessableEntity, append([]string{"dry_run", "true"}, c.queryParams...)...)
+		require.Contains(t, extractServerErrorText(res.Body), "The app has an entry without versions and an entry with versions")
+
+		// apply eleven versions of the iOS app, the request should fail
+		var elevenVersions []fleet.VPPBatchPayload
+		for i := range 11 {
+			elevenVersions = append(elevenVersions, fleet.VPPBatchPayload{AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, VersionName: fmt.Sprintf("Version %d", i)})
+		}
+		res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{Apps: elevenVersions}, http.StatusUnprocessableEntity, c.queryParams...)
+		require.Contains(t, extractServerErrorText(res.Body), "An app can have at most 10 versions per fleet")
+
+		// apply two versions of the macOS app, the request should fail
+		res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: macOSAdamID, Platform: fleet.MacOSPlatform, VersionName: "Production"},
+				{AppStoreID: macOSAdamID, Platform: fleet.MacOSPlatform, VersionName: "Test"},
+			}}, http.StatusUnprocessableEntity, c.queryParams...)
+		require.Contains(t, extractServerErrorText(res.Body), "macOS App Store apps can only have one version")
+
+		// apply the iOS app without a version name, both versions should be replaced by a new Default version that installs during setup
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, InstallDuringSetup: new(true)}}},
+			http.StatusOK, &batchResp, c.queryParams...)
+		versions, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 1)
+		require.Equal(t, fleet.DefaultAppStoreAppVersionName, versions[0].VersionName)
+		require.NotEqual(t, productionID, versions[0].VPPAppsTeamsID)
+		require.NotEqual(t, testID, versions[0].VPPAppsTeamsID)
+		forSetup, err = s.ds.GetVPPAppsToInstallDuringSetupExperience(ctx, &fleetID, string(fleet.IOSPlatform))
+		require.NoError(t, err)
+		require.Len(t, forSetup, 1)
+		require.Equal(t, versions[0].VPPAppsTeamsID, forSetup[0].AppTeamID)
+
+		// apply no apps, every version of the iOS app should be deleted
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{}}, http.StatusOK, &batchResp, c.queryParams...)
+		_, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
+		require.True(t, fleet.IsNotFound(err))
+	}
 }
