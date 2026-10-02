@@ -53,7 +53,7 @@ The device token in `/opt/orbit/identifier` rotates every hour. Fleet Desktop ha
 - On HTTP 401/403 errors or error page detection, the app immediately checks for a new token and retries (up to 3 attempts with 5-second delays)
 - Token refreshes are invisible to the user — the page silently reloads with the new token
 
-### MDM Enrollment
+### MDM enrollment
 
 **Turn on MDM** on the device page opens Fleet's enrollment page (`{server}/enroll`) in a sheet over the device page instead of replacing it:
 
