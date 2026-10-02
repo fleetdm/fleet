@@ -6,6 +6,7 @@ import axios, {
 
 import URL_PREFIX from "router/url_prefix";
 import authToken from "utilities/auth_token";
+import endpoints from "utilities/endpoints";
 
 export const sendRequestWithProgress = async ({
   method,
@@ -224,6 +225,51 @@ export const sendRequestWithProgressAndHeaders = async ({
       reason || `send request: parse server error: ${error}`
     );
   }
+};
+
+/**
+ * Uploads a file straight to object storage through a presigned URL and returns
+ * the upload id to register it with, or null when the browser can't reach the
+ * bucket. The PUT uses bare axios so Fleet credentials never reach the storage
+ * host; don't route it through the helpers above.
+ */
+export const uploadToStorage = async ({
+  target,
+  file,
+  teamId,
+  onUploadProgress,
+  signal,
+}: {
+  target: "software_package" | "bootstrap_package";
+  file: File;
+  teamId?: number;
+  onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
+  signal?: AbortSignal;
+}): Promise<string | null> => {
+  const { upload_id, url } = await sendRequest(
+    "POST",
+    endpoints.STAGED_UPLOAD,
+    {
+      target,
+      fleet_id: teamId ?? 0,
+      size: file.size,
+    }
+  );
+  try {
+    await axios.put(url, file, { onUploadProgress, signal });
+  } catch (error) {
+    // No response means a network error or a missing bucket CORS rule, so the
+    // caller sends the file through Fleet instead.
+    if (
+      isAxiosError(error) &&
+      !error.response &&
+      error.code !== "ERR_CANCELED"
+    ) {
+      return null;
+    }
+    throw error;
+  }
+  return upload_id;
 };
 
 export default sendRequest;

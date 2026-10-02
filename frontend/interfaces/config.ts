@@ -277,6 +277,7 @@ export interface IConfig {
    * nothing in it is enabled. */
   auth?: IAuthSettings;
   max_software_package_size: number;
+  staged_upload_available: boolean;
 }
 
 interface IFleetPartnerships {

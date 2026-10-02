@@ -37,14 +37,20 @@ export const UPLOAD_ERROR_MESSAGES = {
 };
 
 export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
-  const apiReason = err.data.errors[0].reason;
+  const apiReason = err?.data?.errors?.[0]?.reason;
+  if (!apiReason) {
+    return UPLOAD_ERROR_MESSAGES.default.message;
+  }
 
   const error = Object.values(UPLOAD_ERROR_MESSAGES).find((errType) =>
     errType.condition(apiReason)
   );
 
   if (!error) {
-    return UPLOAD_ERROR_MESSAGES.default.message;
+    // Only the upload URL request's reasons are written for admins.
+    return err.config?.url?.includes("staged_upload")
+      ? `Couldn’t upload. ${apiReason}`
+      : UPLOAD_ERROR_MESSAGES.default.message;
   }
 
   return error.message;
