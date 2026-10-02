@@ -311,16 +311,25 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
 
     /// Resolves the transparency endpoint's redirect natively and opens the
     /// destination in the default browser. Opening the endpoint itself in the
-    /// browser would put the device token in its address bar and history.
+    /// browser would put the device token in its address bar and history. For
+    /// the same reason only an absolute `Location` is opened: the server
+    /// accepts a relative transparency URL and sends it verbatim, and resolving
+    /// it against the endpoint would keep the token in the path.
     private func openTransparencyPage(_ url: URL) {
         let task = URLSession.shared.dataTask(with: url) { [weak self] _, response, error in
-            guard let http = response as? HTTPURLResponse,
-                  (300...399).contains(http.statusCode),
-                  let location = http.value(forHTTPHeaderField: "Location"),
-                  let target = URL(string: location, relativeTo: url)?.absoluteURL else {
-                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            let http = response as? HTTPURLResponse
+            let status = http?.statusCode ?? 0
+            guard (300...399).contains(status),
+                  let location = http?.value(forHTTPHeaderField: "Location"),
+                  let target = URL(string: location), target.scheme != nil else {
+                // The page's links embed the token it was rendered with, so a
+                // rejection means it rotated. Recover the same way as a 401/403
+                // inside the WebView: re-read the token and reload the page.
+                if status == 401 || status == 403 {
+                    DispatchQueue.main.async { self?.onNavigationError?() }
+                }
                 NSLog("Fleet Desktop: Transparency redirect failed (HTTP %d): %@",
-                      status, error?.localizedDescription ?? "no redirect")
+                      status, error?.localizedDescription ?? "no absolute redirect target")
                 return
             }
             DispatchQueue.main.async { self?.openExternalURL(target) }
