@@ -442,7 +442,7 @@ Follow the [steps above](#turn-on-windows-mdm) to turn on Windows MDM in Fleet.
 
 3. On the **Manage Windows MDM** page, select **Automatically migrate hosts connected to another MDM solution**. Click **Save** to save the change.
 
-### Step 4: Monitor your hosts as they migrate to Fleet MDM
+### Step 4: Monitor your hosts as they migrate to Fleet
 
 Once the automatic migration is enabled, Fleet sends a notification to each host to tell it to migrate. This process usually takes a few minutes at most.
 
@@ -471,14 +471,16 @@ The Autopilot service may need a few minutes to sync after the device record cle
 
 By default, when Fleet installs fleetd on a Windows host that turns on MDM, the install command carries your global or fleet-level enroll secret. Anyone who can read that command or the MSI log on the device can use the secret to enroll other devices. To give each device its own single-use enroll secret instead, enable the [`mdm.windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) server setting.
 
+The setting only affects Windows hosts that have MDM turned on. Hosts that enroll manually with Fleet's agent (fleetd) and don't turn on MDM keep using your global or fleet-level enroll secret. If fleetd was already installed when a host turned on MDM, Fleet doesn't reinstall it, so the host keeps using the enroll secret fleetd was installed with.
+
 With the setting enabled:
 
 - Fleet delivers each host's secret through the "Fleetd enroll secret" configuration profile. You'll see it in the host's **Host details > OS settings**.
 - If a host has to enroll again, for example after its node key was deleted, select **Resend** on the "Fleetd enroll secret" profile. The host enrolls again as the same host at its next MDM check-in.
-- If you delete a Windows host in Fleet, Fleet sends it a new secret at its next MDM check-in, and the host enrolls again on its own.
-- fleetd packages built with a global or fleet-level enroll secret can't enroll a host that is enrolled in Fleet MDM or registered in Windows Autopilot.
+- If you delete a Windows host in Fleet, Fleet sends it a new secret at its next MDM check-in, and the host enrolls again on its own in the fleet it was in. If its fleet was deleted, the host goes to the [default fleet](#set-a-default-fleet-for-new-hosts), or to "Unassigned" if no default fleet is set.
+- fleetd packages built with a global or fleet-level enroll secret can't enroll a host that has MDM turned on or is registered in Windows Autopilot.
 
-Fleet isn't notified when MDM is turned off on a device: when the device is re-imaged, when the end user disconnects it in **Settings > Accounts > Access work or school**, or when you run the script in [Turn off Windows MDM](#turn-off-windows-mdm). The host still counts as enrolled in Fleet MDM, so a fleetd package built with a global or fleet-level enroll secret can't enroll it. To install fleetd with such a package, first delete the host in Fleet, after the device has stopped checking in with Fleet MDM. The package then enrolls the device as a new host. If you delete the host while the device still checks in, for example before re-imaging it, Fleet sends the device a new secret instead, and the package can't enroll it. Autopilot devices enroll again through Autopilot.
+Fleet isn't notified when MDM is turned off on a device: when the device is re-imaged, when the end user disconnects it in **Settings > Accounts > Access work or school**, or when you run the script in [Turn off Windows MDM](#turn-off-windows-mdm). Fleet still counts the host as having MDM turned on, so a fleetd package built with a global or fleet-level enroll secret can't enroll it. To install fleetd with such a package, first delete the host in Fleet, after the device has stopped sending MDM check-ins to Fleet. The package then enrolls the device as a new host. If you delete the host while the device still checks in, for example before re-imaging it, Fleet sends the device a new secret instead, and the package can't enroll it. Autopilot devices enroll again through Autopilot.
 
 If you turn the setting off, hosts that enrolled with a one-time enroll secret can't enroll again until you turn it back on or reinstall fleetd with a package built with a global or fleet-level enroll secret.
 
