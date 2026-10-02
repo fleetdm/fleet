@@ -224,7 +224,10 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 		return ctxerr.Wrapf(ctx, err, "preparing windows profiles for deletion for fleet %d", tid)
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var activateAffectedHostIDs []uint
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		activateAffectedHostIDs = nil // reset on retry
+
 		// Delete team policies first, because policies can have associated installers and scripts
 		// which may be deleted on cascade before deleting the policies (which are also deleted on cascade).
 		_, err := tx.ExecContext(ctx, `DELETE FROM policies WHERE team_id = ?`, tid)
@@ -308,6 +311,20 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			}
 		}
 
+		// The installers cascade with the team, and their queued installs would block that. FOR UPDATE reads
+		// installers added since the snapshot and keeps new ones out until the cascade.
+		var installerIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &installerIDs, `SELECT id FROM software_installers WHERE team_id = ? FOR UPDATE`, tid); err != nil {
+			return ctxerr.Wrapf(ctx, err, "loading software installers for team %d", tid)
+		}
+		for _, id := range installerIDs {
+			hostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true, false)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "canceling installs for installer %d on team %d", id, tid)
+			}
+			activateAffectedHostIDs = append(activateAffectedHostIDs, hostIDs...)
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete team %d", tid)
@@ -320,6 +337,13 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	// The team is gone, so don't fail the delete over a host that won't activate. Those are logged, and the
+	// unblock cron retries them.
+	_, _ = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	return nil
 }
 
 func (ds *Datastore) HostIDsByTeamID(ctx context.Context, teamID uint) ([]uint, error) {
