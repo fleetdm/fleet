@@ -62,9 +62,7 @@ IT admins can now make sure end users sign in to their Managed Apple Account onl
 
 Hosts that automatically enroll (ADE) are already tied to an Apple Business (AB). Manually enrolled hosts aren't, so Fleet uses your default AB for sign-in. If you've added more than one AB, choose a default for sign-in in **Settings > Integrations > MDM > Apple Business (AB)**. Otherwise, Managed Apple Account sign-in fails on manually enrolled hosts.
 
-Hosts enrolled before Fleet 4.93.0 support this after their next enrollment profile renewal, about every six months.
-
-Learn more in the [Apple MDM setup guide](https://fleetdm.com/guides/apple-mdm-setup#restrict-apple-account-sign-in-managed-apple-accounts).
+Before you turn this on, check how it affects hosts enrolled before Fleet 4.93.0 in the [Apple MDM setup guide](https://fleetdm.com/guides/apple-mdm-setup#restrict-apple-account-sign-in-managed-apple-accounts).
 
 GitHub issue: [#45829](https://github.com/fleetdm/fleet/issues/45829)
 
