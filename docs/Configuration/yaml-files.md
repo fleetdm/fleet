@@ -935,7 +935,7 @@ org_settings:
 ### fleet_desktop
 
 The `fleet_desktop` section lets you customize the Fleet Desktop experience.
-- `transparency_url` directs end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
+- `about_url` directs end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
 - `alternative_browser_host` is a custom hostname that my hosts will access Fleet Desktop from.
 - `sso_enabled` determines whether to require IdP authentication in addition to the Fleet Desktop token to access the device page.
 
@@ -948,7 +948,7 @@ Can only be configured for "All fleets" (`org_settings`).
 ```yaml
 org_settings:
   fleet_desktop:
-    transparency_url: https://example.org/transparency
+    about_url: https://example.org/transparency
     alternative_browser_host: fleet-desktop.example.com
     sso_enabled: false
 ```
