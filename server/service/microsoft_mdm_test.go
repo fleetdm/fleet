@@ -2764,28 +2764,62 @@ func TestGetESPCommands(t *testing.T) {
 	})
 
 	t.Run("pending with host UUID transitions to active", func(t *testing.T) {
-		ds, svc := newSvc(t)
+		// On orbit link, the enrollment moves to Active and a single InstallationState=3 advances the ESP to
+		// account setup. The release comes later, via ServerHasFinishedProvisioning.
+		//
+		// DevDetail linking can set HostUUID on any message, so the transition is not gated to session start.
+		for _, tc := range []struct {
+			name string
+			msg  *fleet.SyncML
+		}{
+			{"no message", nil},
+			{"session start", &fleet.SyncML{SyncHdr: fleet.SyncHdr{MsgID: "2"}}},
+			{"mid-session", &fleet.SyncML{SyncHdr: fleet.SyncHdr{MsgID: "7"}}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ds, svc := newSvc(t)
+				device := &fleet.MDMWindowsEnrolledDevice{
+					MDMDeviceID:           deviceID,
+					HostUUID:              hostUUID,
+					AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending,
+				}
+				transitioned := false
+				ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+					transitioned = true
+					return true, nil
+				}
+
+				cmds, err := svc.getESPCommands(t.Context(), device, tc.msg)
+				require.NoError(t, err)
+				require.Len(t, cmds, 1)
+				assert.Contains(t, cmds[0].GetTargetURI(), "DevicePreparation/PolicyProviders/")
+				assert.Contains(t, cmds[0].GetTargetURI(), "/InstallationState")
+				assert.True(t, transitioned)
+			})
+		}
+	})
+
+	t.Run("pending hold commands are only sent at session start", func(t *testing.T) {
+		_, svc := newSvc(t)
 		device := &fleet.MDMWindowsEnrolledDevice{
 			MDMDeviceID:           deviceID,
-			HostUUID:              hostUUID,
 			AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending,
 		}
-		transitioned := false
-		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
-			transitioned = true
-			return true, nil
+		msg := func(msgID string) *fleet.SyncML {
+			return &fleet.SyncML{SyncHdr: fleet.SyncHdr{MsgID: msgID}}
 		}
 
-		// At orbit-link transition, handleESPHoldOrTransition flips awaiting_configuration to Active and
-		// returns a single DevicePreparation/InstallationState=3 command to advance the ESP from the
-		// Device-setup phase to the Account-setup phase. ESP release itself is signaled later via
-		// ServerHasFinishedProvisioning from buildESPReleaseCommands.
-		cmds, err := svc.getESPCommands(t.Context(), device, nil)
-		require.NoError(t, err)
-		require.Len(t, cmds, 1)
-		assert.Contains(t, cmds[0].GetTargetURI(), "DevicePreparation/PolicyProviders/")
-		assert.Contains(t, cmds[0].GetTargetURI(), "/InstallationState")
-		assert.True(t, transitioned)
+		for _, id := range []string{"1", "2", " 2 ", "not-a-number", ""} {
+			cmds, err := svc.getESPCommands(t.Context(), device, msg(id))
+			require.NoError(t, err)
+			assert.NotEmpty(t, cmds, "MsgID %q should get the hold commands", id)
+		}
+		// An empty response lets the device end the session.
+		for _, id := range []string{"3", "28"} {
+			cmds, err := svc.getESPCommands(t.Context(), device, msg(id))
+			require.NoError(t, err)
+			assert.Empty(t, cmds, "MsgID %q is mid-session and should get no hold commands", id)
+		}
 	})
 
 	t.Run("active with pending profiles waits", func(t *testing.T) {
