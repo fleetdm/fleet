@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
@@ -226,6 +227,9 @@ var (
 	// progress (e.g. a network filter dropping packets mid-transfer). It resets
 	// on any received bytes, so slow-but-healthy downloads are unaffected.
 	downloadStallTimeout = 60 * time.Second
+	// responseHeaderTimeout bounds the wait for response headers, which
+	// downloadStallTimeout doesn't cover. Downloads have no request deadline.
+	responseHeaderTimeout = 45 * time.Second
 )
 
 // NewOrbitClient creates a new OrbitClient.
@@ -254,7 +258,8 @@ func NewOrbitClient(
 		// Don't advertise the end-user auth capability so the Fleet server enrolls this host without prompting for EUA.
 		delete(orbitCapabilities, fleet.CapabilityEndUserAuth)
 	}
-	bc, err := NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper)
+	bc, err := NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper,
+		fleethttp.WithResponseHeaderTimeout(responseHeaderTimeout))
 	if err != nil {
 		return nil, err
 	}

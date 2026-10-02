@@ -15649,7 +15649,7 @@ When install attempt was skipped because a patch policy has `patch_when_closed` 
 
 _Available in Fleet Premium._
 
-Deletes software that's available for install. This won't uninstall the software from hosts.
+Deletes software that's available for install. For Android hosts, the software is also uninstalled. For all other hosts, the software isn't uninstalled.
 
 `DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 
@@ -15663,7 +15663,7 @@ Deletes software that's available for install. This won't uninstall the software
 
 #### Example
 
-`DELETE /api/v1/fleet/software/titles/24/available_for_install?team_id=2`
+`DELETE /api/v1/fleet/software/titles/24/available_for_install?fleet_id=2`
 
 ##### Default response
 
