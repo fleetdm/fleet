@@ -2084,11 +2084,20 @@ If Fleet confirms the vulnerability:
 
 1. Fleet's security team creates a private GitHub security advisory.
 2. Fleet asks the researcher if they want credit or anonymity. If the researcher wishes to be credited, we invite them to the private advisory on GitHub.
-3. We request a CVE through GitHub.
+3. If the advisory meets the [CVE criteria](#when-to-request-a-cve), we request a CVE through GitHub.
 4. Developers address the issue in a private branch.
 5. As we release the fix, we make the advisory public.
 
 Example Fleet vulnerability advisory: [CVE-2022-23600](https://github.com/fleetdm/fleet/security/advisories/GHSA-ch68-7cf4-35vr)
+
+#### When to request a CVE
+
+- Request a CVE for every advisory rated Critical or High.
+- Request a CVE for a Medium advisory when an unauthenticated attacker can exploit the vulnerability in a default configuration.
+- For other Medium advisories and all Low advisories, don't request a CVE unless the reporter asks for one.
+- Don't request a CVE for hardening-level fixes.
+
+Published advisories for `github.com/fleetdm/fleet` are indexed in the GitHub Advisory Database and OSV without a CVE. Every CVE flows into customers' scanners and patch SLAs, so we reserve CVEs for issues where customers need to act urgently.
 
 
 ### Vulnerabilities in dependencies
