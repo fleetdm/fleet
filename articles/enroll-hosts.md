@@ -193,6 +193,20 @@ To decommission a host:
 2. For Apple hosts, release or reassign the device in AB.
 3. Delete the host in Fleet.
 
+### What happens after you delete a host
+
+Most deleted hosts come back on their own. Which fleet they come back to depends on the platform:
+
+| Platform | Comes back? | Fleet it comes back to |
+|---|---|---|
+| macOS, Windows, and Linux | Yes, unless you uninstall Fleet's agent (fleetd) or delete the enroll secret it was installed with. | The fleet of fleetd's enroll secret. On Windows, if Fleet installed fleetd when the host turned on MDM, fleetd uses your global enroll secret, so the host goes to "Unassigned." |
+| macOS, iOS, and iPadOS hosts assigned to Fleet in AB | Yes, right away, as a **Pending** host. | The default fleet for that platform in **Settings > Integrations > MDM > Apple Business (AB)**. |
+| iOS and iPadOS | Yes, at the host's next MDM check-in, unless you turn off MDM. Deleting an enroll secret doesn't stop it. | The fleet the host was in when it last enrolled. |
+| Android | Yes, the next time the device reports its status to Fleet. | The fleet the host was in. If that fleet was deleted, "Unassigned." |
+| ChromeOS | Yes, unless you remove the fleetd Chrome extension or delete its enroll secret. | The fleet of the extension's enroll secret. |
+
+To keep a host from coming back, [unenroll](#unenroll) it before you delete it.
+
 ## Debugging
 
 If you're running into issues when enrolling hosts, the best practice is to look for errors in the fleetd logs. See our [troubleshooting guide](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) for more info.
