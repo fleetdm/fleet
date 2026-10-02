@@ -586,6 +586,7 @@ import LastWindowQuits from "./png/LastWindowQuits.png";
 import Latest from "./png/Latest.png";
 import Launchbar from "./png/Launchbar.png";
 import LenovoDockManager from "./png/LenovoDockManager.png";
+import LenovoSuhelper from "./png/LenovoSuhelper.png";
 import LenovoSystemUpdate from "./png/LenovoSystemUpdate.png";
 import Lens from "./png/Lens.png";
 import LibreOffice from "./png/LibreOffice.png";
@@ -1757,6 +1758,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   latest: Latest,
   launchbar: Launchbar,
   "lenovo dock manager": LenovoDockManager,
+  "lenovo suhelper": LenovoSuhelper,
   "lenovo system update": LenovoSystemUpdate,
   lens: Lens,
   libreoffice: LibreOffice,
@@ -2346,6 +2348,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   zettlr: Zettlr,
   zight: Zight,
+  "zoom for government": Zoom,
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.30.0",
+      "version": "9.31.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Todoist %' AND publisher = 'Doist';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Todoist %' AND publisher = 'Doist' AND version_compare(version, '9.30.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Todoist %' AND publisher = 'Doist' AND version_compare(version, '9.31.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'todoist.exe');"
       },
-      "installer_url": "https://electron-dl.todoist.net/windows/Todoist-win32-9.30.0-x64-latest.exe",
+      "installer_url": "https://electron-dl.todoist.net/windows/Todoist-win32-9.31.0-x64-latest.exe",
       "install_script_ref": "0b5233a1",
       "uninstall_script_ref": "9b2c6709",
-      "sha256": "a869f085490a99145852e1738995ea428e0ca9324b54710b0d4f9e7033c98e77",
+      "sha256": "00110eb28296cd86588f11626431792123c07a867fdf11953e8d3c68eeb91e1b",
       "default_categories": [
         "Productivity"
       ]

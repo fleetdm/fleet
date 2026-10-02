@@ -1549,13 +1549,6 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			windowsSettings[jsonFieldName(windowsSettingsT, "RequireBitLockerPIN")] = cmd.AppConfig.MDM.WindowsSettings.RequireBitLockerPIN.Value
 			linuxSettings[jsonFieldName(linuxSettingsT, "EnableEscrowDiskEncryptionKey")] = cmd.AppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
 		}
-		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
-			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
-		}
-
-		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
-			result["android_enabled_and_configured"] = cmd.AppConfig.MDM.AndroidEnabledAndConfigured
-		}
 
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
 			// See if the team has macOS bootstrap package configured.
@@ -1597,6 +1590,16 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 
 		if len(linuxSettings) > 0 {
 			result[jsonFieldName(t, "LinuxSettings")] = linuxSettings
+		}
+	}
+
+	if teamId == nil || *teamId == 0 {
+		mdmT := reflect.TypeFor[fleet.MDM]()
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
+			result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = true
+		}
+		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
+			result[jsonFieldName(mdmT, "AndroidEnabledAndConfigured")] = true
 		}
 	}
 

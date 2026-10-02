@@ -430,3 +430,8 @@ func (s *MySQLStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID strin
 	s.logger.ErrorContext(ctx, "MySQLStorage.SetRecoveryLockFailed not implemented")
 	return nil
 }
+
+func (s *MySQLStorage) SetDiskEncryptionKeyRotationFailed(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error {
+	s.logger.ErrorContext(ctx, "MySQLStorage.SetDiskEncryptionKeyRotationFailed not implemented")
+	return nil
+}

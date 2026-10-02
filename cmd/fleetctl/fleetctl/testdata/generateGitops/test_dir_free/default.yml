@@ -13,6 +13,7 @@ agent_options:
       logger_tls_period: 10
       pack_delimiter: /
 controls:
+  android_enabled_and_configured: true
   android_settings:
     configuration_profiles:
     - path: ./lib/profiles/global-android-profile.json
@@ -25,6 +26,7 @@ controls:
     - labels_exclude_any:
       - Label C
       path: ./lib/profiles/global-macos-json-profile.json
+  windows_enabled_and_configured: true
   windows_settings:
     configuration_profiles:
     - labels_include_any:

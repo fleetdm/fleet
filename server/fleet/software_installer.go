@@ -509,6 +509,8 @@ type HostSoftwareInstallerResult struct {
 	InstallUUID string `json:"install_uuid" db:"execution_id"`
 	// SoftwareTitle is the title of the software.
 	SoftwareTitle string `json:"software_title" db:"software_title"`
+	// SoftwareDisplayName is the fleet-scoped "Software name" override for the title, when set.
+	SoftwareDisplayName *string `json:"software_display_name,omitempty" db:"software_display_name"`
 	// SoftwareTitleID is the unique numerical ID of the software title assigned by the datastore.
 	SoftwareTitleID *uint `json:"software_title_id" db:"software_title_id"`
 	// SoftwareInstallerID is the unique numerical ID of the software installer assigned by the datastore.

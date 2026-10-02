@@ -1143,6 +1143,9 @@ type MDMConfig struct {
 	// to macOS MDM hosts in the fleetd configuration profile and rejects shared
 	// enroll secrets for hosts enrolled in Fleet MDM or assigned in ABM.
 	AppleOneTimeEnrollSecrets bool `yaml:"apple_one_time_enroll_secrets"`
+	// WindowsOneTimeEnrollSecrets is the Windows counterpart of AppleOneTimeEnrollSecrets. The two are separate switches
+	// because the platforms deliver the secret by different mechanisms and can be rolled out independently.
+	WindowsOneTimeEnrollSecrets bool `yaml:"windows_one_time_enroll_secrets"`
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
@@ -1150,6 +1153,20 @@ type MDMConfig struct {
 
 // IsCustomDiskEncryptionEnabled reports whether custom disk encryption configuration profiles are allowed. Any of the equivalent
 // (and deprecated) options enables the behavior.
+// OneTimeEnrollSecretsEnabled reports whether either platform mints one-time enroll secrets. An enrolling agent presents a
+// secret without saying which platform minted it, so the lookup has to run whenever either switch is on.
+func (m MDMConfig) OneTimeEnrollSecretsEnabled() bool {
+	return m.AppleOneTimeEnrollSecrets || m.WindowsOneTimeEnrollSecrets
+}
+
+// OneTimeEnrollSecretsEnabledForPlatform reports whether one-time enroll secrets minted for the given platform are honored.
+func (m MDMConfig) OneTimeEnrollSecretsEnabledForPlatform(platform string) bool {
+	if platform == "windows" {
+		return m.WindowsOneTimeEnrollSecrets
+	}
+	return m.AppleOneTimeEnrollSecrets
+}
+
 func (m MDMConfig) IsCustomDiskEncryptionEnabled() bool {
 	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault || m.EnableCustomDiskEncryption
 }
@@ -1685,7 +1702,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 	man.addConfigDuration("server.vpp_install_reap_timeout", 24*time.Hour,
-		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it")
+		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it. Android setup experience app installs the device hasn't reported for this long are also failed; for those, zero or less keeps them pending and the vpp_verify_timeout floor doesn't apply")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
 	man.addConfigDuration("server.script_results_retention", 30*24*time.Hour, "Minimum time since a script run recorded its result before the hourly cleanup deletes it. Runs still waiting on a host, and those a host lock, wipe, unlock, setup experience, software uninstall or batch run depends on, are kept regardless (0 disables the cleanup)")
 	man.addConfigDuration("server.software_install_results_retention", 30*24*time.Hour, "Minimum time since a software install or uninstall finished before the hourly cleanup deletes its record. Records a host is still working on, those setup experience depends on, and the most recent install and uninstall per host and package, are kept regardless (0 disables the cleanup)")
@@ -2114,6 +2131,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.allow_custom_activations", false, "Allows custom activations to be uploaded for Apple declaration (DDM) profiles")
 	man.addConfigBool("mdm.apple_one_time_enroll_secrets", false,
 		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets")
+	man.addConfigBool("mdm.windows_one_time_enroll_secrets", false,
+		"Deliver one-time, device-scoped enroll secrets to Windows MDM hosts instead of shared enroll secrets")
 	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -2504,6 +2523,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AllowCustomActivations:            man.getConfigBool("mdm.allow_custom_activations"),
 			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
 			AppleOneTimeEnrollSecrets:         man.getConfigBool("mdm.apple_one_time_enroll_secrets"),
+			WindowsOneTimeEnrollSecrets:       man.getConfigBool("mdm.windows_one_time_enroll_secrets"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
