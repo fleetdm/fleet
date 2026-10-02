@@ -1370,3 +1370,43 @@ func TestGetEffectiveQueryReportCap(t *testing.T) {
 		require.Equal(t, c.want, s.GetEffectiveQueryReportCap(c.hostCount), "cap=%d hosts=%d", c.configCap, c.hostCount)
 	}
 }
+
+func TestMacOSSettingsFromMapCustomSettings(t *testing.T) {
+	// fleet specs arrive as a map, so every spec field has to be copied here
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [
+		{"path": "a", "name": "Wi-Fi", "description": "Office network", "labels_include_any": ["L1"]},
+		{"path": "b"},
+		"c"
+	]}`), &raw))
+
+	var s MacOSSettings
+	set, err := s.FromMap(raw)
+	require.NoError(t, err)
+	require.True(t, set["custom_settings"])
+	require.Equal(t, []MDMProfileSpec{
+		{Path: "a", Name: "Wi-Fi", Description: "Office network", LabelsIncludeAny: []string{"L1"}},
+		{Path: "b"},
+		{Path: "c"},
+	}, s.CustomSettings)
+
+	// null is the same as omitted, but any other non-string is rejected
+	require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [
+		{"path": "a", "name": null, "description": null}
+	]}`), &raw))
+	_, err = s.FromMap(raw)
+	require.NoError(t, err)
+	require.Equal(t, []MDMProfileSpec{{Path: "a"}}, s.CustomSettings)
+
+	for _, tc := range []struct{ field, value string }{
+		{"description", `123`},
+		{"description", `{"a": "b"}`},
+		{"name", `true`},
+		{"name", `["x"]`},
+	} {
+		require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [{"path": "a", "`+
+			tc.field+`": `+tc.value+`}]}`), &raw))
+		_, err = s.FromMap(raw)
+		require.ErrorContains(t, err, "macos_settings.custom_settings."+tc.field+" of type string", tc.value)
+	}
+}
