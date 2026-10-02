@@ -415,7 +415,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   hostEnrollmentRejected: (activity: IActivity) => {
-    const { host_display_name, host_serial } = activity.details || {};
+    const { host_display_name, host_serial, reason } = activity.details || {};
     let host: React.ReactNode = "a host";
     if (host_display_name) {
       host = <b>{host_display_name}</b>;
@@ -423,6 +423,14 @@ const TAGGED_TEMPLATES = {
       host = (
         <>
           a host with serial number <b>{host_serial}</b>
+        </>
+      );
+    }
+    if (reason === "end_user_authentication_required") {
+      return (
+        <>
+          rejected an automatic enrollment for {host} because IdP authentication
+          is required.
         </>
       );
     }

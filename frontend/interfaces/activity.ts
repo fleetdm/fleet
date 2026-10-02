@@ -235,7 +235,8 @@ export enum ActivityType {
 export type EnrollmentRejectedReason =
   | "one_time_secret_spent"
   | "one_time_secret_identifier_mismatch"
-  | "shared_secret_for_mdm_managed_host";
+  | "shared_secret_for_mdm_managed_host"
+  | "end_user_authentication_required";
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
