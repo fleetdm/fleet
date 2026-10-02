@@ -1,6 +1,6 @@
 {
   "name": "QGIS LTR",
-  "slug": "qgis-ltr/darwin",
+  "slug": "qgis@ltr/darwin",
   "unique_identifier": "org.qgis.qgis3",
   "token": "qgis@ltr",
   "installer_format": "dmg",

@@ -21,8 +21,8 @@ $entries = @(Get-ItemProperty -Path $uninstallRoots -ErrorAction SilentlyContinu
 })
 
 if ($entries.Count -eq 0) {
-  Write-Host "No QGIS LTR installation found."
-  Exit 1
+  Write-Host "No QGIS LTR installation found; nothing to uninstall."
+  Exit 0
 }
 
 $exitCode = 0

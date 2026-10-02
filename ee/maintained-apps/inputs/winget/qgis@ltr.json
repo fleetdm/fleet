@@ -1,6 +1,6 @@
 {
   "name": "QGIS LTR",
-  "slug": "qgis-ltr/windows",
+  "slug": "qgis@ltr/windows",
   "package_identifier": "OSGeo.QGIS_LTR",
   "unique_identifier": "QGIS",
   "fuzzy_match_name": true,

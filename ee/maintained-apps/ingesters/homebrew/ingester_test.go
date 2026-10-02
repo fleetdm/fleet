@@ -155,7 +155,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "teleport-suite", UniqueIdentifier: "com.gravitational.teleport.tsh", InstallerFormat: "pkg", Name: "Teleport Suite", Slug: "teleport-suite/darwin"}},
 		{"", inputApp{Token: "r-app", UniqueIdentifier: "org.R-project.R", InstallerFormat: "pkg", Name: "R for macOS", Slug: "r/darwin"}},
 		{"", inputApp{Token: "qgis", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS", Slug: "qgis/darwin"}},
-		{"", inputApp{Token: "qgis@ltr", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS LTR", Slug: "qgis-ltr/darwin"}},
+		{"", inputApp{Token: "qgis@ltr", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS LTR", Slug: "qgis@ltr/darwin"}},
 		{"", inputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
 		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
 		{"", inputApp{Token: "open-query", UniqueIdentifier: "com.example.app", InstallerFormat: "pkg", Name: "Example App"}},
