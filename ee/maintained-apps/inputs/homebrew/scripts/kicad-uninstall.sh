@@ -102,7 +102,9 @@ for app in "$APPDIR/KiCad"/*.app; do
 done
 sudo rm -rf "$APPDIR/KiCad"
 sudo rm -rf '/Library/Application Support/kicad'
+# ~/Documents/KiCad is left in place: it's KiCad's default projects folder.
 trash $LOGGED_IN_USER '~/Library/Application Support/kicad'
+trash $LOGGED_IN_USER '~/Library/Caches/kicad'
 trash $LOGGED_IN_USER '~/Library/Preferences/kicad'
 trash $LOGGED_IN_USER '~/Library/Preferences/org.kicad.*'
 trash $LOGGED_IN_USER '~/Library/Preferences/org.kicad-pcb.*'
