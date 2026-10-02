@@ -41,6 +41,7 @@ type Service struct {
 	softwareInstallStore   fleet.SoftwareInstallerStore
 	bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
+	stagedUploadStore      fleet.StagedUploadStore
 	distributedLock        fleet.Lock
 	keyValueStore          fleet.KeyValueStore
 	installAttemptCounter  fleet.SoftwareInstallAttemptCounter
@@ -65,6 +66,7 @@ func NewService(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
+	stagedUploadStore fleet.StagedUploadStore,
 	distributedLock fleet.Lock,
 	keyValueStore fleet.KeyValueStore,
 	installAttemptCounter fleet.SoftwareInstallAttemptCounter,
@@ -100,6 +102,7 @@ func NewService(
 		softwareInstallStore:   softwareInstallStore,
 		bootstrapPackageStore:  bootstrapPackageStore,
 		softwareTitleIconStore: softwareTitleIconStore,
+		stagedUploadStore:      stagedUploadStore,
 		distributedLock:        distributedLock,
 		keyValueStore:          keyValueStore,
 		installAttemptCounter:  installAttemptCounter,

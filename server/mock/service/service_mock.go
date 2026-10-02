@@ -327,6 +327,8 @@ type SandboxEnabledFunc func() bool
 
 type MaxInstallerSizeBytesFunc func() int64
 
+type StagedUploadAvailableFunc func(ctx context.Context) bool
+
 type AppConfigUrlsFunc func(ctx context.Context) (urls *fleet.AppConfigUrls, err error)
 
 type ApplyEnrollSecretSpecFunc func(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error
@@ -699,7 +701,7 @@ type VerifyMDMAndroidConfiguredFunc func(ctx context.Context) error
 
 type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
 
-type MDMAppleUploadBootstrapPackageFunc func(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
+type MDMAppleUploadBootstrapPackageFunc func(ctx context.Context, name string, pkg io.Reader, stagedUploadID string, teamID uint, dryRun bool) error
 
 type GetMDMAppleBootstrapPackageBytesFunc func(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error)
 
@@ -876,6 +878,8 @@ type GetHostManagedAccountPasswordFunc func(ctx context.Context, hostID uint) (*
 type RotateManagedLocalAccountPasswordFunc func(ctx context.Context, hostID uint) error
 
 type UploadSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
+
+type CreateStagedUploadFunc func(ctx context.Context, target fleet.StagedUploadTarget, teamID uint, size int64) (*fleet.StagedUpload, error)
 
 type UpdateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
 
@@ -1496,6 +1500,9 @@ type Service struct {
 
 	MaxInstallerSizeBytesFunc        MaxInstallerSizeBytesFunc
 	MaxInstallerSizeBytesFuncInvoked bool
+
+	StagedUploadAvailableFunc        StagedUploadAvailableFunc
+	StagedUploadAvailableFuncInvoked bool
 
 	AppConfigUrlsFunc        AppConfigUrlsFunc
 	AppConfigUrlsFuncInvoked bool
@@ -2321,6 +2328,9 @@ type Service struct {
 
 	UploadSoftwareInstallerFunc        UploadSoftwareInstallerFunc
 	UploadSoftwareInstallerFuncInvoked bool
+
+	CreateStagedUploadFunc        CreateStagedUploadFunc
+	CreateStagedUploadFuncInvoked bool
 
 	UpdateSoftwareInstallerFunc        UpdateSoftwareInstallerFunc
 	UpdateSoftwareInstallerFuncInvoked bool
@@ -3636,6 +3646,13 @@ func (s *Service) MaxInstallerSizeBytes() int64 {
 	return s.MaxInstallerSizeBytesFunc()
 }
 
+func (s *Service) StagedUploadAvailable(ctx context.Context) bool {
+	s.mu.Lock()
+	s.StagedUploadAvailableFuncInvoked = true
+	s.mu.Unlock()
+	return s.StagedUploadAvailableFunc(ctx)
+}
+
 func (s *Service) AppConfigUrls(ctx context.Context) (urls *fleet.AppConfigUrls, err error) {
 	s.mu.Lock()
 	s.AppConfigUrlsFuncInvoked = true
@@ -4938,11 +4955,11 @@ func (s *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
 	return s.VerifyAnyMDMConfiguredFunc(ctx)
 }
 
-func (s *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
+func (s *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, stagedUploadID string, teamID uint, dryRun bool) error {
 	s.mu.Lock()
 	s.MDMAppleUploadBootstrapPackageFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMAppleUploadBootstrapPackageFunc(ctx, name, pkg, teamID, dryRun)
+	return s.MDMAppleUploadBootstrapPackageFunc(ctx, name, pkg, stagedUploadID, teamID, dryRun)
 }
 
 func (s *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error) {
@@ -5559,6 +5576,13 @@ func (s *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.Up
 	s.UploadSoftwareInstallerFuncInvoked = true
 	s.mu.Unlock()
 	return s.UploadSoftwareInstallerFunc(ctx, payload)
+}
+
+func (s *Service) CreateStagedUpload(ctx context.Context, target fleet.StagedUploadTarget, teamID uint, size int64) (*fleet.StagedUpload, error) {
+	s.mu.Lock()
+	s.CreateStagedUploadFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateStagedUploadFunc(ctx, target, teamID, size)
 }
 
 func (s *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {

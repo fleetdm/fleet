@@ -429,7 +429,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	return nil
 }
 
-func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
+func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, stagedUploadID string, teamID uint, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -445,14 +445,19 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		ptrTeamId = &teamID
 	}
 
-	// Read the pkg into a buffer
-	buff := bytes.NewBuffer(nil)
-	if _, err := io.Copy(buff, pkg); err != nil {
+	var tfr *fleet.TempFileReader
+	var err error
+	if stagedUploadID != "" {
+		tfr, err = svc.openStagedUpload(ctx, stagedUploadID)
+	} else {
+		tfr, err = fleet.NewTempFileReader(pkg, nil)
+	}
+	if err != nil {
 		return err
 	}
-	buffReader := bytes.NewReader(buff.Bytes())
+	defer tfr.Close()
 
-	if err := file.CheckPKGSignature(buffReader); err != nil {
+	if err := file.CheckPKGSignature(tfr); err != nil {
 		msg := "invalid package"
 		if errors.Is(err, file.ErrInvalidType) || errors.Is(err, file.ErrNotSigned) {
 			msg = err.Error()
@@ -464,8 +469,10 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		}
 	}
 
-	buffReader.Reset(buff.Bytes())
-	hasDistribution, err := file.XARHasDistribution(buffReader)
+	if err := tfr.Rewind(); err != nil {
+		return err
+	}
+	hasDistribution, err := file.XARHasDistribution(tfr)
 	if err != nil {
 		return &fleet.BadRequestError{
 			Message:     err.Error(),
@@ -476,25 +483,42 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		return &fleet.BadRequestError{Message: fleet.BootstrapPkgNotDistributionErrMsg}
 	}
 
-	buffReader.Reset(buff.Bytes())
+	if err := tfr.Rewind(); err != nil {
+		return err
+	}
 	hash := sha256.New()
-	if _, err := io.Copy(hash, buffReader); err != nil {
+	if _, err := io.Copy(hash, tfr); err != nil {
 		return err
 	}
 
 	if dryRun {
+		if stagedUploadID != "" {
+			svc.deleteStagedUpload(ctx, stagedUploadID)
+		}
 		return nil
 	}
 
+	if err := tfr.Rewind(); err != nil {
+		return err
+	}
 	bp := &fleet.MDMAppleBootstrapPackage{
-		TeamID: teamID,
-		Name:   name,
-		Token:  uuid.New().String(),
-		Sha256: hash.Sum(nil),
-		Bytes:  buff.Bytes(),
+		TeamID:      teamID,
+		Name:        name,
+		Token:       uuid.New().String(),
+		Sha256:      hash.Sum(nil),
+		PackageFile: tfr,
+	}
+	if svc.bootstrapPackageStore == nil {
+		// without an object store the package is stored in the DB
+		if bp.Bytes, err = io.ReadAll(tfr); err != nil {
+			return err
+		}
 	}
 	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp, svc.bootstrapPackageStore); err != nil {
 		return err
+	}
+	if stagedUploadID != "" {
+		svc.deleteStagedUpload(ctx, stagedUploadID)
 	}
 
 	if err := svc.NewActivity(
