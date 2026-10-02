@@ -3876,7 +3876,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) (slu
 	return slug, installerServer.URL
 }
 
-func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsPatchWhenClosed() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsPatchPolicyOptions() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -3971,6 +3971,20 @@ reports:
 	require.True(t, pols[0].PatchWhenClosed)
 	require.True(t, pols[0].ContinuousAutomationsEnabled)
 
+	// Switching the same policy to notify_before_patching flips both flags and keeps
+	// continuous automations auto-set on.
+	apply(fmt.Sprintf(`  - name: patch-policy
+    type: patch
+    fleet_maintained_app_slug: %s
+    notify_before_patching: true`, slug))
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, pols, 1)
+	require.Equal(t, firstID, pols[0].ID)
+	require.True(t, pols[0].NotifyBeforePatching, "notify_before_patching should persist")
+	require.False(t, pols[0].PatchWhenClosed, "patch_when_closed should be cleared")
+	require.True(t, pols[0].ContinuousAutomationsEnabled)
+
 	// An explicit continuous_automations_enabled: false is rejected end-to-end.
 	require.NoError(t, os.WriteFile(teamFile, []byte(teamCfg(fmt.Sprintf(`  - name: patch-policy
     type: patch
@@ -3979,7 +3993,7 @@ reports:
     patch_when_closed: true`, slug))), 0o644))
 	fleetctltest.RunAppCheckErr(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
-	}, `"continuous_automations_enabled" must be true when "patch_when_closed" is true`)
+	}, `If "patch_when_closed" is true, "continuous_automations_enabled" can't be set to false.`)
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDeletedActivities() {
@@ -4112,6 +4126,237 @@ reports:
 			"expected deleted_policy activity for %q (id=%d), got activities for IDs %v",
 			name, policyIDsByName[name], deletedIDs)
 	}
+}
+
+// TestGitOpsFleetMaintainedAppFileReferences applies Fleet-maintained apps through
+// path and paths references and asserts the applied state matches what an inline
+// declaration produces, including that the later of two duplicate declarations wins.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsFleetMaintainedAppFileReferences() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	slugA, installerA := s.setupDarwinFMA(t)
+	slugB, installerB := s.setupDarwinFMA(t)
+	teamName := uuid.NewString()
+
+	installerBySlug := map[string]string{slugA: installerA, slugB: installerB}
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for slug, installer := range installerBySlug {
+			if r.URL.Path != "/"+slug+".json" {
+				continue
+			}
+			_ = json.NewEncoder(w).Encode(ma.FMAManifestFile{
+				Versions: []*ma.FMAManifestApp{{
+					Version:            "1.0",
+					Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+					InstallerURL:       installer + "/foo.pkg",
+					InstallScriptRef:   "fooscript",
+					UninstallScriptRef: "fooscript",
+					SHA256:             "no_check",
+				}},
+				Refs: map[string]string{"fooscript": "echo hello"},
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+
+	const globalConfig = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+	baseDir := t.TempDir()
+	globalFile := filepath.Join(baseDir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalConfig), 0o644))
+
+	libDir := filepath.Join(baseDir, "lib")
+	require.NoError(t, os.MkdirAll(libDir, 0o755))
+	writeLib := func(name, body string) {
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, name), []byte(body), 0o644))
+	}
+	writeLib("a.yml", fmt.Sprintf("- slug: %s\n  self_service: true\n", slugA))
+	writeLib("b.yml", fmt.Sprintf("- slug: %s\n", slugB))
+	writeLib("dup1.yml", fmt.Sprintf("- slug: %s\n  self_service: true\n", slugA))
+	writeLib("dup2.yml", fmt.Sprintf("- slug: %s\n  self_service: false\n", slugA))
+
+	teamFile := filepath.Join(baseDir, "team.yml")
+	apply := func(softwareBody string) {
+		cfg := fmt.Sprintf(`
+controls:
+software:
+  fleet_maintained_apps:
+%s
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+`, softwareBody, teamName)
+		require.NoError(t, os.WriteFile(teamFile, []byte(cfg), 0o644))
+		s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+		}))
+	}
+
+	type applied struct {
+		Slug        string `db:"slug"`
+		SelfService bool   `db:"self_service"`
+	}
+	installers := func(teamID uint) []applied {
+		var out []applied
+		mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &out, `
+				SELECT fma.slug, si.self_service
+				FROM software_installers si
+				JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+				WHERE si.global_or_team_id = ?
+				ORDER BY fma.slug`, teamID)
+		})
+		return out
+	}
+
+	// A single path reference applies the app, carrying the referenced file's fields.
+	apply("    - path: lib/a.yml")
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.Equal(t, []applied{{Slug: slugA, SelfService: true}}, installers(team.ID))
+
+	// A paths glob applies every app across every matched file.
+	apply(`    - paths: "lib/[ab].yml"`)
+	got := installers(team.ID)
+	require.Len(t, got, 2)
+	require.ElementsMatch(t, []applied{{Slug: slugA, SelfService: true}, {Slug: slugB}}, got)
+
+	// The same app declared in two referenced files applies without error, and the
+	// later file wins, matching what two inline declarations produce.
+	apply("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
+	require.Equal(t, []applied{{Slug: slugA, SelfService: false}}, installers(team.ID))
+
+	apply(fmt.Sprintf("    - slug: %s\n      self_service: true\n    - slug: %s\n      self_service: false", slugA, slugA))
+	require.Equal(t, []applied{{Slug: slugA, SelfService: false}}, installers(team.ID))
+}
+
+// TestGitOpsAppStoreAppFileReferences is the App Store counterpart to
+// TestGitOpsFleetMaintainedAppFileReferences. Adam IDs 1 and 2 are the assets
+// StartAndServeVPPServer licenses.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsAppStoreAppFileReferences() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	test.CreateInsertGlobalVPPToken(t, s.DS)
+	testing_utils.StartAndServeVPPServer(t)
+	teamName := uuid.NewString()
+
+	globalConfig := fmt.Sprintf(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  mdm:
+    volume_purchasing_program:
+      - location: Jungle
+        fleets:
+          - %s
+policies:
+reports:
+`, teamName)
+
+	baseDir := t.TempDir()
+	globalFile := filepath.Join(baseDir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalConfig), 0o644))
+
+	libDir := filepath.Join(baseDir, "lib")
+	require.NoError(t, os.MkdirAll(libDir, 0o755))
+	writeLib := func(name, body string) {
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, name), []byte(body), 0o644))
+	}
+	writeLib("a.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: true\n")
+	writeLib("b.yml", "- app_store_id: \"2\"\n  platform: ios\n")
+	writeLib("dup1.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: true\n")
+	writeLib("dup2.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: false\n")
+
+	teamFile := filepath.Join(baseDir, "team.yml")
+	apply := func(softwareBody string) {
+		cfg := fmt.Sprintf(`
+controls:
+software:
+  app_store_apps:
+%s
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+`, softwareBody, teamName)
+		require.NoError(t, os.WriteFile(teamFile, []byte(cfg), 0o644))
+		// assertRealRunOutput rejects the re-apply line the VPP flow emits.
+		require.Contains(t, fleetctltest.RunAppForTest(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+		}), "gitops succeeded")
+	}
+
+	type applied struct {
+		AdamID      string `db:"adam_id"`
+		Platform    string `db:"platform"`
+		SelfService bool   `db:"self_service"`
+	}
+	assigned := func(teamID uint) []applied {
+		var out []applied
+		mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &out,
+				`SELECT adam_id, platform, self_service FROM vpp_apps_teams
+				 WHERE global_or_team_id = ? ORDER BY adam_id, platform`, teamID)
+		})
+		return out
+	}
+
+	apply(`    - path: lib/a.yml`)
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.Equal(t, []applied{{AdamID: "1", Platform: "darwin", SelfService: true}}, assigned(team.ID))
+
+	apply(`    - paths: "lib/[ab].yml"`)
+	require.ElementsMatch(t, []applied{
+		{AdamID: "1", Platform: "darwin", SelfService: true},
+		{AdamID: "2", Platform: "ios"},
+	}, assigned(team.ID))
+
+	// Duplicates through references must land the same way as duplicates declared
+	// inline. Each run starts from empty so the comparison isn't reading stale state.
+	apply("")
+	require.Empty(t, assigned(team.ID))
+	apply("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
+	viaReferences := assigned(team.ID)
+
+	apply("")
+	require.Empty(t, assigned(team.ID))
+	apply("    - app_store_id: \"1\"\n      platform: darwin\n      self_service: true\n    - app_store_id: \"1\"\n      platform: darwin\n      self_service: false")
+	require.Equal(t, assigned(team.ID), viaReferences, "referenced duplicates must match inline duplicates")
+	require.Len(t, viaReferences, 1)
 }
 
 // TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)
@@ -4399,6 +4644,161 @@ org_settings:
 			require.Equal(t, testCase.Expected, storedCfg.FleetDesktop.AlternativeBrowserHost)
 		})
 	}
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestFleetDesktopSettingsSSOEnabled() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetCfg := s.createFleetctlConfig(t, user)
+
+	globalCfgTpl, err := template.New("t1").Parse(`
+agent_options:
+controls:
+reports:
+policies:
+org_settings:
+  secrets:
+    - secret: test_secret
+{{ if .IdP }}  mdm:
+    end_user_authentication:
+      idp_name: Okta
+      entity_id: fleet
+      metadata_url: https://idp.example.com/metadata
+{{ end }}{{ if .FleetDesktop }}  fleet_desktop:
+    sso_enabled: {{ .SSOEnabled }}
+{{ end }}`)
+	require.NoError(t, err)
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
+
+	writeCfg := func(t *testing.T, ssoEnabled, idp bool) string {
+		t.Helper()
+		return writeCfgOpts(t, globalCfgTpl, ssoEnabled, idp, true)
+	}
+
+	// captured activities are drained on every read
+	getActivities := s.captureSSOFleetDesktopActivities(t)
+
+	assertStored := func(t *testing.T, wantSSO, wantIdP bool) {
+		t.Helper()
+		storedCfg, err := s.DS.AppConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, wantSSO, storedCfg.FleetDesktop.SSOEnabled)
+		require.Equal(t, wantIdP, !storedCfg.MDM.EndUserAuthentication.IsEmpty())
+	}
+
+	// The dry run has to reject this: the prerequisite is checked before the
+	// dry-run return, so a bad config fails in CI rather than on the real apply.
+	// The non-dry-run 422 is covered by the enterprise API integration test.
+	noIdPCfg := writeCfg(t, true, false)
+	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", noIdPCfg, "--dry-run"},
+		"applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: Couldn't enable single sign-on for Fleet Desktop because no IdP is configured. Please configure it and try again.")
+	assertStored(t, false, false)
+	require.Empty(t, getActivities())
+
+	// setting the IdP and the flag in the same run succeeds
+	enabledCfg := writeCfg(t, true, true)
+	s.assertDryRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", enabledCfg, "--dry-run"}))
+	require.Empty(t, getActivities(), "dry run must not emit activities")
+
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", enabledCfg}))
+	assertStored(t, true, true)
+	require.Equal(t,
+		[]string{fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName()},
+		activityNames(getActivities()))
+
+	// dropping the mdm block while SSO is on clears the IdP in overwrite mode,
+	// which the reverse guard has to reject
+	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", noIdPCfg},
+		"applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: Single sign-on for Fleet Desktop is enabled. Please disable it and try again.")
+	assertStored(t, true, true)
+	require.Empty(t, getActivities())
+
+	// disabling emits the disabled activity
+	disabledCfg := writeCfg(t, false, true)
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", disabledCfg}))
+	assertStored(t, false, true)
+	require.Equal(t,
+		[]string{fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName()},
+		activityNames(getActivities()))
+
+	// GitOps is declarative: re-enable, then apply a config that keeps the IdP
+	// but drops fleet_desktop entirely. The setting has to go back to false.
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", enabledCfg}))
+	assertStored(t, true, true)
+	require.Equal(t,
+		[]string{fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName()},
+		activityNames(getActivities()))
+
+	omittedCfg := writeCfgOpts(t, globalCfgTpl, false, true, false)
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", omittedCfg}))
+	assertStored(t, false, true)
+	require.Equal(t,
+		[]string{fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName()},
+		activityNames(getActivities()))
+
+	// Restore the shared suite's app config directly; another gitops run would
+	// cost ~0.6s to assert nothing new.
+	storedCfg, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	storedCfg.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{}
+	require.NoError(t, s.DS.SaveAppConfig(ctx, storedCfg))
+}
+
+// writeCfgOpts renders the SSO gitops template. Pass fleetDesktop=false to leave
+// the fleet_desktop block out of the file entirely.
+func writeCfgOpts(t *testing.T, tpl *template.Template, ssoEnabled, idp, fleetDesktop bool) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	require.NoError(t, tpl.Execute(f, struct {
+		SSOEnabled   bool
+		IdP          bool
+		FleetDesktop bool
+	}{SSOEnabled: ssoEnabled, IdP: idp, FleetDesktop: fleetDesktop}))
+	return f.Name()
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) captureSSOFleetDesktopActivities(t *testing.T) func() []activity_api.ActivityDetails {
+	t.Helper()
+	require.NotNil(t, s.activityMock, "activity mock should be wired up via TestServerOpts.ActivityMock")
+	prev := s.activityMock.NewActivityFunc
+	var (
+		mu       sync.Mutex
+		captured []activity_api.ActivityDetails
+	)
+	s.activityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, a activity_api.ActivityDetails) error {
+		switch a.(type) {
+		case fleet.ActivityTypeEnabledSSOFleetDesktop, fleet.ActivityTypeDisabledSSOFleetDesktop:
+			mu.Lock()
+			captured = append(captured, a)
+			mu.Unlock()
+		}
+		if prev != nil {
+			return prev(ctx, user, a)
+		}
+		return nil
+	}
+	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
+
+	return func() []activity_api.ActivityDetails {
+		mu.Lock()
+		defer mu.Unlock()
+		out := captured
+		captured = nil
+		return out
+	}
+}
+
+func activityNames(acts []activity_api.ActivityDetails) []string {
+	names := make([]string, 0, len(acts))
+	for _, a := range acts {
+		names = append(names, a.ActivityName())
+	}
+	return names
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestSpecialCaseTeamsVPPApps() {

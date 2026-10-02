@@ -94,7 +94,7 @@ type generateGitopsClient interface {
 	GetSetupExperienceScript(teamID uint) (*fleet.Script, error)
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
-	GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error)
+	GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredentialMetadata, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
 	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
@@ -128,14 +128,27 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 	return name
 }
 
+// aliasRule is a deprecated JSON key name's replacement, plus the object keys the rename is confined to. An empty scope
+// applies the rename at any depth (which is legacy behavior).
+type aliasRule struct {
+	newKey string
+	scope  []string
+}
+
+// appliesIn reports whether the rule may rename a key sitting directly inside an object reached through enclosingKey.
+func (r aliasRule) appliesIn(enclosingKey string) bool {
+	return len(r.scope) == 0 || slices.Contains(r.scope, enclosingKey)
+}
+
 // aliasRules maps deprecated JSON key names to their new canonical names.
 // Used by replaceAliasKeys and yamlMarshalRenamed to rename keys in serialized output
 // for generate_gitops, fleetctl get (via printSpec), and fleetctl apply.
-// Derived entirely from spec.DeprecatedGitOpsKeyMappings using leaf key segments.
+// Derived entirely from spec.DeprecatedGitOpsKeyMappings using leaf key segments,
+// with scopes from spec.DeprecatedGitOpsKeyScopes.
 var aliasRules = buildAliasRules()
 
-func buildAliasRules() map[string]string {
-	rules := make(map[string]string)
+func buildAliasRules() map[string]aliasRule {
+	rules := make(map[string]aliasRule)
 	for _, m := range spec.DeprecatedGitOpsKeyMappings {
 		// Take the last segment of the old and new paths as the leaf key names.
 		// Remove any array indicators (e.g. "[]") in case an array key is renamed.
@@ -151,7 +164,7 @@ func buildAliasRules() map[string]string {
 		}
 		newLeaf = strings.TrimSuffix(newLeaf, "[]")
 
-		rules[oldLeaf] = newLeaf
+		rules[oldLeaf] = aliasRule{newKey: newLeaf, scope: spec.DeprecatedGitOpsKeyScopes[oldLeaf]}
 	}
 	return rules
 }
@@ -163,7 +176,13 @@ func buildAliasRules() map[string]string {
 // its original child keys untouched and the new key receives a deep copy with
 // children recursively renamed (old child keys removed). This avoids duplicating
 // every nested key under both the old and new parent.
-func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
+func replaceAliasKeys(v any, rules map[string]aliasRule, deleteOld bool) {
+	replaceAliasKeysIn(v, rules, deleteOld, "")
+}
+
+// replaceAliasKeysIn is replaceAliasKeys with the key of the object enclosing v, which scoped rules are resolved
+// against. Values inside an array are reached through the array's own key.
+func replaceAliasKeysIn(v any, rules map[string]aliasRule, deleteOld bool, enclosingKey string) {
 	switch val := v.(type) {
 	case map[string]any:
 		if val == nil {
@@ -172,8 +191,8 @@ func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
 		type rename struct{ oldKey, newKey string }
 		var renames []rename
 		for k := range val {
-			if newKey, ok := rules[k]; ok {
-				renames = append(renames, rename{k, newKey})
+			if rule, ok := rules[k]; ok && rule.appliesIn(enclosingKey) {
+				renames = append(renames, rename{k, rule.newKey})
 			}
 		}
 
@@ -189,7 +208,7 @@ func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
 				// Container key: old copy keeps original children,
 				// new copy gets a deep copy with children renamed.
 				copied := deepCopyAny(childMap).(map[string]any)
-				replaceAliasKeys(copied, rules, true)
+				replaceAliasKeysIn(copied, rules, true, r.newKey)
 				val[r.newKey] = copied
 				handled[r.oldKey] = true
 				handled[r.newKey] = true
@@ -203,11 +222,11 @@ func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
 			if handled[k] {
 				continue
 			}
-			replaceAliasKeys(v, rules, deleteOld)
+			replaceAliasKeysIn(v, rules, deleteOld, k)
 		}
 	case []any:
 		for _, item := range val {
-			replaceAliasKeys(item, rules, deleteOld)
+			replaceAliasKeysIn(item, rules, deleteOld, enclosingKey)
 		}
 	}
 }
@@ -281,13 +300,10 @@ type GenerateGitopsCommand struct {
 
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "generate-gitops",
-		Usage: "Migrate an existing Fleet instance's configuration to GitOps YAML files",
-		Description: "Exports an existing Fleet's configuration " +
-			"(policies, queries, labels, scripts, profiles, team settings, etc.) into GitOps-ready " +
-			"YAML files. Use this to migrate an existing Fleet to GitOps.\n\n" +
-			"If you're getting started with GitOps, use `fleetctl new` instead",
-		Action: createGenerateGitopsAction(nil),
+		Name:        "generate-gitops",
+		Usage:       "Exports existing Fleet configuration to YAML files to migrate an existing Fleet to GitOps",
+		Description: "If you're getting started with GitOps, use `fleetctl new` instead",
+		Action:      createGenerateGitopsAction(nil),
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -495,9 +511,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// Set mdm to the global config by default.
 		// We'll override this for teams other than no-team.
 		mdmConfig := fleet.TeamMDM{
-			EnableDiskEncryption:       cmd.AppConfig.MDM.EnableDiskEncryption.Value,
 			EnableRecoveryLockPassword: cmd.AppConfig.MDM.EnableRecoveryLockPassword.Value,
-			RequireBitLockerPIN:        cmd.AppConfig.MDM.RequireBitLockerPIN.Value,
 			HostNameTemplate:           cmd.AppConfig.MDM.HostNameTemplate.Value,
 			MacOSUpdates:               cmd.AppConfig.MDM.MacOSUpdates,
 			IOSUpdates:                 cmd.AppConfig.MDM.IOSUpdates,
@@ -786,6 +800,21 @@ func generateFilename(name string) string {
 	return fileName
 }
 
+// uniqueFilename numbers fileName ("a-b-2.xml") when it's already taken:
+// distinct names can sanitize alike ("A B" and "a-b"), and since each YAML
+// entry carries its own name, a shared file would apply one profile's
+// contents under both names.
+func uniqueFilename(fileName string, taken map[string]bool) string {
+	ext := filepath.Ext(fileName)
+	base := strings.TrimSuffix(fileName, ext)
+	candidate := fileName
+	for i := 2; taken[candidate]; i++ {
+		candidate = fmt.Sprintf("%s-%d%s", base, i, ext)
+	}
+	taken[candidate] = true
+	return candidate
+}
+
 func scriptExtensionForPlatform(platform string) string {
 	if platform == "windows" {
 		return ".ps1"
@@ -851,7 +880,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 	}
 	orgSettings["certificate_authorities"] = certificateAuthorities // TODO(hca): Ask Scott about jsonFieldName usage
 
-	var graphCreds []*fleet.MicrosoftGraphCredential
+	var graphCreds []*fleet.MicrosoftGraphCredentialMetadata
 	if cmd.AppConfig.License.IsPremium() {
 		graphCreds, err = cmd.Client.GetMicrosoftGraphCredentials()
 		if err != nil {
@@ -1211,8 +1240,10 @@ func orgLogoExtFromContentType(contentType string) (string, error) {
 		return ".jpg", nil
 	case "image/webp":
 		return ".webp", nil
+	case "image/svg+xml":
+		return ".svg", nil
 	}
-	return "", fmt.Errorf("unsupported logo Content-Type %q (expected image/png, image/jpeg, or image/webp)", mediaType)
+	return "", fmt.Errorf("unsupported logo Content-Type %q (expected image/png, image/jpeg, image/webp, or image/svg+xml)", mediaType)
 }
 
 func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {
@@ -1250,7 +1281,7 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	}
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
-		result[jsonFieldName(t, "WindowsEnrollment")] = mdm.WindowsEnrollment
+		result[jsonFieldName(t, "WindowsAutomaticEnrollment")] = mdm.WindowsAutomaticEnrollment
 		vppTokens, err := cmd.Client.GetVPPTokens()
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error fetching VPP tokens: %s\n", err)
@@ -1361,9 +1392,9 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	return teamSettings, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string, teamMdm *fleet.TeamMDM) (map[string]interface{}, error) {
-	t := reflect.TypeOf(spec.GitOpsControls{})
-	result := map[string]interface{}{}
+func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string, teamMdm *fleet.TeamMDM) (map[string]any, error) {
+	t := reflect.TypeFor[spec.GitOpsControls]()
+	result := map[string]any{}
 
 	if teamId != nil {
 		scripts, err := cmd.generateScripts(teamId, teamName)
@@ -1373,6 +1404,13 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		}
 		result[jsonFieldName(t, "Scripts")] = scripts
 	}
+
+	macosSettingsT := reflect.TypeFor[fleet.MacOSSettings]()
+	macosSettings := map[string]any{}
+	windowsSettingsT := reflect.TypeFor[fleet.WindowsSettings]()
+	windowsSettings := map[string]any{}
+	linuxSettingsT := reflect.TypeFor[fleet.LinuxSettings]()
+	linuxSettings := map[string]any{}
 
 	if cmd.AppConfig.MDM.EnabledAndConfigured ||
 		cmd.AppConfig.MDM.WindowsEnabledAndConfigured ||
@@ -1384,31 +1422,27 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			return nil, err
 		}
 
-		macosSettingsT := reflect.TypeFor[fleet.MacOSSettings]()
-		windowsSettingsT := reflect.TypeFor[fleet.WindowsSettings]()
 		androidSettingsT := reflect.TypeFor[fleet.AndroidSettings]()
 
 		if cmd.AppConfig.MDM.EnabledAndConfigured {
-			macosSettings := map[string]any{}
 			if profiles != nil {
 				if appleProfiles, _ := profiles["apple_profiles"].([]map[string]any); len(appleProfiles) > 0 {
 					macosSettings[jsonFieldName(macosSettingsT, "CustomSettings")] = appleProfiles
 				}
 			}
-			assets, err := cmd.generateAssets(teamId, teamName)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating assets: %s\n", err)
-				return nil, err
+			if cmd.AppConfig.License.IsPremium() {
+				assets, err := cmd.generateAssets(teamId, teamName)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating assets: %s\n", err)
+					return nil, err
+				}
+				if len(assets) > 0 {
+					macosSettings[jsonFieldName(macosSettingsT, "Assets")] = assets
+				}
 			}
-			if len(assets) > 0 {
-				macosSettings[jsonFieldName(macosSettingsT, "Assets")] = assets
-			}
-			if len(macosSettings) > 0 {
-				result[jsonFieldName(t, "MacOSSettings")] = macosSettings
-			}
+
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
-			windowsSettings := map[string]any{}
 			if profiles != nil {
 				if windowsProfiles, _ := profiles["windows_profiles"].([]map[string]any); len(windowsProfiles) > 0 {
 					windowsSettings[jsonFieldName(windowsSettingsT, "CustomSettings")] = windowsProfiles
@@ -1418,18 +1452,14 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			// the setting's default: GitOps clears what a YAML file does not define, and a cleared managed local account
 			// setting resolves to false, the same state we would have written out explicitly. Per product guidance
 			// (2026/07/24) we only output what has actually been configured rather than every setting at its default.
-			if cmd.AppConfig.License.IsPremium() && teamMdm != nil && teamMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
-				windowsSettings[jsonFieldName(windowsSettingsT, "ManagedLocalAccountSettings")] = map[string]any{
-					jsonFieldName(reflect.TypeFor[fleet.ManagedLocalAccountSettings](), "Enabled"): true,
-				}
+			if cmd.AppConfig.License.IsPremium() && teamMdm != nil && teamMdm.WindowsSettings.EnableManagedLocalAccount.Value {
+				windowsSettings[jsonFieldName(windowsSettingsT, "EnableManagedLocalAccount")] = true
 			}
-			if len(windowsSettings) > 0 {
-				result[jsonFieldName(t, "WindowsSettings")] = windowsSettings
-			}
+
 		}
 		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
-			if len(profiles["android_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "AndroidSettings")] = map[string]interface{}{
+			if len(profiles["android_profiles"].([]map[string]any)) > 0 {
+				result[jsonFieldName(t, "AndroidSettings")] = map[string]any{
 					jsonFieldName(androidSettingsT, "CustomSettings"): profiles["android_profiles"],
 				}
 			}
@@ -1449,7 +1479,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		return nil, err
 	}
 
-	mdmT := reflect.TypeOf(fleet.TeamMDM{})
+	mdmT := reflect.TypeFor[fleet.TeamMDM]()
 
 	if len(certSummaries) > 0 {
 		androidSettingsType := reflect.TypeFor[fleet.AndroidSettings]()
@@ -1468,9 +1498,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			}
 			fullCerts = append(fullCerts, cert)
 		}
-		androidSettings, ok := result[jsonFieldName(mdmT, "AndroidSettings")].(map[string]interface{})
+		androidSettings, ok := result[jsonFieldName(mdmT, "AndroidSettings")].(map[string]any)
 		if !ok {
-			androidSettings = map[string]interface{}{}
+			androidSettings = map[string]any{}
 		}
 		androidSettings[jsonFieldName(androidSettingsType, "Certificates")] = fullCerts
 		result[jsonFieldName(mdmT, "AndroidSettings")] = androidSettings
@@ -1478,18 +1508,22 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 
 	if cmd.AppConfig.License.IsPremium() {
 		if teamMdm != nil {
-			result[jsonFieldName(mdmT, "EnableDiskEncryption")] = teamMdm.EnableDiskEncryption
 			result[jsonFieldName(mdmT, "EnableRecoveryLockPassword")] = teamMdm.EnableRecoveryLockPassword
-			result[jsonFieldName(mdmT, "RequireBitLockerPIN")] = teamMdm.RequireBitLockerPIN
 			result[jsonFieldName(mdmT, "HostNameTemplate")] = teamMdm.HostNameTemplate
 			result[jsonFieldName(mdmT, "MacOSUpdates")] = teamMdm.MacOSUpdates
 			result[jsonFieldName(mdmT, "IOSUpdates")] = teamMdm.IOSUpdates
 			result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates
 			result[jsonFieldName(mdmT, "WindowsUpdates")] = teamMdm.WindowsUpdates
+
+			macosSettings[jsonFieldName(macosSettingsT, "EnableDiskEncryption")] = teamMdm.MacOSSettings.EnableDiskEncryption.Value
+			macosSettings[jsonFieldName(macosSettingsT, "EnableEscrowDiskEncryptionKey")] = teamMdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+			windowsSettings[jsonFieldName(windowsSettingsT, "EnableDiskEncryption")] = teamMdm.WindowsSettings.EnableDiskEncryption.Value
+			windowsSettings[jsonFieldName(windowsSettingsT, "RequireBitLockerPIN")] = teamMdm.WindowsSettings.RequireBitLockerPIN.Value
+			linuxSettings[jsonFieldName(linuxSettingsT, "EnableEscrowDiskEncryptionKey")] = teamMdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
 		}
 
 		if teamId == nil || *teamId == 0 {
-			mdmT := reflect.TypeOf(fleet.MDM{})
+			mdmT := reflect.TypeFor[fleet.MDM]()
 			result[jsonFieldName(mdmT, "WindowsMigrationEnabled")] = cmd.AppConfig.MDM.WindowsMigrationEnabled
 			result[jsonFieldName(mdmT, "MacOSMigration")] = cmd.AppConfig.MDM.MacOSMigration
 			result[jsonFieldName(mdmT, "EnableTurnOnWindowsMDMManually")] = cmd.AppConfig.MDM.EnableTurnOnWindowsMDMManually
@@ -1500,6 +1534,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				result[jsonFieldName(mdmT, "WindowsEntraClientIDs")] = cmd.AppConfig.MDM.WindowsEntraClientIDs.Value
 			}
 			result[jsonFieldName(mdmT, "AppleRequireHardwareAttestation")] = cmd.AppConfig.MDM.AppleRequireHardwareAttestation
+			result[jsonFieldName(mdmT, "OnlyAllowAppleBusinessEnrollment")] = cmd.AppConfig.MDM.OnlyAllowAppleBusinessEnrollment
 
 			// apple_account_provisioning is a global-only MDM setting. The IdP
 			// client secret is masked/non-exportable from the API, so emit a TODO
@@ -1522,13 +1557,12 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 					Key:      "apple_account_provisioning.oauth_idp_client_secret",
 				})
 			}
-		}
-		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
-			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
-		}
 
-		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
-			result["android_enabled_and_configured"] = cmd.AppConfig.MDM.AndroidEnabledAndConfigured
+			macosSettings[jsonFieldName(macosSettingsT, "EnableDiskEncryption")] = cmd.AppConfig.MDM.MacOSSettings.EnableDiskEncryption.Value
+			macosSettings[jsonFieldName(macosSettingsT, "EnableEscrowDiskEncryptionKey")] = cmd.AppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+			windowsSettings[jsonFieldName(windowsSettingsT, "EnableDiskEncryption")] = cmd.AppConfig.MDM.WindowsSettings.EnableDiskEncryption.Value
+			windowsSettings[jsonFieldName(windowsSettingsT, "RequireBitLockerPIN")] = cmd.AppConfig.MDM.WindowsSettings.RequireBitLockerPIN.Value
+			linuxSettings[jsonFieldName(linuxSettingsT, "EnableEscrowDiskEncryptionKey")] = cmd.AppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
 		}
 
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
@@ -1568,6 +1602,27 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				})
 			}
 		}
+
+		if len(linuxSettings) > 0 {
+			result[jsonFieldName(t, "LinuxSettings")] = linuxSettings
+		}
+	}
+
+	if teamId == nil || *teamId == 0 {
+		mdmT := reflect.TypeFor[fleet.MDM]()
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
+			result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = true
+		}
+		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
+			result[jsonFieldName(mdmT, "AndroidEnabledAndConfigured")] = true
+		}
+	}
+
+	if len(macosSettings) > 0 {
+		result[jsonFieldName(t, "MacOSSettings")] = macosSettings
+	}
+	if len(windowsSettings) > 0 {
+		result[jsonFieldName(t, "WindowsSettings")] = windowsSettings
 	}
 
 	return result, nil
@@ -1586,6 +1641,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 	appleProfilesSlice := make([]map[string]interface{}, 0)
 	windowsProfilesSlice := make([]map[string]interface{}, 0)
 	androidProfilesSlice := make([]map[string]interface{}, 0)
+	usedFilenames := make(map[string]bool, len(profiles))
 	for _, profile := range profiles {
 		profileSpec := map[string]interface{}{}
 		// Parse any labels.
@@ -1623,6 +1679,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		if generatedFilename == "" {
 			continue // Error logged inside generateProfileFilename
 		}
+		generatedFilename = uniqueFilename(generatedFilename, usedFilenames)
 
 		fileName := fmt.Sprintf("profiles/%s", generatedFilename)
 		if teamId == nil {
@@ -1640,6 +1697,12 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 
 		profileSpec["path"] = path
+		// Always emitted: the file name is a sanitized copy of the name, so
+		// omitting it would rename profiles whose name the file can't carry.
+		profileSpec["name"] = profile.Name
+		if profile.Description != "" {
+			profileSpec["description"] = profile.Description
+		}
 
 		// Only declarations can carry one, and the list endpoint doesn't return
 		// activations, so it takes a second call.
@@ -1790,6 +1853,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "CalendarEventsEnabled"):        policy.CalendarEventsEnabled,
 			jsonFieldName(t, "ConditionalAccessEnabled"):     policy.ConditionalAccessEnabled,
 			jsonFieldName(t, "ContinuousAutomationsEnabled"): policy.ContinuousAutomationsEnabled,
+			jsonFieldName(t, "Hidden"):                       policy.Hidden,
 		}
 
 		if policy.Type == fleet.PolicyTypeDynamic {
@@ -1808,6 +1872,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			}
 			policySpec["fleet_maintained_app_slug"] = fma.Slug
 			policySpec[jsonFieldName(t, "PatchWhenClosed")] = policy.PatchWhenClosed
+			policySpec[jsonFieldName(t, "NotifyBeforePatching")] = policy.NotifyBeforePatching
 		}
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type
@@ -2085,6 +2150,24 @@ func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet
 	return result, installers, vppApps, nil
 }
 
+// setSetupExperienceKeys writes a package's setup experience selection into its
+// spec. A selection that includes a cross-platform target goes entirely into
+// setup_experience_platform, the documented way to name more than one platform.
+func setSetupExperienceKeys(spec map[string]any, nativeSelected bool, crossTargets []string, nativePlatform string) {
+	if len(crossTargets) == 0 {
+		if nativeSelected {
+			spec["setup_experience"] = true
+		}
+		return
+	}
+	platforms := slices.Clone(crossTargets)
+	if nativeSelected && nativePlatform != "" {
+		platforms = append(platforms, nativePlatform)
+	}
+	slices.Sort(platforms)
+	spec["setup_experience_platform"] = strings.Join(platforms, ",")
+}
+
 func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string, downloadIcons bool) (map[string]interface{}, error) {
 	if !cmd.AppConfig.License.IsPremium() {
 		return nil, nil // software is premium-only
@@ -2153,6 +2236,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				continue
 			}
 			if pkg.Platform == fleet.CanonicalPlatform(crossTarget) {
+				continue
+			}
+			// The listing returns every title selectable for the target platform,
+			// so install_during_setup is what marks a real selection.
+			if pkg.InstallDuringSetup == nil || !*pkg.InstallDuringSetup {
 				continue
 			}
 			// Emit the canonical platform token ("darwin", not "macos") to match
@@ -2235,7 +2323,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		// file, referenced by a single path entry in the fleet file.
 		if len(softwareTitle.Packages) > 1 {
 			_, inSetup := setupSoftwareBySoftwareTitle[softwareTitle.ID]
-			entry, err := cmd.generateMultiPackage(softwareTitle, sw.Name, teamID, teamFilename, downloadIcons, inSetup)
+			crosses := crossPlatformSelectionsByTitleID[softwareTitle.ID]
+			entry, err := cmd.generateMultiPackage(softwareTitle, sw.Name, teamID, teamFilename, downloadIcons, inSetup, crosses)
 			if err != nil {
 				return nil, err
 			}
@@ -2308,9 +2397,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					cmd.FilesToWrite[fileName] = script
 				}
 
-				// With patch_when_closed on, this holds Fleet's managed app open query, which gitops rejects.
+				// With patch_when_closed or notify_before_patching on, this holds Fleet's managed app
+				// open query, which gitops rejects.
 				patchPolicy := softwareTitle.SoftwarePackage.PatchPolicy
-				if softwareTitle.SoftwarePackage.PreInstallQuery != "" && (patchPolicy == nil || !patchPolicy.PatchWhenClosed) {
+				if softwareTitle.SoftwarePackage.PreInstallQuery != "" &&
+					(patchPolicy == nil || (!patchPolicy.PatchWhenClosed && !patchPolicy.NotifyBeforePatching)) {
 					query := softwareTitle.SoftwarePackage.PreInstallQuery
 					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 					path := fmt.Sprintf("../%s", fileName)
@@ -2468,12 +2559,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		if softwareTitle.SoftwarePackage != nil {
 			sp := softwareTitle.SoftwarePackage
 			labelKey, labelNames = scopeLabels(sp.LabelsIncludeAny, sp.LabelsExcludeAny, sp.LabelsIncludeAll)
-			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
-				softwareSpec["setup_experience"] = true
-			}
-			if crosses, ok := crossPlatformSelectionsByTitleID[softwareTitle.ID]; ok && len(crosses) > 0 {
-				softwareSpec["setup_experience_platform"] = strings.Join(crosses, ",")
-			}
+			_, nativeSelected := setupSoftwareBySoftwareTitle[softwareTitle.ID]
+			setSetupExperienceKeys(softwareSpec, nativeSelected, crossPlatformSelectionsByTitleID[softwareTitle.ID], sp.Platform)
 			// Never set together with the cross-selection emission above: .ipa
 			// titles can't be cross-selected because the setup experience listing
 			// excludes them for any non-mobile target platform.
@@ -2520,7 +2607,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitle, swName string, teamID uint, teamFilename string, downloadIcons bool, inSetup bool) (map[string]any, error) {
+func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitle, swName string, teamID uint, teamFilename string, downloadIcons bool, inSetup bool, crossTargets []string) (map[string]any, error) {
 	// Paths inside the package YAML file are resolved relative to that file, which
 	// lives in lib/<team>/software, so a sibling dir is reached with ../<dir>/<name>.
 	writeSideFile := func(dir string, name string, contents any) string {
@@ -2573,9 +2660,14 @@ func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitl
 	packageFile := fmt.Sprintf("lib/%s/software/%s.package.yml", teamFilename, generateFilename(swName))
 	cmd.FilesToWrite[packageFile] = items
 	entry := map[string]any{"path": "../" + packageFile}
-	if inSetup {
-		entry["setup_experience"] = true
+	// The fleet-level entry is inherited by every package in the file, so a
+	// title whose packages differ in their setup experience selection can only
+	// round-trip the first-added one.
+	var nativePlatform string
+	if title.SoftwarePackage != nil {
+		nativePlatform = title.SoftwarePackage.Platform
 	}
+	setSetupExperienceKeys(entry, inSetup, crossTargets, nativePlatform)
 	if title.DisplayName != "" {
 		entry["display_name"] = title.DisplayName
 	}

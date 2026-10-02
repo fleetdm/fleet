@@ -53,8 +53,6 @@ const (
 	defaultDefaultTeamConfigExpiration = 1 * time.Minute
 	queryByNameKey                     = "QueryByName:team:%d:%s"
 	defaultQueryByNameExpiration       = 1 * time.Second
-	queryResultsCountKey               = "QueryResultsCount:%d"
-	defaultQueryResultsCountExpiration = 1 * time.Second
 	// The host's team is part of the key so that a transferred host never reads the
 	// schedule of its previous team.
 	queriesPerHostKey               = "QueriesPerHost:host:%d:team:%d"
@@ -77,6 +75,21 @@ const (
 	fmaNamesByIdentifierKey               = "FMANamesByIdentifier"
 	defaultFMANamesByIdentifierExpiration = 5 * time.Minute
 )
+
+// MaxConfigInputTTL is the longest default expiration among the cached items
+// that feed the osquery config build: app config, team agent options, the
+// host's packs, and a pack's scheduled queries. The osquery config ETag write
+// fence must outlive it, so that a config assembled from a stale in-memory
+// read can never be published as the current validator. See
+// redis_config_etag.DefaultFenceTTL.
+func MaxConfigInputTTL() time.Duration {
+	return max(
+		defaultAppConfigExpiration,
+		defaultPacksExpiration,
+		defaultScheduledQueriesExpiration,
+		defaultTeamAgentOptionsExpiration,
+	)
+}
 
 // cloneCache wraps the in memory cache with one that clones items before returning them.
 type cloneCache struct {
@@ -133,7 +146,6 @@ type cachedMysql struct {
 	teamMDMConfigExp        time.Duration
 	defaultTeamConfigExp    time.Duration
 	queryByNameExp          time.Duration
-	queryResultsCountExp    time.Duration
 	queriesPerHostExp       time.Duration
 	yaraRuleByNameExp       time.Duration
 	mdmConfigAssetExp       time.Duration
@@ -184,12 +196,6 @@ func WithQueryByNameExpiration(d time.Duration) Option {
 	}
 }
 
-func WithQueryResultsCountExpiration(d time.Duration) Option {
-	return func(o *cachedMysql) {
-		o.queryResultsCountExp = d
-	}
-}
-
 func WithQueriesPerHostExpiration(d time.Duration) Option {
 	return func(o *cachedMysql) {
 		o.queriesPerHostExp = d
@@ -232,7 +238,6 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		teamMDMConfigExp:        defaultTeamMDMConfigExpiration,
 		defaultTeamConfigExp:    defaultDefaultTeamConfigExpiration,
 		queryByNameExp:          defaultQueryByNameExpiration,
-		queryResultsCountExp:    defaultQueryResultsCountExpiration,
 		queriesPerHostExp:       defaultQueriesPerHostExpiration,
 		yaraRuleByNameExp:       defaultYaraRuleByNameExpiration,
 		mdmConfigAssetExp:       defaultMDMConfigAssetExpiration,
@@ -459,23 +464,10 @@ func (ds *cachedMysql) QueryByName(ctx context.Context, teamID *uint, name strin
 	return query, nil
 }
 
-func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
-	key := fmt.Sprintf(queryResultsCountKey, queryID)
-
-	if x, found := ds.c.Get(ctx, key); found {
-		if count, ok := x.(integer); ok {
-			return int(count), nil
-		}
-	}
-
-	count, err := ds.Datastore.ResultCountForQuery(ctx, queryID)
-	if err != nil {
-		return 0, err
-	}
-
-	ds.c.Set(ctx, key, integer(count), ds.queryResultsCountExp)
-
-	return count, nil
+// QueriesByName delegates straight to the underlying store: a batch lookup is
+// already a single round-trip, so there is nothing for the per-name cache to add.
+func (ds *cachedMysql) QueriesByName(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+	return ds.Datastore.QueriesByName(ctx, names)
 }
 
 func (ds *cachedMysql) QueriesPerHost(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {

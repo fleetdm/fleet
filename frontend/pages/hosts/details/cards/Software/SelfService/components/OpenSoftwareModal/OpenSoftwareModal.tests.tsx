@@ -1,7 +1,9 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
 import { noop } from "lodash";
+import React from "react";
+
+import { renderWithSetup } from "test/test-utils";
+
 import OpenSoftwareModal from "./OpenSoftwareModal";
 
 describe("OpenSoftwareModal", () => {

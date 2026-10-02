@@ -1,13 +1,12 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
-import { IHostEndUser } from "interfaces/host";
-
+import Button from "components/buttons/Button";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
+import { IHostEndUser } from "interfaces/host";
 
 import UserValue from "./components/UserValue";
 import {
@@ -66,11 +65,7 @@ const User = ({
   }
 
   return (
-    <Card
-      className={classNames}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-    >
+    <Card className={classNames} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
         <CardHeader header="User" />
         <div className={`${baseClass}__header-actions`}>

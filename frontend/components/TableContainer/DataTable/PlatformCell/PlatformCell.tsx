@@ -1,4 +1,5 @@
 import React from "react";
+
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { QueryablePlatform } from "interfaces/platform";

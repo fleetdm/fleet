@@ -273,19 +273,19 @@ func createTestAccountForOrder(t *testing.T, env *testEnv) (*types.Account, *typ
 
 func buildTestOrder(accountID uint, identifierValue string) (*types.Order, *types.Authorization, *types.Challenge) {
 	return &types.Order{
-			ACMEAccountID: accountID,
-			Status:        types.OrderStatusPending,
-			Identifiers: []types.Identifier{
-				{Type: types.IdentifierTypePermanentIdentifier, Value: identifierValue},
-			},
-		}, &types.Authorization{
-			Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: identifierValue},
-			Status:     types.AuthorizationStatusPending,
-		}, &types.Challenge{
-			ChallengeType: types.DeviceAttestationChallengeType,
-			Token:         "test-token",
-			Status:        types.ChallengeStatusPending,
-		}
+		ACMEAccountID: accountID,
+		Status:        types.OrderStatusPending,
+		Identifiers: []types.Identifier{
+			{Type: types.IdentifierTypePermanentIdentifier, Value: identifierValue},
+		},
+	}, &types.Authorization{
+		Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: identifierValue},
+		Status:     types.AuthorizationStatusPending,
+	}, &types.Challenge{
+		ChallengeType: types.DeviceAttestationChallengeType,
+		Token:         "test-token",
+		Status:        types.ChallengeStatusPending,
+	}
 }
 
 func testCreateNewOrder(t *testing.T, env *testEnv) {

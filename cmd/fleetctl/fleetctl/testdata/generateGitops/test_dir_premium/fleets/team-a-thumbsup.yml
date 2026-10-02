@@ -17,7 +17,6 @@ agent_options:
     orbit: edge
     osqueryd: edge
 controls:
-  android_enabled_and_configured: true
   android_settings:
     certificates:
     - certificate_authority_name: DIGIDOO
@@ -26,8 +25,10 @@ controls:
       subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
   apple_settings:
     configuration_profiles:
-    - path: "../lib/team-a-👍/profiles/team-macos-mobileconfig-profile.mobileconfig"
-  enable_disk_encryption: true
+    - name: Team MacOS MobileConfig Profile
+      path: "../lib/team-a-👍/profiles/team-macos-mobileconfig-profile.mobileconfig"
+    enable_disk_encryption: true
+    enable_escrow_disk_encryption_key: true
   enable_recovery_lock_password: false
   ios_updates:
     deadline: "2021-12-31"
@@ -39,6 +40,8 @@ controls:
     deadline_days:
     minimum_version: "98.2"
     update_new_hosts:
+  linux_settings:
+    enable_escrow_disk_encryption_key: true
   macos_updates:
     deadline: "2020-12-31"
     deadline_days:
@@ -47,8 +50,9 @@ controls:
   name_template: iPad $FLEET_VAR_HOST_HARDWARE_SERIAL
   scripts:
   - path: "../lib/team-a-👍/scripts/Script B.ps1"
-  windows_enabled_and_configured: true
-  windows_require_bitlocker_pin: false
+  windows_settings:
+    enable_disk_encryption: true
+    require_bitlocker_pin: false
   windows_updates:
     deadline_days: 95
     grace_period_days: 92
@@ -60,6 +64,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy
+  hidden: false
   name: Team Policy
   platform: linux,windows
   query: SELECT * FROM team_policy WHERE id = 1
@@ -72,7 +77,9 @@ policies:
   critical: false
   description: This is a team patch policy
   fleet_maintained_app_slug: foo/darwin
+  hidden: false
   name: Team patch policy
+  notify_before_patching: false
   patch_when_closed: true
   platform: linux,windows
   resolution: Do a team thing
@@ -80,9 +87,24 @@ policies:
   webhooks_and_tickets_enabled: true
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: true
+  critical: false
+  description: This is a team patch policy that notifies before patching
+  fleet_maintained_app_slug: foo/darwin
+  hidden: false
+  name: My Notify FMA up to date
+  notify_before_patching: true
+  patch_when_closed: false
+  platform: darwin
+  resolution: Install the latest version from self-service
+  type: patch
+  webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  conditional_access_enabled: false
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy with VPP app automation
+  hidden: true
   install_software:
     app_store_id: "1234567890"
   name: Team VPP policy
@@ -96,6 +118,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy with configuration profile automation
+  hidden: false
   name: Team Profile policy
   platform: darwin
   query: SELECT * FROM team_policy WHERE id = 4
@@ -108,6 +131,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy with FMA install automation
+  hidden: false
   install_software:
     fleet_maintained_app_slug: fma1/darwin
   name: Team FMA install policy
@@ -121,6 +145,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy with custom package install automation
+  hidden: false
   install_software:
     hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 13.37
   name: Team package install policy
@@ -233,6 +258,7 @@ software:
   - self_service: true
     slug: fma3/windows
     version: "^123"
+  - slug: fma4/darwin
   packages:
   - categories:
     - Browsers

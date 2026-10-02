@@ -1,1 +1,0 @@
-- Fixed an issue where GitOps could apply MDM SSO configuration values that were invalid.

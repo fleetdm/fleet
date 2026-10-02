@@ -1,31 +1,29 @@
 import React, { useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
-import { AppContext } from "context/app";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+// @ts-ignore
+import ChangeEmailForm from "components/forms/ChangeEmailForm";
+// @ts-ignore
+import ChangePasswordForm from "components/forms/ChangePasswordForm";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
+// @ts-ignore
+import UserSettingsForm from "components/forms/UserSettingsForm";
+import InfoBanner from "components/InfoBanner";
+import MainContent from "components/MainContent";
+// @ts-ignore
+import Modal from "components/Modal";
+import SidePanelContent from "components/SidePanelContent";
+import SidePanelPage from "components/SidePanelPage";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import { IUser } from "interfaces/user";
 import usersAPI from "services/entities/users";
 import authToken from "utilities/auth_token";
 import deepDifference from "utilities/deep_difference";
 import formatErrorResponse from "utilities/format_error_response";
 
-import Button from "components/buttons/Button";
-// @ts-ignore
-import ChangeEmailForm from "components/forms/ChangeEmailForm";
-// @ts-ignore
-import ChangePasswordForm from "components/forms/ChangePasswordForm";
-// @ts-ignore
-import Modal from "components/Modal";
-
-import SidePanelPage from "components/SidePanelPage";
-// @ts-ignore
-import UserSettingsForm from "components/forms/UserSettingsForm";
-import InfoBanner from "components/InfoBanner";
-import MainContent from "components/MainContent";
-import SidePanelContent from "components/SidePanelContent";
-import CustomLink from "components/CustomLink";
-
-import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import AccountSidePanel from "./AccountSidePanel";
 import { getErrorMessage } from "./helpers";
 

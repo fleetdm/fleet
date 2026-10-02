@@ -1,12 +1,12 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
 import { noop } from "lodash";
+import React from "react";
 
 import {
   SEVERITY_RANGE_INVALID_MSG,
   SEVERITY_SCORE_RANGE_ERROR,
 } from "components/SeverityFilter";
+import { renderWithSetup } from "test/test-utils";
 
 import SoftwareFiltersModal from "./SoftwareFiltersModal";
 

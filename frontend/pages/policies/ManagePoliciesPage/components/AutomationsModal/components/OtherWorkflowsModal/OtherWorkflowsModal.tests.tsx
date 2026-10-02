@@ -1,10 +1,10 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { renderWithSetup, createMockRouter } from "test/test-utils";
+import React from "react";
 
+import createMockConfig from "__mocks__/configMock";
 import { IAutomationsConfig } from "interfaces/config";
 import { IGlobalIntegrations } from "interfaces/integration";
-import createMockConfig from "__mocks__/configMock";
+import { renderWithSetup, createMockRouter } from "test/test-utils";
 
 import OtherWorkflowsModal from "./OtherWorkflowsModal";
 

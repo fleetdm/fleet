@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.10.6",
+      "version": "1.10.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mimestream.Mimestream';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mimestream.Mimestream' AND version_compare(bundle_short_version, '1.10.6') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.mimestream.Mimestream');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mimestream.Mimestream' AND version_compare(bundle_short_version, '1.10.8') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.mimestream.Mimestream' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.mimestream.com/Mimestream_1.10.6.dmg",
+      "installer_url": "https://download.mimestream.com/Mimestream_1.10.8.dmg",
       "install_script_ref": "83f72574",
       "uninstall_script_ref": "852cbd47",
-      "sha256": "b6e87cb9eabc56eb5ce8a843afe5466601a6c789fe3630d4eb372150c1ee1cf5",
+      "sha256": "174c86d2117c92c5bba7a22c8ce017093b192c32cfc2a0528e2bab9baa0d9f3f",
       "default_categories": [
         "Communication"
       ]

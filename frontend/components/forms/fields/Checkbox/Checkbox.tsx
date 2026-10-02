@@ -1,12 +1,12 @@
-import React, { ReactNode, KeyboardEvent, useEffect, useRef } from "react";
 import classnames from "classnames";
 import { noop, pick } from "lodash";
+import React, { ReactNode, KeyboardEvent, useEffect, useRef } from "react";
 
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 const baseClass = "fleet-checkbox";
 

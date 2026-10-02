@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.eclipse.mat.ui.rcp.MemoryAnalyzer';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.eclipse.mat.ui.rcp.MemoryAnalyzer' AND version_compare(bundle_short_version, '1.17.0.20260601') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.eclipse.mat.ui.rcp.MemoryAnalyzer');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.eclipse.mat.ui.rcp.MemoryAnalyzer' AND a.bundle_executable != '');"
       },
       "installer_url": "https://download.eclipse.org/mat/1.17.0/rcp/MemoryAnalyzer-1.17.0.20260601-macosx.cocoa.aarch64.dmg",
       "install_script_ref": "470cc121",

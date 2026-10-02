@@ -196,7 +196,7 @@ func rawHTTPClientFromConfig(cc Context) (*http.Client, *url.URL, error) {
 		}
 	}
 
-	cli := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+	cli := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: cc.TLSSkipVerify,
 		RootCAs:            rootCA,
 	}))

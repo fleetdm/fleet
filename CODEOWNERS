@@ -42,7 +42,37 @@ go.mod @fleetdm/go
 /server/ @fleetdm/go
 /server/api_endpoints/api_endpoints.yml @rachaelshaw # « API endpoint display names in the Fleet UI (API-only users)
 /ee/server/ @fleetdm/go
-/orbit/ @fleetdm/go
+/orbit/ @sharon-fdm @lucasmrod
+
+# Orbit paths owned by other teams (medium risk: Sharon + Lucas + team TL/EM)
+/orbit/pkg/bitlocker/          @sharon-fdm @lucasmrod @juan-fdz-hawa @getvictor
+/orbit/pkg/luks/               @sharon-fdm @lucasmrod @ksykulev @georgekarrv
+/orbit/pkg/profiles/           @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
+/orbit/pkg/setup_experience/   @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
+/orbit/pkg/useraction/         @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
+/orbit/pkg/execuser/           @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
+/orbit/pkg/scripts/            @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
+/orbit/pkg/installer/          @sharon-fdm @lucasmrod @cdcme @georgekarrv
+/orbit/pkg/managedaccount/     @sharon-fdm @lucasmrod @getvictor
+/orbit/pkg/keystore/           @sharon-fdm @lucasmrod @getvictor
+/orbit/pkg/windows/            @sharon-fdm @lucasmrod @getvictor
+
+# Orbit paths that are low risk (tables, UI dialogs, build tools)
+/orbit/changes/                @fleetdm/go
+/orbit/pkg/table/              @fleetdm/go
+/orbit/cmd/fleetd_tables/      @fleetdm/go
+/orbit/pkg/augeas/             @fleetdm/go
+/orbit/pkg/dataflatten/        @fleetdm/go
+/orbit/pkg/cryptoinfo/         @fleetdm/go
+/orbit/cmd/desktop/            @fleetdm/go
+/orbit/cmd/fetch_cert/         @fleetdm/go
+/orbit/pkg/dialog/             @fleetdm/go
+/orbit/pkg/swiftdialog/        @fleetdm/go
+/orbit/pkg/kdialog/            @fleetdm/go
+/orbit/pkg/zenity/             @fleetdm/go
+/orbit/pkg/go-paniclog/        @fleetdm/go
+/orbit/pkg/lvm/                @fleetdm/go
+/orbit/tools/                  @fleetdm/go
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.
@@ -69,10 +99,11 @@ go.mod @fleetdm/go
 /docs                                                   @rachaelshaw
 /docs/solutions                                         @ddribeiro
 /docs/Configuration                                     @rachaelshaw
-/docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
-/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @getvictor @lucasmrod
+/docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing docs are owned by the EMs only — don't add per-path individual owners here (see https://github.com/fleetdm/fleet/issues/46731)
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
-/docs/Contributing/reference                            @rachaelshaw
+/docs/Contributing/reference/api-for-contributors.md    @rachaelshaw
+/docs/Contributing/reference/audit-logs.md              @rachaelshaw
+/docs/Contributing/reference/configuration-for-contributors.md @rachaelshaw
 /docs/Get\ started/why-fleet.md                         @mike-j-thomas
 /render.yaml                                            @rfairburn
 /it-and-security                                        @allenhouchins
@@ -86,26 +117,12 @@ go.mod @fleetdm/go
 #  ╚═╝└┴┘┘└┘└─┘─┴┘  └─┘ ┴   ┴  ┴└─└─┘─┴┘└─┘└─┘ ┴   └─┘┴└─└─┘└─┘┴  └─┘
 ################################################################################################
 
-# MDM
-/docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery @sharon-fdm @getvictor
-/docs/Contributing/product-groups/mdm                   @georgekarrv @JordanMontgomery @sharon-fdm @getvictor
-/docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery @sharon-fdm @getvictor
-
-# Orchestration
-/docs/Contributing/architecture/orchestration           @sharon-fdm @lucasmrod
-/docs/Contributing/product-groups/orchestration         @sharon-fdm @lucasmrod
-/docs/Contributing/research/orchestration               @sharon-fdm @lucasmrod
-
-# Software
-/docs/Contributing/architecture/software                @georgekarrv @cdcme
-/docs/Contributing/product-groups/software              @georgekarrv @cdcme
-/docs/Contributing/research/software                    @georgekarrv @cdcme
-
-# Security & Compliance
-/docs/Contributing/architecture/security-compliance     @sharon-fdm @juan-fdz-hawa
-/docs/Contributing/product-groups/security-compliance   @sharon-fdm @juan-fdz-hawa
-/docs/Contributing/research/security-compliance         @sharon-fdm @juan-fdz-hawa
+# Contributing docs are organized by feature and owned by the EMs via the /docs/Contributing entry
+# above. Team-based entries (which don't go stale with reorgs) are OK; individual owners are not.
 /docs/Contributing/reference/patterns-backend.md        @fleetdm/go
+
+# Website
+/website/api/models                                     @eashaw
 
 ##############################################################################################
 # 🌐 Repo automation and change control settings

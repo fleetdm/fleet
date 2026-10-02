@@ -1,0 +1,1 @@
+- Added an online history modal on the host details page. Clicking a host's online/offline status opens a 30-day checkerboard of that host's connectivity, filtered to a single host.

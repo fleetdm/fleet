@@ -90,21 +90,24 @@ extension AuthenticationViewController:
         // reports "no user configuration for user" and never finishes binding
         // the PSSO user to the local account, so the unlock-key/SecureToken
         // setup stays incomplete and key unwrap fails at login ("previous
-        // password required"). For password mode saving the config is all the
-        // extension needs to do.
+        // password required").
         //
+        // When the framework already knows the user (Setup Assistant, where it
+        // ran the IdP login itself) saving the config is all that's needed.
         // Background repair runs can arrive without a userName; the user login
         // configuration saved by the original registration still names the
         // registered user, so fall back to it rather than failing the whole
-        // registration cycle.
+        // registration cycle. With neither — an existing local account being
+        // registered for the first time — the extension must authenticate the
+        // user itself, which needs UI.
         let userNameParam = userName?.isEmpty == false ? userName : nil
         guard let resolvedUserName = userNameParam ?? loginManager.userLoginConfiguration?.loginUserName,
               !resolvedUserName.isEmpty else {
             if options.contains(.userInteractionEnabled) {
-                logger.error("beginUserRegistration: no user name available")
-                completion(.failed)
+                logger.log("beginUserRegistration: no user name, presenting sign-in to verify IdP credentials")
+                beginInteractiveUserRegistration(loginManager: loginManager, completion: completion)
             } else {
-                logger.log("beginUserRegistration: no user name and interaction disabled, deferring to UI retry")
+                logger.log("beginUserRegistration: no user name and interaction disabled, requesting UI")
                 completion(.userInterfaceRequired)
             }
             return
@@ -123,6 +126,14 @@ extension AuthenticationViewController:
 
     func registrationDidComplete() {
         logger.log("registrationDidComplete")
+        DispatchQueue.main.async { self.discardRegistrationForm() }
+    }
+
+    // The framework cancelled on our behalf, so the pending completion is
+    // dropped rather than called.
+    func registrationDidCancel() {
+        logger.log("registrationDidCancel")
+        DispatchQueue.main.async { self.abandonUserRegistration() }
     }
 
     func protocolVersion() -> ASAuthorizationProviderExtensionPlatformSSOProtocolVersion {

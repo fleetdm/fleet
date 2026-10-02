@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -21,19 +20,26 @@ var vulnerabilitiesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"epss_probability":       "epss_probability",
 	"cisa_known_exploit":     "cisa_known_exploit",
 	"cve_published":          "cm.published",
-	"created_at":             "created_at",
+	"created_at":             vulnFirstDetectedAtExpr,
 	"host_count":             "vhc.host_count",
 	"hosts_count":            "vhc.host_count",
 	"host_count_updated_at":  "vhc.updated_at",
 	"hosts_count_updated_at": "vhc.updated_at",
 }
 
+// vulnFirstDetectedAtExpr is the earliest created_at across both source tables,
+// from the vuln_sc_first / vuln_osv_first joins buildListVulnerabilitiesSQL adds
+// when sorting by created_at.
+const vulnFirstDetectedAtExpr = `LEAST(
+	COALESCE(vuln_sc_first.first_detected_at, vuln_osv_first.first_detected_at),
+	COALESCE(vuln_osv_first.first_detected_at, vuln_sc_first.first_detected_at))`
+
 func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error) {
 	var vuln fleet.VulnerabilityWithMetadata
 
 	eeSelectStmt := `
 		SELECT DISTINCT
-			cm.cve,
+			cve_table.cve,
 			LEAST(COALESCE(osv.created_at, NOW()), COALESCE(sc.created_at, NOW())) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
 			cm.cvss_score,
@@ -43,8 +49,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			cm.description,
 			COALESCE(vhc.host_count, 0) as hosts_count,
 			COALESCE(vhc.updated_at, NOW()) as hosts_count_updated_at
-		FROM cve_meta cm
-		JOIN (
+		FROM (
 			SELECT cve
 			FROM software_cve
 			WHERE cve = ?
@@ -54,10 +59,12 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			SELECT cve
 			FROM operating_system_vulnerabilities
 			WHERE cve = ?
-		) AS cve_table ON cm.cve = cve_table.cve
-		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = cm.cve
-		LEFT JOIN software_cve sc ON sc.cve = cm.cve
-		LEFT JOIN vulnerability_host_counts vhc ON cm.cve = vhc.cve
+		) AS cve_table
+		-- cve_meta is optional: other sources (e.g. MSRC, OVAL) can match a CVE before NVD publishes it.
+		LEFT JOIN cve_meta cm ON cm.cve = cve_table.cve
+		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = cve_table.cve
+		LEFT JOIN software_cve sc ON sc.cve = cve_table.cve
+		LEFT JOIN vulnerability_host_counts vhc ON vhc.cve = cve_table.cve
 `
 
 	freeSelectStmt := `
@@ -199,6 +206,7 @@ func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint
 			s.version,
 			s.source,
 			s.extension_for,
+			s.release,
 			COALESCE(scpe.cpe, '') as generated_cpe,
 			COALESCE(shc.hosts_count, 0) as hosts_count,
 			COALESCE(sc.resolved_in_version, '') as resolved_in_version
@@ -257,6 +265,7 @@ var vulnerabilitiesOuterOrderKeys = common_mysql.OrderKeyAllowlist{
 	"epss_probability":       "p.epss_probability",
 	"cisa_known_exploit":     "p.cisa_known_exploit",
 	"cve_published":          "p.cve_published",
+	"created_at":             "p.first_detected_at",
 	"host_count":             "p.hosts_count",
 	"hosts_count":            "p.hosts_count",
 	"host_count_updated_at":  "p.hosts_count_updated_at",
@@ -304,16 +313,14 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 // Outer query: enrich the paginated page with the cve_meta metadata
 // columns (EE only) and the heavy created_at / source scalar subqueries.
 //
-// Special case: when OrderKey == "created_at" the value to sort by is the
-// scalar subquery output itself, so the inner query has to include it.
-// That falls back to the legacy single-statement form (preserved verbatim
-// below) — performance is unchanged for that specific sort, but every
-// other sort key benefits from the two-stage refactor.
+// Sorting by created_at has to compute that MIN for every in-scope row before
+// it can paginate. The inner query does it with GROUP BY joins rather than the
+// correlated subqueries: over the (cve, created_at) indexes MySQL resolves a
+// GROUP BY MIN with one index seek per CVE (loose index scan), while a
+// correlated MIN reads every row for the CVE. The joins also stand in for the
+// EXISTS filter, which would otherwise make MySQL go back to per-row lookups.
 func buildListVulnerabilitiesSQL(opt *fleet.VulnListOptions) (string, []any, error) {
-	if opt.ListOptions.OrderKey == "created_at" {
-		return buildListVulnerabilitiesLegacySQL(opt)
-	}
-
+	sortByCreatedAt := opt.ListOptions.OrderKey == "created_at"
 	_, cmOrderKey := vulnerabilitiesCMOrderKeys[opt.ListOptions.OrderKey]
 	needCMInInner := cmOrderKey || opt.KnownExploit
 
@@ -330,18 +337,34 @@ func buildListVulnerabilitiesSQL(opt *fleet.VulnListOptions) (string, []any, err
 			cm.cisa_known_exploit,
 			cm.published AS cve_published`)
 	}
+	if sortByCreatedAt {
+		inner.WriteString(`,
+			` + vulnFirstDetectedAtExpr + ` AS first_detected_at`)
+	}
 	inner.WriteString(`
 		FROM vulnerability_host_counts vhc`)
 	if needCMInInner {
 		inner.WriteString(`
 		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve`)
 	}
-	inner.WriteString(`
+	if sortByCreatedAt {
+		inner.WriteString(`
+		LEFT JOIN (
+			SELECT cve, MIN(created_at) AS first_detected_at FROM software_cve GROUP BY cve
+		) vuln_sc_first ON vuln_sc_first.cve = vhc.cve
+		LEFT JOIN (
+			SELECT cve, MIN(created_at) AS first_detected_at FROM operating_system_vulnerabilities GROUP BY cve
+		) vuln_osv_first ON vuln_osv_first.cve = vhc.cve
+		WHERE vhc.host_count > 0
+		AND (vuln_sc_first.cve IS NOT NULL OR vuln_osv_first.cve IS NOT NULL)`)
+	} else {
+		inner.WriteString(`
 		WHERE vhc.host_count > 0
 		AND (
 			EXISTS (SELECT 1 FROM software_cve WHERE cve = vhc.cve)
 			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = vhc.cve)
 		)`)
+	}
 
 	var args []any
 	if opt.TeamID == nil {
@@ -423,88 +446,6 @@ func buildListVulnerabilitiesSQL(opt *fleet.VulnListOptions) (string, []any, err
 	}
 
 	return outer.String(), args, nil
-}
-
-// buildListVulnerabilitiesLegacySQL preserves the original single-statement
-// query used when OrderKey == "created_at" (the only sort key that has to
-// reference the cross-table scalar subquery result).
-func buildListVulnerabilitiesLegacySQL(opt *fleet.VulnListOptions) (string, []any, error) {
-	eeSelectStmt := `
-		SELECT
-			vhc.cve as cve,
-			(SELECT MIN(created_at) FROM (
-				SELECT created_at FROM software_cve WHERE cve = vhc.cve
-				UNION ALL
-				SELECT created_at FROM operating_system_vulnerabilities WHERE cve = vhc.cve
-			) AS combined_dates) as created_at,
-			COALESCE(
-				(SELECT source FROM software_cve WHERE cve = vhc.cve LIMIT 1),
-				(SELECT source FROM operating_system_vulnerabilities WHERE cve = vhc.cve LIMIT 1)
-			) as source,
-			cm.cvss_score,
-			cm.epss_probability,
-			cm.cisa_known_exploit,
-			cm.published as cve_published,
-			cm.description,
-			vhc.host_count as hosts_count,
-			vhc.updated_at as hosts_count_updated_at
-		FROM vulnerability_host_counts vhc
-		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
-		WHERE vhc.host_count > 0
-		AND (
-			EXISTS (SELECT 1 FROM software_cve WHERE cve = vhc.cve)
-			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = vhc.cve)
-		)
-		`
-	freeSelectStmt := `
-		SELECT
-			vhc.cve as cve,
-			(SELECT MIN(created_at) FROM (
-				SELECT created_at FROM software_cve WHERE cve = vhc.cve
-				UNION ALL
-				SELECT created_at FROM operating_system_vulnerabilities WHERE cve = vhc.cve
-			) AS combined_dates) as created_at,
-			COALESCE(
-				(SELECT source FROM software_cve WHERE cve = vhc.cve LIMIT 1),
-				(SELECT source FROM operating_system_vulnerabilities WHERE cve = vhc.cve LIMIT 1)
-			) as source,
-			vhc.host_count as hosts_count,
-			vhc.updated_at as hosts_count_updated_at
-		FROM vulnerability_host_counts vhc
-		WHERE vhc.host_count > 0
-		AND (
-			EXISTS (SELECT 1 FROM software_cve WHERE cve = vhc.cve)
-			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = vhc.cve)
-		)
-		`
-
-	selectStmt := eeSelectStmt
-	if !opt.IsEE {
-		selectStmt = freeSelectStmt
-	}
-
-	var args []any
-	if opt.TeamID == nil {
-		selectStmt += " AND vhc.global_stats = 1"
-	} else {
-		selectStmt += " AND vhc.global_stats = 0 AND vhc.team_id = ?"
-		args = append(args, *opt.TeamID)
-	}
-	if opt.KnownExploit {
-		selectStmt += " AND cm.cisa_known_exploit = 1"
-	}
-	if match := opt.ListOptions.MatchQuery; match != "" {
-		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
-	}
-
-	// Tie-break on cve so pagination is stable across pages when the primary
-	// sort column has ties.
-	if opt.ListOptions.OrderKey != "" && opt.ListOptions.OrderKey != "cve" {
-		opt.ListOptions.TestSecondaryOrderKey = "cve"
-		opt.ListOptions.TestSecondaryOrderDirection = fleet.OrderAscending
-	}
-
-	return appendListOptionsWithCursorToSQLSecure(selectStmt, args, &opt.ListOptions, vulnerabilitiesAllowedOrderKeys)
 }
 
 func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) (uint, error) {
@@ -817,7 +758,12 @@ func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, cou
 
 	// Atomic table swap using RENAME TABLE
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, fmt.Sprintf(`
+		_, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS vulnerability_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "dropping stale old table")
+		}
+
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 			RENAME TABLE
 				vulnerability_host_counts TO vulnerability_host_counts_old,
 				%s TO vulnerability_host_counts
@@ -868,10 +814,15 @@ func (ds *Datastore) insertHostCountsIntoTable(ctx context.Context, tx sqlx.ExtC
 }
 
 func (ds *Datastore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error) {
-	var count uint
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, "SELECT 1 FROM cve_meta WHERE cve = ?", cve)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return false, err
+	var known bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &known, `
+		SELECT
+			EXISTS (SELECT 1 FROM cve_meta WHERE cve = ?)
+			OR EXISTS (SELECT 1 FROM software_cve WHERE cve = ?)
+			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = ?)`,
+		cve, cve, cve)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking if CVE is known to Fleet")
 	}
-	return count > 0, nil
+	return known, nil
 }

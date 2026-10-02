@@ -1,12 +1,12 @@
 import React from "react";
 
 import { LOW_DISK_SPACE_GB } from "pages/DashboardPage/helpers";
-
 import { PlatformValueOptions } from "utilities/constants";
+
+import ABMIssueHosts from "../../cards/ABMIssueHosts";
 import LowDiskSpaceHosts from "../../cards/LowDiskSpaceHosts";
 import MissingHosts from "../../cards/MissingHosts";
 import TotalHosts from "../../cards/TotalHosts";
-import ABMIssueHosts from "../../cards/ABMIssueHosts";
 
 const baseClass = "metrics-host-counts";
 

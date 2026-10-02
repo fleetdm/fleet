@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.17.0",
+      "version": "1.18.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'LocalSend' AND publisher = 'Tien Do Nam';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'LocalSend' AND publisher = 'Tien Do Nam' AND version_compare(version, '1.17.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'LocalSend' AND publisher = 'Tien Do Nam' AND version_compare(version, '1.18.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'localsend.exe');"
       },
-      "installer_url": "https://github.com/localsend/localsend/releases/download/v1.17.0/LocalSend-1.17.0-windows-x86-64.exe",
+      "installer_url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-windows-x86-64-unsigned.exe",
       "install_script_ref": "67e98e13",
       "uninstall_script_ref": "5219aaf4",
-      "sha256": "e554dcf9dc94dd842b54d464b559ac1d3631427bb02480c9a74785ec47ce639c",
+      "sha256": "f53856750ad087a17b996309171262fa7d89071c350e0dc5df6530f34dd8a2ae",
       "default_categories": [
         "Productivity"
       ]

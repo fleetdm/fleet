@@ -1,8 +1,8 @@
 import React from "react";
 
-import PATHS from "router/paths";
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
+import PATHS from "router/paths";
 
 const baseClass = "microsoft-graph-credential-invalid-message";
 
@@ -23,9 +23,9 @@ const MicrosoftGraphCredentialInvalidMessage = () => {
         />
       }
     >
-      Your Microsoft Graph credential is invalid. Windows Autopilot devices
-      won&apos;t sync to Fleet as pending hosts. Users with the admin role in
-      Fleet can update the credential.
+      Your Microsoft Graph client secret is expired, deleted, or has missing
+      permissions. Windows Autopilot devices won&apos;t sync to Fleet as pending
+      hosts. Users with the admin role in Fleet can update the credential.
     </InfoBanner>
   );
 };

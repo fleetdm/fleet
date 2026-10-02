@@ -1,0 +1,13 @@
+.enroll-qr-code {
+  &__frame {
+    // Keeps the frame hugging the code instead of stretching to the
+    // `.form-field` column width.
+    align-self: flex-start;
+
+    // The SVG paints its own background and quiet zone, so the frame only
+    // rounds the corners. `overflow: hidden` is what clips the square SVG.
+    border-radius: $border-radius;
+    overflow: hidden;
+    line-height: 0;
+  }
+}

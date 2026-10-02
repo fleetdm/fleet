@@ -3,8 +3,9 @@ import React from "react";
 import { validateQuery } from "components/forms/validators/validate_query";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
-import { encodeScriptBase64 } from "utilities/scripts_encoding";
 import { getGitOpsModeTipContent } from "utilities/helpers";
+import { encodeScriptBase64 } from "utilities/scripts_encoding";
+
 import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
 
 type IMessageFunc = (formData: IPackageFormData) => string;

@@ -1,10 +1,9 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-
-import { createCustomRenderer } from "test/test-utils";
-
 import { http, HttpResponse } from "msw";
+import React from "react";
+
 import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import AppleOSTargetForm from "./AppleOSTargetForm";
 

@@ -2,11 +2,14 @@
  software/inventory Software tab
  software/versions Software tab (version toggle on)
  */
-import React from "react";
-import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
-import { omit } from "lodash";
 
+import { omit } from "lodash";
+import React from "react";
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
+
+import TableDataError from "components/DataError";
+import Spinner from "components/Spinner";
 import PATHS from "router/paths";
 import softwareAPI, {
   ISoftwareTitlesQueryKey,
@@ -14,9 +17,6 @@ import softwareAPI, {
   ISoftwareVersionsQueryKey,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
-
-import Spinner from "components/Spinner";
-import TableDataError from "components/DataError";
 
 import SoftwareInventoryTable from "./SoftwareInventoryTable";
 import { ISoftwareVulnFilters } from "./SoftwareInventoryTable/helpers";

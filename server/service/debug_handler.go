@@ -7,7 +7,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/pprof"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
@@ -92,7 +94,7 @@ func jsonHandler(
 }
 
 // MakeDebugHandler creates an HTTP handler for the Fleet debug endpoints.
-func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog.Logger, eh *errorstore.Handler, ds fleet.Datastore) http.Handler {
+func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog.Logger, eh *errorstore.Handler, ds fleet.Datastore, agentWSHub *agentws.Hub) http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -108,6 +110,33 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 		return ds.GetTraceSamplerSettings(ctx)
 	})).Methods(http.MethodGet)
 	r.HandleFunc("/debug/trace_sampler", patchTraceSamplerHandler(logger, ds)).Methods(http.MethodPatch)
+	// Agent WebSocket transport observability: a point-in-time view of the
+	// connections held by THIS server instance; instance_id lets consumers
+	// behind a load balancer tell instances apart. Read-path counters are
+	// collected only with debug logging enabled (see metrics_enabled).
+	r.HandleFunc("/debug/agentws", jsonHandler(logger, func(ctx context.Context) (any, error) {
+		if agentWSHub == nil {
+			return map[string]any{"enabled": false}, nil
+		}
+		connections := agentWSHub.Snapshot()
+		readStats := agentWSHub.ReadStats()
+		payload := map[string]any{
+			"enabled":         true,
+			"instance_id":     agentWSHub.InstanceID,
+			"metrics_enabled": config.Logging.Debug,
+			"connections":     connections,
+			"read_stats":      readStats,
+		}
+		// Interval check job timing, for the dashboard's "next sync" countdown.
+		// Remaining time is computed server-side so client clock skew doesn't
+		// matter; zero until the job records its first tick.
+		if next := agentWSHub.NextCheck(); !next.IsZero() {
+			payload["check_interval_seconds"] = config.WebSocket.CheckInterval.Seconds()
+			payload["next_check_in_ms"] = max(0, time.Until(next).Milliseconds())
+		}
+
+		return payload, nil
+	})).Methods(http.MethodGet)
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,

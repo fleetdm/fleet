@@ -1,18 +1,15 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 
-import { AppContext } from "context/app";
-
-import { IMdmVppToken } from "interfaces/mdm";
-import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
-
-import mdmAppleAPI from "services/entities/mdm_apple";
-
-import Modal from "components/Modal";
+import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
+import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { IMdmVppToken } from "interfaces/mdm";
+import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 const baseClass = "edit-teams-vpp-modal";
 

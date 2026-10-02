@@ -76,6 +76,18 @@ type Stats struct {
 	pssoKeyRequests                int
 	pssoKeyExchanges               int
 	pssoErrors                     int
+	websocketConnected             int // gauge: currently connected WebSocket transports
+	websocketConnects              int
+	websocketNotifications         int
+	websocketErrors                int
+
+	// ETag / conditional config stats
+	configFullResponses       int64
+	configNotModified         int64
+	configConditionalRequests int64
+	configResponseBodyBytes   int64
+	configEstimatedSavedBytes int64
+	configETagDrift           int64
 
 	l sync.Mutex
 }
@@ -481,6 +493,104 @@ func (s *Stats) IncrementPSSOErrors() {
 	s.pssoErrors++
 }
 
+func (s *Stats) RecordFullConfigResponse(bodyBytes int64, conditional bool) {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.configFullResponses++
+	s.configResponseBodyBytes += bodyBytes
+	if conditional {
+		s.configConditionalRequests++
+	}
+}
+
+// RecordConfigNotModified records an unchanged response. bodyBytes is what the
+// server actually sent (the constant unchanged body), lastBodyBytes the full
+// config it replaced; only the difference was avoided. Counting the whole prior
+// body as avoided and the unchanged body as nothing would overstate the savings
+// percentage on every unchanged response.
+func (s *Stats) RecordConfigNotModified(bodyBytes, lastBodyBytes int64) {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.configNotModified++
+	s.configConditionalRequests++
+	s.configResponseBodyBytes += bodyBytes
+	if avoided := lastBodyBytes - bodyBytes; avoided > 0 {
+		s.configEstimatedSavedBytes += avoided
+	}
+}
+
+func (s *Stats) IncrementConfigETagDrift() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.configETagDrift++
+}
+
+// Getters for ETag stats (used by tests)
+func (s *Stats) ConfigFullResponses() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configFullResponses
+}
+
+func (s *Stats) ConfigNotModified() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configNotModified
+}
+
+func (s *Stats) ConfigConditionalRequests() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configConditionalRequests
+}
+
+func (s *Stats) ConfigResponseBodyBytes() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configResponseBodyBytes
+}
+
+func (s *Stats) ConfigEstimatedSavedBytes() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configEstimatedSavedBytes
+}
+
+func (s *Stats) ConfigETagDrift() int64 {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.configETagDrift
+}
+
+// UpdateWebSocketConnected adjusts the gauge of currently connected WebSocket
+// transports by delta (+1 on connect, -1 on disconnect).
+func (s *Stats) UpdateWebSocketConnected(delta int) {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.websocketConnected += delta
+	if s.websocketConnected < 0 {
+		s.websocketConnected = 0
+	}
+}
+
+func (s *Stats) IncrementWebSocketConnects() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.websocketConnects++
+}
+
+func (s *Stats) IncrementWebSocketNotifications() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.websocketNotifications++
+}
+
+func (s *Stats) IncrementWebSocketErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.websocketErrors++
+}
+
 func (s *Stats) Log() {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -488,6 +598,13 @@ func (s *Stats) Log() {
 	var errorRate float64
 	if s.osqueryEnrollments > 0 {
 		errorRate = float64(s.errors) / float64(s.osqueryEnrollments)
+	}
+
+	// Estimated config body savings percentage from ETag 304s.
+	var configSavingsPct float64
+	baseline := s.configResponseBodyBytes + s.configEstimatedSavedBytes
+	if baseline > 0 {
+		configSavingsPct = float64(s.configEstimatedSavedBytes) / float64(baseline) * 100.0
 	}
 
 	var b strings.Builder
@@ -506,7 +623,13 @@ func (s *Stats) Log() {
 	fmt.Fprintf(&b, "    orbit enrolls:       %d\n", s.orbitEnrollments)
 	fmt.Fprintf(&b, "    distributed:         reads=%d writes=%d (errs: reads=%d writes=%d)\n",
 		s.distributedReads, s.distributedWrites, s.distributedReadErrors, s.distributedWriteErrors)
+	fmt.Fprintf(&b, "    websocket:           connected=%d connects=%d notifications=%d (errs: %d)\n",
+		s.websocketConnected, s.websocketConnects, s.websocketNotifications, s.websocketErrors)
 	fmt.Fprintf(&b, "    config requests:     %d (errs: %d)\n", s.configRequests, s.configErrors)
+	fmt.Fprintf(&b, "    config etags:        full=%d not_modified=%d conditional=%d drift=%d\n",
+		s.configFullResponses, s.configNotModified, s.configConditionalRequests, s.configETagDrift)
+	fmt.Fprintf(&b, "    config body bytes:   sent=%d avoided=%d (savings: %.1f%%)\n",
+		s.configResponseBodyBytes, s.configEstimatedSavedBytes, configSavingsPct)
 	fmt.Fprintf(&b, "    result log requests: %d (errs: %d)\n", s.resultLogRequests, s.resultLogErrors)
 	fmt.Fprintf(&b, "    buffered logs:       %d\n", s.bufferedLogs)
 	fmt.Fprintf(&b, "    script execs:        %d (errs: %d)\n", s.scriptExecs, s.scriptExecErrs)

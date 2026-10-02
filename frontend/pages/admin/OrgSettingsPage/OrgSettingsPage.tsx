@@ -1,20 +1,21 @@
 import React, { useCallback, useContext, useState } from "react";
-import { InjectedRouter, Params } from "react-router/lib/Router";
-import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 
-import { IConfig } from "interfaces/config";
-import { IApiError } from "interfaces/errors";
-import configAPI from "services/entities/config";
-import { AppContext } from "context/app";
-import deepDifference from "utilities/deep_difference";
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IConfig } from "interfaces/config";
+import { IApiError } from "interfaces/errors";
 import paths from "router/paths";
+import configAPI from "services/entities/config";
+import deepDifference from "utilities/deep_difference";
 
 import SideNav from "../components/SideNav";
-import ORG_SETTINGS_NAV_ITEMS from "./OrgSettingsNavItems";
+
 import { DeepPartial } from "./cards/constants";
+import ORG_SETTINGS_NAV_ITEMS from "./OrgSettingsNavItems";
 
 interface IOrgSettingsPageProps {
   params: Params;

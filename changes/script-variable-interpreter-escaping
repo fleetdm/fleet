@@ -1,0 +1,3 @@
+- Fixed an issue where characters in a Fleet variable's value could change what a script does. Values are now defined at the top of the script, or escaped for Python, and read as literal text.
+- Fleet variables in shell scripts are no longer substituted inside single quotes or a quoted heredoc.
+- In Python scripts, Fleet variables work inside string literals. They aren't supported inside raw (`r"..."`) or bytes (`b"..."`) literals.

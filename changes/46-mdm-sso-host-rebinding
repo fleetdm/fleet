@@ -1,0 +1,2 @@
+- Fixed the setup experience MDM SSO flow letting any caller bind any host UUID to their own IdP account. Fleet now only starts the flow for a host it has just asked to authenticate, and a sign-in that completes after the host has enrolled can no longer replace its IdP account.
+- Added the `bound_host_to_idp_account` and `refused_host_idp_account_change` activities to audit IdP account bindings made through MDM SSO.

@@ -1,0 +1,1 @@
+- Fixed the software versions list (`GET /api/v1/fleet/software/versions`, and the deprecated `GET /api/v1/fleet/software`) ignoring `min_cvss_score` when `max_cvss_score` was also set, so severity filters like "High" or "Critical" returned lower-severity software.

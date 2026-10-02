@@ -7,7 +7,6 @@
   "dependencies": {
     "sails": "^1.5.17",
     "@okta/oidc-middleware": "5.5.1",
-    "@okta/okta-sdk-nodejs": "8.0.0",
     "sails-hook-apianalytics": "^2.0.6",
     "sails-hook-organics": "^3.0.0",
     "sails-hook-orm": "^4.0.3",
@@ -64,6 +63,7 @@
     "@okta/oidc-middleware": {
       "uuid": "11.1.1"
     },
-    "body-parser": "1.20.6"
+    "body-parser": "1.20.6",
+    "qs": "6.16.0"
   }
 }

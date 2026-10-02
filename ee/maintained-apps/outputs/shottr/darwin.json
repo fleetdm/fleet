@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.9.1",
+      "version": "1.9.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'cc.ffitch.shottr';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cc.ffitch.shottr' AND version_compare(bundle_short_version, '1.9.1') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'cc.ffitch.shottr');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cc.ffitch.shottr' AND version_compare(bundle_short_version, '1.9.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'cc.ffitch.shottr' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://shottr.cc/dl/Shottr-1.9.1.dmg",
+      "installer_url": "https://shottr.cc/dl/Shottr-1.9.3b.dmg",
       "install_script_ref": "769e4c94",
       "uninstall_script_ref": "08ac36a2",
-      "sha256": "0bfd797dbcfec52a5e122b50062ad6b954847fe3b53d676c05ac4361f50ce5b3",
+      "sha256": "9debebb9b91a9dfe2c493dc1f5ddc78a2ad25ad5ebbacfca60b7985dc15820de",
       "default_categories": [
         "Productivity"
       ]

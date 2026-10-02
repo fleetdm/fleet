@@ -1,7 +1,7 @@
 import { IVariable, IVariableFormData } from "interfaces/variables";
 import sendRequest from "services";
-import { buildQueryStringFromParams } from "utilities/url";
 import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export interface IListVariablesApiParams {
   page?: number;

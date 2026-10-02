@@ -6,5 +6,6 @@
   "slug": "megasync/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

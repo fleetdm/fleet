@@ -66,6 +66,8 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string
@@ -82,6 +84,8 @@ type PolicyPayload struct {
 
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -129,6 +133,8 @@ type NewTeamPolicyPayload struct {
 	LabelsExcludeAll []string
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	ConditionalAccessEnabled bool
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type *string
@@ -139,6 +145,8 @@ type NewTeamPolicyPayload struct {
 	ContinuousAutomationsEnabled bool
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool
 }
 
 var (
@@ -155,9 +163,13 @@ var (
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
+	errPolicyHiddenWithConditionalAccess             = errors.New("\"hidden\" and \"conditional_access_enabled\" cannot both be set")
 	errPolicyResendProfileInvalidPlatform            = errors.New("\"profile_uuid\" is only valid on \"darwin\" and \"windows\" policies")
 	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
 	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
+	errPolicyNotifyBeforePatchingRequiresPatch       = errors.New("\"notify_before_patching\" is only supported for patch policies")
+	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"patch_when_closed\" or \"notify_before_patching\" can be set to true")
+	ErrPolicyNotifyBeforePatchingRequiresMacOS       = errors.New("\"notify_before_patching\" is only available for macOS Fleet-maintained apps.")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -166,10 +178,25 @@ const PolicyNoTeamID = uint(0)
 // Max times a policy automation will be retried on failure.
 const MaxPolicyAutomationRetries = 3
 
+// Max amount of retries allowed in a row via policy automations.
+const MaxPolicyAutomationInstallAttempts = 10
+
+// Time to live of the install attempt counter key when it is not updated again.
+const PolicyAutomationInstallAttemptExpiry = 24 * time.Hour
+
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
+	if err := PolicyVerifyHidden(p.Hidden, p.ConditionalAccessEnabled); err != nil {
+		return err
+	}
 	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
+	}
+	if p.PatchWhenClosed && p.NotifyBeforePatching {
+		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	if p.Type == PolicyTypePatch {
 		if p.QueryID != nil {
@@ -336,6 +363,15 @@ func PolicyVerifyConditionalAccess(conditionalAccessEnabled bool, platform strin
 	return nil
 }
 
+// PolicyVerifyHidden rejects hiding a conditional access policy: end users must
+// be able to see why their sign-in is blocked.
+func PolicyVerifyHidden(hidden, conditionalAccessEnabled bool) error {
+	if hidden && conditionalAccessEnabled {
+		return errPolicyHiddenWithConditionalAccess
+	}
+	return nil
+}
+
 // ModifyPolicyPayload holds data for policy modification.
 type ModifyPolicyPayload struct {
 	// Name is the name of the policy.
@@ -362,9 +398,11 @@ type ModifyPolicyPayload struct {
 	SoftwareTitleID optjson.Any[uint] `json:"software_title_id" premium:"true"`
 	// SoftwareInstallerID optionally selects which package of the title to install on failure.
 	// When omitted (or 0), the policy defaults to the title's first-added package.
+	// The wire key is `software_package_id`; the endpointer's renameto layer accepts
+	// the legacy `software_installer_id` alias and logs a deprecation warning.
 	//
 	// Only applies to team policies.
-	SoftwareInstallerID optjson.Any[uint] `json:"software_installer_id" premium:"true"`
+	SoftwareInstallerID optjson.Any[uint] `json:"software_installer_id" renameto:"software_package_id" premium:"true"`
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	// Value 0 will unset the current script from the policy.
 	//
@@ -387,6 +425,8 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden *bool `json:"hidden" premium:"true"`
 	// ContinuousAutomationsEnabled indicates whether software/script automations
 	// should run on every failing policy result, not just on pass→fail transitions.
 	//
@@ -397,12 +437,17 @@ type ModifyPolicyPayload struct {
 	Type string `json:"-"`
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed *bool `json:"patch_when_closed" premium:"true"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching *bool `json:"notify_before_patching" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
 func (p ModifyPolicyPayload) Verify() error {
 	if p.PatchWhenClosed != nil && *p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching != nil && *p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
 	}
 	if p.Type == PolicyTypePatch {
 		if p.Name != nil {
@@ -490,6 +535,8 @@ type PolicyData struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled" db:"conditional_access_enabled"`
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool `json:"hidden" db:"hidden"`
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string `json:"type" db:"type"`
@@ -506,6 +553,8 @@ type PolicyData struct {
 
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool `json:"patch_when_closed" db:"patch_when_closed"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool `json:"notify_before_patching" db:"notify_before_patching"`
 
 	UpdateCreateTimestamps
 }
@@ -606,6 +655,7 @@ type PolicySoftwareInstallerData struct {
 	ID                           uint `db:"id"`
 	InstallerID                  uint `db:"software_installer_id"`
 	ContinuousAutomationsEnabled bool `db:"continuous_automations_enabled"`
+	OverridePreInstallQuery      bool `db:"override_pre_install_query"`
 }
 
 type PolicyVPPData struct {
@@ -744,6 +794,12 @@ type PolicySpec struct {
 	// SoftwareTitleID is the title ID of the installer associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the title ID is unset from the policy.
 	SoftwareTitleID *uint `json:"software_title_id"`
+	// SoftwarePackageID optionally pins the policy to a specific package under
+	// the given SoftwareTitleID (team policies only). When nil the applier
+	// falls back to the title's first-added package. Used by GitOps to preserve
+	// which package a policy YAML referenced when the title has multiple
+	// installers sharing a bundle identifier.
+	SoftwarePackageID *uint `json:"software_package_id,omitempty"`
 	// ScriptID is the ID of the script associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the script ID is unset from the policy.
 	ScriptID *uint `json:"script_id"`
@@ -758,6 +814,8 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool `json:"hidden"`
 	// ContinuousAutomationsEnabled indicates whether software/script automations
 	// should run on every failing policy result, not just on pass→fail transitions.
 	//
@@ -765,6 +823,8 @@ type PolicySpec struct {
 	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled"`
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool `json:"patch_when_closed"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool `json:"notify_before_patching"`
 
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
@@ -777,11 +837,12 @@ type PolicySoftwareTitle struct {
 	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
 	// SoftwareInstallerID is the ID of the specific package the policy pins
 	// on a multi-package title. Nil for VPP-backed policies (which pin via
-	// vpp_apps_teams_id, not an installer). The multi-package policy
+	// vpp_apps_teams_id, not a package). The multi-package policy
 	// automation UI reads this on load to reflect the user's non-default
 	// package choice; when nil, the UI falls back to the title's first-added
-	// package.
-	SoftwareInstallerID *uint `json:"software_installer_id,omitempty"`
+	// package. Wire key is `software_package_id` (via the endpointer's renameto
+	// layer, which also accepts the legacy `software_installer_id` alias).
+	SoftwareInstallerID *uint `json:"software_installer_id,omitempty" renameto:"software_package_id"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
 	Name        string `json:"name" db:"name"`
@@ -822,6 +883,9 @@ func (p PolicySpec) Verify() error {
 	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
 		return err
 	}
+	if err := PolicyVerifyHidden(p.Hidden, p.ConditionalAccessEnabled); err != nil {
+		return err
+	}
 	if err := PolicyVerifyResendProfile(p.ProfileUUID, p.Platform); err != nil {
 		return err
 	}
@@ -833,6 +897,12 @@ func (p PolicySpec) Verify() error {
 	}
 	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
+	}
+	if p.PatchWhenClosed && p.NotifyBeforePatching {
+		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	return p.VerifyLabelScopes()
 }

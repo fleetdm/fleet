@@ -46,4 +46,8 @@
     text-align: center;
     line-height: $line-height;
   }
+  &__action {
+    display: flex;
+    justify-content: center;
+  }
 }

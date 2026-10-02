@@ -13,12 +13,13 @@ import teamsAPI from "services/entities/teams";
 export type IPolicyAutomationUpdate = Pick<
   IPolicyFormData,
   | "software_title_id"
-  | "software_installer_id"
+  | "software_package_id"
   | "script_id"
   | "calendar_events_enabled"
   | "conditional_access_enabled"
   | "continuous_automations_enabled"
   | "patch_when_closed"
+  | "notify_before_patching"
 >;
 
 export interface IUpdatePolicyAutomationsVars {

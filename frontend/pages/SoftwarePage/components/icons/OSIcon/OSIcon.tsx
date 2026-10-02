@@ -1,9 +1,12 @@
 /** Renders operating system icons app-wide */
 
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
-import { SOFTWARE_ICON_SIZES, SoftwareIconSizes } from "styles/var/icon_sizes";
+import { SoftwareIconSizes } from "styles/var/icon_sizes";
+
+import MatchedIcon from "../MatchedIcon";
+
 import { getMatchedOsIcon } from "..";
 
 const baseClass = "os-icon";
@@ -32,13 +35,10 @@ const OSIcon = ({ name = "", size = "small", url }: IOSIconProps) => {
     );
   }
 
-  const MatchedIcon = getMatchedOsIcon({ name });
-
   return (
     <MatchedIcon
-      width={SOFTWARE_ICON_SIZES[size]}
-      height={SOFTWARE_ICON_SIZES[size]}
-      viewBox="0 0 32 32"
+      icon={getMatchedOsIcon({ name })}
+      size={size}
       className={classNames}
     />
   );

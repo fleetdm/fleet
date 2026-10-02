@@ -315,11 +315,12 @@ Reference: https://fleetdm.com/pricing
 
 <tr>
 <td>Manual enrollment</td>
-<td>Verify MDM enrollment, run MDM commands.</td>
+<td>Verify MDM enrollment, run MDM commands on both Windows 11 and Windows 10 hosts.</td>
 <td>
 
-1. With Windows MDM turned on and the Setup experience configured (end user authentication and software installs), enroll a Windows host and verify MDM is turned on and the configured software installs.
-2. Verify able to run MDM commands on Windows hosts from the CLI.
+1. With Windows MDM turned on and the Setup experience configured (end user authentication, hidden `_fleetadmin` user, and software installs), enroll a Windows 11 host and verify MDM is turned on and the configured software installs.
+2. Verify able to run MDM commands on Windows 11 hosts from the CLI.
+3. Repeat steps with a Windows 10 host.
 
 </td>
 </tr>
@@ -331,7 +332,7 @@ Reference: https://fleetdm.com/pricing
 
 **Full configuration**
 
-1. Configure a fleet with setup experience items (enable EUA, add FMA & Custom package software), add a configuration profile, enable OS updates, and disk encryption (BitLocker).
+1. Configure a fleet with setup experience items (enable EUA, add FMA & Custom package software), add a configuration profile, enable OS updates, enable hidden `_fleetadmin` user, and disk encryption (BitLocker).
 2. Enroll an Auto-Pilot host via OOBE and verify the ESP completes and all configured items apply.
 
 **Blank enrollment**
@@ -430,6 +431,7 @@ Reference: https://fleetdm.com/pricing
 - [ ] My device page
 - [ ] Scripts
 - [ ] Software
+- [ ] Fleet-maintained apps
 - [ ] Fleet Free
 
 <table>
@@ -503,6 +505,25 @@ Reference: https://fleetdm.com/pricing
 </tr>
 
 <tr>
+<td>Fleet-maintained apps</td>
+<td>Verify Fleet-maintained apps (FMA) can be added, installed, updated, pinned, patched, and removed (macOS & Windows).</td>
+<td>
+
+1. From Software > Add software > Fleet-maintained, add an app for macOS and one for Windows. Verify the installer downloads and the app shows in the fleet's software library with the correct version.
+2. Verify apps already in the fleet show a ✅ icon instead of an Add button in the Fleet-maintained list.
+3. From Host details (macOS & Windows) install the FMA, verify it PASSES and the installed version shows in the host's software inventory.
+4. From My device (macOS & Windows) install an FMA enabled for self-service, verify.
+5. From the app's details page select Actions > Versions, pin to an older version, and verify new installs use the pinned version.
+6. Switch the app back to "Automatically update to latest". On a host running the older version, verify the software shows "Update available", then update it from Host details and from the My device Updates card. Verify the "Updating..." state and that the latest version shows in the host's software inventory.
+7. From the app's details page select Actions > Deploy and choose "Patch when app is closed" or "Force patch". Verify a patch policy is created, fails on a host running an outdated version, and installs the update.
+8. From Host details (macOS & Windows) uninstall the FMA, verify.
+9. Apply `fleet_maintained_apps` (with and without a `version` pin) via GitOps, verify the apps and versions match the YAML.
+10. Verify FMA installs, updates, uninstalls, and edits display correctly in Activity feed.
+
+</td>
+</tr>
+
+<tr>
 <td>Fleet Free</td>
 <td>Verify that product group features behave correctly on Fleet Free.</td>
 <td>
@@ -516,7 +537,7 @@ Run basic checks for the product group area while using a Fleet Free license.
    - Scripts (Add, delete, run)
    - My device page (Mac, Windows, Linux)
 - Premium features are correctly restricted or hidden:
-   - Add software
+   - Add software (including Fleet-maintained apps)
 - No UI, API, or workflow errors occur when using Free-only functionality.
 
 Reference: https://fleetdm.com/pricing
@@ -526,7 +547,7 @@ Reference: https://fleetdm.com/pricing
 
 </table>
 
-### Security & Compliance
+### Supply Chain
 
 **Progress**
 - [ ] Disk encryption (Linux)
@@ -566,10 +587,12 @@ Reference: https://fleetdm.com/pricing
 <td>Verify setup and certificate delivery.</td>
 <td>
 
-1. Configure and verify that certificates deploy to hosts with the following CAs:
+1. Configure and verify that certificates deploy to hosts with the following CAs and that they appear on the Host Details page:
     1. DigiCert
     2. NDES
-    3. SmallStep
+    3. Okta Dynamic SCEP
+    4. SmallStep
+    5. Custom SCEP
 
 </td>
 </tr>

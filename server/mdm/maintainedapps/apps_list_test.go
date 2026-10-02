@@ -6,20 +6,19 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-// knownSharedDarwinIdentifiers allowlists macOS bundle identifiers intentionally
-// shared by more than one differently-named FMA. Such collisions are ambiguous and
-// must be handled by ReconcileMaintainedAppSoftwareNames and fleetMaintainedAppsTeamJoin
-// (see https://github.com/fleetdm/fleet/issues/42445). The test below fails on any
-// new one so it's reviewed against those paths before being added here.
-var knownSharedDarwinIdentifiers = map[string]string{
-	"org.mozilla.firefox": "Mozilla Firefox and Mozilla Firefox ESR",
-}
-
+// TestNoUnexpectedSharedDarwinIdentifiers fails when two unrelated macOS FMAs share a
+// bundle identifier. Shared identifiers are ambiguous and are only handled by
+// ReconcileMaintainedAppSoftwareNames and fleetMaintainedAppsTeamJoin for variants of
+// the same app (see https://github.com/fleetdm/fleet/issues/42445). Variants are
+// expressed with an "@" suffix on the slug's app token (firefox / firefox@esr,
+// druva-insync / druva-insync@govcloud), so apps whose slugs share that base token may
+// share an identifier; anything else is a collision to fix.
 func TestNoUnexpectedSharedDarwinIdentifiers(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	base := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename))))
@@ -29,34 +28,78 @@ func TestNoUnexpectedSharedDarwinIdentifiers(t *testing.T) {
 	var appsList AppsList
 	require.NoError(t, json.Unmarshal(b, &appsList))
 
-	namesByIdentifier := make(map[string]map[string]struct{})
-	for _, app := range appsList.Apps {
+	for identifier, slugs := range unrelatedSharedDarwinIdentifiers(appsList.Apps) {
+		require.Failf(t, "shared macOS bundle identifier",
+			"macOS bundle identifier %q is shared by unrelated Fleet-maintained apps %v.\n"+
+				"Only variants of the same app (slugs that differ by an \"@<variant>\" suffix) may share a "+
+				"bundle identifier; otherwise matching installed software to an FMA is ambiguous.",
+			identifier, slugs)
+	}
+}
+
+func TestUnrelatedSharedDarwinIdentifiers(t *testing.T) {
+	apps := []appListing{
+		{Slug: "firefox/darwin", Platform: "darwin", UniqueIdentifier: "org.mozilla.firefox"},
+		{Slug: "firefox@esr/darwin", Platform: "darwin", UniqueIdentifier: "org.mozilla.firefox"},
+		{Slug: "druva-insync/darwin", Platform: "darwin", UniqueIdentifier: "com.druva.inSyncClient"},
+		{Slug: "druva-insync@govcloud/darwin", Platform: "darwin", UniqueIdentifier: "com.druva.inSyncClient"},
+		// Windows DisplayName collisions are expected and out of scope.
+		{Slug: "amazon-corretto-21/windows", Platform: "windows", UniqueIdentifier: "Amazon Corretto (x64)"},
+		{Slug: "amazon-corretto-25/windows", Platform: "windows", UniqueIdentifier: "Amazon Corretto (x64)"},
+		{Slug: "solo/darwin", Platform: "darwin", UniqueIdentifier: "com.example.solo"},
+	}
+	require.Empty(t, unrelatedSharedDarwinIdentifiers(apps))
+
+	apps = append(apps, appListing{Slug: "other-browser/darwin", Platform: "darwin", UniqueIdentifier: "org.mozilla.firefox"})
+	require.Equal(t, map[string][]string{
+		"org.mozilla.firefox": {"firefox/darwin", "firefox@esr/darwin", "other-browser/darwin"},
+	}, unrelatedSharedDarwinIdentifiers(apps))
+}
+
+// unrelatedSharedDarwinIdentifiers returns, per macOS bundle identifier, the sorted
+// slugs of apps sharing it when those apps are not variants of a single app.
+func unrelatedSharedDarwinIdentifiers(apps []appListing) map[string][]string {
+	slugsByIdentifier := make(map[string][]string)
+	for _, app := range apps {
 		if app.Platform != "darwin" || app.UniqueIdentifier == "" {
 			continue
 		}
-		if namesByIdentifier[app.UniqueIdentifier] == nil {
-			namesByIdentifier[app.UniqueIdentifier] = make(map[string]struct{})
-		}
-		namesByIdentifier[app.UniqueIdentifier][app.Name] = struct{}{}
+		slugsByIdentifier[app.UniqueIdentifier] = append(slugsByIdentifier[app.UniqueIdentifier], app.Slug)
 	}
 
-	for identifier, nameSet := range namesByIdentifier {
-		if len(nameSet) <= 1 {
+	violations := make(map[string][]string)
+	for identifier, slugs := range slugsByIdentifier {
+		if len(slugs) <= 1 {
 			continue
 		}
-		names := make([]string, 0, len(nameSet))
-		for name := range nameSet {
-			names = append(names, name)
+		bases := make(map[string]struct{})
+		for _, slug := range slugs {
+			bases[slugAppBase(slug)] = struct{}{}
 		}
-		sort.Strings(names)
+		if len(bases) > 1 {
+			sort.Strings(slugs)
+			violations[identifier] = slugs
+		}
+	}
+	return violations
+}
 
-		_, allowed := knownSharedDarwinIdentifiers[identifier]
-		require.Truef(t, allowed,
-			"macOS bundle identifier %q is shared by multiple differently-named Fleet-maintained apps (%v) "+
-				"but is not in knownSharedDarwinIdentifiers.\n"+
-				"Shared identifiers are ambiguous and must be handled by ReconcileMaintainedAppSoftwareNames and "+
-				"fleetMaintainedAppsTeamJoin. If this is intentional, confirm those paths handle it and add %q to "+
-				"knownSharedDarwinIdentifiers with a comment.",
-			identifier, names, identifier)
+// slugAppBase returns the app token of a slug ("<app>[@<variant>]/<platform>") without
+// its variant suffix, e.g. "firefox@esr/darwin" -> "firefox".
+func slugAppBase(slug string) string {
+	app, _, _ := strings.Cut(slug, "/")
+	app, _, _ = strings.Cut(app, "@")
+	return app
+}
+
+func TestSlugAppBase(t *testing.T) {
+	for slug, want := range map[string]string{
+		"firefox/darwin":               "firefox",
+		"firefox@esr/darwin":           "firefox",
+		"druva-insync@govcloud/darwin": "druva-insync",
+		"affinity-photo@1/darwin":      "affinity-photo",
+		"1password":                    "1password",
+	} {
+		require.Equal(t, want, slugAppBase(slug), slug)
 	}
 }

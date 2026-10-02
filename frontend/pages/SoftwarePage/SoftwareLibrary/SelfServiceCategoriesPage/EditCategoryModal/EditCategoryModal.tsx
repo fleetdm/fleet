@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 
-import selfServiceCategoriesAPI from "services/entities/self_service_categories";
-import { hasStatusKey } from "interfaces/errors";
-import { ISelfServiceCategory } from "interfaces/self_service_category";
-import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
-
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
+import { hasStatusKey } from "interfaces/errors";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
+import selfServiceCategoriesAPI from "services/entities/self_service_categories";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 const baseClass = "edit-category-modal";
 

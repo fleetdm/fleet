@@ -92,6 +92,15 @@ export default {
     return sendRequest("GET", MDM_AB_TOKENS);
   },
 
+  updateTokenDefault: (
+    id: number,
+    isDefault: boolean
+  ): Promise<IAbTokenResponse> => {
+    const { MDM_AB_TOKEN_DEFAULT } = endpoints;
+    const path = MDM_AB_TOKEN_DEFAULT(id);
+    return sendRequest("PATCH", path, { default: isDefault });
+  },
+
   editTeams: async (params: {
     tokenId: number;
     teams: {

@@ -2,12 +2,16 @@ package fleethttp
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -24,15 +28,20 @@ func TestClient(t *testing.T) {
 		nilRedirect bool
 		timeout     time.Duration
 	}{
-		{"default", nil, true, 0},
+		{"default", nil, true, DefaultTimeout},
 		{"timeout", []ClientOpt{WithTimeout(time.Second)}, true, time.Second},
-		{"nofollow", []ClientOpt{WithFollowRedir(false)}, false, 0},
-		{"tlsconfig", []ClientOpt{WithTLSClientConfig(&tls.Config{})}, true, 0},
+		{"notimeout", []ClientOpt{WithNoTimeout()}, true, 0},
+		{"nofollow", []ClientOpt{WithFollowRedir(false)}, false, DefaultTimeout},
+		{"tlsconfig", []ClientOpt{WithTLSClientConfig(&tls.Config{})}, true, DefaultTimeout},
 		{"combined", []ClientOpt{
 			WithTLSClientConfig(&tls.Config{}),
 			WithTimeout(time.Second),
 			WithFollowRedir(false),
 		}, false, time.Second},
+		{"notimeout wins over earlier timeout", []ClientOpt{
+			WithTimeout(time.Second),
+			WithNoTimeout(),
+		}, true, 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -74,6 +83,7 @@ func TestTransport(t *testing.T) {
 			}
 			assert.NotNil(t, tr.Proxy)
 			assert.NotNil(t, tr.DialContext)
+			assert.Zero(t, tr.ResponseHeaderTimeout)
 		})
 	}
 }
@@ -402,4 +412,308 @@ func TestHostnamesMatch(t *testing.T) {
 			}
 		})
 	}
+}
+
+// sizeLimitedClients covers every way a size-limited client can be built.
+var sizeLimitedClients = map[string]func(maxSize int64) *http.Client{
+	"WithMaxResponseSize": func(maxSize int64) *http.Client {
+		return NewClient(WithTimeout(5*time.Second), WithMaxResponseSize(maxSize))
+	},
+	"NewSizeLimitTransport": func(maxSize int64) *http.Client {
+		cli := NewClient(WithTimeout(5 * time.Second))
+		cli.Transport = NewSizeLimitTransport(maxSize)
+		return cli
+	},
+	// Zero value: base is nil, so RoundTrip has to resolve one itself.
+	"SizeLimitTransport literal": func(maxSize int64) *http.Client {
+		cli := NewClient(WithTimeout(5 * time.Second))
+		cli.Transport = &SizeLimitTransport{maxSizeBytes: maxSize}
+		return cli
+	},
+}
+
+func TestSizeLimitedClientBlocksPrivateNetworks(t *testing.T) {
+	const marker = "loopback-only"
+	const maxSize = 1 << 20
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		io.WriteString(w, marker) //nolint:errcheck
+	}))
+	defer ts.Close()
+
+	for name, newClient := range sizeLimitedClients {
+		t.Run(name, func(t *testing.T) {
+			// Control: with blocking off the listener is reachable, so the
+			// assertions below cannot pass on an unreachable address.
+			setBlockingMode(t, BlockingDisabled)
+			resp, err := newClient(maxSize).Get(ts.URL)
+			require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			require.NoError(t, err)
+			require.Equal(t, marker, string(body))
+
+			for _, mode := range []NetworkBlockingMode{BlockingFull, BlockingPrivateAllowed} {
+				setBlockingMode(t, mode)
+				_, err := newClient(maxSize).Get(ts.URL)
+				require.ErrorIs(t, err, ErrPrivateNetworkBlocked, "mode %v", mode)
+			}
+		})
+	}
+}
+
+func TestSizeLimitedClientEnforcesLimit(t *testing.T) {
+	const maxSize = 1024
+	oversized := strings.Repeat("x", maxSize*2)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/chunked" {
+			// No Content-Length, so the limit can only be enforced while reading.
+			w.Header().Set("Transfer-Encoding", "chunked")
+		}
+		io.WriteString(w, oversized) //nolint:errcheck
+	}))
+	defer ts.Close()
+
+	for name, newClient := range sizeLimitedClients {
+		t.Run(name, func(t *testing.T) {
+			setBlockingMode(t, BlockingDisabled)
+
+			_, err := newClient(maxSize).Get(ts.URL + "/known-length")
+			require.ErrorIs(t, err, ErrMaxSizeExceeded)
+
+			resp, err := newClient(maxSize).Get(ts.URL + "/chunked")
+			require.NoError(t, err)
+			require.EqualValues(t, -1, resp.ContentLength)
+			_, err = io.ReadAll(resp.Body)
+			resp.Body.Close()
+			var maxBytesErr *http.MaxBytesError
+			require.ErrorAs(t, err, &maxBytesErr)
+		})
+	}
+}
+
+// roundTripFunc is deliberately not an *http.Transport, matching how tests
+// stub http.DefaultTransport.
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestSizeLimitedClientPreservesDefaultTransportMock(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	for name, newClient := range sizeLimitedClients {
+		t.Run(name, func(t *testing.T) {
+			var mocked bool
+			orig := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = orig })
+			http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				mocked = true
+				return orig.RoundTrip(r)
+			})
+
+			resp, err := newClient(1 << 20).Get(ts.URL)
+			require.NoError(t, err)
+			resp.Body.Close()
+			require.True(t, mocked, "mock round tripper must stay in the chain")
+		})
+	}
+}
+
+// TestClientTimeoutBehavior verifies the timeout options are wired to http.Client.Timeout and actually abort a slow response, rather
+// than only being recorded on the struct.
+func TestClientTimeoutBehavior(t *testing.T) {
+	// The handler blocks until the test releases it, so the only thing that can end the request is the client timeout.
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(func() {
+		close(release)
+		srv.Close()
+	})
+
+	t.Run("timeout aborts a slow response", func(t *testing.T) {
+		_, err := NewClient(WithTimeout(100 * time.Millisecond)).Get(srv.URL)
+		require.Error(t, err)
+		var netErr interface{ Timeout() bool }
+		require.True(t, errors.As(err, &netErr) && netErr.Timeout(), "expected a timeout error, got %v", err)
+	})
+
+	t.Run("no timeout waits for the response", func(t *testing.T) {
+		cli := NewClient(WithNoTimeout())
+		assert.Zero(t, cli.Timeout)
+		done := make(chan error, 1)
+		go func() {
+			resp, err := cli.Get(srv.URL)
+			if resp != nil {
+				resp.Body.Close()
+			}
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			t.Fatalf("request should still be in flight, got %v", err)
+		case <-time.After(300 * time.Millisecond):
+		}
+	})
+}
+
+func TestClientResponseHeaderTimeout(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(300 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	})
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	tlsSrv := httptest.NewTLSServer(handler)
+	t.Cleanup(tlsSrv.Close)
+	tlsOpt := WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}) //nolint:gosec // test server
+
+	for _, c := range []struct {
+		name    string
+		url     string
+		opts    []ClientOpt
+		wantErr bool
+	}{
+		{"no option waits", srv.URL, nil, false},
+		{"option aborts", srv.URL, []ClientOpt{WithResponseHeaderTimeout(100 * time.Millisecond)}, true},
+		{"option aborts with TLS config", tlsSrv.URL, []ClientOpt{tlsOpt, WithResponseHeaderTimeout(100 * time.Millisecond)}, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			resp, err := NewClient(append(c.opts, WithNoTimeout())...).Get(c.url)
+			if c.wantErr {
+				require.ErrorContains(t, err, "timeout awaiting response headers")
+				return
+			}
+			require.NoError(t, err)
+			resp.Body.Close()
+		})
+	}
+}
+
+func TestNewGithubClientAuthorization(t *testing.T) {
+	var mu sync.Mutex
+	gotAuth := map[string]string{}
+	record := func(name string, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		gotAuth[name] = r.Header.Get("Authorization")
+	}
+
+	mirror := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record("mirror", r)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(mirror.Close)
+	api := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/redirect" {
+			record("api redirect", r)
+			http.Redirect(w, r, mirror.URL+"/asset", http.StatusFound)
+			return
+		}
+		record("api", r)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(api.Close)
+	plainAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record("plain api", r)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(plainAPI.Close)
+
+	// NewClient builds on http.DefaultTransport, so swap in one that trusts the
+	// test servers' certificate (all httptest TLS servers share it).
+	origTransport := http.DefaultTransport
+	http.DefaultTransport = api.Client().Transport
+	t.Cleanup(func() { http.DefaultTransport = origTransport })
+
+	// Stand the test server in for api.github.com.
+	setAPIHost := func(t *testing.T, rawURL string) {
+		u, err := url.Parse(rawURL)
+		require.NoError(t, err)
+		origHost := githubAPIHost
+		githubAPIHost = u.Host
+		t.Cleanup(func() { githubAPIHost = origHost })
+	}
+	setAPIHost(t, api.URL)
+
+	cases := []struct {
+		name         string
+		testToken    string
+		fleetToken   string
+		expectedAuth string
+	}{
+		{name: "no token", expectedAuth: ""},
+		{name: "test token", testToken: "test-tok", expectedAuth: "Bearer test-tok"},
+		{name: "fleet token", fleetToken: "fleet-tok", expectedAuth: "Bearer fleet-tok"},
+		{name: "test token wins", testToken: "test-tok", fleetToken: "fleet-tok", expectedAuth: "Bearer test-tok"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv("NETWORK_TEST_GITHUB_TOKEN", c.testToken)
+			t.Setenv("FLEET_VULNERABILITIES_GITHUB_TOKEN", c.fleetToken)
+			// Ambient GitHub variables must never be picked up.
+			t.Setenv("GITHUB_TOKEN", "ambient-github-token")
+			t.Setenv("GH_TOKEN", "ambient-gh-token")
+			mu.Lock()
+			clear(gotAuth)
+			mu.Unlock()
+
+			cli := NewGithubClient()
+			for _, u := range []string{api.URL, mirror.URL, api.URL + "/redirect"} {
+				resp, err := cli.Get(u)
+				require.NoError(t, err)
+				require.NoError(t, resp.Body.Close())
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			require.Equal(t, map[string]string{
+				"api":          c.expectedAuth,
+				"api redirect": c.expectedAuth,
+				// The token must never leave the GitHub API host, directly or via a redirect.
+				"mirror": "",
+			}, gotAuth)
+		})
+	}
+
+	t.Run("plain HTTP to the API host", func(t *testing.T) {
+		t.Setenv("FLEET_VULNERABILITIES_GITHUB_TOKEN", "fleet-tok")
+		setAPIHost(t, plainAPI.URL)
+		mu.Lock()
+		clear(gotAuth)
+		mu.Unlock()
+
+		resp, err := NewGithubClient().Get(plainAPI.URL)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+
+		mu.Lock()
+		defer mu.Unlock()
+		// The token must never be sent in plaintext.
+		require.Equal(t, map[string]string{"plain api": ""}, gotAuth)
+	})
+
+	t.Run("request without headers", func(t *testing.T) {
+		var gotAuth string
+		base := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			gotAuth = r.Header.Get("Authorization")
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody, Request: r}, nil
+		})
+		req := &http.Request{Method: http.MethodGet, URL: &url.URL{Scheme: "https", Host: githubAPIHost, Path: "/"}}
+
+		resp, err := (&githubTokenTransport{token: "tok", base: base}).RoundTrip(req)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		require.Equal(t, "Bearer tok", gotAuth)
+		require.Nil(t, req.Header, "the caller's request must not be modified")
+	})
 }

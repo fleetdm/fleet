@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strings"
 	"testing"
 
 	ctxabm "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
@@ -454,6 +455,20 @@ func TestMDMProfileSpecUnmarshalJSON(t *testing.T) {
 		require.Nil(t, storedConfig.MDM.MacOSSettings.CustomSettings[0].LabelsExcludeAny) // old key should be removed
 		require.Nil(t, storedConfig.MDM.MacOSSettings.CustomSettings[1].LabelsIncludeAll) // old key should be removed
 	})
+
+	t.Run("legacy string replaces the stored spec", func(t *testing.T) {
+		// same reuse as above, with the old plain-path form of an entry
+		var storedConfig fleet.AppConfig
+		storedConfig.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{{
+			Path:             "some-profile-1",
+			Name:             "Wi-Fi",
+			Description:      "Office network",
+			LabelsIncludeAll: []string{"foo"},
+		}}
+		err := json.Unmarshal([]byte(`{"mdm": {"macos_settings": {"custom_settings": ["some-profile-2"]}}}`), &storedConfig)
+		require.NoError(t, err)
+		require.Equal(t, []fleet.MDMProfileSpec{{Path: "some-profile-2"}}, storedConfig.MDM.MacOSSettings.CustomSettings)
+	})
 }
 
 func TestMDMProfileSpecsMatch(t *testing.T) {
@@ -570,6 +585,26 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 			b: []fleet.MDMProfileSpec{
 				{Path: "path1", LabelsIncludeAll: []string{"label2", "label1"}},
 				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
+			},
+			expected: true,
+		},
+		{
+			name: "Name Or Description Change Is A Change",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Name: "Wi-Fi", Description: "office"},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Name: "Wi-Fi", Description: "home"},
+			},
+			expected: false,
+		},
+		{
+			name: "Name And Description Compared Trimmed",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Name: "Wi-Fi", Description: "office"},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Name: " Wi-Fi ", Description: "office\n"},
 			},
 			expected: true,
 		},
@@ -846,4 +881,91 @@ func TestFilterOutUserScopedProfiles(t *testing.T) {
 	filteredProfiles := fleet.FilterOutUserScopedProfiles(profilesToFilter)
 
 	require.ElementsMatch(t, filteredProfiles, []*fleet.MDMAppleProfilePayload{&systemScopedProfile})
+}
+
+func TestParseSSORelayState(t *testing.T) {
+	for _, initiator := range []string{
+		fleet.SSOInitiatorOTAEnroll,
+		fleet.SSOInitiatorOrbitSetupExperience,
+		fleet.SSOInitiatorAccountDrivenEnroll,
+		fleet.SSOInitiatorAppleMDMSSO,
+		fleet.SSOInitiatorFleetDesktop,
+	} {
+		require.Equal(t, fleet.SSORelayState(initiator), fleet.ParseSSORelayState(initiator))
+	}
+
+	for _, unknown := range []string{
+		"",
+		"FLEET_DESKTOP",
+		"fleet_desktop ",
+		"/device/abc123",
+		// The SAML bindings cap relay state at 80 bytes; a longer value is not
+		// something a conformant IdP echoed back.
+		strings.Repeat("a", 81),
+	} {
+		require.Empty(t, fleet.ParseSSORelayState(unknown), unknown)
+	}
+}
+
+func TestValidateMDMProfileName(t *testing.T) {
+	cases := []struct {
+		name    string
+		wantErr string
+	}{
+		{"Disable camera", ""},
+		{"", "can't be empty"},
+		{"   ", "can't be empty"},
+		{strings.Repeat("a", fleet.MaxProfileNameLength), ""},
+		{strings.Repeat("a", fleet.MaxProfileNameLength+1), fleet.MaxProfileNameLengthErrMsg},
+		{"Wi-Fi $FLEET_SECRET_PASSWORD", "FLEET_SECRET"},
+		{fleetmdm.FleetdConfigProfileName, "not allowed"},
+	}
+	for _, c := range cases {
+		err := fleet.ValidateMDMProfileName(c.name)
+		if c.wantErr == "" {
+			require.NoError(t, err, c.name)
+			continue
+		}
+		require.ErrorContains(t, err, c.wantErr, c.name)
+	}
+}
+
+func TestValidateMDMProfileDescription(t *testing.T) {
+	require.NoError(t, fleet.ValidateMDMProfileDescription(""))
+	require.NoError(t, fleet.ValidateMDMProfileDescription(strings.Repeat("d", fleet.MDMProfileMaxDescriptionLen)))
+	require.ErrorContains(t, fleet.ValidateMDMProfileDescription(strings.Repeat("d", fleet.MDMProfileMaxDescriptionLen+1)), "longer than")
+}
+
+func TestPayloadDisplayNameFromMobileconfig(t *testing.T) {
+	// nested payloads first, as exported by Apple's tools
+	mc := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+	<key>PayloadContent</key>
+	<array><dict>
+		<key>PayloadDisplayName</key>
+		<string>Nested</string>
+		<key>PayloadIdentifier</key>
+		<string>com.example.nested</string>
+		<key>PayloadType</key>
+		<string>com.apple.applicationaccess</string>
+		<key>PayloadUUID</key>
+		<string>11111111-1111-1111-1111-111111111111</string>
+		<key>PayloadVersion</key>
+		<integer>1</integer>
+	</dict></array>
+	<key>PayloadDisplayName</key>
+	<string> Top level </string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.top</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>22222222-2222-2222-2222-222222222222</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict></plist>`)
+	require.Equal(t, "Top level", fleet.PayloadDisplayNameFromMobileconfig(mc))
+	require.Empty(t, fleet.PayloadDisplayNameFromMobileconfig([]byte("<plist/>")))
+	require.Empty(t, fleet.PayloadDisplayNameFromMobileconfig(nil))
 }

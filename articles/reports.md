@@ -48,15 +48,15 @@ How to view a report:
 
 Fleet stores up to 1,000 results per report. If the count stays below this limit, Fleet updates the report each time hosts send new data.
 
-If the results exceed 1,000, Fleet stops updating the report. To start collecting data again, clear the stored results from the report's page. Go to **Advanced options**, check **Discard data**, and select **Save**. Then uncheck **Discard data** and select **Save** again.
+If the results exceed 1,000, Fleet stops updating the report. To start collecting data again, clear the stored results from the report's page. Go to **Advanced options**, uncheck **Store data**, and select **Save**. Then check **Store data** and select **Save** again.
 
 > You can change the 1,000-result limit by setting [`server_settings.report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings).
 
 Persisting results within Fleet creates load on the database, so you'll want to monitor database load as you add queries. If needed, you can disable stored results either globally or per-report.
 
-* Globally via the UI: **Settings** > **Advanced options** > **Disable stored results**
+* Globally via the UI: **Settings** > **Advanced options** > **Store report results** (uncheck to disable)
 * Globally via the API: set [`server_settings.discard_reports_data`](https://fleetdm.com/docs/rest-api/rest-api#server-settings)
-* Per-report via the UI: **Edit report** > **Show advanced options** > **Discard data**
+* Per-report via the UI: **Edit report** > **Show advanced options** > **Store data** (uncheck to disable)
 * Per-report via the API: Set the `discard_data` field when [creating](https://fleetdm.com/docs/rest-api/rest-api#create-report) or [updating](https://fleetdm.com/docs/rest-api/rest-api#update-report) the report
 
 ## Run a report
@@ -81,9 +81,19 @@ The report may take several seconds to complete because Fleet has to wait for th
 
 ## Schedule a report
 
-Fleet allows you to schedule queries to run at a set interval. By default, queries that run on a schedule will only target platforms compatible with that report. This behavior can be overridden by setting the platforms in **Advanced options** when saving a report.
+Fleet allows you to schedule reports to run at a set interval. By default, reports that run on a schedule will only target platforms compatible with that report. This behavior can be overridden by setting the platforms in **Advanced options** when saving a report.
 
 To create a scheduled report, set the interval to a value other than "Never" when [creating a report](#create-a-report). If the report has already been created, select the report and then select **Edit report** to set the interval.
+
+The interval counts time that Fleet's agent (fleetd) runs on the host, not calendar time, meaning the interval only moves forward while the host is awake.
+
+An hourly report's target moments are on the hour, UTC (11:00, 12:00, 1:00, and so on). A weekly report's target moment is Thursday at midnight UTC (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo).
+
+While a host sleeps, its report schedule pauses. This means a laptop that's only awake 8 hours a day will run an "Every day" report every 3 days.
+
+A host also has to be awake and running Fleet at a target moment to report in. A host that is usually off at its target moment, like a desktop shut down for the evening in a less-compatible timezone, can go a long time without new results.
+
+Those are target moments, not exact ones. The first time a host picks up a report, Fleet nudges the interval up or down by up to 10% (configurable via `schedule_splay_percent` in [agent options](https://fleetdm.com/docs/configuration/agent-configuration)) and locks in that adjusted number for that host, so different hosts don't all check in at once. So in practice, an hourly report checks in every 54 to 66 minutes, and a weekly report checks in roughly every 6 to 8 days, consistently for that host. Want to know exactly when a specific host will check in next? Run `SELECT * FROM osquery_schedule` as a live query.
 
 Scheduled reports will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. Automations can be turned off in **Advanced options** or using the bulk **Manage automations** UI.
 

@@ -1,6 +1,7 @@
 import { Meta, StoryObj } from "@storybook/react";
 
 import Chip from "./Chip";
+
 import "../../index.scss";
 
 const meta: Meta<typeof Chip> = {

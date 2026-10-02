@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/agents"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/apps"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/browserext"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/evidence"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/ide"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/instructions"
@@ -60,6 +61,8 @@ var columns = []string{
 	"port",       // listening_port | api_port | local_port
 	"risk_flags", // comma-separated security risk tokens ("" = none)
 	"sha256",     // content hash of the primary artifact (diffable identity / threat-intel match)
+	"confidence", // 0–100 multi-signal confidence (catalog = 100)
+	"evidence",   // CSV of detection signal tokens
 	"uid",
 	"username",
 	"detail", // JSON: type-specific extras
@@ -76,7 +79,7 @@ func columnDefs() []table.ColumnDefinition {
 	defs := make([]table.ColumnDefinition, 0, len(columns))
 	for _, c := range columns {
 		switch c {
-		case "running", "pid", "port":
+		case "running", "pid", "port", "confidence":
 			defs = append(defs, table.IntegerColumn(c))
 		default:
 			defs = append(defs, table.TextColumn(c))
@@ -108,6 +111,12 @@ func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, 
 	var snap *proc.Snapshot
 	if needProc {
 		snap = proc.Take(ctx)
+	}
+
+	// Shared multi-signal evidence (tool homes, workspace shapes, frameworks).
+	var bundle *evidence.Bundle
+	if has("agents") {
+		bundle = evidence.Gather(ctx, hs, snap, types)
 	}
 
 	// MCP config scan feeds only the mcp_server rows (the sockets collector no
@@ -148,7 +157,7 @@ func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, 
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
-			for _, a := range agents.Scan(h, snap) {
+			for _, a := range agents.Scan(h, snap, bundle) {
 				rows = append(rows, agentRow(a))
 			}
 		}
@@ -276,10 +285,19 @@ func ideRow(p ide.Plugin) map[string]string {
 }
 
 func agentRow(a agents.Agent) map[string]string {
+	conf := a.Confidence
+	if conf == 0 && (a.Evidence == "catalog" || strings.HasPrefix(a.Evidence, "catalog")) {
+		conf = 100
+	}
+	cat := a.Category
+	if cat == "" {
+		cat = "agent-runtime"
+	}
 	return row(map[string]string{
 		"type":       "agents",
 		"name":       a.Name,
 		"identifier": a.Binary,
+		"category":   cat,
 		"location":   "local",
 		"source":     a.InstallMethod,
 		"version":    a.Version,
@@ -288,6 +306,8 @@ func agentRow(a agents.Agent) map[string]string {
 		"pid":        itoa(a.PID),
 		"risk_flags": a.RiskFlags,
 		"sha256":     a.SHA256,
+		"confidence": itoa(conf),
+		"evidence":   a.Evidence,
 		"uid":        a.UID,
 		"username":   a.Username,
 	}, map[string]string{
@@ -295,7 +315,15 @@ func agentRow(a agents.Agent) map[string]string {
 		"binary":          a.Binary,
 		"binary_path":     a.BinaryPath,
 		"permission_mode": a.PermissionMode,
+		"kind":            agentKind(a),
 	})
+}
+
+func agentKind(a agents.Agent) string {
+	if strings.Contains(a.Evidence, "catalog") {
+		return "catalog"
+	}
+	return "candidate"
 }
 
 func appRow(a apps.App) map[string]string {

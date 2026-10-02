@@ -213,12 +213,98 @@ func (r *OrbitPostDiskEncryptionKeyRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
+// DiskEncryptionProtectionOutcome is what the agent did about a volume that was encrypted but unprotected.
+type DiskEncryptionProtectionOutcome string
+
+const (
+	// DiskEncryptionProtectionRestored means protection was turned back on.
+	DiskEncryptionProtectionRestored DiskEncryptionProtectionOutcome = "restored"
+	// DiskEncryptionProtectionDeferred means a restart is staged, so the agent deliberately changed nothing.
+	DiskEncryptionProtectionDeferred DiskEncryptionProtectionOutcome = "deferred"
+	// DiskEncryptionProtectionFailed means protection could not be restored; ClientError says why.
+	DiskEncryptionProtectionFailed DiskEncryptionProtectionOutcome = "failed"
+)
+
+// OrbitPostDiskEncryptionProtectionRequest reports the outcome of an attempt to restore disk encryption protection.
+type OrbitPostDiskEncryptionProtectionRequest struct {
+	OrbitNodeKey string                          `json:"orbit_node_key"`
+	Outcome      DiskEncryptionProtectionOutcome `json:"outcome"`
+	ClientError  string                          `json:"client_error"`
+}
+
+func (r *OrbitPostDiskEncryptionProtectionRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostDiskEncryptionProtectionRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostDiskEncryptionProtectionResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostDiskEncryptionProtectionResponse) Error() error { return r.Err }
+func (r OrbitPostDiskEncryptionProtectionResponse) Status() int  { return http.StatusNoContent }
+
 type OrbitPostDiskEncryptionKeyResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
 func (r OrbitPostDiskEncryptionKeyResponse) Error() error { return r.Err }
 func (r OrbitPostDiskEncryptionKeyResponse) Status() int  { return http.StatusNoContent }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Orbit BitLocker startup PIN handoff
+/////////////////////////////////////////////////////////////////////////////////
+
+// OrbitGetDiskEncryptionPINDetailsRequest collects the BitLocker startup PIN the end user submitted from the My device page.
+// The response is the only place the server ever hands the PIN back out, and it can only be read once.
+type OrbitGetDiskEncryptionPINDetailsRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+func (r *OrbitGetDiskEncryptionPINDetailsRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitGetDiskEncryptionPINDetailsRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitGetDiskEncryptionPINDetailsResponse struct {
+	PIN string `json:"pin,omitempty"`
+	// RequestUUID names the submission this PIN came from. The agent echoes it when reporting the outcome.
+	RequestUUID string `json:"request_uuid,omitempty"`
+	Err         error  `json:"error,omitempty"`
+}
+
+func (r OrbitGetDiskEncryptionPINDetailsResponse) Error() error { return r.Err }
+
+// OrbitPostDiskEncryptionPINResultRequest reports whether the agent applied the PIN it collected. Outcome is one of
+// BitLockerPINRequestSet or BitLockerPINRequestFailed; ClientError is required for a failure.
+type OrbitPostDiskEncryptionPINResultRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	// RequestUUID is the id returned with the PIN the agent collected.
+	RequestUUID string                    `json:"request_uuid"`
+	Outcome     BitLockerPINRequestStatus `json:"outcome"`
+	ClientError string                    `json:"client_error"`
+}
+
+func (r *OrbitPostDiskEncryptionPINResultRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostDiskEncryptionPINResultRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostDiskEncryptionPINResultResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostDiskEncryptionPINResultResponse) Error() error { return r.Err }
+func (r OrbitPostDiskEncryptionPINResultResponse) Status() int  { return http.StatusNoContent }
 
 /////////////////////////////////////////////////////////////////////////////////
 // Post Orbit LUKS (Linux disk encryption) data
@@ -248,6 +334,9 @@ type OrbitPostLUKSRequest struct {
 	// LUKSKeyTypePassphrase means the legacy passphrase-in-a-key-slot path;
 	// LUKSKeyTypeRecoveryKey means a TPM-backed FDE recovery key (no Salt/KeySlot).
 	KeyType string `json:"key_type"`
+	// Status reports progress instead of a result; other fields are ignored when set. Only sent to
+	// servers advertising CapabilityLinuxEscrowStatus.
+	Status string `json:"status"`
 }
 
 func (r *OrbitPostLUKSRequest) SetOrbitNodeKey(nodeKey string) {
@@ -264,6 +353,15 @@ type OrbitPostLUKSResponse struct {
 
 func (r OrbitPostLUKSResponse) Error() error { return r.Err }
 func (r OrbitPostLUKSResponse) Status() int  { return http.StatusNoContent }
+
+// Values for OrbitPostLUKSRequest.Status. The first two are progress reports that keep the request
+// in flight; the last two end it without a key or an error.
+const (
+	LinuxEscrowStatusPrompting = "prompting"
+	LinuxEscrowStatusEscrowing = "escrowing"
+	LinuxEscrowStatusCanceled  = "canceled"
+	LinuxEscrowStatusTimedOut  = "timed_out"
+)
 
 /////////////////////////////////////////////////////////////////////////////////
 // Post Orbit Windows managed local account password

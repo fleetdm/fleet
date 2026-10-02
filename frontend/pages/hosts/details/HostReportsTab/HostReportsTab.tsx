@@ -3,27 +3,26 @@ import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { SingleValue } from "react-select-5";
 
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import SearchField from "components/forms/fields/SearchField";
+import Slider from "components/forms/fields/Slider";
+import Pagination from "components/Pagination";
+import Spinner from "components/Spinner";
 import PATHS from "router/paths";
 import hostReportsAPI, {
   IHostReport,
   IListHostReportsResponse,
 } from "services/entities/host_reports";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { pluralize } from "utilities/strings/stringUtils";
 import { getNextLocationPath } from "utilities/helpers";
+import { pluralize } from "utilities/strings/stringUtils";
 
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import SearchField from "components/forms/fields/SearchField";
-import Slider from "components/forms/fields/Slider";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import Pagination from "components/Pagination";
-import EmptyState from "components/EmptyState";
-import Button from "components/buttons/Button";
-
-import HostReportCard from "./HostReportCard";
 import EmptyReports from "./EmptyReports";
+import HostReportCard from "./HostReportCard";
 
 const baseClass = "host-reports-tab";
 

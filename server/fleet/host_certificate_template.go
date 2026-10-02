@@ -12,7 +12,19 @@ const ONCProfileWithheldDetailPrefix = "Waiting for certificate"
 // MaxCertificateInstallRetries is the maximum number of automatic retries after the initial attempt
 // when the Android agent reports a certificate install failure. Manual resend via the UI sets
 // retry_count to this value so the resend gets exactly one attempt with no automatic retry.
-const MaxCertificateInstallRetries uint = 3
+//
+// Retries use exponential backoff, the approximate schedule (AMAPI delivery latency may extend these intervals):
+// updated_at + 2^(retry_count-1) * 30 seconds
+//
+//	Initial delivery: picked up on next cron cycle 0 - 30s
+//	Retry 1: backoff  30s,  cumulative ~1 min
+//	Retry 2: backoff  1min, cumulative ~2 min
+//	Retry 3: backoff  2min, cumulative ~4 min
+//	Retry 4: backoff  4min, cumulative ~8 min
+//	Retry 5: backoff  8min, cumulative ~16 min
+//	Retry 6: backoff 16min, cumulative ~32 min
+//	Retry 7: backoff 32min, cumulative ~64 min (terminal failure)
+const MaxCertificateInstallRetries uint = 7
 
 type HostCertificateTemplate struct {
 	ID                    uint                      `db:"id"`
@@ -49,10 +61,42 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 		ProfileUUID:           AndroidCertificateTemplateProfileID,
 		CertificateTemplateID: &certTemplateID,
 	}
+	// Removals are never retried, so reporting a retry allowance against one would only mislead.
+	if p.OperationType != MDMOperationTypeRemove {
+		retryCount := p.RetryCount
+		maxRetries := MaxCertificateInstallRetries
+		retrying := p.IsRetrying()
+		profile.Retrying = &retrying
+		profile.RetryCount = &retryCount
+		profile.MaxRetries = &maxRetries
+	}
 	if p.Detail != nil {
 		profile.Detail = *p.Detail
 	}
 	return profile
+}
+
+// IsRetrying reports whether Fleet is in the middle of automatically retrying this certificate
+// after a failed install. A retry is put back into an in-progress status and delivered again, so
+// nothing in the status itself distinguishes it from a first delivery.
+//
+// A manual resend also leaves a retry count behind, but it clears the detail to NULL, whereas a
+// retry always writes one — even an empty string, since the host is not required to report a
+// message with a failure. That NULL-versus-set distinction is only available here: the detail is
+// flattened to a plain string by the time it reaches an API consumer.
+func (p *HostCertificateTemplate) IsRetrying() bool {
+	if p == nil || p.OperationType != MDMOperationTypeInstall || p.RetryCount == 0 || p.Detail == nil {
+		// Removals are never retried, and a certificate that has not failed yet has no retries.
+		return false
+	}
+
+	switch p.Status {
+	case CertificateTemplatePending, CertificateTemplateDelivering, CertificateTemplateDelivered:
+		return true
+	default:
+		// Terminally failed or verified: whatever happened, Fleet is no longer retrying.
+		return false
+	}
 }
 
 type CertificateTemplateForHost struct {

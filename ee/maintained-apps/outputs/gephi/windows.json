@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.11.2",
+      "version": "0.11.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Gephi' AND publisher = 'Gephi';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Gephi' AND publisher = 'Gephi' AND version_compare(version, '0.11.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Gephi' AND publisher = 'Gephi' AND version_compare(version, '0.11.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gephi.exe');"
       },
-      "installer_url": "https://github.com/gephi/gephi/releases/download/v0.11.2/gephi-0.11.2-windows-x64.exe",
+      "installer_url": "https://github.com/gephi/gephi/releases/download/v0.11.3/gephi-0.11.3-windows-x64.exe",
       "install_script_ref": "7da5f4b3",
       "uninstall_script_ref": "1dd4653f",
-      "sha256": "d6fb32d8304f8a5c37e584fab2cb02699809904d621c5bb8f887ce09839d864a",
+      "sha256": "bf3f488ab9cdab57e2b9f7ab4f2b449b452391f29a9df4d7c7edea198fb323cf",
       "default_categories": [
         "Productivity"
       ]

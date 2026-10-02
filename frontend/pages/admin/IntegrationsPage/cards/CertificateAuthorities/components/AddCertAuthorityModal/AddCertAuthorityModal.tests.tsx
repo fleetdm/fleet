@@ -1,12 +1,13 @@
-import React from "react";
-import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
 
 import { createMockCertificateAuthorityPartial } from "__mocks__/certificatesMock";
 import { renderWithSetup } from "test/test-utils";
 
-import AddCertAuthorityModal from "./AddCertAuthorityModal";
 import CA_LABEL_BY_TYPE from "../helpers";
+
+import AddCertAuthorityModal from "./AddCertAuthorityModal";
 
 describe("AddCertAuthorityModal", () => {
   it("renders the Custom EST form by default", () => {

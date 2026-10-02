@@ -1,0 +1,1 @@
+Fixed the policy automation Details modal and Automation runs table's Details column showing no explanation when a software install failed because its pre-install query returned no rows.

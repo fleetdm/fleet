@@ -1,11 +1,10 @@
-import React, { useState } from "react";
 import { AxiosResponse } from "axios";
-
-import { IApiError } from "interfaces/errors";
-import { notify } from "components/ToastNotification";
-import mdmAPI from "services/entities/mdm";
+import React, { useState } from "react";
 
 import FileUploader from "components/FileUploader";
+import { notify } from "components/ToastNotification";
+import { IApiError } from "interfaces/errors";
+import mdmAPI from "services/entities/mdm";
 
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
 

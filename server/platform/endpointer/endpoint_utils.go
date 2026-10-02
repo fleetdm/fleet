@@ -106,6 +106,23 @@ func requestFieldName(sf reflect.StructField) string {
 	return name
 }
 
+// sentFieldName is requestFieldName for a field that may have been renamed.
+// The rewriter maps a `renameto` name back to the json tag before decoding, so
+// a caller who used the new name would otherwise be told about a key they never
+// sent.
+func sentFieldName(sf reflect.StructField, rewriter *JSONKeyRewriteReader) string {
+	name := requestFieldName(sf)
+	renameTo, ok := sf.Tag.Lookup("renameto")
+	if !ok || rewriter == nil || slices.Contains(rewriter.UsedDeprecatedKeys(), name) {
+		return name
+	}
+	newName, _, err := ParseTag(renameTo)
+	if err != nil || newName == "" {
+		return name
+	}
+	return newName
+}
+
 // aliasRulesCache caches the result of ExtractAliasRules by reflect.Type so
 // that the reflection walk happens only once per struct type, not on every
 // request.
@@ -115,7 +132,8 @@ var aliasRulesCache sync.Map // reflect.Type → []AliasRule
 // embedded structs) and builds an []AliasRule from fields that carry a
 // `renameto` struct tag. For each such field the json tag's field name
 // becomes OldKey (the current/deprecated name) and the renameto value becomes
-// NewKey (the target name).
+// NewKey (the target name). An optional `renamescope` tag lists the object keys
+// the rename is confined to (see AliasRule.Scope).
 //
 // Only `json` tags are considered; `url` and `query` tags are ignored for now.
 //
@@ -140,18 +158,33 @@ func ExtractAliasRules(iface any) []AliasRule {
 		return cached.([]AliasRule)
 	}
 
-	seen := make(map[AliasRule]bool)
+	seen := make(map[string]bool)
 	var rules []AliasRule
 	extractAliasRulesFromType(t, seen, &rules)
 	aliasRulesCache.Store(t, rules)
 	return rules
 }
 
-func extractAliasRulesFromType(t reflect.Type, seen map[AliasRule]bool, rules *[]AliasRule) {
+func extractAliasRulesFromType(t reflect.Type, seen map[string]bool, rules *[]AliasRule) {
 	// visited tracks types we've already walked to avoid infinite recursion
 	// from cyclic type references (e.g. type Node struct { Children []Node }).
 	visited := make(map[reflect.Type]bool)
 	extractAliasRulesRecursive(t, seen, rules, visited)
+}
+
+// parseRenameScope reads the comma-separated `renamescope` tag listing the object keys a rename is confined to.
+func parseRenameScope(tag reflect.StructTag) []string {
+	raw, ok := tag.Lookup("renamescope")
+	if !ok || raw == "" {
+		return nil
+	}
+	var scope []string
+	for k := range strings.SplitSeq(raw, ",") {
+		if k = strings.TrimSpace(k); k != "" {
+			scope = append(scope, k)
+		}
+	}
+	return scope
 }
 
 // elemType dereferences pointer, slice, array, and map types to find the
@@ -165,7 +198,7 @@ func elemType(t reflect.Type) reflect.Type {
 
 // Recursively extract alias rules from the type t.
 // This should only be called on struct types.
-func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *[]AliasRule, visited map[reflect.Type]bool) {
+func extractAliasRulesRecursive(t reflect.Type, seen map[string]bool, rules *[]AliasRule, visited map[reflect.Type]bool) {
 	if visited[t] {
 		return
 	}
@@ -186,9 +219,14 @@ func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *
 				// Strip options like ",omitempty" from the json tag.
 				jsonFieldName, _, _ := strings.Cut(jsonTag, ",")
 				if jsonFieldName != "" && jsonFieldName != "-" {
-					rule := AliasRule{OldKey: jsonFieldName, NewKey: newKeyName, Inline: inline}
-					if !seen[rule] {
-						seen[rule] = true
+					rule := AliasRule{
+						OldKey: jsonFieldName,
+						NewKey: newKeyName,
+						Inline: inline,
+						Scope:  parseRenameScope(structField.Tag),
+					}
+					if !seen[rule.key()] {
+						seen[rule.key()] = true
 						*rules = append(*rules, rule)
 					}
 				}
@@ -202,6 +240,13 @@ func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *
 			extractAliasRulesRecursive(fieldType, seen, rules, visited)
 		}
 	}
+}
+
+// jsonDecodeErr reports a failure to decode a request body. The decoder's message names the offending
+// field, so surfacing it is what lets a caller find the problem; the generic wording is kept for
+// failures that are not about the body's contents.
+func jsonDecodeErr(err error) error {
+	return BadRequestErr(platform_http.NewUserMessageError(err, http.StatusBadRequest).UserMessage(), err)
 }
 
 func BadRequestErr(publicMsg string, internalErr error) error {
@@ -467,6 +512,10 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 	var uuider platform_http.ErrorUUIDer
 	if errors.As(err, &uuider) {
 		attrs = append(attrs, "uuid", uuider.UUID())
+	} else if logCtx, ok := logging.FromContext(ctx); ok && logCtx.RequestID != "" {
+		// go-kit skips the ServerAfter hooks when an endpoint returns an error, so
+		// LoggingContext.Log never runs for these.
+		attrs = append(attrs, "uuid", logCtx.RequestID)
 	}
 
 	var rle ratelimit.Error
@@ -651,7 +700,7 @@ func MakeDecoder(
 							Gzipped:        gzipped,
 						}
 					}
-					return nil, BadRequestErr("json decoder error", err)
+					return nil, jsonDecodeErr(err)
 				}
 				v = reflect.ValueOf(req)
 			}
@@ -726,7 +775,7 @@ func MakeDecoder(
 					}
 				}
 				if errors.Is(err, io.ErrUnexpectedEOF) {
-					return nil, BadRequestErr("json decoder error", err)
+					return nil, jsonDecodeErr(err)
 				}
 				return nil, err
 			}
@@ -764,7 +813,7 @@ func MakeDecoder(
 					if val && !fp.V.IsZero() {
 						return nil, &platform_http.BadRequestError{Message: fmt.Sprintf(
 							"option %s requires a premium license",
-							requestFieldName(fp.Sf),
+							sentFieldName(fp.Sf, rewriter),
 						)}
 					}
 					continue
@@ -1019,9 +1068,14 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v any, path string) http.Handler
 	}
 
 	limit := e.requestBodySizeLimit
+	if limit == 0 {
+		// fallback to the default max request body size ONLY if a custom value is not provided.
+		limit = platform_http.MaxRequestBodySize
+	}
+
 	if limit != -1 {
-		// Use the maximum of instance defaults and any override (if configured)
-		limit = max(limit, platform_http.MaxRequestBodySize, platform_http.EndpointRequestSizeOverrides[path])
+		// Let endpoint specific overrides expand, but always use the set max in handler.go if set.
+		limit = max(limit, platform_http.EndpointRequestSizeOverrides[path])
 	}
 	h := newServer(endp, e.MakeDecoderFn(v, limit), e.EncodeFn, e.Opts)
 	// The HTTP pre-auth middleware runs outside the kithttp.Server so it can
@@ -1076,6 +1130,14 @@ func (e *CommonEndpointer[H]) AppendCustomMiddleware(mws ...endpoint.Middleware)
 func (e *CommonEndpointer[H]) WithCustomMiddlewareAfterAuth(mws ...endpoint.Middleware) *CommonEndpointer[H] {
 	ae := *e
 	ae.CustomMiddlewareAfterAuth = mws
+	return &ae
+}
+
+// AppendCustomMiddlewareAfterAuth adds to the after-auth middleware already set
+// on the endpointer instead of replacing it.
+func (e *CommonEndpointer[H]) AppendCustomMiddlewareAfterAuth(mws ...endpoint.Middleware) *CommonEndpointer[H] {
+	ae := *e
+	ae.CustomMiddlewareAfterAuth = append(slices.Clone(ae.CustomMiddlewareAfterAuth), mws...)
 	return &ae
 }
 

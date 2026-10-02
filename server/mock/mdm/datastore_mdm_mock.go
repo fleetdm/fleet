@@ -39,7 +39,9 @@ type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (strin
 
 type ExpandHostSecretsFunc func(ctx context.Context, document string, enrollmentID string) (string, error)
 
-type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, errorMsg string) error
+type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error
+
+type SetDiskEncryptionKeyRotationFailedFunc func(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error
 
 type RetrievePushInfoFunc func(ctx context.Context, ids []string) (map[string]*mdm.Push, error)
 
@@ -116,6 +118,9 @@ type MDMAppleStore struct {
 
 	SetRecoveryLockFailedFunc        SetRecoveryLockFailedFunc
 	SetRecoveryLockFailedFuncInvoked bool
+
+	SetDiskEncryptionKeyRotationFailedFunc        SetDiskEncryptionKeyRotationFailedFunc
+	SetDiskEncryptionKeyRotationFailedFuncInvoked bool
 
 	RetrievePushInfoFunc        RetrievePushInfoFunc
 	RetrievePushInfoFuncInvoked bool
@@ -258,11 +263,18 @@ func (fs *MDMAppleStore) ExpandHostSecrets(ctx context.Context, document string,
 	return fs.ExpandHostSecretsFunc(ctx, document, enrollmentID)
 }
 
-func (fs *MDMAppleStore) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+func (fs *MDMAppleStore) SetRecoveryLockFailed(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error {
 	fs.mu.Lock()
 	fs.SetRecoveryLockFailedFuncInvoked = true
 	fs.mu.Unlock()
-	return fs.SetRecoveryLockFailedFunc(ctx, hostUUID, errorMsg)
+	return fs.SetRecoveryLockFailedFunc(ctx, hostUUID, commandUUID, errorMsg)
+}
+
+func (fs *MDMAppleStore) SetDiskEncryptionKeyRotationFailed(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error {
+	fs.mu.Lock()
+	fs.SetDiskEncryptionKeyRotationFailedFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.SetDiskEncryptionKeyRotationFailedFunc(ctx, hostUUID, commandUUID, errorMsg)
 }
 
 func (fs *MDMAppleStore) RetrievePushInfo(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {

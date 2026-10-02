@@ -81,6 +81,12 @@ func (p *Provider) do(ctx context.Context, pushInfo *mdm.Push) *push.Response {
 		exp := time.Now().Add(p.expiration)
 		req.Header.Set("apns-expiration", strconv.FormatInt(exp.Unix(), 10))
 	}
+	req.Header.Set("apns-push-type", "mdm")
+	if pushInfo.Topic != "" {
+		// an empty topic is invalid; omitting the header instead lets APNs
+		// infer the topic from the client certificate's UID
+		req.Header.Set("apns-topic", pushInfo.Topic)
+	}
 	r, err := p.client.Do(req)
 	var goAwayErr http2.GoAwayError
 	if errors.As(err, &goAwayErr) {

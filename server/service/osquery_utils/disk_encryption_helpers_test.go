@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIsDiskEncryptionEnabledForHost(t *testing.T) {
-	ctx := context.Background()
+func TestIsDiskEncryptionEscrowEnabledForHost(t *testing.T) {
+	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
 
 	// a mixed state: macOS and Windows on, Linux off
@@ -46,7 +46,7 @@ func TestIsDiskEncryptionEnabledForHost(t *testing.T) {
 		platform string
 		want     bool
 	}{
-		{"darwin follows the macOS pair", "darwin", true},
+		{"darwin follows the macOS escrow setting", "darwin", true},
 		{"windows follows the windows setting", "windows", true},
 		{"linux follows the linux escrow setting", "ubuntu", false},
 		{"unknown platform is never enabled", "chrome", false},
@@ -60,7 +60,7 @@ func TestIsDiskEncryptionEnabledForHost(t *testing.T) {
 				return mixedTeamMDM, nil
 			}
 
-			require.Equal(t, tc.want, IsDiskEncryptionEnabledForHost(ctx, logger, ds, host))
+			require.Equal(t, tc.want, IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host))
 			require.True(t, ds.TeamMDMConfigFuncInvoked)
 			require.False(t, ds.AppConfigFuncInvoked, "Global config should not be checked when host is on a team")
 		})
@@ -73,12 +73,12 @@ func TestIsDiskEncryptionEnabledForHost(t *testing.T) {
 				return &fleet.AppConfig{MDM: mixedGlobalMDM}, nil
 			}
 
-			require.Equal(t, tc.want, IsDiskEncryptionEnabledForHost(ctx, logger, ds, host))
+			require.Equal(t, tc.want, IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host))
 			require.True(t, ds.AppConfigFuncInvoked)
 		})
 	}
 
-	t.Run("macOS pair: escrow alone is enough", func(t *testing.T) {
+	t.Run("macOS: escrow alone is enough", func(t *testing.T) {
 		ds := new(mock.Store)
 		host := &fleet.Host{ID: 1, TeamID: new(uint(1)), Platform: "darwin"}
 
@@ -90,7 +90,24 @@ func TestIsDiskEncryptionEnabledForHost(t *testing.T) {
 			}, nil
 		}
 
-		require.True(t, IsDiskEncryptionEnabledForHost(ctx, logger, ds, host))
+		require.True(t, IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host))
+	})
+
+	t.Run("macOS: enforcement alone escrows nothing", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, TeamID: new(uint(1)), Platform: "darwin"}
+
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			return &fleet.TeamMDM{
+				MacOSSettings: fleet.MacOSSettings{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+			}, nil
+		}
+
+		// the profile carries no escrow payload, so no key reaches Fleet and
+		// ingesting one would store a key nobody asked to be escrowed
+		require.False(t, IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host))
 	})
 
 	t.Run("team has disk encryption disabled", func(t *testing.T) {
@@ -101,7 +118,7 @@ func TestIsDiskEncryptionEnabledForHost(t *testing.T) {
 			return &fleet.TeamMDM{}, nil
 		}
 
-		require.False(t, IsDiskEncryptionEnabledForHost(ctx, logger, ds, host))
+		require.False(t, IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host))
 		require.True(t, ds.TeamMDMConfigFuncInvoked)
 	})
 
@@ -113,7 +130,7 @@ func TestIsDiskEncryptionEnabledForHost(t *testing.T) {
 			return nil, nil
 		}
 
-		require.False(t, IsDiskEncryptionEnabledForHost(ctx, logger, ds, host))
+		require.False(t, IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host))
 	})
 
 	t.Run("error getting team config returns false", func(t *testing.T) {
@@ -124,7 +141,7 @@ func TestIsDiskEncryptionEnabledForHost(t *testing.T) {
 			return nil, &fleet.Error{Message: "db error"}
 		}
 
-		require.False(t, IsDiskEncryptionEnabledForHost(ctx, logger, ds, host))
+		require.False(t, IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host))
 	})
 
 	t.Run("error getting app config returns false", func(t *testing.T) {
@@ -135,6 +152,6 @@ func TestIsDiskEncryptionEnabledForHost(t *testing.T) {
 			return nil, &fleet.Error{Message: "db error"}
 		}
 
-		require.False(t, IsDiskEncryptionEnabledForHost(ctx, logger, ds, host))
+		require.False(t, IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host))
 	})
 }

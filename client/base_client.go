@@ -73,9 +73,11 @@ func (bc *BaseClient) ParseResponse(verb, path string, response *http.Response, 
 			break
 		}
 
+		name, reason := ExtractServerErrorNameReason(response.Body)
 		e := &StatusCodeErr{
 			Code: response.StatusCode,
-			Body: ExtractServerErrorText(response.Body),
+			Body: reason,
+			Name: name,
 		}
 		return fmt.Errorf("%s %s received status %w", verb, path, e)
 	}
@@ -162,6 +164,7 @@ func NewBaseClient(
 	fleetClientCert *tls.Certificate,
 	capabilities fleet.CapabilityMap,
 	signerWrapper func(*http.Client) *http.Client,
+	httpOpts ...fleethttp.ClientOpt,
 ) (*BaseClient, error) {
 	baseURL, err := url.Parse(addr)
 	if err != nil {
@@ -208,7 +211,8 @@ func NewBaseClient(
 		tlsConfig.RootCAs = rootCAPool
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsConfig))
+	httpOpts = append([]fleethttp.ClientOpt{fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(tlsConfig)}, httpOpts...)
+	httpClient := fleethttp.NewClient(httpOpts...)
 	if signerWrapper != nil {
 		httpClient = signerWrapper(httpClient)
 	}
@@ -260,9 +264,12 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	// filepath.Base("") returns "." and filepath.Base("..") returns "..",
 	// neither of which is a valid installer filename.
 	if filename == "" || filename == "." || filename == ".." {
-		filename = f.DestFile
+		// DestFile is server-supplied (e.g. the installer name on the Orbit
+		// signed-URL download path, where SkipMediaType is set), so use only its
+		// base name when building the destination path.
+		filename = filepath.Base(f.DestFile)
 	}
-	if filename == "" {
+	if filename == "" || filename == "." || filename == ".." {
 		filename = uuid.NewString()
 	}
 

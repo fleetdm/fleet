@@ -1,16 +1,16 @@
 import React, { useCallback, useContext, useEffect, useMemo } from "react";
-import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
+import { Tab, Tabs, TabList } from "react-tabs";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { API_NO_TEAM_ID } from "interfaces/team";
-import useTeamIdParam from "hooks/useTeamIdParam";
-
+import FleetsDropdown from "components/FleetsDropdown";
+import MainContent from "components/MainContent";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import MainContent from "components/MainContent";
-import FleetsDropdown from "components/FleetsDropdown";
+import { AppContext } from "context/app";
+import useTeamIdParam from "hooks/useTeamIdParam";
+import { API_NO_TEAM_ID } from "interfaces/team";
+import PATHS from "router/paths";
+
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./OSUpdates/components/CurrentVersionSection/CurrentVersionSection";
 
 interface IControlsSubNavItem {

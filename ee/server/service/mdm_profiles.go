@@ -10,6 +10,12 @@ type fileVaultProfileOptions struct {
 	PayloadIdentifier    string
 	PayloadName          string
 	Base64DerCertificate string
+	// EnableEnforcement and EnableEscrow select which payloads the profile
+	// carries. Both on must render byte-identically to the pre-per-platform
+	// profile, so the guards below are anchored on existing line breaks rather
+	// than sitting on their own lines.
+	EnableEnforcement bool
+	EnableEscrow      bool
 }
 
 var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
@@ -17,7 +23,7 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 <plist version="1.0">
 <dict>
 	<key>PayloadContent</key>
-	<array>
+	<array>{{ if .EnableEnforcement }}
 		<dict>
 			<key>Defer</key>
 			<true/>
@@ -34,12 +40,12 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 			<key>ShowRecoveryKey</key>
-			<false/>
+			{{ if .EnableEscrow }}<false/>{{ else }}<true/>{{ end }}
 			<key>DeferForceAtUserLoginMaxBypassAttempts</key>
 			<integer>0</integer>
 			<key>ForceEnableInSetupAssistant</key>
 			<true/>
-		</dict>
+		</dict>{{ end }}{{ if .EnableEscrow }}
 		<dict>
 			<key>EncryptCertPayloadUUID</key>
 			<string>A326B71F-EB80-41A5-A8CD-A6F932544281</string>
@@ -71,7 +77,7 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<string>A326B71F-EB80-41A5-A8CD-A6F932544281</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
-		</dict>
+		</dict>{{ end }}{{ if .EnableEnforcement }}
 		<dict>
 			<key>dontAllowFDEDisable</key>
 			<true/>
@@ -83,7 +89,7 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<string>62024f29-105E-497A-A724-1D5BA4D9E854</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
-		</dict>
+		</dict>{{ end }}
 	</array>
 	<key>PayloadDisplayName</key>
 	<string>{{ .PayloadName }}</string>

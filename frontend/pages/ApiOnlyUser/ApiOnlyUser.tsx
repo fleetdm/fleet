@@ -1,12 +1,11 @@
 import React, { useEffect } from "react";
 import { InjectedRouter } from "react-router";
 
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import paths from "router/paths";
 import usersAPI from "services/entities/users";
-
-import CustomLink from "components/CustomLink";
-import Button from "components/buttons/Button";
-import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 
 interface IApiOnlyUserProps {
   router: InjectedRouter;

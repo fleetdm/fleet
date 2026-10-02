@@ -1,24 +1,24 @@
+import FileSaver from "file-saver";
 import React, { useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import FileSaver from "file-saver";
-
-import { notify } from "components/ToastNotification";
-import { IConfig } from "interfaces/config";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
-import InputField from "components/forms/fields/InputField";
-import TooltipWrapper from "components/TooltipWrapper";
-import TabNav from "components/TabNav";
-import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
+import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
+import InfoBanner from "components/InfoBanner/InfoBanner";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IConfig } from "interfaces/config";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
-import IosIpadosPanel from "./IosIpadosPanel";
+
 import AndroidPanel from "./AndroidPanel";
+import IosIpadosPanel from "./IosIpadosPanel";
 import MacosPanel from "./MacosPanel";
 
 interface IPlatformSubNav {
@@ -338,7 +338,14 @@ const PlatformWrapper = ({
     }
 
     if (packageType === "ios-ipados") {
-      return <IosIpadosPanel enrollSecret={enrollSecret} />;
+      return (
+        <IosIpadosPanel
+          enrollSecret={enrollSecret}
+          isManualAppleEnrollmentsBlocked={
+            config?.mdm.only_allow_apple_business_enrollment || false
+          }
+        />
+      );
     }
 
     if (packageType === "android") {
@@ -346,7 +353,14 @@ const PlatformWrapper = ({
     }
 
     if (packageType === "pkg") {
-      return <MacosPanel enrollSecret={enrollSecret} />;
+      return (
+        <MacosPanel
+          enrollSecret={enrollSecret}
+          isManualAppleEnrollmentsBlocked={
+            config?.mdm.only_allow_apple_business_enrollment || false
+          }
+        />
+      );
     }
 
     if (packageType === "advanced") {

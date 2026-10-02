@@ -11,8 +11,8 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type listMicrosoftGraphCredentialsResponse struct {
-	MicrosoftGraphCredentials []*fleet.MicrosoftGraphCredential `json:"microsoft_graph_credentials"`
-	Err                       error                             `json:"error,omitempty"`
+	MicrosoftGraphCredentials []*fleet.MicrosoftGraphCredentialMetadata `json:"microsoft_graph_credentials"`
+	Err                       error                                     `json:"error,omitempty"`
 }
 
 func (r listMicrosoftGraphCredentialsResponse) Error() error { return r.Err }
@@ -25,7 +25,7 @@ func listMicrosoftGraphCredentialsEndpoint(ctx context.Context, _ any, svc fleet
 	return listMicrosoftGraphCredentialsResponse{MicrosoftGraphCredentials: creds}, nil
 }
 
-func (svc *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+func (svc *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 	// skipauth: No authorization check needed due to implementation returning only license error.
 	svc.authz.SkipAuthorization(ctx)
 	return nil, fleet.ErrMissingLicense

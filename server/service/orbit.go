@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
@@ -93,6 +94,18 @@ func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey stri
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
+// euaTokenError records the underlying error on the log line and returns the
+// uniform OrbitError shape the rest of EnrollOrbit uses, so an EUA token failure
+// is answered with the same status and body as any other enroll failure. A
+// cancelled request is passed through so the transport still answers 499.
+func euaTokenError(ctx context.Context, err error, msg string) error {
+	if errors.Is(err, context.Canceled) {
+		return ctxerr.Wrap(ctx, err, msg)
+	}
+	recordErrorDetail(ctx, err)
+	return fleet.OrbitError{Message: msg}
+}
+
 // processWindowsEUAToken validates a Fleet-signed EUA token from the Windows MSI
 // installer, ensures the IdP account exists, and returns the UPN, device ID,
 // and IdP account UUID. The actual host_mdm_idp_accounts row is written by
@@ -122,7 +135,7 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 				"device_id", deviceID, "host_uuid", hostUUID)
 			return "", "", "", fleet.NewOrbitIDPAuthRequiredError()
 		}
-		return "", "", "", ctxerr.Wrap(ctx, err, "getting windows mdm enrollment for EUA token")
+		return "", "", "", euaTokenError(ctx, err, "getting windows mdm enrollment for EUA token")
 	}
 
 	// Fetch or create the mdm_idp_accounts row for this email.
@@ -130,29 +143,58 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 	// that may have been populated by SCIM provisioning.
 	acct, err := svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
 	if err != nil && !fleet.IsNotFound(err) {
-		return "", "", "", ctxerr.Wrap(ctx, err, "getting mdm idp account by email for EUA token")
+		return "", "", "", euaTokenError(ctx, err, "getting mdm idp account by email for EUA token")
 	}
 	if fleet.IsNotFound(err) {
 		if err := svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Email: upn, Username: upn}); err != nil {
-			return "", "", "", ctxerr.Wrap(ctx, err, "inserting mdm idp account for EUA token")
+			return "", "", "", euaTokenError(ctx, err, "inserting mdm idp account for EUA token")
 		}
 		// Re-fetch to get the UUID assigned by the DB.
 		acct, err = svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
 		if err != nil {
-			return "", "", "", ctxerr.Wrap(ctx, err, "re-fetching mdm idp account after insert for EUA token")
+			return "", "", "", euaTokenError(ctx, err, "re-fetching mdm idp account after insert for EUA token")
 		}
 	}
 	if acct == nil {
-		return "", "", "", ctxerr.New(ctx, "mdm idp account not found for EUA token")
+		return "", "", "", fleet.OrbitError{Message: "mdm idp account not found for EUA token"}
 	}
 
 	return upn, deviceID, acct.UUID, nil
 }
 
+// recordPendingEndUserAuth keeps the "Fleet asked this device's end user to sign
+// in" record in step with the enroll response. The unauthenticated setup
+// experience MDM SSO flow refuses any host UUID that is not recorded here.
+// endUserAuthChecked says the host was subject to end user auth, so a success
+// may have a prompt to clear; other hosts never had one.
+func (svc *Service) recordPendingEndUserAuth(ctx context.Context, hostUUID string, enrollErr error, endUserAuthChecked bool) {
+	if svc.keyValueStore == nil || hostUUID == "" {
+		// Without a store there is nothing to keep in step: the SSO flow reads
+		// the same nil store and fails closed.
+		return
+	}
+
+	switch {
+	case fleet.IsOrbitIDPAuthRequired(enrollErr):
+		if err := shared_mdm.RecordEndUserAuthPrompt(ctx, svc.keyValueStore, hostUUID, svc.clock.Now()); err != nil {
+			svc.logger.ErrorContext(ctx, "recording pending end user auth prompt",
+				"err", err, "host_uuid", hostUUID)
+		}
+	case enrollErr == nil && endUserAuthChecked:
+		if err := shared_mdm.ClearEndUserAuthPrompt(ctx, svc.keyValueStore, hostUUID); err != nil {
+			svc.logger.ErrorContext(ctx, "clearing pending end user auth prompt",
+				"err", err, "host_uuid", hostUUID)
+		}
+	}
+}
+
 // EnrollOrbit enrolls an Orbit instance to Fleet and returns the orbit node key.
-func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string, euaToken string) (string, error) {
+func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string, euaToken string) (nodeKey string, err error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
+
+	var endUserAuthChecked bool
+	defer func() { svc.recordPendingEndUserAuth(ctx, hostInfo.HardwareUUID, err, endUserAuthChecked) }()
 
 	// Force primary reads for the whole handler. EnrollOrbit is a
 	// read-after-write flow: the Setup Experience SSO callback and the MSI
@@ -166,7 +208,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	ctx = ctxdb.RequirePrimary(ctx, true)
 
 	logging.WithLevel(
-		logging.WithExtras(ctx,
+		logging.WithExtras(
+			ctx,
 			"hardware_uuid", hostInfo.HardwareUUID,
 			"hardware_serial", hostInfo.HardwareSerial,
 			"hostname", hostInfo.Hostname,
@@ -179,16 +222,47 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		slog.LevelInfo,
 	)
 
-	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			// OK - This can happen if the following sequence of events take place:
-			// 	1. User deletes global/team enroll secret.
-			// 	2. User deletes the host in Fleet.
-			// 	3. Orbit tries to re-enroll using old secret.
+	attempt := enrollmentAttempt{
+		plane:          fleet.EnrollmentPlaneOrbit,
+		platform:       hostInfo.Platform,
+		hardwareUUID:   hostInfo.HardwareUUID,
+		hardwareSerial: hostInfo.HardwareSerial,
+	}
+	var (
+		enrollTeamID *uint
+		secretOpts   []fleet.DatastoreEnrollOrbitOption
+	)
+	var oneTime *fleet.HostOneTimeEnrollSecret
+	if svc.config.MDM.OneTimeEnrollSecretsEnabled() {
+		var err error
+		oneTime, err = svc.lookupOneTimeEnrollSecret(ctx, enrollSecret)
+		if err != nil {
+			recordErrorDetail(ctx, err)
+			return "", fleet.OrbitError{Message: "enroll failed"}
+		}
+	}
+	if oneTime != nil {
+		if !oneTime.MatchesHost(hostInfo.Platform, hostInfo.HardwareUUID, hostInfo.HardwareSerial) {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, oneTime.HostID, attempt)
 			return "", fleet.NewAuthFailedError("invalid secret")
 		}
-		return "", fleet.OrbitError{Message: err.Error()}
+		enrollTeamID = oneTime.TeamID
+		secretOpts = append(secretOpts, fleet.WithEnrollOrbitOneTimeEnrollSecret(oneTime.ID))
+	} else {
+		secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				// OK - This can happen if the following sequence of events take place:
+				// 	1. User deletes global/team enroll secret.
+				// 	2. User deletes the host in Fleet.
+				// 	3. Orbit tries to re-enroll using old secret.
+				return "", fleet.NewAuthFailedError("invalid secret")
+			}
+			recordErrorDetail(ctx, err)
+			return "", fleet.OrbitError{Message: "enroll failed"}
+		}
+		enrollTeamID = secret.TeamID
+		secretOpts = append(secretOpts, fleet.WithEnrollOrbitRejectSharedSecretForAppleMDMHosts(svc.config.MDM.AppleOneTimeEnrollSecrets))
 	}
 
 	identifier := hostInfo.OsqueryIdentifier
@@ -198,7 +272,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 
 	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, identifier)
 	if err != nil && !fleet.IsNotFound(err) {
-		return "", fleet.OrbitError{Message: fmt.Sprintf("loading certificate: %s", err.Error())}
+		recordErrorDetail(ctx, err)
+		return "", fleet.OrbitError{Message: "loading certificate"}
 	}
 
 	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
@@ -216,19 +291,22 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 
 	orbitNodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
-		return "", fleet.OrbitError{Message: "failed to generate orbit node key: " + err.Error()}
+		recordErrorDetail(ctx, err)
+		return "", fleet.OrbitError{Message: "failed to generate orbit node key"}
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", fleet.OrbitError{Message: "app config load failed: " + err.Error()}
+		recordErrorDetail(ctx, err)
+		return "", fleet.OrbitError{Message: "app config load failed"}
 	}
 	isEndUserAuthRequired := appConfig.MDM.MacOSSetup.EnableEndUserAuthentication
 	// If the secret is for a team, get the team config as well.
-	if secret.TeamID != nil {
-		team, err := svc.ds.TeamLite(ctx, *secret.TeamID)
+	if enrollTeamID != nil {
+		team, err := svc.ds.TeamLite(ctx, *enrollTeamID)
 		if err != nil {
-			return "", fleet.OrbitError{Message: "failed to get team config: " + err.Error()}
+			recordErrorDetail(ctx, err)
+			return "", fleet.OrbitError{Message: "failed to get team config"}
 		}
 		isEndUserAuthRequired = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 	}
@@ -239,85 +317,101 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		if hostInfo.HardwareUUID == "" {
 			return "", fleet.OrbitError{Message: "failed to get IdP account: hardware uuid is empty"}
 		}
+		endUserAuthChecked = true
 		// Try to find an IdP account for this host.
 		idpAccount, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, hostInfo.HardwareUUID)
 		if err != nil {
-			return "", fleet.OrbitError{Message: "failed to get IdP account: " + err.Error()}
+			recordErrorDetail(ctx, err)
+			return "", fleet.OrbitError{Message: "failed to get IdP account"}
 		}
 		if idpAccount == nil {
-			// Get the host platform.
 			h := fleet.Host{
 				Platform:     hostInfo.Platform,
 				PlatformLike: hostInfo.PlatformLike,
 			}
 			platform := h.FleetPlatform()
-			// Orbit enrollment is only gated by end user auth for Linux and Windows hosts.
-			// For macOS hosts the MDM enrollment process handles end user auth.
-			if platform == "linux" || platform == "windows" {
-				// Enforcement is based solely on server policy. The client-supplied
-				// X-Fleet-Capabilities header is an informational hint and must not
-				// gate this decision.
-				//
-				// The AllowOrbitEndUserAuthBypass escape hatch lets clients that do not
-				// advertise the end-user auth capability enroll anyway — either pre-EUA
-				// agents, or installers built with `fleetctl package --bypass-end-user-auth`.
-				// It defaults to true; set it to false to strictly enforce end user auth.
-				mp, capsOK := capabilities.FromContext(ctx)
-				clientSupportsEUA := capsOK && mp.Has(fleet.CapabilityEndUserAuth)
-				switch {
-				case platform == "windows" && euaToken != "":
-					// A Windows host already authenticated during MDM enrollment and the
-					// EUA token was passed by the MSI installer.
-					_, deviceID, idpAcctUUID, err := svc.processWindowsEUAToken(ctx, hostInfo.HardwareUUID, euaToken)
-					if err != nil {
-						return "", err
-					}
-					euaDeviceID = deviceID
-					euaIdpAcctUUID = idpAcctUUID
-					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
-				case svc.config.MDM.AllowOrbitEndUserAuthBypass && !clientSupportsEUA:
-					svc.logger.WarnContext(ctx, "allowing enrollment without end-user authentication: end-user auth bypass is enabled and the client does not support end-user auth",
-						"host_uuid", hostInfo.HardwareUUID)
-					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
-				default:
-					// A host that already exists in Fleet and was previously orbit-enrolled is re-enrolling (e.g. after a
-					// service restart, node key file loss, or osquery DB rebuild), not enrolling for the first time. We must not
-					// prompt for end user authentication again. See https://github.com/fleetdm/fleet/issues/46300.
-					previouslyEnrolled, err := svc.ds.HostPreviouslyOrbitEnrolled(ctx, hostInfo, appConfig.MDM.EnabledAndConfigured)
-					if err != nil {
-						return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment: " + err.Error()}
-					}
-					if !previouslyEnrolled {
-						// Report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
-						// Dereference the team ID so the log shows the numeric value; leave it nil for a global enroll secret.
-						var teamID any
-						if secret.TeamID != nil {
-							teamID = *secret.TeamID
-						}
-						svc.logger.WarnContext(ctx, "blocking enrollment: end-user authentication required but not completed",
-							"host_uuid", hostInfo.HardwareUUID,
-							"hardware_serial", hostInfo.HardwareSerial,
-							"platform", platform,
-							"team_id", teamID,
-						)
-						return "", fleet.NewOrbitIDPAuthRequiredError()
-					}
-					svc.logger.InfoContext(ctx, "allowing re-enrollment without end-user authentication: host previously orbit-enrolled",
-						"host_uuid", hostInfo.HardwareUUID)
+			// The AllowOrbitEndUserAuthBypass escape hatch lets clients that do not
+			// advertise the end-user auth capability enroll anyway — pre-EUA agents,
+			// installers built with `fleetctl package --bypass-end-user-auth`, and macOS
+			// fleetd (which never advertises it because MDM enrollment normally handles
+			// end user auth on macOS). It defaults to true; set it to false to strictly
+			// enforce end user auth on every platform.
+			mp, capsOK := capabilities.FromContext(ctx)
+			clientSupportsEUA := capsOK && mp.Has(fleet.CapabilityEndUserAuth)
+			switch {
+			case platform == "windows" && euaToken != "":
+				// A Windows host already authenticated during MDM enrollment and the
+				// EUA token was passed by the MSI installer.
+				_, deviceID, idpAcctUUID, err := svc.processWindowsEUAToken(ctx, hostInfo.HardwareUUID, euaToken)
+				if err != nil {
+					return "", err
 				}
+				euaDeviceID = deviceID
+				euaIdpAcctUUID = idpAcctUUID
+				// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
+			case svc.config.MDM.AllowOrbitEndUserAuthBypass && !clientSupportsEUA:
+				svc.logger.WarnContext(ctx, "allowing enrollment without end-user authentication: end-user auth bypass is enabled and the client does not support end-user auth",
+					"host_uuid", hostInfo.HardwareUUID,
+					"platform", platform)
+				// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
+			default:
+				// A host that already exists in Fleet and was previously orbit-enrolled is re-enrolling (e.g. after a
+				// service restart, node key file loss, or osquery DB rebuild), not enrolling for the first time. We must not
+				// prompt for end user authentication again. See https://github.com/fleetdm/fleet/issues/46300.
+				previouslyEnrolled, err := svc.ds.HostPreviouslyOrbitEnrolled(ctx, hostInfo, appConfig.MDM.EnabledAndConfigured)
+				if err != nil {
+					recordErrorDetail(ctx, err)
+					return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment"}
+				}
+				if !previouslyEnrolled {
+					// Report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+					// Dereference the team ID so the log shows the numeric value; leave it nil for a global enroll secret.
+					var teamID any
+					if enrollTeamID != nil {
+						teamID = *enrollTeamID
+					}
+					svc.logger.WarnContext(
+						ctx, "blocking enrollment: end-user authentication required but not completed",
+						"host_uuid", hostInfo.HardwareUUID,
+						"hardware_serial", hostInfo.HardwareSerial,
+						"platform", platform,
+						"team_id", teamID,
+					)
+					return "", fleet.NewOrbitIDPAuthRequiredError()
+				}
+				svc.logger.InfoContext(ctx, "allowing re-enrollment without end-user authentication: host previously orbit-enrolled",
+					"host_uuid", hostInfo.HardwareUUID)
 			}
 		}
 	}
 
-	host, err := svc.ds.EnrollOrbit(ctx,
+	var hostCreated bool
+	enrollOpts := append([]fleet.DatastoreEnrollOrbitOption{
 		fleet.WithEnrollOrbitMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOrbitHostInfo(hostInfo),
 		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
-		fleet.WithEnrollOrbitTeamID(secret.TeamID),
+		fleet.WithEnrollOrbitTeamID(enrollTeamID),
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
-	)
+		fleet.WithEnrollOrbitCreated(&hostCreated),
+		fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
+	}, secretOpts...)
+	host, err := svc.ds.EnrollOrbit(ctx, enrollOpts...)
 	if err != nil {
-		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
+		if rejected, ok := errors.AsType[*fleet.EnrollmentRejectedError](err); ok {
+			svc.recordEnrollmentRejected(ctx, rejected.Reason, rejectedHostID(rejected, oneTime), attempt)
+			return "", fleet.NewAuthFailedError("invalid secret")
+		}
+		recordErrorDetail(ctx, err)
+		return "", fleet.OrbitError{Message: "failed to enroll"}
+	}
+
+	// fleetd enrolls orbit before osquery, so this is usually where the hosts row is created.
+	// Raise the report cap for it right away so its first results are not rejected while the
+	// cached host count waits for the cleanup cron to refresh it.
+	if hostCreated && svc.liveQueryStore != nil {
+		if err := svc.liveQueryStore.IncrQueryReportsHostCount(1); err != nil {
+			svc.logger.DebugContext(ctx, "incr query reports host count in redis", "err", err, "host_id", host.ID)
+		}
 	}
 
 	platform := host.FleetPlatform()
@@ -351,13 +445,18 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		}
 	}
 
-	if euaDeviceID != "" {
+	if enrollmentID := oneTime.WindowsEnrollmentID(); enrollmentID != nil {
+		// The secret was minted for a specific Windows MDM enrollment and delivered only over that enrollment's own MDM
+		// channel, so presenting it identifies the enrollment outright. Prefer it since it is the best trust path.
+		svc.linkWindowsEnrollmentFromOneTimeSecret(ctx, host, *enrollmentID)
+	} else if euaDeviceID != "" {
 		// LinkWindowsHostMDMEnrollment performs the full post-link bookkeeping: SCIM user mapping, plus IdP device mapping, the DEP flag,
 		// and the Windows enrollment default fleet assignment for newly created hosts.
-		if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, euaDeviceID); err != nil {
+		if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, euaDeviceID, true); err != nil {
 			svc.logger.ErrorContext(ctx, "failed to link windows mdm enrollment to orbit host via EUA token",
 				"err", err, "host_uuid", host.UUID, "device_id", euaDeviceID)
 		}
+		svc.maybeCreateWindowsMDMEnrolledActivityForDevice(ctx, euaDeviceID)
 	} else if platform == "windows" && appConfig.MDM.WindowsEnabledAndConfigured && hostInfo.HardwareSerial != "" {
 		// Reverse link: an automatic (user-driven) Windows MDM enrollment may already exist for this device, created before fleetd was
 		// installed. The OMA-DM session stores the device-reported SMBIOS serial on the unlinked enrollment row; link it now, before
@@ -369,9 +468,27 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			svc.logger.ErrorContext(ctx, "failed to look up unlinked windows mdm enrollment by serial",
 				"err", err, "host_uuid", host.UUID, "hardware_serial", hostInfo.HardwareSerial)
 		case err == nil:
-			if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID); err != nil {
-				svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
-					"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
+			// Same trust as the DevDetail path this mirrors: the serial on the unlinked enrollment was asserted by the
+			// device, so it must not claim a host that already belongs to different hardware.
+			conflicted, conflictingHardwareID, cErr := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, device.MDMHardwareID)
+			switch {
+			case cErr != nil:
+				svc.logger.ErrorContext(ctx, "failed to check for conflicting windows mdm enrollment at orbit enroll",
+					"err", cErr, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
+			case conflicted:
+				svc.logger.WarnContext(ctx, "refusing to reverse-link windows mdm enrollment to a host already claimed by other hardware",
+					"host_uuid", host.UUID, "device_id", device.MDMDeviceID,
+					"hardware_serial", hostInfo.HardwareSerial, "claimed_by_hardware_id", conflictingHardwareID)
+			default:
+				if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID, true); err != nil {
+					svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
+						"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
+				} else {
+					// The enrollment predates this host record, so its mdm_enrolled activity was deferred; record it now
+					// that there is a host to attribute it to, rather than waiting for the next management session.
+					device.HostUUID = host.UUID
+					svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
+				}
 			}
 			// A Windows orbit enrollment is not linked when it is not MDM, when it is already linked, or when it is a
 			// programmatic fleetd-first enrollment. Note this matches on serial alone, so the lookup refuses when several
@@ -436,7 +553,8 @@ func (svc *Service) maybeStampOrbitDebugFromAgentOptions(ctx context.Context, ho
 	if err := svc.ds.ExtendHostOrbitDebugUntil(ctx, host.ID, until); err != nil {
 		return ctxerr.Wrap(ctx, err, "set orbit_debug_until on enroll")
 	}
-	svc.logger.InfoContext(ctx, "stamped orbit debug logging on enroll",
+	svc.logger.InfoContext(
+		ctx, "stamped orbit debug logging on enroll",
 		"host_id", host.ID,
 		"team_id", host.TeamID,
 		"orbit_debug_until", until,
@@ -621,26 +739,48 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			// self-heals on the next poll.
 			syncCapable := false
 			mlaCapable := false
+			pinCapable := false
 			if mp, ok := capabilities.FromContext(ctx); ok {
 				syncCapable = mp.Has(fleet.CapabilityWindowsMDMSync)
 				mlaCapable = mp.Has(fleet.CapabilityWindowsManagedLocalAccount)
+				pinCapable = mp.Has(fleet.CapabilityWindowsBitLockerPIN)
 			}
 			if syncCapable != state.FleetdSyncCapable {
 				if err := svc.ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, host.UUID, syncCapable); err != nil {
 					svc.logger.WarnContext(ctx, "persisting Windows MDM sync capability", "host_uuid", host.UUID, "err", err)
 				}
 			}
+			if pinCapable != state.FleetdBitLockerPINCapable {
+				if err := svc.ds.SetMDMWindowsEnrollmentFleetdBitLockerPINCapable(ctx, host.UUID, pinCapable); err != nil {
+					svc.logger.WarnContext(ctx, "persisting Windows BitLocker PIN capability", "host_uuid", host.UUID, "err", err)
+				}
+			}
+
+			// Hand over a startup PIN the end user submitted.
+			if pinCapable && state.BitLockerPINRequestPending {
+				if err := svc.setBitLockerPINNotification(ctx, &notifs, host); err != nil {
+					return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting bitlocker pin notification")
+				}
+			}
 
 			// Ask a capable premium fleetd to create and escrow the Windows managed local admin account when the host's fleet has the
 			// setting enabled. The request stops once the host escrows a password for this enrollment. Re-enrolling deletes the enrollment
 			// row and with it the flag, so a re-imaged device is asked again.
-			if mlaCapable && !state.ManagedLocalAccountEscrowed {
+			//
+			// A rotation reuses the same notification: provisioning resets the password of an account fleetd already owns.
+			if mlaCapable && (!state.ManagedLocalAccountEscrowed || state.ManagedLocalAccountRotationRequested) {
 				if lic, _ := license.FromContext(ctx); lic != nil && lic.IsPremium() {
-					enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig)
-					if err != nil {
-						return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking windows managed local account setting")
+					if state.ManagedLocalAccountRotationRequested {
+						// An explicit rotation is honored even if the setting was turned off since, matching macOS, where the
+						// MDM command never consults the setting.
+						notifs.CreateWindowsManagedLocalAccount = true
+					} else {
+						enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig)
+						if err != nil {
+							return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking windows managed local account setting")
+						}
+						notifs.CreateWindowsManagedLocalAccount = enabled
 					}
-					notifs.CreateWindowsManagedLocalAccount = enabled
 				}
 			}
 
@@ -672,10 +812,27 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.PendingScriptExecutionIDs = execIDs
 	}
 
-	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
-		host.DiskEncryptionEnabled != nil &&
-		*host.DiskEncryptionEnabled &&
-		svc.ds.IsHostPendingEscrow(ctx, host.ID)
+	if host.IsLUKSSupported() && host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled {
+		escrow, err := svc.ds.GetHostEscrowState(ctx, host.ID)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "getting host escrow state for linux escrow")
+		}
+		notifs.RunDiskEncryptionEscrow = escrow.Pending
+	}
+	if notifs.RunDiskEncryptionEscrow {
+		// Escrow can be turned off after a host is already pending; without this
+		// the user is asked for their passphrase and EscrowLUKSData then discards
+		// it. Read only once the host is otherwise eligible, which is rare.
+		//
+		// Not folded into setDiskEncryptionNotifications: that function requires
+		// MDM to be configured and the host connected to it, neither of which
+		// applies to Linux escrow.
+		diskEncryption, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "getting disk encryption settings for linux escrow")
+		}
+		notifs.RunDiskEncryptionEscrow = diskEncryption.LinuxEscrowEnabled
+	}
 
 	// load the (active, ready to execute) pending software install executions for that host
 	pendingInstalls, err := svc.ds.ListReadyToExecuteSoftwareInstalls(ctx, host.ID)
@@ -684,6 +841,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 	if len(pendingInstalls) > 0 {
 		notifs.PendingSoftwareInstallerIDs = pendingInstalls
+	}
+
+	// The WebSocket transport directive is server-config driven and applies to
+	// all hosts regardless of team.
+	var wsTransport *fleet.OrbitWebSocketTransportConfig
+	if svc.config.WebSocket.TransportEnabled {
+		wsTransport = &fleet.OrbitWebSocketTransportConfig{Enabled: true}
 	}
 
 	// team ID is not nil, get team specific flags and options
@@ -772,7 +936,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 		// only unset this flag once we know there were no errors so this notification will be picked up by the agent
 		if notifs.RunDiskEncryptionEscrow {
-			_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
+			_ = svc.ds.MarkEscrowSentToAgent(ctx, host.ID)
 		}
 
 		mergedFlags, debugLogging, err := resolveOrbitDebugLogging(ctx, host, opts.CommandLineStartUpFlags)
@@ -781,13 +945,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		return fleet.OrbitConfig{
-			ScriptExeTimeout: opts.ScriptExecutionTimeout,
-			Flags:            mergedFlags,
-			Extensions:       extensionsFiltered,
-			Notifications:    notifs,
-			NudgeConfig:      nudgeConfig,
-			UpdateChannels:   updateChannels,
-			DebugLogging:     debugLogging,
+			ScriptExeTimeout:   opts.ScriptExecutionTimeout,
+			Flags:              mergedFlags,
+			Extensions:         extensionsFiltered,
+			Notifications:      notifs,
+			NudgeConfig:        nudgeConfig,
+			UpdateChannels:     updateChannels,
+			DebugLogging:       debugLogging,
+			WebSocketTransport: wsTransport,
 		}, nil
 	}
 
@@ -853,7 +1018,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// only unset this flag once we know there were no errors so this notification will be picked up by the agent
 	if notifs.RunDiskEncryptionEscrow {
-		_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
+		_ = svc.ds.MarkEscrowSentToAgent(ctx, host.ID)
 	}
 
 	mergedFlags, debugLogging, err := resolveOrbitDebugLogging(ctx, host, opts.CommandLineStartUpFlags)
@@ -862,20 +1027,21 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	return fleet.OrbitConfig{
-		ScriptExeTimeout: opts.ScriptExecutionTimeout,
-		Flags:            mergedFlags,
-		Extensions:       extensionsFiltered,
-		Notifications:    notifs,
-		NudgeConfig:      nudgeConfig,
-		UpdateChannels:   updateChannels,
-		DebugLogging:     debugLogging,
+		ScriptExeTimeout:   opts.ScriptExecutionTimeout,
+		Flags:              mergedFlags,
+		Extensions:         extensionsFiltered,
+		Notifications:      notifs,
+		NudgeConfig:        nudgeConfig,
+		UpdateChannels:     updateChannels,
+		DebugLogging:       debugLogging,
+		WebSocketTransport: wsTransport,
 	}, nil
 }
 
 // windowsManagedLocalAccountEnabled reports whether the managed local account setting is enabled for the host's team.
 func (svc *Service) windowsManagedLocalAccountEnabled(ctx context.Context, host *fleet.Host, appConfig *fleet.AppConfig) (bool, error) {
 	if host.TeamID == nil {
-		return appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, nil
+		return appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value, nil
 	}
 	teamMDM, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
 	if err != nil {
@@ -884,7 +1050,7 @@ func (svc *Service) windowsManagedLocalAccountEnabled(ctx context.Context, host 
 	if teamMDM == nil {
 		return false, nil
 	}
-	return teamMDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, nil
+	return teamMDM.WindowsSettings.EnableManagedLocalAccount.Value, nil
 }
 
 func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *fleet.Host) error {
@@ -954,6 +1120,26 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 	return nil
 }
 
+// shouldEnableBitLockerProtection reports whether Fleet should ask the agent to repair a volume's BitLocker protectors.
+func shouldEnableBitLockerProtection(host *fleet.Host) bool {
+	// Only act on a volume that is encrypted.
+	if host.DiskEncryptionEnabled == nil || !*host.DiskEncryptionEnabled {
+		return false
+	}
+
+	// Protection positively reported as off.
+	if host.BitLockerProtectionStatus != nil &&
+		*host.BitLockerProtectionStatus == fleet.BitLockerProtectionStatusOff {
+		return true
+	}
+
+	// Protection is on, but nothing on the volume can release the key at boot, so the next restart lands the end user
+	// at the 48-digit recovery prompt. The agent adds a protector without touching protection itself.
+	return host.BitLockerProtectionStatus != nil &&
+		*host.BitLockerProtectionStatus == fleet.BitLockerProtectionStatusOn &&
+		host.BitLockerBootProtectorSet != nil && !*host.BitLockerBootProtectorSet
+}
+
 func (svc *Service) setDiskEncryptionNotifications(
 	ctx context.Context,
 	notifs *fleet.OrbitConfigNotifications,
@@ -963,13 +1149,15 @@ func (svc *Service) setDiskEncryptionNotifications(
 	isConnectedToFleetMDM bool,
 	mdmInfo *fleet.HostMDM,
 ) error {
-	// each platform's notifications are gated on that platform's own settings;
-	// the FileVault/Escrow Buddy flow treats the macOS pair as one unit until
-	// the per-payload split ships
+	// each platform's notifications are gated on that platform's own settings.
+	// On macOS the only notification here drives Escrow Buddy, which exists to
+	// produce a recovery key Fleet can escrow, so enforcement alone must not
+	// trigger it: the profile carries no escrow payload in that case and the
+	// key would have nowhere to go.
 	var platformConfigured bool
 	switch host.FleetPlatform() {
 	case "darwin":
-		platformConfigured = diskEncryption.MacOSEnabled || diskEncryption.MacOSEscrowEnabled
+		platformConfigured = diskEncryption.MacOSEscrowEnabled
 	case "windows":
 		platformConfigured = diskEncryption.WindowsEnabled
 	}
@@ -1003,13 +1191,23 @@ func (svc *Service) setDiskEncryptionNotifications(
 
 		notifs.RotateDiskEncryptionKey = encryptionKey != nil && encryptionKey.Decryptable != nil && !*encryptionKey.Decryptable
 	case "windows":
-		isServer := mdmInfo != nil && mdmInfo.IsServer
+		// BitLocker is an optional component on Windows Server and is not managed there; BitLocker only supported with MDM.
+		if mdmInfo == nil || mdmInfo.IsServer {
+			return nil
+		}
+
 		needsEncryption := host.DiskEncryptionEnabled != nil && !*host.DiskEncryptionEnabled
 		keyWasDecrypted := encryptionKey != nil && encryptionKey.Decryptable != nil && *encryptionKey.Decryptable
 		encryptedWithoutKey := host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled && !keyWasDecrypted
-		notifs.EnforceBitLockerEncryption = !isServer &&
-			mdmInfo != nil &&
-			(needsEncryption || encryptedWithoutKey)
+		// Only the agent can clear a reported error, by reporting a later success, so a host that has one has to keep
+		// being asked. The agent's own backoff bounds the retries.
+		hasReportedError := encryptionKey != nil && encryptionKey.ClientError != ""
+		notifs.EnforceBitLockerEncryption = needsEncryption || encryptedWithoutKey || hasReportedError
+
+		// A host already being told to encrypt is not also told to restore protection: the encrypt path owns the volume.
+		if !notifs.EnforceBitLockerEncryption {
+			notifs.EnableBitLockerProtection = shouldEnableBitLockerProtection(host)
+		}
 	}
 
 	return nil
@@ -1189,9 +1387,27 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	// literal rather than go through the expansions above. Skip executions
 	// that already have a result so a re-fetch can't record a second one.
 	if script.ExitCode == nil {
-		expanded, failureMessage, err := svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and script %s", host.ID, execID))
+		var expanded string
+		var failureMessage string
+		// a notification's script is Fleet's own, and carries only its URL variable
+		if isNotificationScript(script) {
+			var notificationUUID string
+			notificationUUID, err = svc.notificationsSvc.NotificationUUIDForExecution(ctx, script.ExecutionID)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "failed to find the end user notification a script belongs to", "execution_id", script.ExecutionID, "err", err)
+				failureMessage = "Fleet couldn't find the notification this script belongs to."
+			}
+			if failureMessage == "" {
+				failureMessage = svc.setPatchNotificationPayloadForDisplay(ctx, notificationUUID)
+			}
+			if failureMessage == "" {
+				expanded, failureMessage = svc.expandNotificationURL(ctx, host, script, notificationUUID)
+			}
+		} else {
+			expanded, failureMessage, err = svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and script %s", host.ID, execID))
+			}
 		}
 		if failureMessage != "" {
 			// Record the failed result server-side so the execution leaves the
@@ -1253,6 +1469,16 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		return ctxerr.Wrap(ctx, err, "save host script result")
 	}
 
+	var isNotification bool
+	if hsr != nil && isNotificationScript(hsr) {
+		isNotification = true
+	}
+
+	err = svc.notificationsSvc.RecordOutcome(ctx, result.ExecutionID, int64(result.ExitCode), result.Output)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "record end user notification outcome")
+	}
+
 	// FIXME: datastore implementation of action seems rather brittle, can it be refactored?
 	var fromSetupExperience bool
 	if action == "" && fleet.IsSetupExperienceSupported(host.Platform) {
@@ -1273,8 +1499,9 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		}
 	}
 
-	// don't create a "past" activity if the result was for a canceled activity
-	if hsr != nil && !hsr.Canceled {
+	// don't create a "past" activity if the result was for a canceled activity, or
+	// for an end user notification
+	if hsr != nil && !hsr.Canceled && !isNotification {
 		var user *fleet.User
 		if hsr.UserID != nil {
 			user, err = svc.ds.UserByID(ctx, *hsr.UserID)
@@ -1302,7 +1529,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 
 		switch action {
 		case "uninstall":
-			softwareTitleName, selfService, err := svc.ds.GetDetailsForUninstallFromExecutionID(ctx, hsr.ExecutionID)
+			softwareTitleName, softwareDisplayName, selfService, err := svc.ds.GetDetailsForUninstallFromExecutionID(ctx, hsr.ExecutionID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "get software title from execution ID")
 			}
@@ -1314,12 +1541,13 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				ctx,
 				user,
 				fleet.ActivityTypeUninstalledSoftware{
-					HostID:          host.ID,
-					HostDisplayName: host.DisplayName(),
-					SoftwareTitle:   softwareTitleName,
-					ExecutionID:     hsr.ExecutionID,
-					Status:          activityStatus,
-					SelfService:     selfService,
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					SoftwareTitle:       softwareTitleName,
+					SoftwareDisplayName: softwareDisplayName,
+					ExecutionID:         hsr.ExecutionID,
+					Status:              activityStatus,
+					SelfService:         selfService,
 				},
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
@@ -1337,8 +1565,9 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			// cancel them silently before falling through to record the
 			// "ran script" activity for the wipe itself.
 			if hsr.ExitCode != nil && *hsr.ExitCode == 0 {
-				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
-					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
+				err = cancelActivitiesAndNotificationsForHost(ctx, svc.ds, svc.notificationsSvc, svc.logger, host.ID)
+				if err != nil {
+					return err
 				}
 			}
 			fallthrough
@@ -1376,7 +1605,8 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		if scriptFailed {
 			shouldRetry, err := svc.shouldRetryPolicyAutomationScript(ctx, host, hsr)
 			if err != nil {
-				svc.logger.ErrorContext(ctx,
+				svc.logger.ErrorContext(
+					ctx,
 					"failed to check if policy automation script should retry",
 					"host_id", host.ID,
 					"policy_id", *hsr.PolicyID,
@@ -1384,7 +1614,8 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				)
 			} else if shouldRetry {
 				if err := svc.retryPolicyAutomationScript(ctx, host, hsr); err != nil {
-					svc.logger.ErrorContext(ctx,
+					svc.logger.ErrorContext(
+						ctx,
 						"failed to queue policy automation script retry",
 						"host_id", host.ID,
 						"policy_id", *hsr.PolicyID,
@@ -1427,6 +1658,63 @@ func postOrbitDiskEncryptionKeyEndpoint(ctx context.Context, request interface{}
 	return fleet.OrbitPostDiskEncryptionKeyResponse{}, nil
 }
 
+func postOrbitDiskEncryptionProtectionEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.OrbitPostDiskEncryptionProtectionRequest)
+	if err := svc.SetOrUpdateDiskEncryptionProtection(ctx, req.Outcome, req.ClientError); err != nil {
+		return fleet.OrbitPostDiskEncryptionProtectionResponse{Err: err}, nil
+	}
+	return fleet.OrbitPostDiskEncryptionProtectionResponse{}, nil
+}
+
+// bitLockerProtectionErrorMaxLength matches the width of host_disks.bitlocker_protection_error.
+const bitLockerProtectionErrorMaxLength = 255
+
+// SetOrUpdateDiskEncryptionProtection records what the agent did about a host whose volume was encrypted but
+// unprotected.
+func (svc *Service) SetOrUpdateDiskEncryptionProtection(ctx context.Context, outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return newOsqueryError("internal error: missing host from request context")
+	}
+
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		return badRequest("host is not enrolled with fleet MDM")
+	}
+
+	// clientError is untrusted input from fleetd: normalize it before judging whether it says anything.
+	clientError = str.TruncateRunes(strings.TrimSpace(clientError), bitLockerProtectionErrorMaxLength)
+	if outcome != fleet.DiskEncryptionProtectionRestored && clientError == "" {
+		return fleet.NewInvalidArgumentError("client_error", fmt.Sprintf("cannot be empty when outcome is %q", outcome))
+	}
+
+	switch outcome {
+	case fleet.DiskEncryptionProtectionRestored:
+		// The agent's report is a claim, not an observation of record: osquery owns bitlocker_protection_status. Clear
+		// the recorded reason and ask the host to refetch, so the status flips on evidence quickly.
+		if err := svc.ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, host.ID, outcome, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing disk encryption protection error")
+		}
+		if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "requesting refetch after restoring protection")
+		}
+	case fleet.DiskEncryptionProtectionDeferred, fleet.DiskEncryptionProtectionFailed:
+		if err := svc.ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, host.ID, outcome, clientError); err != nil {
+			return ctxerr.Wrap(ctx, err, "set disk encryption protection error")
+		}
+	default:
+		return &fleet.BadRequestError{Message: fmt.Sprintf("unknown outcome %q", outcome)}
+	}
+
+	return nil
+}
+
 func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
@@ -1446,8 +1734,9 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
-		svc.logger.DebugContext(ctx,
+	if !osquery_utils.IsDiskEncryptionEscrowEnabledForHost(ctx, svc.logger, svc.ds, host) {
+		svc.logger.DebugContext(
+			ctx,
 			"skipping key archival, disk encryption not enabled for host team/globally",
 			"host_id", host.ID,
 		)
@@ -1493,7 +1782,8 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 		},
 	); err != nil {
 		// OK: this is not critical to the operation of the endpoint
-		svc.logger.ErrorContext(ctx,
+		svc.logger.ErrorContext(
+			ctx,
 			"record fleet disk encryption key escrowed activity",
 			"err", err,
 		)
@@ -1509,13 +1799,13 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 
 func postOrbitLUKSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.OrbitPostLUKSRequest)
-	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.Salt, req.KeySlot, req.ClientError, req.KeyType); err != nil {
+	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.Salt, req.KeySlot, req.ClientError, req.KeyType, req.Status); err != nil {
 		return fleet.OrbitPostLUKSResponse{Err: err}, nil
 	}
 	return fleet.OrbitPostLUKSResponse{}, nil
 }
 
-func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error {
+func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1524,13 +1814,18 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 		return newOsqueryError("internal error: missing host from request context")
 	}
 
+	if status != "" {
+		return svc.reportLinuxEscrowStatus(ctx, host.ID, status)
+	}
+
 	if clientError != "" {
 		return svc.ds.ReportEscrowError(ctx, host.ID, clientError)
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
-		svc.logger.DebugContext(ctx,
+	if !osquery_utils.IsDiskEncryptionEscrowEnabledForHost(ctx, svc.logger, svc.ds, host) {
+		svc.logger.DebugContext(
+			ctx,
 			"skipping LUKS key archival, disk encryption not enabled for host team/globally",
 			"host_id", host.ID,
 		)
@@ -1561,7 +1856,8 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 		},
 	); err != nil {
 		// OK: this is not critical to the operation of the endpoint
-		svc.logger.ErrorContext(ctx,
+		svc.logger.ErrorContext(
+			ctx,
 			"record fleet disk encryption key escrowed activity",
 			"err", err,
 		)
@@ -1569,6 +1865,17 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 	}
 
 	return nil
+}
+
+func (svc *Service) reportLinuxEscrowStatus(ctx context.Context, hostID uint, status string) error {
+	switch status {
+	case fleet.LinuxEscrowStatusPrompting, fleet.LinuxEscrowStatusEscrowing:
+		return svc.ds.SetEscrowInFlight(ctx, hostID, true)
+	case fleet.LinuxEscrowStatusCanceled, fleet.LinuxEscrowStatusTimedOut:
+		return svc.ds.SetEscrowInFlight(ctx, hostID, false)
+	default:
+		return &fleet.BadRequestError{Message: fmt.Sprintf("unknown LUKS escrow status %q", status)}
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -1619,7 +1926,36 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 		if err := svc.ds.ReportManagedLocalAccountEscrowError(ctx, host.UUID, clientError); err != nil {
 			return ctxerr.Wrap(ctx, err, "report windows managed local account escrow error")
 		}
-		// The device no longer has an account we know the password to, so keep asking it to create one.
+
+		// Clearing the request is also how we learn there was one, which decides whether this is a failed rotation.
+		rotating, err := svc.ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "clear windows managed local account rotation request after failure")
+		}
+		if rotating {
+			// Attributed to Fleet, as on the macOS ack path: the failure arrives outside any user's request.
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+				Detail:          clientError,
+			}); err != nil {
+				svc.logger.ErrorContext(ctx, "record failed to rotate managed local account activity", "err", err)
+				ctxerr.Handle(ctx, err)
+			}
+		}
+
+		// Decide on the escrowed flag, not on the just-consumed request: once a password is escrowed the account works,
+		// and un-escrowing on a failure would re-run the same attempt every poll. It also makes a re-sent failure
+		// report idempotent. Primary read: the flag was written moments ago, and a stale replica would un-escrow it.
+		state, err := svc.ds.GetMDMWindowsHostConfigState(ctxdb.RequirePrimary(ctx, true), host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "read windows managed local account escrowed flag after failure")
+		}
+		if state.ManagedLocalAccountEscrowed {
+			return nil
+		}
+
+		// The device never produced an account we know the password to, so keep asking it to create one.
 		if _, err := svc.ds.SetMDMWindowsManagedLocalAccountEscrowed(ctx, host.UUID, false); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear windows managed local account escrowed flag")
 		}
@@ -1643,6 +1979,11 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 	created, err := svc.ds.SetMDMWindowsManagedLocalAccountEscrowed(ctx, host.UUID, true)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set windows managed local account escrowed flag")
+	}
+
+	// The rotated activity is not logged here; as on macOS it is logged when the rotation is requested.
+	if _, err := svc.ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, host.UUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear windows managed local account rotation request")
 	}
 
 	// The setting or license may have changed between the notification and this escrow. That does not change what we
@@ -1870,14 +2211,35 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return err
 	}
 
-	// A patch-when-closed policy install whose managed app-open query returned no result means the
-	// app was open: a skip, not a failure. Key on the policy flag, not empty output, so an ordinary
-	// empty pre_install_query on a non-managed policy still fails and counts toward the retry cap.
+	// A pre-install query that returned no result stops fleetd before it downloads the
+	// package, so no attempt against the installer was made.
+	preInstallConditionFailed := result.Status() == fleet.SoftwareInstallFailed &&
+		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == ""
+
+	// A patch policy install whose managed app-open query returned no result means the app was
+	// open: a skip, not a failure. Key on the snapshotted override_pre_install_query flag on the
+	// install row, not the current policies value and not policy_id, so that a policy deleted
+	// between activation and this result callback (which nulls policy_id via ON DELETE SET NULL)
+	// still classifies as a skip. An ordinary empty pre_install_query on a non-patch install has
+	// override_pre_install_query = 0 and continues to fail and count toward the retry cap.
+	//
+	// Force read from primary: on a fresh activation the snapshot may not have replicated yet,
+	// and a stale/missing read would silently downgrade a real skip into an ordinary failure
+	// (consuming a retry attempt). Log rather than swallow a read error for the same reason.
 	isAppOpenSkip := false
-	if result.Status() == fleet.SoftwareInstallFailed &&
-		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == "" {
-		if cur, curErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID); curErr == nil && cur != nil {
-			isAppOpenSkip = cur.PolicyID != nil && cur.PatchWhenClosed
+	if preInstallConditionFailed {
+		cur, curErr := svc.ds.GetSoftwareInstallResults(ctxdb.RequirePrimary(ctx, true), result.InstallUUID)
+		switch {
+		case curErr != nil:
+			svc.logger.ErrorContext(
+				ctx,
+				"failed to load install result for app-open skip classification; defaulting to failure",
+				"host_id", host.ID,
+				"install_uuid", result.InstallUUID,
+				"err", curErr,
+			)
+		case cur != nil:
+			isAppOpenSkip = cur.OverridePreInstallQuery
 		}
 	}
 
@@ -1906,7 +2268,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}, svc.NewActivity); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
-			svc.logger.DebugContext(ctx,
+			svc.logger.DebugContext(
+				ctx,
 				"setup experience software install result updated",
 				"host_uuid", hostUUID,
 				"execution_id", result.InstallUUID,
@@ -1956,11 +2319,50 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
 			}
 
+			failures := 0
+
+			// Only an attempt that downloaded and ran the installer counts, so an app-open
+			// skip or a pre-install query that did not pass records nothing.
+			if hsi.SoftwareInstallerID != nil && svc.installAttemptCounter != nil {
+				switch {
+				case status == fleet.SoftwareInstalled:
+					if err := svc.installAttemptCounter.ResetAttempts(ctx, host.ID, *hsi.SoftwareInstallerID); err != nil {
+						svc.logger.ErrorContext(
+							ctx, "failed to reset policy automation install attempts",
+							"host_id", host.ID,
+							"software_installer_id", *hsi.SoftwareInstallerID,
+							"err", err,
+						)
+					}
+				case status == fleet.SoftwareInstallFailed && !isAppOpenSkip && !preInstallConditionFailed:
+					attempts, err := svc.installAttemptCounter.RecordAttempt(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.PolicyAutomationInstallAttemptExpiry)
+					if err != nil {
+						svc.logger.ErrorContext(
+							ctx, "failed to record policy automation install attempt",
+							"host_id", host.ID,
+							"software_installer_id", *hsi.SoftwareInstallerID,
+							"err", err,
+						)
+					} else {
+						failures = attempts
+					}
+				case status == fleet.SoftwareInstallFailed:
+					// Read the count without adding to it, since the retry check below still needs it.
+					attempts, err := svc.installAttemptCounter.CountAttempts(ctx, host.ID, *hsi.SoftwareInstallerID)
+					if err != nil {
+						svc.logger.ErrorContext(ctx, "failed to count policy automation install failures", "host_id", host.ID, "software_installer_id", *hsi.SoftwareInstallerID, "err", err)
+					} else {
+						failures = attempts
+					}
+				}
+			}
+
 			// Skip the immediate-retry ladder for app-open skips; the next continuous run re-fires.
 			if status == fleet.SoftwareInstallFailed && !isAppOpenSkip {
-				shouldRetry, err := svc.shouldRetryPolicyAutomationSoftwareInstall(ctx, host, hsi)
+				shouldRetry, err := svc.shouldRetryPolicyAutomationSoftwareInstall(ctx, host, hsi, failures)
 				if err != nil {
-					svc.logger.ErrorContext(ctx,
+					svc.logger.ErrorContext(
+						ctx,
 						"failed to check if policy automation software install should retry",
 						"host_id", host.ID,
 						"policy_id", *hsi.PolicyID,
@@ -1968,7 +2370,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 					)
 				} else if shouldRetry {
 					if err := svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi); err != nil {
-						svc.logger.ErrorContext(ctx,
+						svc.logger.ErrorContext(
+							ctx,
 							"failed to queue policy automation software install retry",
 							"host_id", host.ID,
 							"policy_id", *hsi.PolicyID,
@@ -1985,10 +2388,17 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		// regardless of whether a retry can be scheduled. If retry scheduling
 		// fails, the install is marked as failed (no retry) and the admin can
 		// manually re-trigger.
-		if hsi.PolicyID == nil && status == fleet.SoftwareInstallFailed {
+		//
+		// !isAppOpenSkip mirrors the policy retry gate above. Without it, a
+		// snapshotted skip whose source policy was deleted between activation
+		// and this result (policy_id nulled via ON DELETE SET NULL) would fall
+		// through this gate and get retried as if it were a plain host-initiated
+		// install.
+		if hsi.PolicyID == nil && status == fleet.SoftwareInstallFailed && !isAppOpenSkip {
 			shouldRetry, retryErr := svc.shouldRetrySoftwareInstall(ctx, hsi)
 			if retryErr != nil {
-				svc.logger.ErrorContext(ctx,
+				svc.logger.ErrorContext(
+					ctx,
 					"failed to check if software install should retry",
 					"host_id", host.ID,
 					"install_uuid", result.InstallUUID,
@@ -1996,7 +2406,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				)
 			} else if shouldRetry {
 				if retryErr := svc.retrySoftwareInstall(ctx, host, hsi, fromSetupExperience); retryErr != nil {
-					svc.logger.ErrorContext(ctx,
+					svc.logger.ErrorContext(
+						ctx,
 						"failed to queue software install retry",
 						"host_id", host.ID,
 						"install_uuid", result.InstallUUID,
@@ -2006,6 +2417,14 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			}
 		}
 
+		var softwareDisplayName *string
+		if hsi.SoftwareTitleID != nil {
+			dn, dnErr := svc.ds.GetSoftwareTitleDisplayName(ctx, host.TeamID, *hsi.SoftwareTitleID)
+			if dnErr != nil {
+				svc.logger.WarnContext(ctx, "failed to look up software display name for install activity", "err", dnErr)
+			}
+			softwareDisplayName = dn
+		}
 		if err := svc.NewActivity(
 			ctx,
 			user,
@@ -2013,6 +2432,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       hsi.SoftwareTitle,
+				SoftwareDisplayName: softwareDisplayName,
 				SoftwarePackage:     hsi.SoftwarePackage,
 				HashSHA256:          hsi.HashSHA256,
 				InstallUUID:         result.InstallUUID,
@@ -2023,9 +2443,25 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				PolicyName:          policyName,
 				FromSetupExperience: fromSetupExperience,
 				SkippedInstall:      isAppOpenSkip,
+				PatchWhenClosed:     hsi.PatchWhenClosed,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
+		}
+
+		// The install result and its activity are already recorded, so a failure
+		// here is logged rather than returned: failing the request would have orbit
+		// report the same result again and emit a second activity.
+		if isAppOpenSkip && hsi.NotifyBeforePatching {
+			if err := svc.createPatchNotificationForEndUser(ctx, host, hsi); err != nil {
+				svc.logger.ErrorContext(
+					ctx,
+					"failed to create patch notification for end user",
+					"host_id", host.ID,
+					"install_uuid", result.InstallUUID,
+					"err", err,
+				)
+			}
 		}
 
 		// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
@@ -2038,15 +2474,51 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	return nil
 }
 
+func (svc *Service) installFailureLimitReached(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) bool {
+	if svc.installAttemptCounter == nil {
+		return false
+	}
+
+	failures, err := svc.installAttemptCounter.CountAttempts(ctx, hostID, softwareInstallerID)
+	if err != nil {
+		// A Redis error is treated the same as a count of 0, so the install goes ahead.
+		svc.logger.ErrorContext(
+			ctx, "failed to count policy automation install failures",
+			"host_id", hostID,
+			"software_installer_id", softwareInstallerID,
+			"err", err,
+		)
+		return false
+	}
+
+	if failures < fleet.MaxPolicyAutomationInstallAttempts {
+		return false
+	}
+
+	svc.logger.WarnContext(
+		ctx, "policy automation install has failed too many times for this host and installer",
+		"host_id", hostID,
+		"policy_id", policyID,
+		"software_installer_id", softwareInstallerID,
+		"failures", failures,
+		"max_failures", fleet.MaxPolicyAutomationInstallAttempts,
+	)
+	return true
+}
+
 // shouldRetryPolicyAutomationSoftwareInstall checks if a failed policy automation software install should be retried.
-// Returns true if retry should be queued
-func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult) (bool, error) {
+// Returns true if retry should be queued. failures is the current failure count for this host and installer.
+func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult, failures int) (bool, error) {
 	if hsi.AttemptNumber == nil {
 		// should not happen
 		return false, ctxerr.New(ctx, "attempt_number is nil for policy automation install")
 	}
 
 	currentAttempt := *hsi.AttemptNumber
+
+	if failures >= fleet.MaxPolicyAutomationInstallAttempts {
+		return false, nil
+	}
 
 	if currentAttempt >= fleet.MaxPolicyAutomationRetries {
 		return false, nil
@@ -2070,15 +2542,19 @@ func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, ho
 	if err != nil {
 		return err
 	}
-	svc.logger.InfoContext(ctx,
+	svc.logger.InfoContext(
+		ctx,
 		"queuing policy automation software install retry",
 		"host_id", host.ID,
 		"policy_id", *hsi.PolicyID,
 		"software_installer_id", installerID,
 		"current_attempt", *hsi.AttemptNumber,
 	)
+	// The retry needs the same app open decision as the attempt it retries.
 	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
-		PolicyID: hsi.PolicyID,
+		PolicyID:                hsi.PolicyID,
+		OverridePreInstallQuery: hsi.OverridePreInstallQuery,
+		DeferActivation:         svc.deferFleetInitiatedActivation(),
 	})
 	return err
 }
@@ -2099,7 +2575,8 @@ func (svc *Service) retrySoftwareInstall(ctx context.Context, host *fleet.Host, 
 	if err != nil {
 		return err
 	}
-	svc.logger.InfoContext(ctx,
+	svc.logger.InfoContext(
+		ctx,
 		"queuing software install retry",
 		"host_id", host.ID,
 		"software_installer_id", installerID,
@@ -2140,7 +2617,8 @@ func (svc *Service) shouldRetryPolicyAutomationScript(ctx context.Context, host 
 
 // retryPolicyAutomationScript queues a retry for a policy automation script.
 func (svc *Service) retryPolicyAutomationScript(ctx context.Context, host *fleet.Host, hsr *fleet.HostScriptResult) error {
-	svc.logger.InfoContext(ctx,
+	svc.logger.InfoContext(
+		ctx,
 		"queuing policy automation script retry",
 		"host_id", host.ID,
 		"policy_id", *hsr.PolicyID,
@@ -2148,10 +2626,11 @@ func (svc *Service) retryPolicyAutomationScript(ctx context.Context, host *fleet
 		"current_attempt", *hsr.AttemptNumber,
 	)
 	_, err := svc.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
-		HostID:         host.ID,
-		ScriptID:       hsr.ScriptID,
-		PolicyID:       hsr.PolicyID,
-		ScriptContents: hsr.ScriptContents,
+		HostID:          host.ID,
+		ScriptID:        hsr.ScriptID,
+		PolicyID:        hsr.PolicyID,
+		ScriptContents:  hsr.ScriptContents,
+		DeferActivation: svc.deferFleetInitiatedActivation(),
 	})
 	return err
 }

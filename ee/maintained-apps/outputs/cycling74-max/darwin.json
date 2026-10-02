@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.1.5",
+      "version": "9.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cycling74.Max';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cycling74.Max' AND version_compare(bundle_short_version, '9.1.5') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.cycling74.Max');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cycling74.Max' AND version_compare(bundle_short_version, '9.2.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.cycling74.Max' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.cdn.cycling74.com/max9/Max915_260728.dmg",
+      "installer_url": "https://downloads.cdn.cycling74.com/max9/Max920_261001.dmg",
       "install_script_ref": "3c5d2cd6",
       "uninstall_script_ref": "44c66470",
-      "sha256": "884837d39536b6e2e10268ff3d5d1d32b83fb25c8a93d71ba22354503f1dffbc",
+      "sha256": "7c357c8718298e6cd660223f2dc8ee2c281d336fa64e5ba5de8d097e86195aa2",
       "default_categories": [
         "Developer tools"
       ]

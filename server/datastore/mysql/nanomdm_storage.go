@@ -58,6 +58,18 @@ type NanoMDMStorage struct {
 	db     *sqlx.DB
 	logger *slog.Logger
 	ds     fleet.Datastore
+
+	newActivityFn fleet.NewActivityFunc
+}
+
+// SetNewActivityFunc sets the function used to record activities for failures
+// detected while delivering commands. The service is built after the storage,
+// so it can't be passed at construction.
+func (s *NanoMDMStorage) SetNewActivityFunc(fn fleet.NewActivityFunc) {
+	if s == nil {
+		return
+	}
+	s.newActivityFn = fn
 }
 
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
@@ -365,8 +377,38 @@ func (s *NanoMDMStorage) ExpandHostSecrets(ctx context.Context, document string,
 	return s.ds.ExpandHostSecrets(ctx, document, enrollmentID)
 }
 
-func (s *NanoMDMStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
-	return s.ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg)
+func (s *NanoMDMStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error {
+	return s.ds.SetRecoveryLockFailed(ctx, hostUUID, commandUUID, errorMsg)
+}
+
+func (s *NanoMDMStorage) SetDiskEncryptionKeyRotationFailed(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error {
+	host, err := s.ds.GetHostByDiskEncryptionKeyRotationCommand(ctx, commandUUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// superseded, cleared, or a RotateFileVaultKey sent as a custom command
+			return nil
+		}
+		return err
+	}
+	if host.UUID != hostUUID {
+		s.logger.WarnContext(ctx, "RotateFileVaultKey command UUID matched a different host",
+			"expected_host_uuid", host.UUID, "delivery_host_uuid", hostUUID, "command_uuid", commandUUID)
+		return nil
+	}
+	failed, err := s.ds.FailHostDiskEncryptionKeyRotation(ctx, host.ID, commandUUID)
+	if err != nil || !failed {
+		return err
+	}
+	if s.newActivityFn == nil {
+		s.logger.WarnContext(ctx, "no activity function set, skipping failed disk encryption key rotation activity",
+			"host_id", host.ID, "command_uuid", commandUUID)
+		return nil
+	}
+	return s.newActivityFn(ctx, nil, fleet.ActivityTypeFailedToRotateDiskEncryptionKey{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		Detail:          errorMsg,
+	})
 }
 
 // ClearQueue in NanoMDMStorage overrides the implementation in
@@ -383,7 +425,13 @@ func (s *NanoMDMStorage) ClearQueue(r *mdm.Request) error {
 		return err
 	}
 
-	return s.MySQLStorage.ClearQueue(r)
+	if err := s.MySQLStorage.ClearQueue(r); err != nil {
+		return err
+	}
+	// Cleared only once the queue is: a marker left behind points at a command that
+	// is no longer queued, which the next rotation request treats as stale, whereas
+	// a cleared marker with its command still queued would allow a second rotation.
+	return clearHostDiskEncryptionKeyRotationByHostUUIDDB(r.Context, s.db, r.ID)
 }
 
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore

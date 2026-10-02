@@ -1,4 +1,5 @@
 import { get, join } from "lodash";
+
 import { IFleetApiError } from "interfaces/errors";
 
 const formatServerErrors = (errors: IFleetApiError[]) => {

@@ -65,6 +65,12 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
     /// URL schemes that are safe to open externally.
     private static let allowedExternalSchemes: Set<String> = ["https", "http", "mailto"]
 
+    /// URL schemes of native authenticator apps an IdP launches mid-flow.
+    /// Okta Verify registers `com-okta-authenticator`; Okta's sign-in page
+    /// navigates to it (from a hidden iframe) for FastPass when its localhost
+    /// loopback probe fails, then polls Okta for the app's answer.
+    private static let authenticatorSchemes: Set<String> = ["com-okta-authenticator"]
+
     /// Called when a navigation error occurs (e.g., expired token returns 401/403)
     /// or when the page content indicates an error (e.g., "Something went wrong").
     var onNavigationError: (() -> Void)?
@@ -276,6 +282,21 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
         NSWorkspace.shared.open(url)
     }
 
+    /// Hands a navigation to a native authenticator app when an IdP asks for one
+    /// during an SSO flow. The IdP page stays where it is and keeps polling, so
+    /// the flow must stay active. Returns false when the URL isn't an
+    /// authenticator scheme or no flow is running, so callers apply their usual
+    /// policy.
+    private func launchAuthenticatorIfRequested(_ url: URL) -> Bool {
+        guard ssoFlowActive, !ssoFlowExpired,
+              let scheme = url.scheme?.lowercased(),
+              Self.authenticatorSchemes.contains(scheme) else {
+            return false
+        }
+        NSWorkspace.shared.open(url)
+        return true
+    }
+
     // MARK: - Title Centering
 
     private func centerTitleTextField(in window: NSWindow) {
@@ -429,6 +450,10 @@ extension BrowserWindow: WKNavigationDelegate {
         // default browser so the chrome-less WebView can't be steered to
         // arbitrary sites.
         if ssoFlowActive {
+            if launchAuthenticatorIfRequested(requestURL) {
+                decisionHandler(.cancel)
+                return
+            }
             guard requestURL.scheme?.lowercased() == "https", !ssoFlowExpired else {
                 // Flow over (expired or degraded to non-HTTPS). Don't just cancel —
                 // that would strand the WebView on the IdP page; return home.
@@ -490,7 +515,7 @@ extension BrowserWindow: WKUIDelegate {
             let host = url.host?.lowercased()
             if host == fleetHost || (ssoFlowActive && host == ssoHost && !ssoFlowExpired) {
                 webView.load(URLRequest(url: url))
-            } else {
+            } else if !launchAuthenticatorIfRequested(url) {
                 openExternalURL(url)
             }
         }

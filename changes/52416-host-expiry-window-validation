@@ -1,0 +1,1 @@
+- Fixed `PATCH /api/v1/fleet/config`, `fleetctl apply`, and `fleetctl gitops` accepting a `host_expiry_window` of 0 or less while `host_expiry_enabled` is true. The request now fails with a 422, matching the fleet-level setting.

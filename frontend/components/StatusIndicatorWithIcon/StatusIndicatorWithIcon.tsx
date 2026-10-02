@@ -1,8 +1,8 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
-import { IconNames } from "components/icons";
 import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "status-indicator-with-icon";

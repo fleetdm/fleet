@@ -210,4 +210,24 @@ func (e *notFoundError) Error() string {
 
 func (e *notFoundError) IsNotFound() bool    { return true }
 func (e *notFoundError) IsClientError() bool { return true }
-func (e *notFoundError) Unwrap() error       { return e.internalErr }
+
+// Internal implements the ErrWithInternal interface so the AMAPI error is logged
+// without being exposed in the HTTP response.
+func (e *notFoundError) Internal() string {
+	if e.internalErr == nil {
+		return ""
+	}
+	return e.internalErr.Error()
+}
+
+// Unwrap returns the error array form, which errors.Is/As still traverse but
+// errors.Unwrap does not. The HTTP layer type-switches on ctxerr.Cause (which walks
+// errors.Unwrap to the root), so a single-error Unwrap would hand it the *googleapi.Error
+// instead of this type and the response would be a 500 rather than a 404. BadRequestError
+// uses the same form for the same reason.
+func (e *notFoundError) Unwrap() []error {
+	if e.internalErr == nil {
+		return nil
+	}
+	return []error{e.internalErr}
+}

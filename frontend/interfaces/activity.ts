@@ -15,6 +15,7 @@ export enum ActivityType {
   CreatedPolicy = "created_policy",
   DeletedPolicy = "deleted_policy",
   EditedPolicy = "edited_policy",
+  ResetPolicy = "reset_policy",
   CreatedSavedQuery = "created_saved_query",
   DeletedSavedQuery = "deleted_saved_query",
   DeletedMultipleSavedQuery = "deleted_multiple_saved_query",
@@ -52,6 +53,8 @@ export enum ActivityType {
   ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
   SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
   RotatedHostRecoveryLockPassword = "rotated_host_recovery_lock_password",
+  RotatedDiskEncryptionKey = "rotated_disk_encryption_key",
+  FailedToRotateDiskEncryptionKey = "failed_to_rotate_disk_encryption_key",
   EnabledRecoveryLockPasswords = "enabled_recovery_lock_passwords",
   DisabledRecoveryLockPasswords = "disabled_recovery_lock_passwords",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
@@ -89,10 +92,14 @@ export enum ActivityType {
   EditedAndroidProfile = "edited_android_profile",
   EditedAndroidCertificate = "edited_android_certificate",
   ResentCertificate = "resent_certificate",
-  // Note: This activity is generated for all platforms.
+  // Deprecated: superseded by EditedDiskEncryptionSettings; kept so
+  // historical activities still render. Was generated for all platforms.
   EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
-  // Note: This activity is generated for all platforms.
+  // Deprecated: superseded by EditedDiskEncryptionSettings; kept so
+  // historical activities still render. Was generated for all platforms.
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
+  // Generated once per platform whose disk encryption settings changed.
+  EditedDiskEncryptionSettings = "edited_disk_encryption_settings",
   AddedBootstrapPackage = "added_bootstrap_package",
   DeletedBootstrapPackage = "deleted_bootstrap_package",
   ChangedMacOSSetupAssistant = "changed_macos_setup_assistant",
@@ -104,6 +111,8 @@ export enum ActivityType {
   DisabledWindowsMdm = "disabled_windows_mdm",
   EnabledGitOpsMode = "enabled_gitops_mode",
   DisabledGitOpsMode = "disabled_gitops_mode",
+  EnabledSSOFleetDesktop = "enabled_sso_fleet_desktop",
+  DisabledSSOFleetDesktop = "disabled_sso_fleet_desktop",
   EnabledGitOpsException = "enabled_gitops_exception",
   DisabledGitOpsException = "disabled_gitops_exception",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
@@ -128,6 +137,8 @@ export enum ActivityType {
   EditedDeclarationProfile = "edited_declaration_profile",
   ResentConfigurationProfile = "resent_configuration_profile",
   ResentConfigurationProfileBatch = "resent_configuration_profile_batch",
+  InstalledOptInConfigurationProfile = "installed_opt_in_configuration_profile",
+  UninstalledOptInConfigurationProfile = "uninstalled_opt_in_configuration_profile",
   AddedSoftware = "added_software",
   EditedSoftware = "edited_software",
   DeletedSoftware = "deleted_software",
@@ -162,6 +173,9 @@ export enum ActivityType {
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
+  CreatedDiskEncryptionPIN = "created_disk_encryption_pin",
+  BoundHostToIdpAccount = "bound_host_to_idp_account",
+  RefusedHostIdpAccountChange = "refused_host_idp_account_change",
   CreatedCustomVariable = "created_custom_variable",
   UpdatedCustomVariable = "updated_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
@@ -211,7 +225,17 @@ export enum ActivityType {
   EditedCustomHostVital = "edited_custom_host_vital",
   DeletedCustomHostVital = "deleted_custom_host_vital",
   ReleasedDeviceFromAB = "released_from_ab",
+  NotifiedEndUserBeforePatching = "notified_end_user_before_patching",
+  EnabledAppleBusinessOnlyEnrollment = "enabled_apple_business_only_enrollment",
+  DisabledAppleBusinessOnlyEnrollment = "disabled_apple_business_only_enrollment",
+  HostEnrollmentRejected = "host_enrollment_rejected",
 }
+
+/** Reasons carried by a `host_enrollment_rejected` activity. */
+export type EnrollmentRejectedReason =
+  | "one_time_secret_spent"
+  | "one_time_secret_identifier_mismatch"
+  | "shared_secret_for_mdm_managed_host";
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
@@ -226,6 +250,8 @@ export type IHostPastActivityType =
   | ActivityType.ViewedHostRecoveryLockPassword
   | ActivityType.SetHostRecoveryLockPassword
   | ActivityType.RotatedHostRecoveryLockPassword
+  | ActivityType.RotatedDiskEncryptionKey
+  | ActivityType.FailedToRotateDiskEncryptionKey
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
   | ActivityType.InstalledAllSelfServiceSoftware
@@ -242,6 +268,7 @@ export type IHostPastActivityType =
   | ActivityType.ClearedPasscode
   | ActivityType.ViewedManagedLocalAccount
   | ActivityType.CreatedManagedLocalAccount
+  | ActivityType.CreatedDiskEncryptionPIN
   | ActivityType.RotatedManagedLocalAccountPassword
   | ActivityType.FailedToRotateManagedLocalAccountPassword
   | ActivityType.FailedEnrollmentProfileRenewal
@@ -255,8 +282,13 @@ export type IHostPastActivityType =
   | ActivityType.FailedAutomationTicket
   | ActivityType.FailedAutomationCalendarEvent
   | ActivityType.FailedAutomationConditionalAccess
+  | ActivityType.NotifiedEndUserBeforePatching
   | ActivityType.ReleasedDeviceFromAB
-  | ActivityType.ResentConfigurationProfile;
+  | ActivityType.ResentConfigurationProfile
+  | ActivityType.InstalledOptInConfigurationProfile
+  | ActivityType.UninstalledOptInConfigurationProfile
+  | ActivityType.ResetPolicy
+  | ActivityType.HostEnrollmentRejected;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -294,6 +326,10 @@ export type IHostUpcomingActivity = Omit<
   details: IActivityDetails;
 };
 
+/** `details.status` values on a `notified_end_user_before_patching` activity.
+ * Distinct from the automation-runs wrapper's `"error" | "success"` union. */
+export type INotifyActivityStatus = "success" | "failed";
+
 export interface IActivityDetails {
   /** Useful for passing this data into an activity details modal */
   created_at?: string;
@@ -308,6 +344,8 @@ export interface IActivityDetails {
   deadline?: string;
   email?: string;
   enrollment_id?: string | null; // unique identifier for MDM BYOD enrollments; null for other enrollments
+  /** Which fleetd component attempted to enroll: "orbit" or "osquery". */
+  enrollment_plane?: string;
   global?: boolean;
   grace_period_days?: number;
   host_display_name?: string;
@@ -319,6 +357,7 @@ export interface IActivityDetails {
   canceled_count?: number;
   host_platform?: string;
   host_serial?: string;
+  install_at?: string;
   install_uuid?: string;
   installed_from_dep?: boolean;
   labels_exclude_any?: ILabelSoftwareTitle[];
@@ -330,9 +369,13 @@ export interface IActivityDetails {
   name?: string;
   pack_id?: number;
   pack_name?: string;
+  /** One notification may cover several patch policies and appear in each of their runs tables. */
+  patch_notification_uuid?: string;
   platform?: Platform; // OS platform
   policy_id?: number;
+  policy_ids?: number[];
   policy_name?: string;
+  pre_install_query_output?: string;
   profile_identifier?: string;
   profile_name?: string;
   profile_uuid?: string;
@@ -340,10 +383,14 @@ export interface IActivityDetails {
   query_id?: number;
   query_ids?: number[];
   query_name?: string;
+  reason?: EnrollmentRejectedReason | string;
   query_sql?: string;
   request_type?: string;
   role?: UserRole;
   script_execution_id?: string;
+  /** Notification script exit code on notify-before-patching activities; keys
+   *  into COPY_BY_EXIT_CODE for the failure reason shown in the details column. */
+  exit_code?: number;
   script_name?: string;
   self_service?: boolean;
   self_service_category_id?: number | null;
@@ -351,9 +398,14 @@ export interface IActivityDetails {
   /** Set on a patch-when-closed skip (the app was open); `status` is then
    * `failed_install`. */
   skipped_install?: boolean;
+  /** Undefined on skips recorded before 4.93, which were all patch-when-closed
+   * because notify before patching did not ship until then. */
+  patch_when_closed?: boolean;
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  /** Titles covered by a single notify-before-patching notification. */
+  software_titles?: string[];
   software_titles_count?: number;
   /** Custom name set per team by admin */
   software_display_name?: string;
@@ -365,6 +417,8 @@ export interface IActivityDetails {
   team_id?: number | null;
   team_name?: string | null;
   teams?: ITeamSummary[];
+  /** Seconds before the patch install (drives "1 hour" vs "5 minutes" copy). */
+  time_before?: number;
   triggered_by?: string;
   from_setup_experience?: boolean;
   from_auto_update?: boolean;
@@ -378,6 +432,7 @@ export interface IActivityDetails {
   failure_reason?: string;
   user_email?: string;
   user_id?: number;
+  jit?: boolean;
   webhook_url?: string;
   // Policy automation outcomes (failed_automation_*/ran_automation_* activities).
   status_code?: number;
@@ -392,6 +447,9 @@ export interface IActivityDetails {
   domain?: string;
   host_idp_username?: string;
   idp_full_name?: string;
+  idp_email?: string;
+  replaced_idp_email?: string;
+  existing_idp_email?: string;
   tenant_id?: string;
   client_id?: string;
   certificate_name?: string;
@@ -487,6 +545,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   disabled_macos_setup_end_user_auth:
     "Turned off end user authentication (setup experience)",
   disabled_macos_update_new_hosts: "Disabled OS updates for new macOS hosts",
+  disabled_sso_fleet_desktop: "Disabled single sign-on (SSO) for Fleet Desktop",
   disabled_vpp: "Disabled Volume Purchasing Program (VPP)",
   disabled_windows_mdm: "Turned off Windows MDM",
   disabled_windows_mdm_migration: "Turned off Windows MDM migration",
@@ -497,6 +556,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_custom_scep_proxy: "Edited certificate authority (CA): custom SCEP",
   edited_declaration_profile: "Edited declaration (DDM) profiles",
   edited_digicert: "Edited certificate authority (CA): DigiCert",
+  edited_disk_encryption_settings: "Edited disk encryption settings",
   edited_ios_min_version: "OS updates: edited iOS",
   edited_ipados_min_version: "OS updates: edited iPadOS",
   edited_macos_min_version: "OS updates: edited macOS",
@@ -522,6 +582,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   enabled_macos_setup_end_user_auth:
     "Turned on end user authentication (setup experience)",
   enabled_macos_update_new_hosts: "Enabled OS updates for new macOS hosts",
+  enabled_sso_fleet_desktop: "Enabled single sign-on (SSO) for Fleet Desktop",
   enabled_vpp: "Enabled Volume Purchasing Program (VPP)",
   enabled_windows_mdm: "Turned on Windows MDM",
   enabled_windows_mdm_migration: "Turned on Windows MDM migration",
@@ -529,6 +590,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   installed_app_store_app: "Installed App Store app",
   installed_software: "Install software",
   installed_all_self_service_software: "Installed all self-service software",
+  installed_opt_in_configuration_profile:
+    "Installed opt-in configuration profile",
   live_query: "Ran live report",
   locked_host: "Locked host",
   mdm_enrolled: "MDM turned on",
@@ -548,8 +611,11 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   disabled_recovery_lock_passwords: "Turned off Recovery Lock passwords",
   resent_configuration_profile: "Resent configuration profile",
   resent_configuration_profile_batch: "Bulk resent configuration profile",
+  reset_policy: "Reset policy",
   transferred_hosts: "Transferred hosts",
   uninstalled_software: "Uninstall software",
+  uninstalled_opt_in_configuration_profile:
+    "Uninstalled opt-in configuration profile",
   unlocked_host: "Unlocked host",
   updated_script: "Updated script",
   user_added_by_sso: "Added user via JIT",
@@ -564,6 +630,13 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_conditional_access_integration_microsoft:
     "Deleted conditional access integration: Microsoft",
   escrowed_disk_encryption_key: "Escrowed disk encryption key",
+  [ActivityType.RotatedDiskEncryptionKey]:
+    "Triggered disk encryption key rotation",
+  [ActivityType.FailedToRotateDiskEncryptionKey]:
+    "Failed to rotate disk encryption key",
+  [ActivityType.CreatedDiskEncryptionPIN]: "Created disk encryption PIN",
+  bound_host_to_idp_account: "Bound host to IdP account",
+  refused_host_idp_account_change: "Refused host IdP account change",
   created_custom_variable: "Created custom variable",
   updated_custom_variable: "Updated custom variable",
   deleted_custom_variable: "Deleted custom variable",
@@ -647,4 +720,11 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedCustomHostVital]: "Edited custom host vital",
   [ActivityType.DeletedCustomHostVital]: "Deleted custom host vital",
   [ActivityType.ReleasedDeviceFromAB]: "Released host from Apple Business",
+  [ActivityType.NotifiedEndUserBeforePatching]:
+    "Notified end user before patching",
+  [ActivityType.EnabledAppleBusinessOnlyEnrollment]:
+    "Enabled Apple Business only enrollment",
+  [ActivityType.DisabledAppleBusinessOnlyEnrollment]:
+    "Disabled Apple Business only enrollment",
+  [ActivityType.HostEnrollmentRejected]: "Host enrollment failed",
 };

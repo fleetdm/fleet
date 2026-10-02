@@ -1,11 +1,10 @@
-import React, { ReactNode } from "react";
 import classnames from "classnames";
+import React, { ReactNode } from "react";
 
 import StatusIndicator from "components/StatusIndicator";
-
+import { IIndicatorValue } from "components/StatusIndicator/StatusIndicator";
 import { monthDayYearFormat } from "utilities/date_format";
 import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
-import { IIndicatorValue } from "components/StatusIndicator/StatusIndicator";
 
 const baseClass = "renew-date-cell";
 

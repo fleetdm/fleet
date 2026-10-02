@@ -60,6 +60,26 @@ Supported Linux templates: `ubuntu_22.04`, `rhel_8`, `rhel_9`, `rhel_10`. RHEL t
 
 The software database (`cmd/osquery-perf/software-library/software.db`) is optional — macOS, Windows, and Ubuntu have embedded fallback fixtures, and RHEL kernels are embedded too. The DB only adds non-kernel software variety. If the DB isn't present at `--software_db_path`, osquery-perf logs a warning and falls back to the embedded fixtures.
 
+### Homebrew executable hashes
+
+macOS hosts report a sha256 for every Mach-O executable their Homebrew formulae install, and the
+server stores one installed path row per executable. That fan-out, not the number of formulae, is
+what sizes a macOS host's installed path delta, so it has its own flags:
+
+- `--software_homebrew_keg_percent` (default 80): percentage of a host's Homebrew packages that
+  are kegs reporting executable hashes. The rest report none, as a cask does. `0` reports no
+  hashes at all, like a host running an older `fleetd`.
+- `--software_homebrew_large_keg_percent` (default 1): percentage of those kegs that install 200
+  or more executables, standing in for a formula like netpbm or texlive. The rest install one to
+  three, as most formulae do.
+
+Which packages are kegs, which kegs are large, and how many executables each installs are derived
+from the formula name, so a keg reports the same set on every run and every host that has the
+formula agrees about it.
+
+Homebrew formulae come from the software database, so these flags do nothing when it isn't loaded
+(the embedded macOS fixtures are all `apps`).
+
 ## Controlling Agent Behavior From the Fleet UI
 
 ### Specify Query Results
@@ -169,6 +189,60 @@ To force an osquery-perf agent to respond with `NotNow` once to an `InstallProfi
 > Currently only supported for macOS.
 
 To force a certain ErrorCode and failure for an `InstallApplication` command, the `iTunesStoreID` payload field has to have a value below 100_000. The agent will respond with a failure and the specified error code, which helps QA and repro logic scenarios on certain error codes.
+
+## Conditional Config Request (ETag) Support
+
+The agent can simulate the native osquery conditional config request
+lifecycle. The validator travels in the JSON bodies: an enabled agent sends
+an `"etag"` field in the config request body (empty on its first request),
+stores the server-assigned `"etag"` value from each full config response, and
+treats the constant `{"etag":"ok"}` response as "unchanged", retaining the
+installed scheduled-query state.
+
+- `--config_tls_etag`: default `false`, enable native osquery conditional config requests
+
+This feature is **off by default** because osquery-perf is designed for load
+testing, and enabling it reduces bandwidth without necessarily reducing
+backend load. Opt in with `--config_tls_etag=true` to measure bandwidth
+savings.
+
+The etag is in-memory only — a restarted osquery-perf process starts with a
+full fetch for every simulated host. The value is stored on receipt, before
+the config is processed, mirroring the real osquery client: a config the
+agent fails to process is confirmed unchanged on later check-ins rather than
+re-downloaded. The server's value is authoritative and opaque; a local
+SHA-256 of the canonical (etag-less) body is compared only as a diagnostic
+(mismatches are counted but do not affect behavior).
+
+Stats logged every 10 seconds include:
+
+- `config full responses`: full config responses received
+- `config not-modified responses`: `{"etag":"ok"}` responses received
+- `conditional config requests`: requests that echoed a non-empty etag
+- `config response body bytes`: total downloaded config body bytes
+- `estimated config body bytes avoided`: body bytes saved by not-modified responses
+- `estimated config body savings pct`: percentage of logical body bytes avoided
+- `config etag drift`: times the server's etag disagreed with the locally calculated hash
+
+### Example control/treatment run
+
+Run a control (no etag) and treatment (etag enabled) against the same Fleet
+server to measure bandwidth savings:
+
+```
+# Control: no etag, every request downloads the full config
+go run agent.go --config_tls_etag=false --host_count 100 --config_interval 1m ...
+
+# Treatment: etag enabled, unchanged configs get the minimal body
+go run agent.go --config_tls_etag=true --host_count 100 --config_interval 1m ...
+```
+
+Compare the `config response body bytes` and `estimated config body savings pct`
+from the stats logs. For a config-dominant profile, use:
+
+```
+--orbit_prob 0.0 --mdm_prob 0.0 --config_interval 1m --query_interval 24h --logger_tls_period 24h
+```
 
 ## Installing software
 

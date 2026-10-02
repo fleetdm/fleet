@@ -36,6 +36,10 @@ To manually enroll iOS, iPadOS, or Android hosts, follow the steps below:
 
 4. When your end users visit the link and follow the steps provided on the enrollment page, their host will be enrolled.
 
+To test enrollment yourself, scan the QR code below the enrollment link. It opens the same page you share with your end users.
+
+Company-owned (fully-managed) Android hosts enroll from the setup wizard after a factory reset. That page provides a separate QR code for the wizard to scan.
+
 ## CLI
 
 > You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/guides/fleetctl#installing-fleetctl).
@@ -75,8 +79,9 @@ Tip: To see all options for `fleetctl package` command, run `fleetctl package -h
 You can use your tool of choice, like [Munki](https://www.munki.org/munki/) on macOS or a package manager ([APT](https://en.wikipedia.org/wiki/APT_(software)) or [DNF](https://en.wikipedia.org/wiki/DNF_(software))) on Linux, to install fleetd.
 
 ### Enroll hosts to a fleet
+`Applies only to Fleet Premium`
 
-With hosts segmented into fleet, you can apply unique queries and give users access to only the hosts in specific fleet. [Learn more about fleet](https://fleetdm.com/docs/using-fleet/segment-hosts).
+With hosts segmented into fleets, you can apply unique queries and give users access to only the hosts in specific fleet. [Learn more about fleet](https://fleetdm.com/docs/using-fleet/segment-hosts).
 
 To enroll to a specific fleet: from the **Hosts** page, select the desired fleet from the menu at the top of the screen, then follow the instructions above for generating Fleet's agent (fleetd). The fleet's enroll secret will be included in the generated command or on the enrollment page for iOS, iPadOS, and Android hosts.
 
@@ -170,7 +175,7 @@ In the Google Admin console:
 
 4. Select **Actions > Delete** to delete the host from Fleet.
 
-> Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) for details.
+> Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts and Android hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) and the [Android MDM setup guide](https://fleetdm.com/guides/android-mdm-setup#re-enrolling-android-hosts) for details.
 
 > The unenroll action on Android hosts sends a wipe command via the Android Management API. [Learn more](https://fleedtdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm)
 
@@ -354,7 +359,7 @@ To use mTLS use the [AutoSelectCertificateForUrls policy](https://chromeenterpri
 
 `Applies only to Fleet Premium`
 
-Host identity certificates allow Fleet's agent (fleetd) to use hardware-backed client certificates for authentication to the Fleet server. All fleetd requests (except `/api/fleet/orbit/ping` and [Fleet Desktop](https://github.com/fleetdm/fleet/blob/2b33a445e9bfce808cebe31f8fef91058e8635e3/docs/Contributing/product-groups/orchestration/tpm-backed-http-signing.md#fleet-desktop-authentication) requests) to the Fleet server will include an HTTP message signature for enhanced security.
+Host identity certificates allow Fleet's agent (fleetd) to use hardware-backed client certificates for authentication to the Fleet server. All fleetd requests (except `/api/fleet/orbit/ping` and [Fleet Desktop](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/authentication/tpm-backed-http-signing.md#fleet-desktop-authentication) requests) to the Fleet server will include an HTTP message signature for enhanced security.
 
 This feature uses the host's TPM (Trusted Platform Module) to generate and store cryptographic keys, providing strong hardware-based authentication.
 

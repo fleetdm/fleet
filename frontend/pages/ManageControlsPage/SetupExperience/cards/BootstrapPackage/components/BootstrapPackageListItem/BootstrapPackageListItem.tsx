@@ -1,13 +1,12 @@
 import React from "react";
-import { timeAgo } from "utilities/date_format";
-import URL_PREFIX from "router/url_prefix";
-
-import { IBootstrapPackageMetadata } from "interfaces/mdm";
-import endpoints from "utilities/endpoints";
 
 import Button from "components/buttons/Button";
-import Graphic from "components/Graphic";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Graphic from "components/Graphic";
+import { IBootstrapPackageMetadata } from "interfaces/mdm";
+import URL_PREFIX from "router/url_prefix";
+import { timeAgo } from "utilities/date_format";
+import endpoints from "utilities/endpoints";
 
 const baseClass = "bootstrap-package-list-item";
 

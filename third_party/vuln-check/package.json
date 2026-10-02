@@ -9,9 +9,7 @@
     "url": "https://github.com/fleetdm/fleet.git",
     "directory": "third_party/vuln-check"
   },
-  "dependencies": {
-    "node-sql-parser": "5.3.13"
-  },
+  "dependencies": {},
   "devDependencies": {},
   "scripts": {},
   "engines": {

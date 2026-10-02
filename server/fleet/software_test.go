@@ -131,9 +131,45 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "patch-when-closed empty pre-install output shows app-was-open copy",
 			initial: HostSoftwareInstallerResult{
+				Status:                  SoftwareInstallFailed,
+				PreInstallQueryOutput:   new(""),
+				PatchWhenClosed:         true,
+				OverridePreInstallQuery: true,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "notify-before-patching empty pre-install output shows the notify copy",
+			initial: HostSoftwareInstallerResult{
+				Status:                  SoftwareInstallFailed,
+				PreInstallQueryOutput:   new(""),
+				NotifyBeforePatching:    true,
+				OverridePreInstallQuery: true,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenNotifyCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "empty pre-install output on an install that did not run the app open query",
+			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstallFailed,
 				PreInstallQueryOutput: new(""),
-				PatchWhenClosed:       true,
+				NotifyBeforePatching:  true,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerQueryFailCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			// the app was still open when this install ran, even though the policy option is off now
+			name: "empty pre-install output after the patch option was turned off",
+			initial: HostSoftwareInstallerResult{
+				Status:                  SoftwareInstallFailed,
+				PreInstallQueryOutput:   new(""),
+				OverridePreInstallQuery: true,
 			},
 			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenCopy),
 			expectedOutput:                  nil,
@@ -1172,6 +1208,55 @@ func TestSoftwareCategoryReferenceMatches(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert.Equal(t, c.want, SoftwareCategoryReferenceMatches(c.reference, c.stored))
+		})
+	}
+}
+
+func TestValidateSoftwareSources(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		sources []string
+		wantErr string
+	}{
+		{
+			name:    "nil is unscoped, not invalid",
+			sources: nil,
+		},
+		{
+			name:    "empty is unscoped, not invalid",
+			sources: []string{},
+		},
+		{
+			name:    "distinct sources",
+			sources: []string{"deb_packages", "rpm_packages"},
+		},
+		{
+			name:    "single source",
+			sources: []string{"go_binaries"},
+		},
+		{
+			name:    "empty entry",
+			sources: []string{"deb_packages", ""},
+			wantErr: "empty software source",
+		},
+		{
+			name:    "only an empty entry",
+			sources: []string{""},
+			wantErr: "empty software source",
+		},
+		{
+			name:    "duplicate entry",
+			sources: []string{"deb_packages", "rpm_packages", "deb_packages"},
+			wantErr: `duplicate software source "deb_packages"`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateSoftwareSources(tc.sources)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErr)
 		})
 	}
 }

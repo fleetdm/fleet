@@ -1,12 +1,14 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
+
 import {
   createMockSoftwarePackage,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
 import { InstallerType } from "interfaces/software";
 import softwareAPI from "services/entities/software";
+import { createCustomRenderer } from "test/test-utils";
+
 import EditIconModal from "./EditIconModal";
 
 const software = createMockSoftwareTitle();

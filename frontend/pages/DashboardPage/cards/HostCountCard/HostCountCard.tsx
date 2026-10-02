@@ -1,12 +1,12 @@
-import React from "react";
+import classnames from "classnames";
 import { kebabCase } from "lodash";
-import { internationalNumberFormat } from "utilities/helpers";
+import React from "react";
 
+import Card from "components/Card";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
-import classnames from "classnames";
 import TooltipWrapper from "components/TooltipWrapper";
-import Card from "components/Card";
+import { internationalNumberFormat } from "utilities/helpers";
 
 interface IHostCountCard {
   count: number;
@@ -97,11 +97,7 @@ const HostCountCard = ({
 
   return (
     <div className={baseClass} data-testid="card">
-      <Card
-        className={classes}
-        borderRadiusSize="large"
-        path={notSupported ? undefined : path}
-      >
+      <Card className={classes} path={notSupported ? undefined : path}>
         {renderCard()}
       </Card>
     </div>

@@ -9,6 +9,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestEffectiveRedisConfigETags pins the flag gating: the Redis short
+// circuit requires the conditional-request protocol; osquery.config_etags
+// off forces it off regardless of osquery.redis_config_etags.
+func TestEffectiveRedisConfigETags(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		configETags bool
+		redisETags  bool
+		want        bool
+	}{
+		{"both enabled", true, true, true},
+		{"redis flag off", true, false, false},
+		{"protocol off gates redis flag", false, true, false},
+		{"both off", false, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := config.TestConfig()
+			cfg.Osquery.ConfigETags = tc.configETags
+			cfg.Osquery.RedisConfigETags = tc.redisETags
+			assert.Equal(t, tc.want, effectiveRedisConfigETags(cfg))
+		})
+	}
+}
+
 func TestValidateRedisConfig(t *testing.T) {
 	for _, tc := range []struct {
 		name    string

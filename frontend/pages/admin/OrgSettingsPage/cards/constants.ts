@@ -1,5 +1,6 @@
-import { IConfig } from "interfaces/config";
 import { InjectedRouter } from "react-router";
+
+import { IConfig } from "interfaces/config";
 
 export const DEFAULT_TRANSPARENCY_URL = "https://fleetdm.com/transparency";
 

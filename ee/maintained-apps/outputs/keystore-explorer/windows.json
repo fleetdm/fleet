@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "5.7.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'KeyStore Explorer' AND publisher = 'Kai Kramer';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'KeyStore Explorer' AND publisher = 'Kai Kramer' AND version_compare(version, '5.7.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'kse.exe');"
+      },
+      "installer_url": "https://github.com/kaikramer/keystore-explorer/releases/download/v5.7.0/kse-570-setup.exe",
+      "install_script_ref": "5d895dc9",
+      "uninstall_script_ref": "2470a3d3",
+      "sha256": "9d337fb85b3fa9de4f75df959dbaecd42330d58993fed6a4861ce091d67a3d56",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "2470a3d3": "# Uninstalls KeyStore Explorer (Inno Setup installer).\n# Looks up the registry UninstallString and runs it with Inno's silent flags.\n\n$softwareName = \"KeyStore Explorer\"\n$silentArgs = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n\n$machineKey       = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -eq $softwareName) {\n        $foundUninstaller = $true\n\n        # Prefer QuietUninstallString when present; otherwise use UninstallString.\n        $uninstallCommand = if ($key.QuietUninstallString) {\n            $key.QuietUninstallString\n        } else {\n            $key.UninstallString\n        }\n\n        # Defensive parser for the three UninstallString shapes:\n        #   \"C:\\path with spaces\\unins000.exe\" /ARG                    -> quoted\n        #   C:\\Program Files\\KeyStore Explorer\\uninstall\\unins000.exe   -> unquoted with spaces\n        #   MsiExec.exe /X{GUID}                                       -> bare token\n        $uninstallPath = $null\n        $existingArgs  = ''\n        if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n            $uninstallPath = $matches[1]\n            $existingArgs  = $matches[2]\n        } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n            $uninstallPath = $matches[1]\n            $existingArgs  = $matches[2]\n        } elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n            $uninstallPath = $matches[1]\n            $existingArgs  = $matches[2]\n        }\n\n        $finalArgs = ($existingArgs.Trim() + ' ' + $silentArgs).Trim()\n\n        Write-Host \"Uninstall command: $uninstallPath\"\n        Write-Host \"Uninstall args: $finalArgs\"\n\n        $processOptions = @{\n            FilePath     = $uninstallPath\n            ArgumentList = $finalArgs\n            PassThru     = $true\n            Wait         = $true\n        }\n\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n\n        Write-Host \"Uninstall exit code: $exitCode\"\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstaller for KeyStore Explorer not found.\"\n    $exitCode = 1\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    $exitCode = 1\n}\n\nExit $exitCode\n",
+    "5d895dc9": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# KeyStore Explorer uses an Inno Setup installer: /ALLUSERS forces a\n# machine-wide install (the default is per-user, which would land in the SYSTEM\n# profile when Fleet runs as SYSTEM).\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/ALLUSERS /VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

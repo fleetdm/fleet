@@ -49,6 +49,24 @@ type QueryPayload struct {
 	LabelsIncludeAll []string `json:"labels_include_all"`
 }
 
+// TeamScopedQueryName identifies a saved query by team and name, for batch
+// resolution. A nil TeamID means the global team.
+type TeamScopedQueryName struct {
+	TeamID *uint
+	Name   string
+}
+
+// Key returns the canonical map key for this team-scoped name. It mirrors the
+// team_id_char column (string(team_id), or "" when team_id is NULL) so a nil
+// TeamID and the global team collapse to the same key.
+func (t TeamScopedQueryName) Key() string {
+	tc := ""
+	if t.TeamID != nil {
+		tc = fmt.Sprint(*t.TeamID)
+	}
+	return tc + "\x00" + t.Name
+}
+
 // Query represents a osquery query to run on devices.
 //
 // - If Interval is 0 or AutomationsEnabled is false, then the query is disabled from running as
@@ -564,6 +582,18 @@ type ScheduledQueryResult struct {
 }
 
 // ScheduledQueryResultRow is a scheduled query result row.
+// QueryReportWriteResult describes the outcome of storing one host's results for a report.
+type QueryReportWriteResult struct {
+	// RowsAdded is the net change in stored rows with data.
+	RowsAdded int
+	// Rejected is true when nothing was stored because the write would have pushed the report
+	// past the cap.
+	Rejected bool
+	// NewHost is true when the host had no stored rows with data before this write and has
+	// some now, i.e. the report had room for a host it didn't cover yet.
+	NewHost bool
+}
+
 type ScheduledQueryResultRow struct {
 	// QueryID is the unique identifier of the query.
 	QueryID uint `db:"query_id"`

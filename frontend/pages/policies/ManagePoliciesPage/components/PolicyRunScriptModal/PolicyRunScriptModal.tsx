@@ -1,30 +1,27 @@
+import { omit } from "lodash";
 import React, { useCallback, useRef } from "react";
 import { useQuery } from "react-query";
 import { SingleValue } from "react-select-5";
-import { omit } from "lodash";
 
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import DropdownWrapper, {
+  CustomOptionType,
+} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import Modal from "components/Modal";
+import { IPaginatedListHandle } from "components/PaginatedList";
+import Spinner from "components/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IScript } from "interfaces/script";
 import paths from "router/paths";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-
 import scriptsAPI, {
   IListScriptsQueryKey,
   IScriptsResponse,
 } from "services/entities/scripts";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
-import { IScript } from "interfaces/script";
-
-import DropdownWrapper, {
-  CustomOptionType,
-} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
-import EmptyState from "components/EmptyState";
-import Modal from "components/Modal";
-import TooltipWrapper from "components/TooltipWrapper";
-
-import { IPaginatedListHandle } from "components/PaginatedList";
 import PoliciesPaginatedList, {
   IFormPolicy,
 } from "../PoliciesPaginatedList/PoliciesPaginatedList";

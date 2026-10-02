@@ -1,14 +1,13 @@
 import React from "react";
 
+import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   DisplayPlatform,
   QueryableDisplayPlatform,
   QueryablePlatform,
 } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
-
-import TooltipWrapper from "components/TooltipWrapper";
-import Icon from "components/Icon";
 
 interface IPlatformCompatibilityProps {
   compatiblePlatforms: QueryablePlatform[] | null;

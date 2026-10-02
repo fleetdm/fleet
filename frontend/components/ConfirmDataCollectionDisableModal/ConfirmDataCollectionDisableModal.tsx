@@ -1,9 +1,8 @@
 import React from "react";
 
-import { DATASET_LABEL, HistoricalDataConfigKey } from "interfaces/charts";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { DATASET_LABEL, HistoricalDataConfigKey } from "interfaces/charts";
 
 const baseClass = "confirm-data-collection-disable-modal";
 
@@ -40,14 +39,16 @@ const ConfirmDataCollectionDisableModal = ({
     >
       <>
         <p>{heading}</p>
-        <p>The following dataset(s) will be disabled:</p>
-        <ul className={`${baseClass}__dataset-list`}>
-          {datasets.map((key) => (
-            <li key={key}>
-              <strong>{DATASET_LABEL[key]}</strong>
-            </li>
-          ))}
-        </ul>
+        <div className={`${baseClass}__dataset-block`}>
+          <p>The following dataset(s) will be disabled:</p>
+          <ul className={`${baseClass}__dataset-list`}>
+            {datasets.map((key) => (
+              <li key={key}>
+                <strong>{DATASET_LABEL[key]}</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
         <p>
           Previously collected data will be deleted.{" "}
           <strong>This cannot be undone.</strong>

@@ -99,6 +99,7 @@
       si.cpu_brand,
 
       CASE
+        WHEN ci.model LIKE '%Apple M6%'               THEN 'apple_m6'
         WHEN ci.model LIKE '%Apple M5%'               THEN 'apple_m5'
         WHEN ci.model LIKE '%Apple M4%'               THEN 'apple_m4'
         WHEN ci.model LIKE '%Apple M3%'               THEN 'apple_m3'
@@ -769,5 +770,26 @@
       AND eventid = 6009;
   interval: 900
   platform: windows
+  automations_enabled: true
+  logging: snapshot
+- name: DEX - AI Tools - Surfaces AI tools on the host
+  description: Surfaces AI tools on the host such as MCP servers, AI agent CLIs and desktop apps.
+  query: |
+    SELECT
+      category AS category,
+      detail AS detail,
+      endpoint AS target_endpoint,
+      identifier AS identifier,
+      location AS location,
+      name AS tool_name,
+      path AS path,
+      risk_flags AS risk_indicators,
+      sha256 AS sha256_hash,
+      source AS origin,
+      type AS tool_type,
+      version AS version
+    FROM ai_tools;
+  interval: 3600
+  platform: darwin,linux,windows
   automations_enabled: true
   logging: snapshot

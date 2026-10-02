@@ -1,6 +1,6 @@
+import { uniqueId } from "lodash";
 import React from "react";
 
-import { uniqueId } from "lodash";
 import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
 interface IPremiumFeatureProps {

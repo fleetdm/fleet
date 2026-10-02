@@ -1,43 +1,42 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 import { Tab, TabList, Tabs } from "react-tabs";
 
-import PATHS from "router/paths";
-import { IConfig } from "interfaces/config";
-import { IJiraIntegration, IZendeskIntegration } from "interfaces/integration";
-import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
-import { SelectedPlatform } from "interfaces/platform";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
-import configAPI from "services/entities/config";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import { ISoftwareApiParams } from "services/entities/software";
+import AutomationsButton from "components/buttons/AutomationsButton";
+import Button from "components/buttons/Button";
+import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import TeamsHeader from "components/TeamsHeader";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import useTeamIdParam from "hooks/useTeamIdParam";
+import { IConfig } from "interfaces/config";
+import { IJiraIntegration, IZendeskIntegration } from "interfaces/integration";
+import { SelectedPlatform } from "interfaces/platform";
+import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import { ISoftwareApiParams } from "services/entities/software";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import { getNextLocationPath } from "utilities/helpers";
 import {
   convertParamsToSnakeCase,
   getPathWithQueryParams,
 } from "utilities/url";
-import { getNextLocationPath } from "utilities/helpers";
 
-import { notify } from "components/ToastNotification";
-import Button from "components/buttons/Button";
-import AutomationsButton from "components/buttons/AutomationsButton";
-import MainContent from "components/MainContent";
-import TeamsHeader from "components/TeamsHeader";
-import TooltipWrapper from "components/TooltipWrapper";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import PageDescription from "components/PageDescription";
-
-import ManageAutomationsModal from "./components/modals/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/modals/AddSoftwareModal";
+import ManageAutomationsModal from "./components/modals/ManageSoftwareAutomationsModal";
+import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 import {
   buildSoftwareVulnFiltersQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFiltersParams,
 } from "./SoftwareInventory/SoftwareInventoryTable/helpers";
-import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 
 interface ISoftwareSubNavItem {
   name: string;
@@ -86,10 +85,40 @@ export const getTabIndex = (
 // default values for query params used on this page if not provided
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
+// The OS tab defaults to sorting by version (latest first) instead, once a
+// single platform is selected — see getOSTabSortHeader below.
+const OS_TAB_DEFAULT_SORT_HEADER = "version";
 // Increased from 20 to 50 per design spec (#32128). Load test the software
 // endpoints before shipping to confirm acceptable response times at this threshold.
 const DEFAULT_PAGE_SIZE = 50;
 const DEFAULT_PAGE = 0;
+
+/** Comparing OS versions across different platforms isn't meaningful, so the
+ * OS tab's "All platforms" view can't sort by version — the Version column
+ * itself is unclickable there. But `order_key=version` could still reach
+ * this page via a crafted/bookmarked URL, or a stale one restored by
+ * browser back/forward, bypassing that UI restriction entirely (this page
+ * is server-driven — whatever order_key is used here becomes the API
+ * request). Guard against that specific combination rather than trusting
+ * order_key verbatim whenever platform is "all". */
+export const getOSTabSortHeader = (
+  pathname: string,
+  platform: string,
+  orderKeyParam?: string
+): string => {
+  const isOnOSTab = pathname.startsWith(PATHS.SOFTWARE_OS);
+  const defaultSortHeader =
+    isOnOSTab && platform !== "all"
+      ? OS_TAB_DEFAULT_SORT_HEADER
+      : DEFAULT_SORT_HEADER;
+  if (!orderKeyParam) {
+    return defaultSortHeader;
+  }
+  if (isOnOSTab && platform === "all" && orderKeyParam === "version") {
+    return defaultSortHeader;
+  }
+  return orderKeyParam;
+};
 
 const baseClass = "software-page";
 
@@ -151,10 +180,12 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const queryParams = location.query;
 
   // initial values for query params used on this page
-  const sortHeader =
-    queryParams && queryParams.order_key
-      ? queryParams.order_key
-      : DEFAULT_SORT_HEADER;
+  const platform = queryParams?.platform || "all";
+  const sortHeader = getOSTabSortHeader(
+    location?.pathname || "",
+    platform,
+    queryParams?.order_key
+  );
   const sortDirection =
     queryParams?.order_direction === undefined
       ? DEFAULT_SORT_DIRECTION
@@ -163,7 +194,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     queryParams && queryParams.page
       ? parseInt(queryParams.page, 10)
       : DEFAULT_PAGE;
-  const platform = queryParams?.platform || "all";
   // TODO: move query/filter parsing down into individual tab components
   const query = queryParams && queryParams.query ? queryParams.query : "";
   const showExploitedVulnerabilitiesOnly =
@@ -319,19 +349,25 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     // Wait for config to load before deciding — isPremiumTier is undefined
     // until then, and !undefined would incorrectly bounce premium users.
     if (isPremiumTier === undefined) return;
+    // Until the fleets load, isAllTeamsSelected reads as true and would bounce
+    // a fleet-scoped user off Library.
+    if (!isRouteOk) return;
 
     if (isOnLibraryTab && (!isPremiumTier || isAllTeamsSelected)) {
+      // teamIdForApi, not currentTeamId: "All fleets" is -1 in app context but
+      // an absent param in a URL.
       router.replace(
         getPathWithQueryParams(PATHS.SOFTWARE_INVENTORY, {
-          fleet_id: currentTeamId,
+          fleet_id: teamIdForApi,
         })
       );
     }
   }, [
     isPremiumTier,
+    isRouteOk,
     isAllTeamsSelected,
     isOnLibraryTab,
-    currentTeamId,
+    teamIdForApi,
     router,
   ]);
 

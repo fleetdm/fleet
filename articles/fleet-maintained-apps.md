@@ -39,6 +39,8 @@ Fleet prefers 64-bit x86 versions of applications when available. Installing on 
 
 Fleet verifies install and uninstall scripts for each maintained app, and keeps the scripts up to date as an app's vendor releases new versions. You can override Fleet's scripts, or add pre-install queries or post-install scripts, either when adding the app (by clicking **Advanced options**) or later on (by editing the package).
 
+> Editing the install or uninstall script for a Fleet-maintained app stops it from receiving automatic updates to those scripts. This ensures your customizations remain intact and do not break production workflows.
+
 ## Install the app
 
 You can install a Fleet-maintained app three ways:
@@ -109,11 +111,11 @@ SELECT 1 WHERE NOT EXISTS (
 
 ## Keep apps up to date with patch policies
 
-You can create a **patch policy** for a Fleet-maintained app to automatically detect hosts running outdated versions. With [GitOps](https://fleetdm.com/docs/configuration/yaml-files#patch-policy), the patch policy query automatically updates to include the latest version each time specs are applied.
+You can create a **patch policy** for a Fleet-maintained app to automatically detect hosts running outdated versions. The patch policy query automatically updates to include the latest version hourly or when your [GitOps](https://fleetdm.com/docs/configuration/yaml-files#patch-policy) specs are applied.
 
-To add a patch policy, open the app's details page under **Software**, then select **Actions > Patch**.
+To add a patch policy, open the app's details page under **Software**, then select **Actions > Deploy** and enable **Patch**.
 
-To automatically install updates when the policy fails, enable the automation at **Policies > Manage automations > Install software**.
+To automatically install updates when the policy fails, select **Patch when app is closed** or **Force patch**. Change this later at **Actions > Deploy** or **Policies > [policy] > Edit policy > Patch**.
 
 For a detailed walkthrough, see the [patch management guide](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet).
 

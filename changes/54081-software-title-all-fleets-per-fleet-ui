@@ -1,0 +1,1 @@
+- Fixed the software title page under "All fleets" so it no longer renders per-fleet management surfaces (Actions dropdown, header pills, Library section) with no team to act on. Previously, clicking an Actions item stashed modal state that fired open when the user switched to a specific fleet.

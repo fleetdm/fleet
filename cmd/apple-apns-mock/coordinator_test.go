@@ -54,6 +54,31 @@ func expectNoPingOn(t *testing.T, sub *subscriber, wait time.Duration) {
 	}
 }
 
+// waitAnnouncementsHandled blocks until this node's subscription has handled
+// every announcement published so far: a marker ping for a token it holds
+// cannot arrive ahead of them, because Redis delivers to a subscriber in
+// publish order.
+//
+// A test that pushes to an offline device and then subscribes needs it.
+// Otherwise the push's own announcement can be dispatched in the window
+// between Subscribe registering the stream and its claim, and dispatch wins
+// the GETDEL — the device still gets the ping, down the live stream, but not
+// by the path under test.
+func waitAnnouncementsHandled(t *testing.T, c *coordinator) {
+	t.Helper()
+	const marker = "ffffff"
+	sub, _ := c.reg.subscribe(marker, 0)
+
+	// Inline, so the marker needs no pending key. Wait for it to reach the stream so we
+	// know this node's subscription has processed all earlier announcements (Redis delivers
+	// to a subscriber in publish order).
+	require.NoError(t, c.publish(t.Context(), pushMsg{Token: marker, Inline: []byte(`{"mdm":"marker"}`)}))
+	waitPing(t, sub, 5*time.Second)
+
+	c.reg.unsubscribe(marker, sub)
+	c.reg.deliveredLive.Add(-1) // the marker is not a delivery under test
+}
+
 func pendingValue(t *testing.T, c *coordinator, token string) []byte {
 	t.Helper()
 	conn := c.pool.Get()
@@ -117,6 +142,7 @@ func TestCoordinatorOfflinePushClaimedOnConnect(t *testing.T) {
 
 	require.NoError(t, pusher.Push(t.Context(), "aabb01", []byte(`{"mdm":"waited"}`), time.Time{}))
 	require.NotEmpty(t, pendingValue(t, pusher, "aabb01"), "nobody holds it, so it waits in Redis")
+	waitAnnouncementsHandled(t, holder)
 
 	// The device turns up on a different instance than the one pushed to.
 	_, pending := holder.Subscribe(t.Context(), "aabb01")
@@ -133,6 +159,7 @@ func TestCoordinatorOfflinePushesCoalesce(t *testing.T) {
 	for _, m := range []string{"m1", "m2", "m3"} {
 		require.NoError(t, c.Push(t.Context(), "aabb01", []byte(`{"mdm":"`+m+`"}`), time.Time{}))
 	}
+	waitAnnouncementsHandled(t, c)
 
 	_, pending := c.Subscribe(t.Context(), "aabb01")
 	require.NotNil(t, pending)
@@ -200,6 +227,7 @@ func TestCoordinatorClaimIsExactlyOnce(t *testing.T) {
 
 	expectNoPingOn(t, sub1, 200*time.Millisecond)
 	expectNoPingOn(t, sub2, 200*time.Millisecond)
+	waitFor(t, func() bool { return c1.reg.claimMisses.Load()+c2.reg.claimMisses.Load() == 1 })
 	assert.EqualValues(t, 1, c1.reg.claimMisses.Load()+c2.reg.claimMisses.Load(),
 		"the instance that lost the race records a claim miss")
 }

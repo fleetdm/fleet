@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
-import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 import { IAppConfigFormProps } from "../constants";
 

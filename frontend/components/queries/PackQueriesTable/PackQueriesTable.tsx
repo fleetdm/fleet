@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 
-import simpleSearch from "utilities/simple_search";
-import { IScheduledQuery } from "interfaces/scheduled_query";
-
-import TableContainer from "components/TableContainer";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import { IScheduledQuery } from "interfaces/scheduled_query";
+import simpleSearch from "utilities/simple_search";
+
 import {
   generateTableHeaders,
   generateDataSet,

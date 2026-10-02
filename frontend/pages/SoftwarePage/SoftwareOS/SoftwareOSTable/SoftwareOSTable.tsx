@@ -2,28 +2,24 @@
 
 import React, { useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
 import { Row } from "react-table";
 
-import PATHS from "router/paths";
-
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-
 import CustomLink from "components/CustomLink";
-import TableContainer from "components/TableContainer";
-import LastUpdatedText from "components/LastUpdatedText";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
-import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
-import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
-import { IOSVersionsResponse } from "services/entities/operating_systems";
-
-import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OSTableConfig";
-import { getPathWithQueryParams } from "utilities/url";
-import { getNextLocationPath } from "utilities/helpers";
+import LastUpdatedText from "components/LastUpdatedText";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import { SelectedPlatform } from "interfaces/platform";
+import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OSTableConfig";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
+import PATHS from "router/paths";
+import { IOSVersionsResponse } from "services/entities/operating_systems";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "software-os-table";
 
@@ -161,8 +157,9 @@ const SoftwareOSTable = ({
       includeName: true,
       includeVulnerabilities: true,
       includeIcon: true,
+      disableVersionSort: platform === "all",
     });
-  }, [data, router, teamId]);
+  }, [data, router, teamId, platform]);
 
   const handleRowSelect = (row: IRowProps) => {
     const path = getPathWithQueryParams(
@@ -217,13 +214,15 @@ const SoftwareOSTable = ({
   const handlePlatformFilterDropdownChange = (
     platformSelected: SingleValue<CustomOptionType>
   ) => {
+    // Omit order_key/order_direction so SoftwarePage recomputes its
+    // platform-dependent default sort (version once a single platform is
+    // selected, host count for "all") instead of carrying over whatever was
+    // sorted before the filter changed.
     router?.replace(
       getNextLocationPath({
         pathPrefix: PATHS.SOFTWARE_OS,
         queryParams: {
           fleet_id: teamId,
-          order_direction: orderDirection,
-          order_key: orderKey,
           page: 0,
           platform: platformSelected?.value,
         },
@@ -248,6 +247,12 @@ const SoftwareOSTable = ({
   return (
     <div className={baseClass}>
       <TableContainer
+        // Remounts on platform change so TableContainer/react-table re-reads
+        // defaultSortHeader/defaultSortDirection as fresh initial state
+        // (they're otherwise only read once, at mount) instead of leaving
+        // the sort indicator stuck on the previous platform's sort after
+        // SoftwarePage recomputes its platform-dependent default.
+        key={platform}
         columnConfigs={softwareTableHeaders}
         data={data?.os_versions ?? []}
         isLoading={isLoading}

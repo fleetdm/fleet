@@ -4,14 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -34,6 +38,11 @@ type mockAndroidModule struct {
 	buildFleetAgentApplicationPolicyFunc func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error)
 	setAppsForAndroidPolicyFunc          func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error
 	addAppsToAndroidPolicyFunc           func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error)
+	removeAppsFromAndroidPolicyFunc      func(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error)
+}
+
+func (m *mockAndroidModule) RemoveAppsFromAndroidPolicy(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+	return m.removeAppsFromAndroidPolicyFunc(ctx, enterpriseName, packageNames, hostUUIDs)
 }
 
 func (m *mockAndroidModule) BuildFleetAgentApplicationPolicy(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
@@ -175,6 +184,28 @@ func TestBulkMakeAndroidAppsAvailableForHostPreservesFleetAgent(t *testing.T) {
 		capturedPackageNames[i] = policy.PackageName
 	}
 	require.ElementsMatch(t, []string{"com.example.vppapp", "com.fleetdm.agent"}, capturedPackageNames)
+}
+
+func TestSoftwareWorkerRunDisablesAMAPIRetry(t *testing.T) {
+	var called bool
+	androidModule := &mockAndroidModule{
+		removeAppsFromAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+			called = true
+			assert.True(t, androidmgmt.RetryDisabled(ctx), "worker jobs must not wait out AMAPI quota errors")
+			return nil, nil
+		},
+	}
+	w := &SoftwareWorker{Datastore: new(mock.Store), AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+	args, err := json.Marshal(softwareWorkerArgs{
+		Task:               makeAndroidAppUnavailableTask,
+		ApplicationID:      "com.example.app",
+		EnterpriseName:     "enterprises/test",
+		HostUUIDToPolicyID: map[string]string{"host-1": "host-1"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, w.Run(t.Context(), args))
+	require.True(t, called)
 }
 
 func TestSplitHostMap(t *testing.T) {
@@ -372,6 +403,81 @@ func TestMakeAndroidAppAvailableBatchWithVars(t *testing.T) {
 	require.NotContains(t, capturedConfigByHost["uuid-bbb"], "$FLEET_VAR_HOST_UUID")
 }
 
+// A host that can't supply a referenced value must not take the rest of its
+// batch down with it: the other hosts still get their app config, and the job
+// succeeds rather than burning its retries.
+func TestMakeAndroidAppAvailableBatchSkipsHostMissingVitalValue(t *testing.T) {
+	pushedConfigByHost := map[string]string{}
+
+	androidModule := &mockAndroidModule{
+		addAppsToAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+			require.Len(t, hostUUIDs, 1)
+			result := make(map[string]*android.MDMAndroidPolicyRequest)
+			for uuid := range hostUUIDs {
+				pushedConfigByHost[uuid] = string(appPolicies[0].ManagedConfiguration)
+				result[uuid] = &android.MDMAndroidPolicyRequest{PolicyVersion: sql.Null[int64]{V: 1, Valid: true}}
+			}
+			return result, nil
+		},
+	}
+
+	hostIDByUUID := map[string]uint{"uuid-has-value": 1, "uuid-no-value": 2}
+
+	ds := new(mock.Store)
+	ds.GetAndroidAppConfigurationByAppTeamIDFunc = func(ctx context.Context, appTeamID uint) ([]byte, error) {
+		return []byte(`{"managedConfiguration":{"assetTag":"$FLEET_HOST_VITAL_7"}}`), nil
+	}
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		var hosts []*fleet.Host
+		for _, uuid := range uuids {
+			hosts = append(hosts, &fleet.Host{ID: hostIDByUUID[uuid], UUID: uuid, Platform: "android"})
+		}
+		return hosts, nil
+	}
+	ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
+		if hostID == hostIDByUUID["uuid-no-value"] {
+			return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}, MissingNames: []string{"Asset tag"}}
+		}
+		return strings.ReplaceAll(document, "$FLEET_HOST_VITAL_7", "ASSET-1"), nil
+	}
+	var pendingApplyHosts []string
+	ds.SetAndroidAppInstallPendingApplyConfigFunc = func(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error {
+		pendingApplyHosts = append(pendingApplyHosts, hostUUID)
+		return nil
+	}
+
+	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+	hosts := map[string]string{"uuid-has-value": "pol-1", "uuid-no-value": "pol-2"}
+	err := w.makeAndroidAppAvailableBatch(t.Context(), "com.example.app", 1, hosts, "enterprises/test", true)
+	require.NoError(t, err, "a host with no value for the vital must not fail the whole batch")
+
+	require.Contains(t, pushedConfigByHost, "uuid-has-value")
+	require.Contains(t, pushedConfigByHost["uuid-has-value"], "ASSET-1")
+	require.NotContains(t, pushedConfigByHost, "uuid-no-value", "host with no value for the vital should be skipped")
+	require.Equal(t, []string{"uuid-has-value"}, pendingApplyHosts)
+}
+
+func TestIsUnresolvableAndroidAppConfigForHost(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"missing vital value", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{1}}, true},
+		{"wrapped missing vital value", fmt.Errorf("substitute: %w", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{1}}), true},
+		{"unresolvable fleet var", &profiles.UnresolvableAndroidAppConfigVarError{FleetVar: "HOST_END_USER_IDP_USERNAME"}, true},
+		{"wrapped unresolvable fleet var", fmt.Errorf("substitute: %w", &profiles.UnresolvableAndroidAppConfigVarError{FleetVar: "HOST_END_USER_IDP_USERNAME"}), true},
+		{"unrelated error", errors.New("db is down"), false},
+		{"nil", nil, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, isUnresolvableAndroidAppConfigForHost(c.err))
+		})
+	}
+}
+
 func TestQueueBulkSetAndroidAppsAvailableForHostsChunking(t *testing.T) {
 	ds := new(mock.Store)
 
@@ -454,4 +560,43 @@ func TestQueueMakeAndroidAppUnavailableJobChunking(t *testing.T) {
 		totalHosts += len(args.HostUUIDToPolicyID)
 	}
 	require.Equal(t, 5, totalHosts)
+}
+
+func TestBuildApplicationPolicyWithConfig(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("app with full configuration", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"managedConfiguration": {"key": "value"}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+		}
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "com.example.app", policies[0].PackageName)
+		require.Equal(t, "AVAILABLE", policies[0].InstallType)
+		require.JSONEq(t, `{"key": "value"}`, string(policies[0].ManagedConfiguration))
+		require.Equal(t, "WORK_PROFILE_WIDGETS_ALLOWED", policies[0].WorkProfileWidgets)
+		require.Equal(t, "CREDENTIAL_PROVIDER_ALLOWED", policies[0].CredentialProviderPolicy)
+	})
+
+	t.Run("app without configuration clears previously applied settings", func(t *testing.T) {
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.app"}, nil, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Empty(t, policies[0].ManagedConfiguration)
+		require.Equal(t, "WORK_PROFILE_WIDGETS_UNSPECIFIED", policies[0].WorkProfileWidgets)
+		require.Equal(t, "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED", policies[0].CredentialProviderPolicy)
+	})
+
+	t.Run("partial configuration leaves other fields unset", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+		}
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.app"}, configs, "FORCE_INSTALLED")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "FORCE_INSTALLED", policies[0].InstallType)
+		require.Empty(t, policies[0].WorkProfileWidgets)
+		require.Equal(t, "CREDENTIAL_PROVIDER_ALLOWED", policies[0].CredentialProviderPolicy)
+	})
 }

@@ -1,1 +1,0 @@
-- Fixed the Google Calendar integration scheduling maintenance events over users' Focus Time and Out of office blocks.

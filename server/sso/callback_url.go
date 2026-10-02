@@ -14,6 +14,14 @@ import (
 //
 // base is not mutated; a new URL is returned.
 func CallbackURL(base *url.URL, urlPrefix, callbackPath string) *url.URL {
+	return URLWithPrefix(base, urlPrefix, callbackPath)
+}
+
+// URLWithPrefix joins path onto base, inserting urlPrefix first when base does
+// not already carry it. server_url may or may not include the configured
+// url_prefix, so anything building an absolute Fleet URL has to go through here
+// or it emits the prefix zero times or twice.
+func URLWithPrefix(base *url.URL, urlPrefix, path string) *url.URL {
 	prefix := strings.TrimSuffix(urlPrefix, "/")
 	// JoinPath returns a new URL rather than mutating the receiver, so base is left
 	// untouched and callers can still use it (e.g. as the expected SAML audience).
@@ -21,5 +29,5 @@ func CallbackURL(base *url.URL, urlPrefix, callbackPath string) *url.URL {
 	if prefix != "" && !strings.HasSuffix(strings.TrimSuffix(base.Path, "/"), prefix) {
 		result = result.JoinPath(prefix)
 	}
-	return result.JoinPath(callbackPath)
+	return result.JoinPath(path)
 }

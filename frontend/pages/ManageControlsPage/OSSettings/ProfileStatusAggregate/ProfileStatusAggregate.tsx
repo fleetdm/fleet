@@ -1,16 +1,15 @@
 import React from "react";
 
-import paths from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
-import { ProfileStatusSummaryResponse } from "services/entities/mdm";
-
 import Card from "components/Card";
+import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import StatusIndicatorWithIcon, {
   IndicatorStatus,
 } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
-import DataError from "components/DataError";
+import paths from "router/paths";
+import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
+import { ProfileStatusSummaryResponse } from "services/entities/mdm";
+import { getPathWithQueryParams } from "utilities/url";
 
 import AGGREGATE_STATUS_DISPLAY_OPTIONS from "./ProfileStatusAggregateOptions";
 
@@ -89,7 +88,7 @@ const ProfileStatusAggregate = ({
     );
 
     return (
-      <Card className={baseClass} borderRadiusSize="large" path={path}>
+      <Card className={baseClass} path={path}>
         <ProfileStatusCount
           key={value}
           statusIcon={iconName}

@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 
-import { ITeam } from "interfaces/team";
-import { IEnrollSecret } from "interfaces/enroll_secret";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
+import { IEnrollSecret } from "interfaces/enroll_secret";
+import { ITeam } from "interfaces/team";
 
 interface ISecretEditorModalProps {
   selectedTeam: number;

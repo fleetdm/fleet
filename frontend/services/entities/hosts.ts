@@ -1,20 +1,9 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
-import { IHost, HostStatus } from "interfaces/host";
-import {
-  QueryParams,
-  buildQueryStringFromParams,
-  getLabelParam,
-  reconcileMutuallyExclusiveHostParams,
-  reconcileMutuallyInclusiveHostParams,
-} from "utilities/url";
-import {
-  IHostSoftware,
-  ISoftware,
-  SoftwareAggregateStatus,
-  SoftwareSource,
-} from "interfaces/software";
+
+import { IHostCertificate } from "interfaces/certificates";
+import { IHost, HostStatus, IHostEncrpytionKeyResponse } from "interfaces/host";
+import { IListOptions } from "interfaces/list_options";
+import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -22,10 +11,22 @@ import {
   MdmProfileStatus,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
-import { IMunkiIssuesAggregate } from "interfaces/macadmins";
+import {
+  IHostSoftware,
+  ISoftware,
+  SoftwareAggregateStatus,
+  SoftwareSource,
+} from "interfaces/software";
+import sendRequest from "services";
 import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
-import { IHostCertificate } from "interfaces/certificates";
-import { IListOptions } from "interfaces/list_options";
+import endpoints from "utilities/endpoints";
+import {
+  QueryParams,
+  buildQueryStringFromParams,
+  getLabelParam,
+  reconcileMutuallyExclusiveHostParams,
+  reconcileMutuallyInclusiveHostParams,
+} from "utilities/url";
 
 import { ScriptBatchHostCountV1 } from "./scripts";
 
@@ -100,6 +101,19 @@ export const HOSTS_QUERY_PARAMS = {
   SCRIPT_BATCH_EXECUTION_STATUS: "script_batch_execution_status",
   SCRIPT_BATCH_EXECUTION_ID: "script_batch_execution_id",
 } as const;
+
+// Host filters that only apply within one fleet or "No fleet": without a fleet
+// the API narrows them to "No fleet" (or rejects software_status), so they're
+// cleared on any switch to All fleets.
+export const FLEET_SCOPED_HOST_FILTER_PARAMS = [
+  HOSTS_QUERY_PARAMS.OS_SETTINGS,
+  "apple_settings",
+  "macos_settings",
+  HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
+  "macos_bootstrap_package",
+  "bootstrap_package",
+  HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
+];
 
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
   scope: "hosts";
@@ -572,6 +586,12 @@ export default {
 
     return sendRequest("POST", path);
   },
+  apnsPing: (hostID: number) => {
+    const { HOST_APNS_PING } = endpoints;
+    const path = `${HOST_APNS_PING(hostID)}`;
+
+    return sendRequest("POST", path);
+  },
   search: (searchText: string) => {
     const { HOSTS } = endpoints;
     const path = `${HOSTS}?query=${searchText}`;
@@ -664,9 +684,14 @@ export default {
     return sendRequest("GET", fullPath);
   },
 
-  getEncryptionKey: (id: number) => {
+  getEncryptionKey: (id: number): Promise<IHostEncrpytionKeyResponse> => {
     const { HOST_ENCRYPTION_KEY } = endpoints;
     return sendRequest("GET", HOST_ENCRYPTION_KEY(id));
+  },
+
+  rotateDiskEncryptionKey: (id: number): Promise<void> => {
+    const { HOST_ENCRYPTION_KEY_ROTATE } = endpoints;
+    return sendRequest("POST", HOST_ENCRYPTION_KEY_ROTATE(id));
   },
 
   getRecoveryLockPassword: (id: number) => {
@@ -718,6 +743,16 @@ export default {
     const { HOST_RESEND_PROFILE } = endpoints;
 
     return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
+  },
+
+  installProfile: (hostId: number, profileUUID: string): Promise<void> => {
+    const { HOST_INSTALL_PROFILE } = endpoints;
+    return sendRequest("POST", HOST_INSTALL_PROFILE(hostId, profileUUID));
+  },
+
+  uninstallProfile: (hostId: number, profileUUID: string): Promise<void> => {
+    const { HOST_UNINSTALL_PROFILE } = endpoints;
+    return sendRequest("POST", HOST_UNINSTALL_PROFILE(hostId, profileUUID));
   },
 
   resendCertificate: (

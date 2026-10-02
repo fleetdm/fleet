@@ -15,11 +15,13 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -33,6 +35,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
@@ -147,35 +150,81 @@ func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID
 	return sums, nil
 }
 
-func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
-	cert, err := assets.X509Cert(ctx, svc.ds, fleet.MDMAssetCACert)
+// MDMAppleReconcileFileVaultProfile brings the FileVault profile in line with
+// the fleet's (or no-team's) two macOS disk encryption settings: absent when
+// both are off, and otherwise carrying only the payloads the settings call for.
+// It reads the settings itself so callers only need to say which fleet changed.
+func (svc *Service) MDMAppleReconcileFileVaultProfile(ctx context.Context, teamID *uint) error {
+	diskEncryption, err := svc.macOSDiskEncryptionSettings(ctx, teamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving CA cert")
+		return ctxerr.Wrap(ctx, err, "reading macOS disk encryption settings")
+	}
+
+	if !diskEncryption.MacOSEnabled && !diskEncryption.MacOSEscrowEnabled {
+		err := svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, mobileconfig.FleetFileVaultPayloadIdentifier)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "removing FileVault profile")
+		}
+		return nil
+	}
+
+	// Only the escrow payload carries the certificate, so enforcement-only
+	// profiles neither need it nor should fail when it cannot be read. Read it
+	// fresh otherwise: turning Apple MDM off and on again mints a new CA, and a
+	// key escrowed against the old one can no longer be decrypted, so the
+	// profile has to carry the current certificate.
+	var certB64 string
+	if diskEncryption.MacOSEscrowEnabled {
+		cert, err := assets.X509Cert(ctx, svc.ds, fleet.MDMAssetCACert)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving CA cert")
+		}
+		certB64 = base64.StdEncoding.EncodeToString(cert.Raw)
 	}
 
 	var contents bytes.Buffer
 	params := fileVaultProfileOptions{
 		PayloadIdentifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 		PayloadName:          mdm.FleetFileVaultProfileName,
-		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Raw),
+		Base64DerCertificate: certB64,
+		EnableEnforcement:    diskEncryption.MacOSEnabled,
+		EnableEscrow:         diskEncryption.MacOSEscrowEnabled,
 	}
 	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
-		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+		return ctxerr.Wrap(ctx, err, "rendering FileVault profile")
 	}
 
 	cp, err := fleet.NewMDMAppleConfigProfile(contents.Bytes(), teamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+		return ctxerr.Wrap(ctx, err, "building FileVault profile")
 	}
 
-	// filevault profile is a fleet-controlled profile that doesn't use any Fleet variables
-	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp, nil)
-	return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	// upserted rather than replaced: the profile_uuid stays put, so hosts get an
+	// install only when the payloads actually differ. The FileVault profile is
+	// fleet-controlled and uses no Fleet variables.
+	return ctxerr.Wrap(ctx, svc.ds.UpsertMDMAppleFleetConfigProfile(ctx, *cp), "upserting FileVault profile")
 }
 
-func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
-	err := svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, mobileconfig.FleetFileVaultPayloadIdentifier)
-	return ctxerr.Wrap(ctx, err, "disabling FileVault")
+// macOSDiskEncryptionSettings returns the effective disk encryption settings for
+// a fleet, or no-team's when teamID is nil or 0.
+//
+// Every caller reconciles immediately after saving these settings, so the read
+// is forced to the primary: a replica serving the previous values would render
+// the profile from them and push it to every Mac in the fleet.
+func (svc *Service) macOSDiskEncryptionSettings(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	if teamID == nil || *teamID == 0 {
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return fleet.DiskEncryptionConfig{}, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+		return appCfg.MDM.DiskEncryptionConfig(), nil
+	}
+	tmMDM, err := svc.ds.TeamMDMConfig(ctx, *teamID)
+	if err != nil {
+		return fleet.DiskEncryptionConfig{}, ctxerr.Wrap(ctx, err, "getting fleet MDM config")
+	}
+	return tmMDM.DiskEncryptionConfig(), nil
 }
 
 func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
@@ -736,6 +785,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 			return nil, ctxerr.Wrap(ctx, err, "create activity for changed macos setup assistant")
 		}
 	}
+
 	return newAsst, nil
 }
 
@@ -849,6 +899,20 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 
 	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
+	// SSOInitiatorFleetDesktop is only ever legitimately set
+	// server-side by InitiateDeviceSSO, after the device token has been
+	// verified.
+	if initiator == fleet.SSOInitiatorFleetDesktop {
+		err := &fleet.BadRequestError{Message: "invalid initiator"}
+		return "", 0, "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
+	}
+
+	if initiator == fleet.SSOInitiatorOrbitSetupExperience {
+		if err := svc.checkOrbitSetupExperienceSSO(ctx, hostUUID); err != nil {
+			return "", 0, "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
+		}
+	}
+
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "getting app config")
@@ -913,6 +977,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
 		samlProvider, svc.ssoSessionStore, originalURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+		fleet.SSORelayStateNone,
 		sso.SSORequestData{
 			HostUUID:  hostUUID,
 			Initiator: initiator,
@@ -925,7 +990,101 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	return sessionID, sessionDurationSeconds, idpURL, nil
 }
 
-func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string) {
+// checkOrbitSetupExperienceSSO refuses a setup_experience SSO request that does
+// not name a device Fleet just answered with END_USER_AUTH_REQUIRED.
+func (svc *Service) checkOrbitSetupExperienceSSO(ctx context.Context, hostUUID string) error {
+	pending, err := shared_mdm.HasEndUserAuthPrompt(ctx, svc.keyValueStore, hostUUID, svc.clock.Now())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get pending end user auth prompt")
+	}
+	if !pending {
+		// This endpoint is unauthenticated, so the response must not reveal
+		// whether a given host UUID is waiting to enroll.
+		svc.logger.WarnContext(ctx, "refusing setup experience mdm sso request: no pending end user auth prompt",
+			"host_uuid", hostUUID)
+		return fleet.NewAuthFailedError("end user authentication was not requested for this device")
+	}
+	return nil
+}
+
+// bindHostToIdPAccountFromSSO records the host <-> IdP account link the setup
+// experience flow exists to create. An existing link is replaced only while
+// Fleet is still waiting on this device: once it has enrolled, a sign-in that
+// started earlier may fill in a missing link but must not take one over. A
+// legitimate flow never needs to overwrite, because the prompt only fires when
+// the host has no link.
+func (svc *Service) bindHostToIdPAccountFromSSO(ctx context.Context, hostUUID string, acct *fleet.MDMIdPAccount) error {
+	replaceExisting, err := shared_mdm.HasEndUserAuthPrompt(ctx, svc.keyValueStore, hostUUID, svc.clock.Now())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get pending end user auth prompt")
+	}
+
+	previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccountFromSSO(ctx, hostUUID, acct.UUID, replaceExisting)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "saving host-account link from IdP")
+	}
+	if previousAcctUUID == acct.UUID {
+		// Nothing changed; the end user signed in as the account already linked.
+		return nil
+	}
+
+	previousEmail := svc.idPAccountEmailForActivity(ctx, previousAcctUUID)
+
+	var act fleet.ActivityDetails
+	if !replaceExisting && previousAcctUUID != "" {
+		svc.logger.WarnContext(ctx, "keeping the existing idp binding of an enrolled host",
+			"host_uuid", hostUUID, "existing_account_uuid", previousAcctUUID, "account_uuid", acct.UUID)
+		act = fleet.ActivityTypeRefusedHostIdPAccountChange{
+			HostUUID:         hostUUID,
+			IdPEmail:         acct.Email,
+			ExistingIdPEmail: previousEmail,
+		}
+	} else {
+		act = fleet.ActivityTypeBoundHostToIdPAccount{
+			HostUUID:         hostUUID,
+			IdPEmail:         acct.Email,
+			ReplacedIdPEmail: previousEmail,
+		}
+	}
+
+	if err := svc.NewActivity(ctx, nil, act); err != nil {
+		svc.logger.ErrorContext(ctx, "create activity for mdm sso host binding",
+			"err", err, "host_uuid", hostUUID, "activity", act.ActivityName())
+	}
+	return nil
+}
+
+// idPAccountEmailForActivity resolves an account UUID for a binding activity,
+// returning an empty string when there is none or it cannot be read.
+func (svc *Service) idPAccountEmailForActivity(ctx context.Context, acctUUID string) string {
+	if acctUUID == "" {
+		return ""
+	}
+	acct, err := svc.ds.GetMDMIdPAccountByUUID(ctx, acctUUID)
+	switch {
+	case err == nil && acct != nil:
+		return acct.Email
+	case err != nil && !fleet.IsNotFound(err):
+		svc.logger.ErrorContext(ctx, "get idp account for binding activity",
+			"err", err, "account_uuid", acctUUID)
+	}
+	return ""
+}
+
+// deviceSSOErrorURL sends the end user back to the device page they came from,
+// flagging why sign-in did not produce a session.
+func deviceSSOErrorURL(originalURL, reason string) string {
+	u, err := url.Parse(originalURL)
+	if err != nil {
+		return apple_mdm.FleetUISSOCallbackError
+	}
+	q := u.Query()
+	q.Set("sso_error", reason)
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue, deviceSSOSessionID string, deviceSSOSessionDurationSeconds int) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the MDM SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -936,20 +1095,22 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	if err != nil {
 		logging.WithErr(ctx, err)
 		if errors.Is(err, sso.ErrSessionNotFound) {
-			return apple_mdm.FleetUISSOCallbackSessionExpired, ""
+			return apple_mdm.FleetUISSOCallbackSessionExpired, "", "", 0
 		}
-		return apple_mdm.FleetUISSOCallbackError, ""
+		return apple_mdm.FleetUISSOCallbackError, "", "", 0
 	}
 
-	if !strings.HasPrefix(originalURL, "/enroll?") && ssoRequestData.Initiator != fleet.SSOInitiatorOrbitSetupExperience {
-		// for flows other than the /enroll BYOD, we have to ensure that Apple MDM
+	if !strings.HasPrefix(originalURL, "/enroll?") &&
+		ssoRequestData.Initiator != fleet.SSOInitiatorOrbitSetupExperience &&
+		ssoRequestData.Initiator != fleet.SSOInitiatorFleetDesktop {
+		// For flows other than the /enroll BYOD, we have to ensure that Apple MDM
 		// is enabled (this was previously done in a middleware on the route, but
 		// we do it here now so the middleware is disabled for the BYOD flow, which
 		// handles the MDM not enabled differently, via a custom error page, as it
 		// supports not just Apple MDM).
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			logging.WithErr(ctx, err)
-			return apple_mdm.FleetUISSOCallbackError, ""
+			return apple_mdm.FleetUISSOCallbackError, "", "", 0
 		}
 	}
 
@@ -974,7 +1135,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 			token, err := svc.ds.GetABMTokenByUniqueToken(ctx, uniqueToken)
 			if err != nil {
 				logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get ABM token by unique token for account driven enrollment"))
-				return apple_mdm.FleetUISSOCallbackError, ""
+				return apple_mdm.FleetUISSOCallbackError, "", "", 0
 			}
 			abmTokenID = &token.ID
 		}
@@ -982,12 +1143,12 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		challenge, err := svc.ds.InsertADUEEnrollmentChallenge(ctx, abmTokenID, enrollmentRef, fleet.ADUEEnrollmentChallengeExpiration)
 		if err != nil {
 			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "insert ADUE enrollment challenge for account driven enrollment"))
-			return apple_mdm.FleetUISSOCallbackError, ""
+			return apple_mdm.FleetUISSOCallbackError, "", "", 0
 		}
 
 		// For account driven enrollment we have to use this special protocol URL scheme to pass the
 		// access token back to Apple which it will then use to request the enrollment profile.
-		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", challenge), ""
+		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", challenge), "", "", 0
 
 	case strings.HasPrefix(originalURL, "/enroll?"):
 		// redirect to the original URL with a cookie that identifies this device
@@ -996,18 +1157,53 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		u, err := url.Parse(originalURL)
 		if err != nil {
 			logging.WithErr(ctx, err)
-			return "/enroll?error=" + url.QueryEscape("An error occurred. : Failed to parse original URL."), ""
+			return "/enroll?error=" + url.QueryEscape("An error occurred. : Failed to parse original URL."), "", "", 0
 		}
 		// port over the query string values, which will copy over the enrollment
 		// secret
 		for k, v := range u.Query() {
 			q.Add(k, v[0])
 		}
+		// The page resolves the IdP account from the session; the reference has
+		// no reader on this branch and would only land in browser history.
+		q.Del("enrollment_reference")
 		u.RawQuery = q.Encode()
-		return u.String(), enrollmentRef
+		byodSessionID, err := shared_mdm.CreateBYODIdPSession(ctx, svc.keyValueStore, svc.clock, enrollmentRef)
+		if err != nil {
+			logging.WithErr(ctx, err)
+			return "/enroll?error=" + url.QueryEscape("An error occurred. : Failed to start enrollment session."), "", "", 0
+		}
+		return u.String(), byodSessionID, "", 0
+
+	case ssoRequestData.Initiator == fleet.SSOInitiatorFleetDesktop:
+		// Re-check the feature is still on: an admin may have disabled it between
+		// initiation and this callback, and a session minted now would outlive
+		// that change by its whole TTL.
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get app config for device sso callback"))
+			return deviceSSOErrorURL(originalURL, "server_error"), "", "", 0
+		}
+		if !appConfig.FleetDesktop.SSOEnabled {
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, errors.New("fleet desktop sso is disabled"), "device sso callback"))
+			return deviceSSOErrorURL(originalURL, "sso_disabled"), "", "", 0
+		}
+
+		host, err := svc.ds.HostByUUID(ctx, ssoRequestData.HostUUID)
+		if err != nil {
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get host for device sso callback"))
+			return deviceSSOErrorURL(originalURL, "server_error"), "", "", 0
+		}
+
+		deviceSSOSessionID, deviceSSOSessionTTL, err := svc.createDeviceSSOSession(ctx, host, enrollmentRef)
+		if err != nil {
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "create device sso session"))
+			return deviceSSOErrorURL(originalURL, "server_error"), "", "", 0
+		}
+		return originalURL, "", deviceSSOSessionID, int(deviceSSOSessionTTL.Seconds())
 
 	default:
-		return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode()), ""
+		return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode()), "", "", 0
 	}
 }
 
@@ -1111,22 +1307,21 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	}
 
 	// if nil after two attempts, return an error.
-	if ssoErr != nil && auth == nil {
+	if auth == nil {
+		reason := "no assertion returned for SAML response"
+		if ssoErr != nil {
+			reason = ssoErr.Error()
+		}
 		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
 		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.
-		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, fleet.NewAuthFailedError(ssoErr.Error()))
+		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, fleet.NewAuthFailedError(reason))
 	}
 
-	// Store information for automatic account population/creation
-	//
-	// For now, we just grab whatever comes before the `@` in UserID, which
-	// must be an email.
-	//
-	// For more details, check https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
-	username, _, found := strings.Cut(auth.UserID(), "@")
-	if !found {
+	// Store information for automatic account population/creation, see
+	// https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
+	username := fleet.EmailLocalPart(auth.UserID())
+	if username == auth.UserID() {
 		svc.logger.InfoContext(ctx, "IdP UserID doesn't look like an email, using raw value", "component", "mdm-sso-callback")
-		username = auth.UserID()
 	}
 
 	err = svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
@@ -1151,9 +1346,8 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	// If the initiator is setup_experience, we can insert the host idp account record
 	// right away, as the host uuid is provided in the SSO request data.
 	if ssoRequestData.Initiator == fleet.SSOInitiatorOrbitSetupExperience && ssoRequestData.HostUUID != "" {
-		err = svc.ds.AssociateHostMDMIdPAccountDB(ctx, ssoRequestData.HostUUID, idpAcc.UUID)
-		if err != nil {
-			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "saving host-account link from IdP")
+		if err := svc.bindHostToIdPAccountFromSSO(ctx, ssoRequestData.HostUUID, idpAcc); err != nil {
+			return "", "", "", "", sso.SSORequestData{}, err
 		}
 	}
 
@@ -1318,7 +1512,18 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 		spec := &fleet.TeamSpec{
 			Name: teamName,
 			MDM: fleet.TeamSpecMDM{
-				EnableDiskEncryption: optjson.SetBool(true),
+				// the deprecated flat toggle would fan out to these, but set them
+				// directly so this doesn't depend on the fan-out outliving it
+				MacOSSettings: map[string]any{
+					"enable_disk_encryption":            true,
+					"enable_escrow_disk_encryption_key": true,
+				},
+				WindowsSettings: fleet.WindowsSettings{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+				LinuxSettings: fleet.LinuxSettings{
+					EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+				},
 				MacOSSetup: fleet.MacOSSetup{
 					MacOSSetupAssistant: ac.MDM.MacOSSetup.MacOSSetupAssistant,
 					// NOTE: BootstrapPackage gets set by
@@ -1571,6 +1776,10 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.BadRequestError{Message: fleet.AdminOnlyEnrollmentForbiddenErrMsg}
+	}
+
 	topic, err := assets.APNSTopic(ctx, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
@@ -1614,6 +1823,45 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 	return mobileConfig, nil
 }
 
+// syncABMTokensToAppConfig upserts app config ABM entries for the provided tokens.
+// Callers that need strict syncing (including deletions) must pass the full token list.
+func syncABMTokensToAppConfig(appCfg *fleet.AppConfig, tokens []*fleet.ABMToken) {
+	if !appCfg.MDM.AppleBusinessManager.Set || !appCfg.MDM.AppleBusinessManager.Valid {
+		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
+	}
+
+	idxByOrg := make(map[string]int, len(appCfg.MDM.AppleBusinessManager.Value))
+	for i, entry := range appCfg.MDM.AppleBusinessManager.Value {
+		idxByOrg[entry.OrganizationName] = i
+	}
+
+	abmTeamName := func(name string) string {
+		if name == fleet.TeamNameNoTeam {
+			return ""
+		}
+		return name
+	}
+
+	for _, tok := range tokens {
+		entry := fleet.MDMAppleABMAssignmentInfo{
+			OrganizationName: tok.OrganizationName,
+			Default:          tok.IsDefault,
+			MacOSTeam:        abmTeamName(tok.MacOSTeam.Name),
+			IOSTeam:          abmTeamName(tok.IOSTeam.Name),
+			IpadOSTeam:       abmTeamName(tok.IPadOSTeam.Name),
+			BYODTeam:         abmTeamName(tok.BYODTeam.Name),
+		}
+
+		if i, ok := idxByOrg[tok.OrganizationName]; ok {
+			appCfg.MDM.AppleBusinessManager.Value[i] = entry
+			continue
+		}
+
+		appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value, entry)
+		idxByOrg[tok.OrganizationName] = len(appCfg.MDM.AppleBusinessManager.Value) - 1
+	}
+}
+
 func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet.ABMToken, error) {
 	encryptedToken, decryptedToken, err := svc.decryptUploadedABMToken(ctx, token)
 	if err != nil {
@@ -1645,6 +1893,8 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 
 	appCfg.MDM.AppleBMEnabledAndConfigured = true
 
+	syncABMTokensToAppConfig(appCfg, []*fleet.ABMToken{tok})
+
 	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM enablement")
 	}
@@ -1666,17 +1916,12 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 		return ctxerr.Wrap(ctx, err, "removing ABM token")
 	}
 
-	count, err := svc.ds.GetABMTokenCount(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting ABM token count")
-	}
-
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
-	// remove the AB entry in appConfig
+	// remove the entry for the deleted org
 	for i, t := range appCfg.MDM.AppleBusinessManager.Value {
 		if t.OrganizationName == token.OrganizationName {
 			appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value[:i], appCfg.MDM.AppleBusinessManager.Value[i+1:]...)
@@ -1684,8 +1929,25 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 		}
 	}
 
-	if count == 0 {
-		// flip the app config flag
+	tokens, err := svc.ds.ListABMTokens(ctx) // fresh: post-delete, post-promotion
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing ABM tokens")
+	}
+	syncABMTokensToAppConfig(appCfg, tokens)
+
+	// Lastly we delete any dangling appCfg entries that are not in the fresh token list
+	tokensByOrg := make(map[string]struct{}, len(tokens))
+	for _, t := range tokens {
+		tokensByOrg[t.OrganizationName] = struct{}{}
+	}
+
+	for i, t := range slices.Backward(appCfg.MDM.AppleBusinessManager.Value) {
+		if _, ok := tokensByOrg[t.OrganizationName]; !ok {
+			appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value[:i], appCfg.MDM.AppleBusinessManager.Value[i+1:]...)
+		}
+	}
+
+	if len(tokens) == 0 {
 		appCfg.MDM.AppleBMEnabledAndConfigured = false
 	}
 
@@ -1804,68 +2066,71 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
-	var found bool
-	for i, appCfgToken := range appCfg.MDM.AppleBusinessManager.Value {
-		if appCfgToken.OrganizationName == token.OrganizationName {
-
-			// Clear no team names, so they are presented nicer in gitops.
-			appCfgToken.BYODTeam = token.BYODTeam.Name
-			if token.BYODTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.BYODTeam = ""
-			}
-			appCfgToken.MacOSTeam = token.MacOSTeam.Name
-			if token.MacOSTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.MacOSTeam = ""
-			}
-			appCfgToken.IOSTeam = token.IOSTeam.Name
-			if token.IOSTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.IOSTeam = ""
-			}
-			appCfgToken.IpadOSTeam = token.IPadOSTeam.Name
-			if token.IPadOSTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.IpadOSTeam = ""
-			}
-
-			// update the app config with the new team names
-			appCfg.MDM.AppleBusinessManager.Value[i] = appCfgToken
-			found = true
-			break
-		}
-	}
-
-	if !appCfg.MDM.AppleBusinessManager.Set || !appCfg.MDM.AppleBusinessManager.Valid {
-		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
-	}
-
-	if !found {
-		// create a new entry if app config doesn't have one.
-		byodTeam := token.BYODTeam.Name
-		if byodTeam == fleet.TeamNameNoTeam {
-			byodTeam = ""
-		}
-		macosTeam := token.MacOSTeam.Name
-		if macosTeam == fleet.TeamNameNoTeam {
-			macosTeam = ""
-		}
-		iosTeam := token.IOSTeam.Name
-		if iosTeam == fleet.TeamNameNoTeam {
-			iosTeam = ""
-		}
-		ipadosTeam := token.IPadOSTeam.Name
-		if ipadosTeam == fleet.TeamNameNoTeam {
-			ipadosTeam = ""
-		}
-		appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value, fleet.MDMAppleABMAssignmentInfo{
-			OrganizationName: token.OrganizationName,
-			BYODTeam:         byodTeam,
-			MacOSTeam:        macosTeam,
-			IOSTeam:          iosTeam,
-			IpadOSTeam:       ipadosTeam,
-		})
-	}
+	syncABMTokensToAppConfig(appCfg, []*fleet.ABMToken{token})
 
 	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM token team update")
+	}
+
+	return token, nil
+}
+
+func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault *bool) (*fleet.ABMToken, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	// require an explicit value: an omitted field would otherwise read as
+	// false and silently clear the default
+	if isDefault == nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("default", "missing required argument"))
+	}
+
+	// reads here decide what gets written (token count, app config sync), so
+	// don't risk stale replica reads
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
+	token, err := svc.ds.GetABMTokenByID(ctx, tokenID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token to set default")
+	}
+
+	switch {
+	case *isDefault:
+		if err := svc.ds.SetABMTokenDefault(ctx, tokenID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "setting default ABM token")
+		}
+	case token.IsDefault:
+		count, err := svc.ds.GetABMTokenCount(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "counting ABM tokens")
+		}
+		if count == 1 {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("default",
+				"Couldn't unset the default. The only Apple Business (AB) token is always the default."))
+		}
+		if err := svc.ds.ClearABMTokenDefault(ctx); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clearing default ABM token")
+		}
+	default:
+		// asked to unset a token that isn't the default: nothing to do
+		return token, nil
+	}
+	token.IsDefault = *isDefault
+
+	// Changing the default can flip another token's flag off, so sync the app
+	// config from all tokens, not just this one.
+	tokens, err := svc.ds.ListABMTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing ABM tokens to sync app config")
+	}
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+	syncABMTokensToAppConfig(appCfg, tokens)
+	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM token default update")
 	}
 
 	return token, nil
@@ -1944,7 +2209,7 @@ func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader
 }
 
 func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -1953,7 +2218,15 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 		return nil, ctxerr.Wrap(ctx, err, "host lite")
 	}
 
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// The platform is part of the authorization input because the policy grants
+	// technicians passcode clearing on iOS/iPadOS only. Mask the failure as
+	// not-found when the caller can't even read the host's MDM commands, so
+	// host IDs outside their visibility can't be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "clear passcode")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{
+		TeamID:   host.TeamID,
+		Platform: host.Platform,
+	}, fleet.ActionClearPasscode, notFoundErr); err != nil {
 		return nil, err
 	}
 
@@ -1988,7 +2261,10 @@ func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, comma
 		return ctxerr.Wrap(ctx, err, "host lite")
 	}
 
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// Mask the failure as not-found when the caller can't even read the host's
+	// MDM commands, so host IDs outside their visibility can't be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "cancel host mdm command")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 
@@ -2076,6 +2352,21 @@ func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, ap
 	if mdmData.IsPersonalEnrollment {
 		return nil, &fleet.BadRequestError{
 			Message: fleet.CantClearPasscodePersonalHostsMessage,
+		}
+	}
+
+	// The enrollment profile can restrict the Device Lock & Passcode Removal
+	// access right (BYOD manual enrollments); enforce it here rather than
+	// relying on the UI hiding the action, since the API can be called
+	// directly. Missing permissions rows fall back to unrestricted rights,
+	// matching the host details response.
+	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")
+	}
+	if perms != nil && perms.AccessRights&apple_mdm.MDMAccessRightDeviceLock == 0 {
+		return nil, &fleet.BadRequestError{
+			Message: fleet.CantClearPasscodeAccessRightsMessage,
 		}
 	}
 

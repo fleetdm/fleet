@@ -61,10 +61,10 @@ spec:
         deadline_days: null
         grace_period_days: null
       windows_settings:
+        require_bitlocker_pin: false
         configuration_profiles: null
         enable_disk_encryption: false
-        managed_local_account_settings:
-          enabled: false
+        enable_managed_local_account: false
     scripts: null
     secrets: null
     webhook_settings:
@@ -131,10 +131,10 @@ spec:
         deadline_days: null
         grace_period_days: null
       windows_settings:
+        require_bitlocker_pin: false
         custom_settings: null
         enable_disk_encryption: false
-        managed_local_account_settings:
-          enabled: false
+        enable_managed_local_account: false
     scripts: null
     secrets: null
     webhook_settings:

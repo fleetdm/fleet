@@ -1,1 +1,0 @@
-Fixed an issue where label-scoped reports could run on hosts outside the target label (or be skipped for hosts inside it).

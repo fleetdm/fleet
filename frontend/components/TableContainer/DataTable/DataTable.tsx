@@ -1,6 +1,9 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
+
+import classnames from "classnames";
+import { kebabCase, noop } from "lodash";
 import React, {
   useMemo,
   useEffect,
@@ -8,7 +11,6 @@ import React, {
   useContext,
   useRef,
 } from "react";
-import classnames from "classnames";
 import {
   Column,
   HeaderGroup,
@@ -20,16 +22,15 @@ import {
   useSortBy,
   useTable,
 } from "react-table";
-import { kebabCase, noop } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
+import Button from "components/buttons/Button";
+import Pagination from "components/Pagination";
+import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
 import useDeepEffect from "hooks/useDeepEffect";
 import sort from "utilities/sort";
-import { AppContext } from "context/app";
 
-import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
-import Pagination from "components/Pagination";
 import ActionButton from "./ActionButton";
 import { IActionButtonProps } from "./ActionButton/ActionButton";
 
@@ -73,6 +74,7 @@ interface IDataTableProps {
   /** Set to `true` to not display the footer section of the table */
   hideFooter?: boolean;
   onSelectSingleRow?: (value: Row) => void;
+  canClickRow?: (row: any) => boolean;
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
   /** Optional help text to render on bottom-left of the table. Hidden when table is loading and no
@@ -127,6 +129,7 @@ const DataTable = ({
   persistSelectedRows = false,
   hideFooter = false,
   onSelectSingleRow,
+  canClickRow,
   onClickRow,
   onResultsCountChange,
   renderTableHelpText,
@@ -267,12 +270,11 @@ const DataTable = ({
             b: { values: Record<string, unknown[]> },
             id: string
           ) => sort.hostPolicyStatus(a.values[id], b.values[id]),
-
           version: (
             a: { values: Record<string, unknown> },
             b: { values: Record<string, unknown> },
             id: string
-          ) => sort.versionAsc(a.values[id] as string, b.values[id] as string),
+          ) => sort.versionAsc(a.values[id], b.values[id]),
         }),
         []
       ),
@@ -640,7 +642,8 @@ const DataTable = ({
               const rowStyles = classnames({
                 "single-row": disableMultiRowSelect,
                 "disable-highlight": disableHighlightOnHover,
-                "clickable-row": !!onClickRow,
+                "clickable-row":
+                  !!onClickRow && (!canClickRow || canClickRow(row)),
               });
               return (
                 <tr
@@ -648,12 +651,14 @@ const DataTable = ({
                   {...row.getRowProps({
                     // @ts-ignore // TS complains about prop not existing
                     onClick: () => {
-                      (onSelectRowClick &&
-                        disableMultiRowSelect &&
-                        onSelectRowClick(row)) ||
-                        (disableMultiRowSelect &&
-                          onClickRow &&
-                          onClickRow(row));
+                      if (!canClickRow || canClickRow(row)) {
+                        (onSelectRowClick &&
+                          disableMultiRowSelect &&
+                          onSelectRowClick(row)) ||
+                          (disableMultiRowSelect &&
+                            onClickRow &&
+                            onClickRow(row));
+                      }
                     },
                     // For accessibility when tabable
                     onKeyDown: (e: KeyboardEvent) => {
@@ -663,6 +668,7 @@ const DataTable = ({
                           disableMultiRowSelect &&
                           onSelectRowClick(row)) ||
                           (disableMultiRowSelect &&
+                            (!canClickRow || canClickRow(row)) &&
                             onClickRow &&
                             onClickRow(row));
                       }

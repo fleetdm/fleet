@@ -1,26 +1,28 @@
 import React, { useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery, useQueryClient } from "react-query";
-
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { IApiError } from "interfaces/errors";
-import { ITeam } from "interfaces/team";
-import { IInvite, IEditInviteFormData } from "interfaces/invite";
-import { IUser, IUserFormErrors } from "interfaces/user";
-import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import usersAPI from "services/entities/users";
-import invitesAPI from "services/entities/invites";
+import { InjectedRouter } from "react-router";
 
 import BackButton from "components/BackButton";
-import MainContent from "components/MainContent";
-import { notify } from "components/ToastNotification";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import UserForm from "../components/UserForm";
-import { IUserFormData } from "../components/UserForm/UserForm";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IFormErrors } from "hooks/useFormValidation";
+import { IApiError } from "interfaces/errors";
+import { IInvite, IEditInviteFormData } from "interfaces/invite";
+import { ITeam } from "interfaces/team";
+import { IUser } from "interfaces/user";
+import PATHS from "router/paths";
+import invitesAPI from "services/entities/invites";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import usersAPI from "services/entities/users";
+
 import ApiUserForm from "../components/ApiUserForm";
 import { IApiUserFormData } from "../components/ApiUserForm/ApiUserForm";
+import UserForm from "../components/UserForm";
+import { IUserFormData } from "../components/UserForm/UserForm";
+import { getUserFieldErrors } from "../helpers/userManagementHelpers";
 
 const baseClass = "edit-user-page";
 
@@ -38,7 +40,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
   const { config, isPremiumTier } = useContext(AppContext);
 
   const queryClient = useQueryClient();
-  const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch user (when not an invite)
@@ -79,12 +81,12 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
   const entityData = isInvite ? invite : user;
 
   const handleHumanUserSubmit = (formData: IUserFormData) => {
-    if (!entityData) return;
+    if (!entityData) return undefined;
     setIsSubmitting(true);
     setFormErrors({});
 
     if (isInvite) {
-      invitesAPI
+      return invitesAPI
         .update(entityId, (formData as unknown) as IEditInviteFormData)
         .then(() => {
           let msg = `Successfully edited ${formData.name}`;
@@ -95,10 +97,9 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
           router.push(PATHS.ADMIN_USERS);
         })
         .catch((inviteErrors: { data: IApiError }) => {
-          if (inviteErrors.data.errors[0].reason.includes("already exists")) {
-            setFormErrors({
-              email: "A user with this email address already exists",
-            });
+          const fieldErrors = getUserFieldErrors(inviteErrors);
+          if (fieldErrors) {
+            setFormErrors(fieldErrors);
           } else {
             notify.error(
               `Could not edit ${entityData.name}. Please try again.`,
@@ -109,7 +110,6 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
         .finally(() => {
           setIsSubmitting(false);
         });
-      return;
     }
 
     // Do not update password to empty string
@@ -136,7 +136,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
       successMessage += `. A confirmation email was sent to ${formData.email}.`;
     }
 
-    usersAPI
+    return usersAPI
       .update(entityId, requestData)
       .then(() => {
         queryClient.invalidateQueries(["user", entityId]);
@@ -144,16 +144,9 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
         router.push(PATHS.ADMIN_USERS);
       })
       .catch((userErrors: { data: IApiError }) => {
-        if (userErrors.data.errors[0].reason.includes("already exists")) {
-          setFormErrors({
-            email: "A user with this email address already exists",
-          });
-        } else if (
-          userErrors.data.errors[0].reason.includes("required criteria")
-        ) {
-          setFormErrors({
-            password: "Password must meet the criteria below",
-          });
+        const fieldErrors = getUserFieldErrors(userErrors);
+        if (fieldErrors) {
+          setFormErrors(fieldErrors);
         } else {
           notify.error(`Could not edit ${entityData.name}. Please try again.`, {
             response: userErrors,
@@ -166,11 +159,11 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
   };
 
   const handleApiUserSubmit = (formData: IApiUserFormData) => {
-    if (!entityData) return;
+    if (!entityData) return undefined;
     setIsSubmitting(true);
     setFormErrors({});
 
-    usersAPI
+    return usersAPI
       .updateApiOnlyUser(entityId, {
         name: formData.name,
         global_role: formData.global_role,
@@ -252,7 +245,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
             defaultEmail={entityData?.email}
             defaultGlobalRole={entityData?.global_role}
             defaultTeams={entityData?.teams}
-            ancestorErrors={formErrors}
+            serverErrors={formErrors}
             isUpdatingUsers={isSubmitting}
           />
         </>

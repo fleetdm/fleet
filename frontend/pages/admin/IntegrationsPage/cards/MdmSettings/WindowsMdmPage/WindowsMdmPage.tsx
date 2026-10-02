@@ -2,21 +2,20 @@ import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { SingleValue } from "react-select-5";
 
-import PATHS from "router/paths";
-import configAPI from "services/entities/config";
-import { AppContext } from "context/app";
-
-import MainContent from "components/MainContent/MainContent";
-import Button from "components/buttons/Button";
 import BackButton from "components/BackButton";
-import Slider from "components/forms/fields/Slider";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import Slider from "components/forms/fields/Slider";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import CustomLink from "components/CustomLink";
+import MainContent from "components/MainContent/MainContent";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
 
 import { getErrorMessage } from "./helpers";
 
@@ -54,7 +53,7 @@ const useSetWindowsMdm = ({
             enableMdm && turnOnProgrammatically && enableAutoMigration,
           // The default fleet for user-driven enrollment is Premium only; the backend rejects it otherwise.
           ...(isPremiumTier && {
-            windows_enrollment: { default_fleet: defaultFleet },
+            windows_automatic_enrollment: { default_fleet: defaultFleet },
           }),
         },
         true
@@ -89,7 +88,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
     !(config?.mdm?.enable_turn_on_windows_mdm_manually ?? false)
   );
   const [defaultFleet, setDefaultFleet] = useState(
-    config?.mdm?.windows_enrollment?.default_fleet ?? UNASSIGNED_FLEET
+    config?.mdm?.windows_automatic_enrollment?.default_fleet ?? UNASSIGNED_FLEET
   );
 
   const isConnectedToEntra = !!config?.mdm?.windows_entra_tenant_ids?.length;

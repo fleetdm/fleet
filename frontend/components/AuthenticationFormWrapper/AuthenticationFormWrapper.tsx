@@ -1,6 +1,6 @@
+import classnames from "classnames";
 import React from "react";
 
-import classnames from "classnames";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import LogoOnlyNav from "components/top_nav/LogoOnlyNav";
@@ -32,11 +32,7 @@ const AuthenticationFormWrapper = ({
       </nav>
       {breadcrumbs}
       <div className={classNames}>
-        <Card
-          className={`${baseClass}__card`}
-          borderRadiusSize="xxlarge"
-          paddingSize="xlarge"
-        >
+        <Card className={`${baseClass}__card`} paddingSize="xlarge">
           {(header || headerCta) && (
             <div className={`${baseClass}__header-container`}>
               {header && <CardHeader header={header} />}

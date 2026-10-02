@@ -1,0 +1,1 @@
+- Restructured the DEP enrollment endpoint's checks to provide better errors on failed enrollments

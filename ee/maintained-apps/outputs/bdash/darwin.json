@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.35.1",
+      "version": "1.35.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.bdash';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.bdash' AND version_compare(bundle_short_version, '1.35.1') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'io.bdash');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.bdash' AND version_compare(bundle_short_version, '1.35.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.bdash' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/bdash-app/bdash/releases/download/v1.35.1/Bdash-1.35.1-universal-mac.zip",
+      "installer_url": "https://github.com/bdash-app/bdash/releases/download/v1.35.2/Bdash-1.35.2-universal-mac.zip",
       "install_script_ref": "1aeacce5",
       "uninstall_script_ref": "a9fd6c1d",
-      "sha256": "ba56bebc97f714a95ad5dfdcb52b49d55cfd08ebad4235211488632d1128d990",
+      "sha256": "31eb841fd8746bad9b8b785ec7cb04e8454a19439688ebd14f65e71e9cd28f74",
       "default_categories": [
         "Productivity"
       ]

@@ -2072,7 +2072,7 @@ func TestListUsersComputesStatus(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	now := time.Now()
+	now := time.Now() //nolint:staticcheck // it is referenced.
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return []*fleet.User{
 			{

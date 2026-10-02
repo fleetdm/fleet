@@ -1,0 +1,1 @@
+- Fixed GitOps failing to add a macOS setup assistant for a fleet that isn't a default fleet for an Apple Business Manager (ABM) token when more than one ABM token is configured, and added a warning when a saved setup assistant won't take effect until the fleet is tied to an ABM token.

@@ -108,7 +108,7 @@ func TestLinuxHostDiskEncryptionStatus(t *testing.T) {
 					ClientError:     clientError,
 				}, nil
 			}
-			ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+			ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 				return &fleet.HostArchivedDiskEncryptionKey{}, nil
 			}
 

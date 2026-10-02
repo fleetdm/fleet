@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 
-import mdmAPI from "services/entities/mdm";
-import { notify } from "components/ToastNotification";
-
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
-import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "bootstrap-advanced-options";
 

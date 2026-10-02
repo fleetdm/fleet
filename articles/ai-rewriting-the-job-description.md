@@ -43,7 +43,7 @@ Technical trust in AI isn't as settled as the enthusiasm suggests, either. The S
 
 None of this means the change isn't happening. It's a reason to approach it clearly, without catastrophizing or cheerleading.
 
-## What positions you well
+## Positioning yourself
 
 The World Economic Forum's Future of Jobs Report 2025 projects 170 million new jobs and 92 million displaced by 2030, a net gain with significant distributional unevenness. The DORA 2025 report is direct about what that means in practice: AI amplifies what's already there. Strong engineers get stronger. Weak processes get faster chaos.
 

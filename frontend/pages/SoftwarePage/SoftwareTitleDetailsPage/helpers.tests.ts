@@ -1,5 +1,6 @@
 import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 import { ISoftwareTitleDetails } from "interfaces/software";
+
 import {
   buildInstallerDownloadUrl,
   buildLibraryVersionRows,

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -43,7 +44,9 @@ type Service struct {
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
 	distributedLock        fleet.Lock
 	keyValueStore          fleet.KeyValueStore
+	installAttemptCounter  fleet.SoftwareInstallAttemptCounter
 	scepConfigService      fleet.SCEPConfigService
+	scepEnrollmentClient   fleet.SCEPEnrollmentClient
 	digiCertService        fleet.DigiCertService
 	androidModule          android.Service
 	estService             fleet.ESTService
@@ -66,6 +69,7 @@ func NewService(
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 	distributedLock fleet.Lock,
 	keyValueStore fleet.KeyValueStore,
+	installAttemptCounter fleet.SoftwareInstallAttemptCounter,
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
 	androidService android.Service,
@@ -100,7 +104,9 @@ func NewService(
 		softwareTitleIconStore: softwareTitleIconStore,
 		distributedLock:        distributedLock,
 		keyValueStore:          keyValueStore,
+		installAttemptCounter:  installAttemptCounter,
 		scepConfigService:      scepConfigService,
+		scepEnrollmentClient:   scep.NewEnrollmentClient(logger),
 		digiCertService:        digiCertService,
 		androidModule:          androidService,
 		estService:             estService,
@@ -116,8 +122,7 @@ func NewService(
 		UpdateTeamMDMDiskEncryption:       eeservice.updateTeamMDMDiskEncryption,
 		UpdateTeamMDMHostNameTemplate:     eeservice.updateTeamMDMHostNameTemplate,
 		ApplyHostNameTemplateChange:       eeservice.applyHostNameTemplateChange,
-		MDMAppleEnableFileVaultAndEscrow:  eeservice.MDMAppleEnableFileVaultAndEscrow,
-		MDMAppleDisableFileVaultAndEscrow: eeservice.MDMAppleDisableFileVaultAndEscrow,
+		MDMAppleReconcileFileVaultProfile: eeservice.MDMAppleReconcileFileVaultProfile,
 		DeleteMDMAppleSetupAssistant:      eeservice.DeleteMDMAppleSetupAssistant,
 		MDMAppleSyncDEPProfiles:           eeservice.mdmAppleSyncDEPProfiles,
 		DeleteMDMAppleBootstrapPackage:    eeservice.DeleteMDMAppleBootstrapPackage,

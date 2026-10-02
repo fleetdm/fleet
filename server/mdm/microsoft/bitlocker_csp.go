@@ -23,6 +23,8 @@ var systemDriveRequiresStartupAuthTmpl = template.Must(template.New("cmd").Funcs
 			return PolicyOptDropdownOptional
 		}
 		return *val
+	}, "minPINLength": func() int {
+		return BitLockerPINMinLength
 	}}).Parse(`
 <Atomic>
 	<CmdID>{{ .CmdUUID }}</CmdID>
@@ -52,6 +54,48 @@ var systemDriveRequiresStartupAuthTmpl = template.Must(template.New("cmd").Funcs
 			</Data>
 		</Item>
 	</Replace>
+	{{ if .ConfigurePINPolicies }}
+	<Replace>
+		<CmdID>{{ .CmdUUID }}-2</CmdID>
+		<Item>
+			<Meta>
+			  <Format>chr</Format>
+			  <Type>text/plain</Type>
+			</Meta>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/BitLocker/SystemDrivesMinimumPINLength</LocURI>
+			</Target>
+			<Data><![CDATA[<enabled/><data id="MinPINLength" value="{{ minPINLength }}"/>]]></Data>
+		</Item>
+	</Replace>
+	<Replace>
+		<CmdID>{{ .CmdUUID }}-3</CmdID>
+		<Item>
+			<Meta>
+			  <Format>chr</Format>
+			  <Type>text/plain</Type>
+			</Meta>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/BitLocker/SystemDrivesEnhancedPIN</LocURI>
+			</Target>
+			<Data><![CDATA[<enabled/>]]></Data>
+		</Item>
+	</Replace>
+	{{- /* This node is phrased as a prohibition, so disabling it is what lets standard users change their PIN. */}}
+	<Replace>
+		<CmdID>{{ .CmdUUID }}-4</CmdID>
+		<Item>
+			<Meta>
+			  <Format>chr</Format>
+			  <Type>text/plain</Type>
+			</Meta>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/BitLocker/SystemDrivesDisallowStandardUsersCanChangePIN</LocURI>
+			</Target>
+			<Data><![CDATA[<disabled/>]]></Data>
+		</Item>
+	</Replace>
+	{{ end }}
 </Atomic>`,
 ))
 
@@ -72,6 +116,8 @@ type SystemDriveRequiresStartupAuthSpec struct {
 	ConfigureTPMPINKey *uint
 	// ConfigureTPM configures configure TPM startup
 	ConfigureTPM *uint
+	// ConfigurePINPolicies also sets the startup PIN policies Fleet's PIN flow assumes.
+	ConfigurePINPolicies bool
 }
 
 func (spec SystemDriveRequiresStartupAuthSpec) validate() error {
@@ -83,7 +129,8 @@ func (spec SystemDriveRequiresStartupAuthSpec) validate() error {
 		spec.ConfigureTPMStartupKey != nil ||
 		spec.ConfigurePIN != nil ||
 		spec.ConfigureTPMPINKey != nil ||
-		spec.ConfigureTPM != nil) {
+		spec.ConfigureTPM != nil ||
+		spec.ConfigurePINPolicies) {
 		return errors.New("enabled must be true if any other field is set")
 	}
 

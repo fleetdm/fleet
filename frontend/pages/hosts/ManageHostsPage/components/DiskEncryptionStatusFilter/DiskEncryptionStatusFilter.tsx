@@ -1,9 +1,8 @@
 import React from "react";
 
-import { IDropdownOption } from "interfaces/dropdownOption";
-
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { DiskEncryptionStatus } from "interfaces/mdm";
 
 const baseClass = "disk-encryption-status-filter";

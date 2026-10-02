@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
@@ -15,6 +17,12 @@ import (
 // Sessions are written with a TTL and deleted once fulfilled, so in practice
 // this means the user took longer to sign in than the configured window.
 var ErrSessionNotFound = errors.New("sso session not found")
+
+// ErrAssertionAlreadyUsed reports that a SAML assertion was already used to
+// log in, i.e. the SAMLResponse is being replayed.
+var ErrAssertionAlreadyUsed = errors.New("saml assertion already used")
+
+const consumedAssertionKeyPrefix = "sso:assertion:"
 
 // sessionNotFoundError keeps the AuthRequiredError behaviour callers already
 // depend on -- the authz middleware matches on that type -- while letting the
@@ -57,6 +65,9 @@ type SessionStore interface {
 	expire(sessionID string) error
 	// Fullfill loads a session with the given session ID, deletes it and returns it.
 	Fullfill(sessionID string) (*Session, error)
+	// ConsumeAssertion marks a verified SAML assertion as used until it expires,
+	// returning ErrAssertionAlreadyUsed if it was consumed before.
+	ConsumeAssertion(assertionID string, notOnOrAfter time.Time) error
 }
 
 // NewSessionStore creates a SessionStore
@@ -131,4 +142,25 @@ func (s *store) Fullfill(sessionID string) (*Session, error) {
 		return nil, fmt.Errorf("remove sso request: %w", err)
 	}
 	return session, nil
+}
+
+func (s *store) ConsumeAssertion(assertionID string, notOnOrAfter time.Time) error {
+	if assertionID == "" {
+		return errors.New("missing assertion ID")
+	}
+	// The assertion is accepted by the SAML library up to MaxClockSkew past its
+	// expiry, so the key must outlive it by the same margin. A negative or zero
+	// expiry is an invalid argument, so make sure it is at least a second.
+	ttl := max(time.Until(notOnOrAfter.Add(saml.MaxClockSkew)), time.Second)
+
+	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
+	defer conn.Close()
+	_, err := redigo.String(conn.Do("SET", consumedAssertionKeyPrefix+assertionID, "1", "PX", ttl.Milliseconds(), "NX"))
+	if err != nil {
+		if errors.Is(err, redigo.ErrNil) {
+			return ErrAssertionAlreadyUsed
+		}
+		return fmt.Errorf("mark assertion as used: %w", err)
+	}
+	return nil
 }
