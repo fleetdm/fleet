@@ -853,6 +853,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// GET /hosts/:id/encryption_key.
 	ue.GET("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/encryption_key/rotate", rotateDiskEncryptionKeyEndpoint, rotateDiskEncryptionKeyRequest{})
 
 	// Deprecated: GET /mdm/profiles/summary is now deprecated, replaced by the
 	// GET /configuration_profiles/summary endpoint.
@@ -1043,10 +1044,13 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint, getDeviceMDMCommandResultsRequest{})
-	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/apns_ping", deviceSendAPNSPing, deviceSendAPNSPingRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/install", deviceInstallSelfServiceConfigurationProfileEndpoint, deviceInstallSelfServiceConfigurationProfileRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/uninstall", deviceUninstallSelfServiceConfigurationProfileEndpoint, deviceUninstallSelfServiceConfigurationProfileRequest{})
+
+	// Device authenticated, any MDM: the resend serves Windows profiles too.
+	deAnyMDM := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
+	deAnyMDM.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
 
 	// host-authenticated endpoints
 	//

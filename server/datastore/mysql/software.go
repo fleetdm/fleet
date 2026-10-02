@@ -2121,7 +2121,7 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	// instead of expanding row count via outer JOIN+GROUP BY (as the goqu
 	// fallback does). The covering index scan on idx_software_host_counts_
 	// team_global_hosts_desc still drives the query; each EXISTS probe uses
-	// idx_software_cve_cve / unq_software_id_cve / idx_cve_meta_exploit /
+	// idx_software_cve_cve_created_at / unq_software_id_cve / idx_cve_meta_exploit /
 	// idx_cve_meta_cvss_score from #45415.
 	if opts.VulnerableOnly || opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
 		needsCVEMeta := opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0

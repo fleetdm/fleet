@@ -1323,16 +1323,22 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny, meta.LabelsIncludeAll)
 
+	var softwareDisplayName *string
+	if meta.DisplayName != "" {
+		softwareDisplayName = new(meta.DisplayName)
+	}
+
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityDeletedAppStoreApp{
-		AppStoreID:       meta.AdamID,
-		SoftwareTitle:    meta.Name,
-		TeamName:         teamName,
-		TeamID:           teamID,
-		Platform:         meta.Platform,
-		LabelsIncludeAny: actLabelsInclAny,
-		LabelsExcludeAny: actLabelsExclAny,
-		LabelsIncludeAll: actLabelsInclAll,
-		SoftwareIconURL:  meta.IconURL,
+		AppStoreID:          meta.AdamID,
+		SoftwareTitle:       meta.Name,
+		SoftwareDisplayName: softwareDisplayName,
+		TeamName:            teamName,
+		TeamID:              teamID,
+		Platform:            meta.Platform,
+		LabelsIncludeAny:    actLabelsInclAny,
+		LabelsExcludeAny:    actLabelsExclAny,
+		LabelsIncludeAll:    actLabelsInclAll,
+		SoftwareIconURL:     meta.IconURL,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}

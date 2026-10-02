@@ -6,13 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -28,12 +31,12 @@ import (
 // sha256 of "TestBrand:test-serial". Will need to be updated if our test enrollment message changes
 var testBrandTestSerialHashed = "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfea4f11f31c96c6f052b0"
 
-func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
+func createAndroidService(t *testing.T, opts ...ServiceOption) (android.Service, *AndroidMockDS) {
 	androidAPIClient := android_mock.Client{}
 	androidAPIClient.InitCommonMocks()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	mockDS := InitCommonDSMocks()
-	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
+	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, noopNewActivity, config.AndroidAgentConfig{}, opts...)
 	require.NoError(t, err)
 
 	return svc, mockDS
@@ -2472,8 +2475,48 @@ func TestBuildNonComplianceErrorMessage(t *testing.T) {
 	}
 }
 
+// fakePendingInstalls stands in for host_vpp_software_installs: as in the datastore, an install
+// marked verified or failed is no longer pending, so a later report can't act on it.
+type fakePendingInstalls struct {
+	pending          map[string]*fleet.HostAndroidVPPSoftwareInstall
+	verified, failed []string
+}
+
+func useFakePendingInstalls(mockDS *AndroidMockDS, installs ...*fleet.HostAndroidVPPSoftwareInstall) *fakePendingInstalls {
+	f := &fakePendingInstalls{pending: make(map[string]*fleet.HostAndroidVPPSoftwareInstall, len(installs))}
+	for _, install := range installs {
+		f.pending[install.CommandUUID] = install
+	}
+	mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+		var res []*fleet.HostAndroidVPPSoftwareInstall
+		for _, install := range f.pending {
+			if v, _ := strconv.ParseInt(install.AssociatedEventID, 10, 64); v <= version {
+				res = append(res, install)
+			}
+		}
+		return res, nil
+	}
+	mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+		for _, cmdUUID := range cmdUUIDs {
+			delete(f.pending, cmdUUID)
+		}
+		f.verified = append(f.verified, cmdUUIDs...)
+		return nil
+	}
+	mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+		for _, cmdUUID := range cmdUUIDs {
+			delete(f.pending, cmdUUID)
+		}
+		f.failed = append(f.failed, cmdUUIDs...)
+		return nil
+	}
+	return f
+}
+
 func TestStatusReportAppInstallVerification(t *testing.T) {
-	svc, mockDS := createAndroidService(t)
+	const installReapTimeout = 24 * time.Hour
+	clk := clock.NewMockClock()
+	svc, mockDS := createAndroidService(t, WithClock(clk), WithInstallReapTimeout(installReapTimeout))
 
 	androidDevice := &fleet.AndroidHost{
 		Host: &fleet.Host{
@@ -2752,6 +2795,81 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		require.True(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
 	})
 
+	pushStatusReport := func(t *testing.T, apps []*androidmanagement.ApplicationReport, nonCompliance []*androidmanagement.NonComplianceDetail) {
+		statusReport := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), new(2), apps, nonCompliance)
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", &statusReport))
+	}
+
+	t.Run("pending app not reported at all stays pending until a later report", func(t *testing.T) {
+		createdAt := clk.Now()
+		installs := useFakePendingInstalls(mockDS, &fleet.HostAndroidVPPSoftwareInstall{
+			AdamID: "com.example.app", CommandUUID: "a", AssociatedEventID: "2", CreatedAt: &createdAt,
+		})
+
+		// The device applied the policy but says nothing about the app, neither an
+		// application report nor a non-compliance report.
+		pushStatusReport(t, nil, nil)
+		require.Empty(t, installs.failed)
+		require.Contains(t, installs.pending, "a")
+
+		// A later report saying the app is installed must still be able to verify it.
+		pushStatusReport(t, []*androidmanagement.ApplicationReport{{PackageName: "com.example.app", State: "INSTALLED"}}, nil)
+		require.Equal(t, []string{"a"}, installs.verified)
+		require.Empty(t, installs.failed)
+	})
+
+	t.Run("pending app not reported fails once older than the install reap timeout", func(t *testing.T) {
+		now := clk.Now()
+		young, old := now.Add(-installReapTimeout+time.Hour), now.Add(-installReapTimeout-time.Hour)
+		installs := useFakePendingInstalls(mockDS,
+			&fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.young", CommandUUID: "young", AssociatedEventID: "2", CreatedAt: &young},
+			&fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.old", CommandUUID: "old", AssociatedEventID: "2", CreatedAt: &old},
+			&fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.old.installed", CommandUUID: "old-installed", AssociatedEventID: "2", CreatedAt: &old},
+			&fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.old.inprogress", CommandUUID: "old-inprogress", AssociatedEventID: "2", CreatedAt: &old},
+			&fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.noage", CommandUUID: "no-age", AssociatedEventID: "2"},
+		)
+		var failedActivities []string
+		mockDS.GetPastActivityDataForAndroidVPPAppInstallFunc = func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+			if status == fleet.SoftwareInstallFailed {
+				failedActivities = append(failedActivities, cmdUUID)
+			}
+			return nil, nil, nil
+		}
+
+		// Only the old install missing from both reports fails: a report of any kind still wins,
+		// and an install whose age is unknown keeps waiting.
+		pushStatusReport(t,
+			[]*androidmanagement.ApplicationReport{{PackageName: "com.example.old.installed", State: "INSTALLED"}},
+			[]*androidmanagement.NonComplianceDetail{{PackageName: "com.example.old.inprogress", NonComplianceReason: "PENDING", InstallationFailureReason: "IN_PROGRESS"}},
+		)
+		require.Equal(t, []string{"old-installed"}, installs.verified)
+		require.Equal(t, []string{"old"}, installs.failed)
+		require.Equal(t, []string{"old"}, failedActivities)
+		require.ElementsMatch(t, []string{"young", "old-inprogress", "no-age"}, slices.Collect(maps.Keys(installs.pending)))
+
+		// The young install fails on the first report after it too passes the timeout.
+		clk.AddTime(2 * time.Hour)
+		pushStatusReport(t, nil, []*androidmanagement.NonComplianceDetail{
+			{PackageName: "com.example.old.inprogress", NonComplianceReason: "PENDING", InstallationFailureReason: "IN_PROGRESS"},
+		})
+		require.Equal(t, []string{"old", "young"}, installs.failed)
+		require.ElementsMatch(t, []string{"old-inprogress", "no-age"}, slices.Collect(maps.Keys(installs.pending)))
+	})
+
+	t.Run("install reap timeout of zero keeps an unreported app pending", func(t *testing.T) {
+		svc.(*Service).installReapTimeout = 0
+		t.Cleanup(func() { svc.(*Service).installReapTimeout = installReapTimeout })
+
+		old := clk.Now().Add(-10 * installReapTimeout)
+		installs := useFakePendingInstalls(mockDS, &fleet.HostAndroidVPPSoftwareInstall{
+			AdamID: "com.example.app", CommandUUID: "a", AssociatedEventID: "2", CreatedAt: &old,
+		})
+
+		pushStatusReport(t, nil, nil)
+		require.Empty(t, installs.failed)
+		require.Contains(t, installs.pending, "a")
+	})
+
 	t.Run("multiple apps in various states", func(t *testing.T) {
 		t.Cleanup(func() {
 			mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = false
@@ -2803,7 +2921,6 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		commandsToStatus := map[string]fleet.SoftwareInstallerStatus{
 			"a": fleet.SoftwareInstalled,
 			"b": fleet.SoftwareInstalled,
-			"c": fleet.SoftwareInstallFailed,
 			"d": fleet.SoftwareInstallFailed,
 		}
 		mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
@@ -2811,7 +2928,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 		mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
-			require.ElementsMatch(t, []string{"c", "d"}, cmdUUIDs)
+			require.ElementsMatch(t, []string{"d"}, cmdUUIDs)
 			return nil
 		}
 		mockDS.GetPastActivityDataForAndroidVPPAppInstallFunc = func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
@@ -2822,7 +2939,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		}
 
 		policyVersion := new(2)
-		// app1 and app2 verified, app3 not reported at all so failed, app4 failed with compliance report
+		// app1 and app2 verified, app3 not reported at all so still pending, app4 failed with compliance report
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApps[0].AdamID, State: "INSTALLED"},
 			{PackageName: pendingApps[1].AdamID, State: "INSTALLED"},
