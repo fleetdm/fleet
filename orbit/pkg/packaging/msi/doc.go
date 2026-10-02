@@ -38,5 +38,6 @@
 // installers, and WixCA_A64.dll for arm64) are the WixQuietExec64 /
 // ServiceConfig custom-action binaries from WiX 3.14's WixUtilExtension,
 // extracted verbatim from a fleetdm/wix build. They are embedded into the
-// Binary table exactly as WiX did.
+// Binary table exactly as WiX did. They are MS-RL licensed; see
+// wixca/README.md for their provenance and checksums.
 package msi
