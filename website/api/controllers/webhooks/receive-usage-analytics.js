@@ -1,3 +1,31 @@
+// Fleet v4.93.0 and later report each Fleet-maintained app as an object instead of a slug. A missing
+// flag means the reporting Fleet version didn't send it, which is not the same as `false`.
+let isValidListOfFleetMaintainedApps = (apps)=>{
+  if (!Array.isArray(apps)) {
+    return false;
+  }
+  return apps.every((app)=>{
+    if (typeof app === 'string') {
+      return true;
+    }
+    if (!app || typeof app !== 'object' || Array.isArray(app) || typeof app.name !== 'string' || app.name === '') {
+      return false;
+    }
+    return ['patchPolicy', 'softwareAutomation'].every((flag)=>{ return app[flag] === undefined || typeof app[flag] === 'boolean'; });
+  });
+};
+
+// `null` is allowed so that a missing count can be stored as unknown instead of zero.
+let isNullOrNonNegativeInteger = (num)=>{ return num === null || (Number.isInteger(num) && num >= 0); };
+
+const OPTIONAL_COUNT_INPUT_NAMES = [
+  'numPoliciesAutomationEnabledSoftware',
+  'numMDMAppleProfiles',
+  'numMDMWindowsProfiles',
+  'numMDMAppleDeclarations',
+  'numMDMAndroidProfiles',
+];
+
 module.exports = {
 
 
@@ -46,8 +74,8 @@ module.exports = {
     numHostsFleetDesktopEnabled: {type: 'number', defaultsTo: 0 },
     numQueries: {type: 'number', defaultsTo: 0 },
     numHostsABMPending: {type: 'number', defaultsTo: 0 },
-    fleetMaintainedAppsWindows: {type: ['string'], defaultsTo: [] },
-    fleetMaintainedAppsMacOS: {type: ['string'], defaultsTo: [] },
+    fleetMaintainedAppsWindows: {type: 'json', defaultsTo: [], custom: isValidListOfFleetMaintainedApps, description: 'Fleet-maintained app slugs, or objects like {name, patchPolicy, softwareAutomation}.' },
+    fleetMaintainedAppsMacOS: {type: 'json', defaultsTo: [], custom: isValidListOfFleetMaintainedApps, description: 'Fleet-maintained app slugs, or objects like {name, patchPolicy, softwareAutomation}.' },
     oktaConditionalAccessConfigured: {type: 'boolean', defaultsTo: false},
     entraConditionalAccessConfigured: {type: 'boolean', defaultsTo: false},
     conditionalAccessBypassDisabled: {type: 'boolean', defaultsTo: false},
@@ -71,6 +99,12 @@ module.exports = {
     idpSCIMConfigured: {type: 'boolean', defaultsTo: false},
     idpGoogleWorkspaceConfigured: {type: 'boolean', defaultsTo: false},
     certificateAuthorityConfigured: {type: 'boolean', defaultsTo: false},
+    // No defaults: older Fleet versions don't report these, and that must stay distinguishable from zero.
+    numPoliciesAutomationEnabledSoftware: {type: 'number', allowNull: true, custom: isNullOrNonNegativeInteger},
+    numMDMAppleProfiles: {type: 'number', allowNull: true, custom: isNullOrNonNegativeInteger},
+    numMDMWindowsProfiles: {type: 'number', allowNull: true, custom: isNullOrNonNegativeInteger},
+    numMDMAppleDeclarations: {type: 'number', allowNull: true, custom: isNullOrNonNegativeInteger},
+    numMDMAndroidProfiles: {type: 'number', allowNull: true, custom: isNullOrNonNegativeInteger},
   },
 
 
@@ -84,6 +118,12 @@ module.exports = {
     for(let stringInput of ['organization', 'resultLogDestination', 'statusLogDestination', 'auditLogDestination']) {
       if(inputs[stringInput] === '') {
         inputs[stringInput] = 'unknown';
+      }
+    }
+    // Set omitted counts to null explicitly rather than relying on Waterline, which can fill in a type's base value (0).
+    for(let countInput of OPTIONAL_COUNT_INPUT_NAMES) {
+      if(inputs[countInput] === undefined) {
+        inputs[countInput] = null;
       }
     }
     // Create a database record for these usage statistics.

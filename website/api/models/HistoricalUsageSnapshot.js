@@ -75,6 +75,12 @@ module.exports = {
     idpSCIMConfigured: {required: true, type: 'boolean'},
     idpGoogleWorkspaceConfigured: {required: true, type: 'boolean'},
     certificateAuthorityConfigured: {required: true, type: 'boolean'},
+    // These are null for snapshots reported by Fleet versions that didn't send them.
+    numPoliciesAutomationEnabledSoftware: {type: 'number', allowNull: true},
+    numMDMAppleProfiles: {type: 'number', allowNull: true},
+    numMDMWindowsProfiles: {type: 'number', allowNull: true},
+    numMDMAppleDeclarations: {type: 'number', allowNull: true},
+    numMDMAndroidProfiles: {type: 'number', allowNull: true},
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

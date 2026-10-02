@@ -72,6 +72,23 @@ module.exports = {
       return _.map(apps || [], (app)=>{ return _.isString(app) ? app : app.name; });
     };
 
+    // Apps reported as slugs, or by Fleet versions that didn't send a flag, show that flag as "unknown" rather than false.
+    let getFleetMaintainedAppDetails = (apps)=>{
+      let getReadableFlag = (flag)=>{ return _.isBoolean(flag) ? String(flag) : 'unknown'; };
+      return _.map(apps || [], (app)=>{
+        if (_.isString(app)) {
+          return `${app} (patch policy: unknown, software automation: unknown)`;
+        }
+        return `${app.name} (patch policy: ${getReadableFlag(app.patchPolicy)}, software automation: ${getReadableFlag(app.softwareAutomation)})`;
+      }).join('; ');
+    };
+
+    // Counts that weren't reported are exported as empty strings, since the Sheets API skips null
+    // values and would leave whatever was previously in the cell.
+    let getCountOrBlank = (count)=>{
+      return _.isNumber(count) ? count : '';
+    };
+
     let rows = [];
     for (let statistics of latestStatisticsForEachInstance) {
       let hostCountsByPlatform = {macOS: 0, Windows: 0, Linux: 0, iOS: 0, iPadOS: 0, Android: 0, ChromeOS: 0};
@@ -131,6 +148,15 @@ module.exports = {
         hostCountsByPlatform.iPadOS,
         hostCountsByPlatform.Android,
         hostCountsByPlatform.ChromeOS,
+        statistics.numTeams,
+        statistics.numPolicies,
+        getCountOrBlank(statistics.numPoliciesAutomationEnabledSoftware),
+        getCountOrBlank(statistics.numMDMAppleProfiles),
+        getCountOrBlank(statistics.numMDMWindowsProfiles),
+        getCountOrBlank(statistics.numMDMAppleDeclarations),
+        getCountOrBlank(statistics.numMDMAndroidProfiles),
+        getFleetMaintainedAppDetails(statistics.fleetMaintainedAppsMacOS),
+        getFleetMaintainedAppDetails(statistics.fleetMaintainedAppsWindows),
       ]);
     }//∞
 
@@ -151,6 +177,10 @@ module.exports = {
       'Okta conditional access configured', 'Conditional access enabled',
       'Conditional access bypass disabled', 'Entra conditional access configured',
       'macOS hosts', 'Windows hosts', 'Linux hosts', 'iOS hosts', 'iPadOS hosts', 'Android hosts', 'ChromeOS hosts',
+      'Fleets', 'Policies',
+      'Policies with software automation', 'Apple configuration profiles', 'Windows configuration profiles',
+      'Apple declarations', 'Android configuration profiles',
+      'Fleet-maintained app details (macOS)', 'Fleet-maintained app details (Windows)',
     ];
 
     let { google } = require('googleapis');
