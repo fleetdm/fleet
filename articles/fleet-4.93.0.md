@@ -1,8 +1,10 @@
 # Fleet 4.93.0 | macOS app patching, Android zero-touch enrollment, Windows admin password rotation, and more...
 
+<!--
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/TODO" title="0" allowfullscreen></iframe>
 </div>
+-->
 
 Fleet 4.93.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.93.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
@@ -100,5 +102,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2026-10-02">
-<meta name="articleTitle" value="Fleet 4.93.0 | Android zero-touch enrollment, Windows admin password rotation, and more...">
+<meta name="articleTitle" value="Fleet 4.93.0 | macOS app patching, Android zero-touch enrollment, Windows admin password rotation, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.93.0-1600x900@2x.png">
