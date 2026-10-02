@@ -52,31 +52,43 @@ export type ProfileContentType =
   | "android"
   | "windows";
 
-export const PROFILE_CONTENT_TYPE_LABEL: Record<ProfileContentType, string> = {
-  mobileconfig: "Mobileconfig",
-  declaration: "Declaration (DDM)",
-  android: "Android",
-  windows: "Windows",
-};
+interface IProfileContentTypeInfo {
+  /** Shown above the editor. */
+  label: string;
+  /** Of the file the upload is sent as, which is how the server routes it. */
+  extension: string;
+  platform: ProfilePlatform;
+  editorMode: EditorMode;
+}
 
-export const PROFILE_CONTENT_TYPE_EXTENSION: Record<
+export const PROFILE_CONTENT_TYPES: Record<
   ProfileContentType,
-  string
+  IProfileContentTypeInfo
 > = {
-  mobileconfig: "mobileconfig",
-  declaration: "json",
-  android: "json",
-  windows: "xml",
-};
-
-export const PROFILE_CONTENT_TYPE_PLATFORM: Record<
-  ProfileContentType,
-  ProfilePlatform
-> = {
-  mobileconfig: "darwin",
-  declaration: "darwin",
-  android: "android",
-  windows: "windows",
+  mobileconfig: {
+    label: "Mobileconfig",
+    extension: "mobileconfig",
+    platform: "darwin",
+    editorMode: "xml",
+  },
+  declaration: {
+    label: "Declaration (DDM)",
+    extension: "json",
+    platform: "darwin",
+    editorMode: "json",
+  },
+  android: {
+    label: "Android",
+    extension: "json",
+    platform: "android",
+    editorMode: "json",
+  },
+  windows: {
+    label: "Windows",
+    extension: "xml",
+    platform: "windows",
+    editorMode: "xml",
+  },
 };
 
 const SERVER_SECRET_PREFIX = "FLEET_SECRET_";
@@ -84,21 +96,6 @@ const SERVER_SECRET_PREFIX = "FLEET_SECRET_";
 /** What the file picker offers when adding, where the type isn't known yet. */
 export const ADD_PROFILE_ACCEPT =
   ".json,.mobileconfig,application/x-apple-aspen-config,.xml";
-
-export const editorModeForContentType = (
-  type: ProfileContentType | null
-): EditorMode => {
-  switch (type) {
-    case "declaration":
-    case "android":
-      return "json";
-    case "mobileconfig":
-    case "windows":
-      return "xml";
-    default:
-      return "text";
-  }
-};
 
 const startsUpper = (key: string) =>
   key.charAt(0) !== key.charAt(0).toLowerCase();
@@ -190,7 +187,7 @@ export const getAcceptedExtensions = (profile: IMdmProfile) => {
   // a mobileconfig is a plist, which may be saved as .xml
   return type === "mobileconfig"
     ? [".mobileconfig", ".xml"]
-    : [`.${PROFILE_CONTENT_TYPE_EXTENSION[type]}`];
+    : [`.${PROFILE_CONTENT_TYPES[type].extension}`];
 };
 
 /** Name given to pasted content that the admin did not name, so the server

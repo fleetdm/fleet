@@ -238,8 +238,6 @@ export interface IMdmProfile {
   profile_uuid: string;
   team_id: number;
   name: string;
-  /** Admin-written free text. Always returned by the API, optional here so
-   * older fixtures keep type-checking. */
   description?: string;
   /** The PayloadDisplayName inside a .mobileconfig, which can differ from
    * name once the profile is renamed. Absent for other profile types. */

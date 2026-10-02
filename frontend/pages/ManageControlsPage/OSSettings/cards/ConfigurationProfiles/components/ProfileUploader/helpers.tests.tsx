@@ -12,7 +12,7 @@ import {
   getErrorMessage,
   detectProfileContentType,
   parseFile,
-  editorModeForContentType,
+  PROFILE_CONTENT_TYPES,
   profileContentTypeFor,
   nextPastedProfileName,
 } from "./helpers";
@@ -246,6 +246,12 @@ describe("detectProfileContentType", () => {
     expect(
       detectProfileContentType('{"Name": "x", "cameraDisabled": true}')
     ).toBe("android");
+    // a key starting with a digit is neither case; the server rejects it
+    // either way, so this only picks the gate its error comes back through
+    expect(detectProfileContentType('{"1something": true}')).toBe("android");
+    expect(
+      detectProfileContentType('{"Type": "com.apple.x", "1something": true}')
+    ).toBe("declaration");
     expect(detectProfileContentType("{not json")).toBeNull();
     expect(detectProfileContentType("[]")).toBeNull();
   });
@@ -265,12 +271,11 @@ describe("detectProfileContentType", () => {
     expect(parsed.name).toBe("Policy");
   });
 
-  it("maps types to editor modes", () => {
-    expect(editorModeForContentType("mobileconfig")).toBe("xml");
-    expect(editorModeForContentType("windows")).toBe("xml");
-    expect(editorModeForContentType("declaration")).toBe("json");
-    expect(editorModeForContentType("android")).toBe("json");
-    expect(editorModeForContentType(null)).toBe("text");
+  it("edits XML types as xml and JSON types as json", () => {
+    expect(PROFILE_CONTENT_TYPES.mobileconfig.editorMode).toBe("xml");
+    expect(PROFILE_CONTENT_TYPES.windows.editorMode).toBe("xml");
+    expect(PROFILE_CONTENT_TYPES.declaration.editorMode).toBe("json");
+    expect(PROFILE_CONTENT_TYPES.android.editorMode).toBe("json");
   });
 
   it("derives an existing profile's type from the API shape", () => {
