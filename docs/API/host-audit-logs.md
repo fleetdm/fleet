@@ -60,8 +60,8 @@ This activity contains the following fields:
 - "host_serial": Serial number of the host.
 - "host_uuid": UUID of the host.
 - "platform": Platform of the host.
-- "enrollment_plane": Agent that attempted to enroll (e.g., "orbit" or "osquery").
-- "reason": Why the enrollment was rejected.
+- "enrollment_plane": Component that attempted to enroll: "orbit" or "osquery".
+- "reason": Why the enrollment was rejected: "one_time_secret_spent", "one_time_secret_identifier_mismatch", or "shared_secret_for_mdm_managed_host".
 
 #### Example
 
@@ -73,7 +73,7 @@ This activity contains the following fields:
   "host_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "platform": "darwin",
   "enrollment_plane": "orbit",
-  "reason": "enroll secret already used"
+  "reason": "one_time_secret_spent"
 }
 ```
 
@@ -413,7 +413,7 @@ This activity contains the following fields:
 
 ## rotated_disk_encryption_key
 
-Generated when a host's disk encryption key is rotated.
+Generated when a user requests a rotation of a host's disk encryption key. Recorded when the command is enqueued.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -559,9 +559,9 @@ This activity contains the following fields:
 - "patch_notification_uuid": ID of the patch notification.
 - "software_titles": Names of the software that will be patched.
 - "policy_ids": IDs of the patch policies that triggered the notification.
-- "time_before": Time, in seconds, before the install starts.
-- "install_at": When the install is scheduled to start.
-- "status": Status of the notification.
+- "time_before": Seconds between the notification and the scheduled install.
+- "install_at": When the install is scheduled to start. `null` if the notification wasn't displayed.
+- "status": Whether the notification script succeeded: "success" or "failed".
 - "script_execution_id": ID of the notification script execution. Omitted when no script ran.
 - "exit_code": Exit code of the notification script. Omitted when no script ran.
 
@@ -576,7 +576,7 @@ This activity contains the following fields:
   "policy_ids": [1337],
   "time_before": 3600,
   "install_at": "2026-10-02T09:00:00Z",
-  "status": "notified",
+  "status": "success",
   "script_execution_id": "98765432-1234-1234-1234-1234567890ab",
   "exit_code": 0
 }
