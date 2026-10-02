@@ -757,13 +757,13 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      {showGhostNoResults && (
-        <div className="data-table__no-match-overlay" aria-live="polite">
+      <div className="data-table__no-match-overlay" role="status">
+        {showGhostNoResults && (
           <div className="data-table__no-match-content">
             {renderNoResultsInBody?.()}
           </div>
-        </div>
-      )}
+        )}
+      </div>
       {shouldShowFooter && (
         <div className={`${baseClass}__footer`}>
           {renderTableHelpText && !!rows?.length && (
