@@ -65,7 +65,7 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 Panelists:
 
 - [Mohammed Saqr](https://www.linkedin.com/in/mohammed-saqr/), Block, Manager of Infrastructure and Platform Engineering
-- [Dave Hannigan](https://www.linkedin.com/in/dave-c-a50a4a187/?isSelfProfile=false), former CISO, Nubank
+- Dave Hannigan, former CISO, Nubank
 - More panelists to be announced
 
 [Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030)
