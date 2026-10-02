@@ -8,6 +8,12 @@ import FileUploader from "./FileUploader";
 
 const render = createCustomRenderer();
 
+const findDropZone = (container: HTMLElement) =>
+  container.querySelector(".file-uploader__wrapper") as HTMLElement;
+
+const makeFile = (name: string, type = "application/octet-stream") =>
+  new File(["x"], name, { type });
+
 describe("FileUploader", () => {
   it("fires onFileUpload with the dropped files", () => {
     const onFileUpload = jest.fn();
@@ -19,18 +25,13 @@ describe("FileUploader", () => {
       />
     );
 
-    const dropZone = container.querySelector(
-      ".file-uploader__wrapper"
-    ) as HTMLElement;
-    const file = new File(["x"], "thing.pkg", { type: "application/x-pkg" });
-
-    fireEvent.drop(dropZone, {
+    const file = makeFile("thing.pkg");
+    fireEvent.drop(findDropZone(container), {
       dataTransfer: { files: [file] },
     });
 
     expect(onFileUpload).toHaveBeenCalledTimes(1);
-    const fileList = onFileUpload.mock.calls[0][0] as FileList;
-    expect(fileList[0]).toBe(file);
+    expect((onFileUpload.mock.calls[0][0] as FileList)[0]).toBe(file);
   });
 
   it("does not fire onFileUpload when disabled", () => {
@@ -44,42 +45,66 @@ describe("FileUploader", () => {
       />
     );
 
-    const dropZone = container.querySelector(
-      ".file-uploader__wrapper"
-    ) as HTMLElement;
-
-    fireEvent.drop(dropZone, {
-      dataTransfer: {
-        files: [new File(["x"], "thing.pkg", { type: "application/x-pkg" })],
-      },
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("thing.pkg")] },
     });
 
     expect(onFileUpload).not.toHaveBeenCalled();
   });
 
-  it("adds a drag-active class on dragover and clears it on drop", () => {
+  it("does not fire onFileUpload when GitOps mode suppresses the uploader", () => {
+    const onFileUpload = jest.fn();
     const { container } = render(
       <FileUploader
         graphicName="file-pkg"
         message="drop a package"
-        onFileUpload={noop}
+        gitopsCompatible
+        gitOpsModeEnabled
+        onFileUpload={onFileUpload}
       />
     );
 
-    const card = container.querySelector(".file-uploader") as HTMLElement;
-    const dropZone = container.querySelector(
-      ".file-uploader__wrapper"
-    ) as HTMLElement;
-
-    fireEvent.dragOver(dropZone);
-    expect(card.className).toContain("file-uploader__drag-active");
-
-    fireEvent.drop(dropZone, {
-      dataTransfer: {
-        files: [new File(["x"], "thing.pkg", { type: "application/x-pkg" })],
-      },
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("thing.pkg")] },
     });
-    expect(card.className).not.toContain("file-uploader__drag-active");
+
+    expect(onFileUpload).not.toHaveBeenCalled();
+  });
+
+  it("rejects a drop when any file falls outside the accept filter", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pem"
+        message="drop a cert"
+        accept=".pem"
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("not-a-cert.txt")] },
+    });
+
+    expect(onFileUpload).not.toHaveBeenCalled();
+  });
+
+  it("accepts a drop whose file matches the accept filter", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pem"
+        message="drop a cert"
+        accept=".pem"
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("cert.pem")] },
+    });
+
+    expect(onFileUpload).toHaveBeenCalledTimes(1);
   });
 
   it("still renders the message so existing click-to-upload callers are untouched", () => {

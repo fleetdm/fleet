@@ -12,6 +12,26 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "file-uploader";
 
+// The HTML `accept` attribute only filters the native file picker; dropped
+// files are not pre-filtered by the browser. Mirror the picker's behavior
+// for drops so a FileUploader with `accept=".pem"` doesn't accept a dropped
+// `.txt`.
+const isFileAccepted = (file: File, accept?: string): boolean => {
+  if (!accept) return true;
+  const specs = accept
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (specs.length === 0) return true;
+  const type = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+  return specs.some((spec) => {
+    if (spec.startsWith(".")) return name.endsWith(spec);
+    if (spec.endsWith("/*")) return type.startsWith(spec.slice(0, -1));
+    return type === spec;
+  });
+};
+
 export type ISupportedGraphicNames = Extract<
   GraphicNames,
   | "file-configuration-profile"
@@ -119,8 +139,13 @@ export const FileUploader = ({
 
   // When onButtonClick is set, the uploader renders no file input (file
   // selection happens elsewhere, e.g. in a modal), so drops have nowhere
-  // to go.
-  const canAcceptDrop = !disabled && !onButtonClick && !fileDetails;
+  // to go. GitOps mode is a safety gate — if the click button is suppressed
+  // by GitOps, drops must be suppressed too.
+  const canAcceptDrop =
+    !disabled &&
+    !onButtonClick &&
+    !fileDetails &&
+    !(gitopsCompatible && gitOpsModeEnabled);
 
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: isFileSelected,
@@ -168,10 +193,17 @@ export const FileUploader = ({
     setIsDragActive(false);
     if (!canAcceptDrop) return;
     const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      onFileUpload(files);
-      setIsFileSelected(true);
-    }
+    if (!files || files.length === 0) return;
+    // Reject the whole drop if any file would have been filtered out by
+    // the native picker. The signature returns FileList (read-only), so we
+    // can't hand back a partial batch; all-or-nothing matches "picker
+    // declined this file" semantics.
+    const hasInvalid = Array.from(files).some(
+      (file) => !isFileAccepted(file, accept)
+    );
+    if (hasInvalid) return;
+    onFileUpload(files);
+    setIsFileSelected(true);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
