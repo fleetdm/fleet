@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260929205631, Down_20260929205631)
+	MigrationClient.AddMigration(Up_20261002140527, Down_20261002140527)
 }
 
-func Up_20260929205631(tx *sql.Tx) error {
+func Up_20261002140527(tx *sql.Tx) error {
 	// No FK to hosts: host_uuid is the UDID from the device's deviceinfo, and
 	// the device may not have a host row yet.
 	if _, err := tx.Exec(`
@@ -44,6 +44,6 @@ ALTER TABLE mdm_apple_enrollment_profiles
 	return nil
 }
 
-func Down_20260929205631(tx *sql.Tx) error {
+func Down_20261002140527(tx *sql.Tx) error {
 	return nil
 }
