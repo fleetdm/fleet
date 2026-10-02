@@ -759,7 +759,7 @@ type GetAuthorizedSoapFaultFunc func(ctx context.Context, eType string, origMsg 
 
 type SignMDMMicrosoftClientCSRFunc func(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error)
 
-type GetMDMWindowsManagementResponseFunc func(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.SyncML, error)
+type GetMDMWindowsManagementResponseFunc func(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.SyncML, error)
 
 type GetMDMWindowsTOSContentFunc func(ctx context.Context, redirectUri string, reqID string) (string, error)
 
@@ -5153,11 +5153,11 @@ func (s *Service) SignMDMMicrosoftClientCSR(ctx context.Context, subject string,
 	return s.SignMDMMicrosoftClientCSRFunc(ctx, subject, csr)
 }
 
-func (s *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.SyncML, error) {
+func (s *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.SyncML, error) {
 	s.mu.Lock()
 	s.GetMDMWindowsManagementResponseFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMWindowsManagementResponseFunc(ctx, reqSyncML, reqCerts)
+	return s.GetMDMWindowsManagementResponseFunc(ctx, reqSyncML)
 }
 
 func (s *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {
