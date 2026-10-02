@@ -6672,7 +6672,7 @@ requested by a web browser.
 
 Some cell values are escaped so that spreadsheet applications treat them as text. Numbers are not modified.
 
-`GET /api/v1/fleet/hosts/report`
+`GET /api/v1/fleet/hosts/csv`
 
 #### Parameters
 
