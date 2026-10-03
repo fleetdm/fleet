@@ -3956,7 +3956,8 @@ func (ds *Datastore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, 
 
 func (ds *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
 	teamID := params.TeamID
-	hostIDs := params.HostIDs
+	// batches get sorted in place; don't reorder the caller's slice
+	hostIDs := slices.Clone(params.HostIDs)
 	batchSize := int(params.BatchSize)
 
 	if len(hostIDs) == 0 {
