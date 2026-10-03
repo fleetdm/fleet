@@ -29,7 +29,7 @@ const { TEST_CASES, checkExpectations } = require('../configuration-profile-gene
 
 // Overridable because the interesting question is usually whether a cheaper model can still pass
 // these, and the answer changes with every model release.  Same default as the script.
-const BASE_MODEL = process.env.BASE_MODEL || 'claude-haiku-4-5';
+const BASE_MODEL = process.env.BASE_MODEL || 'claude-sonnet-5-5';
 
 const LOG_ALL_GENERATIONS = process.env.LOG_ALL_GENERATIONS;
 
