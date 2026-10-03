@@ -1,6 +1,10 @@
 package homebrew
 
 import (
+	"os"
+	"os/exec"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -464,6 +468,120 @@ func TestUninstallScriptExpandsLaunchctlWildcard(t *testing.T) {
 	require.Contains(t, script, `while read -r _ _ id; do`)
 	require.NotContains(t, script, `[[ "$pid" =~ ^[0-9]+$ ]]`)
 	require.NotContains(t, script, `(( pid != 0 ))`)
+}
+
+// TestUninstallScriptExpandsQuitWildcard guards against a regression where a
+// cask quit ID containing a wildcard (e.g. "com.elgato.WaveLink*") was passed
+// straight to quit_application, whose osascript calls reject wildcard IDs, so
+// the app was never quit before its bundle was removed.
+func TestUninstallScriptExpandsQuitWildcard(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{
+				Uninstall: []*brewUninstall{
+					{
+						Quit: optjson.StringOr[[]string]{
+							IsOther: true,
+							Other:   []string{"com.elgato.WaveLink*", "com.elgato.StreamDeck"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	script := uninstallScriptForApp(cask)
+	require.Contains(t, script, `quit_matching_applications 'com.elgato.WaveLink*'`)
+	require.NotContains(t, script, `quit_application 'com.elgato.WaveLink*'`)
+	require.Contains(t, script, quitMatchingApplicationsFunc)
+	// quit_matching_applications quits each match through quit_application.
+	require.Contains(t, script, quitApplicationFunc)
+	require.Contains(t, script, `quit_application 'com.elgato.StreamDeck'`)
+
+	// A cask without wildcard quit IDs must not pick up the new helper, so its
+	// uninstall script (and script ref) stays unchanged.
+	cask.Artifacts[0].Uninstall[0].Quit = optjson.StringOr[[]string]{String: "com.elgato.StreamDeck"}
+	script = uninstallScriptForApp(cask)
+	require.NotContains(t, script, "quit_matching_applications")
+	require.Contains(t, script, `quit_application 'com.elgato.StreamDeck'`)
+}
+
+// TestQuitMatchingApplicationsRunsMatches runs the generated helper in bash with
+// osascript and friends stubbed out, checking which running apps it quits.
+func TestQuitMatchingApplicationsRunsMatches(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the helper lists apps through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	run := func(t *testing.T, consoleUser string, listFails bool, quitIDs ...string) string {
+		cask := &brewCask{
+			Artifacts: []*brewArtifact{
+				{
+					Uninstall: []*brewUninstall{
+						{Quit: optjson.StringOr[[]string]{IsOther: true, Other: quitIDs}},
+					},
+				},
+			},
+		}
+		// Shell functions take precedence over the real commands. The running
+		// list includes a duplicate, a differently-cased match, and IDs that only
+		// match as a substring or not at all.
+		stubs := `list_fails=` + strconv.FormatBool(listFails) + `
+stat() { echo ` + consoleUser + `; }
+pgrep() { return 1; }
+sleep() { :; }
+osascript() {
+  if [[ "$1" == "-l" ]]; then
+    if [[ "$list_fails" == true ]]; then
+      return 1
+    fi
+    printf '%s\n' com.elgato.WaveLink com.elgato.wavelink.Helper com.elgato.WaveLink x.com.elgato.WaveLink com.elgato.StreamDeck
+    return
+  fi
+  if [[ "$2" == *" is running" ]]; then
+    echo true
+  fi
+}
+`
+		out, err := exec.Command(bash, "-c", stubs+uninstallScriptForApp(cask)).CombinedOutput()
+		require.NoError(t, err, string(out))
+		return string(out)
+	}
+
+	t.Run("quits each match once", func(t *testing.T) {
+		out := run(t, "alice", false, "com.elgato.WaveLink*")
+		require.Equal(t, 1, strings.Count(out, "Quitting application 'com.elgato.WaveLink'..."), out)
+		require.Equal(t, 1, strings.Count(out, "Quitting application 'com.elgato.wavelink.Helper'..."), out)
+		require.NotContains(t, out, "x.com.elgato.WaveLink")
+		require.NotContains(t, out, "com.elgato.StreamDeck")
+	})
+
+	t.Run("no match", func(t *testing.T) {
+		out := run(t, "alice", false, "com.example.Missing*")
+		require.Equal(t, "No running application matches 'com.example.Missing*'.\n", out)
+	})
+
+	t.Run("regex metacharacters are literal", func(t *testing.T) {
+		out := run(t, "alice", false, "com.elgato.Wave+Link*")
+		require.Equal(t, "No running application matches 'com.elgato.Wave+Link*'.\n", out)
+	})
+
+	t.Run("no GUI user", func(t *testing.T) {
+		out := run(t, "root", false, "com.elgato.WaveLink*")
+		require.Equal(t, "Not logged into a non-root GUI; skipping quitting applications matching 'com.elgato.WaveLink*'.\n", out)
+	})
+
+	t.Run("listing fails", func(t *testing.T) {
+		out := run(t, "alice", true, "com.elgato.WaveLink*")
+		require.Equal(t, "Failed to list running applications; skipping quitting applications matching 'com.elgato.WaveLink*'.\n", out)
+	})
 }
 
 // TestUninstallScriptEarlyScriptDirective covers the `early_script` uninstall
