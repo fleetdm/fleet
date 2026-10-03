@@ -33,7 +33,10 @@ foreach ($product_code in $inst.RelatedProducts('{A17CEE88-470D-49D0-A58D-40D503
 
 $shell = New-Object -ComObject WScript.Shell
 $shortcuts = @(Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\Clockify.lnk")
-$profileDirs = @(Get-ChildItem 'C:\Users' -Directory -Force -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+$profileList = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList'
+$profileDirs = @((Get-ItemProperty $profileList).Default) + @(
+    Get-ChildItem $profileList -ErrorAction SilentlyContinue | ForEach-Object { (Get-ItemProperty $_.PSPath).ProfileImagePath })
+$profileDirs = @($profileDirs | Where-Object { $_ } | ForEach-Object { [Environment]::ExpandEnvironmentVariables($_) } | Sort-Object -Unique)
 foreach ($dir in $profileDirs) {
     $shortcuts += Join-Path $dir "AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Clockify.lnk"
     $shortcuts += Join-Path $dir "Desktop\Clockify.lnk"

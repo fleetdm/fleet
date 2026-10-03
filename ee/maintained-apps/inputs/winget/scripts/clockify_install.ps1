@@ -8,13 +8,22 @@
 $logFile = "${env:TEMP}/fleet-install-software.log"
 $msiFilePath = "${env:INSTALLER_PATH}"
 $exePath = Join-Path $env:ProgramFiles "Clockify\ClockifyWindows.exe"
+$timeoutSeconds = 600
 
 try {
 
 $process = Start-Process msiexec.exe `
   -ArgumentList "/i `"$msiFilePath`" /quiet /norestart /lv `"$logFile`"" `
-  -PassThru -Wait
-$exitCode = $process.ExitCode
+  -PassThru
+# Reading Handle now keeps ExitCode available after WaitForExit(timeout).
+$null = $process.Handle
+if ($process.WaitForExit($timeoutSeconds * 1000)) {
+  $exitCode = $process.ExitCode
+} else {
+  Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+  Write-Host "Timed out after $timeoutSeconds seconds waiting for the installer."
+  $exitCode = 1460  # ERROR_TIMEOUT
+}
 Write-Host "Install exit code: $exitCode"
 
 # MSI reboot-required success codes.
