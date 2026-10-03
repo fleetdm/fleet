@@ -567,6 +567,7 @@ const EditQueryForm = ({
               onClick={() => {
                 router.push(
                   getPathWithQueryParams(PATHS.LIVE_REPORT(queryIdForEdit), {
+                    from: "edit",
                     host_id: hostId,
                     fleet_id: apiTeamIdForQuery,
                   })
@@ -882,6 +883,7 @@ const EditQueryForm = ({
                   }
                   router.push(
                     getPathWithQueryParams(PATHS.LIVE_REPORT(queryIdForEdit), {
+                      from: "edit",
                       host_id: hostId,
                       fleet_id: currentTeamId,
                     })
