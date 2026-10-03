@@ -254,6 +254,13 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 				return true, nil
 			}
 
+			// WezTerm's bundle reports a placeholder version ("0.1.0" / "1") in every
+			// release, which never matches the cask's date-based version.
+			if uniqueAppIdentifier == "com.github.wez.wezterm" {
+				logger.InfoContext(ctx, "WezTerm detected - skipping version check because the app bundle carries a placeholder version")
+				return true, nil
+			}
+
 			// Adobe DNG Converter's version format includes build number in parentheses
 			// (e.g., "18.0 (2389)") which doesn't match the installer version (e.g., "18.0")
 			// Check if the version starts with the expected version to handle this case
