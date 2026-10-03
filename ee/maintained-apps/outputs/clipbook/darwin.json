@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.3.0",
+      "version": "2.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ikryanov.clipbook';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ikryanov.clipbook' AND version_compare(bundle_short_version, '2.3.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ikryanov.clipbook' AND version_compare(bundle_short_version, '2.3.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.ikryanov.clipbook' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://f005.backblazeb2.com/file/clipbook/ClipBook-2.3.0.dmg",
+      "installer_url": "https://f005.backblazeb2.com/file/clipbook/ClipBook-2.3.1.dmg",
       "install_script_ref": "d0558c9f",
       "uninstall_script_ref": "c39b636f",
-      "sha256": "231878f3934009519b9d6facb9f3d8689208fde5c1c409fb7e1d311fa2460385",
+      "sha256": "55ca804adc60aec8810920bce24b85e1fb95203ab1c5db7f5663c159fc37e57b",
       "default_categories": [
         "Utilities"
       ]
