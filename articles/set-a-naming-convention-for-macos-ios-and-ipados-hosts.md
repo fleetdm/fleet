@@ -36,6 +36,7 @@ Fleet applies the template the next time each matching host enrolls or checks in
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | The local part of the end user's IdP username (before the `@`) |
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS` | The end user's IdP groups |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` | The end user's IdP department |
+| `$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID` | The end user's immutable IdP user ID (SCIM `externalId`) |
 | `$FLEET_VAR_HOST_END_USER_IDP_FULLNAME` | The end user's full name from the IdP |
 
 You can also reference [secret variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) and [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) in a template.
