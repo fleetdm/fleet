@@ -143,6 +143,11 @@ func TestGenerateOpenQuery(t *testing.T) {
 		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');", got, title)
 	}
 
+	for _, title := range []string{"Citrix Workspace", "Citrix Workspace LTSR"} {
+		got = patch_policy.GenerateOpenQuery("windows", "", title)
+		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'wfica32.exe');", got, title)
+	}
+
 	require.Empty(t, patch_policy.GenerateOpenQuery("linux", "com.example.foo", ""))
 }
 
