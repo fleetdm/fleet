@@ -1,0 +1,10 @@
+{
+  "name": "Rowel",
+  "unique_identifier": "app.rowel.desktop",
+  "token": "rowel",
+  "installer_format": "dmg",
+  "slug": "rowel/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}
