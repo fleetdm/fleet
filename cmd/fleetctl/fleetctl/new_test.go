@@ -45,6 +45,7 @@ func TestNewBasicFileStructure(t *testing.T) {
 			".gitignore",
 			".github/workflows/workflow.yml",
 			".github/fleet-gitops/action.yml",
+			".github/fleet-gitops/check-app-store-apps.sh",
 			".gitlab-ci.yml",
 			"README.md",
 			"fleets/workstations.yml",
