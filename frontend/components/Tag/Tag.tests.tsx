@@ -70,6 +70,16 @@ describe("Tag", () => {
     expect(screen.getByRole("button", { name: "iPadOS" })).toBeDisabled();
   });
 
+  it("disables the dismiss button when disabled is true", () => {
+    render(
+      <Tag type="dismissible" disabled onDismiss={() => undefined}>
+        Label
+      </Tag>
+    );
+
+    expect(screen.getByRole("button", { name: "Dismiss" })).toBeDisabled();
+  });
+
   it("renders dismissible tags with a dismiss button and calls onDismiss", async () => {
     const handler = jest.fn();
     render(

@@ -7,10 +7,10 @@ import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import SearchField from "components/forms/fields/SearchField";
-import Icon from "components/Icon";
 import SeverityFilter, {
   ISeverityFilterValue,
 } from "components/SeverityFilter";
+import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import { CVE_SOFTWARE_CATEGORIES } from "interfaces/charts";
 import { IVulnerability } from "interfaces/vulnerability";
@@ -275,15 +275,15 @@ const SoftwareFilters = ({
             {excludeCVEs.length > 0 && (
               <div className={`${baseClass}__pills`}>
                 {excludeCVEs.map((cve) => (
-                  <button
+                  <Tag
                     key={cve}
-                    type="button"
-                    className={`${baseClass}__pill`}
-                    onClick={() => toggleCVE(cve)}
+                    type="dismissible"
+                    size="small"
+                    dismissLabel={`Remove ${cve}`}
+                    onDismiss={() => toggleCVE(cve)}
                   >
                     {cve}
-                    <Icon name="close" />
-                  </button>
+                  </Tag>
                 ))}
               </div>
             )}

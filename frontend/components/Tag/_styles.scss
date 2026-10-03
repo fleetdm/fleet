@@ -98,5 +98,10 @@
     &:focus-visible {
       outline: none;
     }
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.5;
+    }
   }
 }
