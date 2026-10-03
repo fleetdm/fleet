@@ -6972,21 +6972,25 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 // the next osquery/DeviceInformation ingest confirms the rename (verifying →
 // verified) instead of reverting an optimistic early write. On error the row is
 // re-queued until the retry budget (mdm.MaxAppleDeviceNameRetries) is used up,
-// then lands failed with Apple's error chain until an admin resends.
+// then lands failed with Apple's error chain until an admin resends. Errors that
+// retrying can't fix (an unsupervised device) fail the row right away.
 func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx context.Context, cmdResult *mdm.CommandResults) error {
 	status := cmdResult.Status
 	detail := ""
+	var errorChain []mdm.ErrorChain
 	switch status {
 	case fleet.MDMAppleStatusAcknowledged:
 		// A Settings command can report per-item failures inside an
 		// acknowledged result; this command carries a single DeviceName item,
 		// so any item-level error means the rename failed.
-		if itemDetail, itemFailed := deviceNameSettingsItemError(ctx, svc.logger, cmdResult.Raw); itemFailed {
+		if itemDetail, itemChain, itemFailed := deviceNameSettingsItemError(ctx, svc.logger, cmdResult.Raw); itemFailed {
 			status = fleet.MDMAppleStatusError
 			detail = itemDetail
+			errorChain = itemChain
 		}
 	case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
 		detail = apple_mdm.FmtErrorChain(cmdResult.ErrorChain)
+		errorChain = cmdResult.ErrorChain
 	default:
 		// Idle/NotNow — the command hasn't completed yet; nothing to record.
 		return nil
@@ -6998,13 +7002,13 @@ func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx c
 		// tracks a newer command (template re-saved or resend clicked before this
 		// result arrived); this result is stale and the newer command's result
 		// carries the final name, so it's ignored.
-		if _, err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, true, ""); err != nil && !fleet.IsNotFound(err) {
+		if _, err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, true, "", false); err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "update device name row from acknowledged command")
 		}
 		return nil
 	}
 
-	outcome, err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, false, detail)
+	outcome, err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, false, detail, !isDeviceNotSupervisedError(errorChain))
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil
@@ -7018,8 +7022,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx c
 // deviceNameSettingsItemError inspects a Settings command acknowledgment for
 // per-item statuses: each item in the Settings array of the response can
 // individually report an Error even when the overall command is Acknowledged.
-// It returns a human-readable detail and true when any item failed.
-func deviceNameSettingsItemError(ctx context.Context, logger *slog.Logger, raw []byte) (string, bool) {
+// It returns a human-readable detail, the item's error chain, and true when any
+// item failed.
+func deviceNameSettingsItemError(ctx context.Context, logger *slog.Logger, raw []byte) (string, []mdm.ErrorChain, bool) {
 	var ack struct {
 		Settings []struct {
 			Status     string           `plist:"Status"`
@@ -7029,7 +7034,7 @@ func deviceNameSettingsItemError(ctx context.Context, logger *slog.Logger, raw [
 	if err := plist.Unmarshal(raw, &ack); err != nil {
 		// A malformed per-item array shouldn't fail the acknowledged command.
 		logger.WarnContext(ctx, "unmarshal Settings command acknowledgment for per-item statuses", "err", err)
-		return "", false
+		return "", nil, false
 	}
 	for _, item := range ack.Settings {
 		if item.Status != "" && item.Status != fleet.MDMAppleStatusAcknowledged {
@@ -7037,10 +7042,23 @@ func deviceNameSettingsItemError(ctx context.Context, logger *slog.Logger, raw [
 			if detail == "" {
 				detail = "Settings item returned status " + item.Status + "."
 			}
-			return detail, true
+			return detail, item.ErrorChain, true
 		}
 	}
-	return "", false
+	return "", nil, false
+}
+
+// Apple only renames supervised iPhones and iPads, so this rejection can't be
+// fixed by retrying.
+const mdmErrorDeviceNotSupervised = 12026
+
+func isDeviceNotSupervisedError(chain []mdm.ErrorChain) bool {
+	for _, e := range chain {
+		if e.ErrorDomain == "MCMDMErrorDomain" && e.ErrorCode == mdmErrorDeviceNotSupervised {
+			return true
+		}
+	}
+	return false
 }
 
 func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
