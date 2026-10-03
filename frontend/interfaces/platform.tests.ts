@@ -1,4 +1,9 @@
-import { isMacOS, isWindows } from "./platform";
+import {
+  HostPlatform,
+  isDiskEncryptionSupportedLinuxPlatform,
+  isMacOS,
+  isWindows,
+} from "./platform";
 
 describe("platform helpers", () => {
   describe("isMacOS", () => {
@@ -42,6 +47,35 @@ describe("platform helpers", () => {
 
     it("does not match an empty string", () => {
       expect(isWindows("")).toBe(false);
+    });
+  });
+
+  describe("isDiskEncryptionSupportedLinuxPlatform", () => {
+    it.each<[HostPlatform, string]>([
+      ["ubuntu", "Ubuntu 24.04.1 LTS"],
+      ["zorin", "Zorin OS 17.2"],
+      ["rhel", "Fedora Linux 41.0.0"],
+      ["arch", "Arch Linux rolling"],
+      ["archarm", "Arch Linux ARM rolling"],
+      ["manjaro", "Manjaro Linux 25.0.0"],
+      ["manjaro-arm", "Manjaro ARM 25.0.0"],
+      ["cachyos", "CachyOS Linux rolling"],
+      ["omarchy", "Omarchy 4.0.0"],
+    ])("matches %s (%s)", (platform, osVersion) => {
+      expect(isDiskEncryptionSupportedLinuxPlatform(platform, osVersion)).toBe(
+        true
+      );
+    });
+
+    it.each<[HostPlatform, string]>([
+      ["rhel", "CentOS Linux 7.9.2009"],
+      ["debian", "Debian GNU/Linux 12"],
+      ["pop", "Pop!_OS 22.04 LTS"],
+      ["darwin", "macOS 15.1"],
+    ])("does not match %s (%s)", (platform, osVersion) => {
+      expect(isDiskEncryptionSupportedLinuxPlatform(platform, osVersion)).toBe(
+        false
+      );
     });
   });
 });

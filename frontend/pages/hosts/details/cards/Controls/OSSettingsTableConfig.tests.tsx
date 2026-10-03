@@ -5,6 +5,7 @@ import {
   generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
+  LINUX_DISK_ENC_SYNTHETIC_PROFILE_UUID,
 } from "pages/hosts/details/helpers";
 
 import {
@@ -139,6 +140,33 @@ describe("generateTableData - host name row", () => {
 
     expect(rows).toHaveLength(2);
     expect(rows.map((r) => r.name)).toEqual(["Wi-Fi", "Host name"]);
+  });
+});
+
+describe("generateTableData - Linux disk encryption row", () => {
+  it.each([
+    "ubuntu",
+    "zorin",
+    "rhel",
+    "arch",
+    "archarm",
+    "manjaro",
+    "manjaro-arm",
+    "cachyos",
+    "omarchy",
+  ])("adds the disk encryption row for %s hosts", (platform) => {
+    const mdmData = createMockHostMdmData({
+      os_settings: {
+        disk_encryption: { status: "action_required", detail: "" },
+        certificates: [],
+      },
+    });
+
+    const rows = generateTableData(mdmData, platform) ?? [];
+
+    expect(
+      rows.find((r) => r.profile_uuid === LINUX_DISK_ENC_SYNTHETIC_PROFILE_UUID)
+    ).toBeDefined();
   });
 });
 

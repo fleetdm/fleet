@@ -1,0 +1,1 @@
+- Fixed Linux disk encryption counts, host filters, the My device "Create key" banner, and the host OS settings row skipping Arch Linux, Arch Linux ARM, Manjaro, Manjaro ARM, CachyOS, and Omarchy hosts.

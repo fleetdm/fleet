@@ -150,6 +150,30 @@ describe("Device User Banners", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders the create new linux disk encryption key banner correctly for CachyOS", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="cachyos"
+        hostOsVersion="CachyOS Linux rolling"
+        diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
+        diskIsEncrypted
+        diskEncryptionKeyAvailable={false}
+        mdmEnrollmentStatus="On (automatic)"
+        mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
+        connectedToFleetMdm
+        macDiskEncryptionStatus={null}
+        diskEncryptionActionRequired={null}
+        onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
+      />
+    );
+    expect(
+      screen.getByText(createNewLinuxDiskEncryptKeyExpectedText)
+    ).toBeInTheDocument();
+  });
   it("renders the create PIN banner correctly for Windows", () => {
     render(
       <DeviceUserBanners

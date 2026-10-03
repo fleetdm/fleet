@@ -198,9 +198,12 @@ export const isDiskEncryptionSupportedLinuxPlatform = (
   platform: HostPlatform,
   os_version: string
 ) => {
-  const isFedora =
-    platform === "rhel" && os_version.toLowerCase().includes("fedora");
-  return isFedora || platform === "ubuntu" || platform === "zorin";
+  if (platform === "rhel") {
+    return os_version.toLowerCase().includes("fedora");
+  }
+  return DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS.includes(
+    platform as typeof DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS[number]
+  );
 };
 
 const DISK_ENCRYPTION_SUPPORTED_PLATFORMS = [
