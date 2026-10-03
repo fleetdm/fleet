@@ -380,7 +380,7 @@ Once the decision has been made not to renew a tool or subscription on Fleet's b
 
 ### Review and update company DRIs
 
-Every quarter during [OKR planning](https://fleetdm.com/handbook/company/leadership#board-meeting-and-okr-planning), the Head of People reviews the DRI tables on the [Communications page](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) and the [Security page](https://fleetdm.com/handbook/it/security#security) to ensure they are current and accurate.
+Every quarter during [OKR planning](https://fleetdm.com/handbook/company/leadership#okr-planning), the Head of People reviews the DRI tables on the [Communications page](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) and the [Security page](https://fleetdm.com/handbook/it/security#security) to ensure they are current and accurate.
 
 
 
