@@ -16,6 +16,7 @@ import {
   IHostSoftware,
   ISoftwarePackage,
   IAppStoreApp,
+  isSoftwarePackage,
   ISoftwareTitle,
   ISoftwareInstallPolicyUI,
   ISoftwareInstallPolicy,
@@ -218,6 +219,20 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
     disabled: false,
   },
 ];
+
+export const getInstallSourceText = (
+  installer: ISoftwarePackage | IAppStoreApp
+): string => {
+  if (!isSoftwarePackage(installer)) {
+    if (installer.platform === "ios" || installer.platform === "ipados") {
+      return "self-service";
+    }
+    if (installer.platform === "android") {
+      return "the Play Store";
+    }
+  }
+  return "Fleet Desktop";
+};
 
 export const getSelfServiceTooltip = (
   isIosOrIpadosApp: boolean,
