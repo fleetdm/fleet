@@ -18,10 +18,18 @@ Engineering teams version-control production infrastructure, review changes in p
 
 Panelists:
 
-- [Adam Anklewicz](https://www.linkedin.com/in/ankle/), Thumbtack, Manager of IT Systems Engineering
-- [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/), Treeline, Platform Architect
-- [Viktor Filipsson](https://www.linkedin.com/in/viktoralexfilipsson/?isSelfProfile=false), Sonos, Senior IT System Engineer
-- [Betsy Keiser](https://www.linkedin.com/in/betsykeiser/), SandboxAQ, Staff Client Platform Engineer
+![Adam Anklewicz](../website/assets/images/articles/virtual-summit-headshot-adam-anklewicz-100x100@2x.jpeg)
+*[Adam Anklewicz](https://www.linkedin.com/in/ankle/), Thumbtack, Manager of IT Systems Engineering*
+
+![Brock Walters](../website/assets/images/articles/virtual-summit-headshot-brock-walters-100x100@2x.jpeg)
+*[Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/), Treeline, Platform Architect*
+
+![Viktor Filipsson](../website/assets/images/articles/virtual-summit-headshot-viktor-filipsson-100x100@2x.jpeg)
+*[Viktor Filipsson](https://www.linkedin.com/in/viktoralexfilipsson/?isSelfProfile=false), Sonos, Senior IT System Engineer*
+
+![Betsy Keiser](../website/assets/images/articles/virtual-summit-headshot-betsy-keiser-100x100@2x.jpeg)
+*[Betsy Keiser](https://www.linkedin.com/in/betsykeiser/), SandboxAQ, Staff Client Platform Engineer*
+
 
 [Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-infrastructure-as-code)
 
@@ -35,8 +43,11 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
 Panelists:
 
 - [Daniel Moore](https://www.linkedin.com/in/sodahabit/), Red Hat, Manager and Mac Admin, Endpoint Systems
-- [Jarryd Stanbrook](https://www.linkedin.com/in/jarrydstanbrook/), Easygo, IT Systems Administrator
 - [Patricia Egger](https://www.linkedin.com/in/patricia-egger/), Proton, Head of Security
+
+![Jarryd Stanbrook](../website/assets/images/articles/virtual-summit-headshot-jarryd-stanbrook-100x100@2x.jpeg)
+[Jarryd Stanbrook](https://www.linkedin.com/in/jarrydstanbrook/), Easygo, IT Systems Administrator
+
 
 [Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-open-source-in-device-management)
 
@@ -49,9 +60,13 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
 
 Panelists:
 
-- [Dustin Davis](https://www.linkedin.com/in/1dustindavis/), Pinterest, Sr Manager of IT Platform Engineering
-- [Jason Walton](https://www.linkedin.com/in/cjasonwalton/), Schrödinger, VP of Information Security
-- More panelists to be announced
+![](../website/assets/images/articles/virtual-summit-headshot-dustin-davis-100x100@2x.jpeg)
+*[Dustin Davis](https://www.linkedin.com/in/1dustindavis/), Pinterest, Sr Manager of IT Platform Engineering*
+
+![](../website/assets/images/articles/virtual-summit-headshot-jason-walton-100x100@2x.jpeg)
+*[Jason Walton](https://www.linkedin.com/in/cjasonwalton/), Schrödinger, VP of Information Security*
+
+*More panelists to be announced*
 
 [Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem)
 
@@ -64,9 +79,13 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 
 Panelists:
 
-- [Mohammed Saqr](https://www.linkedin.com/in/mohammed-saqr/), Block, Manager of Infrastructure and Platform Engineering
-- Dave Hannigan, former CISO, Nubank
-- More panelists to be announced
+![Mohammed Saqr](../website/assets/images/articles/virtual-summit-headshot-mohammed-saqr-100x100@2x.jpeg)
+*[Mohammed Saqr](https://www.linkedin.com/in/mohammed-saqr/), Block, Manager of Infrastructure and Platform Engineering*
+
+![Dave Hannigan](../website/assets/images/articles/virtual-summit-headshot-dave-hannigan-100x100@2x.png)
+*Dave Hannigan, former CISO, Nubank*
+
+*More panelists to be announced*
 
 [Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030)
 
