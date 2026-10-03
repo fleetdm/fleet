@@ -2192,7 +2192,9 @@ type GetMDMAndroidCommandByOperationNameFunc func(ctx context.Context, operation
 
 type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string, rawResult *string) error
 
-type ListPendingMDMAndroidCommandsFunc func(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
+type ListPendingMDMAndroidCommandsFunc func(ctx context.Context, operationNamePrefix string, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
+
+type FailPendingMDMAndroidCommandsOutsidePrefixFunc func(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error)
 
 type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
@@ -5787,6 +5789,9 @@ type DataStore struct {
 
 	ListPendingMDMAndroidCommandsFunc        ListPendingMDMAndroidCommandsFunc
 	ListPendingMDMAndroidCommandsFuncInvoked bool
+
+	FailPendingMDMAndroidCommandsOutsidePrefixFunc        FailPendingMDMAndroidCommandsOutsidePrefixFunc
+	FailPendingMDMAndroidCommandsOutsidePrefixFuncInvoked bool
 
 	LockHostViaAndroidMDMFunc        LockHostViaAndroidMDMFunc
 	LockHostViaAndroidMDMFuncInvoked bool
@@ -13886,11 +13891,18 @@ func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUU
 	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage, rawResult)
 }
 
-func (s *DataStore) ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
+func (s *DataStore) ListPendingMDMAndroidCommands(ctx context.Context, operationNamePrefix string, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
 	s.mu.Lock()
 	s.ListPendingMDMAndroidCommandsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListPendingMDMAndroidCommandsFunc(ctx, createdBefore, limit)
+	return s.ListPendingMDMAndroidCommandsFunc(ctx, operationNamePrefix, createdBefore, limit)
+}
+
+func (s *DataStore) FailPendingMDMAndroidCommandsOutsidePrefix(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error) {
+	s.mu.Lock()
+	s.FailPendingMDMAndroidCommandsOutsidePrefixFuncInvoked = true
+	s.mu.Unlock()
+	return s.FailPendingMDMAndroidCommandsOutsidePrefixFunc(ctx, operationNamePrefix, createdBefore, errorMessage, limit)
 }
 
 func (s *DataStore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {

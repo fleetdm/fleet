@@ -1503,16 +1503,17 @@ func (ds *Datastore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandU
 	return nil
 }
 
-// ListPendingMDMAndroidCommands returns pending commands created before createdBefore, oldest first, capped at limit
-// rows. The reconciler cron uses the age cutoff to skip commands that Pub/Sub is still likely to deliver, and the limit
-// to bound how many AMAPI calls a single run makes.
-func (ds *Datastore) ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
+// ListPendingMDMAndroidCommands returns pending commands whose operation_name starts with operationNamePrefix and that
+// were created before createdBefore, oldest first, capped at limit rows. The reconciler cron uses the prefix to poll
+// only commands of the current enterprise, the age cutoff to skip commands that Pub/Sub is still likely to deliver, and
+// the limit to bound how many AMAPI calls a single run makes.
+func (ds *Datastore) ListPendingMDMAndroidCommands(ctx context.Context, operationNamePrefix string, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
 	const stmt = `
 		SELECT
 			command_uuid, host_uuid, operation_name, command_type, status,
 			error_code, error_message, created_at, updated_at
 		FROM mdm_android_commands
-		WHERE status = ? AND created_at < ?
+		WHERE status = ? AND created_at < ? AND LEFT(operation_name, CHAR_LENGTH(?)) = ?
 		-- command_uuid breaks ties so rows with identical created_at keep a stable order between runs,
 		-- otherwise a full batch could return the same subset every time and starve the rest.
 		ORDER BY created_at, command_uuid
@@ -1521,11 +1522,37 @@ func (ds *Datastore) ListPendingMDMAndroidCommands(ctx context.Context, createdB
 	var cmds []*android.MDMAndroidCommand
 	if err := sqlx.SelectContext(
 		ctx, ds.reader(ctx), &cmds, stmt,
-		string(android.MDMAndroidCommandStatusPending), createdBefore, limit,
+		string(android.MDMAndroidCommandStatusPending), createdBefore, operationNamePrefix, operationNamePrefix, limit,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing pending mdm android commands")
 	}
 	return cmds, nil
+}
+
+// FailPendingMDMAndroidCommandsOutsidePrefix marks as error, with errorMessage, up to limit pending commands whose
+// operation_name does not start with operationNamePrefix and that were created before createdBefore, oldest first. It
+// returns how many rows it updated.
+func (ds *Datastore) FailPendingMDMAndroidCommandsOutsidePrefix(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error) {
+	errorMessage = truncateRunes(errorMessage, mdmAndroidCommandErrorMessageMaxRunes)
+	const stmt = `
+		UPDATE mdm_android_commands
+		SET status = ?, error_code = NULL, error_message = ?
+		WHERE status = ? AND created_at < ? AND LEFT(operation_name, CHAR_LENGTH(?)) <> ?
+		ORDER BY created_at, command_uuid
+		LIMIT ?
+	`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		string(android.MDMAndroidCommandStatusError), errorMessage,
+		string(android.MDMAndroidCommandStatusPending), createdBefore, operationNamePrefix, operationNamePrefix, limit,
+	)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "failing pending mdm android commands outside prefix")
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "rows affected failing pending mdm android commands outside prefix")
+	}
+	return n, nil
 }
 
 // androidApplicableProfilesQuery computes, per host, the set of applicable profiles based on team and label scoping. Label
