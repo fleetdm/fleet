@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -1486,6 +1487,46 @@ func TestGetNDESSCEPChallengeStatusClassification(t *testing.T) {
 			})
 			require.Error(t, err)
 			assert.Equal(t, tc.wantTerminal, IsTerminalNDESChallengeError(err))
+		})
+	}
+}
+
+func TestGetSmallstepSCEPChallengeDeviceIdentity(t *testing.T) {
+	t.Parallel()
+	for _, device := range []*fleet.SmallstepChallengeDevice{
+		{UUID: "device-a", SerialNumber: "serial-a"},
+		{UUID: "user-enrollment-b"},
+		nil,
+	} {
+		name := "configuration validation"
+		if device != nil {
+			name = device.UUID
+		}
+		t.Run(name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				username, password, ok := r.BasicAuth()
+				assert.True(t, ok)
+				assert.Equal(t, "fleet", username)
+				assert.Equal(t, "secret", password)
+				var body fleet.SmallstepChallengeRequestBody
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.Equal(t, device, body.Event.Device)
+				assert.Equal(t, "https://ca.example/scep/wifi", body.Event.SCEPServerURL)
+				assert.NotEmpty(t, body.Event.PayloadIdentifier)
+				assert.Equal(t, []string{"com.apple.security.scep"}, body.Event.PayloadTypes)
+				_, err := w.Write([]byte("device-bound-challenge"))
+				require.NoError(t, err)
+			}))
+			t.Cleanup(server.Close)
+			svc := NewSCEPConfigService(slog.New(slog.DiscardHandler), nil)
+			ca := fleet.SmallstepSCEPProxyCA{URL: "https://ca.example/scep/wifi", ChallengeURL: server.URL, Username: "fleet", Password: "secret"}
+			if device == nil {
+				require.NoError(t, svc.ValidateSmallstepChallengeURL(t.Context(), ca))
+			} else {
+				challenge, err := svc.GetSmallstepSCEPChallenge(t.Context(), ca, device)
+				require.NoError(t, err)
+				assert.Equal(t, "device-bound-challenge", challenge)
+			}
 		})
 	}
 }

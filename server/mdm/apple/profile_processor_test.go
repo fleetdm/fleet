@@ -1127,3 +1127,50 @@ func TestPreprocessProfileContentsPSSORegistrationToken(t *testing.T) {
 		require.NotContains(t, hostContents, "FLEET_VAR_")
 	})
 }
+
+func TestSmallstepChallengeUsesProfileDevice(t *testing.T) {
+	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	logger := slog.New(slog.DiscardHandler)
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://fleet.example"
+	ds := new(mock.Store)
+	hosts := map[string]*fleet.Host{
+		"host-a": {ID: 1, UUID: "host-a", HardwareSerial: "serial-a"},
+		"host-b": {ID: 2, UUID: "host-b"},
+	}
+	ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		require.Len(t, uuids, 1)
+		return []*fleet.Host{hosts[uuids[0]]}, nil
+	}
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(_ context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error { return nil }
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(_ context.Context, payload []*fleet.MDMManagedCertificate) error { return nil }
+	seen := make(map[string]*fleet.SmallstepChallengeDevice)
+	svc := &scep_mock.SCEPConfigService{GetSmallstepSCEPChallengeFunc: func(_ context.Context, _ fleet.SmallstepSCEPProxyCA, device *fleet.SmallstepChallengeDevice) (string, error) {
+		require.NotNil(t, device)
+		seen[device.UUID] = device
+		return "challenge-for-" + device.UUID, nil
+	}}
+	targets := map[string]*fleet.CmdTarget{
+		"profile": {CmdUUID: "command", ProfileIdentifier: "com.example.wifi", EnrollmentIDs: []string{"host-a", "user-channel-b"}},
+	}
+	contents := map[string]mobileconfig.Mobileconfig{
+		"profile": []byte("<string>$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_wifi</string><string>$FLEET_VAR_HOST_UUID</string>"),
+	}
+	profiles := map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{}
+	for uuid := range hosts {
+		profiles[fleet.HostProfileUUID{HostUUID: uuid, ProfileUUID: "profile"}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{HostUUID: uuid, ProfileUUID: "profile", CommandUUID: "command"}
+	}
+	cas := &fleet.GroupedCertificateAuthorities{Smallstep: []fleet.SmallstepSCEPProxyCA{{Name: "wifi"}}}
+	require.NoError(t, preprocessProfileContents(ctx, appCfg, ds, svc, nil, logger, targets, contents, profiles, map[string]string{"user-channel-b": "host-b"}, cas))
+	require.Len(t, seen, 2)
+	assert.Equal(t, &fleet.SmallstepChallengeDevice{UUID: "host-a", SerialNumber: "serial-a"}, seen["host-a"])
+	assert.Equal(t, &fleet.SmallstepChallengeDevice{UUID: "host-b"}, seen["host-b"])
+	require.Len(t, targets, 2)
+	for id, target := range targets {
+		hostUUID := target.EnrollmentIDs[0]
+		if hostUUID == "user-channel-b" {
+			hostUUID = "host-b"
+		}
+		assert.Equal(t, "<string>challenge-for-"+hostUUID+"</string><string>"+hostUUID+"</string>", string(contents[id]))
+	}
+}

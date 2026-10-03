@@ -717,11 +717,11 @@ func (s *SCEPConfigService) ValidateSCEPURL(ctx context.Context, url string) err
 }
 
 func (s *SCEPConfigService) ValidateSmallstepChallengeURL(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) error {
-	_, err := s.GetSmallstepSCEPChallenge(ctx, ca)
+	_, err := s.GetSmallstepSCEPChallenge(ctx, ca, nil)
 	return err
 }
 
-func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) (string, error) {
+func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fleet.SmallstepSCEPProxyCA, device *fleet.SmallstepChallengeDevice) (string, error) {
 	// Get the challenge from Smallstep
 	client := fleethttp.NewClient(fleethttp.WithTimeout(30 * time.Second))
 	var reqBody bytes.Buffer
@@ -733,6 +733,7 @@ func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fl
 			Name:           "SCEPChallenge",
 		},
 		Event: fleet.SmallstepChallengeEvent{
+			Device:            device,
 			SCEPServerURL:     ca.URL,
 			PayloadIdentifier: uuid.New().String(),
 			PayloadTypes:      []string{"com.apple.security.scep"},

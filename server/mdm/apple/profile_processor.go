@@ -463,8 +463,19 @@ func preprocessProfileContents(
 							"This error should never happen since we validated/populated CAs earlier", "known_cas", profiles.KnownCANames(smallstepCAs))
 						continue
 					}
+					hostLite, ok, err = profiles.HydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "getting Smallstep SCEP challenge device")
+					}
+					if !ok {
+						failed = true
+						break fleetVarLoop
+					}
 					logger.DebugContext(ctx, "fetching Smallstep SCEP challenge", "host_uuid", hostUUID, "profile_uuid", profUUID)
-					challenge, err := scepConfig.GetSmallstepSCEPChallenge(ctx, *ca)
+					challenge, err := scepConfig.GetSmallstepSCEPChallenge(ctx, *ca, &fleet.SmallstepChallengeDevice{
+						UUID:         hostUUID,
+						SerialNumber: hostLite.HardwareSerial,
+					})
 					if err != nil {
 						detail := fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s. %s", fleet.FleetVarSmallstepSCEPChallengePrefix, err.Error())
 						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{

@@ -272,7 +272,7 @@ type SCEPConfigService interface {
 	GetNDESSCEPChallenge(ctx context.Context, proxy NDESSCEPProxyCA) (string, error)
 	ValidateSCEPURL(ctx context.Context, url string) error
 	ValidateSmallstepChallengeURL(ctx context.Context, ca SmallstepSCEPProxyCA) error
-	GetSmallstepSCEPChallenge(ctx context.Context, ca SmallstepSCEPProxyCA) (string, error)
+	GetSmallstepSCEPChallenge(ctx context.Context, ca SmallstepSCEPProxyCA, device *SmallstepChallengeDevice) (string, error)
 }
 
 // SCEPEnrollmentClient enrolls caller-supplied CSRs with an external SCEP CA on the caller's
@@ -856,9 +856,17 @@ type SmallstepChallengeWebhook struct {
 	Name           string `json:"name"`
 }
 
+// SmallstepChallengeDevice identifies the profile recipient from Fleet inventory.
+// UUID matches FLEET_VAR_HOST_UUID and is not necessarily a hardware UUID.
+type SmallstepChallengeDevice struct {
+	UUID         string `json:"uuid"`
+	SerialNumber string `json:"serialNumber,omitempty"`
+}
+
 // SmallstepChallengeEvent represents the event information in the Smallstep SCEP challenge request.
 type SmallstepChallengeEvent struct {
-	SCEPServerURL     string   `json:"scepServerUrl"`
-	PayloadIdentifier string   `json:"payloadIdentifier"`
-	PayloadTypes      []string `json:"payloadTypes"`
+	Device            *SmallstepChallengeDevice `json:"device,omitempty"`
+	SCEPServerURL     string                    `json:"scepServerUrl"`
+	PayloadIdentifier string                    `json:"payloadIdentifier"`
+	PayloadTypes      []string                  `json:"payloadTypes"`
 }

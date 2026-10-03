@@ -1,0 +1,1 @@
+- Added device UUID and available hardware serial to Smallstep dynamic SCEP challenge requests so challenge services can bind credentials to the intended profile recipient.

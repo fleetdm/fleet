@@ -19,7 +19,7 @@ type ValidateSCEPURLFunc func(ctx context.Context, url string) error
 
 type ValidateSmallstepChallengeURLFunc func(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) error
 
-type GetSmallstepSCEPChallengeFunc func(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) (string, error)
+type GetSmallstepSCEPChallengeFunc func(ctx context.Context, ca fleet.SmallstepSCEPProxyCA, device *fleet.SmallstepChallengeDevice) (string, error)
 
 type SCEPConfigService struct {
 	ValidateNDESSCEPAdminURLFunc        ValidateNDESSCEPAdminURLFunc
@@ -68,9 +68,9 @@ func (s *SCEPConfigService) ValidateSmallstepChallengeURL(ctx context.Context, c
 	return s.ValidateSmallstepChallengeURLFunc(ctx, ca)
 }
 
-func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) (string, error) {
+func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fleet.SmallstepSCEPProxyCA, device *fleet.SmallstepChallengeDevice) (string, error) {
 	s.mu.Lock()
 	s.GetSmallstepSCEPChallengeFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSmallstepSCEPChallengeFunc(ctx, ca)
+	return s.GetSmallstepSCEPChallengeFunc(ctx, ca, device)
 }
