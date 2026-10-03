@@ -44,6 +44,16 @@ describe("GlobalHostStatusWebhook - Destination URL validation", () => {
     jest.clearAllMocks();
   });
 
+  it("disables the webhook detail fields until the webhook is enabled", async () => {
+    const { user } = renderCard();
+
+    expect(screen.getByPlaceholderText(URL_PLACEHOLDER)).toBeDisabled();
+
+    await user.click(screen.getByText(ENABLE_LABEL));
+
+    expect(screen.getByPlaceholderText(URL_PLACEHOLDER)).toBeEnabled();
+  });
+
   it("does not show an error when the webhook is first enabled (#40410)", async () => {
     const { user } = renderCard();
 
