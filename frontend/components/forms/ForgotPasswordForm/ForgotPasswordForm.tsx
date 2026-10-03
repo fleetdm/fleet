@@ -32,11 +32,7 @@ const ForgotPasswordForm = ({
   handleSubmit,
 }: IForgotPasswordFormProps): JSX.Element => {
   const {
-    formData,
-    setField,
-    getError,
-    clearFieldError,
-    validateField,
+    getFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<IForgotPasswordFormData>({
@@ -57,15 +53,10 @@ const ForgotPasswordForm = ({
       </p>
       <InputFieldWithIcon
         autofocus
-        name="email"
+        {...getFieldProps("email")}
         label="Email"
         placeholder="Email"
         type="email"
-        value={formData.email}
-        onChange={(value) => setField("email", value)}
-        onFocus={() => clearFieldError("email")}
-        onBlur={() => validateField("email")}
-        error={getError("email")}
         ignore1Password={false}
         disabled={isSubmitting}
       />

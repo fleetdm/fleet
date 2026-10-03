@@ -108,6 +108,7 @@ const IntegrationForm = ({
     getError,
     clearFieldError,
     validateField,
+    getFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IIntegrationFormData>({
@@ -222,66 +223,41 @@ const IntegrationForm = ({
     >
       <InputField
         autofocus
-        name="url"
+        {...getFieldProps("url")}
         label="URL"
         placeholder={
           integrationDestination === "jira"
             ? "https://example.atlassian.net"
             : "https://example.zendesk.com"
         }
-        value={formData.url}
-        onChange={(value: string) => setField("url", value)}
-        onFocus={() => clearFieldError("url")}
-        onBlur={() => validateField("url")}
-        error={getError("url")}
         disabled={gitOpsModeEnabled || isSubmitting}
       />
       {integrationDestination === "jira" ? (
         <InputField
-          name="username"
+          {...getFieldProps("username")}
           label="Username"
           placeholder="name@example.com"
-          value={formData.username || ""}
-          onChange={(value: string) => setField("username", value)}
-          onFocus={() => clearFieldError("username")}
-          onBlur={() => validateField("username")}
-          error={getError("username")}
           disabled={gitOpsModeEnabled || isSubmitting}
         />
       ) : (
         <InputField
-          name="email"
+          {...getFieldProps("email")}
           label="Email"
           placeholder="name@example.com"
           type="email"
-          value={formData.email || ""}
-          onChange={(value: string) => setField("email", value)}
-          onFocus={() => clearFieldError("email")}
-          onBlur={() => validateField("email")}
-          error={getError("email")}
           disabled={gitOpsModeEnabled || isSubmitting}
         />
       )}
       <InputField
-        name="apiToken"
+        {...getFieldProps("apiToken")}
         label="API token"
-        value={formData.apiToken}
-        onChange={(value: string) => setField("apiToken", value)}
-        onFocus={() => clearFieldError("apiToken")}
-        onBlur={() => validateField("apiToken")}
-        error={getError("apiToken")}
         disabled={gitOpsModeEnabled || isSubmitting}
       />
       {integrationDestination === "jira" ? (
         <InputField
-          name="projectKey"
+          {...getFieldProps("projectKey")}
           label="Project key"
           placeholder="JRAEXAMPLE"
-          value={formData.projectKey || ""}
-          onChange={(value: string) => setField("projectKey", value)}
-          onFocus={() => clearFieldError("projectKey")}
-          onBlur={() => validateField("projectKey")}
-          error={getError("projectKey")}
           disabled={gitOpsModeEnabled || isSubmitting}
           tooltip={
             <>

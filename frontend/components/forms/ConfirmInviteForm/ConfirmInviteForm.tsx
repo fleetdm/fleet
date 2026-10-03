@@ -45,11 +45,7 @@ const ConfirmInviteForm = ({
   handleSubmit,
 }: IConfirmInviteFormProps) => {
   const {
-    formData,
-    setField,
-    getError,
-    clearFieldError,
-    validateField,
+    getFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<IConfirmInviteFormData>({
@@ -71,12 +67,7 @@ const ConfirmInviteForm = ({
       <InputField
         label="Full name"
         autofocus
-        name="name"
-        value={formData.name}
-        onChange={(value: string) => setField("name", value)}
-        onFocus={() => clearFieldError("name")}
-        onBlur={() => validateField("name")}
-        error={getError("name")}
+        {...getFieldProps("name")}
         inputOptions={{ maxLength: 80 }}
         ignore1password={false}
         disabled={isSubmitting}
@@ -86,12 +77,7 @@ const ConfirmInviteForm = ({
         type="password"
         placeholder="Password"
         helpText="Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
-        name="password"
-        value={formData.password}
-        onChange={(value: string) => setField("password", value)}
-        onFocus={() => clearFieldError("password")}
-        onBlur={() => validateField("password")}
-        error={getError("password")}
+        {...getFieldProps("password")}
         ignore1password={false}
         disabled={isSubmitting}
       />
@@ -99,12 +85,7 @@ const ConfirmInviteForm = ({
         label="Confirm password"
         type="password"
         placeholder="Confirm password"
-        name="password_confirmation"
-        value={formData.password_confirmation}
-        onChange={(value: string) => setField("password_confirmation", value)}
-        onFocus={() => clearFieldError("password_confirmation")}
-        onBlur={() => validateField("password_confirmation")}
-        error={getError("password_confirmation")}
+        {...getFieldProps("password_confirmation")}
         ignore1password={false}
         disabled={isSubmitting}
       />

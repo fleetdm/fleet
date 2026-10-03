@@ -40,11 +40,7 @@ const WebAddress = ({
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const {
-    formData,
-    setField,
-    getError,
-    clearFieldError,
-    validateField,
+    getFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<IWebAddressFormData>({
@@ -72,12 +68,7 @@ const WebAddress = ({
               Include base path only (eg. no <code>/latest</code>)
             </>
           }
-          name="serverURL"
-          value={formData.serverURL}
-          onChange={(value: string) => setField("serverURL", value)}
-          onFocus={() => clearFieldError("serverURL")}
-          onBlur={() => validateField("serverURL")}
-          error={getError("serverURL")}
+          {...getFieldProps("serverURL")}
           tooltip="The base URL of this instance for use in Fleet links."
           disabled={gitOpsModeEnabled || isSubmitting}
         />

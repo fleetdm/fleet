@@ -20,6 +20,20 @@ export type IFormErrors = Record<string, string>;
  */
 export type ValidateFn<TFormData> = (formData: TFormData) => IFormErrors;
 
+export type TextFieldName<TFormData> = {
+  [K in keyof TFormData]-?: TFormData[K] extends string | undefined ? K : never;
+}[keyof TFormData] &
+  string;
+
+export interface ITextFieldProps {
+  name: string;
+  value: string;
+  error: string | undefined;
+  onChange: (value: string) => void;
+  onFocus: () => void;
+  onBlur: () => void;
+}
+
 interface IUseFormValidationOptions<TFormData> {
   initialFormData: TFormData;
   validate: ValidateFn<TFormData>;
@@ -66,12 +80,21 @@ interface IUseFormValidationReturn<TFormData> {
   errors: IFormErrors;
   /** Feeds a field's `error` prop. */
   getError: (name: string) => string | undefined;
+  /**
+   * Spread onto a text input (e.g. `InputField`, `InputFieldWithIcon`) to wire
+   * `name`, `value`, `error`, `onChange`, `onFocus` and `onBlur` in one go.
+   * Props written after the spread win, so a field that needs extra work on
+   * change can still pass its own `onChange` (and must call `setField`).
+   */
+  getFieldProps: (name: TextFieldName<TFormData>) => ITextFieldProps;
   /** Wire to a field's `onFocus`. Clears that field's error, client or server. */
   clearFieldError: (name: string) => void;
   setFieldError: (name: string, message: string) => void;
   /**
    * Wire to a field's `onBlur`. Validates that one field, and only once it is
-   * dirty, so a pristine required field stays silent until submit.
+   * dirty, so a pristine required field stays silent until submit. Also drops
+   * any other field's shown error that the new value made irrelevant (e.g.
+   * filling one of two either-or fields), without adding new ones.
    */
   validateField: (name: string) => void;
   clearErrors: () => void;
@@ -110,6 +133,26 @@ export const trimFormData = <TFormData>(
 
 const NO_SKIP_TRIM: readonly never[] = [];
 
+// Returns `shown` itself when nothing was dropped, so a no-op skips the render.
+const pruneErrors = (
+  shown: IFormErrors,
+  current: IFormErrors,
+  serverErrorFields: Set<string>
+): IFormErrors => {
+  const kept: IFormErrors = {};
+  let dropped = false;
+  Object.keys(shown).forEach((key) => {
+    if (current[key] || serverErrorFields.has(key)) {
+      // Keep the message already on screen rather than the freshly computed
+      // one — a server error must not be overwritten by a client rule.
+      kept[key] = shown[key];
+    } else {
+      dropped = true;
+    }
+  });
+  return dropped ? kept : shown;
+};
+
 /**
  * Single source of truth for the form validation behavior specified in
  * `frontend/docs/patterns.md#data-validation`. Read that first — the rules it
@@ -127,22 +170,14 @@ const NO_SKIP_TRIM: readonly never[] = [];
  *   return errors;
  * };
  *
- * const {
- *   formData, setField, getError, clearFieldError, validateField, handleSubmit,
- *   isSubmitting,
- * } = useFormValidation({ initialFormData: { name: "" }, validate });
+ * const { getFieldProps, handleSubmit, isSubmitting } = useFormValidation({
+ *   initialFormData: { name: "" },
+ *   validate,
+ * });
  *
  * return (
  *   <form onSubmit={handleSubmit(onSave)}>
- *     <InputField
- *       name="name"
- *       value={formData.name}
- *       error={getError("name")}
- *       onChange={(value: string) => setField("name", value)}
- *       onFocus={() => clearFieldError("name")}
- *       onBlur={() => validateField("name")}
- *       disabled={isSubmitting}
- *     />
+ *     <InputField {...getFieldProps("name")} disabled={isSubmitting} />
  *     <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
  *       Save
  *     </Button>
@@ -245,20 +280,9 @@ const useFormValidation = <TFormData extends object>({
     setIsDirty(true);
 
     const currentErrors = validateRef.current(next);
-    setErrors((prev) => {
-      const kept: IFormErrors = {};
-      let dropped = false;
-      Object.keys(prev).forEach((key) => {
-        if (currentErrors[key] || serverErrorFieldsRef.current.has(key)) {
-          // Keep the message already on screen rather than the freshly computed
-          // one — a server error must not be overwritten by a client rule.
-          kept[key] = prev[key];
-        } else {
-          dropped = true;
-        }
-      });
-      return dropped ? kept : prev;
-    });
+    setErrors((prev) =>
+      pruneErrors(prev, currentErrors, serverErrorFieldsRef.current)
+    );
   }, []);
 
   const reset = useCallback((data: TFormData) => {
@@ -295,12 +319,18 @@ const useFormValidation = <TFormData extends object>({
     // Blur hands the field back to client validation, so a server verdict on it
     // no longer applies.
     serverErrorFieldsRef.current.delete(name);
-    const message = validateRef.current(formDataRef.current)[name];
+    const currentErrors = validateRef.current(formDataRef.current);
+    const message = currentErrors[name];
     setErrors((prev) => {
-      if (prev[name] === message || (!message && !(name in prev))) {
-        return prev;
+      const pruned = pruneErrors(
+        prev,
+        currentErrors,
+        serverErrorFieldsRef.current
+      );
+      if (pruned[name] === message || (!message && !(name in pruned))) {
+        return pruned;
       }
-      const next = { ...prev };
+      const next = { ...pruned };
       if (message) {
         next[name] = message;
       } else {
@@ -368,6 +398,16 @@ const useFormValidation = <TFormData extends object>({
     []
   );
 
+  const getFieldProps = (name: TextFieldName<TFormData>): ITextFieldProps => ({
+    name,
+    value: (formData[name] as string | undefined) ?? "",
+    error: errors[name],
+    onChange: (value: string) =>
+      setField(name, value as TFormData[typeof name]),
+    onFocus: () => clearFieldError(name),
+    onBlur: () => validateField(name),
+  });
+
   return {
     formData,
     setField,
@@ -375,6 +415,7 @@ const useFormValidation = <TFormData extends object>({
     reset,
     errors,
     getError,
+    getFieldProps,
     clearFieldError,
     setFieldError,
     validateField,

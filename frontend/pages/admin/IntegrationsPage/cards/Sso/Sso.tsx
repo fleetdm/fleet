@@ -18,13 +18,7 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 import EndUserAuthSection from "../IdentityProviders/components/EndUserAuthSection";
 
-import {
-  ISsoFormData,
-  METADATA_SIBLING,
-  newSsoFormData,
-  SsoTextField,
-  validateSsoForm,
-} from "./helpers";
+import { ISsoFormData, newSsoFormData, validateSsoForm } from "./helpers";
 
 export const AUTH_TARGETS_BY_INDEX = ["fleet-users", "end-users"];
 
@@ -41,12 +35,9 @@ const Sso = ({
 
   const {
     formData,
-    setField,
     commitFields,
     reset,
-    getError,
-    clearFieldError,
-    validateField,
+    getFieldProps,
     handleSubmit: onFormSubmit,
     isSubmitting,
   } = useFormValidation<ISsoFormData>({
@@ -55,31 +46,9 @@ const Sso = ({
     isSubmitting: isUpdatingSettings,
   });
 
-  const {
-    enableSso,
-    idpName,
-    entityId,
-    idpImageUrl,
-    metadata,
-    metadataUrl,
-    enableSsoIdpLogin,
-    enableJitProvisioning,
-  } = formData;
+  const { enableSso, enableSsoIdpLogin, enableJitProvisioning } = formData;
 
   const originalFormData = useRef(formData);
-
-  const onFieldChange = (name: SsoTextField, value: string) => {
-    setField(name, value);
-
-    // Filling either metadata field satisfies the shared requirement, but blur
-    // only revalidates the field that blurred, so the other keeps a stale copy
-    // of the message. An empty sibling can only be holding that shared error; a
-    // non-empty metadata URL may be holding a format error that still applies.
-    const sibling = METADATA_SIBLING[name];
-    if (value.trim() && sibling && !formData[sibling].trim()) {
-      clearFieldError(sibling);
-    }
-  };
 
   const onValidSubmit = async (submitData: ISsoFormData) => {
     // The fields and the button are disabled in GitOps mode, but the form
@@ -159,35 +128,20 @@ const Sso = ({
           </Checkbox>
           <InputField
             label="Identity provider name"
-            name="idpName"
-            value={idpName}
-            error={getError("idpName")}
-            onChange={(value: string) => onFieldChange("idpName", value)}
-            onFocus={() => clearFieldError("idpName")}
-            onBlur={() => validateField("idpName")}
+            {...getFieldProps("idpName")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
           />
           <InputField
             label="Entity ID"
             helpText="The URI you provide here must exactly match the Entity ID field used in the identity provider configuration."
-            name="entityId"
-            value={entityId}
-            error={getError("entityId")}
-            onChange={(value: string) => onFieldChange("entityId", value)}
-            onFocus={() => clearFieldError("entityId")}
-            onBlur={() => validateField("entityId")}
+            {...getFieldProps("entityId")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="The Entity ID is a required URI that you use to identify Fleet when configuring the identity provider. Okta calls this Audience Restriction."
           />
           <InputField
             label="IdP image URL"
-            name="idpImageUrl"
-            value={idpImageUrl}
-            error={getError("idpImageUrl")}
-            onChange={(value: string) => onFieldChange("idpImageUrl", value)}
-            onFocus={() => clearFieldError("idpImageUrl")}
-            onBlur={() => validateField("idpImageUrl")}
+            {...getFieldProps("idpImageUrl")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip={`An optional link to an image such
             as a logo for the identity provider.`}
@@ -195,12 +149,7 @@ const Sso = ({
           <InputField
             label="Metadata"
             type="textarea"
-            name="metadata"
-            value={metadata}
-            error={getError("metadata")}
-            onChange={(value: string) => onFieldChange("metadata", value)}
-            onFocus={() => clearFieldError("metadata")}
-            onBlur={() => validateField("metadata")}
+            {...getFieldProps("metadata")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="Metadata XML provided by the identity provider."
           />
@@ -212,12 +161,7 @@ const Sso = ({
                 <b>Metadata URL</b> will be used.
               </>
             }
-            name="metadataUrl"
-            value={metadataUrl}
-            error={getError("metadataUrl")}
-            onChange={(value: string) => onFieldChange("metadataUrl", value)}
-            onFocus={() => clearFieldError("metadataUrl")}
-            onBlur={() => validateField("metadataUrl")}
+            {...getFieldProps("metadataUrl")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="Metadata URL provided by the identity provider."
           />

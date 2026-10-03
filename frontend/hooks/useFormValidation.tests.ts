@@ -163,7 +163,7 @@ describe("useFormValidation", () => {
       expect(result.current.getError("email")).toBe("Enter an email");
     });
 
-    it("validateField touches only its own field", () => {
+    it("validateField adds an error only to its own field", () => {
       const { result } = setup();
 
       act(() => result.current.setField("email", "nope"));
@@ -280,6 +280,144 @@ describe("useFormValidation", () => {
       expect(result.current.errors).toEqual({});
       expect(result.current.formData.name).toBe("Reset name");
       expect(result.current.isDirty).toBe(false);
+    });
+  });
+
+  describe("validateField on a cross-field rule", () => {
+    type EitherOrFormData = { metadata: string; metadataUrl: string };
+
+    const validateEitherOr = (data: EitherOrFormData): IFormErrors => {
+      const errors: IFormErrors = {};
+      if (!data.metadata && !data.metadataUrl) {
+        errors.metadata = "Enter metadata or a metadata URL";
+        errors.metadataUrl = "Enter metadata or a metadata URL";
+      } else if (data.metadataUrl && !data.metadataUrl.startsWith("https://")) {
+        errors.metadataUrl = "Enter a valid metadata URL";
+      }
+      if (data.metadata && !data.metadata.startsWith("<")) {
+        errors.metadata = "Enter valid metadata";
+      }
+      return errors;
+    };
+
+    const setupEitherOr = () =>
+      renderHook(() =>
+        useFormValidation<EitherOrFormData>({
+          initialFormData: { metadata: "", metadataUrl: "" },
+          validate: validateEitherOr,
+        })
+      );
+
+    it("drops the other field's error once the blurred value satisfies the rule", () => {
+      const { result } = setupEitherOr();
+
+      act(() => result.current.handleSubmit(jest.fn())(submitEvent()));
+      act(() => result.current.clearFieldError("metadata"));
+      act(() => result.current.setField("metadata", "<xml/>"));
+      act(() => result.current.validateField("metadata"));
+
+      expect(result.current.errors).toEqual({});
+    });
+
+    it("keeps the other field's error when it still applies", () => {
+      const { result } = setupEitherOr();
+
+      act(() => result.current.setField("metadataUrl", "nope"));
+      act(() => result.current.validateField("metadataUrl"));
+      act(() => result.current.setField("metadata", "<xml/>"));
+      act(() => result.current.validateField("metadata"));
+
+      expect(result.current.errors).toEqual({
+        metadataUrl: "Enter a valid metadata URL",
+      });
+    });
+
+    it("still shows a dirty field's own error when the other field satisfies the rule", () => {
+      const { result } = setupEitherOr();
+
+      act(() => result.current.setField("metadataUrl", "https://idp.test"));
+      act(() => result.current.validateField("metadataUrl"));
+      act(() => result.current.setField("metadata", "nope"));
+      act(() => result.current.validateField("metadata"));
+
+      expect(result.current.errors).toEqual({
+        metadata: "Enter valid metadata",
+      });
+
+      // Leaving the other field must not prune an error that still applies.
+      act(() => result.current.setField("metadataUrl", "https://idp.test/x"));
+      act(() => result.current.validateField("metadataUrl"));
+
+      expect(result.current.errors).toEqual({
+        metadata: "Enter valid metadata",
+      });
+    });
+
+    it("does not reveal the other field's error before it was shown", () => {
+      const { result } = setupEitherOr();
+
+      act(() => result.current.setField("metadata", "a"));
+      act(() => result.current.setField("metadata", ""));
+      act(() => result.current.validateField("metadata"));
+
+      expect(result.current.errors).toEqual({
+        metadata: "Enter metadata or a metadata URL",
+      });
+    });
+
+    it("keeps a setFieldError message while validate still flags that field", () => {
+      const { result } = setupEitherOr();
+
+      act(() => result.current.setField("metadataUrl", "nope"));
+      act(() =>
+        result.current.setFieldError("metadataUrl", "Re-enter the metadata URL")
+      );
+      act(() => result.current.setField("metadata", "<xml/>"));
+      act(() => result.current.validateField("metadata"));
+
+      expect(result.current.getError("metadataUrl")).toBe(
+        "Re-enter the metadata URL"
+      );
+    });
+
+    it("drops a setFieldError message once validate no longer flags that field", () => {
+      const { result } = setupEitherOr();
+
+      act(() =>
+        result.current.setFieldError("metadataUrl", "Re-enter the metadata URL")
+      );
+      act(() => result.current.setField("metadata", "<xml/>"));
+      act(() => result.current.validateField("metadata"));
+
+      expect(result.current.getError("metadataUrl")).toBeUndefined();
+    });
+  });
+
+  describe("getFieldProps", () => {
+    it("wires name, value and error for the field", () => {
+      const { result } = setup();
+
+      act(() => result.current.setField("email", "nope"));
+      act(() => result.current.validateField("email"));
+      const props = result.current.getFieldProps("email");
+
+      expect(props.name).toBe("email");
+      expect(props.value).toBe("nope");
+      expect(props.error).toBe("Enter a valid email");
+    });
+
+    it("behaves like setField, clearFieldError and validateField on change, focus and blur", () => {
+      const { result } = setup();
+
+      act(() => result.current.getFieldProps("email").onChange("nope"));
+      expect(result.current.formData.email).toBe("nope");
+      expect(result.current.getError("email")).toBeUndefined();
+
+      act(() => result.current.getFieldProps("email").onBlur());
+      expect(result.current.getError("email")).toBe("Enter a valid email");
+
+      act(() => result.current.getFieldProps("email").onFocus());
+      expect(result.current.getError("email")).toBeUndefined();
     });
   });
 
