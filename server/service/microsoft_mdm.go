@@ -112,12 +112,11 @@ func (r SoapResponseContainer) HijackRender(ctx context.Context, w http.Response
 type SyncMLReqMsgContainer struct {
 	Data   *fleet.SyncML
 	Params url.Values
-	Certs  []*x509.Certificate
 	Err    error
 }
 
 // MDM SOAP request decoder
-func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, _ []*x509.Certificate) error {
 	// Reading the request bytes
 	reqBytes, err := io.ReadAll(r)
 	if err != nil {
@@ -126,9 +125,6 @@ func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u
 
 	// Set the request parameters
 	req.Params = u
-
-	// Set the request certs
-	req.Certs = c
 
 	// Handle empty body scenario
 	req.Data = &fleet.SyncML{Raw: reqBytes}
@@ -873,7 +869,7 @@ func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, sv
 	}
 
 	// Getting the MS-MDM response message
-	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML, request.(*SyncMLReqMsgContainer).Certs)
+	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MSMDM, err)
 		return getSoapResponseFault(reqSyncML.SyncHdr.MsgID, soapFault), nil
@@ -1212,13 +1208,13 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 }
 
 // GetMDMWindowsManagementResponse returns a valid SyncML response message
-func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.SyncML, error) {
+func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.SyncML, error) {
 	if reqSyncML == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
 	// Checking if the incoming request is trusted
-	enrolledDevice, requestAuthState, err := svc.isTrustedRequest(ctx, reqSyncML, reqCerts)
+	enrolledDevice, requestAuthState, err := svc.isTrustedRequest(ctx, reqSyncML)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "management request is not trusted")
 	}
@@ -1307,7 +1303,7 @@ const (
 // RequestAuthStateChallenge or RequestAuthStateUnauthorized) are reported via
 // the returned auth state and may return a nil error. The returned enrolled
 // device may be nil when the state is RequestAuthStateUntrusted.
-func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.MDMWindowsEnrolledDevice, requestAuthState, error) {
+func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.MDMWindowsEnrolledDevice, requestAuthState, error) {
 	if reqSyncML == nil {
 		return nil, RequestAuthStateUntrusted, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
@@ -1321,15 +1317,6 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil || enrolledDevice == nil {
 		return nil, RequestAuthStateUntrusted, errors.New("device was not MDM enrolled")
-	}
-
-	// Check if TLS certs contains device ID on its common name
-	if len(reqCerts) > 0 {
-		for _, reqCert := range reqCerts {
-			if strings.Contains(reqCert.Subject.CommonName, deviceID) {
-				return enrolledDevice, RequestAuthStateTrusted, nil
-			}
-		}
 	}
 
 	if !enrolledDevice.CredentialsAcknowledged && enrolledDevice.CredentialsHash == nil {
@@ -2019,11 +2006,9 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 			},
 		}
 
+		// The device's Status/Results are not persisted until it authenticates: the client resends the whole package with
+		// credentials after the challenge, and the SyncML Source is attacker-controlled until then.
 		responseCmds = append(responseCmds, ackMsg)
-		err = saveResponse([]string{})
-		if err != nil {
-			return nil, err
-		}
 		return responseCmds, nil
 	}
 

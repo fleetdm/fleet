@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"crypto/md5" //nolint:gosec // Windows MDM Auth uses MD5
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
@@ -2469,6 +2468,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	const testEnrollmentID uint = 123
 	// Captured before the local `syncml` string variable below shadows the syncml package.
 	pollScheduleLocURI := syncml.DMClientPollIntervalLocURI
+	invalidCredentialsStatus := syncml.CmdStatusInvalidCredentials
 	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 		return &fleet.MDMWindowsEnrolledDevice{
 			ID:              testEnrollmentID,
@@ -2494,6 +2494,14 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		require.Equal(t, "device", deviceId)
 		ackCalled++
 		return nil
+	}
+
+	saveResponseCalls := 0
+	ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML,
+		commandIDsBeingResent []string,
+	) (*fleet.MDMWindowsSaveResponseResult, error) {
+		saveResponseCalls++
+		return nil, nil
 	}
 
 	kv.SetFunc = func(ctx context.Context, key string, value string, expireTime time.Duration) error {
@@ -2531,6 +2539,13 @@ func TestRekeyWindowsDevice(t *testing.T) {
       <CmdID>2</CmdID>
       <Data>1201</Data>
     </Alert>
+    <Status>
+      <CmdID>3</CmdID>
+      <MsgRef>1</MsgRef>
+      <CmdRef>pending-cmd-uuid</CmdRef>
+      <Cmd>Replace</Cmd>
+      <Data>200</Data>
+    </Status>
     <Final />
   </SyncBody>
 </SyncML>`
@@ -2539,7 +2554,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	err := xml.Unmarshal([]byte(syncml), &req)
 	require.NoError(t, err)
 
-	res, err := svc.GetMDMWindowsManagementResponse(ctx, req, []*x509.Certificate{})
+	res, err := svc.GetMDMWindowsManagementResponse(ctx, req)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -2573,7 +2588,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	assert.Equal(t, 0, seenOther, "should not have other commands")
 
 	// Respond with no credentials again to get a nonce
-	res, err = svc.GetMDMWindowsManagementResponse(ctx, req, []*x509.Certificate{})
+	res, err = svc.GetMDMWindowsManagementResponse(ctx, req)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -2588,6 +2603,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		}
 	}
 	require.True(t, chalFound, "should have challenge command")
+	require.Zero(t, saveResponseCalls, "device responses must not be saved before the device authenticates")
 
 	// Now respond with credentials to ack the rekey
 	// WE only need to mock this as we short-circuit when challenging or invalid creds
@@ -2642,17 +2658,36 @@ func TestRekeyWindowsDevice(t *testing.T) {
       <CmdID>2</CmdID>
       <Data>1201</Data>
     </Alert>
+    <Status>
+      <CmdID>3</CmdID>
+      <MsgRef>1</MsgRef>
+      <CmdRef>pending-cmd-uuid</CmdRef>
+      <Cmd>Replace</Cmd>
+      <Data>200</Data>
+    </Status>
     <Final />
   </SyncBody>
 </SyncML>`, base64.StdEncoding.EncodeToString(deviceCredsHash))
+	// Wrong credentials are challenged again and the device responses are still not saved.
+	wrongCredsHash := base64.StdEncoding.EncodeToString(hashMDMCredentials(username, "wrong-password", nonce))
+	err = xml.Unmarshal([]byte(strings.Replace(syncmlWithCreds, base64.StdEncoding.EncodeToString(deviceCredsHash), wrongCredsHash, 1)), &req)
+	require.NoError(t, err)
+	res, err = svc.GetMDMWindowsManagementResponse(ctx, req)
+	require.NoError(t, err)
+	require.Len(t, res.SyncBody.Raw, 1, "should short circuit with challenge")
+	require.NotNil(t, res.SyncBody.Raw[0].Chal)
+	require.Equal(t, invalidCredentialsStatus, *res.SyncBody.Raw[0].Data)
+	require.Zero(t, saveResponseCalls, "device responses must not be saved with invalid credentials")
+
 	err = xml.Unmarshal([]byte(syncmlWithCreds), &req)
 	require.NoError(t, err)
 
-	res, err = svc.GetMDMWindowsManagementResponse(ctx, req, []*x509.Certificate{})
+	res, err = svc.GetMDMWindowsManagementResponse(ctx, req)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
 	require.Equal(t, 1, ackCalled, "acknowledge should have been called once")
+	require.Equal(t, 1, saveResponseCalls, "device responses should be saved once the device authenticates")
 	require.True(t, ds.MDMWindowsRefreshHasPendingCommandsFuncInvoked,
 		"refresh should run when no non-poll commands are pending, even with a poll-schedule command still queued")
 }
