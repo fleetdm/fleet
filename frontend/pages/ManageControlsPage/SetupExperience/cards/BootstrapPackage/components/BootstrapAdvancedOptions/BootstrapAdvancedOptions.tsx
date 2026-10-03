@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
+import Card from "components/Card";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { notify } from "components/ToastNotification";
@@ -66,7 +67,11 @@ const BootstrapAdvancedOptions = ({
         <form onSubmit={onSubmit}>
           <GitOpsModeTooltipWrapper
             renderChildren={(gitopsDisable) => (
-              <div className={`${baseClass}__advanced-options-controls`}>
+              <Card
+                className={`${baseClass}__settings-card`}
+                color="white"
+                borderRadiusSize="large"
+              >
                 <Checkbox
                   value={selectManualAgentInstall}
                   onChange={onChange}
@@ -79,20 +84,14 @@ const BootstrapAdvancedOptions = ({
                     Install Fleet&apos;s agent (fleetd) manually
                   </TooltipWrapper>
                 </Checkbox>
-                {/* The wrapper div is needed to keep the button from stretching full width
-                 * of the flex container */}
-                <div>
-                  <Button
-                    disabled={
-                      gitopsDisable || disableInstallManually || isSaving
-                    }
-                    type="submit"
-                    isLoading={isSaving}
-                  >
-                    Save
-                  </Button>
-                </div>
-              </div>
+                <Button
+                  disabled={gitopsDisable || disableInstallManually || isSaving}
+                  type="submit"
+                  isLoading={isSaving}
+                >
+                  Save
+                </Button>
+              </Card>
             )}
           />
         </form>
