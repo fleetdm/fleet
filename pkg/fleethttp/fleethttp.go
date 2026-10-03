@@ -7,10 +7,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -50,6 +52,20 @@ var networkBlockingMode atomic.Int32
 // SetNetworkBlockingMode sets the blocking mode. Called by fleet serve at startup.
 func SetNetworkBlockingMode(mode NetworkBlockingMode) {
 	networkBlockingMode.Store(int32(mode))
+}
+
+// networkAllowList holds the optional SSRF allow-list. When non-nil,
+// hostnames and resolved IPs are checked against it before blocking.
+// The atomic pointer provides lock-free reads on the dialer hot path;
+// writes are a single Store with no read-modify-write sequence, so no
+// additional mutex is needed.
+var networkAllowList atomic.Pointer[NetworkAllowList]
+
+// SetNetworkAllowList replaces the active allow-list. Pass nil to
+// clear it. The previous list remains in use by any in-flight dial
+// that already snapshot the pointer.
+func SetNetworkAllowList(al *NetworkAllowList) {
+	networkAllowList.Store(al)
 }
 
 // ErrPrivateNetworkBlocked is returned when a connection to a private network
@@ -150,34 +166,94 @@ func privateNetworkBlockingDialContext(dialer *net.Dialer) func(ctx context.Cont
 			return nil, err
 		}
 
-		ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
-		if err != nil {
-			return nil, err
-		}
+		// Snapshot the allow-list pointer so a concurrent
+		// SetNetworkAllowList does not change behaviour mid-evaluation.
+		allowList := networkAllowList.Load()
 
-		for _, ip := range ips {
-			// A NAT64 address reaches the IPv4 address it carries, so check
-			// that one as well.
-			for _, check := range []net.IP{ip.IP, embeddedIPv4(ip.IP)} {
-				if check == nil {
-					continue
-				}
-				// Tier 1: always blocked (loopback, cloud IMDS). Cannot be
-				// overridden with --server_allow_private_network_integrations.
-				if ipInCIDRs(check, alwaysBlockedCIDRs) {
-					return nil, fmt.Errorf("%w: %s resolves to %s", ErrPrivateNetworkBlocked, host, ip.IP)
-				}
-				// Tier 2: private networks. Only blocked in BlockingFull mode.
-				if mode == BlockingFull && ipInCIDRs(check, privateNetworkCIDRs) {
-					return nil, fmt.Errorf("%w: %s resolves to %s", ErrPrivateNetworkBlocked, host, ip.IP)
-				}
+		portNum, _ := strconv.Atoi(port)
+
+		// If the hostname itself is allow-listed, skip all IP-level
+		// blocking — both alwaysBlockedCIDRs and privateNetworkCIDRs.
+		// This is intentionally an OR with the per-IP check below:
+		// hostname match alone is sufficient, because the allow-list
+		// is server configuration (not user input) and legitimate
+		// deployments need to reach loopback sidecars or on-prem hosts
+		// whose IPs the admin may not know or want to track.
+
+		// NOTE(fuhry@2026-10-02): possible future improvement: support
+		// an AND semantic (host must match allowed pattern AND resolve
+		// to an allowed IP) via a boolean opt-in setting.
+		hostAllowed := allowList.MatchesHost(host, portNum)
+
+		// Resolve host to IPs. When host is already an IP literal,
+		// skip the DNS lookup — passing an IP to LookupIPAddr either
+		// triggers a needless PTR query or fails, depending on the
+		// resolver implementation.
+		var ips []net.IPAddr
+		if ip := net.ParseIP(host); ip != nil {
+			ips = []net.IPAddr{{IP: ip}}
+		} else {
+			ips, err = net.DefaultResolver.LookupIPAddr(ctx, host)
+			if err != nil {
+				return nil, err
 			}
 		}
 
-		// Connect using the already-resolved IP to prevent DNS rebinding
+		var lastErr error
+
+		// Connect using the already-resolved IPs to prevent DNS rebinding
 		// (a second DNS lookup could return a different, malicious IP).
-		return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+		// Try each address in order so that multi-homed hosts and
+		// dual-stack (A + AAAA) records work: if one address is
+		// unreachable, the next is tried until the context expires.
+		for _, ip := range ips {
+			// Perform IP allow-list checks only if the hostname isn't allow-listed.
+			// This is a deliberate usability choice: requiring both the DNS name and the
+			// resolved IP to be allow-listed is not intuitive, and could lead to unexpected
+			// breakage in some circumstances: for example, an internally-hosted IdP metadata
+			// endpoint moves to a different IP, or IPv6 is rolled out on top of an existing
+			// IPv4 network.
+			if !hostAllowed {
+				if err := checkIPAllowed(ip, portNum, mode, allowList); err != nil {
+					lastErr = fmt.Errorf("%w: %s resolves to %s", err, host, ip.IP)
+					slog.DebugContext(ctx, "disallowed IP", "err", lastErr)
+					continue
+				}
+			}
+			var conn net.Conn
+			conn, lastErr = dialer.DialContext(ctx, network, net.JoinHostPort(ip.IP.String(), port))
+			if lastErr == nil {
+				return conn, nil
+			}
+			if ctx.Err() != nil {
+				break
+			}
+		}
+		return nil, lastErr
 	}
+}
+
+func checkIPAllowed(ip net.IPAddr, portNum int, mode NetworkBlockingMode, allowList *NetworkAllowList) error {
+	for _, check := range []net.IP{ip.IP, embeddedIPv4(ip.IP)} {
+		if check == nil {
+			continue
+		}
+		// Allow-listed IPs bypass blocking.
+		if allowList.MatchesIP(check, portNum) {
+			continue
+		}
+		// Tier 1: always blocked (loopback, cloud IMDS). Cannot be
+		// overridden with --server_allow_private_network_integrations.
+		if ipInCIDRs(check, alwaysBlockedCIDRs) {
+			return ErrPrivateNetworkBlocked
+		}
+		// Tier 2: private networks. Only blocked in BlockingFull mode.
+		if mode == BlockingFull && ipInCIDRs(check, privateNetworkCIDRs) {
+			return ErrPrivateNetworkBlocked
+		}
+	}
+
+	return nil
 }
 
 // DefaultTimeout is the request timeout applied by NewClient when the caller does not provide WithTimeout or WithNoTimeout.
