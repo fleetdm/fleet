@@ -4255,3 +4255,23 @@ func TestAuthSettings(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestStagedUploadAvailable(t *testing.T) {
+	for _, c := range []struct {
+		signedURL bool
+		bucket    string
+		tier      string
+		want      bool
+	}{
+		{true, "installers", fleet.TierPremium, true},
+		{false, "installers", fleet.TierPremium, false},
+		{true, "", fleet.TierPremium, false},
+		{true, "installers", fleet.TierFree, false},
+	} {
+		cfg := config.TestConfig()
+		cfg.S3.SoftwareInstallersSignedURL = c.signedURL
+		cfg.S3.SoftwareInstallersBucket = c.bucket
+		svc, ctx := newTestServiceWithConfig(t, new(mock.Store), cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: c.tier}})
+		require.Equal(t, c.want, svc.StagedUploadAvailable(ctx), "%+v", c)
+	}
+}
