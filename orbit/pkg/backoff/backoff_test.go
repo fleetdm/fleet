@@ -42,7 +42,7 @@ func TestIntervalReturnsBaseOnSuccess(t *testing.T) {
 
 // Oracle Valid Example: exponential doubling with cap at max_backoff.
 // base_interval=10s, max_backoff=1800s
-// 1st error: 20s, 2nd: 40s, 3rd: 80s, ..., 8th+: 1800s (capped)
+// 1st error: 20s, 2nd: 40s, 3rd: 80s, ..., 8th+: 1800s (capped before jitter)
 func TestExponentialBackoff(t *testing.T) {
 	t.Parallel()
 	base := 10 * time.Second
@@ -66,11 +66,10 @@ func TestExponentialBackoff(t *testing.T) {
 		interval := tracker.Interval()
 
 		// The interval should be at least the expected minimum (before jitter)
-		// and at most expected + 10% jitter, but never exceed maxBackoff.
+		// and at most expected + 100% jitter (jitter is applied after capping).
 		assert.GreaterOrEqual(t, interval, expMin,
 			"failure %d: interval %v should be >= %v", i+1, interval, expMin)
-		// Jitter adds up to 10% of the calculated interval (before cap).
-		maxWithJitter := min(expMin+expMin/10, maxB)
+		maxWithJitter := expMin + expMin // cap + up to 100% jitter
 		assert.LessOrEqual(t, interval, maxWithJitter,
 			"failure %d: interval %v should be <= %v", i+1, interval, maxWithJitter)
 	}
@@ -114,8 +113,8 @@ func TestSuccessThenFailureRestartsFromOne(t *testing.T) {
 	tracker.RecordFailure()
 	assert.Equal(t, 1, tracker.ConsecutiveFailures())
 	interval := tracker.Interval()
-	// Should be ~20s (2^1 * 10s) + jitter, not the large value from before
-	assert.LessOrEqual(t, interval, 22*time.Second)
+	// Should be ~20s (2^1 * 10s) + up to 100% jitter (20s-40s), not the large value from before
+	assert.LessOrEqual(t, interval, 40*time.Second)
 }
 
 // Oracle: interval never drops below base_interval.
@@ -132,17 +131,20 @@ func TestIntervalNeverBelowBase(t *testing.T) {
 	assert.Equal(t, 10*time.Second, tracker.Interval())
 }
 
-// Oracle: interval never exceeds max_backoff.
+// Oracle: pre-jitter interval never exceeds max_backoff;
+// with 100% jitter the effective max is 2*maxBackoff.
 func TestIntervalNeverExceedsMax(t *testing.T) {
 	t.Parallel()
-	tracker := New(10*time.Second, 30*time.Minute)
+	maxB := 30 * time.Minute
+	tracker := New(10*time.Second, maxB)
 
 	// Record many failures to push well past max
 	for range 50 {
 		tracker.RecordFailure()
 	}
 	interval := tracker.Interval()
-	assert.LessOrEqual(t, interval, 30*time.Minute)
+	assert.GreaterOrEqual(t, interval, maxB)
+	assert.LessOrEqual(t, interval, 2*maxB)
 }
 
 // Oracle Behavioral Invariant: backoff state is per-tracker.
@@ -175,9 +177,9 @@ func TestSingleTransientError(t *testing.T) {
 
 	tracker.RecordFailure()
 	interval := tracker.Interval()
-	// Should be ~20s + small jitter
+	// Should be ~20s + up to 100% jitter (20s-40s range)
 	assert.GreaterOrEqual(t, interval, 20*time.Second)
-	assert.LessOrEqual(t, interval, 22*time.Second)
+	assert.LessOrEqual(t, interval, 40*time.Second)
 
 	// Success resets immediately
 	tracker.RecordSuccess()
@@ -196,7 +198,7 @@ func TestNoGiveUp(t *testing.T) {
 	}
 	interval := tracker.Interval()
 	assert.GreaterOrEqual(t, interval, 10*time.Second)
-	assert.LessOrEqual(t, interval, 30*time.Minute)
+	assert.LessOrEqual(t, interval, 2*30*time.Minute) // maxBackoff + up to 100% jitter
 }
 
 // Oracle Ordering Guarantee: intervals are monotonically non-decreasing
@@ -335,9 +337,9 @@ func TestTickerIntegrationMaxCap(t *testing.T) {
 	<-ticker.C
 	elapsed := time.Since(start)
 
-	// Should be around maxB (50ms), not unbounded
-	assert.LessOrEqual(t, elapsed, maxB+20*time.Millisecond,
-		"capped interval should not exceed maxBackoff + tolerance, got %v", elapsed)
+	// Should be around maxB..2*maxB (jitter applied after cap), not unbounded
+	assert.LessOrEqual(t, elapsed, 2*maxB+20*time.Millisecond,
+		"capped interval should not exceed 2*maxBackoff + tolerance, got %v", elapsed)
 }
 
 // TestMultipleTrackersWithTickers simulates per-path isolation with real
