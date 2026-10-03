@@ -31,7 +31,9 @@ controls:
   only_allow_apple_business_enrollment: false
   scripts:
   - path: ../lib/unassigned/scripts/Script Z.ps1
-  setup_experience: 'TODO: update with your setup_experience configuration'
+  setup_experience:
+    apple_enable_release_device_manually: false
+    enable_end_user_authentication: true
   windows_enabled_and_configured: true
   windows_entra_client_ids:
   - 7c1de9aa-9b2c-4d3e-8f10-2233445566aa
