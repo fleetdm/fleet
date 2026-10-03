@@ -278,10 +278,11 @@ func androidWipeAckUnenroll(ctx context.Context, ds fleet.Datastore, newActivity
 	cmd *android.MDMAndroidCommand, onUnenrolled func(hostID uint),
 ) error {
 	ah, err := ds.AndroidHostLiteByHostUUID(ctx, cmd.HostUUID)
-	if err != nil {
+	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "android wipe-ack unenroll: lookup host by uuid")
 	}
-	if ah == nil || ah.Host == nil {
+	// No host found (e.g. deleted from Fleet) leaves nothing to unenroll; returning nil lets the command reach a terminal state.
+	if err != nil || ah == nil || ah.Host == nil {
 		return nil
 	}
 
