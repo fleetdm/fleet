@@ -143,6 +143,11 @@ func TestGenerateOpenQuery(t *testing.T) {
 		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');", got, title)
 	}
 
+	// Citrix Workspace LTSR: only the HDX session processes count as open. SelfService.exe is too generic a
+	// name to match on, and the per-user helpers run for the whole session.
+	got = patch_policy.GenerateOpenQuery("windows", "", "Citrix Workspace LTSR")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('wfica32.exe','cdviewer.exe','citrix.desktopviewer.app.exe'));", got)
+
 	require.Empty(t, patch_policy.GenerateOpenQuery("linux", "com.example.foo", ""))
 }
 
