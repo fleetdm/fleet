@@ -1,3 +1,5 @@
+import { ResponseType as AxiosResponseType } from "axios";
+
 import {
   EndUserLocalAccountType,
   IBootstrapPackageAggregate,
@@ -42,6 +44,9 @@ export interface IMdmProfilesResponse {
 export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
+  /** Omit to let the server derive the name from the file. */
+  name?: string;
+  description?: string;
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
@@ -52,6 +57,10 @@ export interface IUpdateProfileApiParams {
   /** replacement profile contents. Omit to keep the current contents and only
    * update label targeting. */
   profile?: File;
+  /** Omit to keep the current name; a replacement file never renames. */
+  name?: string;
+  /** Omit to keep the current description; an empty string clears it. */
+  description?: string;
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
@@ -165,6 +174,8 @@ const mdmService = {
   uploadProfile: ({
     file,
     teamId,
+    name,
+    description,
     labelsIncludeAll,
     labelsIncludeAny,
     labelsExcludeAny,
@@ -176,6 +187,12 @@ const mdmService = {
 
     if (teamId) {
       formData.append("fleet_id", teamId.toString());
+    }
+    if (name !== undefined) {
+      formData.append("name", name);
+    }
+    if (description !== undefined) {
+      formData.append("description", description);
     }
 
     labelsIncludeAll?.forEach((label) => {
@@ -199,6 +216,8 @@ const mdmService = {
   updateProfile: ({
     profileUUID,
     profile,
+    name,
+    description,
     labelsIncludeAll,
     labelsIncludeAny,
     labelsExcludeAny,
@@ -209,6 +228,12 @@ const mdmService = {
 
     if (profile) {
       formData.append("profile", profile);
+    }
+    if (name !== undefined) {
+      formData.append("name", name);
+    }
+    if (description !== undefined) {
+      formData.append("description", description);
     }
 
     labelsIncludeAll?.forEach((label) => {
@@ -226,12 +251,15 @@ const mdmService = {
     return sendRequest("PATCH", CONFIG_PROFILE(profileUUID), formData);
   },
 
-  downloadProfile: (profileId: string) => {
+  downloadProfile: (
+    profileId: string,
+    responseType: AxiosResponseType = "json"
+  ) => {
     const { MDM_PROFILE } = endpoints;
     const path = `${MDM_PROFILE(profileId)}?${buildQueryStringFromParams({
       alt: "media",
     })}`;
-    return sendRequest("GET", path);
+    return sendRequest("GET", path, undefined, responseType);
   },
 
   deleteProfile: (profileId: string) => {
