@@ -22,7 +22,10 @@ import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
   ROLLING_ARCH_LINUX_VERSIONS,
 } from "interfaces/software";
-import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
+import {
+  GITOPS_ID_TOOLTIP,
+  isSafeImagePreviewUrl,
+} from "pages/SoftwarePage/helpers";
 import paths from "router/paths";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
@@ -191,6 +194,9 @@ interface ISoftwareDetailsSummaryProps {
    * pencil-icon "Edit" button that opens the Edit Appearance modal directly.
    * Per-installer Edit lives on the Library accordion row. */
   useSingleEditAppearanceButton?: boolean;
+  fleetMaintainedAppSlug?: string;
+  appStoreId?: string;
+  googlePlayId?: string;
 }
 
 const SoftwareDetailsSummary = ({
@@ -216,6 +222,9 @@ const SoftwareDetailsSummary = ({
   headerPills,
   isAppleVpp = false,
   useSingleEditAppearanceButton = false,
+  fleetMaintainedAppSlug,
+  appStoreId,
+  googlePlayId,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -275,6 +284,18 @@ const SoftwareDetailsSummary = ({
       />
     );
   };
+
+  const renderGitOpsIdDataSet = (title: string, value?: string) =>
+    !!value && (
+      <DataSet
+        title={
+          <TooltipWrapper tipContent={GITOPS_ID_TOOLTIP}>
+            {title}
+          </TooltipWrapper>
+        }
+        value={value}
+      />
+    );
 
   const actionOptions = buildActionOptions({
     gitOpsModeEnabled,
@@ -370,6 +391,12 @@ const SoftwareDetailsSummary = ({
                 }
               />
             )}
+            {renderGitOpsIdDataSet(
+              "Fleet-maintained app slug",
+              fleetMaintainedAppSlug
+            )}
+            {renderGitOpsIdDataSet("App Store ID", appStoreId)}
+            {renderGitOpsIdDataSet("Google Play ID", googlePlayId)}
           </dl>
           {headerPills && (
             <div className={`${baseClass}__header-pills`}>{headerPills}</div>

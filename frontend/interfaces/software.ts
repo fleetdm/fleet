@@ -158,6 +158,7 @@ export interface ISoftwarePackage {
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
+  fleet_maintained_app_slug?: string;
   fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
   /** Version pin: null/absent = Latest, exact version = exact pin, caret
    * ("^149") = major-version pin. */

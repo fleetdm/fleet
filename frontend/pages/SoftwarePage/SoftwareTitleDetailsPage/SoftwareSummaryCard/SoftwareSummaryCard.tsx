@@ -325,7 +325,24 @@ const SoftwareSummaryCard = ({
     );
   }
 
-  const { softwareInstaller, isAndroidPlayStoreWebApp } = installerResult.meta;
+  const {
+    softwareInstaller,
+    isAndroidPlayStoreWebApp,
+    androidPlayStoreId,
+  } = installerResult.meta;
+
+  // Fleet-maintained app slug and app store IDs are Premium-only
+  const fleetMaintainedAppSlug =
+    isPremiumTier &&
+    isFleetMaintainedApp &&
+    "fleet_maintained_app_slug" in softwareInstaller
+      ? softwareInstaller.fleet_maintained_app_slug
+      : undefined;
+  const appStoreId =
+    isPremiumTier && isAppleVpp && "app_store_id" in softwareInstaller
+      ? softwareInstaller.app_store_id
+      : undefined;
+  const googlePlayId = isPremiumTier ? androidPlayStoreId : undefined;
 
   const canEditAppearance = canManageSoftware;
   const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
@@ -389,6 +406,9 @@ const SoftwareSummaryCard = ({
           }
           headerPills={headerPills}
           isAppleVpp={isAppleVpp}
+          fleetMaintainedAppSlug={fleetMaintainedAppSlug}
+          appStoreId={appStoreId}
+          googlePlayId={googlePlayId}
         />
       </Card>
       {showEditIconModal && softwareInstallerOnTeam && (

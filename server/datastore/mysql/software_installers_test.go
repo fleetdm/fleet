@@ -5179,6 +5179,26 @@ func testGetSoftwarePackagesByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	require.Equal(t, lbl.ID, pkgs[0].LabelsIncludeAny[0].LabelID)
 	require.Equal(t, "multi-2.pkg", pkgs[1].Name)
 	require.Empty(t, pkgs[1].LabelsIncludeAny)
+	require.Empty(t, pkgs[0].FleetMaintainedAppSlug)
+
+	// a Fleet-maintained package returns its app slug
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Pkg Lister FMA",
+		Slug:             "pkg-lister-fma/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.example.pkglisterfma",
+	})
+	require.NoError(t, err)
+	fmaPayload := mk("fma-1", "fma-1.pkg", &fleet.LabelIdentsWithScope{})
+	fmaPayload.Title = "Pkg Lister FMA"
+	fmaPayload.BundleIdentifier = "com.example.pkglisterfma"
+	fmaPayload.FleetMaintainedAppID = &fma.ID
+	_, fmaTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, fmaPayload)
+	require.NoError(t, err)
+	fmaPkgs, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, fmaTitleID)
+	require.NoError(t, err)
+	require.Len(t, fmaPkgs, 1)
+	require.Equal(t, "pkg-lister-fma/darwin", fmaPkgs[0].FleetMaintainedAppSlug)
 
 	// a title with no packages returns none
 	none, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID+1000)

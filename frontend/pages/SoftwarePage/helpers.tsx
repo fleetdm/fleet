@@ -386,3 +386,15 @@ export const mergePolicies = ({
 
   return Array.from(byId.values());
 };
+
+export const GITOPS_ID_TOOLTIP = (
+  <>
+    Used to manage apps in GitOps.{" "}
+    <CustomLink
+      newTab
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/gitops`}
+      text="Learn more"
+      variant="tooltip-link"
+    />
+  </>
+);
