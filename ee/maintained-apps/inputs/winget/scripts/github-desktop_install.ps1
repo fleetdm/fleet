@@ -11,7 +11,7 @@ $taskName = "fleet-install-github-desktop"
 $taskRunning = 267009  # SCHED_S_TASK_RUNNING
 $deploymentToolUpgradeCode = "{00D8E2EE-13EA-5BEB-87F0-70EFC46A7D4A}"
 $exitCode = 0
-$stagedInstaller = $null
+$stageDir = $null
 
 try {
     $owner = Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' -ErrorAction SilentlyContinue |
@@ -26,15 +26,24 @@ try {
         [System.Security.Principal.SecurityIdentifier]).Value
     Write-Host "Installing GitHub Desktop for $userAccount."
 
-    # Fleet's installer directory is not readable by that user.
-    $stagedInstaller = Join-Path $env:PUBLIC (Split-Path $exeFilePath -Leaf)
-    Copy-Item -Path $exeFilePath -Destination $stagedInstaller -Force
+    # Fleet's installer directory is not readable by that user, so stage a copy in
+    # a new folder only SYSTEM and Administrators can write to.
+    $security = New-Object System.Security.AccessControl.DirectorySecurity
+    $security.SetAccessRuleProtection($true, $false)
+    foreach ($grant in @(@("S-1-5-18", "FullControl"), @("S-1-5-32-544", "FullControl"), @($sid, "ReadAndExecute"))) {
+        $security.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+            (New-Object System.Security.Principal.SecurityIdentifier($grant[0])), $grant[1],
+            "ContainerInherit, ObjectInherit", "None", "Allow")))
+    }
+    $stageDir = Join-Path $env:ProgramData ("fleet-github-desktop-" + [guid]::NewGuid().ToString("N"))
+    [void][System.IO.Directory]::CreateDirectory($stageDir, $security)
+    $stagedInstaller = Join-Path $stageDir (Split-Path $exeFilePath -Leaf)
+    Copy-Item -LiteralPath $exeFilePath -Destination $stagedInstaller -Force
 
     $action = New-ScheduledTaskAction -Execute $stagedInstaller -Argument "--silent"
-    $trigger = New-ScheduledTaskTrigger -AtLogOn
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
     $principal = New-ScheduledTaskPrincipal -UserId $userAccount
-    $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
+    $task = New-ScheduledTask -Action $action -Settings $settings -Principal $principal
     Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
 
     $startDate = Get-Date
@@ -51,6 +60,7 @@ try {
             break
         }
         if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 900) {
+            Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
             Throw "Timed out waiting for the install task to finish."
         }
         Start-Sleep -Seconds 5
@@ -67,8 +77,19 @@ try {
         $installer = New-Object -ComObject "WindowsInstaller.Installer"
         foreach ($productCode in @($installer.RelatedProducts($deploymentToolUpgradeCode))) {
             Write-Host "Removing GitHub Desktop Deployment Tool $productCode."
-            $msi = Start-Process msiexec.exe -ArgumentList "/x $productCode /quiet /norestart" -PassThru -Wait
+            $msi = Start-Process msiexec.exe -ArgumentList "/x $productCode /quiet /norestart" -PassThru
+            # Reading Handle now keeps ExitCode available after WaitForExit(timeout).
+            $null = $msi.Handle
+            if (-not $msi.WaitForExit(300 * 1000)) {
+                Stop-Process -Id $msi.Id -Force -ErrorAction SilentlyContinue
+                Throw "Timed out removing GitHub Desktop Deployment Tool $productCode."
+            }
             Write-Host "Deployment Tool uninstall exit code: $($msi.ExitCode)"
+            if (@(0, 3010, 1641) -notcontains $msi.ExitCode) {
+                Write-Host "GitHub Desktop is installed, but the Deployment Tool is still present and may install another copy at the next sign-in."
+                $exitCode = $msi.ExitCode
+                break
+            }
         }
     }
 
@@ -79,8 +100,8 @@ try {
     if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
         Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     }
-    if ($stagedInstaller -and (Test-Path -LiteralPath $stagedInstaller)) {
-        Remove-Item -LiteralPath $stagedInstaller -Force -ErrorAction SilentlyContinue
+    if ($stageDir -and (Test-Path -LiteralPath $stageDir)) {
+        Remove-Item -LiteralPath $stageDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
