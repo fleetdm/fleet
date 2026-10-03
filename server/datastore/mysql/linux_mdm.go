@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -36,9 +37,7 @@ func (ds *Datastore) GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *
 				hosts h
 				LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 			WHERE
-				(h.os_version LIKE '%%fedora%%'
-				OR h.platform LIKE 'ubuntu'
-				OR h.platform LIKE 'zorin')
+				`+sqlLUKSSupportedHostCond+`
 				%s
 			GROUP BY
 				status`, teamFilter)
@@ -68,6 +67,15 @@ func (ds *Datastore) GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *
 
 	return summary, nil
 }
+
+var (
+	// sqlLUKSSupportedPlatforms is fleet.LUKSSupportedPlatforms as a quoted SQL list.
+	sqlLUKSSupportedPlatforms = "'" + strings.Join(fleet.LUKSSupportedPlatforms, "', '") + "'"
+
+	// sqlLUKSSupportedHostCond mirrors fleet.Host.IsLUKSSupported for the hosts table aliased as h.
+	// Its % are escaped because every caller embeds it in a fmt format string.
+	sqlLUKSSupportedHostCond = `(h.platform IN (` + sqlLUKSSupportedPlatforms + `) OR h.os_version LIKE '%%Fedora%%')`
+)
 
 func sqlCaseLinuxOSSettingsStatus() string {
 	return `
