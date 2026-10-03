@@ -571,6 +571,7 @@ import KeyboardMaestro from "./png/KeyboardMaestro.png";
 import Keycastr from "./png/Keycastr.png";
 import Keyclu from "./png/Keyclu.png";
 import KeystoreExplorer from "./png/KeystoreExplorer.png";
+import KiCad from "./png/KiCad.png";
 import Kiro from "./png/Kiro.png";
 import KiroCli from "./png/KiroCli.png";
 import Kitty from "./png/Kitty.png";
@@ -1743,6 +1744,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   keycastr: Keycastr,
   keyclu: Keyclu,
   "keystore explorer": KeystoreExplorer,
+  kicad: KiCad,
   kiro: Kiro,
   "kiro cli": KiroCli,
   kitty: Kitty,
