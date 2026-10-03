@@ -191,6 +191,74 @@ func (svc *Service) getVPPTokenInfo(ctx context.Context, teamID *uint) (vppToken
 
 var isAdamID = regexp.MustCompile(`^[0-9]+$`)
 
+// dryRunValidateVPPAssetsForNewTeam is the dry-run stand-in for the asset check
+// in BatchAssociateVPPApps when the target team does not exist yet. The team's
+// own token cannot be resolved before the team is created, so every Apple App
+// Store app in payloads is checked against the assets of every unexpired VPP
+// token. An app missing from all of them is reported with the same error a
+// real apply returns, so `fleetctl gitops --dry-run` catches a wrong or
+// unlicensed app_store_id before anything is changed. Play Store entries are
+// not VPP assets and are ignored.
+func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, payloads []fleet.VPPBatchPayload) error {
+	var wanted []string
+	seen := map[string]struct{}{}
+	for _, payload := range payloads {
+		if payload.Platform == fleet.AndroidPlatform || !isAdamID.MatchString(payload.AppStoreID) {
+			continue
+		}
+		if _, dup := seen[payload.AppStoreID]; dup {
+			continue
+		}
+		seen[payload.AppStoreID] = struct{}{}
+		wanted = append(wanted, payload.AppStoreID)
+	}
+	if len(wanted) == 0 {
+		return nil
+	}
+
+	tokens, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing vpp tokens")
+	}
+	if len(tokens) == 0 {
+		// Nothing to validate against. The real apply reports the missing token
+		// itself, and the previous behaviour here was to skip, so keep that.
+		return nil
+	}
+
+	available := map[string]struct{}{}
+	var unexpired int
+	for _, token := range tokens {
+		if time.Now().After(token.RenewDate) {
+			continue
+		}
+		unexpired++
+		assets, err := vpp.GetAssets(ctx, token.Token, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "unable to retrieve assets")
+		}
+		for _, asset := range assets {
+			available[asset.AdamID] = struct{}{}
+		}
+	}
+	if unexpired == 0 {
+		return fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+	}
+
+	var missing []string
+	for _, adamID := range wanted {
+		if _, ok := available[adamID]; !ok {
+			missing = append(missing, adamID)
+		}
+	}
+	if len(missing) != 0 {
+		sort.Strings(missing)
+		reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missing, ", "))
+		return fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
+	}
+	return nil
+}
+
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, []string, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, nil, err
@@ -201,9 +269,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	if teamName != "" {
 		tm, err := svc.ds.TeamByName(ctx, teamName)
 		if err != nil {
-			// If this is a dry run, the team may not have been created yet
+			// On a dry run the team may not have been created yet, so there is no
+			// team-scoped token to validate against. Still confirm that every
+			// requested Apple app is available on some VPP token, so a wrong or
+			// unlicensed app_store_id fails the dry run instead of the first real
+			// apply of the new team.
 			if dryRun && fleet.IsNotFound(err) {
-				return nil, nil, nil
+				return nil, nil, svc.dryRunValidateVPPAssetsForNewTeam(ctx, payloads)
 			}
 			return nil, nil, err
 		}
@@ -407,12 +479,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 
 		if len(incomingAppleApps) > 0 {
-			if dryRun {
-				// If we're doing a dry run, we stop here and return no error to avoid making any changes.
-				// That way we validate if a VPP token is available even on dry runs keeping it consistent.
-				return nil, categories, nil
-			}
-
 			var missingAssets []string
 
 			assets, err := vpp.GetAssets(ctx, vppToken, nil)
@@ -443,6 +509,15 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				sort.Strings(missingAssets)
 				reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ", "))
 				return nil, nil, fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
+			}
+
+			if dryRun {
+				// Stop here on a dry run, after confirming that the VPP token exists
+				// and that every requested app is available on it. Fetching the asset
+				// list is read-only, and validating it here means a wrong or unlicensed
+				// app_store_id fails `fleetctl gitops --dry-run` instead of the first
+				// real apply, which is what the dry run is for.
+				return nil, categories, nil
 			}
 		}
 	}
