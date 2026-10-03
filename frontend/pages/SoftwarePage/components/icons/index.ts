@@ -847,6 +847,7 @@ import PyCharmCe from "./png/PyCharmCe.png";
 import Python313 from "./png/Python313.png";
 import Python314 from "./png/Python314.png";
 import Qemu from "./png/Qemu.png";
+import Qgis from "./png/Qgis.png";
 import Qlab from "./png/Qlab.png";
 import Qlmarkdown from "./png/Qlmarkdown.png";
 import QspacePro from "./png/QspacePro.png";
@@ -2033,6 +2034,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "python 3.13": Python313,
   "python 3.14": Python314,
   qemu: Qemu,
+  qgis: Qgis,
+  "qgis ltr": Qgis,
   qlab: Qlab,
   "qspace pro": QspacePro,
   quip: Quip,

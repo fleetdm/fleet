@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "4.2.3",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app' AND version_compare(bundle_short_version, '4.2.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.qgis.qgis3' AND a.path LIKE '/Applications/QGIS-final-%.app' AND a.bundle_executable != '');"
+      },
+      "installer_url": "https://download.qgis.org/downloads/macos/pr/qgis_pr_final-4_2_3.dmg",
+      "install_script_ref": "e04037ef",
+      "uninstall_script_ref": "06c5d7d0",
+      "sha256": "cf3af3d3d228a0e2a0ab7fb6b37052ae78064d0aef93b12f41f9bd724fd23401",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "06c5d7d0": "#!/bin/bash\n\n# Removes every QGIS-final-<version>.app and closes QGIS if it's running. QGIS\n# LTR and per-user QGIS data (profiles, plugins, caches), which QGIS LTR also\n# uses, are left in place.\n\nAPPDIR=\"/Applications\"\n\n# QGIS and QGIS LTR share a bundle identifier, so match processes by path.\nquit_app_at_path() {\n  local app_path=\"$1\"\n  local pattern=\"^${app_path}/Contents/MacOS/\"\n  pgrep -f \"$pattern\" >/dev/null || return 0\n  echo \"Closing $app_path...\"\n  pkill -TERM -f \"$pattern\"\n  for _ in {1..10}; do\n    pgrep -f \"$pattern\" >/dev/null || return 0\n    sleep 1\n  done\n  echo \"$app_path did not close; forcing it to quit.\"\n  pkill -KILL -f \"$pattern\"\n}\n\nfor app in \"$APPDIR\"/QGIS-final-*.app; do\n  [[ -d \"$app\" ]] || continue\n  quit_app_at_path \"$app\"\n  echo \"Removing $app\"\n  sudo rm -rf \"$app\"\ndone\n",
+    "e04037ef": "#!/bin/bash\n\n# QGIS is closed if it's running, and unsaved project changes are lost. Each\n# release installs as its own QGIS-final-<version>.app, so earlier releases are\n# removed once the new one is in place. QGIS LTR (QGIS-LTR.app) is left alone.\n\nAPPDIR=\"/Applications\"\nTMPDIR=$(dirname \"$(realpath \"$INSTALLER_PATH\")\")\n\n# QGIS and QGIS LTR share a bundle identifier, so match processes by path.\nquit_app_at_path() {\n  local app_path=\"$1\"\n  local pattern=\"^${app_path}/Contents/MacOS/\"\n  pgrep -f \"$pattern\" >/dev/null || return 0\n  echo \"Closing $app_path...\"\n  pkill -TERM -f \"$pattern\"\n  for _ in {1..10}; do\n    pgrep -f \"$pattern\" >/dev/null || return 0\n    sleep 1\n  done\n  echo \"$app_path did not close; forcing it to quit.\"\n  pkill -KILL -f \"$pattern\"\n}\n\nMOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)\nyes | hdiutil attach -plist -nobrowse -readonly -mountpoint \"$MOUNT_POINT\" \"$INSTALLER_PATH\" >/dev/null || exit 1\ntrap 'hdiutil detach \"$MOUNT_POINT\" >/dev/null 2>&1 || true' EXIT\n\nNEW_APP=$(find \"$MOUNT_POINT\" -maxdepth 1 -name 'QGIS-final-*.app' -print -quit)\nif [[ -z \"$NEW_APP\" ]]; then\n  echo \"No QGIS-final-*.app found in the disk image.\"\n  exit 1\nfi\nAPP_NAME=$(basename \"$NEW_APP\")\n\nfor app in \"$APPDIR\"/QGIS-final-*.app; do\n  [[ -d \"$app\" ]] && quit_app_at_path \"$app\"\ndone\n\nsudo rm -rf \"$TMPDIR/$APP_NAME.bkp\"\nif [[ -d \"$APPDIR/$APP_NAME\" ]]; then\n  sudo mv \"$APPDIR/$APP_NAME\" \"$TMPDIR/$APP_NAME.bkp\" || exit $?\nfi\nif ! sudo cp -R \"$NEW_APP\" \"$APPDIR/\"; then\n  # remove the partial copy so a failed install isn't inventoried as the new\n  # version, then restore the previous version if there was one\n  sudo rm -rf \"$APPDIR/$APP_NAME\"\n  if [[ -d \"$TMPDIR/$APP_NAME.bkp\" ]]; then\n    sudo mv \"$TMPDIR/$APP_NAME.bkp\" \"$APPDIR/$APP_NAME\"\n  fi\n  exit 1\nfi\nsudo rm -rf \"$TMPDIR/$APP_NAME.bkp\"\n\nfor app in \"$APPDIR\"/QGIS-final-*.app; do\n  if [[ -d \"$app\" && \"$(basename \"$app\")\" != \"$APP_NAME\" ]]; then\n    echo \"Removing earlier release $app\"\n    sudo rm -rf \"$app\"\n  fi\ndone\n\necho \"Installed $APPDIR/$APP_NAME\"\n"
+  }
+}

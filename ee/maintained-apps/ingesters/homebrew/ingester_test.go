@@ -87,7 +87,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -154,6 +154,8 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "swiftdialog", UniqueIdentifier: "au.csiro.dialog", InstallerFormat: "pkg", Name: "swiftDialog", Slug: "swiftdialog/darwin"}},
 		{"", inputApp{Token: "teleport-suite", UniqueIdentifier: "com.gravitational.teleport.tsh", InstallerFormat: "pkg", Name: "Teleport Suite", Slug: "teleport-suite/darwin"}},
 		{"", inputApp{Token: "r-app", UniqueIdentifier: "org.R-project.R", InstallerFormat: "pkg", Name: "R for macOS", Slug: "r/darwin"}},
+		{"", inputApp{Token: "qgis", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS", Slug: "qgis/darwin"}},
+		{"", inputApp{Token: "qgis@ltr", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS LTR", Slug: "qgis@ltr/darwin"}},
 		{"", inputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
 		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
 		{"", inputApp{Token: "open-query", UniqueIdentifier: "com.example.app", InstallerFormat: "pkg", Name: "Example App"}},
@@ -259,6 +261,19 @@ func TestIngestValidations(t *testing.T) {
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.R-project.R' AND version_compare(REGEX_MATCH(bundle_short_version, 'R (?:R )?([0-9]+(?:\\.[0-9]+)+) GUI', 1), '1.0') < 0);",
 					out.Queries.Patched,
 				)
+			case "qgis":
+				// QGIS and QGIS LTR share a bundle identifier, so each is scoped to its install path.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "qgis@ltr":
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path = '/Applications/QGIS-LTR.app';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path = '/Applications/QGIS-LTR.app' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
 			default:
 				require.Equal(t,
 					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);", c.inputApp.UniqueIdentifier, out.Version),
@@ -271,6 +286,16 @@ func TestIngestValidations(t *testing.T) {
 				// Ingest a Chromium browser, the open query should also match the executable in the browser's code sign clone.
 				require.Equal(t,
 					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');", out.UniqueIdentifier),
+					out.Queries.Open,
+				)
+			case "qgis":
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.qgis.qgis3' AND a.path LIKE '/Applications/QGIS-final-%.app' AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			case "qgis@ltr":
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.qgis.qgis3' AND a.path = '/Applications/QGIS-LTR.app' AND a.bundle_executable != '');",
 					out.Queries.Open,
 				)
 			default:
