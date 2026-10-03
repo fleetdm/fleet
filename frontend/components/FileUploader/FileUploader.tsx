@@ -12,6 +12,26 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "file-uploader";
 
+// The HTML `accept` attribute only filters the native file picker; dropped
+// files are not pre-filtered by the browser. Mirror the picker's behavior
+// for drops so a FileUploader with `accept=".pem"` doesn't accept a dropped
+// `.txt`.
+const isFileAccepted = (file: File, accept?: string): boolean => {
+  if (!accept) return true;
+  const specs = accept
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (specs.length === 0) return true;
+  const type = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+  return specs.some((spec) => {
+    if (spec.startsWith(".")) return name.endsWith(spec);
+    if (spec.endsWith("/*")) return type.startsWith(spec.slice(0, -1));
+    return type === spec;
+  });
+};
+
 export type ISupportedGraphicNames = Extract<
   GraphicNames,
   | "file-configuration-profile"
@@ -25,6 +45,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-pem"
   | "file-vpp"
   | "file-png"
+  | "file-json"
   | "fleet-logo"
 >;
 
@@ -113,11 +134,23 @@ export const FileUploader = ({
   gitOpsModeEnabled = false,
 }: IFileUploaderProps) => {
   const [isFileSelected, setIsFileSelected] = useState(!!fileDetails);
+  const [isDragActive, setIsDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // When onButtonClick is set, the uploader renders no file input (file
+  // selection happens elsewhere, e.g. in a modal), so drops have nowhere
+  // to go. GitOps mode is a safety gate — if the click button is suppressed
+  // by GitOps, drops must be suppressed too.
+  const canAcceptDrop =
+    !disabled &&
+    !onButtonClick &&
+    !fileDetails &&
+    !(gitopsCompatible && gitOpsModeEnabled);
 
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: isFileSelected,
     [`${baseClass}__error`]: !!internalError,
+    [`${baseClass}__drag-active`]: isDragActive && canAcceptDrop,
   });
   const buttonVariant = buttonType === "button" ? "default" : "secondary";
 
@@ -137,6 +170,40 @@ export const FileUploader = ({
         fileInputRef.current.value = "";
       }
     }
+  };
+
+  // Always preventDefault on drag events over the component so the browser
+  // doesn't fall back to opening/downloading the file when a drop lands on
+  // the Card's padding or a FileDetails preview.
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (canAcceptDrop && !isDragActive) setIsDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    // dragleave fires when the pointer enters a child element too; ignore
+    // those so the active state doesn't flicker.
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragActive(false);
+    if (!canAcceptDrop) return;
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    // Reject the whole drop if any file would have been filtered out by
+    // the native picker. The signature returns FileList (read-only), so we
+    // can't hand back a partial batch; all-or-nothing matches "picker
+    // declined this file" semantics.
+    const hasInvalid = Array.from(files).some(
+      (file) => !isFileAccepted(file, accept)
+    );
+    if (hasInvalid) return;
+    onFileUpload(files);
+    setIsFileSelected(true);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -277,7 +344,12 @@ export const FileUploader = ({
   };
 
   return (
-    <div className={`${baseClass}__wrapper form-field`}>
+    <div
+      className={`${baseClass}__wrapper form-field`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {renderLabel()}
       <Card color="grey" className={classes}>
         {fileDetails ? (
