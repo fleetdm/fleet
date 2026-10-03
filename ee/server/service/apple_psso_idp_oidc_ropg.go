@@ -25,6 +25,23 @@ const defaultOIDCScopes = "openid profile email"
 // will read. Real responses (id_token + refresh_token JSON) are a few KB.
 const maxOIDCTokenResponseSize = 1 << 20 // 1 MiB
 
+// oauthErrInvalidGrant is the OAuth 2.0 token error (RFC 6749 section 5.2) an
+// IdP returns when the resource owner's credentials are wrong.
+const oauthErrInvalidGrant = "invalid_grant"
+
+// pssoIdPClientConfigError is an IdP token error caused by Fleet's IdP client
+// settings rather than the user. The IdP's details are logged via Internal but
+// never sent to the device: a plain error's text would be.
+type pssoIdPClientConfigError struct {
+	detail string
+}
+
+func (e *pssoIdPClientConfigError) Error() string {
+	return "identity provider rejected Fleet's client configuration"
+}
+
+func (e *pssoIdPClientConfigError) Internal() string { return e.detail }
+
 // PSSOOIDCROPGClient validates passwords against any OIDC IdP that exposes
 // the OAuth2 Resource Owner Password Grant on its token endpoint
 type PSSOOIDCROPGClient struct {
@@ -102,7 +119,16 @@ func (c PSSOOIDCROPGClient) ValidatePasswordAndGetClaims(ctx context.Context, us
 		return nil, ctxerr.Wrap(ctx, jerr, "decode oidc ropg response")
 	}
 	if resp.StatusCode != http.StatusOK || parsed.Error != "" {
-		return nil, fleet.NewAuthFailedError(fmt.Sprintf("idp rejected password: %s %s", parsed.Error, parsed.ErrorDesc))
+		// invalid_grant is the IdP rejecting the user's credentials, the only
+		// case the user can fix. Any other error (invalid_client,
+		// unauthorized_client, ...) means Fleet's IdP client settings are wrong,
+		// which the device must not present as a bad password.
+		if parsed.Error == oauthErrInvalidGrant {
+			return nil, fleet.NewAuthFailedError(fmt.Sprintf("idp rejected password: %s %s", parsed.Error, parsed.ErrorDesc))
+		}
+		return nil, &pssoIdPClientConfigError{detail: fmt.Sprintf(
+			"idp token endpoint returned HTTP %d %q %q: check the Apple account provisioning token URL, client ID, and client secret",
+			resp.StatusCode, parsed.Error, parsed.ErrorDesc)}
 	}
 	if parsed.IDToken == "" {
 		return nil, errors.New("idp response missing id_token (is 'openid' in the configured scopes?)")
