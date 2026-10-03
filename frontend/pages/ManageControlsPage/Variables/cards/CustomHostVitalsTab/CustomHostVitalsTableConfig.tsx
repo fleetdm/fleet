@@ -60,8 +60,8 @@ const generateTableHeaders = ({
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: "Variable",
-      Header: "Variable",
+      title: "Variable name",
+      Header: "Variable name",
       disableSortBy: true,
       accessor: "id",
       Cell: (cellProps) => {
@@ -69,7 +69,12 @@ const generateTableHeaders = ({
         return (
           <div className="custom-host-vitals-tab__token">
             <TextCell value={token} />
-            <CopyButton copyText={token} variant="subdued" size="small" />
+            <CopyButton
+              copyText={token}
+              variant="subdued"
+              size="small"
+              className="row-hover-button"
+            />
           </div>
         );
       },

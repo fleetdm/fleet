@@ -66,7 +66,12 @@ const generateTableHeaders = ({
         return (
           <div className="global-variables__token">
             <TextCell value={token} />
-            <CopyButton copyText={token} variant="subdued" size="small" />
+            <CopyButton
+              copyText={token}
+              variant="subdued"
+              size="small"
+              className="row-hover-button"
+            />
           </div>
         );
       },
