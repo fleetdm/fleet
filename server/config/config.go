@@ -150,6 +150,7 @@ type ServerConfig struct {
 	GzipResponses                    bool          `yaml:"gzip_responses"`
 	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
 	AllowPrivateNetworkIntegrations  bool          `yaml:"allow_private_network_integrations"`
+	PrivateNetworkAllowList          string        `yaml:"private_network_allow_list"`
 	BypassNetworkBlocking            bool          `yaml:"bypass_network_blocking"`
 	AllowRequestCertificateAnyIdP    bool          `yaml:"allow_request_certificate_any_idp"`
 	EndpointRequestSizeOverrides     EndpointRequestSizeOverrides
@@ -1710,7 +1711,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
-	man.addConfigBool("server.allow_private_network_integrations", false, "Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
+	man.addConfigBool("server.allow_private_network_integrations", false, "Deprecated: use server.private_network_allow_list instead. Server startup will fail if this setting is enabled.")
+	man.addConfigString("server.private_network_allow_list", "", "Comma-separated list of IP addresses, CIDR networks, DNS names, or wildcard patterns (e.g. *.example.com) that bypass outbound SSRF blocking. Entries may include an optional port (e.g. 10.0.0.1:8080, [::1]:443). Supersedes server.allow_private_network_integrations.")
 	man.addConfigBool("server.bypass_network_blocking", false, "Disable all outbound network blocking protections for integration HTTP requests (loopback, cloud metadata, and private network addresses). Only intended for environments where egress is already constrained by external infrastructure (e.g. an egress proxy or firewall) that Fleet's own checks would otherwise conflict with. This is an infrastructure-level setting and cannot be changed at runtime.")
 	man.addConfigBool("server.allow_request_certificate_any_idp", false,
 		"Disable the request certificate API identity safeguards: accept IdP credentials for any introspection endpoint and do not bind device-authenticated requests to the host's end user")
@@ -2284,6 +2286,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
 			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
 			AllowPrivateNetworkIntegrations:  man.getConfigBool("server.allow_private_network_integrations"),
+			PrivateNetworkAllowList:          man.getConfigStringList("server.private_network_allow_list"),
 			BypassNetworkBlocking:            man.getConfigBool("server.bypass_network_blocking"),
 			AllowRequestCertificateAnyIdP:    man.getConfigBool("server.allow_request_certificate_any_idp"),
 			EndpointRequestSizeOverrides:     man.getConfigEndpointRequestSizeOverrides(),
@@ -2705,6 +2708,32 @@ func (man Manager) getConfigString(key string) string {
 	}
 
 	return stringVal
+}
+
+// getConfigStringList retrieves a config value that may be either a plain
+// comma-separated string (from an environment variable or CLI flag) or a
+// YAML list of strings. Both forms are normalised to a single
+// comma-separated string.
+func (man Manager) getConfigStringList(key string) string {
+	interfaceVal := man.getInterfaceVal(key)
+	switch v := interfaceVal.(type) {
+	case string:
+		return v
+	case []any:
+		parts := make([]string, 0, len(v))
+		for _, item := range v {
+			s, err := cast.ToStringE(item)
+			if err != nil {
+				panic(fmt.Sprintf("Unable to cast list item to string for key %s: %s", key, err.Error()))
+			}
+			parts = append(parts, s)
+		}
+		return strings.Join(parts, ",")
+	case nil:
+		return ""
+	default:
+		panic(fmt.Sprintf("Unexpected type %T for key %s", interfaceVal, key))
+	}
 }
 
 // getConfigNonNegativeInt is like getConfigInt but panics on negative values,
