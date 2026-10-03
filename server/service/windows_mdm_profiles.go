@@ -357,12 +357,22 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 }
 
 // subjectNameHasRenewalIDMarker reports whether a SubjectName data string
-// contains the renewal-ID variable in OU=. The legacy SCEP_RENEWAL_ID name
-// is accepted alongside CERTIFICATE_RENEWAL_ID for back-compat.
+// contains the renewal-ID variable in its CN or OU, the two fields host
+// certificate ingestion matches on. CN matters for CAs that drop the OU from
+// issued certificates (e.g. Okta). The legacy SCEP_RENEWAL_ID name is accepted
+// alongside CERTIFICATE_RENEWAL_ID for back-compat.
 func subjectNameHasRenewalIDMarker(data string) bool {
-	for _, v := range []fleet.FleetVarName{fleet.FleetVarCertificateRenewalID, fleet.FleetVarSCEPRenewalID} {
-		if strings.Contains(data, "OU="+v.WithPrefix()) || strings.Contains(data, "OU="+v.WithBraces()) {
-			return true
+	attrs := strings.FieldsFunc(data, func(r rune) bool { return r == ',' || r == ';' || r == '+' })
+	for _, attr := range attrs {
+		key, value, found := strings.Cut(attr, "=")
+		if !found {
+			continue
+		}
+		switch strings.ToUpper(strings.TrimSpace(key)) {
+		case "CN", "OU":
+			if fleet.FleetVarRenewalIDRegexp.MatchString(value) {
+				return true
+			}
 		}
 	}
 	return false
@@ -504,7 +514,7 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 			}
 			if isSubjectName && !subjectNameHasRenewalIDMarker(dataContent) {
 				return &fleet.BadRequestError{
-					Message: fmt.Sprintf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarCertificateRenewalID.WithPrefix()),
+					Message: fmt.Sprintf("SubjectName item must contain the %s variable in the CN or OU field", fleet.FleetVarCertificateRenewalID.WithPrefix()),
 				}
 			}
 		}
@@ -545,7 +555,7 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 				}
 
 				if !subjectNameHasRenewalIDMarker(cmd.Data.Content) {
-					return fmt.Errorf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarCertificateRenewalID.WithPrefix())
+					return fmt.Errorf("SubjectName item must contain the %s variable in the CN or OU field", fleet.FleetVarCertificateRenewalID.WithPrefix())
 				}
 			}
 		}
