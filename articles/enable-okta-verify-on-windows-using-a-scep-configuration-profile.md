@@ -22,7 +22,7 @@ Collect from your Okta tenant:
 
 > **Note:** Use a static SCEP challenge, which is the best practice on Windows. Dynamic SCEP challenges are also supported, but Okta's dynamic SCEP challenges sometimes include `_`, which Windows doesn't accept, so enrollment fails on some hosts. Windows only accepts letters, numbers, spaces, and `' ( ) + , - . / : = ?` in a SCEP challenge. Fleet resends failed profiles, but that doesn't guarantee success. Automatically requesting a new challenge from Okta when this happens is [coming soon](https://github.com/fleetdm/fleet/issues/49552).
 >
-> To use a dynamic SCEP challenge, connect Okta to Fleet as a certificate authority (see [Steps 1 and 2 of the Okta section](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#okta)). Then, in the profile, replace `$FLEET_SECRET_OKTA_SCEP_URL` with `$FLEET_VAR_NDES_SCEP_PROXY_URL` and `$FLEET_SECRET_OKTA_SCEP_CHALLENGE` with `$FLEET_VAR_NDES_SCEP_CHALLENGE`, and add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to the SubjectName OU.
+> To use a dynamic SCEP challenge, connect Okta to Fleet as a certificate authority (see [Steps 1 and 2 of the Okta section](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#okta)). Then, in the profile, replace `$FLEET_SECRET_OKTA_SCEP_URL` with `$FLEET_VAR_NDES_SCEP_PROXY_URL` and `$FLEET_SECRET_OKTA_SCEP_CHALLENGE` with `$FLEET_VAR_NDES_SCEP_CHALLENGE`, and add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to the SubjectName CN (see [Automatic renewal](#automatic-renewal)).
 
 ### 2. Get your CA thumbprint
 
@@ -146,15 +146,17 @@ Get-WinEvent -LogName Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-
 
 ## Automatic renewal
 
-Include `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the SubjectName OU of your SCEP profile to opt into auto-renewal. Fleet renews certificates about 30 days before expiration; new profiles deployed without this variable continue to work but must be renewed manually.
+Auto-renewal requires a dynamic SCEP challenge (see the note in [Gather your Okta details](#1-gather-your-okta-details)). With a static challenge, Fleet doesn't accept `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the profile, so redeploy the profile before certificates expire.
+
+With a dynamic challenge, include `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` once in the SubjectName CN of your SCEP profile to opt into auto-renewal. Fleet renews certificates about 30 days before expiration; new profiles deployed without this variable continue to work but must be renewed manually.
 
 **Example SubjectName containing the marker:**
 
 ```
-CN=$FLEET_VAR_HOST_HARDWARE_SERIAL managementAttestation,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID
+CN=$FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation
 ```
 
-**CA-side requirement**: your SCEP CA must preserve the Subject OU in issued certificates. Verify by decoding an issued cert (`openssl x509 -text`) and confirming the OU contains `fleet-<profile_uuid>` after deployment.
+Okta drops the Subject OU from the certificates it issues, so put the variable in the CN, not the OU. To confirm, decode an issued cert (`openssl x509 -text`) and check that the CN contains `fleet-<profile_uuid>` after deployment.
 
 ### Monitor expiration (optional safeguard)
 
