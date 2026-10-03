@@ -231,6 +231,10 @@ spec:
           - name: FLEET_OPENFRAME_TEAM_ID
             value: {{ .Values.fleet.openframe.multiTenancy.teamId | quote }}
           {{- end }}
+          {{- if .Values.fleet.openframe.multiTenancy.superuserEmails }}
+          - name: FLEET_OPENFRAME_SUPERUSER_EMAILS
+            value: {{ .Values.fleet.openframe.multiTenancy.superuserEmails | quote }}
+          {{- end }}
           # <<< OPENFRAME(mysql-multitenancy)
           ## END FLEET SECTION
           ## BEGIN MYSQL SECTION

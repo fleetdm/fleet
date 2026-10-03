@@ -90,8 +90,9 @@ func makeStreamDistributedQueryCampaignResultsHandler(config config.ServerConfig
 			// activity stamped with a NULL team_id. Re-apply the pin from the upgrade request (read
 			// once: polling transports mutate the session request under a lock). The base ctx stays
 			// Background so the stream's cancellation semantics are unchanged. Fail closed in shared
-			// mode: the middleware 401s a headerless upgrade before the handler runs, so an unpinned
-			// session here means the handler was mounted outside the middleware.
+			// mode unless the authenticated viewer is a configured superuser, which streams unpinned
+			// across every tenant on purpose; a headerless upgrade from anyone else is already 401ed
+			// by the middleware before this handler runs.
 			// — openframe/docs/mysql-multitenancy-feature.md
 			if req := session.Request(); req != nil {
 				if teamID, ok := fleet.OpenframeTeamID(req.Context()); ok {
@@ -99,9 +100,15 @@ func makeStreamDistributedQueryCampaignResultsHandler(config config.ServerConfig
 				}
 			}
 			if _, ok := fleet.OpenframeTeamID(ctx); !ok && fleet.IsOpenframeSharedMode() {
-				logger.ErrorContext(ctx, "openframe shared mode: rejecting campaign stream without tenant pin")
-				conn.WriteJSONError("missing tenant") //nolint:errcheck
-				return
+				email := vc.Email()
+				if !fleet.IsOpenframeSuperuser(email) {
+					logger.ErrorContext(ctx, "openframe shared mode: rejecting campaign stream without tenant pin")
+					conn.WriteJSONError("missing tenant") //nolint:errcheck
+					return
+				}
+				userID := vc.UserID()
+				logger.InfoContext(ctx, "openframe shared mode: streaming campaign unpinned for superuser",
+					"user_id", userID)
 			}
 			// <<< OPENFRAME(mysql-multitenancy)
 

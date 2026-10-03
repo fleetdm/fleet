@@ -258,3 +258,39 @@ func TestOpenframeTrimAgentOptions(t *testing.T) {
 		}
 	}
 }
+
+// OPENFRAME(mysql-multitenancy): the research-superuser allowlist. Exercised through the pure
+// parse/decide pair so the cached env read is never involved.
+func TestParseOpenframeSuperuserEmails(t *testing.T) {
+	allowlist := parseOpenframeSuperuserEmails(" Research@Flamingo.CX , ops@flamingo.cx ,, ")
+
+	// Trimmed, lowercased, blanks dropped — an operator pasting a spaced list still gets what
+	// they meant, and a trailing comma does not create a "" entry that matches a missing e-mail.
+	if len(allowlist) != 2 {
+		t.Fatalf("expected 2 entries, got %d: %v", len(allowlist), allowlist)
+	}
+	for _, email := range []string{"research@flamingo.cx", "RESEARCH@FLAMINGO.CX", " ops@flamingo.cx "} {
+		if !isOpenframeSuperuser(allowlist, email) {
+			t.Errorf("expected %q to be recognised", email)
+		}
+	}
+	for _, email := range []string{"", "   ", "someone.else@flamingo.cx", "admin@openframe.local"} {
+		if isOpenframeSuperuser(allowlist, email) {
+			t.Errorf("expected %q NOT to be recognised", email)
+		}
+	}
+}
+
+// The default must be "no such caller exists", so a deployment that never names a superuser keeps
+// shared mode fail closed exactly as before this feature.
+func TestOpenframeSuperuserAllowlistEmptyByDefault(t *testing.T) {
+	for _, raw := range []string{"", "   ", ",", " , "} {
+		allowlist := parseOpenframeSuperuserEmails(raw)
+		if len(allowlist) != 0 {
+			t.Errorf("raw %q: expected empty allowlist, got %v", raw, allowlist)
+		}
+		if isOpenframeSuperuser(allowlist, "research@flamingo.cx") {
+			t.Errorf("raw %q: recognised a caller from an empty allowlist", raw)
+		}
+	}
+}

@@ -767,7 +767,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		// non-agent paths without it). Returns apiHandler unchanged unless the process runs in
 		// shared per-request mode. Must come after apiendpoints.Validate, which type-asserts the
 		// raw *mux.Router.
-		apiHandler = service.WithOpenframeTenant(mds, logger, apiHandler)
+		apiHandler = service.WithOpenframeTenant(mds, svc, logger, apiHandler)
 		// <<< OPENFRAME(mysql-multitenancy)
 
 		if serveCSP {

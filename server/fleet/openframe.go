@@ -197,6 +197,52 @@ func openframeMultitenancyConfigError(multitenancyEnabled bool, teamIDRaw, tenan
 	return nil
 }
 
+// openframeSuperuserEmails caches the research-superuser allowlist
+// (FLEET_OPENFRAME_SUPERUSER_EMAILS, comma-separated, case-insensitive). Empty — the default —
+// means the escape hatch does not exist and shared mode stays fail-closed for every caller, so
+// naming a superuser is an explicit operator decision per deployment.
+var openframeSuperuserEmails = sync.OnceValue(func() map[string]struct{} {
+	return parseOpenframeSuperuserEmails(os.Getenv("FLEET_OPENFRAME_SUPERUSER_EMAILS"))
+})
+
+// parseOpenframeSuperuserEmails parses the allowlist into a lookup set. Pure (no env) so it can
+// be unit-tested directly.
+func parseOpenframeSuperuserEmails(raw string) map[string]struct{} {
+	emails := make(map[string]struct{})
+	for _, entry := range strings.Split(raw, ",") {
+		email := normalizeOpenframeEmail(entry)
+		if email != "" {
+			emails[email] = struct{}{}
+		}
+	}
+	return emails
+}
+
+// IsOpenframeSuperuser reports whether this user may run a shared-mode request UNPINNED, i.e.
+// with every tenant fence inert, which is what reaching all tenants' devices from one live query
+// requires. It is consulted only on the two shared-mode gates that would otherwise fail closed
+// (the tenant middleware and the campaign stream), and only for a caller that already holds a
+// valid Fleet session — so it widens what an authenticated operator may see, never who may
+// authenticate.
+func IsOpenframeSuperuser(email string) bool {
+	return isOpenframeSuperuser(openframeSuperuserEmails(), email)
+}
+
+// isOpenframeSuperuser is the pure decision behind IsOpenframeSuperuser. Separated so the
+// allowlist semantics can be unit-tested without mutating process env / the cached set.
+func isOpenframeSuperuser(allowlist map[string]struct{}, email string) bool {
+	normalized := normalizeOpenframeEmail(email)
+	if normalized == "" {
+		return false
+	}
+	_, ok := allowlist[normalized]
+	return ok
+}
+
+func normalizeOpenframeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
 // openframeUnsafeAgentOptions are osquery options that replace endpoint/plugin flag values on the
 // agent. Serving them rewrote logger_tls_endpoint on openframe agents and silently dropped every
 // scheduled result and status log - behavioral options (intervals etc.) are safe.

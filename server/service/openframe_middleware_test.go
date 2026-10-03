@@ -7,11 +7,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -33,7 +35,7 @@ func testTenantHandler(t *testing.T, ensurer *fakeTeamEnsurer) http.Handler {
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	return openframeTenantHandler(ensurer, slog.New(slog.DiscardHandler), next)
+	return openframeTenantHandler(ensurer, noOpenframeSuperuser, noOpenframeSuperuserEmail, slog.New(slog.DiscardHandler), next)
 }
 
 func TestOpenframeTenantHandlerPinsFromHeader(t *testing.T) {
@@ -44,7 +46,7 @@ func TestOpenframeTenantHandlerPinsFromHeader(t *testing.T) {
 		gotTeam, gotOK = fleet.OpenframeTeamID(r.Context())
 		w.WriteHeader(http.StatusOK)
 	})
-	h := openframeTenantHandler(ensurer, slog.New(slog.DiscardHandler), next)
+	h := openframeTenantHandler(ensurer, noOpenframeSuperuser, noOpenframeSuperuserEmail, slog.New(slog.DiscardHandler), next)
 
 	const tenantUUID = "3f1a9b2c-0000-4d5e-8f00-000000000001"
 	for i := 0; i < 3; i++ {
@@ -86,7 +88,7 @@ func TestOpenframeTenantHandlerFailClosed(t *testing.T) {
 		ensurer := &fakeTeamEnsurer{err: context.DeadlineExceeded}
 		reached := false
 		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { reached = true })
-		h := openframeTenantHandler(ensurer, slog.New(slog.DiscardHandler), next)
+		h := openframeTenantHandler(ensurer, noOpenframeSuperuser, noOpenframeSuperuserEmail, slog.New(slog.DiscardHandler), next)
 		req := httptest.NewRequest("GET", "/api/latest/fleet/hosts", nil)
 		req.Header.Set("X-Tenant-Id", "3f1a9b2c-0000-4d5e-8f00-000000000001")
 		rr := httptest.NewRecorder()
@@ -105,7 +107,7 @@ func TestOpenframeTenantHandlerAgentPathsExempt(t *testing.T) {
 		_, pinnedOK = fleet.OpenframeTeamID(r.Context())
 		w.WriteHeader(http.StatusOK)
 	})
-	h := openframeTenantHandler(ensurer, slog.New(slog.DiscardHandler), next)
+	h := openframeTenantHandler(ensurer, noOpenframeSuperuser, noOpenframeSuperuserEmail, slog.New(slog.DiscardHandler), next)
 
 	// No header, agent-plane path → passes through unpinned; the tenant is derived later
 	// from the authenticated host / enroll secret.
@@ -183,4 +185,131 @@ func TestOpenframePinHostTeamShared(t *testing.T) {
 		_, err := openframePinHostTeamShared(ctx, nil)
 		require.Error(t, err)
 	})
+}
+
+// --- superuser escape hatch -------------------------------------------------
+
+// noOpenframeSuperuser is the resolver the pre-existing tests run with: no caller is ever
+// recognised, so they keep asserting the fail-closed behavior they were written for.
+func noOpenframeSuperuser(_ context.Context, _ string) (*viewer.Viewer, error) {
+	return nil, errors.New("no session")
+}
+
+// noOpenframeSuperuserEmail is the allowlist the pre-existing tests run with: empty, so nobody is
+// recognised and they keep asserting the fail-closed behavior they were written for.
+func noOpenframeSuperuserEmail(_ string) bool { return false }
+
+func allowOnly(allowed string) openframeSuperuserPredicate {
+	return func(email string) bool { return email == allowed }
+}
+
+func viewerFor(email string) *viewer.Viewer {
+	return &viewer.Viewer{
+		User:    &fleet.User{ID: 7, Email: email},
+		Session: &fleet.Session{ID: 1},
+	}
+}
+
+// resolverFor recognises exactly one session key, the way a live Fleet session would.
+func resolverFor(sessionKey, email string) openframeViewerResolver {
+	return func(_ context.Context, key string) (*viewer.Viewer, error) {
+		if key != sessionKey {
+			return nil, errors.New("no session")
+		}
+		return viewerFor(email), nil
+	}
+}
+
+func superuserHandler(t *testing.T, resolve openframeViewerResolver, isSuperuser openframeSuperuserPredicate) http.Handler {
+	t.Helper()
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, pinned := fleet.OpenframeTeamID(r.Context()); pinned {
+			t.Error("superuser request must reach the handler unpinned")
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	return openframeTenantHandler(&fakeTeamEnsurer{teamID: 42}, resolve, isSuperuser, slog.New(slog.DiscardHandler), next)
+}
+
+func TestOpenframeSuperuserServedUnpinned(t *testing.T) {
+	const (
+		sessionKey = "a-live-session-key"
+		email      = "research@flamingo.cx"
+	)
+	t.Run("bearer token", func(t *testing.T) {
+		h := superuserHandler(t, resolverFor(sessionKey, email), allowOnly(email))
+		req := httptest.NewRequest("GET", "/api/latest/fleet/hosts", nil)
+		req.Header.Set("Authorization", "Bearer "+sessionKey)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+	})
+
+	// The live-query result stream is a WebSocket upgrade: a browser attaches cookies to it but
+	// cannot attach an Authorization header, so the cookie is the only identity it can carry.
+	for _, name := range []string{"token", "__Host-token"} {
+		t.Run("session cookie "+name, func(t *testing.T) {
+			h := superuserHandler(t, resolverFor(sessionKey, email), allowOnly(email))
+			req := httptest.NewRequest("GET", "/api/v1/fleet/results/1/abc/websocket", nil)
+			req.AddCookie(&http.Cookie{Name: name, Value: sessionKey})
+			rr := httptest.NewRecorder()
+			h.ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Code)
+		})
+	}
+}
+
+func TestOpenframeSuperuserStaysFailClosed(t *testing.T) {
+	const (
+		sessionKey = "a-live-session-key"
+		email      = "research@flamingo.cx"
+	)
+
+	t.Run("a session that is not on the allowlist is still rejected", func(t *testing.T) {
+		ensurer := &fakeTeamEnsurer{teamID: 42}
+		h := openframeTenantHandler(ensurer, resolverFor(sessionKey, "someone.else@flamingo.cx"),
+			allowOnly(email), slog.New(slog.DiscardHandler),
+			http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			}))
+		req := httptest.NewRequest("GET", "/api/latest/fleet/hosts", nil)
+		req.Header.Set("Authorization", "Bearer "+sessionKey)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	})
+
+	t.Run("an unknown session key is rejected even for an allowlisted address", func(t *testing.T) {
+		h := superuserHandler(t, resolverFor(sessionKey, email), allowOnly(email))
+		req := httptest.NewRequest("GET", "/api/latest/fleet/hosts", nil)
+		req.Header.Set("Authorization", "Bearer not-the-session-key")
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	})
+}
+
+func TestOpenframeSessionBootstrapPathsNeedNoTenant(t *testing.T) {
+	// Without these a shared-mode Fleet cannot be logged into at all: the login page reads the SSO
+	// settings and posts credentials before anyone holds a token.
+	bootstrap := []string{
+		"/api/v1/fleet/login",
+		"/api/latest/fleet/logout",
+		"/api/v1/fleet/sessions",
+		"/api/v1/fleet/sso",
+		"/api/v1/fleet/sso/callback",
+	}
+	for _, path := range bootstrap {
+		assert.True(t, openframeSessionBootstrapPath.MatchString(path), path)
+	}
+
+	// Anchored: the admin endpoint that merely ends in /sessions must keep requiring a tenant.
+	pinned := []string{
+		"/api/v1/fleet/users/3/sessions",
+		"/api/latest/fleet/hosts",
+		"/api/v1/fleet/login/extra",
+	}
+	for _, path := range pinned {
+		assert.False(t, openframeSessionBootstrapPath.MatchString(path), path)
+	}
 }

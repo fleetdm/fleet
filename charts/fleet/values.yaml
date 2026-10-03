@@ -137,6 +137,11 @@ fleet:
       existingConfigMap: ""   # optional: read the tenant UUID from your own ConfigMap instead
       tenantUuidKey: "FLEET_OPENFRAME_TENANT_UUID"  # key holding the UUID in either ConfigMap
       teamId: ""              # escape hatch: direct FLEET_OPENFRAME_TEAM_ID pin (prefer tenantUuid)
+      # shared mode only: comma-separated Fleet user e-mails allowed to run UNPINNED, i.e. across
+      # every tenant on the shared DB. Empty (the default) means no such caller exists and shared
+      # mode stays fail closed. Use a dedicated research account, never the per-tenant admin whose
+      # token the gateway holds.
+      superuserEmails: ""
   # <<< OPENFRAME(mysql-multitenancy)
   mdm:
     windows:

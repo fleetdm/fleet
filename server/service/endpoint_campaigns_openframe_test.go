@@ -69,7 +69,7 @@ func streamCampaignAndObservePin(t *testing.T, withTenantMiddleware bool) observ
 		config.TestConfig().Server, svc, slog.New(slog.DiscardHandler))
 	handler := pathHandler("/api/{fleetversion:(?:latest)}/fleet/results/")
 	if withTenantMiddleware {
-		handler = openframeTenantHandler(&fakeTeamEnsurer{teamID: 42}, slog.New(slog.DiscardHandler), handler)
+		handler = openframeTenantHandler(&fakeTeamEnsurer{teamID: 42}, noOpenframeSuperuser, noOpenframeSuperuserEmail, slog.New(slog.DiscardHandler), handler)
 	}
 	s := httptest.NewServer(handler)
 	defer s.Close()

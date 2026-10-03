@@ -6,10 +6,14 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/google/uuid"
 )
 
@@ -17,35 +21,72 @@ import (
 // copies are stripped upstream; fleet-service is reachable only via the gateway).
 const openframeTenantHeader = "X-Tenant-Id"
 
+// openframeSessionCookieNames are where the Fleet UI keeps the session key — "__Host-token" when
+// served over HTTPS, "token" otherwise (frontend/utilities/auth_token). A browser attaches cookies
+// to a WebSocket upgrade but cannot attach headers to one, so on the live-query result stream the
+// cookie is the only place the caller's identity can come from.
+var openframeSessionCookieNames = []string{"__Host-token", "token"}
+
+// openframeSessionBootstrapPath matches the unauthenticated session endpoints a caller must reach
+// before it holds the token the superuser check recognises it by, plus the SSO settings the login
+// page reads before anyone has logged in. None of them read tenant-scoped data: Fleet users and
+// sessions are instance-wide, and the SSO settings come from the instance app config row.
+// Anchored on purpose — /api/{v}/fleet/users/{id}/sessions is an authenticated admin endpoint and
+// must keep requiring a tenant.
+var openframeSessionBootstrapPath = regexp.MustCompile(`^/api/[^/]+/fleet/(login|logout|sessions|sso(/callback)?)$`)
+
 type openframeTeamEnsurer interface {
 	EnsureOpenframeTeamID(ctx context.Context, tenantUUID string) (uint, error)
 }
 
+// openframeViewerResolver resolves the caller behind a session key. It is the auth.AuthViewer seam,
+// narrowed to a func so the superuser path is testable without standing up a whole fleet.Service.
+type openframeViewerResolver func(ctx context.Context, sessionKey string) (*viewer.Viewer, error)
+
+// openframeSuperuserPredicate answers whether an e-mail is on the superuser allowlist. Passed in
+// rather than read through fleet.IsOpenframeSuperuser directly because that allowlist is parsed
+// from the environment exactly once per process, which a test cannot steer.
+type openframeSuperuserPredicate func(email string) bool
+
 // WithOpenframeTenant pins each control-plane request to the team named by the X-Tenant-Id header.
 // Outside shared mode it returns next unchanged (zero overhead); in shared mode a non-exempt
-// request without a resolvable tenant is rejected (fail closed).
-func WithOpenframeTenant(ds openframeTeamEnsurer, logger *slog.Logger, next http.Handler) http.Handler {
+// request without a resolvable tenant is rejected (fail closed) unless it authenticates as a
+// configured superuser, which then runs unpinned — every tenant fence inert — on purpose.
+func WithOpenframeTenant(ds openframeTeamEnsurer, svc fleet.Service, logger *slog.Logger, next http.Handler) http.Handler {
 	if !fleet.IsOpenframeSharedMode() {
 		return next
 	}
-	return openframeTenantHandler(ds, logger, next)
+	resolveViewer := func(ctx context.Context, sessionKey string) (*viewer.Viewer, error) {
+		return auth.AuthViewer(ctx, sessionKey, svc)
+	}
+	return openframeTenantHandler(ds, resolveViewer, fleet.IsOpenframeSuperuser, logger, next)
 }
 
 // openframeTenantHandler is split out so it can be tested without toggling the cached shared-mode env.
-func openframeTenantHandler(ds openframeTeamEnsurer, logger *slog.Logger, next http.Handler) http.Handler {
+func openframeTenantHandler(ds openframeTeamEnsurer, resolveViewer openframeViewerResolver,
+	isSuperuser openframeSuperuserPredicate, logger *slog.Logger, next http.Handler,
+) http.Handler {
 	var teamIDByTenantUUID sync.Map // tenant UUID → team id uint (a tenant's team id never changes)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		// Agent/device/MDM planes carry no gateway header — their tenant comes from the
-		// authenticated host / enroll secret (openframePinHostTeam, the enrollment pins).
-		if openframeTenantExemptPath(r.URL.Path) {
+		// authenticated host / enroll secret (openframePinHostTeam, the enrollment pins). The
+		// session endpoints carry none either, and cannot: they are what a caller goes through to
+		// obtain the token it is then recognised by.
+		if openframeTenantExemptPath(r.URL.Path) || openframeSessionBootstrapPath.MatchString(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		tenantUUID := strings.TrimSpace(r.Header.Get(openframeTenantHeader))
 		if tenantUUID == "" {
+			if isOpenframeSuperuserRequest(ctx, r, resolveViewer, isSuperuser) {
+				logger.InfoContext(ctx, "openframe shared mode: serving request unpinned for superuser",
+					"path", r.URL.Path, "remote_addr", r.RemoteAddr)
+				next.ServeHTTP(w, r)
+				return
+			}
 			logger.WarnContext(ctx, "openframe shared mode: rejecting request without tenant header",
 				"path", r.URL.Path, "remote_addr", r.RemoteAddr)
 			encodeError(ctx, fleet.NewAuthRequiredError("missing tenant"), w)
@@ -100,6 +141,44 @@ func openframeTenantExemptPath(path string) bool {
 		}
 	}
 	return false
+}
+
+// isOpenframeSuperuserRequest reports whether an unpinned request may run unpinned anyway: it must
+// carry a session key that resolves to a live Fleet session whose user is on the superuser
+// allowlist. This widens what an already-authenticated operator may reach — never who may
+// authenticate — and with an empty allowlist (the default) it is always false, so shared mode stays
+// fail closed. Reached only when the gateway header is absent, so normal tenant traffic never pays
+// for the session lookup.
+func isOpenframeSuperuserRequest(ctx context.Context, r *http.Request, resolveViewer openframeViewerResolver,
+	isSuperuser openframeSuperuserPredicate,
+) bool {
+	sessionKey := openframeSessionKey(r)
+	if sessionKey == "" {
+		return false
+	}
+	vc, err := resolveViewer(ctx, sessionKey)
+	if err != nil || !vc.CanPerformActions() {
+		return false
+	}
+	email := vc.Email()
+	return isSuperuser(email)
+}
+
+// openframeSessionKey reads the caller's Fleet session key, preferring the Authorization header and
+// falling back to the UI's session cookie — the WebSocket upgrade that carries the live-query
+// result stream can carry no header, so without the cookie a browser could never be recognised.
+func openframeSessionKey(r *http.Request) string {
+	bearer := token.FromHTTPRequest(r)
+	if bearer != "" {
+		return string(bearer)
+	}
+	for _, name := range openframeSessionCookieNames {
+		cookie, err := r.Cookie(name)
+		if err == nil && cookie.Value != "" {
+			return cookie.Value
+		}
+	}
+	return ""
 }
 
 // openframePinHostTeam scopes ctx to the authenticated host's team in shared mode; a host with no
