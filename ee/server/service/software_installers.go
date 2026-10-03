@@ -661,6 +661,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	isScriptPackage := fleet.IsScriptPackage(existingInstaller.Extension)
+	releaseInstallScriptToFleet := existingInstaller.FleetMaintainedAppID != nil &&
+		existingInstaller.InstallScriptEdited && payload.InstallScript != nil && *payload.InstallScript == ""
+	if releaseInstallScriptToFleet {
+		// Ownership changed even when a package type has no generated default and the
+		// stored script content therefore stays unchanged until the next FMA update.
+		dirty["InstallScriptManagement"] = true
+	}
 
 	// default pre-install query is blank, so blanking out the query doesn't have a semantic meaning we have to take care of
 	if payload.PreInstallQuery != nil {
@@ -680,6 +687,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		} else {
 			installScript := file.Dos2UnixNewlines(*payload.InstallScript)
 			installScript = getInstallScript(existingInstaller.Extension, existingInstaller.PackageIDs(), installScript)
+			if installScript == "" && releaseInstallScriptToFleet {
+				// Some package types (for example .dmg) have no generic default install script.
+				// Keep the currently-working script until the FMA updater replaces it from the manifest.
+				installScript = existingInstaller.InstallScript
+			}
 			if installScript == "" {
 				return nil, &fleet.BadRequestError{
 					Message: fmt.Sprintf("Couldn't edit. Install script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
@@ -886,8 +898,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				payload.SelfService = &existingInstaller.SelfService
 			}
 
-			// Once a script is manually edited it can't be undone by the update endpoint.
-			payload.InstallScriptEdited = existingInstaller.InstallScriptEdited || dirty["InstallScript"]
+			// Clearing an edited Fleet-maintained install script hands ownership back to Fleet.
+			// Other edits remain sticky so auto-update continues preserving administrator content.
+			payload.InstallScriptEdited = (existingInstaller.InstallScriptEdited || dirty["InstallScript"]) && !releaseInstallScriptToFleet
 			payload.UninstallScriptEdited = existingInstaller.UninstallScriptEdited || dirty["UninstallScript"]
 
 			// Get the hosts that are NOT in label scope currently (before the update happens)
