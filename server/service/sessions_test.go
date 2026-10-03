@@ -102,11 +102,15 @@ func TestSessionAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
+			ds.MarkSessionAccessedFuncInvoked = false
 			_, err := svc.GetInfoAboutSessionsForUser(ctx, 999)
 			checkAuthErr(t, tt.shouldFailRead, err)
+			assert.False(t, ds.MarkSessionAccessedFuncInvoked, "listing sessions must not refresh them")
 
+			ds.MarkSessionAccessedFuncInvoked = false
 			_, err = svc.GetInfoAboutSession(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
+			assert.False(t, ds.MarkSessionAccessedFuncInvoked, "inspecting a session must not refresh it")
 
 			err = svc.DeleteSession(ctx, 1)
 			checkAuthErr(t, tt.shouldFailWrite, err)
