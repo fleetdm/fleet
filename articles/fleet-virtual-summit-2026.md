@@ -46,7 +46,7 @@ Panelists:
 - [Patricia Egger](https://www.linkedin.com/in/patricia-egger/), Proton, Head of Security
 
 ![Jarryd Stanbrook](../website/assets/images/articles/virtual-summit-headshot-jarryd-stanbrook-100x100@2x.jpeg)
-[Jarryd Stanbrook](https://www.linkedin.com/in/jarrydstanbrook/), Easygo, IT Systems Administrator
+*[Jarryd Stanbrook](https://www.linkedin.com/in/jarrydstanbrook/), Easygo, IT Systems Administrator*
 
 
 [Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-open-source-in-device-management)
