@@ -102,6 +102,6 @@ Panelists:
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
-<meta name="publishedOn" value="2026-10-01">
+<meta name="publishedOn" value="2026-10-02">
 <meta name="articleTitle" value="Join the Fleet Virtual Summit 2026">
 <meta name="description" value="Fleet's first virtual summit is November 10 on LinkedIn Live: four free panels on GitOps, open source, AI agents, and device management in 2030.">
