@@ -225,9 +225,7 @@ const SoftwareAppStoreVpp = ({
 
   const renderContent = () => {
     if (!isPremiumTier) {
-      return (
-        <PremiumFeatureMessage className={`${baseClass}__premium-message`} />
-      );
+      return <PremiumFeatureMessage />;
     }
 
     if (isLoadingVppInfo || isLoadingVppApps || isLoadingLabels) {
