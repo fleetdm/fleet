@@ -2,6 +2,7 @@ package sso
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,28 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
+const (
+	sessionKeyPrefix = "sso:session:"
+	// sessionIDRawLen is the number of random bytes in a session ID, which is
+	// transported as standard base64 (sessionIDEncodedLen characters).
+	sessionIDRawLen     = 24
+	sessionIDEncodedLen = 32
+)
+
+// sessionKey maps a session ID to its Redis key. Only the canonical
+// server-generated ID format resolves to a key; anything else is treated as
+// an unknown session. The round-trip re-encode rejects non-canonical
+// encodings (base64 decoding ignores whitespace, for one).
+func sessionKey(sessionID string) (string, bool) {
+	if len(sessionID) != sessionIDEncodedLen {
+		return "", false
+	}
+	decoded, err := base64.StdEncoding.Strict().DecodeString(sessionID)
+	if err != nil || len(decoded) != sessionIDRawLen || base64.StdEncoding.EncodeToString(decoded) != sessionID {
+		return "", false
+	}
+	return sessionKeyPrefix + sessionID, true
+}
 type SSORequestData struct {
 	HostUUID  string `json:"host_uuid,omitempty"`
 	Initiator string `json:"initiator,omitempty"`
@@ -51,8 +74,9 @@ type store struct {
 }
 
 func (s *store) create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint, requestData SSORequestData) error {
-	if len(sessionID) < 8 {
-		return errors.New("request id must be 8 or more characters in length")
+	key, ok := sessionKey(sessionID)
+	if !ok {
+		return errors.New("invalid session ID format")
 	}
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
@@ -68,17 +92,21 @@ func (s *store) create(sessionID, requestID, originalURL, metadata string, lifet
 	if err != nil {
 		return err
 	}
-	_, err = conn.Do("SETEX", sessionID, lifetimeSecs, writer.String())
+	_, err = conn.Do("SETEX", key, lifetimeSecs, writer.String())
 	return err
 }
 
 func (s *store) get(sessionID string) (*Session, error) {
+	key, ok := sessionKey(sessionID)
+	if !ok {
+		return nil, fleet.NewAuthRequiredError("session not found")
+	}
 	// not reading from a replica here as this gets called in close succession
 	// in the auth flow, with initiate SSO writing and callback SSO having to
 	// read that write.
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
-	val, err := redigo.String(conn.Do("GET", sessionID))
+	val, err := redigo.String(conn.Do("GET", key))
 	if err != nil {
 		if err == redigo.ErrNil {
 			return nil, fleet.NewAuthRequiredError("session not found")
@@ -96,9 +124,14 @@ func (s *store) get(sessionID string) (*Session, error) {
 }
 
 func (s *store) expire(sessionID string) error {
+	key, ok := sessionKey(sessionID)
+	if !ok {
+		// A session with this ID cannot exist, nothing to expire.
+		return nil
+	}
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
-	_, err := conn.Do("DEL", sessionID)
+	_, err := conn.Do("DEL", key)
 	return err
 }
 
