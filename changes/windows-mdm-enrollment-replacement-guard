@@ -1,0 +1,1 @@
+- Windows MDM enrollment through fleetd no longer replaces an enrollment that belongs to a different host (unless that host was wiped or deleted), and an enrollment that fails no longer removes the existing one.

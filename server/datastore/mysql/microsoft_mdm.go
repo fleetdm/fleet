@@ -56,11 +56,7 @@ func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext
 	return true, nil
 }
 
-// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
-// returns the device information.
-func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
-	// Only fetch the most recently enrolled entry which matches the one we enqueue commands for
-	stmt := `SELECT
+const mdmWindowsEnrolledDeviceColumns = `
 		id,
 		mdm_device_id,
 		mdm_hardware_id,
@@ -90,6 +86,13 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		-- A subquery rather than a join, so hosts sharing a UUID do not multiply the row.
 		(SELECT h.id FROM hosts h WHERE h.uuid = mdm_windows_enrollments.host_uuid AND mdm_windows_enrollments.host_uuid != ''
 			AND h.platform = 'windows' ORDER BY h.id LIMIT 1) AS linked_host_id
+`
+
+// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
+// returns the device information.
+func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	// Only fetch the most recently enrolled entry which matches the one we enqueue commands for
+	stmt := `SELECT ` + mdmWindowsEnrolledDeviceColumns + `
 		FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
@@ -98,6 +101,21 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(mdmDeviceID))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetEnrolledDeviceWithDeviceID")
+	}
+	return &winMDMDevice, nil
+}
+
+// MDMWindowsGetEnrolledDeviceWithHardwareID returns the enrollment held by a Windows MDM hardware ID (HWDevID).
+func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHardwareID(ctx context.Context, mdmHardwareID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	stmt := `SELECT ` + mdmWindowsEnrolledDeviceColumns + `
+		FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`
+
+	var winMDMDevice fleet.MDMWindowsEnrolledDevice
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, mdmHardwareID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(mdmHardwareID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetEnrolledDeviceWithHardwareID")
 	}
 	return &winMDMDevice, nil
 }

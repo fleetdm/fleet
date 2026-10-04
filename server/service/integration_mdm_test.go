@@ -9618,7 +9618,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Delete the host from the list of MDM enrolled devices if present
-	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(context.Background(), windowsHost.UUID)
+	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(context.Background(), securityTokenMsgHWDevID)
 
 	// Preparing the RequestSecurityToken Request message
 	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
@@ -11039,6 +11039,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	checkNotification(false)
 
 	// enroll the host into Fleet MDM
+	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(t.Context(), securityTokenMsgHWDevID)
 	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
 	require.NoError(t, err)
 	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, false)
@@ -12336,6 +12337,10 @@ func (s *integrationMDMTestSuite) newGetPoliciesMsg(deviceToken bool, encodedBin
 			</s:Envelope>`), nil
 }
 
+// securityTokenMsgHWDevID is the hardware ID every newSecurityTokenMsg request presents. A test enrolling a new host with it
+// must first delete the enrollment a previous test left, which Fleet refuses to hand over to a different host.
+const securityTokenMsgHWDevID = "CF1D12AA5AE42E47D52465E9A71316CAF3AFCC1D3088F230F4D50B371FB2256F"
+
 func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, deviceToken bool, missingContextItem bool) ([]byte, error) {
 	if len(encodedBinToken) == 0 {
 		return nil, errors.New("encodedBinToken is empty")
@@ -12380,7 +12385,7 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 					<ac:Value>false</ac:Value>
 					</ac:ContextItem>
 					<ac:ContextItem Name="HWDevID">
-					<ac:Value>CF1D12AA5AE42E47D52465E9A71316CAF3AFCC1D3088F230F4D50B371FB2256F</ac:Value>
+					<ac:Value>` + securityTokenMsgHWDevID + `</ac:Value>
 					</ac:ContextItem>
 					<ac:ContextItem Name="Locale">
 					<ac:Value>en-US</ac:Value>
@@ -22996,6 +23001,54 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", newHost.ID), nil, http.StatusOK, &wipeResp)
 	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
 	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
+}
+
+// TestWindowsMDMEnrollDoesNotReplaceAnotherHostsEnrollment covers fleetd enrollments that present the hardware ID of an
+// existing enrollment they may not replace, because replacing it would delete that host's enrollment and its pending wipe.
+func (s *integrationMDMTestSuite) TestWindowsMDMEnrollDoesNotReplaceAnotherHostsEnrollment() {
+	t := s.T()
+	ctx := t.Context()
+
+	host, hostDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	var wipeResp fleet.WipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+
+	requireEnrollmentIntact := func(t *testing.T) {
+		t.Helper()
+		enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, hostDevice.HardwareID)
+		require.NoError(t, err)
+		require.Equal(t, hostDevice.DeviceID, enrollment.MDMDeviceID)
+		require.Equal(t, host.UUID, enrollment.HostUUID)
+	}
+
+	t.Run("another fleetd host presenting the hardware ID is refused", func(t *testing.T) {
+		otherHost := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
+		otherDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *otherHost.OrbitNodeKey)
+		otherDevice.HardwareID = hostDevice.HardwareID
+		require.ErrorContains(t, otherDevice.Enroll(), "SOAP fault")
+		requireEnrollmentIntact(t)
+	})
+
+	t.Run("a re-enrollment that fails provisioning leaves the enrollment in place", func(t *testing.T) {
+		// fleetd only enrolls a host whose osquery reports MDM off.
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, false, s.server.URL, false, fleet.WellKnownMDMFleet, "",
+			fleet.PersonalEnrollmentTypeNone))
+		badCSRDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey,
+			mdmtest.TestWindowsMDMClientWithMalformedCSR())
+		badCSRDevice.HardwareID = hostDevice.HardwareID
+		require.ErrorContains(t, badCSRDevice.Enroll(), "SOAP fault")
+		requireEnrollmentIntact(t)
+	})
+
+	// The wipe is still pending and is delivered on the host's next management session.
+	status, err := s.ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	require.True(t, status.IsPendingWipe())
+	cmds, err := hostDevice.StartManagementSession()
+	require.NoError(t, err)
+	require.Contains(t, cmds, status.WipeMDMCommand.CommandUUID)
 }
 
 func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
