@@ -92,8 +92,9 @@ func CreateAuthorizationRequest(
 }
 
 func generateSessionID() (string, error) {
-	const sessionIDLength = 24
-	sessionID, err := server.GenerateRandomText(sessionIDLength)
+	// sessionIDRawLen is shared with sessionKey, which rejects any ID that is
+	// not the canonical encoding of exactly this many random bytes.
+	sessionID, err := server.GenerateRandomText(sessionIDRawLen)
 	if err != nil {
 		return "", fmt.Errorf("create random session ID: %w", err)
 	}
