@@ -1178,7 +1178,6 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
 
-	// Checked before the CSR is signed, so a refused enrollment is not issued a certificate.
 	if err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(ctx, reqHWDeviceID, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
@@ -3179,10 +3178,8 @@ func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string
 }
 
 // checkWindowsMDMEnrollmentCanReplaceExisting refuses a fleetd (programmatic) enrollment that would replace another host's
-// enrollment. Enrolling deletes the enrollment held by the presented hardware ID together with its host's lock/wipe, profile,
-// setup experience, upcoming activity, and managed local account state, and that hardware ID is asserted by the device, not
-// proven. A fleetd enrollment authenticates its host with the orbit node key, so it may only replace that host's own
-// enrollment. Automatic (Entra) enrollments carry no host identity and are not checked here.
+// enrollment. A fleetd enrollment authenticates its host with the orbit node key, so it may only replace that host's own
+// enrollment.
 func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Context, hardwareID, hostUUID string) error {
 	if hostUUID == "" {
 		return nil

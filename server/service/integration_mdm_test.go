@@ -9618,7 +9618,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Delete the host from the list of MDM enrolled devices if present
-	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(t.Context(), securityTokenMsgHWDevID)
+	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(t.Context(), enrollRequestHWDevID)
 
 	// Preparing the RequestSecurityToken Request message
 	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
@@ -11039,7 +11039,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	checkNotification(false)
 
 	// enroll the host into Fleet MDM
-	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(t.Context(), securityTokenMsgHWDevID)
+	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(t.Context(), enrollRequestHWDevID)
 	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
 	require.NoError(t, err)
 	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, false)
@@ -12337,9 +12337,9 @@ func (s *integrationMDMTestSuite) newGetPoliciesMsg(deviceToken bool, encodedBin
 			</s:Envelope>`), nil
 }
 
-// securityTokenMsgHWDevID is the hardware ID every newSecurityTokenMsg request presents. A test enrolling a new host with it
+// enrollRequestHWDevID is the hardware ID every newSecurityTokenMsg request presents. A test enrolling a new host with it
 // must first delete the enrollment a previous test left, which Fleet refuses to hand over to a different host.
-const securityTokenMsgHWDevID = "CF1D12AA5AE42E47D52465E9A71316CAF3AFCC1D3088F230F4D50B371FB2256F"
+const enrollRequestHWDevID = "CF1D12AA5AE42E47D52465E9A71316CAF3AFCC1D3088F230F4D50B371FB2256F"
 
 func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, deviceToken bool, missingContextItem bool) ([]byte, error) {
 	if len(encodedBinToken) == 0 {
@@ -12385,7 +12385,7 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 					<ac:Value>false</ac:Value>
 					</ac:ContextItem>
 					<ac:ContextItem Name="HWDevID">
-					<ac:Value>` + securityTokenMsgHWDevID + `</ac:Value>
+					<ac:Value>` + enrollRequestHWDevID + `</ac:Value>
 					</ac:ContextItem>
 					<ac:ContextItem Name="Locale">
 					<ac:Value>en-US</ac:Value>

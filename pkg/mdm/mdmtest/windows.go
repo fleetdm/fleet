@@ -60,27 +60,9 @@ type TestWindowsMDMClient struct {
 	// loginStatus is the value reported in the com.microsoft/MDM/LoginStatus device alert at the start of every management session.
 	loginStatus string
 
-	// csr is the base64 PKCS#10 certificate request sent in the enroll request.
-	csr string
+	// malformedCSR makes Enroll send a certificate request the server cannot parse.
+	malformedCSR bool
 }
-
-const defaultEnrollCSR = `MIIC5jCCAc4CAQAwSjFIMEYGA1UEAww/MEYzQjhFNkMtQTI3MS00NTU2LTlCNzIt
-QTI2Q0JEITgwOTBDOEI0ODRBMEUyNEVCNUM1NkU4MDZDQjRFRTVCMIIBIjANBgkq
-hkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoLj7gBWVMPiVsbrB13jW86bB/Rz+bAOj
-J9MxMwuwOtbPicESpReZ7QgjNhv5tTubLCHRlIRhcawxPOhpZCZTRolT/3q2xhYT
-3WnW8uLiPLTyQpmoI66yfMAUlNfKboeFpgMB6GCM3FColmQBHzWrPulY5zUSwBFs
-YwogoSKVH9ekAv5FQZpqW8zj9tTU1t7U1qMwyb03u1+7JGJ0lBBjCDkoMCB0sSVO
-Fybg//zsHqdYs876jnh8qH6GG8XUVrCk4PYX/b1Fak9D4DcedCQ/sDlsxB1i4TjY
-apbduFo9/wc/OL9KVBk2LWPXvwV0/EWggx4QFZpaabeJy5J0CbdpvQIDAQABoFcw
-VQYJKoZIhvcNAQkOMUgwRjATBgNVHSUEDDAKBggrBgEFBQcDAjAvBgorBgEEAYI3
-QgEABCE4MDkwQzhCNDg0QTBFMjRFQjVDNTZFODA2Q0I0RUU1QgAwDQYJKoZIhvcN
-AQELBQADggEBAFwiNxM90FippSvLgoqMw9TpyoSTD2hftPW+bpGA1OxxBmSwCwI9
-oE7/6bMLX9k9iBt6QaQomWp6Gh+Rpuz0uzHp32TLbuV87//awydG8meyU6GMVZ6R
-xfIAH4rmdhJ9ccpnugSLMYr3+UKLWSOjeTB2ZKcVx7LTsHzqaDg3ghJDSNx12wSY
-LmEKCHDR1FNPcXB6hfs3CfJOnJhcOX+Gg2GrqjAEA2ty2rEJ9LVZo0Q3A7pfEezs
-YioVozr1IWYySwWVzMf/SUwKZkKJCAJmSVcixE+4kxPkyPGyauIrN3wWC0zb+mjF
-3aJBpJrK45UhKb1LOBHOtV7BsoEkOUNmCdQ=
-`
 
 // This is a test-only enrollment type to force erroneous behavior.
 const WindowsMDMEmptyBinarySecurityTokenEnrollmentType fleet.WindowsMDMEnrollmentType = -1
@@ -115,7 +97,7 @@ func TestWindowsMDMClientWithLoginStatus(status string) TestWindowsMDMClientOpti
 // its enrollment fails after authentication.
 func TestWindowsMDMClientWithMalformedCSR() TestWindowsMDMClientOption {
 	return func(c *TestWindowsMDMClient) {
-		c.csr = "bm90IGEgY3Ny"
+		c.malformedCSR = true
 	}
 }
 
@@ -146,7 +128,6 @@ func newTestMDMClient(serverURL string, enrollmentType fleet.WindowsMDMEnrollmen
 		enrollmentType:  enrollmentType,
 		TokenIdentifier: tokenIdentifier,
 		HardwareID:      uuid.NewString(),
-		csr:             defaultEnrollCSR,
 	}
 	c.loginStatus = string(fleet.WindowsMDMLoginStatusUser)
 	for _, fn := range opts {
@@ -479,7 +460,23 @@ func (c *TestWindowsMDMClient) Enroll() error {
         <wst:RequestSecurityToken>
             <wst:TokenType>http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken</wst:TokenType>
             <wst:RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</wst:RequestType>
-            <wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + c.csr + `</wsse:BinarySecurityToken>
+            <wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + c.enrollCSR(`MIIC5jCCAc4CAQAwSjFIMEYGA1UEAww/MEYzQjhFNkMtQTI3MS00NTU2LTlCNzIt
+QTI2Q0JEITgwOTBDOEI0ODRBMEUyNEVCNUM1NkU4MDZDQjRFRTVCMIIBIjANBgkq
+hkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoLj7gBWVMPiVsbrB13jW86bB/Rz+bAOj
+J9MxMwuwOtbPicESpReZ7QgjNhv5tTubLCHRlIRhcawxPOhpZCZTRolT/3q2xhYT
+3WnW8uLiPLTyQpmoI66yfMAUlNfKboeFpgMB6GCM3FColmQBHzWrPulY5zUSwBFs
+YwogoSKVH9ekAv5FQZpqW8zj9tTU1t7U1qMwyb03u1+7JGJ0lBBjCDkoMCB0sSVO
+Fybg//zsHqdYs876jnh8qH6GG8XUVrCk4PYX/b1Fak9D4DcedCQ/sDlsxB1i4TjY
+apbduFo9/wc/OL9KVBk2LWPXvwV0/EWggx4QFZpaabeJy5J0CbdpvQIDAQABoFcw
+VQYJKoZIhvcNAQkOMUgwRjATBgNVHSUEDDAKBggrBgEFBQcDAjAvBgorBgEEAYI3
+QgEABCE4MDkwQzhCNDg0QTBFMjRFQjVDNTZFODA2Q0I0RUU1QgAwDQYJKoZIhvcN
+AQELBQADggEBAFwiNxM90FippSvLgoqMw9TpyoSTD2hftPW+bpGA1OxxBmSwCwI9
+oE7/6bMLX9k9iBt6QaQomWp6Gh+Rpuz0uzHp32TLbuV87//awydG8meyU6GMVZ6R
+xfIAH4rmdhJ9ccpnugSLMYr3+UKLWSOjeTB2ZKcVx7LTsHzqaDg3ghJDSNx12wSY
+LmEKCHDR1FNPcXB6hfs3CfJOnJhcOX+Gg2GrqjAEA2ty2rEJ9LVZo0Q3A7pfEezs
+YioVozr1IWYySwWVzMf/SUwKZkKJCAJmSVcixE+4kxPkyPGyauIrN3wWC0zb+mjF
+3aJBpJrK45UhKb1LOBHOtV7BsoEkOUNmCdQ=
+`) + `</wsse:BinarySecurityToken>
             <ac:AdditionalContext
                 xmlns="http://schemas.xmlsoap.org/ws/2006/12/authorization">
                 <ac:ContextItem Name="UXInitiated">
@@ -593,6 +590,14 @@ Outer:
 	}
 
 	return nil
+}
+
+// enrollCSR returns the certificate request Enroll sends: valid, or a malformed one when configured.
+func (c *TestWindowsMDMClient) enrollCSR(valid string) string {
+	if c.malformedCSR {
+		return "bm90IGEgY3Ny"
+	}
+	return valid
 }
 
 func (c *TestWindowsMDMClient) Discovery() error {
