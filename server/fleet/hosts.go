@@ -1225,13 +1225,24 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
 }
 
+// LUKSSupportedPlatforms are the Host.Platform values that support LUKS key escrow. Fedora isn't
+// listed because it reports its platform as "rhel", so IsLUKSSupported matches it on OS version.
+// The datastore builds its SQL filters from this list to stay in sync with IsLUKSSupported.
+var LUKSSupportedPlatforms = []string{
+	"ubuntu",
+	"zorin",
+	"arch",
+	"archarm",
+	"manjaro",
+	"manjaro-arm",
+	"cachyos",
+	"omarchy",
+}
+
 // IsLUKSSupported returns true if the host's platform is Linux and running
 // one of the supported OS versions.
 func (h *Host) IsLUKSSupported() bool {
-	return h.Platform == "ubuntu" || h.Platform == "zorin" ||
-		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
-		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm" ||
-		h.Platform == "cachyos" || h.Platform == "omarchy"
+	return slices.Contains(LUKSSupportedPlatforms, h.Platform) || strings.Contains(h.OSVersion, "Fedora")
 }
 
 // IsAppleSilicon returns true if the host is a macOS device with an ARM CPU (Apple Silicon).
