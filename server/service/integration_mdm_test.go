@@ -9618,7 +9618,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Delete the host from the list of MDM enrolled devices if present
-	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(context.Background(), securityTokenMsgHWDevID)
+	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(t.Context(), securityTokenMsgHWDevID)
 
 	// Preparing the RequestSecurityToken Request message
 	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
