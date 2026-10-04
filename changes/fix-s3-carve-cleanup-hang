@@ -1,3 +1,0 @@
-- Fixed an issue where cleanup of expired file carves stored in S3 could stall on buckets containing a large number of objects, which prevented other scheduled cleanup and aggregation tasks from running.
-- Added the `s3.carves_cleanup_disabled` server setting to skip S3 file carve reconciliation for deployments that rely solely on the bucket's lifecycle policy to remove carve objects.
-- Added the `s3.carves_cleanup_max_per_run` and `s3.carves_cleanup_concurrency` server settings to tune how many carves the S3 cleanup reconciles per run and how many concurrent S3 requests it makes.

@@ -1,3 +1,9 @@
+## Fleet 4.88.2 (Oct 04, 2026)
+
+### Bug fixes
+
+- Improved SSO session handling.
+
 ## Fleet 4.88.1 (Jul 09, 2026)
 
 ### Bug fixes
