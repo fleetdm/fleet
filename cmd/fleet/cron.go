@@ -2800,6 +2800,21 @@ func newIPhoneIPadReviver(
 	return s, nil
 }
 
+func unblockHostsUpcomingActivityQueueCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, maxHosts int, skipFleetInitiated bool) error {
+	unblocked, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxHosts, skipFleetInitiated)
+	// per-host isolation in the datastore means a partial failure still unblocks the
+	// healthy hosts, so report progress before returning the error
+	if unblocked > 0 {
+		logger.InfoContext(ctx, "unblocked hosts upcoming activity queue",
+			"hosts_unblocked", unblocked,
+			"max_hosts", maxHosts,
+			// unblocked == max means more hosts are likely still blocked
+			"cap_reached", unblocked == maxHosts,
+		)
+	}
+	return err
+}
+
 func newUpcomingActivitiesSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -2846,8 +2861,7 @@ func newUpcomingActivitiesSchedule(
 		// solely on deferred fleet-initiated activities are not blocked — they
 		// belong to the release cron, and unblocking them here would bypass
 		// its budget
-		_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts, fleetInitiatedReleaseEnabled)
-		return err
+		return unblockHostsUpcomingActivityQueueCronJob(ctx, ds, logger, maxUnblockHosts, fleetInitiatedReleaseEnabled)
 	}))
 
 	return schedule.New(ctx, name, instanceID, defaultInterval, ds, ds, opts...), nil
