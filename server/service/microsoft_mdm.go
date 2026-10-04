@@ -858,7 +858,7 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 // It receives a SyncML message with protocol commands, it process the commands and responds with a
 // SyncML message with protocol commands results and more protocol commands for the calling host
 // Note: This logic needs to be improved with better SyncML message parsing, better message tracking
-// and better security authentication (done through TLS and in-message hash)
+// and better security authentication (done through the in-message credentials hash)
 func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
 	reqSyncML := request.(*SyncMLReqMsgContainer).Data
 
@@ -1325,7 +1325,7 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 	}
 
 	if reqSyncML.SyncHdr.Cred == nil {
-		// No certs, but no credentials present - challenge the device
+		// No credentials present - challenge the device
 		return enrolledDevice, RequestAuthStateChallenge, nil
 	}
 

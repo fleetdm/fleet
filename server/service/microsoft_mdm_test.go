@@ -2504,11 +2504,13 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		return nil, nil
 	}
 
+	// Retain the raw nonce the service writes (production stores the raw value and returns its base64 in the
+	// challenge), so the device-side digest is rebuilt against the nonce actually in effect after each challenge.
+	var nonce string
 	kv.SetFunc = func(ctx context.Context, key string, value string, expireTime time.Duration) error {
+		nonce = value
 		return nil
 	}
-
-	var nonce string
 	kv.GetFunc = func(ctx context.Context, key string) (*string, error) {
 		return &nonce, nil
 	}
@@ -2598,7 +2600,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	for _, cmd := range res.SyncBody.Raw {
 		if cmd.Chal != nil {
 			chalFound = true
-			nonce = *cmd.Chal.Meta.NextNonce.Content
+			// The service stored the raw nonce (captured by kv.SetFunc) and returned its base64 form here.
+			require.Equal(t, base64.StdEncoding.EncodeToString([]byte(nonce)), *cmd.Chal.Meta.NextNonce.Content)
 			break
 		}
 	}
@@ -2632,8 +2635,10 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
 
-	deviceCredsHash := hashMDMCredentials(username, password, nonce)
-	syncmlWithCreds := fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
+	// credsSyncML builds a management check-in carrying the given auth digest plus a Status for a pending command, so a
+	// trusted request has a response to persist.
+	credsSyncML := func(digest []byte) string {
+		return fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
   <SyncHdr>
     <VerDTD>1.2</VerDTD>
     <VerProto>DM/1.2</VerProto>
@@ -2667,10 +2672,11 @@ func TestRekeyWindowsDevice(t *testing.T) {
     </Status>
     <Final />
   </SyncBody>
-</SyncML>`, base64.StdEncoding.EncodeToString(deviceCredsHash))
+</SyncML>`, base64.StdEncoding.EncodeToString(digest))
+	}
+
 	// Wrong credentials are challenged again and the device responses are still not saved.
-	wrongCredsHash := base64.StdEncoding.EncodeToString(hashMDMCredentials(username, "wrong-password", nonce))
-	err = xml.Unmarshal([]byte(strings.Replace(syncmlWithCreds, base64.StdEncoding.EncodeToString(deviceCredsHash), wrongCredsHash, 1)), &req)
+	err = xml.Unmarshal([]byte(credsSyncML(hashMDMCredentials(username, "wrong-password", nonce))), &req)
 	require.NoError(t, err)
 	res, err = svc.GetMDMWindowsManagementResponse(ctx, req)
 	require.NoError(t, err)
@@ -2679,7 +2685,9 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	require.Equal(t, invalidCredentialsStatus, *res.SyncBody.Raw[0].Data)
 	require.Zero(t, saveResponseCalls, "device responses must not be saved with invalid credentials")
 
-	err = xml.Unmarshal([]byte(syncmlWithCreds), &req)
+	// The invalid-credentials challenge rotated the nonce (captured by kv.SetFunc), so the device must rebuild its
+	// digest against the replacement nonce for the retry to authenticate.
+	err = xml.Unmarshal([]byte(credsSyncML(hashMDMCredentials(username, password, nonce))), &req)
 	require.NoError(t, err)
 
 	res, err = svc.GetMDMWindowsManagementResponse(ctx, req)
