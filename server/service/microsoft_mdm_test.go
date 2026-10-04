@@ -2504,8 +2504,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		return nil, nil
 	}
 
-	// Retain the raw nonce the service writes (production stores the raw value and returns its base64 in the
-	// challenge), so the device-side digest is rebuilt against the nonce actually in effect after each challenge.
+	// Keep the raw nonce the service stores so the device digest is built against the nonce currently in effect.
 	var nonce string
 	kv.SetFunc = func(ctx context.Context, key string, value string, expireTime time.Duration) error {
 		nonce = value
@@ -2635,8 +2634,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
 
-	// credsSyncML builds a management check-in carrying the given auth digest plus a Status for a pending command, so a
-	// trusted request has a response to persist.
+	// credsSyncML builds a check-in with the given auth digest and a Status for a pending command.
 	credsSyncML := func(digest []byte) string {
 		return fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
   <SyncHdr>
@@ -2676,6 +2674,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	}
 
 	// Wrong credentials are challenged again and the device responses are still not saved.
+	challengeNonce := nonce
 	err = xml.Unmarshal([]byte(credsSyncML(hashMDMCredentials(username, "wrong-password", nonce))), &req)
 	require.NoError(t, err)
 	res, err = svc.GetMDMWindowsManagementResponse(ctx, req)
@@ -2684,9 +2683,10 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	require.NotNil(t, res.SyncBody.Raw[0].Chal)
 	require.Equal(t, invalidCredentialsStatus, *res.SyncBody.Raw[0].Data)
 	require.Zero(t, saveResponseCalls, "device responses must not be saved with invalid credentials")
+	require.NotEqual(t, challengeNonce, nonce, "invalid credentials should rotate the nonce")
+	require.Equal(t, base64.StdEncoding.EncodeToString([]byte(nonce)), *res.SyncBody.Raw[0].Chal.Meta.NextNonce.Content)
 
-	// The invalid-credentials challenge rotated the nonce (captured by kv.SetFunc), so the device must rebuild its
-	// digest against the replacement nonce for the retry to authenticate.
+	// The retry must authenticate against the rotated nonce.
 	err = xml.Unmarshal([]byte(credsSyncML(hashMDMCredentials(username, password, nonce))), &req)
 	require.NoError(t, err)
 

@@ -2006,8 +2006,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 			},
 		}
 
-		// The device's Status/Results are not persisted until it authenticates: the client resends the whole package with
-		// credentials after the challenge, and the SyncML Source is attacker-controlled until then.
+		// Not persisted until the device authenticates; the client resends the whole package with credentials.
 		responseCmds = append(responseCmds, ackMsg)
 		return responseCmds, nil
 	}
