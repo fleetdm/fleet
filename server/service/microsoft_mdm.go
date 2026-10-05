@@ -1986,7 +1986,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 	if requestAuthState == RequestAuthStateChallenge || requestAuthState == RequestAuthStateUnauthorized {
 		nonce := uuid.NewString() // using UUID as nonce since it has 122 bits of entropy
 		base64Nonce := base64.StdEncoding.EncodeToString([]byte(nonce))
-		err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, nonce, windowsMDMAuthNonceTTL)
+		err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, nonce, windowsMDMAuthNonceTTL) //nolint:nilaway // svc is a non-nil receiver
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "store device nonce in kv store")
 		}
