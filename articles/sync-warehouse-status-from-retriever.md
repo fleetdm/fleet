@@ -67,91 +67,22 @@ Writing only on change matters. Every update adds an entry to the host's activit
 
 ### The script
 
-This Python script uses only the standard library. It reads its settings from environment variables:
+Use [`sync_retriever_warehouse_status_to_fleet.py`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/api-scripts/sync_retriever_warehouse_status_to_fleet.py) from Fleet's repository. It's a Python 3 script with no third-party packages, and it reads its settings from environment variables:
 
 - `FLEET_URL`: your Fleet server, for example `https://fleet.example.com`
 - `FLEET_API_TOKEN`: the API-only user's token from step 2
 - `RETRIEVER_API_KEY`: the key from step 3
-- `VITAL_NAME` (optional): the vital's name, if it isn't **Warehouse status**
 - `DRY_RUN` (optional): set to `1` to print changes without writing them
 
-It writes Retriever's display names (like "Ready For Deployment") rather than raw status codes (like `ready_for_deployment`), so values match what people see in the Retriever portal.
+The script's header lists every setting. It writes Retriever's display names (like "Ready For Deployment") rather than raw status codes (like `ready_for_deployment`), so values match what people see in the Retriever portal. It never clears a value, so if a device drops out of Retriever's list, its host keeps the last status the script wrote.
 
-```python
-#!/usr/bin/env python3
-# Copies each device's Retriever warehouse status into a Fleet custom host vital.
-import json, os, urllib.parse, urllib.request
+The script is a starting point. Any failed request stops the run with an error. Before you rely on it, consider adding retries for `429` and `5xx` responses, and an alert when a run fails.
 
-FLEET_URL = os.environ["FLEET_URL"].rstrip("/")  # e.g. https://fleet.example.com
-FLEET_TOKEN = os.environ["FLEET_API_TOKEN"]
-RETRIEVER_KEY = os.environ["RETRIEVER_API_KEY"]
-VITAL_NAME = os.environ.get("VITAL_NAME", "Warehouse status")
-DRY_RUN = os.environ.get("DRY_RUN") == "1"
-RETRIEVER_URL = "https://app.helloretriever.com/api/v2/warehouse/"
-
-# Retriever's display labels, where they differ from the title-cased status code.
-LABELS = {
-    "delivered_address": "Delivered For Disposal",
-    "deployment_initiated": "Deployment In Transit",
-    "retrieval_initiated": "Retrieval In Transit",
-    "transfer_ownership": "Transferred Ownership",
-}
-
-
-def call(method, url, token, body=None):
-    req = urllib.request.Request(
-        url,
-        method=method,
-        data=json.dumps(body).encode() if body is not None else None,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-            "User-Agent": "retriever-warehouse-sync",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        raw = resp.read()
-        return json.loads(raw) if raw else {}
-
-
-# 1. Read every device from Retriever. GET only, 50 devices per page.
-statuses, url = {}, RETRIEVER_URL
-while url:
-    if not url.startswith(RETRIEVER_URL):
-        raise SystemExit(f"Unexpected pagination URL, not sending the key there: {url}")
-    page = call("GET", url, RETRIEVER_KEY)
-    for device in page["results"]:
-        serial = (device.get("serial_number") or "").strip().upper()
-        code = device.get("status")
-        if serial and code and serial not in statuses:  # Newest record wins.
-            statuses[serial] = LABELS.get(code, code.replace("_", " ").title())
-    url = page.get("next")
-
-# 2. Update each matching Fleet host, only when its value changed.
-for serial, label in sorted(statuses.items()):
-    query = urllib.parse.urlencode({"query": serial})
-    for match in call("GET", f"{FLEET_URL}/api/v1/fleet/hosts?{query}", FLEET_TOKEN)["hosts"]:
-        if (match.get("hardware_serial") or "").strip().upper() != serial:
-            continue  # The search also matches hostnames and other fields.
-        host = call("GET", f"{FLEET_URL}/api/v1/fleet/hosts/{match['id']}", FLEET_TOKEN)["host"]
-        vital = next((v for v in host.get("custom_host_vitals") or [] if v["name"] == VITAL_NAME), None)
-        if vital is None:
-            raise SystemExit(f"Custom host vital {VITAL_NAME!r} doesn't exist in Fleet")
-        if vital["value"] == label:
-            continue
-        print(f"{host['display_name']} ({serial}): {vital['value'] or '(empty)'} -> {label}")
-        if not DRY_RUN:
-            path = f"/api/v1/fleet/hosts/{host['id']}/custom_host_vitals/{vital['custom_host_vital_id']}"
-            call("PUT", FLEET_URL + path, FLEET_TOKEN, {"value": label})
-```
-
-This is a starting point. Any failed request stops the run with an error. Before you rely on it, consider adding retries for `429` and `5xx` responses, and an alert when a run fails.
-
-The script never clears a value. If a device drops out of Retriever's list, its host keeps the last status the script wrote.
+> **Note:** Run a copy of the script that you've reviewed, not one that's fetched from GitHub at run time. The script handles both API keys, so treat changes to it like any other code change.
 
 ### Option A: Run it with cron
 
-1. Save the script, for example to `/opt/warehouse-sync/sync.py`.
+1. Download the script, review it, and save it, for example to `/opt/warehouse-sync/sync.py`.
 2. Put the settings in a file that only the cron user can read, like `/etc/warehouse-sync.env`, and run `chmod 600` on it:
 
 ```sh
@@ -190,7 +121,7 @@ Rules:
 - Don't call the Retriever or Fleet APIs yourself. Never send anything other than a GET request to app.helloretriever.com.
 - If the script fails, report its output and stop. Don't retry with changes or set values by hand.
 
-<paste the script from this guide here>
+<paste your reviewed copy of sync_retriever_warehouse_status_to_fleet.py here>
 ```
 
 Each run's output is in the routine's run history, so you can see what changed.
