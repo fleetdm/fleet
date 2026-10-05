@@ -312,10 +312,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	}
 	if input.Token == "wezterm" {
 		// WezTerm.app ships a placeholder CFBundleShortVersionString ("0.1.0") and
-		// CFBundleVersion ("1") in every release, so the installed version can't be
-		// compared against the cask's date-based version; the default policy would
-		// always fail. Always pass rather than report every install as outdated.
-		out.Queries.Patched = "SELECT 1;"
+		// CFBundleVersion ("1") in every release, so no version comparison can work.
+		// The input is frozen, so identify the release by the size of its GUI binary
+		// (20240203-110809-5046fc22) instead; any other build counts as outdated.
+		out.Queries.Patched = "SELECT 1 FROM file WHERE path = '/Applications/WezTerm.app/Contents/MacOS/wezterm-gui' AND size = 136679296;"
 	}
 	if input.Token == "r-app" {
 		// R.app's bundle_short_version is a descriptive string rather than a bare

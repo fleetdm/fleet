@@ -256,7 +256,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 
 			// WezTerm's bundle reports a placeholder version ("0.1.0" / "1") in every
 			// release, which never matches the cask's date-based version.
-			if uniqueAppIdentifier == "com.github.wez.wezterm" {
+			if uniqueAppIdentifier == "com.github.wez.wezterm" && result.Path == "/Applications/WezTerm.app" {
 				logger.InfoContext(ctx, "WezTerm detected - skipping version check because the app bundle carries a placeholder version")
 				return true, nil
 			}

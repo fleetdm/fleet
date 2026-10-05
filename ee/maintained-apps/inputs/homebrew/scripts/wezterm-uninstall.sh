@@ -53,5 +53,7 @@ trash() {
 }
 
 sudo rm -rf "$APPDIR/WezTerm.app"
-trash $LOGGED_IN_USER '~/.local/share/wezterm'
-trash $LOGGED_IN_USER '~/Library/Saved Application State/com.github.wez.wezterm.savedState'
+if [[ -n "$LOGGED_IN_USER" ]]; then
+  trash "$LOGGED_IN_USER" '~/.local/share/wezterm'
+  trash "$LOGGED_IN_USER" '~/Library/Saved Application State/com.github.wez.wezterm.savedState'
+fi
