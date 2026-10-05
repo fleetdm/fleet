@@ -1003,6 +1003,8 @@ type MDMAppleDeclaration struct {
 	// Nil removes any stored activation on write, which is how one is cleared.
 	Activation *MDMAppleCustomActivation `db:"-" json:"-"`
 
+	Hidden bool `db:"hidden" json:"hidden"`
+
 	CreatedAt           time.Time  `db:"created_at" json:"created_at"`
 	UploadedAt          time.Time  `db:"uploaded_at" json:"uploaded_at"`
 	SecretsUpdatedAt    *time.Time `db:"secrets_updated_at" json:"-"`
