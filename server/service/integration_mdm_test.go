@@ -30327,8 +30327,15 @@ func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
 	batch([]fleet.MDMProfileBatchPayload{
 		{Name: "B", Contents: mobileconfigForTest("B", "com.test.b"), SelfService: true},
 		{Name: "W", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/W/Test"), Hidden: true},
+		{Name: "A", Contents: []byte(`{"cameraDisabled": true}`), Hidden: true},
 	}, http.StatusNoContent)
 	require.True(t, get(bUUID).SelfService)
 	requireOptedIn("host-2", bUUID)
+	listResp = listMDMConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	require.Len(t, listResp.Profiles, 3)
+	for _, p := range listResp.Profiles {
+		require.Equal(t, p.Name == "W" || p.Name == "A", p.Hidden, p.Name)
+	}
 	batch([]fleet.MDMProfileBatchPayload{{Name: "W", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/W/Test"), SelfService: true}}, http.StatusUnprocessableEntity)
 }

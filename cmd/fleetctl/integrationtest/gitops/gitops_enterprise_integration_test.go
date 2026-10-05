@@ -625,7 +625,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFile.WriteString(fmt.Sprintf(`
+	_, err = globalFile.WriteString(fmt.Sprintf(
+		`
 agent_options:
 controls:
   apple_settings:
@@ -695,7 +696,8 @@ reports:
 	assert.Len(t, profiles, 1)
 
 	// now modify the stored config and confirm that external digicert service is called
-	_, err = globalFile.WriteString(fmt.Sprintf(`
+	_, err = globalFile.WriteString(fmt.Sprintf(
+		`
 agent_options:
 controls:
   apple_settings:
@@ -1052,7 +1054,7 @@ settings:
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestConfigurationProfileSelfServiceHidden() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)

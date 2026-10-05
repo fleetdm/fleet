@@ -997,7 +997,25 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		return false
 	}
 
+	type profileMetadata struct {
+		Name        string
+		Description string
+		Hidden      bool
+		SelfService bool
+	}
+	metadata := func(v MDMProfileSpec) profileMetadata {
+		return profileMetadata{
+			Name:        strings.TrimSpace(v.Name),
+			Description: strings.TrimSpace(v.Description),
+			Hidden:      v.Hidden,
+			SelfService: v.SelfService,
+		}
+	}
+
+	pathMetadata := make(map[string]profileMetadata, len(a))
 	pathLabelIncludeCounts := make(map[string]map[string]int)
+	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
+	pathLabelExcludeCounts := make(map[string]map[string]int)
 	for _, v := range a {
 		// the deprecated Labels field is only relevant if LabelsIncludeAll is
 		// empty.
@@ -1006,23 +1024,9 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		} else {
 			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
 		}
-	}
-	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
-	for _, v := range a {
 		pathLabelsIncludeAnyCounts[v.Path] = labelCountMap(v.LabelsIncludeAny)
-	}
-	pathLabelExcludeCounts := make(map[string]map[string]int)
-	for _, v := range a {
 		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
-	}
-	// name and description are admin-set metadata, so a change to either is
-	// a change to the spec even when the file and labels are the same;
-	// compared trimmed, as they are stored
-	metadata := func(v MDMProfileSpec) [2]string {
-		return [2]string{strings.TrimSpace(v.Name), strings.TrimSpace(v.Description)}
-	}
-	pathMetadata := make(map[string][2]string, len(a))
-	for _, v := range a {
+
 		pathMetadata[v.Path] = metadata(v)
 	}
 
