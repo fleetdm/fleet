@@ -381,6 +381,8 @@ describe("getAcceptedExtensions", () => {
     created_at: "",
     updated_at: "",
     checksum: null,
+    self_service: false,
+    hidden: false,
   });
 
   it.each([

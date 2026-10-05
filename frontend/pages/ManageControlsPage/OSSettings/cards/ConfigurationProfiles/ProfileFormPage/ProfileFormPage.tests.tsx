@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
@@ -89,6 +89,8 @@ const existingProfile: IMdmProfile = {
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
   checksum: null,
+  self_service: false,
+  hidden: false,
 };
 
 const mdmConfig = {
@@ -820,5 +822,131 @@ describe("ProfileFormPage", () => {
     expect(router.push).toHaveBeenCalledWith(
       "/controls/os-settings/configuration-profiles"
     );
+  });
+
+  describe("Deploy", () => {
+    const premiumRender = makeRenderer({ isPremiumTier: true });
+    const appleProfile: IMdmProfile = {
+      ...existingProfile,
+      profile_uuid: "a-123",
+      name: "Existing Apple",
+      platform: "darwin",
+      identifier: "com.example.test",
+      self_service: true,
+    };
+
+    // Checkbox takes its accessible name from its `name` prop.
+    const hiddenCheckbox = () =>
+      screen.queryByRole("checkbox", { name: "hidden" });
+    const chooseDeploy = async (
+      user: ReturnType<typeof renderPage>["user"],
+      option: string
+    ) => {
+      await user.click(screen.getByRole("combobox"));
+      // the options have no option role
+      await user.click(await screen.findByText(option));
+    };
+    // DropdownWrapper remounts its input on every render, which closes an
+    // open menu, so let the labels query settle before opening it.
+    const waitForEditForm = async () => {
+      await waitFor(() =>
+        expect(screen.getByLabelText("Name")).toHaveValue("Existing Apple")
+      );
+      await waitFor(() => expect(labelsAPI.summary).toHaveBeenCalled());
+      await act(async () => {
+        await Promise.resolve();
+      });
+    };
+
+    it("offers self-service for a .mobileconfig and never sends it hidden", async () => {
+      const { user } = renderPage(undefined, premiumRender);
+      setContents(MOBILECONFIG);
+
+      expect(screen.getByText("Force install")).toBeInTheDocument();
+      await user.click(hiddenCheckbox() as HTMLElement);
+
+      await chooseDeploy(user, "End user initiated (manual)");
+      expect(hiddenCheckbox()).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Add profile" }));
+      await waitFor(() =>
+        expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1)
+      );
+      const args = jest.mocked(mdmAPI.uploadProfile).mock.calls[0][0];
+      expect(args.selfService).toBe(true);
+      expect(args.hidden).toBe(false);
+    });
+
+    it("is force-only for other types, which can still be hidden", async () => {
+      const { user } = renderPage(undefined, premiumRender);
+      setContents(WINDOWS_XML);
+
+      expect(screen.getByText("Force install")).toBeInTheDocument();
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+      await user.click(hiddenCheckbox() as HTMLElement);
+
+      await user.click(screen.getByRole("button", { name: "Add profile" }));
+      await waitFor(() =>
+        expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1)
+      );
+      const args = jest.mocked(mdmAPI.uploadProfile).mock.calls[0][0];
+      expect(args.selfService).toBe(false);
+      expect(args.hidden).toBe(true);
+    });
+
+    it("sends neither flag on Free", async () => {
+      const { user } = renderPage();
+      setContents(MOBILECONFIG);
+      expect(screen.queryByText("Deploy")).not.toBeInTheDocument();
+      expect(hiddenCheckbox()).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Add profile" }));
+      await waitFor(() =>
+        expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1)
+      );
+      const args = jest.mocked(mdmAPI.uploadProfile).mock.calls[0][0];
+      expect(args.selfService).toBeUndefined();
+      expect(args.hidden).toBeUndefined();
+    });
+
+    it("seeds an edit from the profile and saves a deploy-only change without a file", async () => {
+      jest
+        .spyOn(configProfileAPI, "getConfigProfile")
+        .mockResolvedValue(appleProfile);
+      jest.spyOn(mdmAPI, "downloadProfile").mockResolvedValue(MOBILECONFIG);
+      const { user } = renderPage(appleProfile.profile_uuid, premiumRender);
+      await waitForEditForm();
+      expect(
+        screen.getByText("End user initiated (manual)")
+      ).toBeInTheDocument();
+      expect(hiddenCheckbox()).not.toBeInTheDocument();
+
+      await chooseDeploy(user, "Force install");
+      await user.click(hiddenCheckbox() as HTMLElement);
+
+      await user.click(screen.getByRole("button", { name: "Update profile" }));
+      await waitFor(() =>
+        expect(mdmAPI.updateProfile).toHaveBeenCalledTimes(1)
+      );
+      const args = jest.mocked(mdmAPI.updateProfile).mock.calls[0][0];
+      expect(args.profile).toBeUndefined();
+      expect(args.selfService).toBe(false);
+      expect(args.hidden).toBe(true);
+    });
+
+    it("disables both controls in GitOps mode", async () => {
+      jest
+        .spyOn(configProfileAPI, "getConfigProfile")
+        .mockResolvedValue({ ...appleProfile, self_service: false });
+      jest.spyOn(mdmAPI, "downloadProfile").mockResolvedValue(MOBILECONFIG);
+      renderPage(
+        appleProfile.profile_uuid,
+        makeRenderer({ isPremiumTier: true }, true)
+      );
+      await waitForEditForm();
+      expect(screen.getByText("Force install")).toBeInTheDocument();
+      expect(screen.getByRole("combobox")).toBeDisabled();
+      expect(hiddenCheckbox()).toHaveAttribute("aria-disabled", "true");
+    });
   });
 });
