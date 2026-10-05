@@ -3202,18 +3202,30 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 }
 
 func TestBatchSetSoftwareInstallersStopsAfterFirstFailure(t *testing.T) {
-	t.Parallel()
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1ms", t)
 
 	kvs, getKey := inMemoryKeyValueStore()
+
+	var downloads [3]atomic.Int32
+	installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/a.pkg":
+			downloads[0].Add(1)
+		case "/b.pkg":
+			downloads[1].Add(1)
+		case "/c.pkg":
+			downloads[2].Add(1)
+		}
+		http.Error(w, "download failed", http.StatusInternalServerError)
+	}))
+	t.Cleanup(installerSrv.Close)
 
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	var processed atomic.Int32
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
-		processed.Add(1)
-		return nil, errors.New("boom")
+		return nil, nil
 	}
 
 	svc := newTestService(t, ds)
@@ -3225,9 +3237,9 @@ func TestBatchSetSoftwareInstallersStopsAfterFirstFailure(t *testing.T) {
 	})
 
 	payloads := []*fleet.SoftwareInstallerPayload{
-		{URL: "https://example.com/a.pkg"},
-		{URL: "https://example.com/b.pkg"},
-		{URL: "https://example.com/c.pkg"},
+		{URL: installerSrv.URL + "/a.pkg", AlwaysDownload: true},
+		{URL: installerSrv.URL + "/b.pkg", AlwaysDownload: true},
+		{URL: installerSrv.URL + "/c.pkg", AlwaysDownload: true},
 	}
 	requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, "", payloads, true)
 	require.NoError(t, err)
@@ -3236,7 +3248,9 @@ func TestBatchSetSoftwareInstallersStopsAfterFirstFailure(t *testing.T) {
 		status := getKey(batchSoftwarePrefix + requestUUID)
 		return status != nil && strings.HasPrefix(*status, batchSetFailedPrefix)
 	}, 10*time.Second, 50*time.Millisecond, "batch never failed")
-	require.Equal(t, int32(1), processed.Load())
+	require.Positive(t, downloads[0].Load())
+	require.Zero(t, downloads[1].Load())
+	require.Zero(t, downloads[2].Load())
 }
 
 func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
