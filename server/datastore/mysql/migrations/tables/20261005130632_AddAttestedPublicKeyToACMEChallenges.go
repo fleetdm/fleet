@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261005061457, Down_20261005061457)
+	MigrationClient.AddMigration(Up_20261005130632, Down_20261005130632)
 }
 
-func Up_20261005061457(tx *sql.Tx) error {
+func Up_20261005130632(tx *sql.Tx) error {
 	if columnExists(tx, "acme_challenges", "attested_public_key") {
 		return nil
 	}
@@ -23,6 +23,6 @@ func Up_20261005061457(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261005061457(tx *sql.Tx) error {
+func Down_20261005130632(tx *sql.Tx) error {
 	return nil
 }

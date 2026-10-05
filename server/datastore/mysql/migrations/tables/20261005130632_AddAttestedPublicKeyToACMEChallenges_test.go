@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261005061457(t *testing.T) {
+func TestUp_20261005130632(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	enrollmentID := execNoErrLastID(t, db, `INSERT INTO acme_enrollments (path_identifier, host_identifier) VALUES ('path', 'serial')`)
