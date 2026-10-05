@@ -143,6 +143,7 @@ export const FileUploader = ({
   // by GitOps, drops must be suppressed too.
   const canAcceptDrop =
     !disabled &&
+    !isLoading &&
     !onButtonClick &&
     !fileDetails &&
     !(gitopsCompatible && gitOpsModeEnabled);
