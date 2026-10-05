@@ -86,6 +86,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 | openSUSE MicroOS and Aeon | ❌ |
 | SteamOS | ❌ |
 | Bazzite, Bluefin, and Aurora | ❌ |
+| Fedora Atomic desktops (Silverblue, Kinoite, and others) | ❌ |
 | Ubuntu Core | ❌ |
 | Any other distribution | ❌ |
 
@@ -93,7 +94,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 - NVIDIA DGX OS reports as Ubuntu (DGX OS 7 as Ubuntu 24.04, DGX OS 6 as Ubuntu 22.04) because its `/etc/os-release` is Ubuntu's. Fleet doesn't read `/etc/dgx-release`, so the host appears as Ubuntu on the **Software** > **OS** page and the DGX OS version isn't reported. DGX Spark is arm64; use the `arm64` fleetd package.
 - Raspberry Pi OS 64-bit reports as Debian and is covered. Raspberry Pi OS 32-bit reports as `raspbian`, which Fleet doesn't recognize.
 - Alpine, elementary OS, Deepin, Garuda, Clear Linux, Photon OS, Solus, Parrot OS, Vanilla OS, openSUSE MicroOS, Aeon, and any distribution not listed above: Fleet recognizes Linux by matching the platform value Fleet reads from `/etc/os-release` against a [fixed list](https://github.com/fleetdm/fleet/blob/main/server/fleet/hosts.go). Hosts with any other value enroll, but Fleet doesn't collect an OS entry or software inventory for them.
-- SteamOS, Bazzite, Bluefin, and Aurora: these use immutable root filesystems. Installing Fleet's agent is unsupported, and their platform values aren't in Fleet's list.
+- SteamOS, Bazzite, Bluefin, Aurora, and Fedora Atomic desktops: these use immutable root filesystems, so Fleet's agent package can't be installed on them. Support for rpm-ostree based distributions is tracked in [#48694](https://github.com/fleetdm/fleet/issues/48694).
 - Ubuntu Core runs snaps only. Fleet's agent isn't packaged as a snap, so Ubuntu Core hosts can't enroll.
 
 ## Browser extensions
