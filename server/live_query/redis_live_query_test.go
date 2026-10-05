@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
@@ -396,8 +399,9 @@ func TestQueryCompletedByHostAfterStopQuery(t *testing.T) {
 }
 
 func TestConcurrentCacheReloadsCoalesce(t *testing.T) {
-	// commandstats is reset and read per node, so this runs against standalone Redis only.
-	pool := redistest.SetupRedis(t, "*livequery", false, true, true)
+	// Redis's commandstats are server-wide and other packages' tests share the
+	// instance, so count this store's GETs at the client instead.
+	pool := &countingPool{RedisPool: redistest.SetupRedis(t, "*livequery", false, true, true)}
 	store := NewRedisLiveQuery(pool, slog.New(slog.DiscardHandler), time.Minute, 1)
 
 	const numQueries = 20
@@ -411,11 +415,7 @@ func TestConcurrentCacheReloadsCoalesce(t *testing.T) {
 		require.NoError(t, store.RunQuery(name, "SELECT "+name, hosts))
 		want[name] = "SELECT " + name
 	}
-
-	conn := redis.ConfigureDoer(pool, pool.Get())
-	defer conn.Close()
-	_, err := conn.Do("CONFIG", "RESETSTAT")
-	require.NoError(t, err)
+	pool.gets.Store(0)
 
 	const checkins = 50
 	var wg sync.WaitGroup
@@ -442,8 +442,34 @@ func TestConcurrentCacheReloadsCoalesce(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want, queries)
 
-	info, err := redigo.String(conn.Do("INFO", "commandstats"))
-	require.NoError(t, err)
-	assert.Contains(t, info, fmt.Sprintf("cmdstat_get:calls=%d,", numQueries),
+	assert.EqualValues(t, numQueries, pool.gets.Load(),
 		"concurrent checkins on an expired cache should share a single reload")
+}
+
+type countingPool struct {
+	fleet.RedisPool
+	gets atomic.Int64
+}
+
+func (p *countingPool) Get() redigo.Conn {
+	return &countingConn{Conn: p.RedisPool.Get(), gets: &p.gets}
+}
+
+type countingConn struct {
+	redigo.Conn
+	gets *atomic.Int64
+}
+
+func (c *countingConn) Do(cmd string, args ...any) (any, error) {
+	if strings.EqualFold(cmd, "GET") {
+		c.gets.Add(1)
+	}
+	return c.Conn.Do(cmd, args...)
+}
+
+func (c *countingConn) Send(cmd string, args ...any) error {
+	if strings.EqualFold(cmd, "GET") {
+		c.gets.Add(1)
+	}
+	return c.Conn.Send(cmd, args...)
 }

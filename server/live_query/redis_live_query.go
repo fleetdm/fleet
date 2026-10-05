@@ -655,23 +655,10 @@ func (r *redisLiveQuery) loadCache() error {
 func (r *redisLiveQuery) reloadCache() error {
 	expiredQueries := make(map[string]struct{})
 	sqlCache := make(map[string]string)
-	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
-	defer conn.Close()
 
-	activeIDs, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
-	if err != nil && err != redigo.ErrNil {
-		return fmt.Errorf("get active queries: %w", err)
-	}
-
-	// Load which active campaigns use the reverse per-host index, so the read
-	// path can exclude them from the per-host bitfield (GETBIT) probes.
-	reverseIDs, err := redigo.Strings(conn.Do("SMEMBERS", activeReverseQueriesKey))
-	if err != nil && err != redigo.ErrNil {
-		return fmt.Errorf("get reverse active queries: %w", err)
-	}
-	reverseActive := make(map[string]struct{}, len(reverseIDs))
-	for _, id := range reverseIDs {
-		reverseActive[id] = struct{}{}
+	activeIDs, reverseActive, err := r.loadActiveSets()
+	if err != nil {
+		return err
 	}
 
 	sqlKeys := make([]string, 0, len(activeIDs))
@@ -734,7 +721,33 @@ func (r *redisLiveQuery) reloadCache() error {
 	return nil
 }
 
+func (r *redisLiveQuery) loadActiveSets() (activeIDs []string, reverseActive map[string]struct{}, err error) {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	activeIDs, err = redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+	if err != nil && err != redigo.ErrNil {
+		return nil, nil, fmt.Errorf("get active queries: %w", err)
+	}
+
+	// Load which active campaigns use the reverse per-host index, so the read
+	// path can exclude them from the per-host bitfield (GETBIT) probes.
+	reverseIDs, err := redigo.Strings(conn.Do("SMEMBERS", activeReverseQueriesKey))
+	if err != nil && err != redigo.ErrNil {
+		return nil, nil, fmt.Errorf("get reverse active queries: %w", err)
+	}
+	reverseActive = make(map[string]struct{}, len(reverseIDs))
+	for _, id := range reverseIDs {
+		reverseActive[id] = struct{}{}
+	}
+	return activeIDs, reverseActive, nil
+}
+
 func (r *redisLiveQuery) collectBatchSQL(sqlKeys []string, sqlByName map[string]string) error {
+	if len(sqlKeys) == 0 {
+		return nil
+	}
+
 	// Not ReadOnlyConn: a lagging replica's missing key would drop the query from the active set.
 	conn := r.pool.Get()
 	defer conn.Close()
