@@ -832,7 +832,7 @@ const routes = (
         </Route>
       </Route>
       <Route path="device">
-        <IndexRedirect to=":device_auth_token" />
+        <IndexRedirect to={PATHS.FLEET_404} />
         {/* Standalone toast route — kept outside the DeviceUserPage wrapper so
         the Fleet Desktop notification window doesn't inherit the My device
         header, nav, or chrome. */}

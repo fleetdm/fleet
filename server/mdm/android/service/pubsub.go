@@ -959,7 +959,12 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 			host.Device.AppliedPolicyVersion = &device.AppliedPolicyVersion
 		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
-		svc.verifyDevicePolicy(ctx, host.UUID, device)
+		// Profiles are only ever delivered in the host-specific policy. The applied version
+		// of any other policy (e.g. the default one a device enrolls with) says nothing
+		// about them.
+		if policy != nil && *policy == host.UUID {
+			svc.verifyDevicePolicy(ctx, host.UUID, device)
+		}
 		svc.verifyDeviceSoftware(ctx, host.Host, device)
 	} else if fromEnroll {
 		// Re-enrollment of a previously-enrolled host: the freshly-enrolled device has not applied any policy yet.
