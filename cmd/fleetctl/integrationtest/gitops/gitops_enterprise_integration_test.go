@@ -4299,7 +4299,7 @@ reports:
 	writeLib("dup2.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: false\n")
 
 	teamFile := filepath.Join(baseDir, "team.yml")
-	apply := func(softwareBody string) {
+	writeTeamFile := func(softwareBody string) {
 		cfg := fmt.Sprintf(`
 controls:
 software:
@@ -4313,10 +4313,20 @@ settings:
 reports:
 `, softwareBody, teamName)
 		require.NoError(t, os.WriteFile(teamFile, []byte(cfg), 0o644))
+	}
+	apply := func(softwareBody string) {
+		writeTeamFile(softwareBody)
 		// assertRealRunOutput rejects the re-apply line the VPP flow emits.
 		require.Contains(t, fleetctltest.RunAppForTest(t, []string{
 			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
 		}), "gitops succeeded")
+	}
+	applyWithError := func(softwareBody string) error {
+		writeTeamFile(softwareBody)
+		_, err := fleetctltest.RunAppNoChecks([]string{
+			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+		})
+		return err
 	}
 
 	type applied struct {
@@ -4349,14 +4359,13 @@ reports:
 	// inline. Each run starts from empty so the comparison isn't reading stale state.
 	apply("")
 	require.Empty(t, assigned(team.ID))
-	apply("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
-	viaReferences := assigned(team.ID)
-
-	apply("")
+	err = applyWithError("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
+	require.ErrorContains(t, err, `More than one version is named "Default version"`)
 	require.Empty(t, assigned(team.ID))
-	apply("    - app_store_id: \"1\"\n      platform: darwin\n      self_service: true\n    - app_store_id: \"1\"\n      platform: darwin\n      self_service: false")
-	require.Equal(t, assigned(team.ID), viaReferences, "referenced duplicates must match inline duplicates")
-	require.Len(t, viaReferences, 1)
+
+	err = applyWithError("    - app_store_id: \"1\"\n      platform: darwin\n      self_service: true\n    - app_store_id: \"1\"\n      platform: darwin\n      self_service: false")
+	require.ErrorContains(t, err, `More than one version is named "Default version"`)
+	require.Empty(t, assigned(team.ID))
 }
 
 // TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)
