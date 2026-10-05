@@ -184,6 +184,8 @@ Unenroll a host when Fleet should stop managing it, for example when you repurpo
 
 ### Delete a host
 
+To keep a host from coming back, follow the [unenroll steps](https://fleetdm.com/guides/enroll-hosts#unenroll) instead.
+
 Deleting a host doesn't unenroll it, so most hosts come back:
 
 | Platform | Comes back | Fleet |
@@ -196,8 +198,6 @@ Deleting a host doesn't unenroll it, so most hosts come back:
 | ChromeOS | Yes, unless the extension is removed or its enroll secret is deleted | Enroll secret's fleet |
 
 Deleting a host also cancels its upcoming activities and clears its MDM command history, so Fleet can't report whether an in-progress command, like a wipe, finished. If Fleet can't reach AB, the delete fails.
-
-To keep a host from coming back, follow the [unenroll steps](https://fleetdm.com/guides/enroll-hosts#unenroll) instead.
 
 ## Debugging
 
