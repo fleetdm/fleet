@@ -1639,33 +1639,33 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 	if len(profiles) == 0 {
 		return nil, nil
 	}
-	appleProfilesSlice := make([]fleet.MDMProfileSpec, 0)
-	windowsProfilesSlice := make([]fleet.MDMProfileSpec, 0)
-	androidProfilesSlice := make([]fleet.MDMProfileSpec, 0)
+	appleProfilesSlice := make([]map[string]any, 0)
+	windowsProfilesSlice := make([]map[string]any, 0)
+	androidProfilesSlice := make([]map[string]any, 0)
 	usedFilenames := make(map[string]bool, len(profiles))
 	for _, profile := range profiles {
-		profileSpec := fleet.MDMProfileSpec{}
+		profileSpec := map[string]any{}
 		// Parse any labels.
 		if profile.LabelsIncludeAll != nil {
 			labels := make([]string, len(profile.LabelsIncludeAll))
 			for i, label := range profile.LabelsIncludeAll {
 				labels[i] = label.LabelName
 			}
-			profileSpec.LabelsIncludeAll = labels
+			profileSpec["labels_include_all"] = labels
 		}
 		if profile.LabelsIncludeAny != nil {
 			labels := make([]string, len(profile.LabelsIncludeAny))
 			for i, label := range profile.LabelsIncludeAny {
 				labels[i] = label.LabelName
 			}
-			profileSpec.LabelsIncludeAny = labels
+			profileSpec["labels_include_any"] = labels
 		}
 		if profile.LabelsExcludeAny != nil {
 			labels := make([]string, len(profile.LabelsExcludeAny))
 			for i, label := range profile.LabelsExcludeAny {
 				labels[i] = label.LabelName
 			}
-			profileSpec.LabelsExcludeAny = labels
+			profileSpec["labels_exclude_any"] = labels
 		}
 
 		// Download the profile contents.
@@ -1697,19 +1697,19 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 			path = fmt.Sprintf("../%s", fileName)
 		}
 
-		profileSpec.Path = path
+		profileSpec["path"] = path
 		if profile.SelfService {
-			profileSpec.SelfService = true
+			profileSpec["self_service"] = true
 		}
 		if profile.Hidden {
-			profileSpec.Hidden = true
+			profileSpec["hidden"] = true
 		}
 
 		// Always emitted: the file name is a sanitized copy of the name, so
 		// omitting it would rename profiles whose name the file can't carry.
-		profileSpec.Name = profile.Name
+		profileSpec["name"] = profile.Name
 		if profile.Description != "" {
-			profileSpec.Description = profile.Description
+			profileSpec["description"] = profile.Description
 		}
 
 		// Only declarations can carry one, and the list endpoint doesn't return
@@ -1733,9 +1733,9 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 			}
 			cmd.FilesToWrite[activationFileName] = string(activation)
 			if teamId == nil {
-				profileSpec.Activation = fmt.Sprintf("./%s", activationFileName)
+				profileSpec["activation"] = fmt.Sprintf("./%s", activationFileName)
 			} else {
-				profileSpec.Activation = fmt.Sprintf("../%s", activationFileName)
+				profileSpec["activation"] = fmt.Sprintf("../%s", activationFileName)
 			}
 		}
 
@@ -1751,7 +1751,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"apple_profiles":   appleProfilesSlice,
 		"windows_profiles": windowsProfilesSlice,
 		"android_profiles": androidProfilesSlice,
