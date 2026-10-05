@@ -531,8 +531,9 @@ func TestQuitMatchingApplicationsRunsMatches(t *testing.T) {
 			},
 		}
 		// Shell functions take precedence over the real commands. The running
-		// list includes a duplicate, a differently-cased match, and IDs that only
-		// match as a substring or not at all.
+		// list includes a duplicate, a differently-cased match, IDs that only
+		// match as a substring or not at all, and a matching ID that carries
+		// AppleScript (a running app can report any bundle ID).
 		stubs := `list_fails=` + strconv.FormatBool(listFails) + `
 stat() { echo ` + consoleUser + `; }
 pgrep() { return 1; }
@@ -542,7 +543,8 @@ osascript() {
     if [[ "$list_fails" == true ]]; then
       return 1
     fi
-    printf '%s\n' com.elgato.WaveLink com.elgato.wavelink.Helper com.elgato.WaveLink x.com.elgato.WaveLink com.elgato.StreamDeck
+    printf '%s\n' com.elgato.WaveLink com.elgato.wavelink.Helper com.elgato.WaveLink x.com.elgato.WaveLink com.elgato.StreamDeck \
+      'com.elgato.WaveLink" is running or (do shell script "id") is "" or application id "com.elgato.WaveLink'
     return
   fi
   if [[ "$2" == *" is running" ]]; then
@@ -561,6 +563,7 @@ osascript() {
 		require.Equal(t, 1, strings.Count(out, "Quitting application 'com.elgato.wavelink.Helper'..."), out)
 		require.NotContains(t, out, "x.com.elgato.WaveLink")
 		require.NotContains(t, out, "com.elgato.StreamDeck")
+		require.NotContains(t, out, "do shell script")
 	})
 
 	t.Run("no match", func(t *testing.T) {

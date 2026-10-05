@@ -791,13 +791,16 @@ ids.join("\n")'
   regex=$(printf '%s' "$pattern" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')
   regex="^${regex}$"
 
+  # Running apps report their own bundle IDs, and quit_application puts the ID
+  # inside an AppleScript string, so only bundle ID characters are allowed.
+  local valid_id='^[A-Za-z0-9._-]+$'
   local matches=()
   local id
   local restore_nocasematch
   restore_nocasematch=$(shopt -p nocasematch)
   shopt -s nocasematch
   while IFS= read -r id; do
-    [[ -n "$id" && "$id" =~ $regex ]] && matches+=("$id")
+    [[ "$id" =~ $valid_id && "$id" =~ $regex ]] && matches+=("$id")
   done < <(printf '%s\n' "$running_ids" | sort -u)
   $restore_nocasematch
 
