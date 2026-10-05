@@ -479,6 +479,108 @@ describe("HostDetailsPage - disk encryption key rotation", () => {
   });
 });
 
+describe("HostDetailsPage - refetch cycle on tab switch", () => {
+  const mockOnlineStuckHost = (): IHost =>
+    createMockHost({
+      id: 1,
+      platform: "darwin",
+      status: "online",
+      refetch_requested: true,
+    });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+    jest.resetAllMocks();
+  });
+
+  // #54676: each tab-focus re-entry into onSuccess used to schedule a fresh
+  // setTimeout next to the one already pending, so polling sped up.
+  it("does not stack polling loops when the tab regains focus mid-refetch", async () => {
+    stubQueries(mockOnlineStuckHost());
+
+    jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
+    const start = 1_700_000_000_000;
+    let now = start;
+    jest.spyOn(Date, "now").mockImplementation(() => now);
+
+    renderHostDetails();
+    await screen.findByText("Vitals");
+
+    // Dispatch three window-focus events (react-query's refetchOnWindowFocus
+    // trigger). Each one re-enters onSuccess.
+    for (let i = 0; i < 3; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => {
+        window.dispatchEvent(new Event("focus"));
+        window.dispatchEvent(new Event("visibilitychange"));
+        await jest.advanceTimersByTimeAsync(0);
+      });
+    }
+
+    const callsBeforeAdvance = (hostAPI.loadHostDetails as jest.Mock).mock.calls
+      .length;
+
+    // One polling interval. With the fix, exactly one scheduled poll fires in
+    // this window. Without it, each stacked timer fires an extra request.
+    now += 2000;
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(2000);
+    });
+
+    const pollsInOneInterval =
+      (hostAPI.loadHostDetails as jest.Mock).mock.calls.length -
+      callsBeforeAdvance;
+    expect(pollsInOneInterval).toBe(1);
+  });
+
+  // #54677: after give-up, the server still reports refetch_requested: true,
+  // so a focus-triggered onSuccess used to re-enter the "timer just started"
+  // branch and run a fresh 60s cycle (new toast 60s later).
+  it("doesn't restart the refetch window after a timeout when the tab regains focus", async () => {
+    jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
+    const start = 1_700_000_000_000;
+    let now = start;
+    jest.spyOn(Date, "now").mockImplementation(() => now);
+
+    stubQueries(mockOnlineStuckHost());
+    (hostAPI.loadHostDetails as jest.Mock).mockResolvedValue({
+      host: mockOnlineStuckHost(),
+    });
+
+    renderHostDetails();
+    await screen.findByText("Vitals");
+
+    // Advance past the 60s give-up window so the next polling tick fires the toast.
+    now += 61000;
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(2000);
+    });
+
+    await waitFor(() => {
+      expect(notify.error).toHaveBeenCalledWith(
+        "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
+      );
+    });
+    expect(notify.error).toHaveBeenCalledTimes(1);
+
+    // Simulate a tab switch and let a full fresh 60s + 2s poll interval pass.
+    // Without the fix, this re-enters the "timer just started" branch, opens a
+    // new 60s cycle, and 60s later shows the toast a second time.
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(new Event("visibilitychange"));
+      await jest.advanceTimersByTimeAsync(0);
+    });
+    now += 65000;
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(notify.error).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("HostDetailsPage - enrollment rejection details", () => {
   afterEach(() => {
     jest.resetAllMocks();

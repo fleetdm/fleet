@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
@@ -37,6 +37,12 @@ const WelcomeHost = ({
   const [showRefetchLoadingSpinner, setShowRefetchLoadingSpinner] = useState(
     false
   );
+  // Pending next-poll timer; cleared before scheduling a new one so a focus-triggered
+  // onSuccess re-entry replaces the pending poll instead of stacking. See #54676.
+  const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // True once the current refetch cycle has given up; blocks the restart path in
+  // onSuccess when the server still reports refetch_requested: true. See #54677.
+  const didTimeOutRef = useRef(false);
 
   /**
    * Hides refetch spinner and resets refetch timer,
@@ -45,6 +51,20 @@ const WelcomeHost = ({
   const resetHostRefetchStates = () => {
     setShowRefetchLoadingSpinner(false);
     setRefetchStartTime(null);
+    if (pollingTimerRef.current) {
+      clearTimeout(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+  };
+
+  const scheduleNextPoll = (fn: () => void) => {
+    if (pollingTimerRef.current) {
+      clearTimeout(pollingTimerRef.current);
+    }
+    pollingTimerRef.current = setTimeout(() => {
+      pollingTimerRef.current = null;
+      fn();
+    }, 1000);
   };
 
   const {
@@ -59,43 +79,51 @@ const WelcomeHost = ({
       retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
-        setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
-
         const anyPassingOrFailingPolicy = returnedHost?.policies?.find(
           (p) => p.response === POLICY_PASS || p.response === POLICY_FAIL
         );
         setIsPoliciesEmpty(typeof anyPassingOrFailingPolicy === "undefined");
 
-        if (returnedHost.refetch_requested) {
-          // Code duplicated from HostDetailsPage. See comments there.
-          if (!refetchStartTime) {
-            if (returnedHost.status === "online") {
-              setRefetchStartTime(Date.now());
-              setTimeout(() => {
-                fullyReloadHost();
-              }, 1000);
-            } else {
-              resetHostRefetchStates();
-            }
+        if (!returnedHost.refetch_requested) {
+          didTimeOutRef.current = false;
+          setShowRefetchLoadingSpinner(false);
+          return;
+        }
+
+        // Previous cycle gave up and server still reports refetch_requested: true.
+        // Skip the restart path so a focus-triggered re-entry doesn't open a fresh
+        // 60s window + repeat toast. See #54677.
+        if (didTimeOutRef.current && !refetchStartTime) {
+          return;
+        }
+
+        setShowRefetchLoadingSpinner(true);
+
+        // Code duplicated from HostDetailsPage. See comments there.
+        if (!refetchStartTime) {
+          if (returnedHost.status === "online") {
+            setRefetchStartTime(Date.now());
+            scheduleNextPoll(fullyReloadHost);
           } else {
-            const totalElapsedTime = Date.now() - refetchStartTime;
-            if (totalElapsedTime < 60000) {
-              if (returnedHost.status === "online") {
-                setTimeout(() => {
-                  fullyReloadHost();
-                }, 1000);
-              } else {
-                notify.error(
-                  `This host is offline. Please try refetching host vitals later.`
-                );
-                resetHostRefetchStates();
-              }
+            resetHostRefetchStates();
+          }
+        } else {
+          const totalElapsedTime = Date.now() - refetchStartTime;
+          if (totalElapsedTime < 60000) {
+            if (returnedHost.status === "online") {
+              scheduleNextPoll(fullyReloadHost);
             } else {
               notify.error(
-                `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
+                `This host is offline. Please try refetching host vitals later.`
               );
               resetHostRefetchStates();
             }
+          } else {
+            notify.error(
+              `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
+            );
+            didTimeOutRef.current = true;
+            resetHostRefetchStates();
           }
         }
       },
@@ -111,8 +139,9 @@ const WelcomeHost = ({
 
       try {
         await hostAPI.refetch(host).then(() => {
+          didTimeOutRef.current = false;
           setRefetchStartTime(Date.now());
-          setTimeout(() => fullyReloadHost(), 1000);
+          scheduleNextPoll(fullyReloadHost);
         });
       } catch (error) {
         console.error(error);
