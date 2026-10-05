@@ -85,7 +85,7 @@ func setDeviceNameRetries(t *testing.T, ds *Datastore, hostUUID string, retries 
 }
 
 func applyDeviceNameCommandResult(t *testing.T, ds *Datastore, commandUUID string, acknowledged bool, detail string) fleet.DeviceNameRetryOutcome {
-	outcome, err := ds.UpdateHostDeviceNameStatusFromCommand(t.Context(), commandUUID, acknowledged, detail)
+	outcome, err := ds.UpdateHostDeviceNameStatusFromCommand(t.Context(), commandUUID, acknowledged, detail, true)
 	require.NoError(t, err)
 	return outcome
 }
@@ -227,8 +227,20 @@ func testHostDeviceNamesCommandLifecycle(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Apple error chain", row.Detail)
 	require.EqualValues(t, mdm.MaxAppleDeviceNameRetries, row.Retries)
 
+	// A non-retryable error (e.g. an unsupervised device) fails the row right away
+	// without using a retry.
+	require.NoError(t, ds.ResendHostDeviceName(ctx, host.UUID))
+	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryPending, new("DEVNAME-not-supervised"), "WS-SERIAL123", ""))
+	outcome, err := ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-not-supervised", false, "The device is not supervised.", false)
+	require.NoError(t, err)
+	require.Equal(t, fleet.DeviceNameNotRetried, outcome)
+	row = getDeviceNameRow(t, ds, host.UUID)
+	require.Equal(t, fleet.MDMDeliveryFailed, *row.Status)
+	require.Equal(t, "The device is not supervised.", row.Detail)
+	require.Zero(t, row.Retries)
+
 	// An unknown command UUID is a not-found error.
-	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-nope", true, "")
+	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-nope", true, "", true)
 	require.True(t, fleet.IsNotFound(err))
 
 	// Getting an enforcement row for a host with none is a not-found error.
@@ -298,7 +310,7 @@ func testHostDeviceNamesVerify(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.MDMDeliveryPending, *getDeviceNameRow(t, ds, host.UUID).Status)
 
 	// Move to verifying, then a matching report verifies it.
-	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd", true, "")
+	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd", true, "", true)
 	require.NoError(t, err)
 	require.Equal(t, fleet.DeviceNameNotRetried, reportDeviceName(t, ds, host.UUID, "WS-1"))
 	require.Equal(t, fleet.MDMDeliveryVerified, *getDeviceNameRow(t, ds, host.UUID).Status)
@@ -357,7 +369,7 @@ func testHostDeviceNamesResend(t *testing.T, ds *Datastore) {
 	require.Zero(t, row.Retries)
 
 	// The previous command's late acknowledgment no longer matches any row.
-	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd", true, "")
+	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd", true, "", true)
 	require.True(t, fleet.IsNotFound(err))
 	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status, "late ack must not resurrect the row")
 
@@ -836,7 +848,7 @@ func testHostDeviceNamesRequeueClearsStaleCommand(t *testing.T, ds *Datastore) {
 
 	// A late ACK for the superseded command must not match the re-queued row and
 	// must not rename the host.
-	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-stale", true, "")
+	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-stale", true, "", true)
 	require.True(t, fleet.IsNotFound(err), "late ACK for a superseded command must not match the re-queued row")
 	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status, "row must remain queued")
 	h, err := ds.Host(ctx, host.ID)
@@ -939,7 +951,7 @@ func testHostDeviceNamesResolveResult(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ResendHostDeviceName(ctx, host.UUID))
 	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryPending, new("DEVNAME-stale"), "WS-1", ""))
 	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryVerified, nil, "WS-1", ""))
-	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-stale", false, "boom")
+	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-stale", false, "boom", true)
 	require.True(t, fleet.IsNotFound(err))
 	require.Equal(t, fleet.MDMDeliveryVerified, *getDeviceNameRow(t, ds, host.UUID).Status)
 
@@ -956,7 +968,7 @@ func testHostDeviceNamesVerifyGracePeriod(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
 	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryPending, new("DEVNAME-cmd"), "WS-1", ""))
-	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd", true, "")
+	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd", true, "", true)
 	require.NoError(t, err)
 
 	// A mismatching report arriving shortly after the acknowledgment is a report
@@ -979,7 +991,7 @@ func testHostDeviceNamesVerifyGracePeriod(t *testing.T, ds *Datastore) {
 	// no longer explainable as an in-flight stale report and re-queues the row.
 	require.NoError(t, ds.ResendHostDeviceName(ctx, host.UUID))
 	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryPending, new("DEVNAME-cmd-2"), "WS-1", ""))
-	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd-2", true, "")
+	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd-2", true, "", true)
 	require.NoError(t, err)
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		`UPDATE host_mdm_apple_device_names SET updated_at = DATE_SUB(NOW(6), INTERVAL 1 HOUR) WHERE host_uuid = ?`, host.UUID)
@@ -1038,7 +1050,7 @@ func testHostDeviceNamesFullLifecycle(t *testing.T, ds *Datastore) {
 
 	// The superseded command's ack no longer matches the row -> not found, and
 	// the row is untouched (still pending on the newest command).
-	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-2a", true, "")
+	_, err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-2a", true, "", true)
 	require.True(t, fleet.IsNotFound(err))
 	require.Equal(t, fleet.MDMDeliveryPending, *getDeviceNameRow(t, ds, host.UUID).Status)
 

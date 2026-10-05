@@ -2123,9 +2123,9 @@ type Datastore interface {
 	// host in Fleet in the same transaction — setting the host's computer name and
 	// hostname to the row's expected name and updating its display name — so the
 	// row transition and the Fleet-side rename are atomic; acknowledged=false (the
-	// device returned an error) records detail and re-queues the row while fewer
-	// than mdm.MaxAppleDeviceNameRetries retries were used, otherwise moves it to
-	// failed. The returned outcome says which applied.
+	// device returned an error) records detail and, when retryable, re-queues the
+	// row while fewer than mdm.MaxAppleDeviceNameRetries retries were used;
+	// otherwise it moves the row to failed. The returned outcome says which applied.
 	//
 	// A host holds only its most recently sent command UUID (one row per host),
 	// so a result for a superseded command (e.g. the template was re-saved or the
@@ -2134,7 +2134,7 @@ type Datastore interface {
 	// command, ignore" (check fleet.IsNotFound) rather than a failure: the device
 	// processes commands FIFO and ends on the latest name, which the matching
 	// (newest) command's result records.
-	UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) (DeviceNameRetryOutcome, error)
+	UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string, retryable bool) (DeviceNameRetryOutcome, error)
 
 	// UpdateHostDeviceNameStatusFromReport reconciles the enforcement row for a
 	// host against the name reported by the device (mutating). reportedName is the
@@ -4445,6 +4445,16 @@ type AndroidDatastore interface {
 	// BulkUpsertMDMAndroidHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error
+	// GetMDMAndroidProfilesWriteTime returns the primary's current time, comparable to the
+	// update times of host MDM Android profile rows.
+	GetMDMAndroidProfilesWriteTime(ctx context.Context) (time.Time, error)
+	// BulkUpsertMDMAndroidHostProfilesUnlessResetSince is like BulkUpsertMDMAndroidHostProfiles but
+	// leaves existing rows alone that were reset for redelivery (status NULL) at or after since.
+	BulkUpsertMDMAndroidHostProfilesUnlessResetSince(ctx context.Context, payload []*MDMAndroidProfilePayload, since time.Time) error
+	// ResetMDMAndroidHostProfilesForRedelivery marks every profile install of the host as needing
+	// to be sent again, creating rows for applicable profiles the host has none for, and deletes
+	// its pending profile removals.
+	ResetMDMAndroidHostProfilesForRedelivery(ctx context.Context, hostUUID string) error
 	// BulkDeleteMDMAndroidHostProfiles bulk removes records from the host's profile, that is pending or failed remove and less than or equals to the policy version.
 	BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error
 	// ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion returns a list of all android profiles that are pending or failed install, and where version is less than or equals to the policyVersion.

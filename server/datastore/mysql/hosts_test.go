@@ -3552,7 +3552,7 @@ func TestExplainListHostsMobileJoin(t *testing.T) {
 		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)` + hostMDMSeenTimeJoin + hostMobileMDMSeenTimeJoin + `
 		WHERE 1=1 `
 	filtered, args := filterHostsByStatus(time.Now(), baseStmt, fleet.HostListOptions{StatusFilter: fleet.StatusOnline}, nil)
-	stmt := "EXPLAIN " + filtered
+	stmt := "EXPLAIN FORMAT=TRADITIONAL " + filtered
 
 	// Full column list — sqlx.SelectContext rejects extras it can't scan into.
 	type explainRow struct {

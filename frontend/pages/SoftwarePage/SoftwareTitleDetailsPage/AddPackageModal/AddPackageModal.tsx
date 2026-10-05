@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
 import FileProgressModal from "components/FileProgressModal";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import useBlockNavigation from "hooks/useBlockNavigation";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
@@ -51,6 +52,7 @@ const AddPackageModal = ({
   const { gitOpsModeEnabled } = useGitOpsMode("software");
   const restriction = getFileTypeRestriction(existingPackageName);
 
+  const { config } = useContext(AppContext);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadDetails, setUploadDetails] = useState<IFileDetails | null>(null);
   const [
@@ -90,6 +92,7 @@ const AddPackageModal = ({
         data: formData,
         teamId,
         softwareTitleId,
+        directUpload: config?.staged_upload_available,
         onUploadProgress: (progressEvent) => {
           const progress = progressEvent.progress || 0;
           // Keep the progress bar at 97% until the server finalizes its

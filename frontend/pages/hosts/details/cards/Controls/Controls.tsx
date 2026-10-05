@@ -33,6 +33,7 @@ interface IControlsProps {
   hostDisplayName: string;
   /** My device: second person, and no Controls page to link to. */
   isDeviceUser?: boolean;
+  isPremiumTier?: boolean;
   /** Fleet setting for macOS: disk encryption enforced without key escrow. */
   isMacOSDiskEncryptionEnforceOnly?: boolean;
   canResendProfiles: boolean;
@@ -80,6 +81,7 @@ const Controls = ({
   canManageSelfServiceProfiles = false,
   installRequest,
   uninstallRequest,
+  isPremiumTier = false,
   router,
   className,
 }: IControlsProps) => {
@@ -230,6 +232,10 @@ const Controls = ({
       return null;
     }
     if (isDeviceUser) {
+      if (!isPremiumTier) {
+        return null;
+      }
+
       return (
         <Slider
           value={showHiddenProfiles}
@@ -244,6 +250,7 @@ const Controls = ({
     return (
       <>
         <DropdownWrapper
+          ariaLabel="Filter by type"
           className={`${baseClass}__filter`}
           variant="table-filter"
           name="type-filter"

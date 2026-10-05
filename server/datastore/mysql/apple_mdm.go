@@ -196,8 +196,8 @@ func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMA
 
 	stmt := `
 INSERT INTO
-    mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, description, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at)
-(SELECT ?, ?, ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP(), ? FROM DUAL WHERE
+    mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, description, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at, self_service, hidden)
+(SELECT ?, ?, ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP(), ?, ?, ? FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
@@ -219,7 +219,7 @@ INSERT INTO
 			return err
 		}
 		res, err := tx.ExecContext(ctx, stmt,
-			profUUID, teamID, cp.Identifier, cp.Name, cp.Description, cp.Scope, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt, cp.Name, teamID, cp.Name,
+			profUUID, teamID, cp.Identifier, cp.Name, cp.Description, cp.Scope, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt, cp.SelfService, cp.Hidden, cp.Name, teamID, cp.Name,
 			teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
@@ -290,6 +290,8 @@ INSERT INTO
 		Scope:        cp.Scope,
 		Mobileconfig: cp.Mobileconfig,
 		TeamID:       cp.TeamID,
+		SelfService:  cp.SelfService,
+		Hidden:       cp.Hidden,
 	}, nil
 }
 
@@ -302,9 +304,11 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 			Identifier  string `db:"identifier"`
 			Name        string `db:"name"`
 			Description string `db:"description"`
+			SelfService bool   `db:"self_service"`
+			Hidden      bool   `db:"hidden"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT identifier, name, description FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT identifier, name, description, self_service, hidden FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
@@ -356,9 +360,9 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 			stmt := `
 UPDATE mdm_apple_configuration_profiles
 SET uploaded_at = IF(checksum = UNHEX(MD5(?)), uploaded_at, CURRENT_TIMESTAMP()),
-	mobileconfig = ?, checksum = UNHEX(MD5(?)), name = ?, description = ?, secrets_updated_at = ?
+	mobileconfig = ?, checksum = UNHEX(MD5(?)), name = ?, description = ?, secrets_updated_at = ?, self_service = ?, hidden = ?
 WHERE profile_uuid = ? AND identifier = ?` + nameGuard
-			args := append([]any{cp.Mobileconfig, cp.Mobileconfig, cp.Mobileconfig, cp.Name, cp.Description, cp.SecretsUpdatedAt, cp.ProfileUUID, cp.Identifier}, nameGuardArgs...)
+			args := append([]any{cp.Mobileconfig, cp.Mobileconfig, cp.Mobileconfig, cp.Name, cp.Description, cp.SecretsUpdatedAt, cp.SelfService, cp.Hidden, cp.ProfileUUID, cp.Identifier}, nameGuardArgs...)
 			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
 				switch {
@@ -376,12 +380,12 @@ WHERE profile_uuid = ? AND identifier = ?` + nameGuard
 				}
 				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
 			}
-		} else if nameChanged || existing.Description != cp.Description {
-			// Name and description are not part of the checksum, so they are
-			// written without touching uploaded_at: a bump would re-verify every
-			// installed copy.
-			stmt := `UPDATE mdm_apple_configuration_profiles SET name = ?, description = ? WHERE profile_uuid = ?` + nameGuard
-			args := append([]any{cp.Name, cp.Description, cp.ProfileUUID}, nameGuardArgs...)
+		} else if nameChanged || existing.Description != cp.Description || existing.SelfService != cp.SelfService || existing.Hidden != cp.Hidden {
+			// Name, description and deploy flags are not part of the checksum, so
+			// they are written without touching uploaded_at: a bump would
+			// re-verify every installed copy.
+			stmt := `UPDATE mdm_apple_configuration_profiles SET name = ?, description = ?, self_service = ?, hidden = ? WHERE profile_uuid = ?` + nameGuard
+			args := append([]any{cp.Name, cp.Description, cp.SelfService, cp.Hidden, cp.ProfileUUID}, nameGuardArgs...)
 			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
 				if IsDuplicate(err) {
@@ -394,6 +398,12 @@ WHERE profile_uuid = ? AND identifier = ?` + nameGuard
 					return nameExists()
 				}
 				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
+			}
+		}
+
+		if !existing.SelfService && cp.SelfService {
+			if err := seedSelfServiceProfileOptInsDB(ctx, tx, []string{cp.ProfileUUID}); err != nil {
+				return err
 			}
 		}
 
@@ -549,7 +559,9 @@ SELECT
 	checksum,
 	created_at,
 	uploaded_at,
-	secrets_updated_at
+	secrets_updated_at,
+	self_service,
+	hidden
 FROM
 	mdm_apple_configuration_profiles
 WHERE
@@ -618,7 +630,8 @@ SELECT
 	token,
 	created_at,
 	uploaded_at,
-	secrets_updated_at
+	secrets_updated_at,
+	hidden
 FROM
 	mdm_apple_declarations
 WHERE
@@ -2977,6 +2990,23 @@ func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, p
 	})
 }
 
+// seedSelfServiceProfileOptInsDB opts in every host that has the profiles installed.
+// It must run in the same transaction that flips the profiles to self-service,
+// or the reconciler could observe self-service without opt-ins and remove them.
+func seedSelfServiceProfileOptInsDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
+	if len(profileUUIDs) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(`INSERT IGNORE INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
+SELECT host_uuid, profile_uuid FROM host_mdm_apple_profiles WHERE profile_uuid IN (?) AND operation_type = ?`,
+		profileUUIDs, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build seed self-service opt-ins")
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	return ctxerr.Wrap(ctx, err, "seed self-service opt-ins")
+}
+
 // batchSetMDMAppleProfilesDB must be called from inside a transaction.
 func (ds *Datastore) batchSetMDMAppleProfilesDB(
 	ctx context.Context,
@@ -2991,7 +3021,8 @@ SELECT
   profile_uuid,
   name,
   mobileconfig,
-  secrets_updated_at
+  secrets_updated_at,
+  self_service
 FROM
   mdm_apple_configuration_profiles
 WHERE
@@ -3029,11 +3060,11 @@ WHERE
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_apple_configuration_profiles (
-    profile_uuid, team_id, identifier, name, description, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at
+    profile_uuid, team_id, identifier, name, description, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at, self_service, hidden
   )
 VALUES
   -- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('` + fleet.MDMAppleProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
+  ( CONCAT('` + fleet.MDMAppleProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?, ?, ?)
 ON DUPLICATE KEY UPDATE
   -- a rename alone doesn't re-send the profile, so it isn't a new upload
   uploaded_at = IF(checksum = VALUES(checksum), uploaded_at, CURRENT_TIMESTAMP(6)),
@@ -3041,7 +3072,9 @@ ON DUPLICATE KEY UPDATE
   checksum = VALUES(checksum),
   name = VALUES(name),
   description = VALUES(description),
-  mobileconfig = VALUES(mobileconfig)
+  mobileconfig = VALUES(mobileconfig),
+  self_service = VALUES(self_service),
+  hidden = VALUES(hidden)
 `
 
 	// use a profile team id of 0 if no-team
@@ -3078,9 +3111,13 @@ ON DUPLICATE KEY UPDATE
 
 	// figure out if we need to delete any profiles
 	keepIdents := make([]string, 0, len(incomingIdents))
+	var flippedToSelfService []string
 	for _, p := range existingProfiles {
 		if newP := incomingProfs[p.Identifier]; newP != nil {
 			keepIdents = append(keepIdents, p.Identifier)
+			if !p.SelfService && newP.SelfService {
+				flippedToSelfService = append(flippedToSelfService, p.ProfileUUID)
+			}
 		}
 	}
 
@@ -3171,12 +3208,15 @@ ON DUPLICATE KEY UPDATE
 	// contents is the same as it was already).
 	for _, p := range incomingProfs {
 		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name, p.Description, p.Scope,
-			p.Mobileconfig, p.SecretsUpdatedAt); err != nil {
+			p.Mobileconfig, p.SecretsUpdatedAt, p.SelfService, p.Hidden); err != nil {
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
 		}
 		didInsertOrUpdate := insertOnDuplicateDidInsertOrUpdate(result)
 
 		updatedDB = updatedDB || didInsertOrUpdate
+	}
+	if err := seedSelfServiceProfileOptInsDB(ctx, tx, flippedToSelfService); err != nil {
+		return false, err
 	}
 
 	var mappedIncomingProfiles []*BatchSetAssociationIncomingProfile
@@ -4079,7 +4119,11 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 		return ctxerr.Wrapf(ctx, err, "check if bootstrap package %s already exists", pkgID)
 	}
 	if !ok {
-		if err := pkgStore.Put(ctx, pkgID, bytes.NewReader(bp.Bytes)); err != nil {
+		var content io.ReadSeeker = bytes.NewReader(bp.Bytes)
+		if bp.PackageFile != nil {
+			content = bp.PackageFile
+		}
+		if err := pkgStore.Put(ctx, pkgID, content); err != nil {
 			return ctxerr.Wrapf(ctx, err, "upload bootstrap package %s to S3", pkgID)
 		}
 	}
@@ -5338,10 +5382,11 @@ INSERT INTO mdm_apple_declarations (
 	scope,
 	secrets_updated_at,
 	uploaded_at,
-	team_id
+	team_id,
+	hidden
 )
 VALUES (
-	?,?,?,?,?,?,?,NOW(6),?
+	?,?,?,?,?,?,?,NOW(6),?,?
 )
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(raw_json = VALUES(raw_json) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
@@ -5350,7 +5395,8 @@ ON DUPLICATE KEY UPDATE
   description = VALUES(description),
   identifier = VALUES(identifier),
   scope = VALUES(scope),
-  raw_json = VALUES(raw_json)
+  raw_json = VALUES(raw_json),
+  hidden = VALUES(hidden)
 `
 
 	updatedDeclarationUUIDs := make([]string, 0, len(incomingDeclarations))
@@ -5370,7 +5416,8 @@ ON DUPLICATE KEY UPDATE
 			d.RawJSON,
 			scope,
 			d.SecretsUpdatedAt,
-			teamID); err != nil {
+			teamID,
+			d.Hidden); err != nil {
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
 		}
 		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
@@ -5497,8 +5544,9 @@ INSERT INTO mdm_apple_declarations (
 	raw_json,
 	scope,
 	secrets_updated_at,
+	hidden,
 	uploaded_at)
-(SELECT ?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -5529,8 +5577,9 @@ INSERT INTO mdm_apple_declarations (
 	raw_json,
 	scope,
 	secrets_updated_at,
+	hidden,
 	uploaded_at)
-(SELECT ?,?,?,?,?,?,?,?,NOW(6) FROM DUAL WHERE
+(SELECT ?,?,?,?,?,?,?,?,?,NOW(6) FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -5545,7 +5594,8 @@ ON DUPLICATE KEY UPDATE
 	scope = VALUES(scope),
 	uploaded_at = IF(raw_json = VALUES(raw_json) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
 	name = VALUES(name),
-	raw_json = VALUES(raw_json)`
+	raw_json = VALUES(raw_json),
+	hidden = VALUES(hidden)`
 
 	// OS-update tracking must follow the new content so an edit away from (or
 	// into) an OS-update declaration reconciles the tracking row -- except for
@@ -5608,7 +5658,7 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 
 		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
 			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.Description, declaration.RawJSON,
-			scope, declaration.SecretsUpdatedAt,
+			scope, declaration.SecretsUpdatedAt, declaration.Hidden,
 			declaration.Name, tmID, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
