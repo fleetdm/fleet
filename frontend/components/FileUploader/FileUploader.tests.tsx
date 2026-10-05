@@ -52,6 +52,24 @@ describe("FileUploader", () => {
     expect(onFileUpload).not.toHaveBeenCalled();
   });
 
+  it("does not fire onFileUpload while isLoading", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        isLoading
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("thing.pkg")] },
+    });
+
+    expect(onFileUpload).not.toHaveBeenCalled();
+  });
+
   it("does not fire onFileUpload when GitOps mode suppresses the uploader", () => {
     const onFileUpload = jest.fn();
     const { container } = render(
