@@ -95,7 +95,7 @@ relaunch_application() {
 
 
 # extract contents
-unzip "$INSTALLER_PATH" -d "$TMPDIR"
+unzip "$INSTALLER_PATH" -d "$TMPDIR" || exit $?
 # the zip nests WezTerm.app inside a versioned folder
 SRC=$(find "$TMPDIR" -maxdepth 2 -name WezTerm.app -type d | head -n 1)
 if [ -z "$SRC" ]; then
