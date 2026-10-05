@@ -6,12 +6,12 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261001201641, Down_20261001201641)
+	MigrationClient.AddMigration(Up_20261005181738, Down_20261005181738)
 }
 
 // Turning off Android MDM left installed_from_dep = 1 on company-owned hosts, which reads as "Pending".
 // Android has no DEP/ABM equivalent, so an unenrolled Android host is always "Off".
-func Up_20261001201641(tx *sql.Tx) error {
+func Up_20261005181738(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 UPDATE host_mdm hm
 JOIN hosts h ON h.id = hm.host_id
@@ -24,6 +24,6 @@ WHERE h.platform = 'android'
 	return nil
 }
 
-func Down_20261001201641(tx *sql.Tx) error {
+func Down_20261005181738(tx *sql.Tx) error {
 	return nil
 }
