@@ -1210,31 +1210,38 @@ FOR SHARE OF s
 		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
 		AND script_id IN (?)`
 
+	const lockScripts = `SELECT id FROM scripts WHERE id IN (?) FOR UPDATE`
+
+	// Current reads, run after the removed scripts are locked, so runs queued for them after this
+	// transaction's snapshot are still cancelled. SKIP LOCKED passes over runs still being queued;
+	// those fail their foreign key check once the script is deleted.
 	const loadAffectedHostsPendingExecutionsUA = `
 		SELECT
-			DISTINCT host_id
+			DISTINCT ua.host_id
 		FROM
-			upcoming_activities ua
-			INNER JOIN script_upcoming_activities sua
+			script_upcoming_activities sua FORCE INDEX (fk_script_upcoming_activities_script_id)
+			STRAIGHT_JOIN upcoming_activities ua
 				ON ua.id = sua.upcoming_activity_id
 		WHERE
 			ua.activity_type = 'script'
 			AND ua.activated_at IS NOT NULL
 			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
-			AND sua.script_id IN (?)`
+			AND sua.script_id IN (?)
+		FOR SHARE SKIP LOCKED`
 
-	// Plain read, then delete by primary key. A locking DELETE joined on script_upcoming_activities
-	// can lock other scripts' runs and keeps meeting runs being queued, deadlocking with them.
 	const loadPendingExecutionsUA = `SELECT ua.id
 		FROM
-			upcoming_activities ua
-			INNER JOIN script_upcoming_activities sua
+			script_upcoming_activities sua FORCE INDEX (fk_script_upcoming_activities_script_id)
+			STRAIGHT_JOIN upcoming_activities ua
 				ON ua.id = sua.upcoming_activity_id
 		WHERE
 			ua.activity_type = 'script'
 			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
-			AND sua.script_id IN (?)`
+			AND sua.script_id IN (?)
+		FOR UPDATE SKIP LOCKED`
 
+	// Plain read, then delete by primary key. A locking DELETE joined on script_upcoming_activities
+	// can lock other scripts' runs and keeps meeting runs being queued, deadlocking with them.
 	const loadPendingExecutionsWithObsoleteScriptUA = `SELECT ua.id
 		FROM
 			upcoming_activities ua
@@ -1369,7 +1376,14 @@ ON DUPLICATE KEY UPDATE
 		// the commit right after.
 		if len(obsoleteIDs) > 0 {
 			waitSecs := int(constants.MaxServerWaitTime.Seconds())
-			stmt, args, err := sqlx.In(clearPendingExecutionsHSR, waitSecs, obsoleteIDs)
+			stmt, args, err := sqlx.In(lockScripts, obsoleteIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build query to lock obsolete scripts")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "lock obsolete scripts")
+			}
+			stmt, args, err = sqlx.In(clearPendingExecutionsHSR, waitSecs, obsoleteIDs)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to clear pending script executions from obsolete scripts")
 			}
