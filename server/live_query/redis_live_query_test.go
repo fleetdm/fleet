@@ -1,7 +1,10 @@
 package live_query
 
 import (
+	"fmt"
 	"log/slog"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -390,4 +393,57 @@ func TestQueryCompletedByHostAfterStopQuery(t *testing.T) {
 			require.Zero(t, exists)
 		})
 	}
+}
+
+func TestConcurrentCacheReloadsCoalesce(t *testing.T) {
+	// commandstats is reset and read per node, so this runs against standalone Redis only.
+	pool := redistest.SetupRedis(t, "*livequery", false, true, true)
+	store := NewRedisLiveQuery(pool, slog.New(slog.DiscardHandler), time.Minute, 1)
+
+	const numQueries = 20
+	want := make(map[string]string)
+	for i := range numQueries {
+		name := strconv.Itoa(i + 1)
+		hosts := []uint{1}
+		if i%2 == 0 {
+			hosts = []uint{1, 2}
+		}
+		require.NoError(t, store.RunQuery(name, "SELECT "+name, hosts))
+		want[name] = "SELECT " + name
+	}
+
+	conn := redis.ConfigureDoer(pool, pool.Get())
+	defer conn.Close()
+	_, err := conn.Do("CONFIG", "RESETSTAT")
+	require.NoError(t, err)
+
+	const checkins = 50
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errs := make(chan error, checkins)
+	for range checkins {
+		wg.Go(func() {
+			<-start
+			queries, err := store.QueriesForHost(1)
+			if err == nil && len(queries) != numQueries {
+				err = fmt.Errorf("got %d queries, want %d", len(queries), numQueries)
+			}
+			errs <- err
+		})
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+
+	queries, err := store.QueriesForHost(1)
+	require.NoError(t, err)
+	require.Equal(t, want, queries)
+
+	info, err := redigo.String(conn.Do("INFO", "commandstats"))
+	require.NoError(t, err)
+	assert.Contains(t, info, fmt.Sprintf("cmdstat_get:calls=%d,", numQueries),
+		"concurrent checkins on an expired cache should share a single reload")
 }

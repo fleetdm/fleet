@@ -76,6 +76,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -98,6 +99,7 @@ type redisLiveQuery struct {
 	cache memCache
 	// in memory cache expiration
 	cacheExpiration time.Duration
+	cacheLoads      singleflight.Group
 
 	// smallTargetThreshold is the maximum number of targeted hosts for a query to
 	// use the per-host reverse index instead of the bitfield. A value of 0
@@ -638,6 +640,19 @@ func (r *redisLiveQuery) LoadActiveQueryNames() ([]string, error) {
 }
 
 func (r *redisLiveQuery) loadCache() error {
+	// Every checkin that finds the cache expired lands here; without this they
+	// each reload it. singleflight only merges overlapping calls, so recheck
+	// expiry for callers arriving just after a reload finished.
+	_, err, _ := r.cacheLoads.Do("", func() (any, error) {
+		if !r.cacheIsExpired() {
+			return nil, nil
+		}
+		return nil, r.reloadCache()
+	})
+	return err
+}
+
+func (r *redisLiveQuery) reloadCache() error {
 	expiredQueries := make(map[string]struct{})
 	sqlCache := make(map[string]string)
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
@@ -659,23 +674,24 @@ func (r *redisLiveQuery) loadCache() error {
 		reverseActive[id] = struct{}{}
 	}
 
+	sqlKeys := make([]string, 0, len(activeIDs))
 	for _, id := range activeIDs {
 		_, sqlKey := generateKeys(id)
-
-		sql, err := redigo.String(conn.Do("GET", sqlKey))
-		if err != nil {
-			if err != redigo.ErrNil {
-				return fmt.Errorf("get query sql: %w", err)
-			}
-
-			// It is possible the livequery key has expired but was still in the set
-			// - handle this gracefully by collecting the keys to remove them from
-			// the set and keep going.
-			expiredQueries[id] = struct{}{}
-			continue
+		sqlKeys = append(sqlKeys, sqlKey)
+	}
+	for _, keys := range redis.SplitKeysBySlot(r.pool, sqlKeys...) {
+		if err := r.collectBatchSQL(keys, sqlCache); err != nil {
+			return err
 		}
+	}
 
-		sqlCache[id] = sql
+	// It is possible the livequery key has expired but was still in the set
+	// - handle this gracefully by collecting the keys to remove them from
+	// the set and keep going.
+	for _, id := range activeIDs {
+		if _, found := sqlCache[id]; !found {
+			expiredQueries[id] = struct{}{}
+		}
 	}
 
 	// remove expired queries from the names list
@@ -715,6 +731,33 @@ func (r *redisLiveQuery) loadCache() error {
 		}
 	}
 
+	return nil
+}
+
+func (r *redisLiveQuery) collectBatchSQL(sqlKeys []string, sqlByName map[string]string) error {
+	// Not ReadOnlyConn: a lagging replica's missing key would drop the query from the active set.
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	for _, key := range sqlKeys {
+		if err := conn.Send("GET", key); err != nil {
+			return fmt.Errorf("send get query sql: %w", err)
+		}
+	}
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for _, key := range sqlKeys {
+		sql, err := redigo.String(conn.Receive())
+		if err != nil {
+			if errors.Is(err, redigo.ErrNil) {
+				continue
+			}
+			return fmt.Errorf("receive query sql: %w", err)
+		}
+		sqlByName[extractTargetKeyName(strings.TrimPrefix(key, sqlKeyPrefix))] = sql
+	}
 	return nil
 }
 
