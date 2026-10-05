@@ -711,6 +711,9 @@ type MDMConfigProfilePayload struct {
 	// Base64-encoded activation for declaration (DDM) profiles, null for any
 	// other profile type and for declarations without a custom activation.
 	Activation []byte `json:"activation" db:"-"`
+	// SelfService is only supported for .mobileconfig profiles.
+	SelfService bool `json:"self_service" db:"self_service"`
+	Hidden      bool `json:"hidden" db:"hidden"`
 }
 
 // BatchModifyMDMConfigProfilePayload represents the payload for a config profile when
@@ -746,6 +749,10 @@ type MDMProfileBatchPayload struct {
 
 	// Base64-encoded custom activation, only valid for Apple declarations.
 	Activation []byte `json:"activation,omitempty"`
+
+	// SelfService is only valid for .mobileconfig profiles.
+	SelfService bool `json:"self_service,omitempty"`
+	Hidden      bool `json:"hidden,omitempty"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -759,6 +766,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		Name:             cp.Name,
 		Description:      cp.Description,
 		Platform:         "windows",
+		Hidden:           cp.Hidden,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
@@ -784,6 +792,8 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		CreatedAt:          cp.CreatedAt,
 		UploadedAt:         cp.UploadedAt,
 		Scope:              string(cp.Scope),
+		SelfService:        cp.SelfService,
+		Hidden:             cp.Hidden,
 		LabelsIncludeAll:   cp.LabelsIncludeAll,
 		LabelsIncludeAny:   cp.LabelsIncludeAny,
 		LabelsExcludeAny:   cp.LabelsExcludeAny,
@@ -803,6 +813,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		Identifier:       decl.Identifier,
 		Platform:         "darwin",
 		Checksum:         []byte(decl.Token),
+		Hidden:           decl.Hidden,
 		CreatedAt:        decl.CreatedAt,
 		UploadedAt:       decl.UploadedAt,
 		LabelsIncludeAll: decl.LabelsIncludeAll,
@@ -826,6 +837,7 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 		Name:             cp.Name,
 		Description:      cp.Description,
 		Platform:         "android",
+		Hidden:           cp.Hidden,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,

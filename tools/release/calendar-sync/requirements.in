@@ -5,4 +5,4 @@ google-auth-oauthlib>=1.2.0
 requests>=2.33.0
 # Floor urllib3 above GHSA-mf9v-mfxr-j63j / GHSA-qccp-gfcp-xxvc; the resolver
 # otherwise prefers 2.6.x.
-urllib3>=2.7.0
+urllib3>=2.8.0
