@@ -22,12 +22,14 @@ controls:
       - Label A
       - Label B
       path: ./lib/profiles/global-macos-mobileconfig-profile.mobileconfig
+      self_service: true
     - labels_exclude_any:
       - Label C
       path: ./lib/profiles/global-macos-json-profile.json
   windows_settings:
     configuration_profiles:
-    - labels_include_any:
+    - hidden: true
+      labels_include_any:
       - Label D
       path: ./lib/profiles/global-windows-profile.xml
 custom_host_vitals:

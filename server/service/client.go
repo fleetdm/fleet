@@ -484,6 +484,15 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 				}
 			}
 
+			// Mirrors validateProfileDeployFlags so the error names the file;
+			// the server still enforces these and the license.
+			if profile.SelfService && (platform != "macos" || ext == ".json") {
+				return nil, fmt.Errorf("%s: %s", prefixErrMsg, SelfServiceUnsupportedProfileErrorMsg)
+			}
+			if profile.SelfService && profile.Hidden {
+				return nil, fmt.Errorf("%s: %s", prefixErrMsg, "hidden requires self_service to be false.")
+			}
+
 			result = append(result, fleet.MDMProfileBatchPayload{
 				Name:             name,
 				Contents:         fileContents,
@@ -492,6 +501,8 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 				LabelsIncludeAny: profile.LabelsIncludeAny,
 				LabelsExcludeAny: profile.LabelsExcludeAny,
 				Activation:       activationContents,
+				SelfService:      profile.SelfService,
+				Hidden:           profile.Hidden,
 			})
 
 		}

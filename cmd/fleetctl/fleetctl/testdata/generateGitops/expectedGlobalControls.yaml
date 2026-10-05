@@ -4,6 +4,7 @@ apple_settings:
         - Label A
         - Label B
       path: ./lib/profiles/global-macos-mobileconfig-profile.mobileconfig
+      self_service: true
     - labels_exclude_any:
         - Label C
       path: ./lib/profiles/global-macos-json-profile.json
@@ -11,7 +12,8 @@ apple_settings:
   enable_escrow_disk_encryption_key: true
 windows_settings:
   configuration_profiles:
-    - labels_include_any:
+    - hidden: true
+      labels_include_any:
         - Label D
       path: ./lib/profiles/global-windows-profile.xml
   enable_disk_encryption: true

@@ -852,6 +852,10 @@ type MDMProfileSpec struct {
 	// alongside an Apple declaration.
 	Activation string `json:"activation,omitempty"`
 
+	// SelfService is only valid for .mobileconfig profiles.
+	SelfService bool `json:"self_service,omitempty"`
+	Hidden      bool `json:"hidden,omitempty"`
+
 	// Deprecated: the Labels field is now deprecated, it is superseded by
 	// LabelsIncludeAll, so any value set via this field will be transferred to
 	// LabelsIncludeAll.

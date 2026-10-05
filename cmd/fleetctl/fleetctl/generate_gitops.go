@@ -1677,6 +1677,12 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 
 		profileSpec["path"] = path
+		if profile.SelfService {
+			profileSpec["self_service"] = true
+		}
+		if profile.Hidden {
+			profileSpec["hidden"] = true
+		}
 
 		// Only declarations can carry one, and the list endpoint doesn't return
 		// activations, so it takes a second call.
