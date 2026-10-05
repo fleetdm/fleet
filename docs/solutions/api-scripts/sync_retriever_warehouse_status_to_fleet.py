@@ -31,7 +31,7 @@ Usage
 
 Requires Python 3. No third-party packages.
 """
-import json, os, urllib.parse, urllib.request
+import json, os, sys, urllib.error, urllib.parse, urllib.request
 
 FLEET_URL = os.environ["FLEET_URL"].rstrip("/")  # e.g. https://fleet.example.com
 FLEET_TOKEN = os.environ["FLEET_API_TOKEN"]
@@ -49,6 +49,14 @@ LABELS = {
 }
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args):
+        return None  # urllib would send the Authorization header to the redirect target, even on another host.
+
+
+OPENER = urllib.request.build_opener(NoRedirect)
+
+
 def call(method, url, token, body=None):
     req = urllib.request.Request(
         url,
@@ -60,7 +68,7 @@ def call(method, url, token, body=None):
             "User-Agent": "retriever-warehouse-sync",
         },
     )
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with OPENER.open(req, timeout=60) as resp:
         raw = resp.read()
         return json.loads(raw) if raw else {}
 
@@ -79,18 +87,25 @@ while url:
     url = page.get("next")
 
 # 2. Update each matching Fleet host, only when its value changed.
+failed = False
 for serial, label in sorted(statuses.items()):
-    query = urllib.parse.urlencode({"query": serial})
-    for match in call("GET", f"{FLEET_URL}/api/v1/fleet/hosts?{query}", FLEET_TOKEN)["hosts"]:
-        if (match.get("hardware_serial") or "").strip().upper() != serial:
-            continue  # The search also matches hostnames and other fields.
-        host = call("GET", f"{FLEET_URL}/api/v1/fleet/hosts/{match['id']}", FLEET_TOKEN)["host"]
-        vital = next((v for v in host.get("custom_host_vitals") or [] if v["name"] == VITAL_NAME), None)
-        if vital is None:
-            raise SystemExit(f"Custom host vital {VITAL_NAME!r} doesn't exist in Fleet")
-        if vital["value"] == label:
-            continue
-        print(f"{host['display_name']} ({serial}): {vital['value'] or '(empty)'} -> {label}")
-        if not DRY_RUN:
-            path = f"/api/v1/fleet/hosts/{host['id']}/custom_host_vitals/{vital['custom_host_vital_id']}"
-            call("PUT", FLEET_URL + path, FLEET_TOKEN, {"value": label})
+    try:
+        query = urllib.parse.urlencode({"query": serial})
+        for match in call("GET", f"{FLEET_URL}/api/v1/fleet/hosts?{query}", FLEET_TOKEN)["hosts"]:
+            if (match.get("hardware_serial") or "").strip().upper() != serial:
+                continue  # The search also matches hostnames and other fields.
+            host = call("GET", f"{FLEET_URL}/api/v1/fleet/hosts/{match['id']}", FLEET_TOKEN)["host"]
+            vital = next((v for v in host.get("custom_host_vitals") or [] if v["name"] == VITAL_NAME), None)
+            if vital is None:
+                raise SystemExit(f"Custom host vital {VITAL_NAME!r} doesn't exist in Fleet")
+            if vital["value"] == label:
+                continue
+            print(f"{host['display_name']} ({serial}): {vital['value'] or '(empty)'} -> {label}")
+            if not DRY_RUN:
+                path = f"/api/v1/fleet/hosts/{host['id']}/custom_host_vitals/{vital['custom_host_vital_id']}"
+                call("PUT", FLEET_URL + path, FLEET_TOKEN, {"value": label})
+    except urllib.error.HTTPError as e:
+        print(f"{serial}: {e} from {e.filename}: {e.read().decode(errors='replace')[:500]}", file=sys.stderr)
+        failed = True
+
+sys.exit(1 if failed else 0)

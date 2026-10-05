@@ -76,7 +76,7 @@ Use [`sync_retriever_warehouse_status_to_fleet.py`](https://github.com/fleetdm/f
 
 The script's header lists every setting. It writes Retriever's display names (like "Ready For Deployment") rather than raw status codes (like `ready_for_deployment`), so values match what people see in the Retriever portal. It never clears a value, so if a device drops out of Retriever's list, its host keeps the last status the script wrote.
 
-The script is a starting point. Any failed request stops the run with an error. Before you rely on it, consider adding retries for `429` and `5xx` responses, and an alert when a run fails.
+The script is a starting point. A failed request to Retriever stops the run. If a request for one host fails, the script prints the error, moves on to the next device, and exits with an error when it's done. It doesn't follow redirects, so set `FLEET_URL` to your Fleet server's final `https://` address. Before you rely on it, consider adding retries for `429` and `5xx` responses, and an alert when a run fails.
 
 > **Note:** Run a copy of the script that you've reviewed, not one that's fetched from GitHub at run time. The script handles both API keys, so treat changes to it like any other code change.
 
