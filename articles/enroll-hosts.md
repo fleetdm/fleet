@@ -188,7 +188,7 @@ Deleting a host doesn't unenroll it, so most hosts come back:
 
 | Platform | Comes back | Fleet |
 |---|---|---|
-| macOS, Windows, Linux | Yes, unless Fleet's agent is uninstalled or its enroll secret is deleted | Enroll secret's fleet. Windows hosts where Fleet installed Fleet's agent go to "Unassigned." |
+| macOS, Windows, Linux | Yes, unless Fleet's agent is uninstalled or its enroll secret is deleted | Enroll secret's fleet. Windows hosts that got Fleet's agent when they turned on MDM, through [manual enrollment](https://fleetdm.com/guides/windows-mdm-setup#manual-enrollment), [automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment), or [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot), go to "Unassigned." |
 | Assigned to Fleet in Apple Business (AB) | Yes, right away, as **Pending** | AB's default fleet |
 | iOS, iPadOS | Yes, at the next MDM check-in, unless you unenroll it first | Fleet at last enrollment |
 | Android | Yes, at the next status report, unless you unenroll it first | Same fleet, or "Unassigned" if it was deleted. Coming soon: the enroll secret's fleet ([#53076](https://github.com/fleetdm/fleet/issues/53076)). |
