@@ -37,18 +37,19 @@ quit_and_track_application() {
   local quit_success=false
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if [[ "$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)" != "true" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    eval "export $var_name=0"
+    return 1
   fi
 }
 
@@ -101,8 +102,9 @@ detach_dmg() {
 
 # KiCad installs as a folder of apps (KiCad, Schematic Editor, PCB Editor, and
 # others) in /Applications/KiCad. Every app in that folder is quit before the
-# folder is replaced. The demos folder and command-line tool links that the
-# disk image also offers aren't installed.
+# folder is replaced, and the install stops if one won't quit (for example, the
+# user cancels a prompt to save changes). The demos folder and command-line
+# tool links that the disk image also offers aren't installed.
 installed_bundle_ids() {
   local app
   for app in "$APPDIR/KiCad"/*.app; do
@@ -125,7 +127,13 @@ while IFS= read -r bundle_id; do
 	[[ -n "$bundle_id" ]] && BUNDLE_IDS+=("$bundle_id")
 done < <(installed_bundle_ids)
 for bundle_id in "${BUNDLE_IDS[@]}"; do
-	quit_and_track_application "$bundle_id"
+	if ! quit_and_track_application "$bundle_id"; then
+		detach_dmg
+		for id in "${BUNDLE_IDS[@]}"; do
+			relaunch_application "$id"
+		done
+		exit 1
+	fi
 done
 
 # copy to the applications folder
@@ -149,8 +157,10 @@ detach_dmg
 
 # Apps in a subfolder of /Applications are only inventoried once LaunchServices
 # has registered them.
-"$LSREGISTER" -f "$APPDIR/KiCad/KiCad.app" >/dev/null 2>&1 || true
+lsregister_status=0
+"$LSREGISTER" -f "$APPDIR/KiCad/KiCad.app" || lsregister_status=$?
 
 for bundle_id in "${BUNDLE_IDS[@]}"; do
 	relaunch_application "$bundle_id"
 done
+exit $lsregister_status

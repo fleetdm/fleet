@@ -29,18 +29,18 @@ quit_application() {
   local quit_success=false
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if [[ "$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)" != "true" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
@@ -93,15 +93,16 @@ trash() {
 }
 
 # KiCad is a folder of apps in /Applications/KiCad; each one is quit before
-# the folder is removed. org.kicad-pcb.* is the bundle ID prefix older KiCad
-# releases used.
+# the folder is removed, and nothing is removed if one won't quit.
+# org.kicad-pcb.* is the bundle ID prefix older KiCad releases used.
 for app in "$APPDIR/KiCad"/*.app; do
   [[ -d "$app" ]] || continue
   bundle_id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$app/Contents/Info.plist" 2>/dev/null)
-  [[ "$bundle_id" =~ ^[A-Za-z0-9._-]+$ ]] && quit_application "$bundle_id"
+  [[ "$bundle_id" =~ ^[A-Za-z0-9._-]+$ ]] || continue
+  quit_application "$bundle_id" || exit 1
 done
-sudo rm -rf "$APPDIR/KiCad"
-sudo rm -rf '/Library/Application Support/kicad'
+sudo rm -rf "$APPDIR/KiCad" || exit $?
+sudo rm -rf '/Library/Application Support/kicad' || exit $?
 # ~/Documents/KiCad is left in place: it's KiCad's default projects folder.
 trash $LOGGED_IN_USER '~/Library/Application Support/kicad'
 trash $LOGGED_IN_USER '~/Library/Caches/kicad'
