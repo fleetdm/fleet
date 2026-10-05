@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.6.1",
+      "version": "5.6.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.darktable';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.darktable' AND version_compare(bundle_short_version, '5.6.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.darktable' AND version_compare(bundle_short_version, '5.6.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.darktable' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/darktable-org/darktable/releases/download/release-5.6.1/darktable-5.6.1-arm64.dmg",
+      "installer_url": "https://github.com/darktable-org/darktable/releases/download/release-5.6.2/darktable-5.6.2-arm64.dmg",
       "install_script_ref": "d72d5f78",
       "uninstall_script_ref": "59e91682",
-      "sha256": "155c25a48e06023eeeda3640f6f4fc7848bc1ad8e7384ba1d7b63098986fbeda",
+      "sha256": "6ff88e58a2a59cb07b0a1502fea7205e68cd783380a33a3ce7bda68ec29def0c",
       "default_categories": [
         "Productivity"
       ]
