@@ -2702,6 +2702,7 @@ func upsertHostCPs(
 
 func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	enableMacOSDiskEncryptionForTest(t, ds, nil)
 
 	checkListHosts := func(status fleet.OSSettingsStatus, teamID *uint, expected []*fleet.Host) bool {
 		expectedIDs := []uint{}
@@ -2865,6 +2866,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	// create a team
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
 	require.NoError(t, err)
+	enableMacOSDiskEncryptionForTest(t, ds, &team.ID)
 
 	// add hosts[9] to team
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hosts[9].ID}))
@@ -3597,9 +3599,39 @@ func TestInsertABMTokenDuplicateOrg(t *testing.T) {
 	require.NotErrorAs(t, err, &mysqlErr, "raw driver error must not reach the caller")
 }
 
+// enableMacOSDiskEncryptionForTest turns on both macOS disk encryption settings
+// for no team (teamID nil) or the given fleet. A FileVault profile is only
+// delivered while one is on; without them a delivered one is awaiting removal.
+func enableMacOSDiskEncryptionForTest(t *testing.T, ds *Datastore, teamID *uint) {
+	ctx := context.Background()
+	if teamID != nil {
+		tm, err := ds.TeamWithExtras(ctx, *teamID)
+		require.NoError(t, err)
+		tm.Config.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+		tm.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+		_, err = ds.SaveTeam(ctx, tm)
+		require.NoError(t, err)
+		return
+	}
+
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	prev := ac.MDM.MacOSSettings
+	ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+	ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+	require.NoError(t, ds.SaveAppConfig(ctx, ac))
+	t.Cleanup(func() {
+		ac, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.MDM.MacOSSettings = prev
+		require.NoError(t, ds.SaveAppConfig(ctx, ac))
+	})
+}
+
 func TestMDMAppleFileVaultSummary(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := t.Context()
+	enableMacOSDiskEncryptionForTest(t, ds, nil)
 
 	// 10 new hosts
 	var hosts []*fleet.Host
@@ -3836,6 +3868,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	verifyingTeam1Host := hosts[6]
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
 	require.NoError(t, err)
+	enableMacOSDiskEncryptionForTest(t, ds, &tm.ID)
 	team1FVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, tm.ID), nil)
 	require.NoError(t, err)
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{verifyingTeam1Host.ID}))
@@ -5329,6 +5362,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 func TestMDMAppleFileVaultSummary_NullDecryptableKey(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := t.Context()
+	enableMacOSDiskEncryptionForTest(t, ds, nil)
 
 	fvProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, 0), nil)
 	require.NoError(t, err)
@@ -5370,7 +5404,7 @@ func TestMDMAppleFileVaultSummary_NullDecryptableKey(t *testing.T) {
 		profs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 		require.NoError(t, err)
 		mdmData := fleet.MDMHostData{}
-		mdmData.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier, fleet.DiskEncryptionConfig{}, nil)
+		mdmData.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier, fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, nil)
 		require.NotNil(t, mdmData.MacOSSettings)
 		require.NotNil(t, mdmData.MacOSSettings.DiskEncryption)
 		assert.Equal(t, fleet.DiskEncryptionVerifying, *mdmData.MacOSSettings.DiskEncryption,
@@ -12251,9 +12285,11 @@ func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
 
 func testMDMAppleHostsDiskEncryption(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	enableMacOSDiskEncryptionForTest(t, ds, nil)
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
 	require.NoError(t, err)
+	enableMacOSDiskEncryptionForTest(t, ds, &team.ID)
 
 	hostCountEncryptionStatus := func(status fleet.DiskEncryptionStatus, teamID *uint) int {
 		gotHosts, err := ds.ListHosts(
@@ -13639,6 +13675,16 @@ func TestMDMAppleFileVaultSummaryPerPlatformSettings(t *testing.T) {
 		fleet.DiskEncryptionFailed:              ids(8),
 		fleet.DiskEncryptionRemovingEnforcement: ids(9),
 	}
+	// with both settings off the fleet delivers no FileVault profile, so every
+	// delivered one is awaiting removal whatever the key or disk say
+	fileVaultOff := expected{
+		fleet.DiskEncryptionEnforcing:           ids(0),
+		fleet.DiskEncryptionVerifying:           ids(),
+		fleet.DiskEncryptionVerified:            ids(),
+		fleet.DiskEncryptionActionRequired:      ids(),
+		fleet.DiskEncryptionFailed:              ids(8),
+		fleet.DiskEncryptionRemovingEnforcement: ids(1, 2, 3, 4, 5, 6, 7, 9, 10, 11),
+	}
 	// OS settings aggregate: enforcing, action required and removing enforcement
 	// all report as pending.
 	osSettingsStatus := map[fleet.DiskEncryptionStatus]fleet.OSSettingsStatus{
@@ -13717,7 +13763,7 @@ func TestMDMAppleFileVaultSummaryPerPlatformSettings(t *testing.T) {
 	}{
 		{"enforce on, escrow on", true, true, keyBased},
 		{"enforce off, escrow on", false, true, keyBased},
-		{"enforce off, escrow off", false, false, keyBased},
+		{"enforce off, escrow off", false, false, fileVaultOff},
 		{"enforce on, escrow off", true, false, diskBased},
 	} {
 		t.Run(combo.name, func(t *testing.T) {

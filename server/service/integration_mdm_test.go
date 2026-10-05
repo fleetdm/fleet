@@ -3024,6 +3024,62 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	require.True(t, *detailsResp.Host.MDM.EncryptionKeyArchived)
 }
 
+func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAfterTransferToFleetWithoutIt() {
+	t := s.T()
+	ctx := t.Context()
+
+	srcTeamName := "fv_src_" + t.Name()
+	s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: srcTeamName,
+		MDM:  fleet.TeamSpecMDM{EnableDiskEncryption: optjson.SetBool(true)},
+	}}}, http.StatusOK)
+	srcTeam, err := s.ds.TeamByName(ctx, srcTeamName)
+	require.NoError(t, err)
+	dstTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "fv_dst_" + t.Name()})
+	require.NoError(t, err)
+
+	token := "fv_transfer_token" //nolint:gosec // G101: test value, not a real credential
+	host := createHostAndDeviceToken(t, s.ds, token)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&srcTeam.ID, []uint{host.ID})))
+
+	// FileVault delivered and the key escrowed and decryptable
+	fileVaultProf := s.assertConfigProfilesByIdentifier(&srcTeam.ID, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+	require.NoError(t, s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+		ProfileUUID:       fileVaultProf.ProfileUUID,
+		ProfileIdentifier: fileVaultProf.Identifier,
+		HostUUID:          host.UUID,
+		CommandUUID:       uuid.New().String(),
+		OperationType:     fleet.MDMOperationTypeInstall,
+		Status:            &fleet.MDMDeliveryVerified,
+		Checksum:          []byte("csum"),
+		Scope:             fleet.PayloadScopeSystem,
+	}}))
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "key", "", nil)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now().Add(time.Minute)))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, fleet.DiskEncryptionVerified, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+
+	// The transfer deletes the key, but the profile cron hasn't queued the
+	// profile's removal yet: there is nothing for the end user to do.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &dstTeam.ID, HostIDs: []uint{host.ID}}, http.StatusOK, &addHostsToTeamResponse{})
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.False(t, getHostResp.Host.MDM.EncryptionKeyAvailable)
+	require.Equal(t, fleet.DiskEncryptionRemovingEnforcement, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+	require.Equal(t, fleet.DiskEncryptionRemovingEnforcement, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Nil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+
+	var getDeviceResp getDeviceHostResponse
+	s.DoJSON("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK, &getDeviceResp)
+	require.Equal(t, fleet.DiskEncryptionRemovingEnforcement, *getDeviceResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Nil(t, getDeviceResp.Host.MDM.MacOSSettings.ActionRequired)
+}
+
 func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionWithDisabledEncryptionSetting() {
 	t := s.T()
 	ctx := context.Background()
@@ -3752,6 +3808,21 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 
 	// no team tests ====
 
+	// a FileVault profile is only delivered while disk encryption is on;
+	// with it off, a delivered one reports as awaiting removal
+	ac, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	prevMacOSSettings := ac.MDM.MacOSSettings
+	ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+	ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+	require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+	t.Cleanup(func() {
+		ac, err := s.ds.AppConfig(context.Background())
+		require.NoError(t, err)
+		ac.MDM.MacOSSettings = prevMacOSSettings
+		require.NoError(t, s.ds.SaveAppConfig(context.Background(), ac))
+	})
+
 	// new filevault profile with no team
 	prof, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(0))
 	require.NoError(t, err)
@@ -3845,7 +3916,10 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	// team tests ====
 
 	// host 1,2 added to team 1
-	tm, _ := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
+	tm, _ := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1", Config: fleet.TeamConfig{MDM: fleet.TeamMDM{MacOSSettings: fleet.MacOSSettings{
+		EnableDiskEncryption:          optjson.SetBool(true),
+		EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+	}}}})
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[0].ID, hosts[1].ID}))
 	require.NoError(t, err)
 
