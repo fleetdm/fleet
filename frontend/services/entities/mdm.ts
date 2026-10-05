@@ -12,7 +12,7 @@ import {
 import { SetupExperiencePlatform } from "interfaces/platform";
 import { ISoftwareTitle } from "interfaces/software";
 import { API_NO_TEAM_ID } from "interfaces/team";
-import sendRequest from "services";
+import sendRequest, { uploadToStorage } from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -328,11 +328,23 @@ const mdmService = {
     return sendRequest("GET", MDM_BOOTSTRAP_PACKAGE_METADATA(teamId));
   },
 
-  uploadBootstrapPackage: (file: File, teamId?: number) => {
+  uploadBootstrapPackage: async (
+    file: File,
+    teamId?: number,
+    directUpload = false
+  ) => {
     const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
 
     const formData = new FormData();
-    formData.append("package", file);
+    if (directUpload) {
+      formData.append(
+        "upload_id",
+        await uploadToStorage({ target: "bootstrap_package", file, teamId })
+      );
+      formData.append("filename", file.name);
+    } else {
+      formData.append("package", file);
+    }
 
     if (teamId) {
       formData.append("fleet_id", teamId.toString());

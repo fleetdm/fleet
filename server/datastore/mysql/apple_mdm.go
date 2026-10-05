@@ -4119,7 +4119,11 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 		return ctxerr.Wrapf(ctx, err, "check if bootstrap package %s already exists", pkgID)
 	}
 	if !ok {
-		if err := pkgStore.Put(ctx, pkgID, bytes.NewReader(bp.Bytes)); err != nil {
+		var content io.ReadSeeker = bytes.NewReader(bp.Bytes)
+		if bp.PackageFile != nil {
+			content = bp.PackageFile
+		}
+		if err := pkgStore.Put(ctx, pkgID, content); err != nil {
 			return ctxerr.Wrapf(ctx, err, "upload bootstrap package %s to S3", pkgID)
 		}
 	}

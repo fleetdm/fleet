@@ -37820,3 +37820,13 @@ func (s *integrationEnterpriseTestSuite) TestEntraJoinUserDetailQueryPopulatesId
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID), nil, http.StatusOK, &mappingResp)
 	require.Len(t, mappingResp.DeviceMapping, 1)
 }
+
+func (s *integrationEnterpriseTestSuite) TestStagedUploadUnavailable() {
+	t := s.T()
+	res := s.Do("POST", "/api/latest/fleet/staged_upload",
+		createStagedUploadRequest{Target: fleet.StagedUploadTargetSoftwarePackage, Size: 1}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Direct upload isn't available")
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{StagedUploadID: uuid.NewString(), Filename: "ruby.deb"},
+		http.StatusBadRequest, "Direct upload isn't available")
+}

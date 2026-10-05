@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"regexp"
 	"slices"
@@ -288,6 +289,8 @@ type MDMAppleBootstrapPackage struct {
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"-" db:"updated_at"`
+	// PackageFile, when set, is stored in the object store in place of Bytes.
+	PackageFile io.ReadSeeker `json:"-" db:"-"`
 }
 
 func (bp MDMAppleBootstrapPackage) AuthzType() string {

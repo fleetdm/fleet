@@ -603,6 +603,8 @@ type Service interface {
 	SandboxEnabled() bool
 	// MaxInstallerSizeBytes returns the configured maximum size for software installer uploads.
 	MaxInstallerSizeBytes() int64
+	// StagedUploadAvailable reports whether clients can upload packages straight to object storage.
+	StagedUploadAvailable(ctx context.Context) bool
 	AppConfigUrls(ctx context.Context) (urls *AppConfigUrls, err error)
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
@@ -1205,7 +1207,8 @@ type Service interface {
 	// skipped so the error can be raised to the user.
 	VerifyAnyMDMConfigured(ctx context.Context) error
 
-	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
+	// MDMAppleUploadBootstrapPackage stores pkg, or the staged upload when stagedUploadID is set.
+	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, stagedUploadID string, teamID uint, dryRun bool) error
 
 	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
 
@@ -1540,6 +1543,9 @@ type Service interface {
 	// Software installers
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (*SoftwareInstaller, error)
+	// CreateStagedUpload returns a presigned URL a client uploads a package of the given size to, for
+	// registering it later with the target's add or edit endpoint.
+	CreateStagedUpload(ctx context.Context, target StagedUploadTarget, teamID uint, size int64) (*StagedUpload, error)
 	UpdateSoftwareInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload) (*SoftwareInstaller, error)
 	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error
 	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint, installerID *uint) (string, error)
