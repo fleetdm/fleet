@@ -468,7 +468,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
 		ds.AppConfigFunc = appConfigWith(nil)
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", otherSyncML, nil, fleet.LabelsIncludeAll, nil, "", false)
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", otherSyncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.False(t, ds.TeamMDMConfigFuncInvoked)
@@ -478,7 +478,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		svc, ctx, ds := setup(t, false)
 		ds.AppConfigFunc = appConfigWith(nil)
 
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		// The gate fails before the profile is inserted.
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
@@ -489,7 +489,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
 		ds.AppConfigFunc = appConfigWith(nil)
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false)
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.False(t, ds.TeamMDMConfigFuncInvoked)
@@ -504,7 +504,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 			return &fleet.TeamMDM{}, nil
 		}
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false)
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.True(t, ds.TeamMDMConfigFuncInvoked)
@@ -517,7 +517,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 			ac.MDM.WindowsUpdates = configuredSettings()
 		})
 
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 		// The gate fails before the profile is inserted.
@@ -531,7 +531,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 			return &fleet.TeamMDM{WindowsUpdates: configuredSettings()}, nil
 		}
 
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
@@ -585,12 +585,12 @@ func TestNewMDMWindowsConfigProfileLicense(t *testing.T) {
 	t.Run("labels not allowed on free tier", func(t *testing.T) {
 		svc, ctx, ds := setup(t, false)
 
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"}, "", false)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"}, "", false, false)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profile")
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
 
-		_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, []string{"label1"}, fleet.LabelsIncludeAll, nil, "", false)
+		_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, []string{"label1"}, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profile")
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
@@ -599,7 +599,7 @@ func TestNewMDMWindowsConfigProfileLicense(t *testing.T) {
 	t.Run("profile without labels allowed on free tier", func(t *testing.T) {
 		svc, ctx, ds := setup(t, false)
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "without-labels", syncML, nil, fleet.LabelsIncludeAll, nil, "", false)
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "without-labels", syncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
@@ -608,7 +608,7 @@ func TestNewMDMWindowsConfigProfileLicense(t *testing.T) {
 	t.Run("labels allowed on premium tier", func(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"}, "", false)
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"}, "", false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
