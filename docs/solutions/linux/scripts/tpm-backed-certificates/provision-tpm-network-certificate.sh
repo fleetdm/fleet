@@ -2,181 +2,59 @@
 #
 # provision-tpm-network-certificate.sh
 #
-# PoC for https://github.com/fleetdm/fleet/issues/50541
+# Requests an end-user network certificate from Fleet for a private key that
+# is created inside the host's TPM 2.0 and cannot be exported.
 #
-# TPM-backed rewrite of the end-user network certificate script from
-# https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#step-3-create-a-custom-script
+#   - The TPM creates the key with fixedTPM, fixedParent and
+#     sensitiveDataOrigin set. Only the TPM-wrapped TSS2 keyfile is written
+#     to disk, and it only loads on the TPM that created it.
+#   - The CSR is signed inside the TPM and sent to Fleet's
+#     request_certificate endpoint. The issued certificate is checked
+#     against the TPM key before it is installed.
+#   - There is no software fallback. Without a usable TPM, the script fails.
 #
-# The original script generates an RSA key with `openssl genpkey` and leaves a
-# (password-protected) private key on the filesystem. This version creates the
-# private key INSIDE the TPM 2.0 chip instead, mirroring the key model Fleet
-# already uses for host identity in ee/orbit/pkg/securehw:
+# Modes:
+#   (default)  Renew. Reuse the installed key (or create one if none
+#              exists) and install a new certificate for it.
+#   --rotate   Replace the installed key and certificate with a new pair.
 #
-#   - The key is created by the TPM itself (sensitiveDataOrigin), never by
-#     software, so no code path ever handles the raw key material.
-#   - fixedTPM and fixedParent are set, so the key can never be duplicated or
-#     migrated to another TPM. Copying the on-disk artifacts to another host
-#     yields a credential that cannot sign anything.
-#   - The only thing persisted to disk is a TSS2 PEM keyfile: the public area
-#     plus a private blob encrypted under the TPM's storage hierarchy. This is
-#     the same format securehw writes via go-tpm-keyfiles.
-#   - The CSR is signed via TPM2_Sign inside the chip (ECDSA), not by OpenSSL
-#     in host memory.
-#
-# ---------------------------------------------------------------------------
-# Ubuntu/NetworkManager Integration Guide
-# ---------------------------------------------------------------------------
-# This guide describes how to use the TPM-backed credentials provisioned by
-# this script for EAP-TLS authentication via NetworkManager/wpa_supplicant.
-#
-# Prerequisites:
-#   - Ubuntu 22.04+ (with OpenSSL 3.x)
-#   - Packages: tpm2-openssl, tpm2-tools, tpm2-abrmd, libtss2-tcti-tabrmd0
-#
-# 1. Service Configuration:
-#    Ensure the TPM2 Access Resource Manager Daemon (abrmd) is running:
-#    sudo systemctl enable --now tpm2-abrmd
-#
-# 2. OpenSSL Provider Configuration:
-#    The tpm2-openssl provider must be available to the client software.
-#    For NetworkManager/wpa_supplicant, ensure the provider is configured 
-#    in the system's /etc/ssl/openssl.cnf or via the TPM2OPENSSL_TCTI 
-#    environment variable.
-#
-# 3. NetworkManager EAP-TLS Profile (via nmcli):
-#    Replace <SSID>, <CA_CERT_PATH> with your actual values.
-#    The private key is specified as the TSS2-wrapped file.
-#
-#    sudo nmcli connection add \
-#        type wifi \
-#        ifname <INTERFACE> \
-#        con-name <SSID_PROFILE> \
-#        ssid <SSID> \
-#        wifi-sec security-flags 2 \
-#        802-8021x.eap tls \
-#        802-8021x.identity <USERNAME> \
-#        802-8021x.ca-cert <CA_CERT_PATH> \
-#        802-8021x.client-cert <CERT_FILE> \
-#        802-8021x.client-key <KEY_FILE>
-#
-# 4. Key/Certificate Paths (Default):
-#    - Certificate: /opt/company/certificate.pem
-#    - Private Key: /opt/company/network-key.tss2.pem
-#
-# 5. Permissions:
-#    - Ensure the user/service running NetworkManager has read access to 
-#      /opt/company/ and /dev/tpmrm0.
-#    - Typically, adding the user/service to the 'tss' group is required.
-#
-# 6. Validation:
-#    - Verify key load: 
-#      openssl pkey -provider tpm2 -in /opt/company/network-key.tss2.pem -noout -text
-#    - Monitor connections:
-#      journalctl -u NetworkManager
-#
-# 7. Limitations and Test Results:
-#    - Successful test: Cisco AnyConnect (Linux) using tpm2-openssl provider.
-#    - Real association (Wi-Fi connection success) has not yet been 
-#      demonstrated with this specific PoC on Ubuntu/NetworkManager.
-#    - Any VPN client relying on legacy OpenSSL Engine API cannot use this.
-#    - Requires a functional TPM 2.0 and working TSS2/TPM2 drivers.
-# ---------------------------------------------------------------------------
-#
-# Instead of go-tpm, this script uses OpenSSL 3's tpm2 provider
-# (https://github.com/tpm2-software/tpm2-openssl, Ubuntu package
-# `tpm2-openssl`). Providers are the OpenSSL 3 replacement for the deprecated
-# engine API, which matters because downstream consumers (wpa_supplicant,
-# NetworkManager, VPN clients) will load the same provider to delegate their
-# TLS client-auth signing to the TPM.
-#
-# There is deliberately NO software fallback: if the host has no usable TPM
-# 2.0 device, the script fails with a clear message.
-#
-# Usage:
-#   provision-tpm-network-certificate.sh            renew (default)
-#   provision-tpm-network-certificate.sh --rotate   explicitly rotate the key
-#   ROTATE_KEY=1 provision-tpm-network-certificate.sh   (same as --rotate)
-#
-# Key lifecycle safety model:
-#
-#   Renewal (default, no flag):
-#     - An existing, loadable TPM key is REUSED so the host keeps the same
-#       identity across certificate rotations and reboots.
-#     - If the existing key CANNOT be loaded, the script FAILS and leaves the
-#       keyfile and the installed certificate exactly as they were. A load
-#       failure may be transient (TPM busy, provider/driver error), and the
-#       installed certificate was issued for THAT key: replacing the key
-#       first and then failing later (CSR generation, enrollment) would
-#       orphan the installed certificate -- its private key would simply be
-#       gone.
-#     - A MISSING keyfile is unambiguous (nothing can sign anymore): a new
-#       key is generated and verified at a temporary path, and only then
-#       installed.
-#     - A freshly issued certificate is likewise staged at a temporary path
-#       and validated against the key before it replaces the installed
-#       certificate; the previous certificate is kept as certificate.pem.prev.
-#
-#   Rotation (--rotate / ROTATE_KEY=1): the ONLY path that replaces an
-#   installed key. It generates and verifies a candidate key at a separate
-#   path, requests and validates a certificate for the candidate, and only
-#   then activates the new key+certificate together, retaining
-#   network-key.tss2.pem.prev / certificate.pem.prev rollback copies.
-#
-# Prerequisites on the host: openssl (>= 3.0), tpm2-openssl, tpm2-tools, tpm2-abrmd, libtss2-tcti-tabrmd0, curl, jq
-#   apt-get install -y tpm2-openssl tpm2-tools tpm2-abrmd libtss2-tcti-tabrmd0 jq curl
-#
-# Fleet-side prerequisites (unchanged from the guide):
-#   - API-only user with global maintainer role
-#   - Fleet secret variable $FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN
-#   - CA ID from GET /api/latest/fleet/certificate_authorities
-#   - /opt/company/userinfo with USERNAME, TOKEN, CLIENT_ID (PASSWORD is no
-#     longer needed -- the TPM enforces access, not a passphrase)
+# Requires: openssl 3, tpm2-openssl, curl, jq, flock.
+# Reads USERNAME, TOKEN and CLIENT_ID from /opt/company/userinfo.
 
 set -euo pipefail
 umask 077
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
-
 COMPANY_DIR="/opt/company"
+USERINFO_FILE="${COMPANY_DIR}/userinfo"
 LOCK_FILE="${COMPANY_DIR}/provision.lock"
 mkdir -p "${COMPANY_DIR}"
 
-# The TSS2 keyfile. Contains only the TPM-wrapped key blob -- useless without
-# the TPM that created it. Consumers (wpa_supplicant / NetworkManager / VPN
-# clients) reference this file through the tpm2 provider.
 KEY_FILE="${COMPANY_DIR}/network-key.tss2.pem"
 CERT_FILE="${COMPANY_DIR}/certificate.pem"
 
 FLEET_URL="https://<Fleet-server-URL>"
+# ID of the CA from GET /api/latest/fleet/certificate_authorities.
 CA_ID="<CA-ID>"
 IDP_INTROSPECTION_URL="<IdP-introspection-URL>"
 
-# Warning: Command-line enrollment success does not guarantee consumer support.
-# Warning: Command-line enrollment success does not guarantee consumer support.
-# securehw prefers P-384 and falls back to P-256 depending on TPM support;
-# we mirror that below in generate_key(). RSA is intentionally not offered:
-# the securehw plumbing this PoC follows is ECC-only, and ECDSA keeps the
-# TPM signing operations fast during the EAP-TLS handshake.
+# Tried in order. Not every TPM supports P-384.
 CURVES=("P-384" "P-256")
 
 log()  { echo "[tpm-network-cert] $*"; }
 fail() { echo "[tpm-network-cert] ERROR: $*" >&2; exit 1; }
 
+# Scratch space on the same filesystem as COMPANY_DIR, so moving files into
+# place is an atomic rename.
 WORK_DIR="$(mktemp -d -p "${COMPANY_DIR}")"
 trap 'rm -rf "${WORK_DIR}"' EXIT
 
-# ---------------------------------------------------------------------------
-# Preflight: require a TPM 2.0 and a working tpm2-abrmd TCTI for the tpm2 provider.
-# ---------------------------------------------------------------------------
-
+# Fail unless the host has the tools, a TPM 2.0, a working tpm2 provider and
+# the userinfo file.
 preflight() {
-    for tool in openssl curl jq tpm2-tools tpm2-abrmd; do
+    for tool in openssl curl jq flock; do
         command -v "${tool}" >/dev/null 2>&1 || fail "required tool '${tool}' is not installed"
     done
 
-    # /dev/tpmrm0 is the kernel's TPM 2.0 resource manager device.
     if [[ ! -e /dev/tpmrm0 && ! -e /dev/tpm0 ]]; then
         fail "no TPM 2.0 device found (/dev/tpmrm0 or /dev/tpm0). This host cannot receive a hardware-backed network certificate, and software key storage is not permitted."
     fi
@@ -186,37 +64,22 @@ preflight() {
         *) fail "OpenSSL 3.x is required for provider support; found: $(openssl version)" ;;
     esac
 
-    # Configure the TPM2OPENSSL_TCTI for tabrmd
-    export TPM2OPENSSL_TCTI="tabrmd:0"
-
-    # The tpm2 provider is what lets openssl (and later wpa_supplicant / VPN
-    # clients) talk to the TPM. Ubuntu package: tpm2-openssl.
-    # We require a working tpm2-abrmd TCTI.
+    # Loading the provider also opens a TPM connection. TPM2OPENSSL_TCTI
+    # overrides which TPM interface it uses.
     if ! openssl list -providers -provider tpm2 -provider default >/dev/null 2>&1; then
-        fail "tpm2-abrmd daemon or configured TCTI (tabrmd) is unavailable. Install it with: apt-get install -y tpm2-openssl tpm2-tools tpm2-abrmd libtss2-tcti-tabrmd0"
+        fail "OpenSSL tpm2 provider could not be loaded or could not reach the TPM. Install the provider with: apt-get install -y tpm2-openssl"
     fi
 
     [[ -f "${USERINFO_FILE}" ]] || fail "end user info file ${USERINFO_FILE} not found"
 }
 
-# ---------------------------------------------------------------------------
-# Key lifecycle: generation, verification, safe renewal, explicit rotation
-# ---------------------------------------------------------------------------
-
-# Create an ECC key inside the TPM and move the resulting TSS2 keyfile to
-# $1. The keygen output always lands in WORK_DIR first; the move is the only
-# step that exposes it, and callers verify the candidate before it is ever
-# used to sign or request anything.
+# Create an ECC key inside the TPM and write its TSS2 keyfile to $1.
 generate_key() {
     local out_file="${1:?usage: generate_key <out_file>}"
     local curve tmp_key="${WORK_DIR}/.keygen.tss2.pem"
 
     for curve in "${CURVES[@]}"; do
         log "creating ECC ${curve} key inside the TPM"
-        # The tpm2 provider's keygen template sets fixedTPM, fixedParent and
-        # sensitiveDataOrigin -- the same attributes securehw sets in
-        # CreateKey(). The private portion never leaves the chip; the output
-        # file is a "TSS2 PRIVATE KEY" PEM holding the wrapped blob.
         if openssl genpkey -provider tpm2 -provider default \
             -algorithm EC -pkeyopt "group:${curve}" \
             -out "${tmp_key}" 2>"${WORK_DIR}/genpkey.err"; then
@@ -232,11 +95,8 @@ generate_key() {
     fail "TPM key generation failed for all supported curves (${CURVES[*]})"
 }
 
-# Reject a key that failed verification. Deletes the file only when
-# cleanup=1 -- i.e. only for a key this script itself just generated, which
-# nothing else can reference. An installed key is never deleted by this
-# script: the installed certificate was issued for it, and deleting the key
-# would orphan that certificate.
+# Fail on a key that did not verify. Delete it only when cleanup=1, i.e. a
+# key this run just created. An installed key is never deleted.
 reject_key() {
     local key_file="$1"
     local cleanup="$2"
@@ -247,10 +107,8 @@ reject_key() {
     fail "${reason}"
 }
 
-# Verify the hard requirement of the PoC: the key object must carry fixedTPM
-# and fixedParent, and the on-disk artifact must be a wrapped TSS2 blob, not
-# key material. $2 (cleanup) controls whether a failing key is removed; see
-# reject_key() for why an installed key is never deleted.
+# Fail unless $1 is a TSS2 keyfile for a TPM key with fixedTPM, fixedParent
+# and sensitiveDataOrigin set.
 verify_key() {
     local key_file="$1"
     local cleanup="${2:-0}"
@@ -260,8 +118,6 @@ verify_key() {
         || reject_key "${key_file}" "${cleanup}" \
             "${key_file} is not a TSS2 keyfile; refusing to continue"
 
-    # The tpm2 provider prints the object attributes of the underlying TPM
-    # key when asked for a text dump.
     if ! key_text="$(openssl pkey -provider tpm2 -provider default \
             -in "${key_file}" -noout -text 2>/dev/null)"; then
         reject_key "${key_file}" "${cleanup}" \
@@ -278,15 +134,9 @@ verify_key() {
     log "verified key attributes of ${key_file}: fixedTPM, fixedParent, sensitiveDataOrigin"
 }
 
-# Decide which key to use for this run.
-#
-#   - Existing key that LOADS: reuse it (stable identity across renewals).
-#   - Existing key that DOES NOT load: fail, and touch nothing. The failure
-#     may be transient, and the installed certificate at ${CERT_FILE} was
-#     issued for exactly this key -- replacing the key now and then failing
-#     later (CSR generation, enrollment) would leave the host with a
-#     certificate whose private key no longer exists.
-#   - Missing key: generate a candidate, verify it, then install it.
+# Renew: reuse the installed key if it loads. If it exists but does not
+# load, fail without changing anything, since the installed certificate
+# belongs to it. If no key exists, create and verify one.
 ensure_key() {
     local candidate="${WORK_DIR}/candidate-key.tss2.pem"
 
@@ -315,10 +165,7 @@ ensure_key() {
     fi
 }
 
-# Install a fully verified candidate certificate over the live one,
-# retaining the previous certificate as ${CERT_FILE}.prev (nothing is ever
-# deleted). The move is a rename/copy of a complete file, so the live path
-# is never observed in a half-written state.
+# Install a verified certificate, keeping the previous one as .prev.
 install_certificate() {
     local candidate_cert="$1"
 
@@ -333,10 +180,8 @@ install_certificate() {
     log "installed certificate at ${CERT_FILE}"
 }
 
-# Explicit rotation (--rotate): the only path that replaces an installed
-# key. The live key and certificate files are untouched until the
-# replacement pair has been fully verified, after which it is activated as a
-# unit with rollback copies retained.
+# Rotate: create and verify a new key, request and verify its certificate,
+# then activate both. The installed pair is untouched until then.
 rotate_key_and_certificate() {
     local candidate_key="${WORK_DIR}/candidate-key.tss2.pem"
     local candidate_cert="${WORK_DIR}/candidate-certificate.pem"
@@ -352,50 +197,48 @@ rotate_key_and_certificate() {
     activate_key_and_certificate "${candidate_key}" "${candidate_cert}"
 }
 
-# Promote a fully verified candidate key+certificate to their installed
-# locations. The previous installed key and certificate are first retained as
-# .prev rollback copies -- nothing is ever deleted -- and the verified pair is
-# moved into place. The two moves run back-to-back; the only transient
-# mismatch window is the instant between them, and an interrupted run can be
-# rolled back from the .prev copies.
+# Move a verified key and certificate into place, keeping the previous pair
+# as .prev. If the certificate move fails, roll the key back so the live
+# key and certificate still match.
 activate_key_and_certificate() {
     local candidate_key="$1"
     local candidate_cert="$2"
-    
-    # Step 1: Prepare rollback copies for both key and cert
+    local had_key=0
+    local restore_key="${WORK_DIR}/restore-key.tss2.pem"
+
     if [[ -f "${KEY_FILE}" ]]; then
         cp -p "${KEY_FILE}" "${KEY_FILE}.prev"
         chmod 600 "${KEY_FILE}.prev"
+        had_key=1
         log "previous key retained at ${KEY_FILE}.prev"
     fi
-    
+
     if [[ -f "${CERT_FILE}" ]]; then
         cp -p "${CERT_FILE}" "${CERT_FILE}.prev"
         chmod 644 "${CERT_FILE}.prev"
         log "previous certificate retained at ${CERT_FILE}.prev"
     fi
 
-    # Step 2: Atomic moves
-    if ! mv "${candidate_key}" "${KEY_FILE}" || ! chmod 600 "${KEY_FILE}"; then
-        restore_previous_pair || true
-        fail "key activation failed; previous key and certificate were restored when possible"
+    mv "${candidate_key}" "${KEY_FILE}" \
+        || fail "key activation failed; the installed key and certificate were not changed"
+
+    if ! mv "${candidate_cert}" "${CERT_FILE}"; then
+        if [[ "${had_key}" == "1" ]]; then
+            if ! { cp -p "${KEY_FILE}.prev" "${restore_key}" && mv "${restore_key}" "${KEY_FILE}"; }; then
+                fail "certificate activation failed AND restoring the previous key failed; copy ${KEY_FILE}.prev back to ${KEY_FILE} by hand"
+            fi
+        else
+            rm -f "${KEY_FILE}" \
+                || fail "certificate activation failed AND removing the new key failed; delete ${KEY_FILE} by hand"
+        fi
+        fail "certificate activation failed; the key was rolled back and the installed certificate was not changed"
     fi
-    
-    if ! mv "${candidate_cert}" "${CERT_FILE}" || ! chmod 644 "${CERT_FILE}"; then
-        restore_previous_pair || true
-        fail "certificate activation failed; previous key and certificate were restored when possible"
-    fi
+
     log "activated new key+certificate pair"
 }
 
-# ---------------------------------------------------------------------------
-# CSR (signed inside the TPM) and certificate request to Fleet
-# ---------------------------------------------------------------------------
-
-# Sign a CSR with the given key (the ECDSA signature is performed inside the
-# TPM), request a certificate from Fleet, and write it to the given path.
-# Callers pass candidate paths inside WORK_DIR and install the result only
-# after validation (see install_certificate).
+# Create a CSR signed by the TPM key in $1, request a certificate from
+# Fleet, and write it to $2.
 request_certificate() {
     local key_file="$1"
     local cert_file="$2"
@@ -422,6 +265,8 @@ request_certificate() {
         '{csr: $csr, idp_oauth_url: $url, idp_token: $token, idp_client_id: $client_id, return_pem_certificate: true}' \
         >"${WORK_DIR}/request.json"
 
+    # The token goes in a config file so it does not appear in the process
+    # list. Fleet fills in the FLEET_SECRET_ variable before the script runs.
     local http_code
     local curl_config="${WORK_DIR}/curl.cfg"
     printf 'header = "authorization: Bearer %s"\n' "${FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN}" > "${curl_config}"
@@ -449,7 +294,7 @@ request_certificate() {
     log "certificate written to ${cert_file}"
 }
 
-# Confirm the issued certificate actually belongs to the given key.
+# Fail unless the certificate in $1 was issued for the TPM key in $2.
 verify_certificate() {
     local cert_file="$1"
     local key_file="$2"
@@ -460,10 +305,6 @@ verify_certificate() {
         || fail "certificate ${cert_file} public key does not match key ${key_file}"
     log "certificate public key matches the TPM-resident private key"
 }
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 usage() {
     cat <<EOF
@@ -483,8 +324,8 @@ The ROTATE_KEY=1 environment variable is equivalent to --rotate.
 EOF
 }
 
-# ROTATE_KEY defaults to 0; the environment can set it so the same script
-# file can be driven from a Fleet script policy.
+# 1 = rotate. Fleet runs scripts without arguments or environment
+# variables, so rotating from Fleet needs a copy with this set to 1.
 ROTATE_KEY="${ROTATE_KEY:-0}"
 for arg in "$@"; do
     case "${arg}" in
@@ -503,7 +344,8 @@ done
 
 preflight
 (
-    flock -x 200 || fail "could not acquire lock on ${LOCK_FILE}"
+    # One run at a time, so overlapping runs cannot mismatch key and certificate.
+    flock -w 120 -x 200 || fail "another run still holds ${LOCK_FILE} after 120s"
     if [[ "${ROTATE_KEY}" == "1" ]]; then
         if [[ -f "${KEY_FILE}" ]]; then
             log "rotating installed key+certificate pair"
@@ -513,8 +355,6 @@ preflight
         rotate_key_and_certificate
     else
         ensure_key
-        # Stage the freshly issued certificate at a temporary path and validate
-        # it against the key before it replaces the installed certificate.
         candidate_cert="${WORK_DIR}/candidate-certificate.pem"
         request_certificate "${KEY_FILE}" "${candidate_cert}"
         verify_certificate "${candidate_cert}" "${KEY_FILE}"
