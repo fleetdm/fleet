@@ -253,10 +253,6 @@ const HostSoftwareTable = ({
     />
   );
 
-  // Visual order is search, dropdown, filters button. The dropdown and filters
-  // button are rendered here in DOM order; the search (rendered by
-  // TableContainer after these controls) is moved ahead of them via CSS when
-  // the `--with-applications-filter` modifier is present.
   const renderCustomControls = () => (
     <>
       {showApplicationsFilter && renderApplicationsFilter()}
