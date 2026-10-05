@@ -174,7 +174,7 @@ Unenroll a host when Fleet should stop managing it, for example when you repurpo
   - iOS/iPadOS and personal (BYOD) Android: On the **Host details** page, select **Actions > Unenroll**.
   - Company-owned Android: On the **Host details** page, select **Actions > Wipe**.
 
-3. For macOS, Windows, and Linux hosts, [uninstall Fleet's agent (fleetd)](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
+3. For macOS, Windows, and Linux hosts, [uninstall Fleet's agent](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
 
 4. For Apple Business (AB) hosts, release or reassign the device in AB.
 
@@ -188,7 +188,7 @@ Deleting a host doesn't unenroll it, so most hosts come back:
 
 | Platform | Comes back | Fleet |
 |---|---|---|
-| macOS, Windows, Linux | Yes, unless fleetd is uninstalled or its enroll secret is deleted | Enroll secret's fleet. Windows hosts where Fleet installed fleetd go to "Unassigned." |
+| macOS, Windows, Linux | Yes, unless Fleet's agent is uninstalled or its enroll secret is deleted | Enroll secret's fleet. Windows hosts where Fleet installed Fleet's agent go to "Unassigned." |
 | Assigned to Fleet in Apple Business (AB) | Yes, right away, as **Pending** | AB's default fleet |
 | iOS, iPadOS | Yes, at the next MDM check-in, unless you unenroll it first | Fleet at last enrollment |
 | Android | Yes, at the next status report, unless you unenroll it first | Same fleet, or "Unassigned" if it was deleted. Coming soon: the enroll secret's fleet ([#53076](https://github.com/fleetdm/fleet/issues/53076)). |
