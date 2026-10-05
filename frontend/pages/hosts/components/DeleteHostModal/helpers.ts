@@ -1,5 +1,5 @@
 import { IHost } from "interfaces/host";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { isAndroidBYO, MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   HostPlatform,
   isAndroid,
@@ -38,8 +38,8 @@ const deleteCopyGroup = (platform: string): DeleteCopyGroup => {
  * Returns the platform and MDM state shared by every selected host, so the
  * delete modal can show the per-platform copy. Returns undefined when the
  * selection is mixed, in which case the modal falls back to the generic bulk
- * copy. MDM state only changes the copy for macOS, so it is ignored for other
- * platforms.
+ * copy. MDM state only changes the copy for macOS and Android, so it is
+ * ignored for other platforms.
  */
 export const getSharedDeleteHostTarget = (
   hosts: IHost[]
@@ -60,6 +60,12 @@ export const getSharedDeleteHostTarget = (
   const sameCopy = rest.every((host) => {
     if (deleteCopyGroup(host.platform) !== group) {
       return false;
+    }
+    if (group === "android") {
+      return (
+        isAndroidBYO(host.mdm?.enrollment_status ?? null) ===
+        isAndroidBYO(target.mdmEnrollmentStatus)
+      );
     }
     if (group !== "macos") {
       return true;
