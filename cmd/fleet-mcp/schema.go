@@ -68,11 +68,8 @@ const (
 )
 
 // The vendored copy next to this file is what //go:embed pulls into the
-// binary as the offline fallback. Refresh from the canonical Fleet monorepo
-// via `go generate ./cmd/fleet-mcp/...` whenever Fleet upstream rebuilds
-// the schema.
-
-//go:generate cp ../../schema/osquery_fleet_schema.json ./osquery_fleet_schema.json
+// binary as the offline fallback. It's written alongside the canonical schema
+// by `cd website && ./node_modules/sails/bin/sails.js run generate-merged-schema`.
 
 //go:embed osquery_fleet_schema.json
 var embeddedSchemaJSON []byte

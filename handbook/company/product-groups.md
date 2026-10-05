@@ -84,10 +84,8 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - CVE/CPE ingestion & matching
 - Vulnerability reporting
 - Conditional access
-- Certificate Authorities (CAs)
-- Certificate delivery & renewal
 - Host disk encryption
-- CIS benchmarks 
+- CIS benchmarks
 
 
 ### Apple @ Work group
@@ -107,7 +105,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - Apple setup experience
 - macOS, iOS, and iPadOS configuration & updates
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this product group is `#g-apple-at-work`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/108), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this product group is `#g-apple-at-work`.
 
 
 ### Auto Patching group
@@ -129,7 +127,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - End user self-service
 - Scripts
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this product group is `#g-auto-patching`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/109), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this product group is `#g-auto-patching`.
 
 
 ### Power to the PC group
@@ -141,6 +139,14 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 | Quality Assurance                 | [Joe Grant](https://www.linkedin.com/in/thisisjoegrant/) _([@thisisjoegrant](https://github.com/thisisjoegrant))_
 | Software Engineer                 | [Matías Spinarolli](https://www.linkedin.com/in/matias-spinarolli/) _([@jbelbo](https://github.com/jbelbo))_
+
+**Areas of expertise**:
+- Windows MDM protocol & configuration
+- Windows device onboarding (Autopilot)
+- Windows setup experience
+- Certificate Authorities (CAs)
+- Certificate delivery & renewal (except Apple)
+- Windows configuration profiles
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this product group is `#g-power-to-pc`.
 
@@ -427,6 +433,8 @@ The website team will [periodically](https://fleetdm.com/handbook/marketing/webs
 cd website
 ./node_modules/sails/bin/sails.js run generate-merged-schema
 ```
+
+This updates both `schema/osquery_fleet_schema.json` and the copy for [Fleet's MCP](https://fleetdm.com/guides/fleet-mcp) (`cmd/fleet-mcp/osquery_fleet_schema.json`). Commit both files. The MCP needs its own copy because it builds the schema into its binary as an offline fallback for air-gapped deployments of the MCP server.
 
 > When adding a new table, make sure it does not already exist with the same name. If it does, consider changing the new table name or merge the two tables if it makes sense.
 

@@ -409,6 +409,7 @@ import Flexoptix from "./png/Flexoptix.png";
 import Flexwhere from "./png/Flexwhere.png";
 import Fluid from "./png/Fluid.png";
 import FluxApp from "./png/FluxApp.png";
+import Flycut from "./png/Flycut.png";
 import FocusriteControl2 from "./png/FocusriteControl2.png";
 import Folx from "./png/Folx.png";
 import Fontbase from "./png/Fontbase.png";
@@ -585,6 +586,7 @@ import LastWindowQuits from "./png/LastWindowQuits.png";
 import Latest from "./png/Latest.png";
 import Launchbar from "./png/Launchbar.png";
 import LenovoDockManager from "./png/LenovoDockManager.png";
+import LenovoSuhelper from "./png/LenovoSuhelper.png";
 import LenovoSystemUpdate from "./png/LenovoSystemUpdate.png";
 import Lens from "./png/Lens.png";
 import LibreOffice from "./png/LibreOffice.png";
@@ -889,6 +891,7 @@ import Rocket from "./png/Rocket.png";
 import RocketChat from "./png/RocketChat.png";
 import RocketmanChoicesPackager from "./png/RocketmanChoicesPackager.png";
 import RocketTypist from "./png/RocketTypist.png";
+import Rowel from "./png/Rowel.png";
 import RoyalTsx from "./png/RoyalTsx.png";
 import Rstudio from "./png/Rstudio.png";
 import Rsyncui from "./png/Rsyncui.png";
@@ -1083,6 +1086,7 @@ import Viz from "./png/Viz.png";
 import Vlc from "./png/Vlc.png";
 import VncViewer from "./png/VncViewer.png";
 import Voiceink from "./png/Voiceink.png";
+import Vorssaint from "./png/Vorssaint.png";
 import VpnTracker365 from "./png/VpnTracker365.png";
 import VsCodium from "./png/VsCodium.png";
 import Vuescan from "./png/Vuescan.png";
@@ -1578,6 +1582,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "flexoptix app": Flexoptix,
   flexwhere: Flexwhere,
   fluid: Fluid,
+  flycut: Flycut,
   "focusrite control 2": FocusriteControl2,
   folx: Folx,
   fontbase: Fontbase,
@@ -1755,6 +1760,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   latest: Latest,
   launchbar: Launchbar,
   "lenovo dock manager": LenovoDockManager,
+  "lenovo suhelper": LenovoSuhelper,
   "lenovo system update": LenovoSystemUpdate,
   lens: Lens,
   libreoffice: LibreOffice,
@@ -2075,6 +2081,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "rocket typist": RocketTypist,
   "rocket.chat": RocketChat,
   "rocketman choices packager": RocketmanChoicesPackager,
+  rowel: Rowel,
   "royal tsx": RoyalTsx,
   rstudio: Rstudio,
   rsyncui: Rsyncui,
@@ -2278,6 +2285,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "vnc server": RealVncServer,
   "vnc viewer": VncViewer,
   voiceink: Voiceink,
+  vorssaint: Vorssaint,
   "vpn tracker 365": VpnTracker365,
   vscodium: VsCodium,
   vuescan: Vuescan,
@@ -2344,6 +2352,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   zettlr: Zettlr,
   zight: Zight,
+  "zoom for government": Zoom,
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,

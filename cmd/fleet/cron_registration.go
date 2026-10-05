@@ -41,6 +41,7 @@ type cronSchedulesDeps struct {
 	svc                    fleet.Service
 	carveStore             fleet.CarveStore
 	enrollHostLimiter      fleet.EnrollHostLimiter
+	cleanupStateStore      fleet.MDMAppleCommandCleanupStateStore
 	liveQueryStore         fleet.LiveQueryStore
 	failingPolicySet       fleet.FailingPolicySet
 	redisPool              fleet.RedisPool
@@ -49,6 +50,7 @@ type cronSchedulesDeps struct {
 	softwareInstallStore   fleet.SoftwareInstallerStore
 	bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
+	stagedUploadStore      fleet.StagedUploadStore
 	androidSvc             android.Service
 	activitySvc            activity_api.Service
 	notificationsSvc       notifications_api.Service
@@ -142,7 +144,7 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 
 	deps.register("failed to register cleanups_then_aggregations schedule", func() (fleet.CronSchedule, error) {
 		return newCleanupsAndAggregationSchedule(
-			ctx, deps.instanceID, deps.ds, deps.carveStore, deps.svc, deps.logger, deps.enrollHostLimiter, deps.config, deps.commander, deps.softwareInstallStore, deps.bootstrapPackageStore, deps.softwareTitleIconStore, deps.androidSvc, deps.activitySvc, deps.notificationsSvc, deps.acmeSvc, deps.chartSvc,
+			ctx, deps.instanceID, deps.ds, deps.carveStore, deps.svc, deps.logger, deps.enrollHostLimiter, deps.cleanupStateStore, deps.config, deps.commander, deps.softwareInstallStore, deps.bootstrapPackageStore, deps.softwareTitleIconStore, deps.stagedUploadStore, deps.androidSvc, deps.activitySvc, deps.notificationsSvc, deps.acmeSvc, deps.chartSvc,
 		)
 	})
 
@@ -244,7 +246,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			redis_key_value.New(deps.redisPool),
 			deps.logger,
 			deps.config.MDM.CertificateProfilesLimit,
-			deps.config.Auth.UseOneTimeEnrollSecrets,
+			deps.config.MDM.AppleOneTimeEnrollSecrets,
 		)
 	})
 
@@ -254,6 +256,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			deps.instanceID,
 			deps.ds,
 			deps.logger,
+			deps.config.MDM.WindowsOneTimeEnrollSecrets,
 		)
 	})
 

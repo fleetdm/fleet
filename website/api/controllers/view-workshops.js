@@ -53,6 +53,31 @@ module.exports = {
 
       let eventsToGetDetailsFor = futureGitopsEvents.events;
 
+      // Tags are not included in the organization events response, so we'll get them from the destination events endpoint.
+      // Events tagged with "partners" are excluded from the workshops page.
+      let idsOfEventsToExclude = [];
+      await sails.helpers.flow.simultaneouslyForEach(_.chunk(_.pluck(eventsToGetDetailsFor, 'id'), 50), async (eventIds)=>{
+        let eventTagsResponse = await sails.helpers.http.get.with({
+          url: `https://www.eventbriteapi.com/v3/destination/events/?event_ids=${eventIds.join(',')}&expand=tags&page_size=50`,
+          headers: {
+            authorization: `Bearer ${sails.config.custom.eventbriteApiToken}`
+          },
+        }).tolerate((err)=>{
+          sails.log.warn(`When a user visited the workshops page, tags for events could not be obtained from the Eventbrite API. Full error: ${require('util').inspect(err)}`);
+          return {
+            events: [],
+          };
+        });
+        for(let eventWithTags of eventTagsResponse.events) {
+          if(_.any(eventWithTags.tags, (tag)=>{ return tag.prefix === 'OrganizerTag' && tag.display_name.toLowerCase() === 'partners'; })) {
+            idsOfEventsToExclude.push(eventWithTags.id);
+          }
+        }
+      });
+      eventsToGetDetailsFor = _.filter(eventsToGetDetailsFor, (event)=>{
+        return !_.contains(idsOfEventsToExclude, event.id);
+      });
+
       await sails.helpers.flow.simultaneouslyForEach(eventsToGetDetailsFor, async (event)=>{
         // Determine if this event is a GitOps workshop or an Apple administrator workshop.
         let eventType = _.contains(event.name.text.toLowerCase(), 'gitops') ? 'GitOps workshop' : _.contains(event.name.text.toLowerCase(), 'apple administrator') ? 'Apple administrator workshop' : undefined;

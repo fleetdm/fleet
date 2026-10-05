@@ -1243,6 +1243,7 @@ module.exports.routes = {
   'GET /company/contact': '/contact',
   'GET /legal': '/legal/terms',
   'GET /terms': '/legal/terms',
+  'GET /legal/dpa': 'https://drive.google.com/file/d/1COccvlNJzxqxqZj0Q7ZXGV64REo6WUXT/view?usp=sharing',// Fleet Data Processing Addendum, referenced in Section 12.2 of the subscription terms.
   'GET /handbook/security/github': '/handbook/security#git-hub-security',
   'GET /slack': '/support',// Note: This redirect is used on error pages and email templates in the Fleet UI.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
@@ -1355,6 +1356,7 @@ module.exports.routes = {
   'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
   'GET /learn-more-about/installing-fleetctl': '/guides/fleetctl#installing-fleetctl',
   'GET /learn-more-about/mdm-disk-encryption': '/guides/enforce-disk-encryption',
+  'GET /learn-more-about/disk-encryption-key': '/guides/enforce-disk-encryption#use-disk-encryption-key-to-login',
   'GET /learn-more-about/encrypt-linux-device': '/guides/linux-disk-encryption-end-user',
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
   'GET /learn-more-about/end-user-license-agreement': '/guides/setup-experience#end-user-license-agreement-eula',
@@ -1444,6 +1446,7 @@ module.exports.routes = {
   'GET /learn-more-about/android-manual-sync': '/guides/how-to-manually-sync-an-android-device',
   'GET /learn-more-about/policy-automation-resend-configuration-profile': '/guides/policy-automation-resend-configuration-profile',
   'GET /learn-more-about/device-attestation': '/guides/what-is-device-attestation',
+  'GET /learn-more-about/deleting-a-host': '/guides/enroll-hosts#delete-a-host',
 
   // Sitemap
   // =============================================================================================================

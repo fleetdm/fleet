@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -31,6 +32,7 @@ func TestEndUserNotifications(t *testing.T) {
 		{"Delay", testDelayEndUserNotification},
 		{"ActOn", testActOnEndUserNotification},
 		{"SetStatus", testSetEndUserNotificationStatus},
+		{"SetPayload", testSetEndUserNotificationPayload},
 		{"FailForHost", testFailEndUserNotificationsForHost},
 		{"Outcome", testSetEndUserNotificationOutcome},
 	}
@@ -713,6 +715,49 @@ func testSetEndUserNotificationStatus(t *testing.T, env *testEnv) {
 	})
 }
 
+func testSetEndUserNotificationPayload(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	firstNotice := json.RawMessage(`{"reminder":false}`)
+
+	t.Run("a dispatched notification the host has not displayed gets the new payload", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "set-payload", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, false)
+
+		require.NoError(t, env.ds.SetEndUserNotificationPayload(ctx, notificationUUID, firstNotice))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.JSONEq(t, string(firstNotice), string(got.Payload))
+	})
+
+	// the payload is written after the script result sets displayed_at, so displayed_at cannot block it
+	t.Run("a dispatched notification the host has displayed gets the new payload", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "set-payload-displayed", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, true)
+
+		require.NoError(t, env.ds.SetEndUserNotificationPayload(ctx, notificationUUID, firstNotice))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.JSONEq(t, string(firstNotice), string(got.Payload))
+	})
+
+	// a script result that arrives after the notification went back to pending must not write the payload
+	t.Run("a notification that is not dispatched keeps its payload", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "set-payload-pending", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationPending, 1, false)
+
+		require.NoError(t, env.ds.SetEndUserNotificationPayload(ctx, notificationUUID, firstNotice))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{}`, string(got.Payload))
+	})
+}
+
 func testFailEndUserNotificationsForHost(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 
@@ -823,7 +868,7 @@ func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 		assert.JSONEq(t, `{"title": "5 minutes left"}`, string(got.Payload))
 	})
 
-	t.Run("a re-dispatched notification still blocks the host", func(t *testing.T) {
+	t.Run("a notification dispatched again after a delay still blocks the host", func(t *testing.T) {
 		hostID := newDarwinHost(t, env, "delay-inflight", true)
 		first := env.InsertNotification(t, hostID, "k", nil, nil)
 		second := env.InsertNotification(t, hostID, "k", nil, nil)
@@ -832,13 +877,13 @@ func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 		require.NoError(t, env.ds.VerifyEndUserNotification(ctx, first, time.Now()))
 		require.NoError(t, env.ds.DelayEndUserNotification(ctx, first, time.Now().Add(-time.Minute), nil))
 
-		redispatch := first + "-exec2"
+		secondExecutionID := first + "-exec2"
 		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx,
-			[]*api.EndUserNotification{{UUID: first, HostID: hostID, ExecutionID: &redispatch}}))
+			[]*api.EndUserNotification{{UUID: first, HostID: hostID, ExecutionID: &secondExecutionID}}))
 
 		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
 		require.NoError(t, err)
-		assert.Empty(t, due, "%s went out while the re-dispatched one was still in flight", second)
+		assert.Empty(t, due, "%s went out while the delayed notification was dispatched again and not yet displayed", second)
 	})
 
 	t.Run("does not resurrect an already-expired notification", func(t *testing.T) {

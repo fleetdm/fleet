@@ -450,6 +450,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 		"install_uuid": "%s",
 		"self_service": false,
 		"software_title": "%s",
+		"software_display_name": null,
 		"software_package": "%s",
 		"source": "apps",
 		"host_display_name": "%s"
@@ -545,7 +546,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
   "source": "apps",
   "policy_id": null,
   "policy_name": null,
-  "from_setup_experience": true
+  "from_setup_experience": true,
+  "patch_when_closed": false
 }
 	`, enrolledHost.ID, getHostResp.Host.DisplayName, statusResp.Results.Software[0].Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.StorageID, installUUID)
 
@@ -979,7 +981,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
   "source": "apps",
   "policy_id": null,
   "policy_name": null,
-  "from_setup_experience": true
+  "from_setup_experience": true,
+  "patch_when_closed": false
 }
 	`, enrolledHost.ID, getHostResp.Host.DisplayName, titleDetail.SoftwareTitle.SoftwarePackage.Name, titleDetail.SoftwareTitle.SoftwarePackage.StorageID, installUUID)
 	s.lastActivityMatchesExtended(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0, ptr.Bool(true))
@@ -5440,7 +5443,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 		if h.UUID == mdmDevice.EnrollmentID() {
 			enrolledHostID = h.ID
 			require.NotNil(t, h.MDM.EnrollmentStatus)
-			require.Equal(t, "On (manual - personal)", *h.MDM.EnrollmentStatus)
+			require.Equal(t, fleet.MDMEnrollmentStatusPersonal, *h.MDM.EnrollmentStatus)
 			break
 		}
 	}

@@ -1,0 +1,1 @@
+- Reduced database load of the `GET /api/v1/fleet/hosts/:id/health` endpoint by only loading the host's vulnerable software instead of its full software inventory with CVE details.

@@ -678,7 +678,25 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "5.5",
 				Vendor:           "",
 				BundleIdentifier: "com.adobe.mas.lightroomCC",
-			}, cpe: "cpe:2.3:a:adobe:lightroom:5.5:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:adobe:lightroom:5.5:*:*:*:desktop:macos:*:*",
+		},
+		{
+			// NVD distinguishes Lightroom from Lightroom Classic only by sw_edition, so without an
+			// explicit edition each app would match the other's CVEs.
+			software: fleet.Software{
+				Name:             "Adobe Lightroom.app",
+				Source:           "apps",
+				Version:          "9.5",
+				BundleIdentifier: "com.adobe.lightroomCC",
+			}, cpe: "cpe:2.3:a:adobe:lightroom:9.5:*:*:*:desktop:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Adobe Lightroom Classic.app",
+				Source:           "apps",
+				Version:          "15.4.1",
+				BundleIdentifier: "com.adobe.LightroomClassicCC7",
+			}, cpe: "cpe:2.3:a:adobe:lightroom:15.4.1:*:*:*:classic:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1542,6 +1560,21 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Name:    "jira",
 				Source:  "python_packages",
 				Version: "3.8.0",
+			}, cpe: "",
+		},
+		// 2026-09-28: there are no entries for the bash python package at the NVD dataset, only GNU bash.
+		{
+			software: fleet.Software{
+				Name:    "bash",
+				Source:  "python_packages",
+				Version: "0.6",
+			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:    "python3-bash",
+				Source:  "python_packages",
+				Version: "0.6",
 			}, cpe: "",
 		},
 		{ // checks vendor/product matching based on bundle name, including EAPs

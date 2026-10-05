@@ -37,6 +37,11 @@ on:
         type: string
         default: 2
         required: true
+      fleet_mysql_max_open_conns:
+        description: "MySQL connections per Fleet task, for the writer and replica pools each (reference architecture: 10 up to 10k hosts, 20 above)"
+        type: string
+        default: "10"
+        required: true
       fleet_redis_instance_size:
         description: "AWS Instance size for the Fleet redis instances"
         type: string
@@ -100,6 +105,7 @@ env:
   TF_VAR_fleet_task_cpu: "${{ inputs.fleet_task_cpu }}"
   TF_VAR_database_instance_size: "${{ inputs.fleet_database_instance_size }}"
   TF_VAR_database_instance_count: "${{ inputs.fleet_database_instance_count }}"
+  TF_VAR_mysql_max_open_conns: "${{ inputs.fleet_mysql_max_open_conns }}"
   TF_VAR_redis_instance_size: "${{ inputs.fleet_redis_instance_size }}"
   TF_VAR_redis_instance_count: "${{ inputs.fleet_redis_instance_count }}"
   TF_VAR_redis_engine: "${{ inputs.fleet_redis_engine }}"

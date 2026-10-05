@@ -29,7 +29,11 @@ func (nopLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 	return map[string]string{}, nil
 }
 
-func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
+func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) (bool, error) {
+	return true, nil
+}
+
+func (nopLiveQuery) RestoreQueryTargetForHost(name string, hostID uint) error {
 	return nil
 }
 

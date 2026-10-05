@@ -52,6 +52,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy
+  hidden: false
   name: Team Policy
   platform: linux,windows
   query: SELECT * FROM team_policy WHERE id = 1
@@ -64,6 +65,7 @@ policies:
   critical: false
   description: This is a team patch policy
   fleet_maintained_app_slug: foo/darwin
+  hidden: false
   name: Team patch policy
   notify_before_patching: false
   patch_when_closed: true
@@ -77,6 +79,7 @@ policies:
   critical: false
   description: This is a team patch policy that notifies before patching
   fleet_maintained_app_slug: foo/darwin
+  hidden: false
   name: My Notify FMA up to date
   notify_before_patching: true
   patch_when_closed: false
@@ -89,6 +92,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy with VPP app automation
+  hidden: true
   install_software:
     app_store_id: "1234567890"
   name: Team VPP policy
@@ -102,6 +106,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy with configuration profile automation
+  hidden: false
   name: Team Profile policy
   platform: darwin
   query: SELECT * FROM team_policy WHERE id = 4

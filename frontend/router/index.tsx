@@ -217,6 +217,12 @@ const LazyScriptBatchDetailsPage = lazyPage(
       /* webpackChunkName: "controls" */ "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage"
     )
 );
+const LazyProfileFormPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "controls" */ "pages/ManageControlsPage/OSSettings/cards/ConfigurationProfiles/ProfileFormPage"
+    )
+);
 const LazySoftwarePage = lazyPage(
   () => import(/* webpackChunkName: "software" */ "pages/SoftwarePage")
 );
@@ -388,6 +394,12 @@ const LazyAndroidMdmPage = lazyPage(
   () =>
     import(
       /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage"
+    )
+);
+const LazyAndroidZeroTouchPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidZeroTouchPage"
     )
 );
 const LazyWindowsEnrollmentPage = lazyPage(
@@ -567,6 +579,10 @@ const routes = (
               path="integrations/mdm/android"
               component={LazyAndroidMdmPage}
             />
+            <Route
+              path="integrations/mdm/android-zero-touch"
+              component={LazyAndroidZeroTouchPage}
+            />
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect
               from="integrations/automatic-enrollment/apple"
@@ -656,6 +672,18 @@ const routes = (
             />
           </Route>
           <Route component={ExcludeInSandboxRoutes}>
+            {/* Before the controls group, whose os-settings/:section/:platform
+                route would otherwise match these. */}
+            <Route component={AuthAnyMaintainerAdminTechnicianRoutes}>
+              <Route
+                path="controls/os-settings/configuration-profiles/new"
+                component={LazyProfileFormPage}
+              />
+              <Route
+                path="controls/os-settings/configuration-profiles/:profile_uuid"
+                component={LazyProfileFormPage}
+              />
+            </Route>
             <Route
               path="controls"
               component={AuthAnyMaintainerAdminTechnicianRoutes}

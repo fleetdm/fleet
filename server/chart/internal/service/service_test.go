@@ -187,7 +187,7 @@ func (m *mockDatastore) ApplyScrubMaskToDataset(ctx context.Context, dataset str
 
 func TestGetChartDataUnknownMetric(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 
 	_, err := svc.GetChartData(t.Context(), "nonexistent", api.RequestOpts{Days: 7})
 	require.Error(t, err)
@@ -196,7 +196,7 @@ func TestGetChartDataUnknownMetric(t *testing.T) {
 
 func TestGetChartDataInvalidDays(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 32})
@@ -214,7 +214,7 @@ func TestGetChartDataInvalidDays(t *testing.T) {
 
 func TestGetChartDataInvalidResolution(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	cases := []struct {
@@ -236,7 +236,7 @@ func TestGetChartDataInvalidResolution(t *testing.T) {
 
 func TestGetChartDataUptimeDefault(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	// Drive TotalHosts via the host-ID list: bitmap popcount = 200.
@@ -290,7 +290,7 @@ func TestGetChartDataUptimeResolution(t *testing.T) {
 	} {
 		t.Run(tc.resolutionStr, func(t *testing.T) {
 			ds := &mockDatastore{}
-			svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+			svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 			svc.RegisterDataset(&chart.UptimeDataset{})
 
 			var gotBucketSize time.Duration
@@ -322,7 +322,7 @@ func TestGetChartDataCVEResolution(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := &mockDatastore{}
-			svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+			svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 			svc.RegisterDataset(&chart.CVEDataset{})
 
 			var gotBucketSize time.Duration
@@ -344,7 +344,7 @@ func TestGetChartDataCVEResolution(t *testing.T) {
 
 func TestGetChartDataUptimePassesNilEntityIDs(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	// The uptime path must not resolve CVE entities — fail loudly if it does.
@@ -364,7 +364,7 @@ func TestGetChartDataUptimePassesNilEntityIDs(t *testing.T) {
 }
 
 func newCVEService(ds *mockDatastore) *Service {
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 	svc.RegisterDataset(&chart.CVEDataset{})
 	return svc
 }
@@ -551,7 +551,7 @@ func TestGetChartDataSeverityValidation(t *testing.T) {
 	}
 
 	t.Run("non-CVE metrics ignore invalid severity bounds", func(t *testing.T) {
-		svc := NewService(&mockAuthorizer{}, &mockDatastore{}, globalViewer(), nil)
+		svc := NewService(&mockAuthorizer{}, &mockDatastore{}, globalViewer(), nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{
@@ -593,7 +593,7 @@ func TestGetChartDataEPSSValidation(t *testing.T) {
 				resolveCalled = true
 				return []string{}, nil
 			}
-			svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+			svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 			svc.RegisterDataset(&chart.CVEDataset{})
 
 			_, err := svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{
@@ -613,7 +613,7 @@ func TestGetChartDataEPSSValidation(t *testing.T) {
 	}
 
 	t.Run("non-CVE metrics ignore invalid EPSS bounds", func(t *testing.T) {
-		svc := NewService(&mockAuthorizer{}, &mockDatastore{}, globalViewer(), nil)
+		svc := NewService(&mockAuthorizer{}, &mockDatastore{}, globalViewer(), nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{
@@ -630,7 +630,7 @@ func TestGetChartDataOmitsUnsetSeverityFromEcho(t *testing.T) {
 	ds.resolveCVEEntitiesFn = func(_ context.Context, _ types.CVEChartFilter) ([]string, error) {
 		return []string{}, nil
 	}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 	svc.RegisterDataset(&chart.CVEDataset{})
 
 	resp, err := svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 7})
@@ -648,7 +648,7 @@ func TestGetChartDataOmitsUnsetSeverityFromEcho(t *testing.T) {
 
 func TestGetChartDataWithHostFilters(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	var gotFilter *types.HostFilter
@@ -682,10 +682,38 @@ func TestGetChartDataWithHostFilters(t *testing.T) {
 	assert.Equal(t, []string{"darwin"}, resp.Filters.Platforms)
 }
 
+func TestGetChartDataExpandsPlatforms(t *testing.T) {
+	ds := &mockDatastore{}
+	expand := func(platform string) []string {
+		if platform == "linux" {
+			return []string{"ubuntu", "rhel"}
+		}
+		return []string{platform}
+	}
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), expand, nil)
+	svc.RegisterDataset(&chart.UptimeDataset{})
+
+	var gotFilter *types.HostFilter
+	ds.getHostIDsForFilterFunc = func(_ context.Context, hostFilter *types.HostFilter) ([]uint, error) {
+		gotFilter = hostFilter
+		return []uint{10}, nil
+	}
+
+	resp, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{
+		Days:      7,
+		Platforms: []string{"linux", "darwin"},
+	})
+	require.NoError(t, err)
+
+	require.NotNil(t, gotFilter)
+	assert.Equal(t, []string{"ubuntu", "rhel", "darwin"}, gotFilter.Platforms, "SQL filter sees hosts.platform values")
+	assert.Equal(t, []string{"linux", "darwin"}, resp.Filters.Platforms, "response echoes what the caller asked for")
+}
+
 func TestGetChartDataAuthzScope(t *testing.T) {
 	t.Run("no fleet_id → ActionList with Host{} (rego allows team users)", func(t *testing.T) {
 		auth := &recordingAuthorizer{allow: true}
-		svc := NewService(auth, &mockDatastore{}, globalViewer(), nil)
+		svc := NewService(auth, &mockDatastore{}, globalViewer(), nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
@@ -700,7 +728,7 @@ func TestGetChartDataAuthzScope(t *testing.T) {
 
 	t.Run("explicit fleet_id=5 → ActionRead with Host{TeamID:5} (rego enforces exact team)", func(t *testing.T) {
 		auth := &recordingAuthorizer{allow: true}
-		svc := NewService(auth, &mockDatastore{}, globalViewer(), nil)
+		svc := NewService(auth, &mockDatastore{}, globalViewer(), nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		teamID := uint(5)
@@ -717,7 +745,7 @@ func TestGetChartDataAuthzScope(t *testing.T) {
 
 	t.Run("authz denial propagates", func(t *testing.T) {
 		auth := &recordingAuthorizer{allow: false}
-		svc := NewService(auth, &mockDatastore{}, globalViewer(), nil)
+		svc := NewService(auth, &mockDatastore{}, globalViewer(), nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
@@ -728,7 +756,7 @@ func TestGetChartDataAuthzScope(t *testing.T) {
 	t.Run("viewer provider error propagates before authz", func(t *testing.T) {
 		auth := &recordingAuthorizer{allow: true}
 		viewer := &mockViewerProvider{err: errors.New("no viewer in context")}
-		svc := NewService(auth, &mockDatastore{}, viewer, nil)
+		svc := NewService(auth, &mockDatastore{}, viewer, nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
@@ -746,7 +774,7 @@ func TestGetChartDataScopesDataByViewer(t *testing.T) {
 			gotFilter = f
 			return []uint{1, 2, 3}, nil
 		}
-		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
@@ -763,7 +791,7 @@ func TestGetChartDataScopesDataByViewer(t *testing.T) {
 			return []uint{10, 11}, nil
 		}
 		viewer := &mockViewerProvider{isGlobal: false, teamIDs: []uint{3, 7}}
-		svc := NewService(&mockAuthorizer{}, ds, viewer, nil)
+		svc := NewService(&mockAuthorizer{}, ds, viewer, nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
@@ -781,7 +809,7 @@ func TestGetChartDataScopesDataByViewer(t *testing.T) {
 			return nil, nil
 		}
 		viewer := &mockViewerProvider{isGlobal: false, teamIDs: nil}
-		svc := NewService(&mockAuthorizer{}, ds, viewer, nil)
+		svc := NewService(&mockAuthorizer{}, ds, viewer, nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		resp, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
@@ -801,7 +829,7 @@ func TestGetChartDataScopesDataByViewer(t *testing.T) {
 		}
 		// Viewer sees teams 3, 7 — but caller explicitly asks for team 3.
 		viewer := &mockViewerProvider{isGlobal: false, teamIDs: []uint{3, 7}}
-		svc := NewService(&mockAuthorizer{}, ds, viewer, nil)
+		svc := NewService(&mockAuthorizer{}, ds, viewer, nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		teamID := uint(3)
@@ -846,7 +874,7 @@ func TestComputeBucketRange(t *testing.T) {
 
 func TestCollectDatasetsUptime(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	now := time.Date(2026, 4, 8, 14, 37, 0, 0, time.UTC)
@@ -873,7 +901,7 @@ func TestCollectDatasetsUptime(t *testing.T) {
 
 func TestCollectDatasetsCVE(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 	svc.RegisterDataset(&chart.CVEDataset{})
 
 	now := time.Date(2026, 4, 8, 14, 37, 0, 0, time.UTC)
@@ -915,7 +943,7 @@ func TestCollectDatasetsCVE(t *testing.T) {
 // set would leave its open row hanging forever.
 func TestCollectDatasetsCVEEmptyTracked(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 	svc.RegisterDataset(&chart.CVEDataset{})
 
 	ds.collectibleCVEsFn = func(_ context.Context) ([]string, error) {
@@ -946,7 +974,7 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 
 	t.Run("skip prevents Collect call", func(t *testing.T) {
 		ds := &mockDatastore{}
-		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 		ds.findOnlineHostIDsFn = func(_ context.Context, _ time.Time, _ []uint) ([]uint, error) {
 			t.Fatal("FindOnlineHostIDs should not have been called when scope returned skip=true")
@@ -962,7 +990,7 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 
 	t.Run("disabledFleetIDs forwarded to FindOnlineHostIDs", func(t *testing.T) {
 		ds := &mockDatastore{}
-		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		var gotDisabled []uint
@@ -982,7 +1010,7 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 
 	t.Run("disabledFleetIDs forwarded to AffectedHostIDsByCVE", func(t *testing.T) {
 		ds := &mockDatastore{}
-		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 		svc.RegisterDataset(&chart.CVEDataset{})
 
 		ds.collectibleCVEsFn = func(_ context.Context) ([]string, error) {
@@ -1005,7 +1033,7 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 
 	t.Run("nil scope behaves as (false, nil) for every dataset", func(t *testing.T) {
 		ds := &mockDatastore{}
-		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		gotDisabled := []uint{0xDEADBEEF} // sentinel — should be replaced with nil
@@ -1024,7 +1052,7 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 
 func TestScrubDatasetGlobal(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 
 	var gotDataset string
 	var gotBatchSize int
@@ -1042,7 +1070,7 @@ func TestScrubDatasetGlobal(t *testing.T) {
 func TestScrubDatasetFleet(t *testing.T) {
 	t.Run("forwards mask built from fleet hosts", func(t *testing.T) {
 		ds := &mockDatastore{}
-		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 
 		var gotFleets []uint
 		ds.hostIDsInFleetsFn = func(_ context.Context, fleetIDs []uint) ([]uint, error) {
@@ -1070,7 +1098,7 @@ func TestScrubDatasetFleet(t *testing.T) {
 
 	t.Run("empty fleet IDs is no-op", func(t *testing.T) {
 		ds := &mockDatastore{}
-		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 		ds.hostIDsInFleetsFn = func(_ context.Context, _ []uint) ([]uint, error) {
 			t.Fatal("HostIDsInFleets should not have been called for empty input")
 			return nil, nil
@@ -1085,7 +1113,7 @@ func TestScrubDatasetFleet(t *testing.T) {
 
 	t.Run("no hosts resolved is no-op", func(t *testing.T) {
 		ds := &mockDatastore{}
-		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
 		ds.hostIDsInFleetsFn = func(_ context.Context, _ []uint) ([]uint, error) {
 			return nil, nil
 		}

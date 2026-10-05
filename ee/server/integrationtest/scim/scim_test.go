@@ -43,6 +43,7 @@ func TestSCIM(t *testing.T) {
 		{"PatchGroupAttributes", testPatchGroupAttributes},
 		{"PatchGroupMembers", testPatchGroupMembers},
 		{"NestedGroups", testNestedGroups},
+		{"UnknownGroupMembers", testUnknownGroupMembers},
 		{"UsersPagination", testUsersPagination},
 		{"GroupsPagination", testGroupsPagination},
 		{"UsersAndGroups", testUsersAndGroups},
@@ -4610,7 +4611,7 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 
 		var errorResp map[string]interface{}
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), nonExistentMemberPayload, http.StatusBadRequest, &errorResp)
-		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for non-existent member ID")
+		require.Equal(t, "Bad Request. Invalid parameter provided in request: 4294967295.", errorResp["detail"])
 	})
 
 	t.Run("Non-existent member ID in a replace", func(t *testing.T) {
@@ -5038,4 +5039,65 @@ func scimPath(suffix string) string {
 	paths := []string{"/api/v1/fleet/scim", "/api/latest/fleet/scim"}
 	prefix := paths[time.Now().UnixNano()%int64(len(paths))]
 	return prefix + suffix
+}
+
+func testUnknownGroupMembers(t *testing.T, s *Suite) {
+	userID, _ := createTestUser(t, s, "unknown-members-user@example.com")
+	otherUserID, _ := createTestUser(t, s, "unknown-members-other@example.com")
+	const unknownUserID = "4294967295"
+	const unknownGroupID = "group-4294967295"
+
+	memberValues := func(group map[string]any) []string {
+		members, _ := group["members"].([]any)
+		values := make([]string, 0, len(members))
+		for _, m := range members {
+			values = append(values, m.(map[string]any)["value"].(string))
+		}
+		return values
+	}
+	groupPayload := func(displayName string, memberIDs ...string) map[string]any {
+		members := make([]map[string]any, 0, len(memberIDs))
+		for _, id := range memberIDs {
+			members = append(members, map[string]any{"value": id})
+		}
+		return map[string]any{
+			"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+			"displayName": displayName,
+			"members":     members,
+		}
+	}
+
+	t.Run("POST skips unknown members and stores the valid ones", func(t *testing.T) {
+		var resp map[string]any
+		s.DoJSON(t, "POST", scimPath("/Groups"), groupPayload("Unknown members POST", userID, unknownUserID, unknownGroupID),
+			http.StatusCreated, &resp)
+		require.Equal(t, []string{userID}, memberValues(resp))
+		require.Equal(t, []string{userID}, memberValues(getGroup(t, s, resp["id"].(string))))
+	})
+
+	groupID, _ := createTestGroup(t, s, "Unknown members PATCH", []string{userID})
+
+	t.Run("PATCH add skips an unknown member and adds the valid one", func(t *testing.T) {
+		resp := patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op":    "add",
+			"path":  "members",
+			"value": []map[string]any{{"value": otherUserID}, {"value": unknownUserID}},
+		})
+		require.ElementsMatch(t, []string{userID, otherUserID}, memberValues(resp))
+		require.ElementsMatch(t, []string{userID, otherUserID}, memberValues(getGroup(t, s, groupID)))
+	})
+
+	t.Run("PUT skips unknown members and stores the valid ones", func(t *testing.T) {
+		var resp map[string]any
+		s.DoJSON(t, "PUT", scimPath("/Groups/"+groupID), groupPayload("Unknown members PUT", otherUserID, unknownUserID),
+			http.StatusOK, &resp)
+		require.Equal(t, []string{otherUserID}, memberValues(resp))
+		require.Equal(t, []string{otherUserID}, memberValues(getGroup(t, s, groupID)))
+	})
+
+	t.Run("PUT to a missing group with only unknown members is a not found", func(t *testing.T) {
+		var resp map[string]any
+		s.DoJSON(t, "PUT", scimPath("/Groups/group-4294967295"), groupPayload("Missing group", unknownUserID),
+			http.StatusNotFound, &resp)
+	})
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -37,6 +38,11 @@ type mockAndroidModule struct {
 	buildFleetAgentApplicationPolicyFunc func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error)
 	setAppsForAndroidPolicyFunc          func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error
 	addAppsToAndroidPolicyFunc           func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error)
+	removeAppsFromAndroidPolicyFunc      func(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error)
+}
+
+func (m *mockAndroidModule) RemoveAppsFromAndroidPolicy(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+	return m.removeAppsFromAndroidPolicyFunc(ctx, enterpriseName, packageNames, hostUUIDs)
 }
 
 func (m *mockAndroidModule) BuildFleetAgentApplicationPolicy(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
@@ -178,6 +184,28 @@ func TestBulkMakeAndroidAppsAvailableForHostPreservesFleetAgent(t *testing.T) {
 		capturedPackageNames[i] = policy.PackageName
 	}
 	require.ElementsMatch(t, []string{"com.example.vppapp", "com.fleetdm.agent"}, capturedPackageNames)
+}
+
+func TestSoftwareWorkerRunDisablesAMAPIRetry(t *testing.T) {
+	var called bool
+	androidModule := &mockAndroidModule{
+		removeAppsFromAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+			called = true
+			assert.True(t, androidmgmt.RetryDisabled(ctx), "worker jobs must not wait out AMAPI quota errors")
+			return nil, nil
+		},
+	}
+	w := &SoftwareWorker{Datastore: new(mock.Store), AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+	args, err := json.Marshal(softwareWorkerArgs{
+		Task:               makeAndroidAppUnavailableTask,
+		ApplicationID:      "com.example.app",
+		EnterpriseName:     "enterprises/test",
+		HostUUIDToPolicyID: map[string]string{"host-1": "host-1"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, w.Run(t.Context(), args))
+	require.True(t, called)
 }
 
 func TestSplitHostMap(t *testing.T) {

@@ -66,6 +66,8 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string
@@ -131,6 +133,8 @@ type NewTeamPolicyPayload struct {
 	LabelsExcludeAll []string
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	ConditionalAccessEnabled bool
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type *string
@@ -159,6 +163,7 @@ var (
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
+	errPolicyHiddenWithConditionalAccess             = errors.New("\"hidden\" and \"conditional_access_enabled\" cannot both be set")
 	errPolicyResendProfileInvalidPlatform            = errors.New("\"profile_uuid\" is only valid on \"darwin\" and \"windows\" policies")
 	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
 	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
@@ -181,6 +186,9 @@ const PolicyAutomationInstallAttemptExpiry = 24 * time.Hour
 
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
+	if err := PolicyVerifyHidden(p.Hidden, p.ConditionalAccessEnabled); err != nil {
+		return err
+	}
 	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
 	}
@@ -355,6 +363,15 @@ func PolicyVerifyConditionalAccess(conditionalAccessEnabled bool, platform strin
 	return nil
 }
 
+// PolicyVerifyHidden rejects hiding a conditional access policy: end users must
+// be able to see why their sign-in is blocked.
+func PolicyVerifyHidden(hidden, conditionalAccessEnabled bool) error {
+	if hidden && conditionalAccessEnabled {
+		return errPolicyHiddenWithConditionalAccess
+	}
+	return nil
+}
+
 // ModifyPolicyPayload holds data for policy modification.
 type ModifyPolicyPayload struct {
 	// Name is the name of the policy.
@@ -408,6 +425,8 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden *bool `json:"hidden" premium:"true"`
 	// ContinuousAutomationsEnabled indicates whether software/script automations
 	// should run on every failing policy result, not just on pass→fail transitions.
 	//
@@ -516,6 +535,8 @@ type PolicyData struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled" db:"conditional_access_enabled"`
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool `json:"hidden" db:"hidden"`
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string `json:"type" db:"type"`
@@ -793,6 +814,8 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool `json:"hidden"`
 	// ContinuousAutomationsEnabled indicates whether software/script automations
 	// should run on every failing policy result, not just on pass→fail transitions.
 	//
@@ -858,6 +881,9 @@ func (p PolicySpec) Verify() error {
 		return err
 	}
 	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
+		return err
+	}
+	if err := PolicyVerifyHidden(p.Hidden, p.ConditionalAccessEnabled); err != nil {
 		return err
 	}
 	if err := PolicyVerifyResendProfile(p.ProfileUUID, p.Platform); err != nil {

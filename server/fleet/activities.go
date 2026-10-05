@@ -1201,6 +1201,41 @@ func (a ActivityTypeRotatedHostRecoveryLockPassword) WasFromAutomation() bool {
 	return a.FleetInitiated
 }
 
+// ActivityTypeRotatedDiskEncryptionKey records that a user requested a FileVault key rotation. It is logged when the
+// command is enqueued; the new key arriving is recorded by ActivityTypeEscrowedDiskEncryptionKey.
+type ActivityTypeRotatedDiskEncryptionKey struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeRotatedDiskEncryptionKey) ActivityName() string {
+	return "rotated_disk_encryption_key"
+}
+
+func (a ActivityTypeRotatedDiskEncryptionKey) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+// ActivityTypeFailedToRotateDiskEncryptionKey is always attributed to Fleet: the failure arrives from the device or
+// from command delivery, outside any user context.
+type ActivityTypeFailedToRotateDiskEncryptionKey struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	Detail          string `json:"detail,omitempty"`
+}
+
+func (a ActivityTypeFailedToRotateDiskEncryptionKey) ActivityName() string {
+	return "failed_to_rotate_disk_encryption_key"
+}
+
+func (a ActivityTypeFailedToRotateDiskEncryptionKey) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeFailedToRotateDiskEncryptionKey) WasFromAutomation() bool {
+	return true
+}
+
 // ActivityTypeRotatedManagedLocalAccountPassword records a managed-local-account
 // password rotation. Manual rotations log with the calling user as actor;
 // auto-rotations log with no user and FleetInitiated=true. Rotations that were
@@ -1352,6 +1387,7 @@ type ActivityTypeInstalledSoftware struct {
 	HostID              uint    `json:"host_id"`
 	HostDisplayName     string  `json:"host_display_name"`
 	SoftwareTitle       string  `json:"software_title"`
+	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
 	SoftwarePackage     string  `json:"software_package"`
 	HashSHA256          *string `json:"hash_sha256,omitempty"`
 	SelfService         bool    `json:"self_service"`
@@ -1364,7 +1400,8 @@ type ActivityTypeInstalledSoftware struct {
 	CommandUUID         string  `json:"command_uuid,omitempty"`
 	FailureReason       string  `json:"failure_reason,omitempty"`
 	// SkippedInstall is set on a patch-when-closed skip (the app was open); Status is then "failed_install".
-	SkippedInstall bool `json:"skipped_install,omitempty"`
+	SkippedInstall  bool `json:"skipped_install,omitempty"`
+	PatchWhenClosed bool `json:"patch_when_closed"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1408,6 +1445,9 @@ type ActivityTypeNotifiedEndUserBeforePatching struct {
 	InstallAt             *time.Time `json:"install_at"`
 	Status                string     `json:"status"`
 	ScriptExecutionID     string     `json:"script_execution_id,omitempty"`
+	// Notification script exit code. Lets the activities table render the failure
+	// reason (e.g. screen locked) without a per-row fetch of the script result.
+	ExitCode *int64 `json:"exit_code,omitempty"`
 }
 
 func (a ActivityTypeNotifiedEndUserBeforePatching) ActivityName() string {
@@ -1423,13 +1463,14 @@ func (a ActivityTypeNotifiedEndUserBeforePatching) WasFromAutomation() bool {
 }
 
 type ActivityTypeUninstalledSoftware struct {
-	HostID          uint    `json:"host_id"`
-	HostDisplayName string  `json:"host_display_name"`
-	SoftwareTitle   string  `json:"software_title"`
-	ExecutionID     string  `json:"script_execution_id"`
-	SelfService     bool    `json:"self_service"`
-	Status          string  `json:"status"`
-	Source          *string `json:"source,omitempty"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	SoftwareTitle       string  `json:"software_title"`
+	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
+	ExecutionID         string  `json:"script_execution_id"`
+	SelfService         bool    `json:"self_service"`
+	Status              string  `json:"status"`
+	Source              *string `json:"source,omitempty"`
 }
 
 func (a ActivityTypeUninstalledSoftware) ActivityName() string {
@@ -1649,15 +1690,16 @@ func (a ActivityAddedAppStoreApp) ActivityName() string {
 }
 
 type ActivityDeletedAppStoreApp struct {
-	SoftwareTitle    string                    `json:"software_title"`
-	AppStoreID       string                    `json:"app_store_id"`
-	TeamName         *string                   `json:"team_name" renameto:"fleet_name"`
-	TeamID           *uint                     `json:"team_id" renameto:"fleet_id"`
-	Platform         InstallableDevicePlatform `json:"platform"`
-	SoftwareIconURL  *string                   `json:"software_icon_url"`
-	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
-	LabelsIncludeAll []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
+	SoftwareTitle       string                    `json:"software_title"`
+	SoftwareDisplayName *string                   `json:"software_display_name,omitempty"`
+	AppStoreID          string                    `json:"app_store_id"`
+	TeamName            *string                   `json:"team_name" renameto:"fleet_name"`
+	TeamID              *uint                     `json:"team_id" renameto:"fleet_id"`
+	Platform            InstallableDevicePlatform `json:"platform"`
+	SoftwareIconURL     *string                   `json:"software_icon_url"`
+	LabelsIncludeAny    []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny    []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll    []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {
@@ -1668,6 +1710,7 @@ type ActivityInstalledAppStoreApp struct {
 	HostID              uint    `json:"host_id"`
 	HostDisplayName     string  `json:"host_display_name"`
 	SoftwareTitle       string  `json:"software_title"`
+	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
 	AppStoreID          string  `json:"app_store_id"`
 	CommandUUID         string  `json:"command_uuid"`
 	Status              string  `json:"status,omitempty"`
@@ -1902,11 +1945,12 @@ func (a ActivityTypeCanceledMDMCommand) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledInstallSoftware struct {
-	HostID              uint   `json:"host_id"`
-	HostDisplayName     string `json:"host_display_name"`
-	SoftwareTitle       string `json:"software_title"`
-	SoftwareTitleID     uint   `json:"software_title_id"`
-	FromSetupExperience bool   `json:"from_setup_experience"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	SoftwareTitle       string  `json:"software_title"`
+	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
+	SoftwareTitleID     uint    `json:"software_title_id"`
+	FromSetupExperience bool    `json:"from_setup_experience"`
 }
 
 func (a ActivityTypeCanceledInstallSoftware) ActivityName() string {
@@ -1922,10 +1966,11 @@ func (a ActivityTypeCanceledInstallSoftware) WasFromAutomation() bool {
 }
 
 type ActivityTypeCanceledUninstallSoftware struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	SoftwareTitleID uint   `json:"software_title_id"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	SoftwareTitle       string  `json:"software_title"`
+	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
+	SoftwareTitleID     uint    `json:"software_title_id"`
 }
 
 func (a ActivityTypeCanceledUninstallSoftware) ActivityName() string {
@@ -1937,11 +1982,12 @@ func (a ActivityTypeCanceledUninstallSoftware) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledInstallAppStoreApp struct {
-	HostID              uint   `json:"host_id"`
-	HostDisplayName     string `json:"host_display_name"`
-	SoftwareTitle       string `json:"software_title"`
-	SoftwareTitleID     uint   `json:"software_title_id"`
-	FromSetupExperience bool   `json:"from_setup_experience"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	SoftwareTitle       string  `json:"software_title"`
+	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
+	SoftwareTitleID     uint    `json:"software_title_id"`
+	FromSetupExperience bool    `json:"from_setup_experience"`
 }
 
 func (a ActivityTypeCanceledInstallAppStoreApp) HostIDs() []uint {
@@ -2072,6 +2118,43 @@ type ActivityTypeHostBypassedConditionalAccess struct {
 
 func (a ActivityTypeHostBypassedConditionalAccess) ActivityName() string {
 	return "host_bypassed_conditional_access"
+}
+
+// ActivityTypeBoundHostToIdPAccount records the host <-> IdP account link an
+// MDM SSO sign-in created.
+type ActivityTypeBoundHostToIdPAccount struct {
+	HostUUID string `json:"host_uuid"`
+	// IdPEmail is the account that signed in and was not linked.
+	IdPEmail string `json:"idp_email"`
+	// ReplacedIdPEmail is the account the host was bound to beforehand, empty
+	// when it had no binding.
+	ReplacedIdPEmail string `json:"replaced_idp_email,omitempty"`
+}
+
+func (a ActivityTypeBoundHostToIdPAccount) ActivityName() string {
+	return "bound_host_to_idp_account"
+}
+
+func (a ActivityTypeBoundHostToIdPAccount) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeRefusedHostIdPAccountChange records an MDM SSO sign-in that would
+// have taken over the IdP account of a host that had already enrolled.
+type ActivityTypeRefusedHostIdPAccountChange struct {
+	HostUUID string `json:"host_uuid"`
+	// IdPEmail is the account that signed in and was not linked.
+	IdPEmail string `json:"idp_email"`
+	// ExistingIdPEmail is the account the host stays linked to.
+	ExistingIdPEmail string `json:"existing_idp_email"`
+}
+
+func (a ActivityTypeRefusedHostIdPAccountChange) ActivityName() string {
+	return "refused_host_idp_account_change"
+}
+
+func (a ActivityTypeRefusedHostIdPAccountChange) WasFromAutomation() bool {
+	return true
 }
 
 type ActivityTypeEscrowedDiskEncryptionKey struct {
@@ -2396,10 +2479,11 @@ func (a ActivityTypeClearedPasscode) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledSetupExperience struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	SoftwareTitleID uint   `json:"software_title_id"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	SoftwareTitle       string  `json:"software_title"`
+	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
+	SoftwareTitleID     uint    `json:"software_title_id"`
 }
 
 func (a ActivityTypeCanceledSetupExperience) ActivityName() string {
@@ -2703,4 +2787,36 @@ type ActivityTypeDisabledAppleBusinessOnlyEnrollment struct{}
 
 func (a ActivityTypeDisabledAppleBusinessOnlyEnrollment) ActivityName() string {
 	return "disabled_apple_business_only_enrollment"
+}
+
+type ActivityTypeInstalledOptInConfigurationProfile struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	// SelfService indicates whether the end-user or the IT admin opted in to the profile.
+	SelfService bool   `json:"self_service"`
+	ProfileName string `json:"profile_name"`
+}
+
+func (a ActivityTypeInstalledOptInConfigurationProfile) ActivityName() string {
+	return "installed_opt_in_configuration_profile"
+}
+
+func (a ActivityTypeInstalledOptInConfigurationProfile) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeUninstalledOptInConfigurationProfile struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	// SelfService indicates whether the end-user or the IT admin opted out of the profile.
+	SelfService bool   `json:"self_service"`
+	ProfileName string `json:"profile_name"`
+}
+
+func (a ActivityTypeUninstalledOptInConfigurationProfile) ActivityName() string {
+	return "uninstalled_opt_in_configuration_profile"
+}
+
+func (a ActivityTypeUninstalledOptInConfigurationProfile) HostIDs() []uint {
+	return []uint{a.HostID}
 }

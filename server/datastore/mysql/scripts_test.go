@@ -33,6 +33,9 @@ func TestScripts(t *testing.T) {
 		{"ListScripts", testListScripts},
 		{"GetHostScriptDetails", testGetHostScriptDetails},
 		{"BatchSetScripts", testBatchSetScripts},
+		{"BatchSetScriptsDoesNotLockOtherPolicies", testBatchSetScriptsDoesNotLockOtherPolicies},
+		{"BatchSetScriptsUnsetsScriptAddedMidApply", testBatchSetScriptsUnsetsScriptAddedMidApply},
+		{"BatchSetScriptsLocksUnsetPolicyAtEnd", testBatchSetScriptsLocksUnsetPolicyAtEnd},
 		{"TestLockHostViaScript", testLockHostViaScript},
 		{"TestUnlockHostViaScript", testUnlockHostViaScript},
 		{"TestLockUnlockWipeViaScripts", testLockUnlockWipeViaScripts},
@@ -58,6 +61,8 @@ func TestScripts(t *testing.T) {
 		{"CountHostScriptAttempts", testCountHostScriptAttempts},
 		{"ScriptModificationResetsAttemptNumber", testScriptModificationResetsAttemptNumber},
 		{"NewInternalHostScriptExecutionRequest", testNewInternalHostScriptExecutionRequest},
+		{"CleanupHostScriptResults", testCleanupHostScriptResults},
+		{"CleanupHostScriptResultsQueryPlan", testCleanupHostScriptResultsQueryPlan},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -825,6 +830,159 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 		_, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{OrderKey: "h.node_key"}, "darwin")
 		require.Error(t, err)
 	})
+}
+
+func testBatchSetScriptsDoesNotLockOtherPolicies(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	scripts := make([]*fleet.Script, 0, 12)
+	for i := range 12 {
+		scripts = append(scripts, &fleet.Script{Name: fmt.Sprintf("s%d.sh", i), ScriptContents: fmt.Sprintf("echo %d", i)})
+	}
+	set, err := ds.BatchSetScripts(ctx, &tm.ID, scripts)
+	require.NoError(t, err)
+	scriptIDs := make(map[string]uint)
+	for _, s := range set {
+		scriptIDs[s.Name] = s.ID
+	}
+
+	kept, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name() + " kept", Query: "SELECT 1", ScriptID: new(scriptIDs["s0.sh"])})
+	require.NoError(t, err)
+	removed, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name() + " removed", Query: "SELECT 1", ScriptID: new(scriptIDs["s11.sh"])})
+	require.NoError(t, err)
+	global, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name() + " global", Query: "SELECT 1"})
+	require.NoError(t, err)
+	noScript, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name() + " no script", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	// Hold the lock a host's policy_membership write takes on its policy.
+	hostTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = hostTx.Rollback() }()
+	for _, id := range []uint{global.ID, noScript.ID} {
+		_, err = hostTx.ExecContext(ctx, `SELECT id FROM policies WHERE id = ? FOR SHARE`, id)
+		require.NoError(t, err)
+	}
+
+	apply := func(batch []*fleet.Script) {
+		applyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		_, err := ds.BatchSetScripts(applyCtx, &tm.ID, batch)
+		require.NoError(t, err)
+	}
+	apply(scripts)
+	apply(scripts[:1])
+
+	kept, err = ds.Policy(ctx, kept.ID)
+	require.NoError(t, err)
+	require.Equal(t, scriptIDs["s0.sh"], *kept.ScriptID)
+	removed, err = ds.Policy(ctx, removed.ID)
+	require.NoError(t, err)
+	require.Nil(t, removed.ScriptID)
+
+	// GitOps sends an empty list on every run for a fleet with no scripts.
+	apply(nil)
+	apply(nil)
+	apply(scripts)
+	require.NoError(t, hostTx.Rollback())
+}
+
+func testBatchSetScriptsLocksUnsetPolicyAtEnd(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	kept := []*fleet.Script{{Name: "a.sh", ScriptContents: "echo a"}, {Name: "b.sh", ScriptContents: "echo b"}}
+	set, err := ds.BatchSetScripts(ctx, &tm.ID, append(kept, &fleet.Script{Name: "gone.sh", ScriptContents: "echo gone"}))
+	require.NoError(t, err)
+	var goneID uint
+	for _, s := range set {
+		if s.Name == "gone.sh" {
+			goneID = s.ID
+		}
+	}
+	policy, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", ScriptID: &goneID})
+	require.NoError(t, err)
+
+	// Park the apply inside its per-script loop by holding a script contents row it upserts.
+	blockTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = blockTx.Rollback() }()
+	_, err = blockTx.ExecContext(ctx, `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?) FOR UPDATE`, md5ChecksumScriptContent("echo a"))
+	require.NoError(t, err)
+
+	applyErr := make(chan error, 1)
+	go func() {
+		_, err := ds.BatchSetScripts(ctx, &tm.ID, kept)
+		applyErr <- err
+	}()
+	// innodb_trx only refreshes when it hasn't been read for 100ms, so poll slower than that.
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &waiting, `SELECT COUNT(*) FROM information_schema.innodb_trx WHERE trx_state = 'LOCK WAIT'`)
+		return err == nil && waiting > 0
+	}, 5*time.Second, 250*time.Millisecond)
+
+	// A host writing that policy's result isn't blocked while the apply is still working.
+	probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	probeTx, err := ds.writer(ctx).BeginTxx(probeCtx, nil)
+	require.NoError(t, err)
+	_, err = probeTx.ExecContext(probeCtx, `SELECT id FROM policies WHERE id = ? FOR SHARE`, policy.ID)
+	require.NoError(t, err)
+	require.NoError(t, probeTx.Rollback())
+
+	require.NoError(t, blockTx.Rollback())
+	require.NoError(t, <-applyErr)
+	policy, err = ds.Policy(ctx, policy.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy.ScriptID)
+}
+
+func testBatchSetScriptsUnsetsScriptAddedMidApply(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	kept := []*fleet.Script{{Name: "kept.sh", ScriptContents: "echo kept"}}
+	_, err = ds.BatchSetScripts(ctx, &tm.ID, kept)
+	require.NoError(t, err)
+	policy, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	// Another request adds a script to the fleet and assigns it to the policy, committing after the
+	// apply has started.
+	otherTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = otherTx.Rollback() }()
+	res, err := insertScriptContents(ctx, otherTx, "echo late")
+	require.NoError(t, err)
+	contentID, _ := res.LastInsertId()
+	res, err = otherTx.ExecContext(ctx, `INSERT INTO scripts (team_id, global_or_team_id, name, script_content_id) VALUES (?, ?, 'late.sh', ?)`, tm.ID, tm.ID, contentID)
+	require.NoError(t, err)
+	lateID, _ := res.LastInsertId()
+	_, err = otherTx.ExecContext(ctx, `UPDATE policies SET script_id = ? WHERE id = ?`, lateID, policy.ID)
+	require.NoError(t, err)
+
+	applyErr := make(chan error, 1)
+	go func() {
+		_, err := ds.BatchSetScripts(ctx, &tm.ID, kept)
+		applyErr <- err
+	}()
+	// innodb_trx only refreshes when it hasn't been read for 100ms, so poll slower than that.
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &waiting, `SELECT COUNT(*) FROM information_schema.innodb_trx WHERE trx_state = 'LOCK WAIT'`)
+		return err == nil && waiting > 0
+	}, 5*time.Second, 250*time.Millisecond)
+	require.NoError(t, otherTx.Commit())
+	require.NoError(t, <-applyErr)
+
+	policy, err = ds.Policy(ctx, policy.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy.ScriptID)
 }
 
 func testBatchSetScripts(t *testing.T, ds *Datastore) {
@@ -3444,4 +3602,211 @@ func testNewInternalHostScriptExecutionRequest(t *testing.T, ds *Datastore) {
 	upcomingForHost3, _, err := ds.ListHostUpcomingActivities(ctx, 3, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, upcomingForHost3, 2)
+}
+
+// A materialized guard makes a batch cost what the referenced table costs, so
+// the hints have to hold under an optimizer that would otherwise choose it.
+func testCleanupHostScriptResultsQueryPlan(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	conn, err := ds.primary.Connx(ctx)
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck
+
+	// Materialization left as the only antijoin strategy.
+	_, err = conn.ExecContext(ctx, `SET SESSION optimizer_switch = 'firstmatch=off,loosescan=off,duplicateweedout=off'`)
+	require.NoError(t, err)
+
+	cutoff := time.Now().UTC()
+
+	// MySQL folds a guard away when its table, or the outer row, is a const.
+	old := cutoff.Add(-48 * time.Hour)
+	var deletableIDs []uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for range 3 {
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO host_software_installs (host_id, execution_id) VALUES (?, ?)`, 1, uuid.NewString()); err != nil {
+				return err
+			}
+			res, err := q.ExecContext(ctx, `
+				INSERT INTO host_script_results (host_id, execution_id, output, exit_code, created_at, updated_at)
+				VALUES (?, ?, '', 0, ?, ?)`, 1, uuid.NewString(), old, old)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			deletableIDs = append(deletableIDs, uint(id)) //nolint:gosec // test-only, ids fit
+		}
+		return nil
+	})
+
+	deleteStmt, deleteArgs, err := sqlx.In(deleteExpiredHostScriptResultsStmt, deletableIDs, cutoff, cutoff)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name string
+		stmt string
+		args []any
+	}{
+		{"select", expiredHostScriptResultsStmt, []any{time.Unix(0, 0).UTC(), time.Unix(0, 0).UTC(), uint(0), cutoff, cutoff, 500}},
+		{"delete", deleteStmt, deleteArgs},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var plan string
+			require.NoError(t, sqlx.GetContext(ctx, conn, &plan, "EXPLAIN FORMAT=TREE "+tc.stmt, tc.args...))
+
+			for _, alias := range []string{"sesr", "hsi", "bahr"} {
+				assert.Contains(t, plan, "lookup on "+alias, "%s must resolve by index lookup, plan was:\n%s", alias, plan)
+				assert.NotContains(t, plan, "scan on "+alias, "%s must not be materialized, plan was:\n%s", alias, plan)
+			}
+
+			// A malformed hint is a warning, not an error, and leaves the old plan.
+			var warnings []struct {
+				Level   string `db:"Level"`
+				Code    int    `db:"Code"`
+				Message string `db:"Message"`
+			}
+			require.NoError(t, sqlx.SelectContext(ctx, conn, &warnings, "SHOW WARNINGS"))
+			assert.Empty(t, warnings)
+		})
+	}
+}
+
+func testCleanupHostScriptResults(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	now := time.Now().UTC()
+	old := now.Add(-48 * time.Hour)
+	recent := now.Add(-2 * time.Hour)
+	cutoff := now.Add(-24 * time.Hour)
+
+	host := test.NewHost(t, ds, "script-retention", "10.0.0.1", "srkey", uuid.NewString(), now)
+	script, err := ds.NewScript(ctx, &fleet.Script{Name: "retention.sh", ScriptContents: "echo retention"})
+	require.NoError(t, err)
+
+	// The insert paths stamp both with NOW() and the sweep bounds both.
+	// updatedAt is when the host reported, so never older than createdAt.
+	seedAt := func(createdAt, updatedAt time.Time, exitCode *int, canceled bool) string {
+		execID := uuid.NewString()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_script_results (host_id, execution_id, output, exit_code, canceled, created_at, updated_at)
+				VALUES (?, ?, '', ?, ?, ?, ?)`, host.ID, execID, exitCode, canceled, createdAt, updatedAt)
+			return err
+		})
+		return execID
+	}
+	seed := func(createdAt time.Time, exitCode *int, canceled bool) string {
+		return seedAt(createdAt, createdAt, exitCode, canceled)
+	}
+	exists := func(execID string) bool {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM host_script_results WHERE execution_id = ?`, execID)
+		})
+		return n == 1
+	}
+	exec := func(stmt string, args ...any) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+
+	oldDone := seed(old, new(0), false)
+	oldCanceled := seed(old, nil, true)
+	recentDone := seed(recent, new(0), false)
+	oldPending := seed(old, nil, false)
+	// Handed to the host before the cutoff, answered after it.
+	lateReport := seedAt(old, recent, new(0), false)
+	lockRef := seed(old, new(0), false)
+	unlockRef := seed(old, new(0), false)
+	wipeRef := seed(old, new(0), false)
+	setupRef := seed(old, new(0), false)
+	uninstallRef := seed(old, new(0), false)
+	batchRef := seed(old, new(0), false)
+
+	exec(`INSERT INTO host_mdm_actions (host_id, lock_ref, unlock_ref, wipe_ref) VALUES (?, ?, ?, ?)`,
+		host.ID, lockRef, unlockRef, wipeRef)
+	exec(`INSERT INTO setup_experience_status_results (host_uuid, name, status, script_execution_id) VALUES (?, ?, 'success', ?)`,
+		host.UUID, script.Name, setupRef)
+	exec(`INSERT INTO host_software_installs (host_id, execution_id, uninstall) VALUES (?, ?, 1)`, host.ID, uninstallRef)
+	batchExecID := uuid.NewString()
+	exec(`INSERT INTO batch_activities (script_id, execution_id) VALUES (?, ?)`, script.ID, batchExecID)
+	exec(`INSERT INTO batch_activity_host_results (batch_execution_id, host_id, host_execution_id) VALUES (?, ?, ?)`,
+		batchExecID, host.ID, batchRef)
+
+	deleted, err := ds.CleanupHostScriptResults(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, deleted, "oldDone and oldCanceled")
+
+	assert.False(t, exists(oldDone))
+	assert.False(t, exists(oldCanceled))
+	assert.True(t, exists(recentDone))
+	assert.True(t, exists(oldPending))
+	assert.True(t, exists(lateReport))
+	assert.True(t, exists(lockRef))
+	assert.True(t, exists(unlockRef))
+	assert.True(t, exists(wipeRef))
+	assert.True(t, exists(setupRef))
+	assert.True(t, exists(uninstallRef))
+	assert.True(t, exists(batchRef))
+
+	// A second pass finds nothing.
+	deleted, err = ds.CleanupHostScriptResults(ctx, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, deleted)
+
+	// The cap stops a run partway and the next one drains the rest.
+	stale := make([]string, 0, 3)
+	for range 3 {
+		stale = append(stale, seed(old, new(0), false))
+	}
+	deleted, err = cleanupHostScriptResultsDB(ctx, ds, cutoff, 1, 1)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, deleted)
+
+	deleted, err = cleanupHostScriptResultsDB(ctx, ds, cutoff, 1, 10)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, deleted)
+	for _, execID := range stale {
+		assert.False(t, exists(execID))
+	}
+
+	// A row referenced between select and delete is saved by the re-check on
+	// the primary.
+	raced := seed(old, new(0), false)
+	var racedID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &racedID, `SELECT id FROM host_script_results WHERE execution_id = ?`, raced)
+	})
+	lateBatchExecID := uuid.NewString()
+	exec(`INSERT INTO batch_activities (script_id, execution_id) VALUES (?, ?)`, script.ID, lateBatchExecID)
+	exec(`INSERT INTO batch_activity_host_results (batch_execution_id, host_id, host_execution_id) VALUES (?, ?, ?)`,
+		lateBatchExecID, host.ID, raced)
+
+	n, err := deleteHostScriptResultsByIDs(ctx, ds.writer(ctx), []uint{racedID}, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, n)
+	assert.True(t, exists(raced))
+
+	// Deleting a host soft-deletes its results, and that write refreshes
+	// updated_at, so they outlive the window by one retention period.
+	deletedHost := seed(old, new(0), false)
+	exec(`UPDATE host_script_results SET host_deleted_at = NOW() WHERE execution_id = ?`, deletedHost)
+	deleted, err = ds.CleanupHostScriptResults(ctx, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, deleted)
+	assert.True(t, exists(deletedHost))
+
+	// A deleted host's pending run can never report, so it goes once the window passes.
+	deletedHostPending := seed(old, nil, false)
+	exec(`UPDATE host_script_results SET host_deleted_at = ?, updated_at = ? WHERE execution_id = ?`, old, old, deletedHostPending)
+	deleted, err = ds.CleanupHostScriptResults(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, deleted)
+	assert.False(t, exists(deletedHostPending))
 }

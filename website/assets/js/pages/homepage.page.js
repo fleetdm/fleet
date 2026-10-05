@@ -49,7 +49,8 @@ parasails.registerPage('homepage', {
     }
   },
   mounted: async function() {
-    this.animateBottomTicker();
+    this.animateTicker('hero-ticker-option');
+    this.animateTicker('bottom-cta-ticker-option');
     $('[data-toggle="tooltip"]').tooltip({
       container: '#homepage',
       trigger: 'hover',
@@ -60,28 +61,25 @@ parasails.registerPage('homepage', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    animateBottomTicker: function() {
-      // Animate the ticker in the bottom heading on the page (Currently only agnostic, mdm, and eo-it personalized views)
+    animateTicker: function(tickerOptionPurpose) {
+      let tickerOptionSelector = `[purpose="${tickerOptionPurpose}"]`;
       setInterval(()=>{
-        let currentTickerOption = $('[purpose="bottom-cta-ticker-option"].visible');
-        if(currentTickerOption) {
-          if (currentTickerOption.length === 0) {
-            currentTickerOption = $('[purpose="bottom-cta-ticker-option"]').first();
-            currentTickerOption.addClass('visible');
-            return;
-          }
-          // [?]:https://api.jquery.com/nextAll/#nextAll-selector
-          let nextTickerOption = currentTickerOption.nextAll('[purpose="bottom-cta-ticker-option"]').first();
-          // If we've reached the end of the list, pick the first option to be the next ticker option
-          if (nextTickerOption.length === 0) {
-            nextTickerOption = $('span[purpose="bottom-cta-ticker-option"]').first();
-          }
-          currentTickerOption.removeClass('visible').addClass('animating-out');
-          nextTickerOption.addClass('visible');
-          setTimeout(()=>{
-            currentTickerOption.removeClass('animating-out');
-          }, 1000);
+        let currentTickerOption = $(`${tickerOptionSelector}.visible`);
+        if (currentTickerOption.length === 0) {
+          $(tickerOptionSelector).first().addClass('visible');
+          return;
         }
+        // [?]:https://api.jquery.com/nextAll/#nextAll-selector
+        let nextTickerOption = currentTickerOption.nextAll(tickerOptionSelector).first();
+        // If we've reached the end of the list, pick the first option to be the next ticker option
+        if (nextTickerOption.length === 0) {
+          nextTickerOption = $(tickerOptionSelector).first();
+        }
+        currentTickerOption.removeClass('visible').addClass('animating-out');
+        nextTickerOption.addClass('visible');
+        setTimeout(()=>{
+          currentTickerOption.removeClass('animating-out');
+        }, 1000);
       }, this.animationDelayInMs);
     },
     clickOpenVideoModal: function(modalName) {

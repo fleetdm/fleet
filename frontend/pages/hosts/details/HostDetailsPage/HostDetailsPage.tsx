@@ -31,6 +31,9 @@ import {
   IVppInstallDetails,
 } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 import NotifyBeforePatchingDetailsModal from "components/ActivityDetails/NotifyBeforePatchingDetailsModal";
+import RotationFailedDetailsModal, {
+  RotationFailedSubject,
+} from "components/ActivityDetails/RotationFailedDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import BackButton from "components/BackButton";
 import CustomLink from "components/CustomLink/CustomLink";
@@ -65,6 +68,7 @@ import { IListSort } from "interfaces/list_options";
 import {
   canTriggerAPNSPing,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  isPersonalEnrollment,
 } from "interfaces/mdm";
 import {
   isAppleDevice,
@@ -163,6 +167,8 @@ import {
   canShowMyDeviceButton,
   getErrorMessage,
   hasEverEnrolled,
+  getCanManageSelfServiceProfiles,
+  hasReportedVitals,
 } from "./helpers";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
@@ -173,7 +179,6 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import LockModal from "./modals/LockModal";
 import ManagedAccountModal from "./modals/ManagedAccountModal";
 import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
-import RotationFailedDetailsModal from "./modals/RotationFailedDetailsModal";
 import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectReportModal from "./modals/SelectReportModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -359,15 +364,20 @@ const HostDetailsPage = ({
   const [rotationFailedDetails, setRotationFailedDetails] = useState<{
     detail: string;
     hostDisplayName: string;
+    subject?: RotationFailedSubject;
+    createdAt?: string;
   } | null>(null);
 
   // React Router reuses this component when only host_id changes.
   const [refetchStart, setRefetchStart] = useState<{
     hostId: number;
     at: number;
+    byUser: boolean;
   } | null>(null);
   const refetchStartTime =
     refetchStart?.hostId === hostIdFromURL ? refetchStart.at : null;
+  const isUserRequestedRefetch =
+    refetchStart?.hostId === hostIdFromURL && refetchStart.byUser;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -510,12 +520,19 @@ const HostDetailsPage = ({
           (hasEverEnrolled(returnedHost) || refetchStartTime !== null)
         ) {
           if (!refetchStartTime) {
-            setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
+            setRefetchStart({
+              hostId: hostIdFromURL,
+              at: Date.now(),
+              byUser: false,
+            });
           }
           setShowRefetchSpinner(true);
 
           // If Android, don't run timers/polling logic
           if (!isAndroid(returnedHost.platform)) {
+            // A host without vitals is still on its enrollment refetch, which nobody asked for, so only a Refetch click gets toasts.
+            const shouldNotify =
+              hasReportedVitals(returnedHost) || isUserRequestedRefetch;
             // Compute how long since timer started (if set)
             const totalElapsedTime = refetchStartTime
               ? Date.now() - refetchStartTime
@@ -544,16 +561,20 @@ const HostDetailsPage = ({
                   refetchExtensions();
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
-                notify.error(
-                  `This host is offline. Please try refetching host vitals later.`
-                );
+                if (shouldNotify) {
+                  notify.error(
+                    `This host is offline. Please try refetching host vitals later.`
+                  );
+                }
                 resetHostRefetchStates();
               }
             } else {
               // Total elapsed poll window exceeded (60s), stop and alert
-              notify.error(
-                `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
-              );
+              if (shouldNotify) {
+                notify.error(
+                  `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
+                );
+              }
               resetHostRefetchStates();
             }
           }
@@ -739,10 +760,12 @@ const HostDetailsPage = ({
   // forever; a missing team-level override is treated as "not disabled".
   const teamFeaturesResolved =
     !host?.team_id || teams !== undefined || isTeamsError;
+  const uptimeGloballyEnabled =
+    config?.features?.historical_data?.uptime ?? true;
   const uptimeCollectionEnabled: boolean | undefined =
     config?.features === undefined || !teamFeaturesResolved
       ? undefined
-      : (config.features.historical_data?.uptime ?? true) &&
+      : uptimeGloballyEnabled &&
         (featuresConfig?.historical_data?.uptime ?? true);
 
   useEffect(() => {
@@ -870,7 +893,11 @@ const HostDetailsPage = ({
 
       try {
         await hostAPI.refetch(host).then(() => {
-          setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
+          setRefetchStart({
+            hostId: hostIdFromURL,
+            at: Date.now(),
+            byUser: true,
+          });
           setTimeout(() => {
             refetchHostDetails();
             refetchExtensions();
@@ -891,6 +918,26 @@ const HostDetailsPage = ({
         return Promise.resolve();
       }
       return hostAPI.resendProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
+
+  const installProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.installProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
+
+  const uninstallProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.uninstallProfile(host.id, profileUUID);
     },
     [host?.id]
   );
@@ -1022,6 +1069,15 @@ const HostDetailsPage = ({
               host?.display_name || details?.host_display_name || "",
           });
           break;
+        case ActivityType.FailedToRotateDiskEncryptionKey:
+          setRotationFailedDetails({
+            detail: details?.detail || "",
+            hostDisplayName:
+              host?.display_name || details?.host_display_name || "",
+            subject: "disk encryption key",
+            createdAt: created_at,
+          });
+          break;
         case ActivityType.FailedEnrollmentProfileRenewal:
           setEnrollmentProfileFailedDetails({
             command: {
@@ -1034,6 +1090,7 @@ const HostDetailsPage = ({
             hostDisplayName: host?.display_name || details?.host_display_name,
             hostSerial: details?.host_serial,
             reason: details?.reason,
+            platform: details?.platform,
             createdAt: created_at,
           });
           break;
@@ -1529,13 +1586,23 @@ const HostDetailsPage = ({
       isHostTeamMaintainer ||
       isHostTeamTechnician);
 
+  const canManageSelfServiceProfiles = getCanManageSelfServiceProfiles(
+    isPremiumTier,
+    isMacOSHost,
+    canResendProfiles
+  );
+
   // "My device" link points to that host's end-user My device page. The URL
   // embeds the device auth token so it acts as a credential, hence global
   // admin only. Also hide it on hosts that have no live end-user surface —
   // no Fleet Desktop (so no token, and no page to load) or wiped.
   const canViewMyDeviceLink =
     isGlobalAdmin &&
-    canShowMyDeviceButton(host, config?.fleet_desktop.sso_enabled ?? false);
+    canShowMyDeviceButton(
+      host,
+      config?.fleet_desktop.sso_enabled ?? false,
+      isPremiumTier
+    );
 
   const canEditCustomHostVitals =
     isGlobalAdmin ||
@@ -1891,6 +1958,10 @@ const HostDetailsPage = ({
                     rotateRecoveryLockPassword={rotateRecoveryLockPassword}
                     resendHostNameTemplate={resendHostNameTemplate}
                     onProfileResent={refetchHostDetails}
+                    isMacOSHost={isMacOSHost}
+                    canManageSelfServiceProfiles={canManageSelfServiceProfiles}
+                    installRequest={installProfile}
+                    uninstallRequest={uninstallProfile}
                     isMacOSDiskEncryptionEnforceOnly={isMacOSDiskEncryptionEnforceOnly(
                       fleetDiskEncryptionSettings
                     )}
@@ -2046,6 +2117,13 @@ const HostDetailsPage = ({
             <DiskEncryptionKeyModal
               platform={host.platform}
               hostId={host.id}
+              canRotateKey={
+                isPremiumTier &&
+                isAdminOrMaintainer &&
+                host.mdm.encryption_key_available &&
+                !isPersonalEnrollment(host.mdm.enrollment_status)
+              }
+              isEscrowEnabled={fleetDiskEncryptionSettings.macOSEscrowEnabled}
               onCancel={() => setShowDiskEncryptionModal(false)}
             />
           )}
@@ -2065,6 +2143,8 @@ const HostDetailsPage = ({
             <RotationFailedDetailsModal
               detail={rotationFailedDetails.detail}
               hostDisplayName={rotationFailedDetails.hostDisplayName}
+              subject={rotationFailedDetails.subject}
+              createdAt={rotationFailedDetails.createdAt}
               onCancel={() => setRotationFailedDetails(null)}
             />
           )}
@@ -2230,6 +2310,7 @@ const HostDetailsPage = ({
             <EnrollmentAttemptDetailsModal
               hostDisplayName={enrollmentRejectedDetails.hostDisplayName}
               reason={enrollmentRejectedDetails.reason}
+              platform={enrollmentRejectedDetails.platform}
               createdAt={enrollmentRejectedDetails.createdAt}
               onDone={() => setEnrollmentRejectedDetails(null)}
             />
@@ -2349,6 +2430,7 @@ const HostDetailsPage = ({
             hostId={host.id}
             fleetId={host.team_id ?? undefined}
             uptimeCollectionEnabled={uptimeCollectionEnabled}
+            uptimeGloballyEnabled={uptimeGloballyEnabled}
             onExit={toggleOnlineHistoryModal}
           />
         )}

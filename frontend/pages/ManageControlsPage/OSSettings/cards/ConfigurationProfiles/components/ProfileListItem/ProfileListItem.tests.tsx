@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
@@ -45,5 +45,32 @@ describe("ProfileListItem", () => {
   it("does not show the indicator for iOS/iPadOS profiles (no user channel)", () => {
     renderItem({ ...baseProfile, platform: "ios", scope: "User" });
     expect(screen.queryByTestId("user-icon")).not.toBeInTheDocument();
+  });
+
+  it("shows a renamed mobileconfig's PayloadDisplayName and UUID on hover", async () => {
+    const { user } = renderItem({
+      ...baseProfile,
+      name: "Renamed profile",
+      payload_display_name: "Original display name",
+    });
+
+    await user.hover(screen.getByText("Renamed profile"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/PayloadDisplayName:/)).toBeInTheDocument();
+    });
+    expect(screen.getByText("Original display name")).toBeInTheDocument();
+    expect(screen.getByText("d123")).toBeInTheDocument();
+  });
+
+  it("shows only the UUID on hover when there's no PayloadDisplayName", async () => {
+    const { user } = renderItem(baseProfile);
+
+    await user.hover(screen.getByText("My DDM profile"));
+
+    await waitFor(() => {
+      expect(screen.getByText("d123")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/PayloadDisplayName:/)).not.toBeInTheDocument();
   });
 });

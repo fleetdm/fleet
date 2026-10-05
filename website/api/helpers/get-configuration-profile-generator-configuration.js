@@ -28,6 +28,13 @@ module.exports = {
       type: 'boolean',
       defaultsTo: false,
       description: 'Whether or not to request less information back with the generated profile.'
+    },
+
+    useApplePayloadTypeLookup: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether or not to send a lookup prompt first that narrows the .mobileconfig schema to the payload types this request needs.',
+      extendedDescription: 'Without it, the full .mobileconfig schema is provided, without key descriptions.'
     }
   },
 
@@ -41,7 +48,7 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape}) {
+  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup}) {
 
     let path = require('path');
 
@@ -51,11 +58,15 @@ module.exports = {
     // not picking the wrong real one -- and they had already drifted, still listing VPPType after Apple
     // removed it.
     //
-    // The whole schema goes in.  That is the difference from the Windows reference below, which has to
-    // look up the areas a request needs because its table is 155KB: these render to ~13k and ~6k tokens,
-    // so narrowing them would only remove context the model can already see, and add a lookup that can
-    // pick wrong.
+    // The DDM schema goes in whole: it renders to ~6k tokens.  The .mobileconfig one is looked up first,
+    // the way the Windows reference below is.  Whole, it rendered to ~13k tokens of mostly bare key names,
+    // and the model still picked keys by what their names suggested -- AutomaticallyInstallAppUpdates
+    // under com.apple.appstore, a `position` key read off position-immutable -- because nothing next to a
+    // name said what the key does.  Narrowed to the few payload types a request needs, every key can carry
+    // Apple's description of it.
     let appleSchema;
+    let appleSchemaDescription;
+    let applePayloadTypesProvided = [];
     if(profileType === 'mobileconfig' || profileType === 'ddm') {
 
       let filename = profileType === 'ddm' ? 'apple-ddm-declarations.json' : 'apple-payload-manifests.json';
@@ -150,30 +161,179 @@ module.exports = {
       // list, a numeric range, or a sentence of Apple's own prose about what its values mean.  That keeps
       // the cost where it buys something -- SHOWFULLNAME earns a line because false shows a list of
       // users, while allowCamera does not earn one.
-      let appleSchemaLines = [];
-      for (let entry of schemaFile.entries) {
-        appleSchemaLines.push(entry.name);
+      //
+      // With describeKeys, which is only affordable once the payload types have been narrowed, every key
+      // gets a line and Apple's description of it.  A gloss wins over the description where there is one,
+      // since glosses are kept longer precisely because the constraint is in their second sentence.
+      let renderEntries = (entries, {describeKeys})=>{
+        let lines = [];
+        for (let entry of entries) {
+          lines.push(entry.name);
 
-        let plainKeys = [];
-        let keysWithTheirOwnLine = [];
-        for (let key of entry.keys) {
-          let renderedKey = renderKey(key, 0);
-          if(key.subkeys && key.subkeys.length > 0) {
-            plainKeys.push(renderedKey.inlineText);
-          } else if(renderedKey.constraint) {
-            keysWithTheirOwnLine.push(`    ${renderedKey.labelText}  ${renderedKey.constraint}`);
-          } else {
-            plainKeys.push(renderedKey.labelText);
+          let plainKeys = [];
+          let keysWithTheirOwnLine = [];
+          for (let key of entry.keys) {
+            let renderedKey = renderKey(key, 0);
+            let hasSubkeys = key.subkeys && key.subkeys.length > 0;
+            if(describeKeys) {
+              let valueConstraint = renderedKey.constraint !== key.gloss ? renderedKey.constraint : undefined;
+              keysWithTheirOwnLine.push('    ' + _.compact([
+                hasSubkeys ? renderedKey.inlineText : renderedKey.labelText,
+                valueConstraint,
+                key.gloss || key.description,
+              ]).join('  '));
+            } else if(hasSubkeys) {
+              plainKeys.push(renderedKey.inlineText);
+            } else if(renderedKey.constraint) {
+              keysWithTheirOwnLine.push(`    ${renderedKey.labelText}  ${renderedKey.constraint}`);
+            } else {
+              plainKeys.push(renderedKey.labelText);
+            }
+          }
+
+          if(plainKeys.length > 0) {
+            lines.push('    ' + plainKeys.join(', '));
+          }
+          lines = lines.concat(keysWithTheirOwnLine);
+        }
+        return lines.join('\n');
+      };
+
+      let ALWAYS_PROVIDED_ENTRY_NAMES = ['CommonPayloadKeys', 'TopLevel'];
+      if(profileType === 'mobileconfig' && useApplePayloadTypeLookup) {
+
+        // Key names are in the index, not just titles and descriptions, for the reason the Windows lookup
+        // gives: picking from names and descriptions alone means recalling Apple's taxonomy, which is the
+        // failure this exists to remove.  Asked about App Store app updates, a description-only index
+        // offers com.apple.appstore ("configures macOS App Store restrictions") and nothing pointing at
+        // com.apple.SoftwareUpdate, which is where AutomaticallyInstallAppUpdates is.  The index is ~35KB
+        // and identical on every request, so it wants to be a cached prompt prefix.
+        let payloadTypeIndex = _.map(_.reject(schemaFile.entries, (entry)=>{ return _.contains(ALWAYS_PROVIDED_ENTRY_NAMES, entry.name); }), (entry)=>{
+          let about = _.compact([entry.title].concat(entry.platforms || [])).join('; ');
+          return `${entry.name} (${about}): ${entry.description || ''} Keys: ${_.pluck(entry.keys, 'key').join(' ')}`;
+        }).join('\n');
+
+        // The small model on purpose: this is a lookup rather than a judgement, and it sits in front of the
+        // generation, so every second it takes is a second added to the request.
+        let picked = await sails.helpers.ai.prompt.with({
+          systemPrompt:
+`Return ONLY a raw JSON object.  Do not include \`\`\`json, \`\`\`, or any markdown formatting.  Do not
+include any explanation or text before or after the JSON.  Your entire response must be valid JSON.
+
+Below is every payload type Apple publishes a .mobileconfig manifest for: its name, its title and the
+platforms it applies to, Apple's description of it, and the top-level keys it accepts.  An IT admin has
+asked for a configuration profile, and another model is about to write it -- but it will only be shown
+the payload types you name, so your job is to say which those should be.
+
+Find the keys that would actually satisfy the request and name the payload types that list them.  Read
+the key lists to do it: a payload type whose name matches the topic of the request is often not the one
+holding the key, and the one that does can sound unrelated.
+
+Name one to four payload types.  This is a shortlist, not an answer -- the model that writes the profile
+picks keys out of what you send, so a second candidate costs it little, while naming only the payload
+type you thought of first is how the right one gets left out.  Every name must appear verbatim below; do
+not invent one.
+
+Return an empty array when no payload type below could satisfy the request -- a third-party application's
+settings, for one.  An empty array is a real answer here, not a failure.
+
+${payloadTypeIndex}
+
+Respond in JSON with this data shape:
+{
+  "payloadTypes": ["TODO"]
+}`,
+          prompt: `Here are the instructions from an IT admin:
+\`\`\`
+${naturalLanguageInstructions}
+\`\`\``,
+          baseModel: 'claude-haiku-4-5',
+          expectJson: true,
+        })
+        .tolerate((err)=>{
+          // Not fatal: the full schema below is what the generator used before this lookup existed.
+          sails.log.warn(`When trying to work out which Apple payload types a request needs, an error occurred.  The profile will be generated from the full schema.  Full error: ${require('util').inspect(err, {depth: 2})}`);
+          return undefined;
+        });
+
+        // Filtered against the real names rather than trusted, as the Windows lookup is.  The index line's
+        // "(title; platforms)" is cut off first, since the model sometimes copies it: "com.apple.MCX (Time
+        // Server; macOS)" matched nothing and was dropped, and with it the request's whole schema.
+        if(picked && _.isArray(picked.payloadTypes)) {
+          let realEntryNames = _.uniq(_.pluck(schemaFile.entries, 'name'));
+          for (let candidate of picked.payloadTypes) {
+            let candidateName = String(candidate).split(' (')[0].trim();
+            let matched = _.find(realEntryNames, (entryName)=>{ return entryName.toLowerCase() === candidateName.toLowerCase(); });
+            if(matched && !_.contains(ALWAYS_PROVIDED_ENTRY_NAMES, matched) && !_.contains(applePayloadTypesProvided, matched)) {
+              applePayloadTypesProvided.push(matched);
+            }
           }
         }
 
-        if(plainKeys.length > 0) {
-          appleSchemaLines.push('    ' + plainKeys.join(', '));
+        // Restrictions is Apple's catch-all -- 210 keys under a title and description that match almost no
+        // request -- so the lookup passes it over for payloads whose titles sound closer (Content Caching
+        // Service over allowContentCaching, Time Server over forceAutomaticDateAndTime).  Software Update is
+        // missed the same way: asked to install security responses and system data files, the lookup names
+        // Restrictions for allowRapidSecurityResponseInstallation and leaves out ConfigDataInstall and
+        // CriticalUpdateInstall.  Added only when the lookup found something, so a request it found nothing
+        // for still falls back to the full schema.
+        if(applePayloadTypesProvided.length > 0) {
+          applePayloadTypesProvided = _.union(applePayloadTypesProvided, ['com.apple.applicationaccess', 'com.apple.SoftwareUpdate']);
         }
-        appleSchemaLines = appleSchemaLines.concat(keysWithTheirOwnLine);
+
+
+        // sails.log.warn(`[payload-type lookup] instructions: ${JSON.stringify(naturalLanguageInstructions)} | lookup returned: ${JSON.stringify(picked ? picked.payloadTypes : '(lookup failed)')} | provided: ${JSON.stringify(applePayloadTypesProvided)}`);
       }
 
-      appleSchema = appleSchemaLines.join('\n');
+      if(applePayloadTypesProvided.length > 0) {
+        // Every entry with a picked name, since six payloads share com.apple.MCX.
+        let entriesToRender = _.filter(schemaFile.entries, (entry)=>{
+          return _.contains(ALWAYS_PROVIDED_ENTRY_NAMES, entry.name) || _.contains(applePayloadTypesProvided, entry.name);
+        });
+        appleSchema = `${renderEntries(entriesToRender, {describeKeys: true})}\n\nAll payload types: ${_.uniq(_.pluck(schemaFile.entries, 'name')).sort().join(' ')}`;
+        appleSchemaDescription =
+`Provided context: the payload types this request looks like it needs, and every key each one accepts,
+taken from Apple's own manifests.  Format is a payload type followed by one key per line: the key, what
+constrains its value where anything does -- \`(a|b|c)\` the values it accepts, \`(min-max)\` the range, \`d=\`
+the default -- and Apple's description of the key.  \`*\` marks a required key, \`{}\` is a dictionary, \`[]\` is
+an array, \`Parent{child, child}\` gives a dictionary's contents, and \`Parent[]{child, child}\` an array whose
+elements are dictionaries with those keys.  CommonPayloadKeys and TopLevel are not payload types: the
+first gives the keys every dict inside PayloadContent may carry, and the second the keys that belong on
+the root dict and nowhere else.
+
+Choose keys by their descriptions, not their names.  Apple's description decides what a key does and what
+its values mean -- SHOWFULLNAME reads as though true shows a list of users, and Apple's text says the
+opposite -- and a key whose name resembles the setting you want can describe something else entirely.
+
+For each payload type below this is complete: a key not listed under it does not exist in it.  It is not
+every payload type -- the rest are named, without their keys, after the detail.  If the setting belongs to
+one of those, return the "couldNotGenerateProfile" shape and name it, rather than recalling its keys.  A
+domain in neither list is an Apple preference domain with no MDM manifest, or a third-party domain from
+the ProfileManifests reference.  Fall back to one of those only when nothing listed covers the setting,
+and if you cannot recall its keys, return the "couldNotGenerateProfile" shape rather than guessing.`;
+      } else {
+        appleSchema = renderEntries(schemaFile.entries, {describeKeys: false});
+        appleSchemaDescription =
+`Provided context: every payload type Apple publishes a manifest for, and the keys each one accepts, taken
+from Apple's own manifests.  Format is a payload type followed by its keys, where \`*\` marks a required key, \`{}\` is a
+dictionary, \`[]\` is an array, \`Parent{child, child}\` gives a dictionary's contents, and \`Parent[]{child, child}\` an
+array whose elements are dictionaries with those keys.  An array of plain values is just \`Name[]\`, with what
+constrains its entries after a colon where there is anything to say: \`Name[]:(a|b)\`.  CommonPayloadKeys and
+TopLevel are not payload types: the first gives the keys every dict inside PayloadContent may carry, and the second
+the keys that belong on the root dict and nowhere else.
+
+Most keys are listed by name alone, which settles their spelling and casing.  A key appears on its own line when it
+carries something its name does not: \`(a|b|c)\` are the values it accepts, \`(min-max)\` the range, \`d=\` the default,
+and a sentence is Apple's own description of what its values mean.  Where such a sentence is given, it decides the
+value -- SHOWFULLNAME reads as though true shows a list of users, and Apple's text says the opposite.
+
+For a listed payload type this is complete: a key not listed under it does not exist in it.  Absence of a payload type
+is not proof a domain is unusable -- Apple preference domains with no MDM manifest are managed as preference domains
+and are not listed, and neither are third-party domains, which come from the ProfileManifests reference.  What absence
+does rule out is a first-party payload type of your own invention.  When a listed payload type covers the setting, use
+it, and fall back to an unlisted preference domain only when nothing listed does.  If you cannot recall the keys of an
+unlisted preference domain, return the "couldNotGenerateProfile" shape rather than guessing.`;
+      }
     }
 
 
@@ -183,11 +343,6 @@ module.exports = {
 
       RESPONSE_SHAPE = `Respond in JSON with this data shape:
       {
-        "configurationProfile": "TODO",
-        "profileFilename": "TODO",
-        // Things the admin must do or decide that are not visible in the profile itself.
-        // Empty string when there is nothing exceptional, which is the common case.
-        "deliveryNotes": "",
         "settingsEnforced": [// For each setting enforced by the configuration profile.
           {
             // The name (key) of the setting that is enforced. e.g., LoginwindowText
@@ -196,17 +351,14 @@ module.exports = {
             value: "TODO",
             // Where this setting comes from: the CSP node path, the Apple payload domain and key, or the declaration type.
             schemaReference: "TODO",
-            // The documented range, enum, or type this setting accepts, including the declared format.
-            allowedValues: "TODO",
-            // What the value above actually does, in words. e.g., "0 = a password is required"
-            valueMeaning: "TODO",
-            // The Apple or Microsoft reference page for this setting.
-            documentationUrl: "TODO",
-            // Applicability, dependencies, and any condition under which this setting deploys but does nothing. Empty string if there are none.
-            caveats: "TODO"
           },
           {...}
         ]
+        "profileFilename": "TODO",
+        "configurationProfile": "TODO",
+        // Things the admin must do or decide that are not visible in the profile itself.
+        // Empty string when there is nothing exceptional, which is the common case.
+        "deliveryNotes": "",
       }
 
       If a configuration profile cannot be generated from the provided instructions, respond with this shape instead:
@@ -289,14 +441,16 @@ module.exports = {
           'ADMX-backed Policy CSP nodes are never int.  They declare DFFormat chr and take a policy fragment as their value: <Format>chr</Format> with <Data><![CDATA[<enabled/>]]></Data> or <![CDATA[<disabled/>]]>, plus a nested <data id="..." value="..."/> element for each sub-option the admin actually asked for and none for the ones they did not.  Writing 1 or 0 to one of these nodes deploys cleanly and enforces nothing.',
           'Never derive the area segment of a Policy CSP LocURI from the name of the .admx file that backs it.  Most ADMX-backed areas are named ADMX_<AdmxFileName>, but plenty are not: PowerShell script block logging lives under WindowsPowerShell, not ADMX_PowerShellExecutionPolicy or ADMX_PowerShell, even though PowerShellExecutionPolicy.admx is the backing file.  Use the area exactly as the published node lists it, and if you cannot recall it, return the "couldNotGenerateProfile" shape rather than constructing one that looks right.',
           // Verb and dependencies.
-          'Use Replace for Policy CSP leaf nodes that hold a value.  Reserve Add for nodes that do not exist until you create them, such as ADMXInstall, certificate installs, and WiFi or VPN profile instances.  When a node\'s AccessType permits both, choose Replace, because the profile may reach a host where the value is already set and Add can fail there.',
+          'Use Replace for Policy CSP leaf nodes that hold a value.  Reserve Add for nodes that do not exist until you create them, such as ADMXInstall, certificate installs, and WiFi or VPN profile instances.  A WiFi profile instance is created by the Add of its WlanXml leaf -- never Add the WiFi/Profile/{SSID} node on its own.  When a node\'s AccessType permits both, choose Replace, because the profile may reach a host where the value is already set and Add can fail there.',
           'Only use an Add or Replace verb on a node whose AccessType permits it.  Roughly 500 leaf nodes accept only Get, and a Replace against one is accepted, deploys, and then fails on the device.',
           'Include the nodes the requested setting depends on.  DeviceLock/MinDevicePasswordLength has no effect unless DeviceLock/DevicePasswordEnabled is also set.',
+          'Beyond the nodes the request names and the nodes those depend on, a node\'s presence in the provided list is not a reason to set it.  A WiFi profile never needs ProfileSource, for one: it defaults to Enterprise.',
           'Record the minimum OS build and the Windows editions each node applies to in "caveats".  A valid setting aimed at the wrong SKU is a silent no-op, not an error.',
           // Embedded values.
           'When a node\'s value is embedded XML -- WiFi/Profile/*/WlanXml, ADMXInstall, and similar -- wrap it in <![CDATA[ ... ]]> rather than escaping it as entities, and emit that value as a single line with no line breaks or indentation between its elements.  This applies only to the embedded value; the surrounding SyncML keeps its normal indentation.',
           'Be consistent within a profile about optional <Meta> children.  If you emit <Type> for one item, emit it for all of them, and namespace every <Meta> child as xmlns="syncml:metinf".',
-          'For WiFi profiles, emit both <name> and <hex> inside <SSID>, where <hex> is the uppercase hex encoding of the SSID bytes.  Windows and some MDMs treat the hex form as authoritative when both are present.',
+          'For WiFi profiles, emit <hex> and then <name> inside <SSID> -- the WLAN_profile schema enforces element order, and an <SSID> with <name> first is rejected.  Take <hex> from the encodings supplied with the instructions.  Never work a hex encoding out yourself: Windows and some MDMs treat the hex form as authoritative when both are present, so one wrong byte connects to nothing.  If no encoding was supplied for the SSID, emit <name> alone.',
+          'The WLAN_profile schema is not in the provided list, and it enforces element order and closed value lists, so build WlanXml from these facts rather than from memory.  Security settings sit at WLANProfile > MSM > security, with authEncryption (authentication, encryption, useOneX) first.  A personal network (WPA2PSK, WPA3SAE) follows it with sharedKey (keyType, protected, keyMaterial); an enterprise network (useOneX true) has no sharedKey and carries a OneX element instead.  <encryption> accepts only none, WEP, TKIP, AES, or GCMP256 -- WPA2 and WPA3SAE networks use AES, never CCMP, which is the 802.11 name for the same cipher.',
         ],
       },
 
@@ -304,30 +458,14 @@ module.exports = {
         description: 'XML .mobileconfig profile that enforces OS settings on macOS/iOS/ipadOS devices',
         firstPartySettingDescription: 'a key in an Apple-published payload',
         providedSchema: appleSchema,
-        providedSchemaDescription: `Provided context: every payload type Apple publishes a manifest for, and the keys each one accepts, taken
-from Apple's own manifests.  Format is a payload type followed by its keys, where \`*\` marks a required key, \`{}\` is a
-dictionary, \`[]\` is an array, \`Parent{child, child}\` gives a dictionary's contents, and \`Parent[]{child, child}\` an
-array whose elements are dictionaries with those keys.  An array of plain values is just \`Name[]\`, with what
-constrains its entries after a colon where there is anything to say: \`Name[]:(a|b)\`.  CommonPayloadKeys and
-TopLevel are not payload types: the first gives the keys every dict inside PayloadContent may carry, and the second
-the keys that belong on the root dict and nowhere else.
-
-Most keys are listed by name alone, which settles their spelling and casing.  A key appears on its own line when it
-carries something its name does not: \`(a|b|c)\` are the values it accepts, \`(min-max)\` the range, \`d=\` the default,
-and a sentence is Apple's own description of what its values mean.  Where such a sentence is given, it decides the
-value -- SHOWFULLNAME reads as though true shows a list of users, and Apple's text says the opposite.
-
-For a listed payload type this is complete: a key not listed under it does not exist in it.  Absence of a payload type
-is not proof a domain is unusable -- Apple preference domains with no MDM manifest are managed as preference domains
-and are not listed, and neither are third-party domains, which come from the ProfileManifests reference.  What absence
-does rule out is a first-party payload type of your own invention.  When a listed payload type covers the setting, use
-it, and fall back to an unlisted preference domain only when nothing listed does.  If you cannot recall the keys of an
-unlisted preference domain, return the "couldNotGenerateProfile" shape rather than guessing.`,
+        providedSchemaDescription: appleSchemaDescription,
         references: [
           'First-party Apple payloads: the payload types and their top-level keys are provided below -- https://github.com/apple/device-management/tree/release/mdm/profiles is where a human can check them.',
           'Third-party Apple payloads: https://github.com/ProfileManifests/ProfileManifests',
         ],
         rules: [
+          'A configuration profile sets preferences and restrictions. It cannot start, stop, load, or unload a system service or daemon, run a command, change a file or its permissions, or change a local account\'s state. If the only way to satisfy the request is one of those, return `couldNotGenerateProfile` and name the mechanism that does it (a script, launchctl, systemsetup).',
+          'A key that stops users changing a setting (an allow*Modification key) leaves the setting in whatever state it is already in.  When the request is to turn that setting on or off and the lock is the only documented key for it, generate the lock and say in "deliveryNotes" that it does not change the current state, naming what does (a script, launchctl, systemsetup).  Hiding a whole System Settings pane with DisabledSystemSettings is not a lock on one setting, so never use it to stand in for one.',
           // Third-party payloads.
           'If this is an attempt to change a third-party application\'s settings, use that application\'s preference domain -- com.google.Chrome, us.zoom.config and its keys must come from the ProfileManifests reference.',
           // Document shape.
@@ -337,6 +475,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           // Key fidelity.
           'Apple payload keys are not consistently cased, and the inconsistency is inside a single dict.  The passcode payload uses forcePIN, minLength, and allowSimple -- lowercase first letter -- beside PascalCase PayloadIdentifier and PayloadType.  Reproduce every key exactly as documented for its payload type.  Never normalize casing in either direction.',
           'Use only keys documented for the payload type you chose.  An invented key is written into the profile and nothing downstream rejects it, so the profile looks right and does nothing.',
+          'Choose the payload type by finding the key, not by the payload type\'s name.  Locate the key that does what was asked in the provided list, then use the payload type it is listed under -- even when another payload type\'s name sounds closer to the request.  App Store app updates are AutomaticallyInstallAppUpdates in com.apple.SoftwareUpdate, not anything in com.apple.appstore.  Before returning, confirm every key in each PayloadContent dict is listed under that dict\'s PayloadType.',
           'When more than one key in a payload could plausibly satisfy the request, choose by documented meaning, say what the chosen value actually does in valueMeaning, and return couldNotGenerateProfile rather than guessing between them.',
           'When the payload type you need appears in the provided list, copy it and its keys character for character, casing included, and use no key the list does not give it.  A key you remember differently than the list spells it is the list\'s spelling, not yours.',
           'Where the provided list describes what a key\'s values mean, that description decides the value and your own reading of the key name does not.  Several of these keys are named in a way that implies the opposite of what they do.',
@@ -349,7 +488,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           // Identifiers.
           'Take every PayloadUUID from the list of UUIDs provided with the instructions, in the order given, and never invent one.  Two dicts sharing a UUID is a profile that installs unpredictably, so use each one exactly once.',
           'PayloadIdentifier is reverse-DNS.  Each payload dict\'s identifier is the root identifier plus a distinguishing suffix, and no two identifiers in the profile are the same.',
-          'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile does.',
+          'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile actually enforces, which is not always what was asked for: a profile that only sets allowBluetoothModification is "Bluetooth Settings Locked", not "Disable Bluetooth".  PayloadDescription follows the same rule.',
           // Structure.
           'Put every key for one payload domain in a single dict inside PayloadContent.  Do not emit several dicts with the same PayloadType.',
 
@@ -388,6 +527,7 @@ This is the complete set.  A declaration type or key that does not appear here d
           'Identifier is your own reverse-DNS identifier for this declaration instance, not a copy of Type.  Copying Type conflates Apple\'s namespace with yours and collides the moment a second declaration of the same type exists.',
           'Derive Identifier from the full declaration type rather than its last component, or passcode.settings and softwareupdate.settings collapse into one identifier and silently overwrite each other.',
           'Keep Identifier to 64 bytes or fewer.  Apple\'s DeclarationBase caps it, and a longer identifier is accepted by an MDM and then rejected by the device at delivery.',
+          'A declaration file holds exactly one declaration: one JSON object with Type, Identifier, and Payload.  Never return an array or several objects.  Settings that share a declaration type go in that one Payload.  When the request needs more than one declaration type, return the "couldNotGenerateProfile" shape, name each declaration type the request needs, and say that each one must be generated and uploaded as its own file.',
         ],
       },
 
@@ -399,24 +539,32 @@ This is the complete set.  A declaration type or key that does not appear here d
     // Windows is the one profile type whose settings were never provided, only pointed at: the model was
     // given a documentation URL it cannot open and asked to recall node paths, formats and polarities from
     // memory, and it recalled them wrong often enough that CSP passed 12/45 of its cases where the two
-    // types with a provided schema passed ~90%.  The whole table is ~155KB, too much to put in front of the
-    // model that writes the profile, so the areas this request needs are looked up first and only those go
-    // in.  An area averages 587 bytes, so three or four cost less than a tenth of what the whole table would.
+    // types with a provided schema passed ~90%.  The whole table renders to ~310KB, too much to put in front
+    // of the model that writes the profile, so the areas this request needs are looked up first and only
+    // those go in.  An area averages under 1KB, and the largest (VPNv2) is ~18KB.
     let windowsCspAreasProvided = [];
     if(profileType === 'csp') {
 
-      // Scraped from Microsoft's published reference by `sails run regenerate-windows-csp-policy-nodes`.
-      let nodeFilePath = path.resolve(sails.config.appPath, 'profile-generator/schema/windows-csp-policy-nodes.json');
+      // Scraped from Microsoft's published reference by `sails run regenerate-windows-csp-nodes`.
+      let nodeFilePath = path.resolve(sails.config.appPath, 'profile-generator/schema/windows-csp-nodes.json');
       let nodeFile;
       try {
         nodeFile = require(nodeFilePath);
       } catch (err) {
         throw new Error(
           `Could not read the Windows CSP node reference at ${nodeFilePath}.  Run ` +
-          `\`sails run regenerate-windows-csp-policy-nodes\` to build it.  Full error: ${err.message}`
+          `\`sails run regenerate-windows-csp-nodes\` to build it.  Full error: ${err.message}`
         );
       }
-      let nodesByArea = _.groupBy(nodeFile.nodes, 'area');
+      // Policy CSP nodes are grouped by area, since that is how the Policy CSP is organized and how its
+      // LocURIs are built.  Every other CSP is one group of its own, suffixed so it cannot collide with a
+      // Policy area: DeviceLock, Defender, Update and Wifi are each both, and matching is case-insensitive.
+      //
+      // A standalone CSP's Get-only nodes are dropped here, since no profile can set them: DevDetail,
+      // DeviceStatus and the other inventory CSPs are nothing but, and they are half of the largest CSPs.
+      // Every Policy CSP node is settable.
+      let nodesAProfileCanSet = _.filter(nodeFile.nodes, (node)=>{ return node.csp === 'Policy' || /Add|Replace|Exec/.test(node.accessType || ''); });
+      let nodesByArea = _.groupBy(nodesAProfileCanSet, (node)=>{ return node.csp === 'Policy' ? node.area : `${node.csp} CSP`; });
 
       // Node names rather than area names, deliberately.  Picking from an index of area names alone was
       // measured at 10/27 on the generator's csp cases, against 21/27 for picking from node names:
@@ -424,10 +572,15 @@ This is the complete set.  A declaration type or key that does not appear here d
       // Storage, not ADMX_RemovableStorage; the sign-in banner is in LocalPoliciesSecurityOptions, not any
       // of the four areas with "Logon" in the name), so an area-name index asks the model to recall the
       // taxonomy -- which is the failure this whole reference exists to remove.  Given node names it can
-      // find the setting and read off the area instead.  The index is ~95KB and identical on every request,
+      // find the setting and read off the area instead.  The index is ~140KB and identical on every request,
       // so it wants to be a cached prompt prefix.
+      //
+      // A standalone CSP's interior nodes are left out, since the leaves under them already spell out the
+      // path.  Names are deduplicated because a CSP published in both scopes (WiFi) would otherwise list
+      // each one twice.
       let nodeNameIndex = _.map(nodesByArea, (nodesInThisArea, areaName)=>{
-        return `${areaName}: ${_.pluck(nodesInThisArea, 'name').sort().join(' ')}`;
+        let leafNodes = _.filter(nodesInThisArea, (node)=>{ return node.csp === 'Policy' || node.format !== 'node'; });
+        return `${areaName}: ${_.uniq(_.pluck(leafNodes, 'name')).sort().join(' ')}`;
       }).join('\n');
 
       // The small model on purpose: this is a lookup rather than a judgement.
@@ -436,9 +589,11 @@ This is the complete set.  A declaration type or key that does not appear here d
 `Return ONLY a raw JSON object.  Do not include \`\`\`json, \`\`\`, or any markdown formatting.  Do not
 include any explanation or text before or after the JSON.  Your entire response must be valid JSON.
 
-Below is every Windows Policy CSP node, grouped by the area it belongs to.  An IT admin has asked for a
-configuration profile, and another model is about to write it -- but it can only be shown a few areas'
-worth of nodes, so your job is to say which areas those should be.
+Below is every Windows CSP node a profile can set, in groups.  Policy CSP nodes are grouped by the area
+they belong to (DeviceLock, Experience, ...); every other CSP is a single group named "<Name> CSP" (WiFi
+CSP, Firewall CSP, BitLocker CSP, ...).  An IT admin has asked for a configuration profile, and another
+model is about to write it -- but it can only be shown a few groups' worth of nodes, so your job is to say
+which groups those should be.  Answer with group names, each called an area below.
 
 Find the nodes that would actually satisfy the request and name the areas holding them.  Read the node
 lists to do it: an area's name frequently does not follow from what its nodes do, so an area that sounds
@@ -450,12 +605,15 @@ naming only the area you thought of first is how the right one gets left out.  A
 most confident in, add the ones holding any other node that could plausibly do what was asked, including
 ones you half-rejected.  Every area you name must appear verbatim below; do not invent one.
 
-Return an empty array, naming nothing, when the request is not a Policy CSP request at all.  Windows has
-many other CSPs, and some of the most common requests belong to them: provisioning a Wi-Fi network is the
-WiFi CSP, a VPN is VPNv2, installing a certificate or an ADMX file has its own CSP too.  The Policy CSP
-has adjacent-sounding areas -- Wifi holds AllowWiFi and AllowWiFiDirect -- and naming one of those for a
-request that needs a different CSP is worse than naming nothing, because it answers a question that was
-not asked and buries the one that was.  An empty array is a real answer here, not a failure.
+Some of the most common requests belong to a standalone CSP rather than the Policy CSP: provisioning a
+Wi-Fi network is the WiFi CSP, a VPN is the VPNv2 CSP, installing a certificate is ClientCertificateInstall
+CSP or RootCATrustedCertificates CSP, and turning the firewall on per network profile is the Firewall CSP.
+The Policy CSP has adjacent-sounding areas -- Wifi holds AllowWiFi and AllowWiFiDirect -- that allow or
+block a feature rather than configure it.  For a request to set something up, name the standalone CSP
+first; name the Policy area too only if the request also asks to allow or block the feature.
+
+Return an empty array, naming nothing, only when no group below could satisfy the request.  An empty
+array is a real answer here, not a failure.
 
 ${nodeNameIndex}
 
@@ -491,6 +649,41 @@ ${naturalLanguageInstructions}
         }
       }
 
+      // A keyword search over every node's name and description, to catch what the lookup misses.  The
+      // lookup names about two areas however many it is asked for, and the ones it misses are those whose
+      // names sound unrelated to the request even though their descriptions use its words: "security
+      // questions for password reset" is ADMX_CredUI, "text messages backed up to the cloud" is Messaging,
+      // "enhanced anti-spoofing for Windows Hello face" is PassportForWork CSP.  So up to two of the
+      // best-scoring areas the lookup did not name are added, when they score close to the best match.
+      // Weighted by rarity, so a word that appears in hundreds of nodes ("security") counts for little.
+      const WORDS_THAT_SAY_NOTHING = ['the', 'and', 'for', 'from', 'with', 'without', 'this', 'that', 'these', 'those', 'into', 'over', 'under', 'when', 'where', 'which', 'while', 'what', 'how', 'any', 'all', 'can', 'cannot', 'not', 'only', 'also', 'than', 'then', 'them', 'they', 'their', 'there', 'here', 'has', 'have', 'had', 'was', 'were', 'been', 'being', 'are', 'its', 'let', 'allow', 'enable', 'disable', 'turn', 'off', 'set', 'setting', 'policy', 'configure', 'device', 'user', 'windows', 'microsoft', 'value', 'specify', 'whether', 'determine', 'control', 'option', 'feature', 'stop', 'people', 'machine', 'sure'];
+      let wordsOf = (text)=>{
+        return _.uniq(_.map(_.filter(String(text || '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toLowerCase().split(/[^a-z0-9]+/), (word)=>{
+          return word.length > 2;
+        }), (word)=>{ return word.replace(/(ing|ed|es|s)$/, ''); })).filter((word)=>{ return !_.contains(WORDS_THAT_SAY_NOTHING, word); });
+      };
+      let wordsByNode = _.map(nodesAProfileCanSet, (node)=>{ return {node, words: wordsOf(`${node.name} ${node.description || ''}`)}; });
+      let nodeCountByWord = _.countBy(_.flatten(_.pluck(wordsByNode, 'words')));
+      let requestWords = wordsOf(naturalLanguageInstructions);
+      let bestScoreByArea = {};
+      for (let {node, words} of wordsByNode) {
+        let score = _.sum(_.map(_.intersection(requestWords, words), (word)=>{ return Math.log(wordsByNode.length / (1 + nodeCountByWord[word])); }));
+        let areaName = node.csp === 'Policy' ? node.area : `${node.csp} CSP`;
+        bestScoreByArea[areaName] = Math.max(bestScoreByArea[areaName] || 0, score);
+      }
+      let areasBySearch = _.sortBy(Object.keys(bestScoreByArea), (areaName)=>{ return -bestScoreByArea[areaName]; });
+      let topScore = bestScoreByArea[_.first(areasBySearch)] || 0;
+      let bestScoreTheLookupFound = _.max(_.map(windowsCspAreasProvided, (areaName)=>{ return bestScoreByArea[areaName] || 0; }).concat([0]));
+      // Added only on a strong match that the lookup's own areas lack.  Every miss this fixes scores 18 or
+      // more; a vague request ("Require a password to unlock the device", 9.7) matches nothing in particular,
+      // and there the added areas were lookalikes that displaced the right node.  When the lookup already
+      // named an area holding an equally good match (speech and typing personalization, in Privacy), the
+      // additions -- TextInput, Speech -- were likewise lookalikes and won.
+      if(topScore >= 12 && bestScoreTheLookupFound < 0.9 * topScore) {
+        let areasAddedBySearch = _.filter(areasBySearch, (areaName)=>{ return !_.contains(windowsCspAreasProvided, areaName) && bestScoreByArea[areaName] >= 0.6 * topScore; }).slice(0, 2);
+        windowsCspAreasProvided = windowsCspAreasProvided.concat(areasAddedBySearch);
+      }
+
       if(windowsCspAreasProvided.length > 0) {
 
         // Rendered in area order, off a copy: windowsCspAreasProvided goes back to the caller in the order
@@ -502,11 +695,20 @@ ${naturalLanguageInstructions}
         // documentation, not a constraint.
         let schemaLines = [];
         for (let areaName of _.clone(windowsCspAreasProvided).sort()) {
-          schemaLines.push(areaName);
-          for (let node of _.sortBy(nodesByArea[areaName], 'name')) {
-            let parts = [node.name, node.format];
-            if(!_.contains(node.scopes, 'Device')) {
+          // Six names are both a Policy area and a standalone CSP (Accounts, BitLocker, CloudDesktop, Defender,
+          // Update, WiFi).  Given the bare area name, the model built the standalone CSP's path for a Policy node
+          // (./Device/Vendor/MSFT/Wifi/AllowAutoConnectToWiFiSenseHotspots), so those areas spell theirs out.
+          let sharesItsNameWithACsp = !_.endsWith(areaName, ' CSP') && _.any(Object.keys(nodesByArea), (otherName)=>{ return otherName.toLowerCase() === `${areaName} CSP`.toLowerCase(); });
+          schemaLines.push(sharesItsNameWithACsp ? `${areaName}  (Policy CSP area: ./Device/Vendor/MSFT/Policy/Config/${areaName}/<NodeName>)` : areaName);
+          for (let node of _.sortBy(nodesByArea[areaName], (node)=>{ return node.csp === 'Policy' ? node.name : node.locUri; })) {
+            // A standalone CSP's paths follow no single pattern, so its nodes are listed by full LocURI,
+            // which also carries the scope that @User marks on a Policy node.
+            let parts = [node.csp === 'Policy' ? node.name : node.locUri, node.format];
+            if(node.csp === 'Policy' && !_.contains(node.scopes, 'Device')) {
               parts.push('@User');
+            }
+            if(node.deprecated) {
+              parts.push('deprecated');
             }
             if(node.mustBeWrappedInAtomic) {
               parts.push('atomic');
@@ -519,44 +721,69 @@ ${naturalLanguageInstructions}
                 let summarizedDescription = _.trunc(firstClause.replace(/\s+/g, ' '), {length: 52, omission: ''}).trim().replace(/[,;:]$/, '');
                 return `${allowedValue.value}${allowedValue.isDefault ? '*' : ''}=${summarizedDescription}`;
               }).join(' '));
+            } else if(node.allowedRange !== undefined) {
+              parts.push(`range=${node.allowedRange}${node.defaultValue !== undefined ? ` d=${node.defaultValue}` : ''}`);
             } else if(node.defaultValue !== undefined) {
               parts.push(`d=${node.defaultValue}`);
             }
             if(node.dependsOn) {
-              parts.push(`needs ${node.dependsOn.locUri.split('/').slice(-2).join('/')}=${node.dependsOn.allowedValue}`);
+              parts.push(`needs ${node.dependsOn.locUri.split('/').slice(-2).join('/')}${node.dependsOn.allowedValue !== undefined ? `=${node.dependsOn.allowedValue}` : ''}`);
+            }
+            // What the node does, only where its values do not already say: NotifyMalicious and
+            // NotifyPasswordReuse both read "0=Disabled 1=Enabled", and MaxDevicePasswordFailedAttempts has no
+            // values at all, so nothing told the model that it wipes the device.  First sentence only, since
+            // longer lines have pulled the model towards whichever node shares a word with the request.
+            let valuesAreGeneric = _.every(node.allowedValues || [], (allowedValue)=>{
+              return /^(disabled|enabled|allowed|not allowed|allow|block|blocked|off|on|true|false|disable|enable|not configured)\.?$/i.test(String(allowedValue.description || '').trim());
+            });
+            if(node.description && valuesAreGeneric) {
+              // Microsoft's boilerplate opening goes first: it is a third of the sentence and identical across
+              // lookalikes, so a length cap would otherwise cut exactly the words that tell them apart.
+              let firstSentence = node.description.split(/(?<=[a-z0-9)]\.)\s+(?=[A-Z])/)[0]
+              .replace(/^This (?:policy setting|policy|setting) (?:determines|specifies|controls|allows you to (?:specify|configure)|lets you (?:specify|configure)|configures|enables or disables|allows or disallows)(?: whether(?: or not)?)?\s*/i, '');
+              parts.push(`-- ${firstSentence.length <= 140 ? firstSentence : firstSentence.slice(0, 140).replace(/\s+\S*$/, '') + '…'}`);
             }
             schemaLines.push('  ' + parts.join(' '));
           }
         }
 
         promptConfig.providedSchemaDescription =
-`Provided context: the Windows Policy CSP nodes this request looks like it needs, straight from
-Microsoft's published reference.  A node's LocURI is ./Device/Vendor/MSFT/Policy/Config/<Area>/<NodeName>
--- never a shortened form of that path, and never an area segment you inferred from a policy's name.
+`Provided context: the Windows CSP nodes this request looks like it needs, straight from Microsoft's
+published reference.  Each group is either a Policy CSP area or a whole standalone CSP, named "<Name> CSP".
 
-Format is an area, then one node per line:
-  <NodeName> <format> [flags] [values or default] [dependency]
-\`*\` marks a value as that node's default.  \`@User\` marks a node that exists only under ./User/ --
+In a Policy CSP area, a node's LocURI is ./Device/Vendor/MSFT/Policy/Config/<Area>/<NodeName> -- never a
+shortened form of that path, and never an area segment you inferred from a policy's name.  In a standalone
+CSP, each line starts with the node's full LocURI instead, because those paths follow no single pattern:
+Firewall's start ./Vendor/MSFT/Firewall/, WiFi's ./Device/Vendor/MSFT/WiFi/ or ./User/Vendor/MSFT/WiFi/.
+Copy them exactly.  A {Braced} segment is a dynamic node: replace it, braces included, with the instance
+name the request calls for (an SSID, a VPN profile name, a rule ID), and create the instance with Add.
+
+Format is a group, then one node per line:
+  <NodeName or LocURI> <format> [flags] [values, range or default] [dependency] [-- what it does]
+\`-- …\` is Microsoft's description of what the node does, given where its values alone do not say; when
+two nodes' names both fit the request, it decides between them.  \`*\` marks a value as that node's default.  \`@User\` marks a Policy node that exists only under ./User/ --
 writing it under ./Device/ deploys cleanly and enforces nothing.  \`atomic\` marks a node Microsoft
-documents as requiring an <Atomic> wrapper.  \`needs X=Y\` is a node the setting depends on, which
-belongs in the profile alongside it.  The format on each line is the node's declared DFFormat: emit it
+documents as requiring an <Atomic> wrapper.  \`deprecated\` marks a node Microsoft has retired; prefer
+another node that does the same thing.  \`range=[a-b]\` is the node's allowed numeric range.  \`needs X=Y\`
+is a node the setting depends on, which belongs in the profile alongside it.  The format on each line is
+the node's declared DFFormat (\`node\` is an interior node that holds children, not a value): emit it
 verbatim and make <Data> legal for it, rather than reasoning about the value's type from its name.
 
-This is authoritative for the areas below and settles their node names, paths, formats and values.  It is
-not the whole Policy CSP, and what is missing decides between two different answers.  If no node here
+This is authoritative for the groups below and settles their node names, paths, formats and values.  It
+is not the whole CSP reference, and what is missing decides between two different answers.  If no node here
 enforces what was asked, return the "couldNotGenerateProfile" shape and name what you were looking for,
-rather than recalling a node from an area you were not given.  But if a node here does enforce it and the
+rather than recalling a node from a group you were not given.  But if a node here does enforce it and the
 request merely describes the effect in words the node does not use -- asking to wipe after failed
 passcode attempts, where the node sets the failed-attempt threshold that produces that outcome -- then
 that is the node, so use it and put what it actually does, and anything the admin should know about the
 gap, in "valueMeaning" and "caveats".  Abstaining is for a setting you cannot find, not for one whose
 published name is less specific than the request.
 
-Every area that exists, with its node count, is listed after the detail.  Use it only to tell whether
+Every group that exists, with its node count, is listed after the detail.  Use it only to tell whether
 a setting you cannot find lives somewhere that was not provided -- the names alone do not tell you what
-is in an area, and an area's name is often not what you would guess.`;
+is in a group, and a group's name is often not what you would guess.`;
 
-        promptConfig.providedSchema = `${schemaLines.join('\n')}\n\nAll areas: ${_.map(Object.keys(nodesByArea).sort(), (areaName)=>{ return `${areaName}(${nodesByArea[areaName].length})`; }).join(' ')}`;
+        promptConfig.providedSchema = `${schemaLines.join('\n')}\n\nAll groups: ${_.map(Object.keys(nodesByArea).sort(), (areaName)=>{ return `${areaName}(${nodesByArea[areaName].length})`; }).join(' ')}`;
 
         // Ahead of the existing rules on purpose.  Several of those tell the model how to decide a format
         // or a polarity from memory -- sound advice when nothing was provided, and a licence to override
@@ -618,8 +845,23 @@ ${RESPONSE_SHAPE}`;
 `;
     }
 
+    // Supplied for the same reason as the UUIDs: a WiFi SSID's <hex> is authoritative over its <name>, and the
+    // model's own hex encoding of "CorpNet" came back with a byte inserted or changed in two runs of three.
+    // Only quoted strings, since that is how an SSID arrives in the instructions, and double quotes only, so an
+    // apostrophe does not open one.
+    let hexEncodingsToUse = '';
+    if(profileType === 'csp') {
+      let quotedStrings = _.uniq(_.map(naturalLanguageInstructions.match(/["“”][^"“”]+["“”]/g) || [], (quoted)=>{ return quoted.slice(1, -1); }));
+      if(quotedStrings.length > 0) {
+        hexEncodingsToUse = `
+    Uppercase hex encodings of the quoted strings in the instructions, for <hex> inside a WiFi <SSID>:
+    ${quotedStrings.map((quoted)=>`- ${JSON.stringify(quoted)}: ${Buffer.from(quoted, 'utf8').toString('hex').toUpperCase()}`).join('\n    ')}
+`;
+      }
+    }
+
     let userPrompt = `Given these instructions from an IT admin, generate a ${promptConfig.description}.
-${uuidsToUse}
+${uuidsToUse}${hexEncodingsToUse}
     Here are the instructions:
     \`\`\`
     ${naturalLanguageInstructions}
@@ -629,7 +871,9 @@ ${uuidsToUse}
     // windowsCspAreasProvided so a caller can tell a profile that was written from the wrong areas from one
     // written from the right areas badly -- the two look identical in the generated profile, and the first
     // is a lookup problem while the second is a prompt problem.
-    return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids, windowsCspAreasProvided };
+    // applePayloadTypesProvided for the same reason: empty means the lookup was off, failed, or found
+    // nothing, and the full schema went in.
+    return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids, windowsCspAreasProvided, applePayloadTypesProvided };
 
   }
 

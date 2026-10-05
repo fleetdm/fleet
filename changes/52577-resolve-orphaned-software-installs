@@ -1,0 +1,1 @@
+* Resolved software installs left in a pending state by an installer that was deleted in an earlier version. Each one now reports that the installer no longer exists, and the host's queue moves on.

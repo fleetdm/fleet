@@ -34,11 +34,13 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
 	"github.com/fleetdm/fleet/v4/server/acl/notificationsacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/chart"
 	chart_bootstrap "github.com/fleetdm/fleet/v4/server/chart/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -166,6 +168,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		softwareInstallStore   fleet.SoftwareInstallerStore
 		bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 		softwareTitleIconStore fleet.SoftwareTitleIconStore
+		stagedUploadStore      fleet.StagedUploadStore
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
 		androidService         android.Service
@@ -234,6 +237,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].SoftwareTitleIconStore != nil {
 			softwareTitleIconStore = opts[0].SoftwareTitleIconStore
 		}
+		stagedUploadStore = opts[0].StagedUploadStore
 
 		// allow to explicitly set MDM storage to nil
 		mdmStorage = opts[0].MDMStorage
@@ -361,6 +365,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,
+			stagedUploadStore,
 			distributedLock,
 			keyValueStore,
 			installAttemptCounter,
@@ -583,16 +588,32 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(notificationsRoutesFn(noopAuth)))
 	}
 
-	// The chart bounded context is wired into the real server in serve.go but not into
-	// this test handler, so build a path-only stub (regardless of DBConns) so that
-	// apiendpoints.Validate can see the chart routes declared in api_endpoints.yml.
-	// chart_bootstrap.New stores its deps without dereferencing them, so empty conns +
-	// nil authorizer/viewer are fine when only the route paths are needed.
-	{
+	// Chart routes. Same DBConns-gated pattern as the activity bounded context,
+	// mirroring createChartBoundedContext in cmd/fleet/serve.go.
+	if len(opts) > 0 && opts[0].DBConns != nil {
+		legacyAuthorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		chartSvc, chartRoutesFn := chart_bootstrap.New(
+			opts[0].DBConns,
+			authz.NewAuthorizerAdapter(legacyAuthorizer),
+			chartacl.NewFleetViewerAdapter(),
+			chartacl.ExpandPlatform,
+			logger,
+		)
+		chartSvc.RegisterDataset(&chart.UptimeDataset{})
+		chartSvc.RegisterDataset(&chart.CVEDataset{})
+		chartAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(next))
+		}
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, chartRoutesFn(chartAuthMiddleware))
+	} else {
+		// chart_bootstrap.New stores its deps without dereferencing them, so empty conns +
+		// nil authorizer/viewer are fine when only the route paths are needed.
 		_, chartRoutesFn := chart_bootstrap.New(
 			&common_mysql.DBConnections{},
 			nil,
 			nil,
+			chartacl.ExpandPlatform,
 			logger,
 		)
 		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
@@ -643,7 +664,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				notificationsSvc = opts[0].NotificationsSvc
 			}
 			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity,
-				cfg.Activity.FleetInitiatedReleasePerMinute > 0, notificationsSvc)
+				cfg.Activity.FleetInitiatedReleasePerMinute > 0, notificationsSvc, cfg.MDM.AppleCommandCleanupShortRetention)
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
 			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
 			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger, commander))
@@ -969,6 +990,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"DELETE", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
+		{"POST", "/api/latest/fleet/device/%s/configuration_profiles/wfoo/resend", true, false},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
 		{"POST", "/api/latest/fleet/mdm/commands/run", false, false},

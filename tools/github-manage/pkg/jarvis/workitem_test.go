@@ -57,7 +57,8 @@ func TestBuildWorkItemsAttachesMergedPR(t *testing.T) {
 		49329: {Number: 49380, State: "MERGED", HeadRefName: "georgekarrv-49329-windows-mdm"},
 	}
 
-	work := BuildWorkItems(b, links, focus, map[int]string{49329: "In review"}, map[int]int{49329: 108}, merged, RoleDeveloper)
+	key := ghapi.IssueRefKey("fleetdm/fleet", 49329)
+	work := BuildWorkItems(b, "fleetdm/fleet", links, focus, map[string]string{key: "In review"}, map[string]int{key: 108}, merged, RoleDeveloper)
 	if len(work) != 1 {
 		t.Fatalf("expected 1 work item, got %d", len(work))
 	}
@@ -98,7 +99,8 @@ func TestBuildWorkItemsLinksPRByClosingKeyword(t *testing.T) {
 	}}
 	links, _ := LoadLinkStore("")
 	focus, _ := LoadFocusStore("")
-	work := BuildWorkItems(b, links, focus, map[int]string{38348: "In progress"}, map[int]int{38348: 58}, nil, RoleDeveloper)
+	key := ghapi.IssueRefKey("fleetdm/fleet", 38348)
+	work := BuildWorkItems(b, "fleetdm/fleet", links, focus, map[string]string{key: "In progress"}, map[string]int{key: 58}, nil, RoleDeveloper)
 
 	if len(work) != 1 {
 		t.Fatalf("expected 1 work item, got %d", len(work))
