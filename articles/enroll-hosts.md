@@ -182,8 +182,6 @@ Unenroll a host when Fleet should stop managing it, for example when you repurpo
 
 > Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts and Android hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) and the [Android MDM setup guide](https://fleetdm.com/guides/android-mdm-setup#re-enrolling-android-hosts) for details.
 
-> The unenroll action on Android hosts sends a wipe command via the Android Management API. [Learn more](https://fleetdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm)
-
 ### Delete a host
 
 Deleting a host doesn't unenroll it, so most hosts come back:
