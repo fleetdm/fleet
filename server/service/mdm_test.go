@@ -2300,6 +2300,26 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			false,
 		},
 		{
+			"self_service with free license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), SelfService: true}},
+			ErrMissingLicense.Error(),
+			false,
+		},
+		{
+			"hidden with free license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{{Name: "N1", Contents: syncMLForTest("./Foo/Bar"), Hidden: true}},
+			ErrMissingLicense.Error(),
+			false,
+		},
+		{
 			"team id and name specified",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			true,
@@ -5159,21 +5179,35 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 			wantConflictCheck    bool
 			wantLinked           bool
 		}{
-			{name: "serial, host not held by other hardware: linked", hardwareID: testHardwareID,
-				wantConflictCheck: true, wantLinked: true},
+			{
+				name: "serial, host not held by other hardware: linked", hardwareID: testHardwareID,
+				wantConflictCheck: true, wantLinked: true,
+			},
 			// Nothing corroborates a device-reported serial or ZTDID, so a device presenting the victim's must not take its host.
-			{name: "serial, host already held by other hardware: refused", hardwareID: claimantHardwareID,
-				conflicted: true, wantConflictCheck: true},
-			{name: "serial, conflict lookup fails: refused", hardwareID: testHardwareID,
-				conflictErr: errors.New("db is down"), wantConflictCheck: true},
-			{name: "ZTDID, host not held by other hardware: linked", ztdID: testZTDID, hardwareID: testHardwareID,
-				wantConflictCheck: true, wantLinked: true},
-			{name: "ZTDID, host already held by other hardware: refused", ztdID: testZTDID, hardwareID: claimantHardwareID,
-				conflicted: true, wantConflictCheck: true},
-			{name: "ZTDID, conflict lookup fails: refused", ztdID: testZTDID, hardwareID: testHardwareID,
-				conflictErr: errors.New("db is down"), wantConflictCheck: true},
-			{name: "ZTDID, pending autopilot host without uuid: deferred before the conflict check", ztdID: testZTDID,
-				pendingAutopilotHost: true, hardwareID: testHardwareID},
+			{
+				name: "serial, host already held by other hardware: refused", hardwareID: claimantHardwareID,
+				conflicted: true, wantConflictCheck: true,
+			},
+			{
+				name: "serial, conflict lookup fails: refused", hardwareID: testHardwareID,
+				conflictErr: errors.New("db is down"), wantConflictCheck: true,
+			},
+			{
+				name: "ZTDID, host not held by other hardware: linked", ztdID: testZTDID, hardwareID: testHardwareID,
+				wantConflictCheck: true, wantLinked: true,
+			},
+			{
+				name: "ZTDID, host already held by other hardware: refused", ztdID: testZTDID, hardwareID: claimantHardwareID,
+				conflicted: true, wantConflictCheck: true,
+			},
+			{
+				name: "ZTDID, conflict lookup fails: refused", ztdID: testZTDID, hardwareID: testHardwareID,
+				conflictErr: errors.New("db is down"), wantConflictCheck: true,
+			},
+			{
+				name: "ZTDID, pending autopilot host without uuid: deferred before the conflict check", ztdID: testZTDID,
+				pendingAutopilotHost: true, hardwareID: testHardwareID,
+			},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
