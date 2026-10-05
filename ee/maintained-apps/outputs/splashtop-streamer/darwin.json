@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.8.6.0",
+      "version": "3.8.6.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.splashtop.Splashtop-Streamer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.splashtop.Splashtop-Streamer' AND version_compare(bundle_short_version, '3.8.6.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.splashtop.Splashtop-Streamer' AND version_compare(bundle_short_version, '3.8.6.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.splashtop.Splashtop-Streamer' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://d17kmd0va0f0mp.cloudfront.net/mac/Splashtop_Streamer_Mac_INSTALLER_v3.8.6.0.dmg",
+      "installer_url": "https://d17kmd0va0f0mp.cloudfront.net/mac/Splashtop_Streamer_Mac_INSTALLER_v3.8.6.3.dmg",
       "install_script_ref": "6aba2633",
       "uninstall_script_ref": "98a81a5e",
-      "sha256": "33765596a0e9f992ee22678c39e8d27888e8749d75046331e81e179a1d97e16d",
+      "sha256": "bde3c94222fd72ee35501b383af32e091c504606c53c07e7912d9cab0a3018f7",
       "default_categories": [
         "Productivity"
       ]

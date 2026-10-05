@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.10.0",
+      "version": "1.11.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.uaudio.ua-connect';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.uaudio.ua-connect' AND version_compare(bundle_short_version, '1.10.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.uaudio.ua-connect' AND version_compare(bundle_short_version, '1.11.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.uaudio.ua-connect' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://builds.uaudio.com/apps/UA_Connect/UA_Connect_1_10_0_3844_Mac.dmg",
+      "installer_url": "https://builds.uaudio.com/apps/UA_Connect/UA_Connect_1_11_0_3866_Mac.dmg",
       "install_script_ref": "1c649001",
       "uninstall_script_ref": "c8d76912",
-      "sha256": "9d0ca1af99bd7c16148f96f05f6f33aecc5ee2089c0554219f888b2331598470",
+      "sha256": "d46e5a379c7cf66feaae2849827cc70218781fb1a0f3ab2b1021a4759af8680d",
       "default_categories": [
         "Productivity"
       ]

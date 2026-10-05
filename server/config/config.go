@@ -573,12 +573,12 @@ type S3Config struct {
 	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
 	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
 	SoftwareInstallersCloudFrontSigner                crypto.Signer `yaml:"-"`
-	// SoftwareInstallersSignedURL, when true, makes Fleet hand out a presigned
-	// GET URL (instead of proxying the bytes) for software installer, in-house
-	// app and bootstrap package downloads, so clients fetch directly from the
-	// object store. Only supported against a GCS (storage.googleapis.com)
+	// SoftwareInstallersSignedURL, when true, makes Fleet hand out presigned
+	// URLs (instead of proxying the bytes) for software installer, in-house
+	// app and bootstrap package uploads and downloads, so clients talk directly
+	// to the object store. Only supported against a GCS (storage.googleapis.com)
 	// endpoint. This is the GCS counterpart to the CloudFront signing config.
-	SoftwareInstallersSignedURL bool `yaml:"software_installers_signed_url"`
+	SoftwareInstallersSignedURL bool `yaml:"software_installers_gcs_signed_url"`
 }
 
 func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
@@ -627,13 +627,13 @@ func (s S3Config) ValidateSoftwareInstallersSignedURL(initFatal func(err error, 
 		return
 	}
 	if u.Scheme != "https" {
-		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to be an https URL (e.g. https://storage.googleapis.com)."),
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_gcs_signed_url` requires `s3_software_installers_endpoint_url` to be an https URL (e.g. https://storage.googleapis.com)."),
 			"S3 software installers signed URL")
 		return
 	}
 	host := strings.ToLower(u.Hostname())
 	if host != "storage.googleapis.com" && !strings.HasSuffix(host, ".storage.googleapis.com") {
-		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to point at a GCS endpoint (storage.googleapis.com)."),
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_gcs_signed_url` requires `s3_software_installers_endpoint_url` to point at a GCS endpoint (storage.googleapis.com)."),
 			"S3 software installers signed URL")
 		return
 	}
@@ -642,7 +642,7 @@ func (s S3Config) ValidateSoftwareInstallersSignedURL(initFatal func(err error, 
 	// IAM auth doesn't use HMAC creds and is rejected at store init, so skip it then.
 	if !s.SoftwareInstallersGCSIAMAuth &&
 		(s.SoftwareInstallersAccessKeyID == "" || s.SoftwareInstallersSecretAccessKey == "") {
-		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key` for presigning."),
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_gcs_signed_url` requires `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key` for presigning."),
 			"S3 software installers signed URL")
 		return
 	}
@@ -1143,6 +1143,9 @@ type MDMConfig struct {
 	// to macOS MDM hosts in the fleetd configuration profile and rejects shared
 	// enroll secrets for hosts enrolled in Fleet MDM or assigned in ABM.
 	AppleOneTimeEnrollSecrets bool `yaml:"apple_one_time_enroll_secrets"`
+	// WindowsOneTimeEnrollSecrets is the Windows counterpart of AppleOneTimeEnrollSecrets. The two are separate switches
+	// because the platforms deliver the secret by different mechanisms and can be rolled out independently.
+	WindowsOneTimeEnrollSecrets bool `yaml:"windows_one_time_enroll_secrets"`
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
@@ -1150,6 +1153,20 @@ type MDMConfig struct {
 
 // IsCustomDiskEncryptionEnabled reports whether custom disk encryption configuration profiles are allowed. Any of the equivalent
 // (and deprecated) options enables the behavior.
+// OneTimeEnrollSecretsEnabled reports whether either platform mints one-time enroll secrets. An enrolling agent presents a
+// secret without saying which platform minted it, so the lookup has to run whenever either switch is on.
+func (m MDMConfig) OneTimeEnrollSecretsEnabled() bool {
+	return m.AppleOneTimeEnrollSecrets || m.WindowsOneTimeEnrollSecrets
+}
+
+// OneTimeEnrollSecretsEnabledForPlatform reports whether one-time enroll secrets minted for the given platform are honored.
+func (m MDMConfig) OneTimeEnrollSecretsEnabledForPlatform(platform string) bool {
+	if platform == "windows" {
+		return m.WindowsOneTimeEnrollSecrets
+	}
+	return m.AppleOneTimeEnrollSecrets
+}
+
 func (m MDMConfig) IsCustomDiskEncryptionEnabled() bool {
 	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault || m.EnableCustomDiskEncryption
 }
@@ -1685,7 +1702,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 	man.addConfigDuration("server.vpp_install_reap_timeout", 24*time.Hour,
-		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it")
+		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it. Android setup experience app installs the device hasn't reported for this long are also failed; for those, zero or less keeps them pending and the vpp_verify_timeout floor doesn't apply")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
 	man.addConfigDuration("server.script_results_retention", 30*24*time.Hour, "Minimum time since a script run recorded its result before the hourly cleanup deletes it. Runs still waiting on a host, and those a host lock, wipe, unlock, setup experience, software uninstall or batch run depends on, are kept regardless (0 disables the cleanup)")
 	man.addConfigDuration("server.software_install_results_retention", 30*24*time.Hour, "Minimum time since a software install or uninstall finished before the hourly cleanup deletes its record. Records a host is still working on, those setup experience depends on, and the most recent install and uninstall per host and package, are kept regardless (0 disables the cleanup)")
@@ -1940,7 +1957,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
-	man.addConfigBool("s3.software_installers_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
+	man.addConfigBool("s3.software_installers_gcs_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap uploads and downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
+	man.addConfigBool("s3.software_installers_signed_url", false, "Deprecated: use s3.software_installers_gcs_signed_url")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -2114,6 +2132,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.allow_custom_activations", false, "Allows custom activations to be uploaded for Apple declaration (DDM) profiles")
 	man.addConfigBool("mdm.apple_one_time_enroll_secrets", false,
 		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets")
+	man.addConfigBool("mdm.windows_one_time_enroll_secrets", false,
+		"Deliver one-time, device-scoped enroll secrets to Windows MDM hosts instead of shared enroll secrets")
 	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -2504,6 +2524,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AllowCustomActivations:            man.getConfigBool("mdm.allow_custom_activations"),
 			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
 			AppleOneTimeEnrollSecrets:         man.getConfigBool("mdm.apple_one_time_enroll_secrets"),
+			WindowsOneTimeEnrollSecrets:       man.getConfigBool("mdm.windows_one_time_enroll_secrets"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
@@ -2593,7 +2614,7 @@ func (man Manager) loadS3Config() S3Config {
 		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
 		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
 		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),
-		SoftwareInstallersSignedURL:                       man.getConfigBool("s3.software_installers_signed_url"),
+		SoftwareInstallersSignedURL:                       man.getConfigBool("s3.software_installers_gcs_signed_url") || man.getConfigBool("s3.software_installers_signed_url"),
 	}
 }
 

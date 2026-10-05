@@ -2295,6 +2295,7 @@ SELECT
 	hsi.install_script_output,
 	hsi.host_id AS host_id,
 	COALESCE(st.name, hsi.software_title_name) AS software_title,
+	stdn.display_name AS software_display_name,
 	hsi.software_title_id,
 	hsi.software_installer_id,
 	si.storage_id AS hash_sha256,
@@ -2317,6 +2318,10 @@ FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 	LEFT JOIN software_installers si ON hsi.software_installer_id = si.id
+	LEFT JOIN hosts h ON h.id = hsi.host_id
+	LEFT JOIN software_title_display_names stdn
+		ON stdn.software_title_id = hsi.software_title_id
+		AND stdn.team_id = COALESCE(h.team_id, 0)
 WHERE
 	hsi.execution_id = :execution_id AND
 	hsi.uninstall = 0 AND
@@ -2331,6 +2336,7 @@ SELECT
 	NULL AS install_script_output,
 	ua.host_id AS host_id,
 	COALESCE(st.name, ua.payload->>'$.software_title_name') AS software_title,
+	stdn.display_name AS software_display_name,
 	siua.software_title_id,
 	siua.software_installer_id,
 	si.storage_id AS hash_sha256,
@@ -2359,6 +2365,10 @@ FROM
 		ON siua.software_installer_id = si.id
 	LEFT JOIN policies p
 		ON siua.policy_id = p.id
+	LEFT JOIN hosts h ON h.id = ua.host_id
+	LEFT JOIN software_title_display_names stdn
+		ON stdn.software_title_id = siua.software_title_id
+		AND stdn.team_id = COALESCE(h.team_id, 0)
 WHERE
 	ua.execution_id = :execution_id AND
 	ua.activity_type = 'software_install' AND
@@ -2836,11 +2846,14 @@ WHERE
 // first clause reads the base columns because the generated status column is
 // NULL for both removed rows and successful uninstalls. updated_at implies
 // created_at, which is bounded anyway because the select's index ranges on it.
+// A deleted host's pending install can never report, so it doesn't need to
+// finish first.
 const deletableHostSoftwareInstallPredicate = `(hsi.canceled = 1 OR hsi.removed = 1
 		OR hsi.install_script_exit_code IS NOT NULL
 		OR hsi.post_install_script_exit_code IS NOT NULL
 		OR hsi.uninstall_script_exit_code IS NOT NULL
-		OR hsi.pre_install_query_output = '')
+		OR hsi.pre_install_query_output = ''
+		OR hsi.host_deleted_at IS NOT NULL)
 	AND hsi.created_at < ? AND hsi.updated_at < ?
 	AND NOT EXISTS (SELECT 1 FROM setup_experience_status_results sesr WHERE sesr.host_software_installs_execution_id = hsi.execution_id)`
 
@@ -4194,36 +4207,54 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 	return hasInstallers, nil
 }
 
-func (ds *Datastore) GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error) {
+func (ds *Datastore) GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, *string, bool, error) {
 	stmt := `
-	SELECT COALESCE(st.name, hsi.software_title_name) name, hsi.self_service
+	SELECT
+		COALESCE(st.name, hsi.software_title_name) name,
+		stdn.display_name AS display_name,
+		hsi.self_service
 	FROM software_titles st
 	INNER JOIN software_installers si ON si.title_id = st.id
 	INNER JOIN host_software_installs hsi ON hsi.software_installer_id = si.id
+	LEFT JOIN hosts h ON h.id = hsi.host_id
+	LEFT JOIN software_title_display_names stdn
+		ON stdn.software_title_id = st.id
+		AND stdn.team_id = COALESCE(h.team_id, 0)
 	WHERE hsi.execution_id = ? AND hsi.uninstall = TRUE
 
 	UNION
 
-	SELECT st.name, COALESCE(ua.payload->'$.self_service', FALSE) self_service
+	SELECT
+		st.name,
+		stdn.display_name AS display_name,
+		COALESCE(ua.payload->'$.self_service', FALSE) self_service
 	FROM
 		software_titles st
 		INNER JOIN software_installers si ON si.title_id = st.id
 		INNER JOIN software_install_upcoming_activities siua
 			ON siua.software_installer_id = si.id
 		INNER JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
+		LEFT JOIN hosts h ON h.id = ua.host_id
+		LEFT JOIN software_title_display_names stdn
+			ON stdn.software_title_id = st.id
+			AND stdn.team_id = COALESCE(h.team_id, 0)
 	WHERE
 		ua.execution_id = ? AND
 		ua.activity_type = 'software_uninstall'
 	`
 	var result struct {
-		Name        string `db:"name"`
-		SelfService bool   `db:"self_service"`
+		Name        string  `db:"name"`
+		DisplayName *string `db:"display_name"`
+		SelfService bool    `db:"self_service"`
 	}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, executionID, executionID)
+	// Read from the primary: this feeds the uninstall activity's frozen display
+	// name. A replica read could miss a rename committed to the primary moments
+	// earlier and record the raw title instead. See GetSoftwareTitleDisplayName.
+	err := sqlx.GetContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &result, stmt, executionID, executionID)
 	if err != nil {
-		return "", false, ctxerr.Wrap(ctx, err, "get software details for uninstall activity from execution ID")
+		return "", nil, false, ctxerr.Wrap(ctx, err, "get software details for uninstall activity from execution ID")
 	}
-	return result.Name, result.SelfService, nil
+	return result.Name, result.DisplayName, result.SelfService, nil
 }
 
 func (ds *Datastore) GetSoftwareInstallersPendingUninstallScriptPopulation(ctx context.Context) (map[uint]string, error) {

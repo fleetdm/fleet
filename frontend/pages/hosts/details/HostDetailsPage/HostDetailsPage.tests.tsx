@@ -2,10 +2,12 @@ import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
+import { createMockActivity } from "__mocks__/activityMock";
 import createMockConfig from "__mocks__/configMock";
 import createMockHost from "__mocks__/hostMock";
 import createMockUser from "__mocks__/userMock";
 import { notify } from "components/ToastNotification";
+import { ActivityType } from "interfaces/activity";
 import { IHost } from "interfaces/host";
 import { IUser } from "interfaces/user";
 import activitiesAPI from "services/entities/activities";
@@ -383,5 +385,130 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
 
     expect(await screen.findByText("No activity")).toBeInTheDocument();
     expect(screen.queryAllByRole("switch")).toHaveLength(0);
+  });
+});
+
+describe("HostDetailsPage - disk encryption key rotation", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  const mockMacWithKey = (keyAvailable: boolean) => {
+    const host = mockAppleHost();
+    host.mdm.encryption_key_available = keyAvailable;
+    host.mdm.encryption_key_archived = !keyAvailable;
+    return host;
+  };
+
+  const openDiskEncryptionKeyModal = async (
+    user: ReturnType<typeof userEvent.setup>
+  ) => {
+    await user.click(await screen.findByText("Actions"));
+    await user.click(await screen.findByText("Show disk encryption key"));
+    await screen.findByText("Disk encryption key");
+    await waitFor(() => expect(hostAPI.getEncryptionKey).toHaveBeenCalled());
+  };
+
+  beforeEach(() => {
+    (hostAPI.getEncryptionKey as jest.Mock).mockResolvedValue({
+      host_id: 1,
+      encryption_key: {
+        key: "AAAA-BBBB-CCCC",
+        updated_at: "2026-09-20T13:00:00Z",
+        rotation_pending: false,
+      },
+    });
+  });
+
+  it("offers Rotate key to an admin when the host's key is available", async () => {
+    stubQueries(mockMacWithKey(true));
+    const { user } = renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+    });
+
+    await openDiskEncryptionKeyModal(user);
+
+    expect(
+      await screen.findByRole("button", { name: "Rotate key" })
+    ).toBeInTheDocument();
+  });
+
+  it("doesn't offer Rotate key to an observer", async () => {
+    stubQueries(mockMacWithKey(true));
+    const { user } = renderHostDetails({
+      currentUser: OBSERVER,
+      isGlobalAdmin: false,
+    });
+
+    await openDiskEncryptionKeyModal(user);
+
+    expect(
+      screen.queryByRole("button", { name: "Rotate key" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("doesn't offer Rotate key when only an archived key is shown", async () => {
+    stubQueries(mockMacWithKey(false));
+    const { user } = renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+    });
+
+    await openDiskEncryptionKeyModal(user);
+
+    expect(
+      screen.queryByRole("button", { name: "Rotate key" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("doesn't offer Rotate key on a personal host", async () => {
+    const host = mockMacWithKey(true);
+    host.mdm.enrollment_status = "On (personal)";
+    stubQueries(host);
+    const { user } = renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+    });
+
+    await openDiskEncryptionKeyModal(user);
+
+    expect(
+      screen.queryByRole("button", { name: "Rotate key" })
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("HostDetailsPage - enrollment rejection details", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("names the Fleetd enroll secret profile for a Windows spent-secret rejection", async () => {
+    stubQueries(mockWindowsHost());
+    (activitiesAPI.getHostPastActivities as jest.Mock).mockResolvedValue({
+      activities: [
+        createMockActivity({
+          type: ActivityType.HostEnrollmentRejected,
+          fleet_initiated: true,
+          details: {
+            host_display_name: "Anna's laptop",
+            reason: "one_time_secret_spent",
+            platform: "windows",
+          },
+        }),
+      ],
+      meta: { has_next_results: false, has_previous_results: false },
+    });
+
+    renderHostDetails();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "show info" })
+    );
+
+    expect(await screen.findByText("Enrollment details")).toBeInTheDocument();
+    expect(screen.getByText("Fleetd enroll secret")).toBeInTheDocument();
+    expect(screen.queryByText("Fleetd configuration")).not.toBeInTheDocument();
   });
 });

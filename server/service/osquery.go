@@ -173,7 +173,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		secretOpts   []fleet.DatastoreEnrollOsqueryOption
 	)
 	var oneTime *fleet.HostOneTimeEnrollSecret
-	if svc.config.MDM.AppleOneTimeEnrollSecrets {
+	if svc.config.MDM.OneTimeEnrollSecretsEnabled() {
 		var err error
 		oneTime, err = svc.lookupOneTimeEnrollSecret(ctx, enrollSecret)
 		if err != nil {
@@ -254,6 +254,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
 		fleet.WithEnrollOsqueryCreated(&hostCreated),
+		fleet.WithEnrollOsqueryRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOsquery(ctx, enrollOpts...)
 	if err != nil {
@@ -314,7 +315,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 	if save {
 		if appConfig.ServerSettings.DeferredSaveHost {
-			go svc.serialUpdateHost(ctx, host)
+			go func() { _ = svc.serialUpdateHost(ctx, host) }()
 		} else {
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
 				return "", enrollError(ctx, err, "save host in enroll agent")
@@ -327,7 +328,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 var counter = int64(0)
 
-func (svc *Service) serialUpdateHost(ctx context.Context, host *fleet.Host) {
+func (svc *Service) serialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	newVal := atomic.AddInt64(&counter, 1)
 	defer func() {
 		atomic.AddInt64(&counter, -1)
@@ -341,6 +342,7 @@ func (svc *Service) serialUpdateHost(ctx context.Context, host *fleet.Host) {
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "serial update host background error", "err", err)
 	}
+	return err
 }
 
 func getHostIdentifier(ctx context.Context, logger *slog.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
@@ -2200,20 +2202,35 @@ func (svc *Service) SubmitDistributedQueryResults(
 		svc.logger.DebugContext(ctx, "refetch critical status on submit distributed query results", "host_id", host.ID, "refetch_requested", refetchRequested, "refetch_critical_queries_until", host.RefetchCriticalQueriesUntil, "refetch_critical_cleared", refetchCriticalCleared)
 	}
 
+	reportDeviceName := detailUpdated && ac.MDM.EnabledAndConfigured && host.Platform == "darwin" && host.ComputerName != ""
 	if refetchRequested || detailUpdated || refetchCriticalCleared {
 		if ac.ServerSettings.DeferredSaveHost {
-			go svc.serialUpdateHost(ctx, host)
+			hostUUID, computerName, report := host.UUID, host.ComputerName, reportDeviceName
+			go func() {
+				// The device-name cron compares the template against the saved
+				// computer_name, so drift must only be re-queued once the host save has
+				// landed; otherwise the cron can see the old, matching name and mark the
+				// host verified without renaming it.
+				if err := svc.serialUpdateHost(ctx, host); err != nil {
+					return
+				}
+				if report {
+					reportCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+					defer cancel()
+					svc.reconcileHostDeviceNameReport(reportCtx, hostUUID, computerName)
+				}
+			}()
+			reportDeviceName = false
 		} else {
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
 				logging.WithErr(ctx, err)
+				reportDeviceName = false
 			}
 		}
 	}
 
-	if detailUpdated && ac.MDM.EnabledAndConfigured && host.Platform == "darwin" && host.ComputerName != "" {
-		if err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, host.ComputerName); err != nil {
-			logging.WithErr(ctx, err)
-		}
+	if reportDeviceName {
+		svc.reconcileHostDeviceNameReport(ctx, host.UUID, host.ComputerName)
 	}
 
 	if host.DiskEncryptionKeyEscrowed {
@@ -2717,6 +2734,26 @@ func (svc *Service) ingestDistributedQuery(
 		return newOsqueryError("unable to parse campaign ID: " + trimmedQuery)
 	}
 
+	// The host controls the campaign ID in the query name and IDs are sequential,
+	// so without this any enrolled host could stream forged rows into every
+	// running campaign server-wide, including other fleets' campaigns. Marking
+	// the host complete before publishing makes the check free: the same Redis
+	// commands report whether the host was still a target. The cost is that an
+	// undelivered result below must re-target the host so it retries, and that a
+	// crash between here and the publish loses this host's rows for the campaign
+	// where before it would have re-run the query. Live results are ephemeral,
+	// so that trade is accepted.
+	campaignName := strconv.Itoa(campaignID)
+	targeted, err := svc.liveQueryStore.QueryCompletedByHost(campaignName, host.ID)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "recording live query completion for host", "campaignID", campaignID, "hostID", host.ID, "err", err)
+		return newOsqueryError("record query completion: " + err.Error())
+	}
+	if !targeted {
+		svc.logger.DebugContext(ctx, "discarding live query result for campaign not targeting host", "campaignID", campaignID, "hostID", host.ID)
+		return nil
+	}
+
 	// Write the results to the pubsub store
 	res := fleet.DistributedQueryResult{
 		DistributedQueryCampaignID: uint(campaignID), //nolint:gosec // dismiss G115
@@ -2737,6 +2774,7 @@ func (svc *Service) ingestDistributedQuery(
 		var pse pubsub.Error
 		ok := errors.As(err, &pse)
 		if !ok || !pse.NoSubscriber() {
+			svc.restoreQueryTarget(ctx, campaignID, host.ID)
 			return newOsqueryError("writing results: " + err.Error())
 		}
 
@@ -2763,6 +2801,7 @@ func (svc *Service) ingestDistributedQuery(
 			// This expected error can happen if:
 			//	A. A device checked in and sent results back in between steps (1) and (2).
 			// 	B. The client stopped listening in (2) and devices continue to send results back.
+			svc.restoreQueryTarget(ctx, campaignID, host.ID)
 			return newOsqueryError(fmt.Sprintf("campaignID=%d waiting for listener", campaignID))
 		}
 
@@ -2777,16 +2816,16 @@ func (svc *Service) ingestDistributedQuery(
 			return newOsqueryError("stopping orphaned campaign: " + err.Error())
 		}
 
-		// No need to record query completion in this case
 		return newOsqueryError(fmt.Sprintf("campaignID=%d stopped", campaignID))
 	}
 
-	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(campaignID), host.ID)
-	if err != nil {
-		return newOsqueryError("record query completion: " + err.Error())
-	}
-
 	return nil
+}
+
+func (svc *Service) restoreQueryTarget(ctx context.Context, campaignID int, hostID uint) {
+	if err := svc.liveQueryStore.RestoreQueryTargetForHost(strconv.Itoa(campaignID), hostID); err != nil {
+		svc.logger.WarnContext(ctx, "restoring live query target after undelivered result", "campaignID", campaignID, "hostID", hostID, "err", err)
+	}
 }
 
 // ingestMembershipQuery records the results of label queries run by a host

@@ -1192,14 +1192,6 @@ WHERE
   global_or_team_id = ? AND
   name IN (?)
 `
-	const deleteAllScriptsInTeam = `
-DELETE FROM
-  scripts
-WHERE
-  global_or_team_id = ?
-`
-	const unsetAllScriptsFromPolicies = `UPDATE policies SET script_id = NULL WHERE team_id = ?`
-
 	const clearAllPendingExecutionsHSR = `DELETE FROM host_script_results WHERE
 		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
 		AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
@@ -1227,18 +1219,16 @@ WHERE
 			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
 
-	const unsetScriptsNotInListFromPolicies = `
-UPDATE policies SET script_id = NULL
-WHERE script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))
-`
+	// Locking reads, so a script committed after this transaction's snapshot is still unset from
+	// its policies before it's deleted.
+	const loadAllScriptsInTeam = `SELECT id FROM scripts WHERE global_or_team_id = ? FOR UPDATE`
+	const loadScriptsNotInList = `SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?) FOR UPDATE`
 
-	const deleteScriptsNotInList = `
-DELETE FROM
-  scripts
-WHERE
-  global_or_team_id = ? AND
-  name NOT IN (?)
-`
+	// Without the hint MySQL can pick a full scan, which locks every policy row until commit and
+	// blocks all hosts' policy result writes.
+	const unsetScriptsFromPolicies = `UPDATE policies FORCE INDEX (fk_policies_script_id) SET script_id = NULL WHERE script_id IN (?)`
+
+	const deleteScripts = `DELETE FROM scripts WHERE id IN (?)`
 
 	const clearPendingExecutionsNotInListHSR = `DELETE FROM host_script_results WHERE
 		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
@@ -1350,10 +1340,6 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		var (
-			scriptsStmt     string
-			scriptsArgs     []any
-			policiesStmt    string
-			policiesArgs    []any
 			executionsStmt  string
 			executionsArgs  []any
 			extraExecStmt   string
@@ -1362,17 +1348,6 @@ ON DUPLICATE KEY UPDATE
 			affectedHostIDs []uint
 		)
 		if len(keepNames) > 0 {
-			// delete the obsolete scripts
-			scriptsStmt, scriptsArgs, err = sqlx.In(deleteScriptsNotInList, globalOrTeamID, keepNames)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete scripts")
-			}
-
-			policiesStmt, policiesArgs, err = sqlx.In(unsetScriptsNotInListFromPolicies, globalOrTeamID, keepNames)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete scripts from policies")
-			}
-
 			executionsStmt, executionsArgs, err = sqlx.In(clearPendingExecutionsNotInListHSR, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to clear pending script executions from obsolete scripts")
@@ -1392,12 +1367,6 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrap(ctx, err, "build statement to clear upcoming pending script executions from obsolete scripts")
 			}
 		} else {
-			scriptsStmt = deleteAllScriptsInTeam
-			scriptsArgs = []any{globalOrTeamID}
-
-			policiesStmt = unsetAllScriptsFromPolicies
-			policiesArgs = []any{globalOrTeamID}
-
 			executionsStmt = clearAllPendingExecutionsHSR
 			executionsArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
 
@@ -1409,17 +1378,11 @@ ON DUPLICATE KEY UPDATE
 			extraExecStmt = clearAllPendingExecutionsUA
 			extraExecArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
 		}
-		if _, err := tx.ExecContext(ctx, policiesStmt, policiesArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "unset obsolete scripts from policies")
-		}
 		if _, err := tx.ExecContext(ctx, executionsStmt, executionsArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear obsolete script pending executions")
 		}
 		if _, err := tx.ExecContext(ctx, extraExecStmt, extraExecArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear obsolete upcoming script pending executions")
-		}
-		if _, err := tx.ExecContext(ctx, scriptsStmt, scriptsArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
 		}
 		activateAffectedHosts = affectedHostIDs
 
@@ -1449,6 +1412,36 @@ ON DUPLICATE KEY UPDATE
 
 			if _, err = tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScriptUA, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "clear obsolete upcoming pending script executions with name %q", s.Name)
+			}
+		}
+
+		// Delete obsolete scripts last, so the policies that reference them are locked only until
+		// the commit right after.
+		loadObsoleteStmt, args := loadAllScriptsInTeam, []any{globalOrTeamID}
+		if len(incomingNames) > 0 {
+			loadObsoleteStmt, args, err = sqlx.In(loadScriptsNotInList, globalOrTeamID, incomingNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build query to load obsolete scripts")
+			}
+		}
+		var obsoleteIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &obsoleteIDs, loadObsoleteStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "load obsolete scripts")
+		}
+		if len(obsoleteIDs) > 0 {
+			stmt, args, err := sqlx.In(unsetScriptsFromPolicies, obsoleteIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete scripts from policies")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "unset obsolete scripts from policies")
+			}
+			stmt, args, err = sqlx.In(deleteScripts, obsoleteIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete scripts")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
 			}
 		}
 
@@ -2698,18 +2691,24 @@ WHERE
 	return nil
 }
 
+// Without these, MySQL may evaluate a guard by materializing the whole
+// referenced table once per statement. host_mdm_actions is left out: one row
+// per host, and its ref columns are not indexed everywhere this runs.
+const deletableHostScriptResultHints = `/*+ NO_SEMIJOIN(@sesr) NO_SEMIJOIN(@hsi) NO_SEMIJOIN(@bahr) */`
+
 // deletableHostScriptResultPredicate is shared whole by the select and the
 // delete, so the re-check on the primary cannot drift from the reader's. One
-// subquery per host_mdm_actions column, so each uses its own index. created_at
-// is when the run was handed out, so updated_at is what bounds the result.
-const deletableHostScriptResultPredicate = `(hsr.exit_code IS NOT NULL OR hsr.canceled = 1)
+// subquery per host_mdm_actions column. created_at is when the run was handed
+// out, so updated_at is what bounds the result. A deleted host's pending run can
+// never report, so it doesn't need to finish first.
+const deletableHostScriptResultPredicate = `(hsr.exit_code IS NOT NULL OR hsr.canceled = 1 OR hsr.host_deleted_at IS NOT NULL)
 	AND hsr.created_at < ? AND hsr.updated_at < ?
 	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.lock_ref = hsr.execution_id)
 	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.unlock_ref = hsr.execution_id)
 	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.wipe_ref = hsr.execution_id)
-	AND NOT EXISTS (SELECT 1 FROM setup_experience_status_results sesr WHERE sesr.script_execution_id = hsr.execution_id)
-	AND NOT EXISTS (SELECT 1 FROM host_software_installs hsi WHERE hsi.execution_id = hsr.execution_id)
-	AND NOT EXISTS (SELECT 1 FROM batch_activity_host_results bahr WHERE bahr.host_execution_id = hsr.execution_id)`
+	AND NOT EXISTS (SELECT /*+ QB_NAME(sesr) */ 1 FROM setup_experience_status_results sesr WHERE sesr.script_execution_id = hsr.execution_id)
+	AND NOT EXISTS (SELECT /*+ QB_NAME(hsi) */ 1 FROM host_software_installs hsi WHERE hsi.execution_id = hsr.execution_id)
+	AND NOT EXISTS (SELECT /*+ QB_NAME(bahr) */ 1 FROM batch_activity_host_results bahr WHERE bahr.host_execution_id = hsr.execution_id)`
 
 func (ds *Datastore) CleanupHostScriptResults(ctx context.Context, olderThan time.Time) (int64, error) {
 	const (
@@ -2719,19 +2718,19 @@ func (ds *Datastore) CleanupHostScriptResults(ctx context.Context, olderThan tim
 	return cleanupHostScriptResultsDB(ctx, ds, olderThan, batchSize, maxBatches)
 }
 
-func cleanupHostScriptResultsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
-	// Keyset cursor on the created_at index. Rows the sweep keeps are passed
-	// once per run rather than once per batch, and there can be many: a run a
-	// host never answered stays pinned forever, at the front of the index.
-	// created_at has ties, so the cursor carries the primary key too.
-	const selectStmt = `
-SELECT hsr.id, hsr.created_at
+// Keyset cursor on the created_at index. Rows the sweep keeps are passed once
+// per run rather than once per batch, and there can be many: a run a host never
+// answered stays pinned forever, at the front of the index. created_at has ties,
+// so the cursor carries the primary key too.
+const expiredHostScriptResultsStmt = `
+SELECT ` + deletableHostScriptResultHints + ` hsr.id, hsr.created_at
 FROM host_script_results hsr
 WHERE hsr.created_at >= ? AND (hsr.created_at > ? OR hsr.id > ?)
 	AND ` + deletableHostScriptResultPredicate + `
 ORDER BY hsr.created_at, hsr.id
 LIMIT ?`
 
+func cleanupHostScriptResultsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
 	type resultKey struct {
 		ID        uint      `db:"id"`
 		CreatedAt time.Time `db:"created_at"`
@@ -2743,7 +2742,7 @@ LIMIT ?`
 	hitCap := true
 	for range maxBatches {
 		var rows []resultKey
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectStmt,
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, expiredHostScriptResultsStmt,
 			last.CreatedAt, last.CreatedAt, last.ID, olderThan, olderThan, batchSize); err != nil {
 			return deleted, ctxerr.Wrap(ctx, err, "select expired host script results")
 		}
@@ -2775,13 +2774,14 @@ LIMIT ?`
 	return deleted, nil
 }
 
+const deleteExpiredHostScriptResultsStmt = `
+DELETE ` + deletableHostScriptResultHints + ` hsr FROM host_script_results hsr
+WHERE hsr.id IN (?) AND ` + deletableHostScriptResultPredicate
+
 // deleteHostScriptResultsByIDs re-checks the predicate on the primary, since a
 // row the reader selected can have been answered or referenced since.
 func deleteHostScriptResultsByIDs(ctx context.Context, q sqlx.ExecerContext, ids []uint, olderThan time.Time) (int64, error) {
-	const deleteStmt = `
-DELETE hsr FROM host_script_results hsr
-WHERE hsr.id IN (?) AND ` + deletableHostScriptResultPredicate
-	stmt, args, err := sqlx.In(deleteStmt, ids, olderThan, olderThan)
+	stmt, args, err := sqlx.In(deleteExpiredHostScriptResultsStmt, ids, olderThan, olderThan)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "build delete expired host script results")
 	}

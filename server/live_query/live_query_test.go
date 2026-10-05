@@ -21,6 +21,7 @@ var testFunctions = [...]func(*testing.T, fleet.LiveQueryStore){
 	testLiveQueryCleanupInactive,
 	testLiveQuerySetBitOnlyIfKeyExists,
 	testLiveQueryResultsCounts,
+	testLiveQueryCompletionReportsTarget,
 	testLiveQueryReportsHostCount,
 	testLiveQueryReportClipped,
 }
@@ -60,8 +61,12 @@ func testLiveQuery(t *testing.T, store fleet.LiveQueryStore) {
 		queries,
 	)
 
-	assert.NoError(t, store.QueryCompletedByHost("test", 1))
-	assert.NoError(t, store.QueryCompletedByHost("test2", 3))
+	targeted, err := store.QueryCompletedByHost("test", 1)
+	require.NoError(t, err)
+	assert.True(t, targeted)
+	targeted, err = store.QueryCompletedByHost("test2", 3)
+	require.NoError(t, err)
+	assert.True(t, targeted)
 
 	queries, err = store.QueriesForHost(1)
 	assert.NoError(t, err)
@@ -242,8 +247,9 @@ func testLiveQuerySetBitOnlyIfKeyExists(t *testing.T, store fleet.LiveQueryStore
 	)
 
 	// Mark query as completed by host.
-	err = store.QueryCompletedByHost("test", 1)
+	targeted, err := store.QueryCompletedByHost("test", 1)
 	require.NoError(t, err)
+	require.True(t, targeted)
 
 	// Query should not be returned anymore as it was marked as completed for this host.
 	queries, err = store.QueriesForHost(1)
@@ -251,8 +257,9 @@ func testLiveQuerySetBitOnlyIfKeyExists(t *testing.T, store fleet.LiveQueryStore
 	require.Empty(t, queries)
 
 	// A host could be attempting to write a result for a query that was already deleted.
-	err = store.QueryCompletedByHost("test-2", 1)
+	targeted, err = store.QueryCompletedByHost("test-2", 1)
 	require.NoError(t, err)
+	require.False(t, targeted)
 
 	// Let's test that such key was not created.
 
@@ -335,6 +342,40 @@ func testLiveQueryResultsCounts(t *testing.T, store fleet.LiveQueryStore) {
 	counts, err = store.GetQueryResultsCounts(nil)
 	require.NoError(t, err)
 	require.Empty(t, counts)
+}
+
+func testLiveQueryCompletionReportsTarget(t *testing.T, store fleet.LiveQueryStore) {
+	targeted, err := store.QueryCompletedByHost("test", 1)
+	require.NoError(t, err)
+	assert.False(t, targeted, "unknown campaign")
+
+	require.NoError(t, store.RunQuery("test", "select 1", []uint{1, 3}))
+
+	targeted, err = store.QueryCompletedByHost("test", 2)
+	require.NoError(t, err)
+	assert.False(t, targeted, "host not in targets")
+	targeted, err = store.QueryCompletedByHost("other", 1)
+	require.NoError(t, err)
+	assert.False(t, targeted, "targeted host, different campaign")
+
+	targeted, err = store.QueryCompletedByHost("test", 1)
+	require.NoError(t, err)
+	assert.True(t, targeted, "targeted host")
+	targeted, err = store.QueryCompletedByHost("test", 1)
+	require.NoError(t, err)
+	assert.False(t, targeted, "host that already completed the query")
+
+	require.NoError(t, store.RestoreQueryTargetForHost("test", 1))
+	queries, err := store.QueriesForHost(1)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"test": "select 1"}, queries, "restored host receives the query again")
+	targeted, err = store.QueryCompletedByHost("test", 1)
+	require.NoError(t, err)
+	assert.True(t, targeted, "restored host")
+
+	targeted, err = store.QueryCompletedByHost("test", 3)
+	require.NoError(t, err)
+	assert.True(t, targeted, "other host unaffected")
 }
 
 func testLiveQueryReportsHostCount(t *testing.T, store fleet.LiveQueryStore) {

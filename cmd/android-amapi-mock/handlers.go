@@ -379,17 +379,18 @@ func handleWebAppsCreate() http.HandlerFunc {
 
 func handleEnterprisesList(store *deviceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		store.mu.RLock()
-		seen := make(map[string]bool)
-		for _, d := range store.byESID {
-			if d.EnterpriseID != "" {
-				seen[d.EnterpriseID] = true
-			}
-		}
-		store.mu.RUnlock()
+		known := store.knownEnterprises()
 
-		enterprises := make([]map[string]string, 0, len(seen))
-		for id := range seen {
+		// Fleet unenrolls every Android host and turns Android MDM off when its enterprise is
+		// absent from a successful list. An empty list here only means nothing has been observed
+		// yet, and a failed list is already treated as a technical problem, which is what it is.
+		if len(known) == 0 {
+			http.Error(w, "mock has not observed any enterprise yet", http.StatusServiceUnavailable)
+			return
+		}
+
+		enterprises := make([]map[string]string, 0, len(known))
+		for _, id := range known {
 			enterprises = append(enterprises, map[string]string{"name": "enterprises/" + id})
 		}
 

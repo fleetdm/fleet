@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -77,6 +78,38 @@ func TestGenerateQueryForManifest(t *testing.T) {
 			require.Equal(t, tt.want, query)
 		})
 	}
+}
+
+func TestGenerateFromInstallerEscapesQuotes(t *testing.T) {
+	const payload = "x' UNION SELECT 1 FROM shadow --"
+
+	generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, &fleet.SoftwareInstaller{
+		Platform:         "darwin",
+		SoftwareTitle:    payload,
+		BundleIdentifier: payload,
+		Version:          payload,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'x'' UNION SELECT 1 FROM shadow --' "+
+		"AND version_compare(bundle_short_version, 'x'' UNION SELECT 1 FROM shadow --') < 0);", generated.Query)
+	require.Equal(t, "macOS - "+payload+" up to date", generated.Name)
+
+	generated, err = patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, &fleet.SoftwareInstaller{
+		Platform:      "windows",
+		SoftwareTitle: payload,
+		Version:       payload,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'x'' UNION SELECT 1 FROM shadow --' "+
+		"AND version_compare(version, 'x'' UNION SELECT 1 FROM shadow --') < 0);", generated.Query)
+
+	query, err := patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
+		Platform:    "darwin",
+		ExistsQuery: "SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo';",
+		Version:     payload,
+	})
+	require.NoError(t, err)
+	require.Contains(t, query, "version_compare(bundle_short_version, 'x'' UNION SELECT 1 FROM shadow --') < 0);")
 }
 
 func TestGenerateOpenQuery(t *testing.T) {

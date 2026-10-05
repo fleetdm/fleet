@@ -298,6 +298,7 @@
       }
     },
     "max_software_package_size": 537919488,
+    "staged_upload_available": false,
     "gitops": {
       "gitops_mode_enabled": false,
       "repository_url": "",

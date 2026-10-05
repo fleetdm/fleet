@@ -56,7 +56,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
 
     <Property Id="FLEET_URL" Value="{{ if .FleetURL }}{{ .FleetURL }}{{ end }}"/>
-    <Property Id="FLEET_SECRET" Value="dummy"/>
+    <Property Id="FLEET_SECRET" Value="dummy" Hidden="yes"/>
     <Property Id="ENABLE_SCRIPTS" Value="{{ if .EnableScripts }}True{{ else }}False{{ end }}"/>
 	<Property Id="FLEET_DESKTOP" Value="{{ if .Desktop }}True{{ else }}False{{ end }}"/>
     {{ if .EnableEndUserEmailProperty }}
@@ -194,6 +194,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   BinaryKey="WixCA"
                   DllEntry="WixQuietExec64"
                   Execute="deferred"
+                  HideTarget="yes"
                   Return="check"
                   Impersonate="no" />
 

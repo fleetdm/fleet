@@ -80,7 +80,7 @@ describe("AndroidZeroTouchPage", () => {
 
   test("shows DPC extras after loading", async () => {
     jest.spyOn(mdmAndroidAPI, "getZeroTouchConfiguration").mockResolvedValue({
-      dpc_extras: { test: "dpc-extras-json" },
+      test: "dpc-extras-json",
     });
 
     const render = createCustomRenderer({

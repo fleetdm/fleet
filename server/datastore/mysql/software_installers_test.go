@@ -4239,9 +4239,10 @@ func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// get software title for unknown exec id
-	title, selfService, err := ds.GetDetailsForUninstallFromExecutionID(ctx, "unknown")
+	title, displayName, selfService, err := ds.GetDetailsForUninstallFromExecutionID(ctx, "unknown")
 	require.ErrorIs(t, err, sql.ErrNoRows)
 	require.Empty(t, title)
+	require.Nil(t, displayName)
 	require.False(t, selfService)
 
 	// create a couple pending software install request, the first will be
@@ -4251,7 +4252,7 @@ func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 	req2, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installer2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	_, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
+	_, _, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// record a result for req1, will be deleted from upcoming_activities
@@ -4262,7 +4263,7 @@ func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	_, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
+	_, _, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// create an uninstall request for installer1
@@ -4270,9 +4271,10 @@ func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 	err = ds.InsertSoftwareUninstallRequest(ctx, req3, host.ID, installer1, true)
 	require.NoError(t, err)
 
-	title, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)
+	title, displayName, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)
 	require.NoError(t, err)
 	require.Equal(t, "foobar", title)
+	require.Nil(t, displayName)
 	require.True(t, selfService)
 
 	// record a result for req2, will activate req3 so it is now in host_software_installs too
@@ -4283,9 +4285,10 @@ func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	title, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)
+	title, displayName, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)
 	require.NoError(t, err)
 	require.Equal(t, "foobar", title)
+	require.Nil(t, displayName)
 	require.True(t, selfService)
 }
 
@@ -8648,4 +8651,12 @@ func testCleanupHostSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, deleted)
 	assert.False(t, exists(deletedHost))
+
+	// A deleted host's pending install can never report, so it goes the same way.
+	deletedHostPending := seedAt(gone, false, nil, old, old)
+	exec(`UPDATE host_software_installs SET host_deleted_at = ?, updated_at = ? WHERE execution_id = ?`, old, old, deletedHostPending)
+	deleted, err = ds.CleanupHostSoftwareInstalls(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, deleted)
+	assert.False(t, exists(deletedHostPending))
 }

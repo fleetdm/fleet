@@ -79,3 +79,11 @@ export const hasEverEnrolled = (host: Pick<IHost, "last_enrolled_at">) =>
 // has not checked in yet).
 export const hasReportedVitals = (host: Pick<IHost, "detail_updated_at">) =>
   !!host.detail_updated_at && host.detail_updated_at >= INITIAL_FLEET_DATE;
+
+// Kept out of HostDetailsPage: each &&/|| there adds to rules-of-hooks' path
+// count, which that component is already at the limit of.
+export const getCanManageSelfServiceProfiles = (
+  isPremiumTier: boolean | undefined,
+  isMacOSHost: boolean,
+  canResendProfiles: boolean
+) => !!isPremiumTier && isMacOSHost && canResendProfiles;

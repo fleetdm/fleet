@@ -64,7 +64,7 @@ const AndroidZeroTouchPage = () => {
 
     return (
       <pre className={`${baseClass}__dpc-extras-code`}>
-        <code>{JSON.stringify(zeroTouchConfig.dpc_extras, null, 2)}</code>
+        <code>{JSON.stringify(zeroTouchConfig, null, 2)}</code>
       </pre>
     );
   };
@@ -106,7 +106,7 @@ const AndroidZeroTouchPage = () => {
             <span className={`${baseClass}__dpc-extras-label`}>DPC extras</span>
             {hasConfig && (
               <CopyButton
-                copyText={JSON.stringify(zeroTouchConfig.dpc_extras, null, 2)}
+                copyText={JSON.stringify(zeroTouchConfig, null, 2)}
                 variant="secondary"
               />
             )}

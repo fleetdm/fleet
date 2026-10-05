@@ -1,6 +1,7 @@
 import { IConfig } from "interfaces/config";
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
 import paths from "router/paths";
+import { FLEET_SCOPED_HOST_FILTER_PARAMS } from "services/entities/hosts";
 
 import buildAutomationsItems from "./groups/automations";
 import buildCommandsItems from "./groups/commands";
@@ -64,6 +65,9 @@ export interface ICommandPaletteContext {
    *  page despite passing `canWrite`. Gates every software-add palette
    *  item (FMA, VPP, Android, custom package). */
   canAddSoftware?: boolean;
+  /** Global or current-fleet admin/maintainer. Gates `add-profile`, where
+   *  `isAdminOrMaintainer` would pass a technician who admins another fleet. */
+  canAddConfigurationProfile?: boolean;
   /** Global or any-team admin/maintainer. Gates the admin/maintainer-only
    *  Controls > OS settings sub-items (Certificates, Passwords, Host names),
    *  which technicians can't manage despite passing `canAccessControls`. */
@@ -554,7 +558,7 @@ export const buildFleetSwitchUrl = ({
   params.delete("script_batch_execution_id");
   params.delete("script_batch_execution_status");
   if (isAll) {
-    params.delete("software_status");
+    FLEET_SCOPED_HOST_FILTER_PARAMS.forEach((param) => params.delete(param));
   }
   const qs = params.toString();
   return qs ? `${pathname}?${qs}` : pathname;
