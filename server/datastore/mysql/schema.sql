@@ -2468,7 +2468,7 @@ CREATE TABLE `mdm_windows_enrollments` (
   `fleetd_bitlocker_pin_capable` tinyint(1) NOT NULL DEFAULT '0',
   `bitlocker_pin_request_pending` tinyint(1) NOT NULL DEFAULT '0',
   `deleted_host_team_id` int unsigned DEFAULT NULL,
-  `entra_device_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `entra_device_id` binary(16) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_type` (`mdm_hardware_id`),
   KEY `idx_mdm_windows_enrollments_mdm_device_id` (`mdm_device_id`),

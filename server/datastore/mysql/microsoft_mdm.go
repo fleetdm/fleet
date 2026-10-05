@@ -77,7 +77,7 @@ const mdmWindowsEnrolledDeviceColumns = `
 		has_pending_commands,
 		hardware_serial,
 		ztd_registration_id,
-		entra_device_id,
+		COALESCE(BIN_TO_UUID(entra_device_id), '') AS entra_device_id,
 		last_login_status,
 		last_login_status_at,
 		enrolled_activity_at,
@@ -723,7 +723,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			ztd_registration_id,
 			entra_device_id)
 		VALUES
-			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UUID_TO_BIN(NULLIF(?, '')))
 		ON DUPLICATE KEY UPDATE
 			mdm_device_id         = VALUES(mdm_device_id),
 			device_state          = VALUES(device_state),
