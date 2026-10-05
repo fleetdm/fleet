@@ -9506,6 +9506,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithAzureToken() {
 		"unique_name": "foo_bar",
 		"scp":         "mdm_delegation",
 		"aud":         s.server.URL + microsoft_mdm.MDE2PolicyPath,
+		"deviceid":    uuid.NewString(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -9690,6 +9691,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 		"unique_name": "foo_bar",
 		"scp":         "mdm_delegation",
 		"aud":         s.server.URL,
+		"deviceid":    uuid.NewString(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -23049,6 +23051,92 @@ func (s *integrationMDMTestSuite) TestWindowsMDMEnrollDoesNotReplaceAnotherHosts
 	cmds, err := hostDevice.StartManagementSession()
 	require.NoError(t, err)
 	require.Contains(t, cmds, status.WipeMDMCommand.CommandUUID)
+}
+
+// TestWindowsMDMEntraEnrollmentBoundToEntraDevice covers Entra enrollments, which name their device only by a device-reported
+// hardware ID: the Entra device ID signed into the access token decides whether an enrollment may replace the one holding that
+// hardware ID, and a token without it cannot replace an enrollment bound to an Entra device.
+func (s *integrationMDMTestSuite) TestWindowsMDMEntraEnrollmentBoundToEntraDevice() {
+	t := s.T()
+	ctx := t.Context()
+
+	tenantID := uuid.NewString()
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &appConfigResponse{})
+	newEntraDevice := func(hardwareID, entraDeviceID string) *mdmtest.TestWindowsMDMClient {
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "user@example.com", mdmtest.TestWindowsMDMClientNotInOOBE(),
+			mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		if hardwareID != "" {
+			d.HardwareID = hardwareID
+		}
+		d.EntraDeviceID = entraDeviceID
+		return d
+	}
+
+	victim := newEntraDevice("", uuid.NewString())
+	require.NoError(t, victim.Enroll())
+	enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, victim.HardwareID)
+	require.NoError(t, err)
+	require.Equal(t, victim.EntraDeviceID, enrollment.EntraDeviceID)
+	host := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
+	_, err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, victim.DeviceID)
+	require.NoError(t, err)
+
+	requireVictimEnrollment := func(t *testing.T, mdmDeviceID string) {
+		t.Helper()
+		enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, victim.HardwareID)
+		require.NoError(t, err)
+		require.Equal(t, mdmDeviceID, enrollment.MDMDeviceID)
+		require.Equal(t, victim.EntraDeviceID, enrollment.EntraDeviceID)
+	}
+
+	t.Run("another Entra device presenting the hardware ID is refused", func(t *testing.T) {
+		attacker := newEntraDevice(victim.HardwareID, uuid.NewString())
+		require.ErrorContains(t, attacker.Enroll(), "SOAP fault")
+		requireVictimEnrollment(t, victim.DeviceID)
+	})
+
+	t.Run("a token without a deviceid claim cannot replace a bound enrollment", func(t *testing.T) {
+		noDeviceID := newEntraDevice(victim.HardwareID, "")
+		require.ErrorContains(t, noDeviceID.Enroll(), "SOAP fault")
+		requireVictimEnrollment(t, victim.DeviceID)
+
+		// It still enrolls a hardware ID that no enrollment holds, unbound.
+		unbound := newEntraDevice("", "")
+		require.NoError(t, unbound.Enroll())
+		enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, unbound.HardwareID)
+		require.NoError(t, err)
+		require.Empty(t, enrollment.EntraDeviceID)
+	})
+
+	t.Run("a fleetd enrollment of an Autopilot host is bound to its Autopilot Entra device", func(t *testing.T) {
+		autopilotHost, fleetdDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+		autopilotEntraDeviceID := uuid.NewString()
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_autopilot_devices (host_id, autopilot_device_id, entra_device_id, tenant_id)
+				VALUES (?, ?, ?, ?)`, autopilotHost.ID, uuid.NewString(), autopilotEntraDeviceID, tenantID)
+			return err
+		})
+
+		attacker := newEntraDevice(fleetdDevice.HardwareID, uuid.NewString())
+		require.ErrorContains(t, attacker.Enroll(), "SOAP fault")
+		enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, fleetdDevice.HardwareID)
+		require.NoError(t, err)
+		require.Equal(t, fleetdDevice.DeviceID, enrollment.MDMDeviceID)
+
+		sameDevice := newEntraDevice(fleetdDevice.HardwareID, autopilotEntraDeviceID)
+		require.NoError(t, sameDevice.Enroll())
+		enrollment, err = s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, fleetdDevice.HardwareID)
+		require.NoError(t, err)
+		require.Equal(t, sameDevice.DeviceID, enrollment.MDMDeviceID)
+		require.Equal(t, autopilotEntraDeviceID, enrollment.EntraDeviceID)
+	})
+
+	t.Run("the same Entra device re-enrolls", func(t *testing.T) {
+		reenrolled := newEntraDevice(victim.HardwareID, victim.EntraDeviceID)
+		require.NoError(t, reenrolled.Enroll())
+		requireVictimEnrollment(t, reenrolled.DeviceID)
+	})
 }
 
 func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
