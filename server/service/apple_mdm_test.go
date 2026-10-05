@@ -7967,14 +7967,15 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 	}
 
 	cases := []struct {
-		name         string
-		status       string
-		raw          []byte
-		errorChain   []mdm.ErrorChain
-		notFound     bool // UpdateHostDeviceNameStatusFromCommand returns not-found (stale)
-		wantStatus   fleet.MDMDeliveryStatus
-		wantDetail   string
-		wantNoUpdate bool
+		name          string
+		status        string
+		raw           []byte
+		errorChain    []mdm.ErrorChain
+		notFound      bool // UpdateHostDeviceNameStatusFromCommand returns not-found (stale)
+		wantStatus    fleet.MDMDeliveryStatus
+		wantDetail    string
+		wantRetryable bool
+		wantNoUpdate  bool
 	}{
 		{
 			name:       "acknowledged clean renames and verifies",
@@ -7983,7 +7984,17 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 			wantStatus: fleet.MDMDeliveryVerifying,
 		},
 		{
-			name:   "acknowledged with per-item Settings error fails",
+			name:   "acknowledged with per-item Settings error fails and is retried",
+			status: fleet.MDMAppleStatusAcknowledged,
+			raw: settingsAck("Error", []mdm.ErrorChain{
+				{ErrorCode: 99, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "boom"},
+			}),
+			wantStatus:    fleet.MDMDeliveryFailed,
+			wantDetail:    "boom",
+			wantRetryable: true,
+		},
+		{
+			name:   "per-item not-supervised error fails without retry",
 			status: fleet.MDMAppleStatusAcknowledged,
 			raw: settingsAck("Error", []mdm.ErrorChain{
 				{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
@@ -7992,11 +8003,19 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 			wantDetail: "The device is not supervised.",
 		},
 		{
-			name:       "command error fails with the apple error chain",
+			name:          "command error fails with the apple error chain and is retried",
+			status:        fleet.MDMAppleStatusError,
+			errorChain:    []mdm.ErrorChain{{ErrorCode: 99, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "boom"}},
+			wantStatus:    fleet.MDMDeliveryFailed,
+			wantDetail:    "boom",
+			wantRetryable: true,
+		},
+		{
+			name:       "command not-supervised error fails without retry",
 			status:     fleet.MDMAppleStatusError,
-			errorChain: []mdm.ErrorChain{{ErrorCode: 99, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "boom"}},
+			errorChain: []mdm.ErrorChain{{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."}},
 			wantStatus: fleet.MDMDeliveryFailed,
-			wantDetail: "boom",
+			wantDetail: "The device is not supervised.",
 		},
 		{
 			name:         "stale result for a superseded command is ignored",
@@ -8017,11 +8036,11 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 			ds := new(mock.Store)
 			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
-			var gotAcknowledged bool
+			var gotAcknowledged, gotRetryable bool
 			var gotDetail string
-			ds.UpdateHostDeviceNameStatusFromCommandFunc = func(ctx context.Context, commandUUID string, acknowledged bool, detail string) (fleet.DeviceNameRetryOutcome, error) {
+			ds.UpdateHostDeviceNameStatusFromCommandFunc = func(ctx context.Context, commandUUID string, acknowledged bool, detail string, retryable bool) (fleet.DeviceNameRetryOutcome, error) {
 				require.Equal(t, cmdUUID, commandUUID)
-				gotAcknowledged, gotDetail = acknowledged, detail
+				gotAcknowledged, gotDetail, gotRetryable = acknowledged, detail, retryable
 				if tc.notFound {
 					return fleet.DeviceNameNotRetried, &notFoundError{}
 				}
@@ -8051,6 +8070,9 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 			require.Equal(t, tc.wantStatus == fleet.MDMDeliveryVerifying, gotAcknowledged)
 			if tc.wantDetail != "" {
 				require.Contains(t, gotDetail, tc.wantDetail)
+			}
+			if !gotAcknowledged {
+				require.Equal(t, tc.wantRetryable, gotRetryable)
 			}
 		})
 	}

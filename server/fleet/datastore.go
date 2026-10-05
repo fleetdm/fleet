@@ -2123,9 +2123,9 @@ type Datastore interface {
 	// host in Fleet in the same transaction — setting the host's computer name and
 	// hostname to the row's expected name and updating its display name — so the
 	// row transition and the Fleet-side rename are atomic; acknowledged=false (the
-	// device returned an error) records detail and re-queues the row while fewer
-	// than mdm.MaxAppleDeviceNameRetries retries were used, otherwise moves it to
-	// failed. The returned outcome says which applied.
+	// device returned an error) records detail and, when retryable, re-queues the
+	// row while fewer than mdm.MaxAppleDeviceNameRetries retries were used;
+	// otherwise it moves the row to failed. The returned outcome says which applied.
 	//
 	// A host holds only its most recently sent command UUID (one row per host),
 	// so a result for a superseded command (e.g. the template was re-saved or the
@@ -2134,7 +2134,7 @@ type Datastore interface {
 	// command, ignore" (check fleet.IsNotFound) rather than a failure: the device
 	// processes commands FIFO and ends on the latest name, which the matching
 	// (newest) command's result records.
-	UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) (DeviceNameRetryOutcome, error)
+	UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string, retryable bool) (DeviceNameRetryOutcome, error)
 
 	// UpdateHostDeviceNameStatusFromReport reconciles the enforcement row for a
 	// host against the name reported by the device (mutating). reportedName is the
