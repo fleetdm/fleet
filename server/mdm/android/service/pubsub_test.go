@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"maps"
 	"net/http"
@@ -568,6 +569,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			DeviceID: createAndroidDeviceId("test"),
 		},
 	}
+	hostPolicyName := "enterprises/mock-enterprise-id/policies/" + androidDevice.UUID
 	mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
 		return androidDevice, nil
 	}
@@ -620,7 +622,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, nil)
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion, nil)
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
 		require.NoError(t, err)
@@ -711,7 +713,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, []*androidmanagement.NonComplianceDetail{
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion, []*androidmanagement.NonComplianceDetail{
 			{
 				SettingName:         "DefaultPermissionPolicy",
 				NonComplianceReason: "INVALID_VALUE",
@@ -824,7 +826,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		}
 
 		// the two pending profiles will be set to verified, and the non-compliant profile will be set to failed
-		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion,
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion,
 			[]*androidmanagement.NonComplianceDetail{{SettingName: "passwordPolicies", NonComplianceReason: "USER_ACTION"}})
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
@@ -838,7 +840,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
 
 		// the failed profile will now be verified because it is no longer in non compliance details
-		enrollmentMessage = createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion,
+		enrollmentMessage = createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion,
 			[]*androidmanagement.NonComplianceDetail{})
 		wantedReason2 = fleet.MDMDeliveryVerified
 
@@ -936,7 +938,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion,
+		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion,
 			[]*androidmanagement.NonComplianceDetail{{SettingName: "cameraDisabled", NonComplianceReason: "USER_ACTION"}})
 		require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", &statusReport))
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
@@ -953,9 +955,34 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		statusReport = createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, nil)
+		statusReport = createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion, nil)
 		require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", &statusReport))
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+	})
+
+	// A device still on another policy (e.g. the default one it enrolled with) has none of
+	// the host's profiles, whatever that policy's version.
+	t.Run("status report for a policy other than the host policy verifies nothing", func(t *testing.T) {
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked = false
+		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return []*fleet.MDMAndroidProfilePayload{{
+				ProfileUUID:             uuid.NewString(),
+				ProfileName:             "a",
+				HostUUID:                androidDevice.UUID,
+				Status:                  &fleet.MDMDeliveryPending,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				IncludedInPolicyVersion: new(2),
+			}}, nil
+		}
+
+		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test",
+			fmt.Sprintf("enterprises/mock-enterprise-id/policies/%d", android.DefaultAndroidPolicyID), new(50), nil)
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", &statusReport))
+		require.False(t, mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked)
+		require.False(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+		require.False(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
 	})
 }
 
