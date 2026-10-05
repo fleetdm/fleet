@@ -69,7 +69,7 @@ Writing only on change matters. Every update adds an entry to the host's activit
 
 Use [`sync_retriever_warehouse_status_to_fleet.py`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/api-scripts/sync_retriever_warehouse_status_to_fleet.py) from Fleet's repository. It's a Python 3 script with no third-party packages, and it reads its settings from environment variables:
 
-- `FLEET_URL`: your Fleet server, for example `https://fleet.example.com`
+- `FLEET_URL`: your Fleet server's `https://` address, for example `https://fleet.example.com`
 - `FLEET_API_TOKEN`: the API-only user's token from step 2
 - `RETRIEVER_API_KEY`: the key from step 3
 - `DRY_RUN` (optional): set to `1` to print changes without writing them

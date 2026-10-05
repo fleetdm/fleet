@@ -13,7 +13,7 @@ Setup guide: https://fleetdm.com/guides/sync-warehouse-status-from-retriever
 
 Environment variables
 ---------------------
-  FLEET_URL          Base URL of your Fleet server (e.g. https://fleet.example.com)
+  FLEET_URL          HTTPS base URL of your Fleet server (e.g. https://fleet.example.com)
   FLEET_API_TOKEN    Token for an API-only user with the global Maintainer role,
                      limited to these endpoints:
                        GET /api/v1/fleet/hosts
@@ -34,6 +34,8 @@ Requires Python 3. No third-party packages.
 import json, os, sys, urllib.error, urllib.parse, urllib.request
 
 FLEET_URL = os.environ["FLEET_URL"].rstrip("/")  # e.g. https://fleet.example.com
+if not FLEET_URL.startswith("https://"):
+    raise SystemExit("FLEET_URL must start with https://, so the token isn't sent unencrypted")
 FLEET_TOKEN = os.environ["FLEET_API_TOKEN"]
 RETRIEVER_KEY = os.environ["RETRIEVER_API_KEY"]
 VITAL_NAME = os.environ.get("VITAL_NAME", "Warehouse status")
