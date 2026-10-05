@@ -39,6 +39,13 @@
       flex: 1; // Fill remaining width when stacked
     }
 
+    // A Slider used as a table control sits inline beside the search.
+    .form-field--slider {
+      width: auto; // Override .form-field 100%
+      align-self: center;
+      white-space: nowrap;
+    }
+
     .Select-multi-value-wrapper {
       height: 36px; // Fixes height issues
       width: 236px;
