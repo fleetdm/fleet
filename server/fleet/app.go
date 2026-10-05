@@ -903,6 +903,24 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 		return ret
 	}
 
+	// unlike a bad label, a wrong type here is an error: dropping it would
+	// clear the stored name or description
+	extractStringField := func(parentMap map[string]any, fieldName string) (string, error) {
+		v, ok := parentMap[fieldName]
+		if !ok || v == nil {
+			return "", nil
+		}
+		str, ok := v.(string)
+		if !ok {
+			return "", &json.UnmarshalTypeError{
+				Value: fmt.Sprintf("%T", v),
+				Type:  reflect.TypeFor[string](),
+				Field: "macos_settings.custom_settings." + fieldName,
+			}
+		}
+		return str, nil
+	}
+
 	if v, ok := m["custom_settings"]; ok {
 		set["custom_settings"] = true
 
@@ -915,6 +933,13 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 					// extract the Path field
 					if path, ok := m["path"].(string); ok {
 						spec.Path = path
+					}
+					var err error
+					if spec.Name, err = extractStringField(m, "name"); err != nil {
+						return nil, err
+					}
+					if spec.Description, err = extractStringField(m, "description"); err != nil {
+						return nil, err
 					}
 
 					spec.Labels = extractLabelField(m, "labels")
@@ -1434,6 +1459,7 @@ type enrichedAppConfigFields struct {
 	Logging                *Logging               `json:"logging,omitempty"`
 	Email                  *EmailConfig           `json:"email,omitempty"`
 	MaxSoftwarePackageSize int64                  `json:"max_software_package_size"`
+	StagedUploadAvailable  bool                   `json:"staged_upload_available"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize

@@ -24840,6 +24840,11 @@ func (m *mockedConditionalAccessMicrosoftProxy) GetMessageStatus(
 
 var mockedConditionalAccessMicrosoftProxyInstance = &mockedConditionalAccessMicrosoftProxy{}
 
+const (
+	testEntraTenantID      = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b"
+	otherTestEntraTenantID = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+)
+
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	t := s.T()
 	t.Cleanup(func() {
@@ -24869,19 +24874,34 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	// Restore token for global admin.
 	s.token = s.getTestAdminToken()
 
+	// Tenant IDs that are not canonical GUIDs are rejected.
+	for _, invalidTenantID := range []string{
+		"",
+		"foobar",
+		testEntraTenantID + "&fleetServerSecret=smuggled",
+		"{" + testEntraTenantID + "}",
+		"urn:uuid:" + testEntraTenantID,
+		strings.ReplaceAll(testEntraTenantID, "-", ""),
+	} {
+		res := s.Do("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
+			MicrosoftTenantID: invalidTenantID,
+		}, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), "must be a valid Microsoft Entra tenant ID (GUID)", invalidTenantID)
+	}
+
 	// Setup integration.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:        "foobar",
+		TenantID:        testEntraTenantID,
 		SetupDone:       false,
 		AdminConsentURL: "https://example.com",
 	}
 	mockedConditionalAccessMicrosoftProxyInstance.createResponse = &conditional_access_microsoft_proxy.CreateResponse{
-		TenantID: "foobar",
+		TenantID: testEntraTenantID,
 		Secret:   "secret",
 	}
 	r = conditionalAccessMicrosoftCreateResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
-		MicrosoftTenantID: "foobar",
+		MicrosoftTenantID: testEntraTenantID,
 	}, http.StatusOK, &r)
 	require.Equal(t, "https://example.com", r.MicrosoftAuthenticationURL)
 
@@ -24890,7 +24910,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.NotNil(t, acResp.ConditionalAccess)
-	require.Equal(t, "foobar", acResp.ConditionalAccess.MicrosoftEntraTenantID)
+	require.Equal(t, testEntraTenantID, acResp.ConditionalAccess.MicrosoftEntraTenantID)
 	require.False(t, acResp.ConditionalAccess.MicrosoftEntraConnectionConfigured)
 
 	// Confirm should return that the setup is not done.
@@ -24900,7 +24920,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 
 	// Confirm now should succeed.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:  "foobar",
+		TenantID:  testEntraTenantID,
 		SetupDone: true,
 	}
 	c = conditionalAccessMicrosoftConfirmResponse{}
@@ -24913,12 +24933,12 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	// Create will succeed if using the same tenant ID.
 	r = conditionalAccessMicrosoftCreateResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
-		MicrosoftTenantID: "foobar",
+		MicrosoftTenantID: testEntraTenantID,
 	}, http.StatusOK, &r)
 	// Create will should fail if using the a different tenant ID (if the setup is done).
 	r = conditionalAccessMicrosoftCreateResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
-		MicrosoftTenantID: "zoobar",
+		MicrosoftTenantID: otherTestEntraTenantID,
 	}, http.StatusBadRequest, &r)
 
 	// Test app config returns that the configuration is done.
@@ -24926,7 +24946,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.NotNil(t, acResp.ConditionalAccess)
-	require.Equal(t, "foobar", acResp.ConditionalAccess.MicrosoftEntraTenantID)
+	require.Equal(t, testEntraTenantID, acResp.ConditionalAccess.MicrosoftEntraTenantID)
 	require.True(t, acResp.ConditionalAccess.MicrosoftEntraConnectionConfigured)
 
 	// Delete endpoint.
@@ -24948,17 +24968,17 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 
 	// Create again with a different tenant.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:        "zoobar",
+		TenantID:        otherTestEntraTenantID,
 		SetupDone:       false,
 		AdminConsentURL: "https://example.com",
 	}
 	mockedConditionalAccessMicrosoftProxyInstance.createResponse = &conditional_access_microsoft_proxy.CreateResponse{
-		TenantID: "zoobar",
+		TenantID: otherTestEntraTenantID,
 		Secret:   "secret",
 	}
 	r = conditionalAccessMicrosoftCreateResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
-		MicrosoftTenantID: "zoobar",
+		MicrosoftTenantID: otherTestEntraTenantID,
 	}, http.StatusOK, &r)
 
 	// Test app config returns that the new integration was created.
@@ -24966,7 +24986,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.NotNil(t, acResp.ConditionalAccess)
-	require.Equal(t, "zoobar", acResp.ConditionalAccess.MicrosoftEntraTenantID)
+	require.Equal(t, otherTestEntraTenantID, acResp.ConditionalAccess.MicrosoftEntraTenantID)
 	require.False(t, acResp.ConditionalAccess.MicrosoftEntraConnectionConfigured)
 
 	// Simulate a not found error on the proxy (should allow deletion to start over).
@@ -24989,20 +25009,20 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	// Setup integration.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:        "foobar",
+		TenantID:        testEntraTenantID,
 		SetupDone:       false,
 		AdminConsentURL: "https://example.com",
 	}
 	mockedConditionalAccessMicrosoftProxyInstance.createResponse = &conditional_access_microsoft_proxy.CreateResponse{
-		TenantID: "foobar",
+		TenantID: testEntraTenantID,
 		Secret:   "secret",
 	}
 	var r conditionalAccessMicrosoftCreateResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
-		MicrosoftTenantID: "foobar",
+		MicrosoftTenantID: testEntraTenantID,
 	}, http.StatusOK, &r)
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:  "foobar",
+		TenantID:  testEntraTenantID,
 		SetupDone: true,
 	}
 	var c conditionalAccessMicrosoftConfirmResponse
@@ -25488,20 +25508,20 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 
 	// Setup integration.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:        "foobar",
+		TenantID:        testEntraTenantID,
 		SetupDone:       false,
 		AdminConsentURL: "https://example.com",
 	}
 	mockedConditionalAccessMicrosoftProxyInstance.createResponse = &conditional_access_microsoft_proxy.CreateResponse{
-		TenantID: "foobar",
+		TenantID: testEntraTenantID,
 		Secret:   "secret",
 	}
 	var r conditionalAccessMicrosoftCreateResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
-		MicrosoftTenantID: "foobar",
+		MicrosoftTenantID: testEntraTenantID,
 	}, http.StatusOK, &r)
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:  "foobar",
+		TenantID:  testEntraTenantID,
 		SetupDone: true,
 	}
 	var c conditionalAccessMicrosoftConfirmResponse
@@ -37799,4 +37819,14 @@ func (s *integrationEnterpriseTestSuite) TestEntraJoinUserDetailQueryPopulatesId
 	require.Equal(t, "manual.user@example.com", endUsers[0].IdpUserName)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID), nil, http.StatusOK, &mappingResp)
 	require.Len(t, mappingResp.DeviceMapping, 1)
+}
+
+func (s *integrationEnterpriseTestSuite) TestStagedUploadUnavailable() {
+	t := s.T()
+	res := s.Do("POST", "/api/latest/fleet/staged_upload",
+		createStagedUploadRequest{Target: fleet.StagedUploadTargetSoftwarePackage, Size: 1}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Direct upload isn't available")
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{StagedUploadID: uuid.NewString(), Filename: "ruby.deb"},
+		http.StatusBadRequest, "Direct upload isn't available")
 }

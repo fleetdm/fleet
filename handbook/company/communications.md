@@ -446,12 +446,14 @@ Toast does NOT notify people about:
 
 Fleet prefixes all GitHub labels with special characters or words to organize and categorize GitHub issues.
 
-| Prefix            | Label type  | Examples                            |
-|:------------------|:------------|:------------------------------------|
-| `:`               | Verb        | `:dev`, `:research`, `:design`
-| `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
-| `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `customer-leo`, `customer-sagittarius`
-| `#g-`             | Group issue | _An issue requesting something from a group at Fleet, such that it will be seen and processed on their kanban board within 1 business day._
+| Prefix            | Label type  | Color       | Examples                            |
+|:------------------|:------------|:------------|:------------------------------------|
+| `:`               | Verb        | -           | `:dev`, `:research`, `:design`
+| `~`               | Adjective   | -           | `~blocked`, `~frontend`, `~backend`
+| `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `#bfd4f2` | `customer-leo`, `customer-sagittarius`
+| `prospect-`       | [Prospect request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `#e8e8e8` | `prospect-takakura`, `prospect-nishiyama`
+| `partner-`        | Partner request | `#fef2c0` | `partner-atira`, `partner-pommard`
+| `#g-`             | Group issue | `#0052cc`   | _An issue requesting something from a group at Fleet, such that it will be seen and processed on their kanban board within 1 business day._
 
 Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
@@ -694,6 +696,8 @@ Fleet provides laptops and software licenses for core team members to use while 
 As soon as an offer is accepted, IT & Enablement will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company. If you are in need of additional equipment for any reason, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md) with IT & Enablement. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 
 - **Tracking equipment:** All company-owned devices are tracked in Fleet's ["🍽️ Dogfood" instance](https://dogfood.fleetdm.com/dashboard). When a device is purchased, it's automatically enrolled in dogfood.
+
+- **Checking the warehouse:** To see which devices in the Fleet IT warehouse are ready to ship, and what each warehouse status means, see [check warehouse inventory](https://fleetdm.com/handbook/it#check-warehouse-inventory).
 
 - **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of IT. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
 

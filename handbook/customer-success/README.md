@@ -644,8 +644,6 @@ The [usage statistics Google sheet](https://docs.google.com/spreadsheets/d/1YVTg
 
 The sheet only shows each deployment's current state, not history. Deployments that haven't reported in the last 60 days drop off the sheet.
 
-A Grafana dashboard is [coming soon](https://github.com/fleetdm/confidential/issues/15810).
-
 ## Rituals
 
 <rituals :rituals="rituals['handbook/customer-success/customer-success.rituals.yml']"></rituals>

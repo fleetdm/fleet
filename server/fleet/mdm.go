@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"regexp"
 	"slices"
@@ -288,6 +289,8 @@ type MDMAppleBootstrapPackage struct {
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"-" db:"updated_at"`
+	// PackageFile, when set, is stored in the object store in place of Bytes.
+	PackageFile io.ReadSeeker `json:"-" db:"-"`
 }
 
 func (bp MDMAppleBootstrapPackage) AuthzType() string {
@@ -711,6 +714,9 @@ type MDMConfigProfilePayload struct {
 	// Base64-encoded activation for declaration (DDM) profiles, null for any
 	// other profile type and for declarations without a custom activation.
 	Activation []byte `json:"activation" db:"-"`
+	// SelfService is only supported for .mobileconfig profiles.
+	SelfService bool `json:"self_service" db:"self_service"`
+	Hidden      bool `json:"hidden" db:"hidden"`
 }
 
 // BatchModifyMDMConfigProfilePayload represents the payload for a config profile when
@@ -746,6 +752,10 @@ type MDMProfileBatchPayload struct {
 
 	// Base64-encoded custom activation, only valid for Apple declarations.
 	Activation []byte `json:"activation,omitempty"`
+
+	// SelfService is only valid for .mobileconfig profiles.
+	SelfService bool `json:"self_service,omitempty"`
+	Hidden      bool `json:"hidden,omitempty"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -759,6 +769,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		Name:             cp.Name,
 		Description:      cp.Description,
 		Platform:         "windows",
+		Hidden:           cp.Hidden,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
@@ -784,6 +795,8 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		CreatedAt:          cp.CreatedAt,
 		UploadedAt:         cp.UploadedAt,
 		Scope:              string(cp.Scope),
+		SelfService:        cp.SelfService,
+		Hidden:             cp.Hidden,
 		LabelsIncludeAll:   cp.LabelsIncludeAll,
 		LabelsIncludeAny:   cp.LabelsIncludeAny,
 		LabelsExcludeAny:   cp.LabelsExcludeAny,
@@ -803,6 +816,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		Identifier:       decl.Identifier,
 		Platform:         "darwin",
 		Checksum:         []byte(decl.Token),
+		Hidden:           decl.Hidden,
 		CreatedAt:        decl.CreatedAt,
 		UploadedAt:       decl.UploadedAt,
 		LabelsIncludeAll: decl.LabelsIncludeAll,
@@ -826,6 +840,7 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 		Name:             cp.Name,
 		Description:      cp.Description,
 		Platform:         "android",
+		Hidden:           cp.Hidden,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
@@ -840,9 +855,19 @@ type MDMProfileSpec struct {
 	Path  string `json:"path,omitempty"`
 	Paths string `json:"paths,omitempty"`
 
+	// Name overrides the name derived from the file (PayloadDisplayName or
+	// file name). Only valid for a single file, so not with a multi-file glob.
+	Name string `json:"name,omitempty"`
+	// Description is free text shown next to the profile name.
+	Description string `json:"description,omitempty"`
+
 	// Activation is a path to a custom activation JSON file, only valid
 	// alongside an Apple declaration.
 	Activation string `json:"activation,omitempty"`
+
+	// SelfService is only valid for .mobileconfig profiles.
+	SelfService bool `json:"self_service,omitempty"`
+	Hidden      bool `json:"hidden,omitempty"`
 
 	// Deprecated: the Labels field is now deprecated, it is superseded by
 	// LabelsIncludeAll, so any value set via this field will be transferred to
@@ -907,13 +932,9 @@ func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &backwardsCompat); err != nil {
 			return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
 		}
-		p.Path = backwardsCompat
-
-		// FIXME: equivalent of no label condition, should clear all labels slice?
-		// p.Labels = nil
-		// p.LabelsIncludeAll = nil
-		// p.LabelsIncludeAny = nil
-		// p.LabelsExcludeAny = nil
+		// replace the whole spec, as below: decoding into a reused slice
+		// element would otherwise keep its name, description and labels
+		*p = MDMProfileSpec{Path: backwardsCompat}
 		return nil
 	}
 
@@ -979,7 +1000,25 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		return false
 	}
 
+	type profileMetadata struct {
+		Name        string
+		Description string
+		Hidden      bool
+		SelfService bool
+	}
+	metadata := func(v MDMProfileSpec) profileMetadata {
+		return profileMetadata{
+			Name:        strings.TrimSpace(v.Name),
+			Description: strings.TrimSpace(v.Description),
+			Hidden:      v.Hidden,
+			SelfService: v.SelfService,
+		}
+	}
+
+	pathMetadata := make(map[string]profileMetadata, len(a))
 	pathLabelIncludeCounts := make(map[string]map[string]int)
+	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
+	pathLabelExcludeCounts := make(map[string]map[string]int)
 	for _, v := range a {
 		// the deprecated Labels field is only relevant if LabelsIncludeAll is
 		// empty.
@@ -988,14 +1027,10 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		} else {
 			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
 		}
-	}
-	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
-	for _, v := range a {
 		pathLabelsIncludeAnyCounts[v.Path] = labelCountMap(v.LabelsIncludeAny)
-	}
-	pathLabelExcludeCounts := make(map[string]map[string]int)
-	for _, v := range a {
 		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
+
+		pathMetadata[v.Path] = metadata(v)
 	}
 
 	for _, v := range b {
@@ -1003,6 +1038,9 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		includeAnyLabels, okInclAny := pathLabelsIncludeAnyCounts[v.Path]
 		excludeLabels, okExcl := pathLabelExcludeCounts[v.Path]
 		if !okIncl || !okExcl || !okInclAny {
+			return false
+		}
+		if pathMetadata[v.Path] != metadata(v) {
 			return false
 		}
 

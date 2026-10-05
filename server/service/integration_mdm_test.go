@@ -1,6 +1,7 @@
 package service
 
 import (
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -164,6 +165,7 @@ type integrationMDMTestSuite struct {
 	proxyCallbackURL          string
 	jwtSigningKey             *rsa.PrivateKey
 	softwareInstallerStore    fleet.SoftwareInstallerStore
+	stagedUploadStore         fleet.StagedUploadStore
 	acmeSvc                   fleet.ACMEWriteService
 	keyValueStore             fleet.AdvancedKeyValueStore
 }
@@ -352,6 +354,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		bootstrapPackageStore = s3test.SetupBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
 	s.softwareInstallerStore = softwareInstallerStore
+	if localS3Enabled {
+		s.stagedUploadStore = s3test.SetupStagedUploadStore(s.T(), "integration-tests", "")
+	}
 	scepTimeout := ptr.Duration(10 * time.Second)
 	s.scepConfig = svc_scep.NewSCEPConfigService(serverLogger, scepTimeout).(*svc_scep.SCEPConfigService)
 
@@ -379,6 +384,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		SoftwareInstallStore:   s.softwareInstallerStore,
 		SoftwareTitleIconStore: softwareTitleIconStore,
 		BootstrapPackageStore:  bootstrapPackageStore,
+		StagedUploadStore:      s.stagedUploadStore,
 		AndroidMockClient:      androidMockClient,
 		AndroidModule:          androidSvc,
 		KeyValueStore:          keyValueStore,
@@ -3930,6 +3936,19 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`)
+
+	// a non-string profile description is rejected rather than dropped
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]any{"custom_settings": []any{
+				map[string]any{"path": "a.mobileconfig", "description": 123},
+			}},
+		},
+	}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.custom_settings.description': expected string but got float64`)
 
 	// apply an empty set of batch profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
@@ -10370,6 +10389,100 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		return d
 	}
 
+	// countSessionStartCmds counts the ESP hold bundles (by a command only the hold bundle carries) and the
+	// DevDetail serial Gets in a response.
+	countSessionStartCmds := func(cmds map[string]fleet.ProtoCmdOperation) (holds, devDetailGets int) {
+		for _, c := range cmds {
+			uri := c.Cmd.GetTargetURI()
+			switch {
+			case strings.HasSuffix(uri, "/FirstSyncStatus/SkipDeviceStatusPage"):
+				holds++
+			case c.Verb == fleet.CmdGet && uri == devDetailSMBIOSSerialNumberURI:
+				devDetailGets++
+			}
+		}
+		return holds, devDetailGets
+	}
+	// requireStatusOnly asserts a reply that lets the device end the session: the SyncHdr ack and no protocol
+	// commands.
+	requireStatusOnly := func(t *testing.T, cmds map[string]fleet.ProtoCmdOperation) {
+		require.NotEmpty(t, cmds, "the SyncHdr Status ack is always sent")
+		for _, c := range cmds {
+			assert.Equal(t, fleet.CmdStatus, c.Verb, "unexpected %s %s mid-session", c.Verb, c.Cmd.GetTargetURI())
+		}
+	}
+
+	t.Run("pending hold commands are only sent at session start", func(t *testing.T) {
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "esp-pending@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		require.NoError(t, d.Enroll())
+
+		// The test client retries a challenged request under the same MsgID, so both MsgID 1 and the MsgID 2
+		// ack are session start.
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		holds, gets := countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+		cmds = ackAll(t, d, cmds, "", "")
+		holds, gets = countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+
+		// MsgID 3 gets only Status acks.
+		cmds = ackAll(t, d, cmds, "", "")
+		requireStatusOnly(t, cmds)
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, awaiting(t, d))
+
+		// The next session re-sends them while still unlinked.
+		cmds, err = d.StartManagementSession()
+		require.NoError(t, err)
+		holds, gets = countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+	})
+
+	t.Run("serial reply links and transitions mid-session", func(t *testing.T) {
+		// The shape real devices follow: the DevDetail Get sent at session start is answered on MsgID 3, which
+		// links the host and moves the enrollment to Active in that same message.
+		host := createOrbitEnrolledHost(t, "windows", "esp-link", s.ds)
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "esp-link@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		require.NoError(t, d.Enroll())
+
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		cmds = ackAll(t, d, cmds, "", "")
+		holds, gets := countSessionStartCmds(cmds)
+		require.Equal(t, 1, holds)
+		require.Equal(t, 1, gets)
+
+		// MsgID 3: ack the batch and answer the Get with the serial.
+		msgID, err := d.GetCurrentMsgID()
+		require.NoError(t, err)
+		d.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdResults},
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			MsgRef:  &msgID, CmdRef: new(fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"),
+			Cmd:   new(fleet.CmdGet),
+			Items: []fleet.CmdItem{{Source: new(devDetailSMBIOSSerialNumberURI), Data: &fleet.RawXmlData{Content: host.HardwareSerial}}},
+		})
+		cmds = ackAll(t, d, cmds, "", "")
+
+		holds, gets = countSessionStartCmds(cmds)
+		assert.Zero(t, holds, "no hold bundle once linked")
+		assert.Zero(t, gets, "no Get once linked")
+		var transition *fleet.ProtoCmdOperation
+		for _, c := range cmds {
+			if c.Verb == fleet.CmdReplace && strings.HasSuffix(c.Cmd.GetTargetURI(), "/DevicePreparation/PolicyProviders/"+syncml.DocProvisioningAppProviderID+"/InstallationState") {
+				transition = &c
+			}
+		}
+		require.NotNil(t, transition, "the reply must carry the DevicePreparation InstallationState=3")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d))
+		enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+		require.NoError(t, err)
+		assert.Equal(t, host.UUID, enrolledDevice.HostUUID)
+	})
+
 	t.Run("user-scope release rejected with 405 then retried until acked", func(t *testing.T) {
 		d := enrollToActive(t, "esp-retry@example.com", "esp-h1")
 
@@ -10389,10 +10502,10 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d),
 			"a 405 on the user-scope release must NOT complete the ESP")
 
-		// The server re-sends the user-scope Replace in its response to the ack: the test client enrolls without
-		// an auth-challenge round-trip, so its ack message carries MsgID 2, which is within the session-start
-		// retry gate (espRetryAllowedForMessage). Real devices observed live ack on MsgID 3+ and get the retry at
-		// the next session instead; that shape is covered by the "acked 405 mid-session" unit subtest.
+		// The server re-sends the user-scope Replace in its reply to the ack: the test client retries a
+		// challenged request under the same MsgID, so its ack carries MsgID 2, within the session-start retry
+		// gate (isOMADMSessionStart). Real devices ack on MsgID 3+ and get the retry at the next session
+		// instead; that shape is covered by the "acked 405 mid-session" unit subtest.
 		retry := findUserRelease(afterNack)
 		require.NotNil(t, retry, "the user-scope release must be re-sent after a 405")
 
@@ -27591,12 +27704,16 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setFleetMDMData(macHost.ID, false)
 
-	// A macOS host whose name already matches the resolved template: verified
-	// directly, no command.
+	// A macOS host whose name already matches the resolved template and that has
+	// reported since it enrolled: verified directly, no command.
 	matchingHost, matchingDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setFleetMDMData(matchingHost.ID, false)
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE hosts SET computer_name = ? WHERE id = ?`, "WS-"+matchingHost.HardwareSerial, matchingHost.ID)
+		if _, err := q.ExecContext(ctx, `UPDATE hosts SET computer_name = ?, detail_updated_at = NOW() WHERE id = ?`,
+			"WS-"+matchingHost.HardwareSerial, matchingHost.ID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE nano_devices SET authenticate_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE id = ?`, matchingHost.UUID)
 		return err
 	})
 
@@ -27756,10 +27873,32 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	submitSystemInfo("WS-" + macHost.HardwareSerial)
 	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
 
-	// --- mac: the end user renames the device -> drift -> failed ---
+	// --- mac: the end user renames the device -> drift -> re-enforced ---
 	submitSystemInfo("Renamed by user")
-	driftedRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
-	require.Contains(t, driftedRow.Detail, "renamed on the device")
+	requireRowStatus(macHost.UUID, nil)
+	runDeviceNameCron()
+	reenforcedRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotEqual(t, *macRow.CommandUUID, *reenforcedRow.CommandUUID)
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, *reenforcedRow.CommandUUID, cmd.CommandUUID)
+	var reenforceCmd struct {
+		Command struct {
+			Settings []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &reenforceCmd))
+	require.Len(t, reenforceCmd.Command.Settings, 1)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, reenforceCmd.Command.Settings[0].DeviceName)
+	_, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+	submitSystemInfo("WS-" + macHost.HardwareSerial)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
 
 	// --- iOS: ack then verify through the DeviceInformation refetch path ---
 	cmd, err = iosDevice.Idle()
@@ -27770,40 +27909,79 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.NoError(t, err)
 	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
 
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", iosHost.ID), nil, http.StatusOK)
-	cmd, err = iosDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		switch cmd.Command.RequestType {
-		case "InstalledApplicationList":
-			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, nil)
-		case "CertificateList":
-			cmd, err = iosDevice.AcknowledgeCertificateList(iosDevice.UUID, cmd.CommandUUID, nil)
-		case "DeviceInformation":
-			cmd, err = iosDevice.AcknowledgeDeviceInformation(iosDevice.UUID, cmd.CommandUUID,
-				"WS-"+iosHost.HardwareSerial, "iPhone14,6", "America/Los_Angeles")
-		default:
-			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
-		}
+	refetchIOS := func(deviceName string) {
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", iosHost.ID), nil, http.StatusOK)
+		cmd, err := iosDevice.Idle()
 		require.NoError(t, err)
+		for cmd != nil {
+			switch cmd.Command.RequestType {
+			case "InstalledApplicationList":
+				cmd, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, nil)
+			case "CertificateList":
+				cmd, err = iosDevice.AcknowledgeCertificateList(iosDevice.UUID, cmd.CommandUUID, nil)
+			case "DeviceInformation":
+				cmd, err = iosDevice.AcknowledgeDeviceInformation(iosDevice.UUID, cmd.CommandUUID,
+					deviceName, "iPhone14,6", "America/Los_Angeles")
+			default:
+				cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+			}
+			require.NoError(t, err)
+		}
 	}
+	refetchIOS("WS-" + iosHost.HardwareSerial)
 	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerified)
 
-	// --- iOS failure: the device errors the command (e.g. unsupervised) ---
-	cmd, err = iosFailDevice.Idle()
+	// --- iOS: the end user renames the device -> drift -> re-enforced ---
+	refetchIOS("Renamed by user")
+	requireRowStatus(iosHost.UUID, nil)
+	runDeviceNameCron()
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryPending)
+	cmd, err = iosDevice.Idle()
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
 	require.Equal(t, "Settings", cmd.Command.RequestType)
-	_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{
-		{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
-	})
+	_, err = iosDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
-	failedRow := requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
-	require.Contains(t, failedRow.Detail, "The device is not supervised.")
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
 
-	// a failed command is not re-sent by subsequent cron runs
+	// --- iOS failure: the device errors the command ---
+	// Each error re-queues the row until the retries are used up, then it fails.
+	failIOSCommand := func(errChain mdm.ErrorChain) {
+		cmd, err := iosFailDevice.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "Settings", cmd.Command.RequestType)
+		_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{errChain})
+		require.NoError(t, err)
+	}
+	transientErr := mdm.ErrorChain{ErrorCode: 99, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "Something went wrong."}
+	for i := 1; i <= servermdm.MaxAppleDeviceNameRetries; i++ {
+		failIOSCommand(transientErr)
+		retriedRow := requireRowStatus(iosFailHost.UUID, nil)
+		require.EqualValues(t, i, retriedRow.Retries)
+		runDeviceNameCron()
+		requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryPending)
+	}
+	failIOSCommand(transientErr)
+	failedRow := requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, failedRow.Detail, "Something went wrong.")
+
+	// once retries are used up, the failed command is not re-sent by subsequent cron runs
 	runDeviceNameCron()
 	requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	cmd, err = iosFailDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// An unsupervised device can never apply the rename, so after a resend that
+	// rejection fails the row right away instead of using retries.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/name_template/resend", iosFailHost.ID), nil, http.StatusAccepted)
+	runDeviceNameCron()
+	failIOSCommand(mdm.ErrorChain{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."})
+	failedRow = requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, failedRow.Detail, "The device is not supervised.")
+	require.Zero(t, failedRow.Retries)
+	runDeviceNameCron()
 	cmd, err = iosFailDevice.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
@@ -27824,6 +28002,9 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.Nil(t, cmd)
 
 	// --- an APNs push failure doesn't lose or duplicate the command ---
+	// The mac already carries the template name, so rename it off-template (its
+	// failed row ignores the report) to make the cron send a command.
+	submitSystemInfo("Renamed by user")
 	// re-save the resolvable template to queue rows again
 	s.Do("POST", "/api/latest/fleet/host_name_template",
 		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
@@ -27949,6 +28130,60 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.NoError(t, err)
 }
 
+func (s *integrationMDMTestSuite) TestHostNameTemplateReenrollWithStaleName() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", manualProfileIf(false)))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"}, http.StatusNoContent)
+	want := "WS-" + host.HardwareSerial
+
+	// A re-provisioned device: Fleet's host record still carries the template name
+	// from before the device was erased, and its last report predates the
+	// re-enrollment below.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE hosts SET computer_name = ?, detail_updated_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE id = ?`, want, host.ID)
+		return err
+	})
+	require.NoError(t, device.Enroll())
+
+	row, err := s.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, row.Status, "re-enrollment should queue the host")
+
+	// The stored name is stale, so the cron must send the rename instead of
+	// trusting it and marking the host verified.
+	require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	row, err = s.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, row.Status)
+	require.Equal(t, fleet.MDMDeliveryPending, *row.Status)
+	require.NotNil(t, row.CommandUUID)
+
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	require.Equal(t, *row.CommandUUID, cmd.CommandUUID)
+	_, err = device.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// The first report after re-enrollment matches, so no retry is spent.
+	_, err = s.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, want)
+	require.NoError(t, err)
+	row, err = s.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMDeliveryVerified, *row.Status)
+	require.Zero(t, row.Retries)
+}
+
 func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
 	t := s.T()
 	ctx := t.Context()
@@ -28054,18 +28289,20 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
 	submitSystemInfo("WS-" + macHost.HardwareSerial)
 	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
 
-	// end user renames the device off-template → drift → failed
+	// end user renames the device off-template → drift → re-queued
 	submitSystemInfo("Renamed by user")
-	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+	requireRowStatus(macHost.UUID, nil)
 
 	// --- host detail exposes the host_name object for the No-team host ---
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", macHost.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings.HostName)
-	require.Equal(t, fleet.HostNameSettingFailed, getHostResp.Host.MDM.OSSettings.HostName.Status)
+	require.Equal(t, fleet.HostNameSettingPending, getHostResp.Host.MDM.OSSettings.HostName.Status)
 
 	// --- resend works for the No-team host (host-keyed, nil TeamID allowed) ---
+	// Queued rows can't be resent, so first simulate the device rejecting a command.
+	require.NoError(t, s.ds.SetHostDeviceNameStatus(ctx, macHost.UUID, fleet.MDMDeliveryFailed, nil, "", "rejected"))
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/name_template/resend", macHost.ID), nil, http.StatusAccepted)
 	requireRowStatus(macHost.UUID, nil) // reset to queued
 
@@ -30020,4 +30257,285 @@ func manualProfileIf(personal bool) fleet.PersonalEnrollmentType {
 		return fleet.PersonalEnrollmentTypeManualProfile
 	}
 	return fleet.PersonalEnrollmentTypeNone
+}
+
+func (s *integrationMDMTestSuite) TestStagedUpload() {
+	t := s.T()
+	if s.stagedUploadStore == nil {
+		t.Skip("set S3_STORAGE_TEST to run staged upload tests")
+	}
+
+	presign := func(target fleet.StagedUploadTarget, size int64, wantStatus int, wantErr string) *fleet.StagedUpload {
+		var resp createStagedUploadResponse
+		res := s.Do("POST", "/api/latest/fleet/staged_upload", createStagedUploadRequest{Target: target, Size: size}, wantStatus)
+		if wantStatus != http.StatusOK {
+			require.Contains(t, extractServerErrorText(res.Body), wantErr)
+			return nil
+		}
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		require.NotEmpty(t, resp.UploadID)
+		require.WithinDuration(t, time.Now().Add(fleet.StagedUploadURLExpiry), resp.ExpiresAt, time.Minute)
+		return resp.StagedUpload
+	}
+	stage := func(target fleet.StagedUploadTarget, content []byte) string {
+		up := presign(target, int64(len(content)), http.StatusOK, "")
+		req, err := http.NewRequest(http.MethodPut, up.URL, bytes.NewReader(content))
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		return up.UploadID
+	}
+	requireGone := func(uploadID string, gone bool) {
+		_, _, err := s.stagedUploadStore.Get(t.Context(), uploadID)
+		require.Equal(t, gone, fleet.IsNotFound(err), err)
+	}
+	finalizeBootstrap := func(fields map[string]string, pkg []byte, dryRun bool, wantStatus int, wantErr string) {
+		var b bytes.Buffer
+		w := multipart.NewWriter(&b)
+		for k, v := range fields {
+			require.NoError(t, w.WriteField(k, v))
+		}
+		if pkg != nil {
+			fw, err := w.CreateFormFile("package", "pkg.pkg")
+			require.NoError(t, err)
+			_, err = fw.Write(pkg)
+			require.NoError(t, err)
+		}
+		require.NoError(t, w.Close())
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/bootstrap", b.Bytes(), wantStatus, map[string]string{
+			"Content-Type":  w.FormDataContentType(),
+			"Authorization": "Bearer " + s.token,
+		}, "dry_run", strconv.FormatBool(dryRun))
+		if wantErr != "" {
+			require.Contains(t, extractServerErrorText(res.Body), wantErr)
+		}
+	}
+	readTestdata := func(elem ...string) []byte {
+		b, err := os.ReadFile(filepath.Join(append([]string{"testdata"}, elem...)...))
+		require.NoError(t, err)
+		return b
+	}
+
+	// presign errors
+	var cfgResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &cfgResp)
+	maxSize := cfgResp.MaxSoftwarePackageSize
+	presign(fleet.StagedUploadTargetSoftwarePackage, maxSize+1, http.StatusBadRequest, "The maximum file size is")
+	presign(fleet.StagedUploadTargetSoftwarePackage, 0, http.StatusBadRequest, "size is required")
+	presign("nope", 1, http.StatusBadRequest, "Unsupported upload target")
+
+	observer := &fleet.User{Name: "Staged Observer", Email: "staged-observer@example.com", GlobalRole: new(fleet.RoleObserver)}
+	require.NoError(t, observer.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(t.Context(), observer)
+	require.NoError(t, err)
+	adminToken := s.token
+	s.setTokenForTest(t, observer.Email, test.GoodPassword)
+	presign(fleet.StagedUploadTargetSoftwarePackage, 1, http.StatusForbidden, "")
+	presign(fleet.StagedUploadTargetBootstrapPackage, 1, http.StatusForbidden, "")
+	s.token = adminToken
+
+	// bootstrap package
+	signedPkg := readTestdata("bootstrap-packages", "signed.pkg")
+	finalizeBootstrap(map[string]string{"upload_id": uuid.NewString()}, signedPkg, false, http.StatusBadRequest, "only one of package or upload_id")
+	finalizeBootstrap(map[string]string{"upload_id": uuid.NewString()}, nil, false, http.StatusBadRequest, "filename multipart field is required")
+	finalizeBootstrap(map[string]string{"upload_id": uuid.NewString(), "filename": "bad:name.pkg"}, nil, false, http.StatusBadRequest, "invalid characters")
+	finalizeBootstrap(map[string]string{"upload_id": "../bootstrap-packages/x", "filename": "pkg.pkg"}, nil, false, http.StatusBadRequest, "Invalid upload_id")
+	finalizeBootstrap(map[string]string{"upload_id": uuid.NewString(), "filename": "pkg.pkg"}, nil, false, http.StatusBadRequest, "Upload not found")
+
+	unsignedID := stage(fleet.StagedUploadTargetBootstrapPackage, readTestdata("bootstrap-packages", "unsigned.pkg"))
+	finalizeBootstrap(map[string]string{"upload_id": unsignedID, "filename": "pkg.pkg"}, nil, false, http.StatusBadRequest, "file is not signed")
+	requireGone(unsignedID, false)
+
+	uploadID := stage(fleet.StagedUploadTargetBootstrapPackage, signedPkg)
+	finalizeBootstrap(map[string]string{"upload_id": uploadID, "filename": "staged.pkg"}, nil, true, http.StatusOK, "")
+	s.Do("GET", "/api/latest/fleet/bootstrap/0/metadata", nil, http.StatusNotFound)
+	requireGone(uploadID, true)
+
+	uploadID = stage(fleet.StagedUploadTargetBootstrapPackage, signedPkg)
+	finalizeBootstrap(map[string]string{"upload_id": uploadID, "filename": "staged.pkg"}, nil, false, http.StatusOK, "")
+	requireGone(uploadID, true)
+	var metaResp bootstrapPackageMetadataResponse
+	s.DoJSON("GET", "/api/latest/fleet/bootstrap/0/metadata", nil, http.StatusOK, &metaResp)
+	require.Equal(t, "staged.pkg", metaResp.MDMAppleBootstrapPackage.Name)
+	wantSha := sha256.Sum256(signedPkg)
+	require.Equal(t, wantSha[:], metaResp.MDMAppleBootstrapPackage.Sha256)
+	s.lastActivityMatches(fleet.ActivityTypeAddedBootstrapPackage{}.ActivityName(),
+		`{"bootstrap_package_name": "staged.pkg", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	s.Do("DELETE", "/api/latest/fleet/bootstrap/0", nil, http.StatusOK)
+
+	// software package add and edit
+	uploadID = stage(fleet.StagedUploadTargetSoftwarePackage, readTestdata("software-installers", "ruby.deb"))
+	rubyFile, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", "ruby.deb"))
+	require.NoError(t, err)
+	defer rubyFile.Close()
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: 1, TeamID: new(uint(0)), StagedUploadID: uploadID, Filename: "ruby.deb", InstallerFile: rubyFile,
+	}, http.StatusBadRequest, "only one of software or upload_id")
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		StagedUploadID: uploadID, Filename: "ruby.deb", InstallScript: "install", TeamID: new(uint(0)),
+	}, http.StatusOK, "")
+	requireGone(uploadID, true)
+	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "fleet_id", "0")
+	require.Equal(t, "ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
+
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "fleet_id", "0")
+
+	// edit replaces the package with the staged bytes
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "script.sh", TeamID: new(uint(0))}, http.StatusOK, "")
+	var scriptTitleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &scriptTitleID, `SELECT title_id FROM software_installers WHERE filename = 'script.sh'`)
+	})
+	newScript := []byte("#!/bin/sh\necho staged\n")
+	uploadID = stage(fleet.StagedUploadTargetSoftwarePackage, newScript)
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: scriptTitleID, TeamID: new(uint(0)), StagedUploadID: uploadID, Filename: "script.sh",
+	}, http.StatusOK, "")
+	requireGone(uploadID, true)
+	var storageID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &storageID, `SELECT storage_id FROM software_installers WHERE title_id = ?`, scriptTitleID)
+	})
+	newSha := sha256.Sum256(newScript)
+	require.Equal(t, fmt.Sprintf("%x", newSha), storageID)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", scriptTitleID), nil, http.StatusNoContent, "fleet_id", "0")
+
+	// in-house apps take the same staged add and edit paths
+	uploadID = stage(fleet.StagedUploadTargetSoftwarePackage, readTestdata("software-installers", "ipa_test.ipa"))
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		StagedUploadID: uploadID, Filename: "ipa_test.ipa", TeamID: new(uint(0)),
+	}, http.StatusOK, "")
+	requireGone(uploadID, true)
+	var ipaTitleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &ipaTitleID, `SELECT title_id FROM in_house_apps WHERE filename = 'ipa_test.ipa'`)
+	})
+	// Same app, different bytes: copy the archive and add an entry.
+	ipa := readTestdata("software-installers", "ipa_test.ipa")
+	zr, err := zip.NewReader(bytes.NewReader(ipa), int64(len(ipa)))
+	require.NoError(t, err)
+	var ipaV2 bytes.Buffer
+	zw := zip.NewWriter(&ipaV2)
+	for _, f := range zr.File {
+		require.NoError(t, zw.Copy(f))
+	}
+	_, err = zw.Create("extra.txt")
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+	uploadID = stage(fleet.StagedUploadTargetSoftwarePackage, ipaV2.Bytes())
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: ipaTitleID, TeamID: new(uint(0)), StagedUploadID: uploadID, Filename: "ipa_test_v2.ipa",
+	}, http.StatusOK, "")
+	requireGone(uploadID, true)
+	var ipaFilename, ipaStorageID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return q.QueryRowxContext(t.Context(), `SELECT filename, storage_id FROM in_house_apps WHERE title_id = ?`, ipaTitleID).Scan(&ipaFilename, &ipaStorageID)
+	})
+	ipaV2Sha := sha256.Sum256(ipaV2.Bytes())
+	require.Equal(t, "ipa_test_v2.ipa", ipaFilename)
+	require.Equal(t, fmt.Sprintf("%x", ipaV2Sha), ipaStorageID)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", ipaTitleID), nil, http.StatusNoContent, "fleet_id", "0")
+}
+
+func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	teamID := fmt.Sprint(team.ID)
+
+	create := func(fileName string, content []byte, fields map[string][]string, wantStatus int) string {
+		fields["team_id"] = []string{teamID}
+		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, fields)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
+		defer res.Body.Close()
+		var resp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp.ProfileUUID
+	}
+	update := func(profileUUID string, fields map[string][]string, wantStatus int) {
+		body, headers := generateMultipartRequest(t, "profile", "", nil, s.token, fields)
+		s.DoRawWithHeaders("PATCH", "/api/latest/fleet/configuration_profiles/"+profileUUID, body.Bytes(), wantStatus, headers).Body.Close()
+	}
+	get := func(profileUUID string) *fleet.MDMConfigProfilePayload {
+		var resp getMDMConfigProfileResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/"+profileUUID, getMDMConfigProfileRequest{}, http.StatusOK, &resp)
+		return resp.MDMConfigProfilePayload
+	}
+	installOn := func(hostUUID, profileUUID, identifier string) {
+		require.NoError(t, s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID: profileUUID, ProfileIdentifier: identifier, HostUUID: hostUUID, CommandUUID: uuid.NewString(),
+			OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified, Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem,
+		}}))
+	}
+	requireOptedIn := func(hostUUID, profileUUID string) {
+		ok, err := s.ds.HasHostMDMProfileOptIn(ctx, hostUUID, profileUUID)
+		require.NoError(t, err)
+		require.True(t, ok)
+	}
+	yes := []string{"true"}
+
+	ssUUID := create("ss.mobileconfig", mobileconfigForTest("SS", "com.test.ss"), map[string][]string{"self_service": yes}, http.StatusOK)
+	winUUID := create("hidden.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Hidden/Test"), map[string][]string{"hidden": yes}, http.StatusOK)
+	declUUID := create("hidden-decl.json", declBytesForTest("com.test.hidden.decl", "hidden"), map[string][]string{"hidden": yes}, http.StatusOK)
+	require.True(t, get(ssUUID).SelfService)
+	require.True(t, get(winUUID).Hidden)
+	require.True(t, get(declUUID).Hidden)
+
+	create("ss.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/SS/Test"), map[string][]string{"self_service": yes}, http.StatusUnprocessableEntity)
+	create("ss.json", declBytesForTest("com.test.ss.decl", "ss"), map[string][]string{"self_service": yes}, http.StatusUnprocessableEntity)
+	create("both.mobileconfig", mobileconfigForTest("Both", "com.test.both"), map[string][]string{"self_service": yes, "hidden": yes}, http.StatusUnprocessableEntity)
+	create("bad.mobileconfig", mobileconfigForTest("Bad", "com.test.bad"), map[string][]string{"hidden": {"nope"}}, http.StatusBadRequest)
+	// hidden is validated against the stored self_service
+	update(ssUUID, map[string][]string{"hidden": yes}, http.StatusUnprocessableEntity)
+	update(declUUID, map[string][]string{"self_service": yes}, http.StatusUnprocessableEntity)
+
+	// flipping to self-service opts in hosts that have it, without moving uploaded_at
+	forcedUUID := create("forced.mobileconfig", mobileconfigForTest("Forced", "com.test.forced"), map[string][]string{}, http.StatusOK)
+	installOn("host-1", forcedUUID, "com.test.forced")
+	before := get(forcedUUID)
+	update(forcedUUID, map[string][]string{"self_service": yes}, http.StatusOK)
+	after := get(forcedUUID)
+	require.True(t, after.SelfService)
+	require.Equal(t, before.UploadedAt, after.UploadedAt)
+	requireOptedIn("host-1", forcedUUID)
+	update(forcedUUID, map[string][]string{"description": {"kept"}}, http.StatusOK)
+	require.True(t, get(forcedUUID).SelfService)
+
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	for _, p := range listResp.Profiles {
+		require.Equal(t, p.ProfileUUID == ssUUID || p.ProfileUUID == forcedUUID, p.SelfService, p.Name)
+		require.Equal(t, p.ProfileUUID == winUUID || p.ProfileUUID == declUUID, p.Hidden, p.Name)
+	}
+
+	// batch: the flip seeds opt-ins too, and is declarative for the flags
+	batch := func(profiles []fleet.MDMProfileBatchPayload, wantStatus int) {
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, wantStatus, "team_id", teamID)
+	}
+	batch([]fleet.MDMProfileBatchPayload{{Name: "B", Contents: mobileconfigForTest("B", "com.test.b")}}, http.StatusNoContent)
+	var bUUID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &bUUID, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = 'com.test.b'`)
+	})
+	installOn("host-2", bUUID, "com.test.b")
+	batch([]fleet.MDMProfileBatchPayload{
+		{Name: "B", Contents: mobileconfigForTest("B", "com.test.b"), SelfService: true},
+		{Name: "W", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/W/Test"), Hidden: true},
+		{Name: "A", Contents: []byte(`{"cameraDisabled": true}`), Hidden: true},
+	}, http.StatusNoContent)
+	require.True(t, get(bUUID).SelfService)
+	requireOptedIn("host-2", bUUID)
+	listResp = listMDMConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	require.Len(t, listResp.Profiles, 3)
+	for _, p := range listResp.Profiles {
+		require.Equal(t, p.Name == "W" || p.Name == "A", p.Hidden, p.Name)
+	}
+	batch([]fleet.MDMProfileBatchPayload{{Name: "W", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/W/Test"), SelfService: true}}, http.StatusUnprocessableEntity)
 }

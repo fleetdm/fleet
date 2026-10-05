@@ -844,8 +844,8 @@ func (ds *Datastore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MD
 	profileUUID := fleet.MDMAndroidProfileUUIDPrefix + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
-    mdm_android_configuration_profiles (profile_uuid, team_id, name, description, raw_json, uploaded_at)
-(SELECT ?, ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
+    mdm_android_configuration_profiles (profile_uuid, team_id, name, description, raw_json, hidden, uploaded_at)
+(SELECT ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
@@ -861,7 +861,7 @@ INSERT INTO
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.Description, cp.RawJSON, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.Description, cp.RawJSON, cp.Hidden, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):
@@ -928,11 +928,12 @@ INSERT INTO
 		Description: cp.Description,
 		RawJSON:     cp.RawJSON,
 		TeamID:      cp.TeamID,
+		Hidden:      cp.Hidden,
 	}, nil
 }
 
 func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error) {
-	stmt := `SELECT profile_uuid, team_id, name, description, raw_json, auto_increment, created_at, uploaded_at FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`
+	stmt := `SELECT profile_uuid, team_id, name, description, raw_json, auto_increment, hidden, created_at, uploaded_at FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`
 	var profile fleet.MDMAndroidConfigProfile
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, profileUUID)
 	if err != nil {
@@ -979,9 +980,10 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 		var existing struct {
 			Name        string `db:"name"`
 			Description string `db:"description"`
+			Hidden      bool   `db:"hidden"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT name, description FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT name, description, hidden FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
@@ -1012,8 +1014,8 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			// the pre-update raw_json (SET evaluates left to right), and the
 			// parameter must be CAST to JSON -- a json column never equals a
 			// bare string.
-			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(raw_json = CAST(? AS JSON), uploaded_at, CURRENT_TIMESTAMP()), raw_json = ?, name = ?, description = ? WHERE profile_uuid = ?` + nameGuard
-			args := append([]any{cp.RawJSON, cp.RawJSON, cp.Name, cp.Description, cp.ProfileUUID}, nameGuardArgs...)
+			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(raw_json = CAST(? AS JSON), uploaded_at, CURRENT_TIMESTAMP()), raw_json = ?, name = ?, description = ?, hidden = ? WHERE profile_uuid = ?` + nameGuard
+			args := append([]any{cp.RawJSON, cp.RawJSON, cp.Name, cp.Description, cp.Hidden, cp.ProfileUUID}, nameGuardArgs...)
 			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
 				if IsDuplicate(err) {
@@ -1037,11 +1039,11 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			}, "android", false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating android profile variable associations")
 			}
-		} else if nameChanged || existing.Description != cp.Description {
-			// Name and description are not part of the checksum, so they are
-			// written without touching uploaded_at.
-			stmt := `UPDATE mdm_android_configuration_profiles SET name = ?, description = ? WHERE profile_uuid = ?` + nameGuard
-			args := append([]any{cp.Name, cp.Description, cp.ProfileUUID}, nameGuardArgs...)
+		} else if nameChanged || existing.Description != cp.Description || existing.Hidden != cp.Hidden {
+			// Name, description and hidden are not part of the checksum, so they
+			// are written without touching uploaded_at.
+			stmt := `UPDATE mdm_android_configuration_profiles SET name = ?, description = ?, hidden = ? WHERE profile_uuid = ?` + nameGuard
+			args := append([]any{cp.Name, cp.Description, cp.Hidden, cp.ProfileUUID}, nameGuardArgs...)
 			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
 				if IsDuplicate(err) {
@@ -2300,17 +2302,19 @@ WHERE
 		name,
 		description,
 		raw_json,
+		hidden,
 		uploaded_at
-	) VALUES (CONCAT('` + fleet.MDMAndroidProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, CURRENT_TIMESTAMP(6))
+	) VALUES (CONCAT('` + fleet.MDMAndroidProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6))
 	ON DUPLICATE KEY UPDATE
 		description = VALUES(description),
+		hidden = VALUES(hidden),
 		raw_json = VALUES(raw_json),
 		name = VALUES(name),
 		uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6))
 `
 	for _, p := range profiles {
 		var res sql.Result
-		if res, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profileTeamID, p.Name, p.Description, p.RawJSON); err != nil {
+		if res, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profileTeamID, p.Name, p.Description, p.RawJSON, p.Hidden); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "insert or update profile")
 		}
 
@@ -2532,7 +2536,8 @@ SELECT
 	hvsi.host_id,
 	hvsi.adam_id,
 	hvsi.command_uuid,
-	hvsi.associated_event_id
+	hvsi.associated_event_id,
+	hvsi.created_at
 FROM
 	host_vpp_software_installs hvsi
 	INNER JOIN hosts h ON hvsi.host_id = h.id

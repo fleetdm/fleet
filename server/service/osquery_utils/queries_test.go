@@ -3167,6 +3167,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
+	orbitNodeKey := "orbit-node-key"
 	host := &fleet.Host{ID: 1, UUID: "mdm-windows-hw-uuid"}
 
 	returnEnrollmentsUpdated := true
@@ -3238,18 +3239,24 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		return nil, nil
 	}
 
+	ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc = func(ctx context.Context, enrollmentID uint) error {
+		return nil
+	}
+
 	testCases := []struct {
 		name                                                 string
 		rows                                                 []map[string]string
 		expectError                                          string
 		mdmEnrollUserID                                      string
 		mdmEnrollNotInOOBE                                   bool
+		plainOsquery                                         bool
 		returnSCIMUser                                       bool
 		expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
 		expectUpdateMDMInstalledFromDEPFuncInvoked           bool
 		expectReplaceHostDeviceMappingFuncInvoked            bool
 		expectScimUserByUserNameOrEmailFuncInvoked           bool
 		expectDeleteHostSCIMUserMappingFuncInvoked           bool
+		expectDeleteUnusedSecretsFuncInvoked                 bool
 	}{
 		{
 			// if no rows, assume the registry key is not present (i.e. mdm is turned off) and do nothing
@@ -3279,6 +3286,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
 			expectReplaceHostDeviceMappingFuncInvoked:            true,
 			expectScimUserByUserNameOrEmailFuncInvoked:           true,
+			expectDeleteUnusedSecretsFuncInvoked:                 true,
 		},
 		{
 			name: "device was enrolled by fleetie@example.com via Settings app",
@@ -3291,6 +3299,19 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 			expectUpdateMDMInstalledFromDEPFuncInvoked:           true,
 			expectScimUserByUserNameOrEmailFuncInvoked:           true,
 			expectReplaceHostDeviceMappingFuncInvoked:            true,
+			expectDeleteUnusedSecretsFuncInvoked:                 true,
+		},
+		{
+			// Without fleetd, the secret is still needed by the fleetd install Fleet sends.
+			name: "device enrolled by fleetie@example.com runs plain osquery",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+			},
+			mdmEnrollUserID: "fleetie@example.com",
+			plainOsquery:    true,
+			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
+			expectReplaceHostDeviceMappingFuncInvoked:            true,
+			expectScimUserByUserNameOrEmailFuncInvoked:           true,
 		},
 	}
 
@@ -3300,6 +3321,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		ds.ReplaceHostDeviceMappingFuncInvoked = false
 		ds.ScimUserByUserNameOrEmailFuncInvoked = false
 		ds.DeleteHostSCIMUserMappingFuncInvoked = false
+		ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked = false
 	}
 
 	for _, tc := range testCases {
@@ -3314,6 +3336,10 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 				baseEnrolledDeviceToReturn.MDMEnrollUserID = "a1b2c3d4e5f6g7h8i9j0"
 			}
 			baseEnrolledDeviceToReturn.MDMNotInOOBE = tc.mdmEnrollNotInOOBE
+			host.OrbitNodeKey = &orbitNodeKey
+			if tc.plainOsquery {
+				host.OrbitNodeKey = nil
+			}
 
 			// If no updates were done no further actions should be taken. This generic case covers this behavior.
 			if tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked {
@@ -3326,6 +3352,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 				require.Equal(t, false, ds.ReplaceHostDeviceMappingFuncInvoked)
 				require.Equal(t, false, ds.ScimUserByUserNameOrEmailFuncInvoked)
 				require.Equal(t, false, ds.DeleteHostSCIMUserMappingFuncInvoked)
+				require.False(t, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked)
 			}
 
 			// Run the actual defined testcase
@@ -3342,6 +3369,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 			require.Equal(t, tc.expectUpdateMDMInstalledFromDEPFuncInvoked, ds.UpdateMDMInstalledFromDEPFuncInvoked)
 			require.Equal(t, tc.expectReplaceHostDeviceMappingFuncInvoked, ds.ReplaceHostDeviceMappingFuncInvoked)
 			require.Equal(t, tc.expectScimUserByUserNameOrEmailFuncInvoked, ds.ScimUserByUserNameOrEmailFuncInvoked)
+			require.Equal(t, tc.expectDeleteUnusedSecretsFuncInvoked, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked)
 			// this test will always return a SCIM user if invoked and as such should update the mapping and never delete it
 			require.Equal(t, false, ds.DeleteHostSCIMUserMappingFuncInvoked)
 
@@ -5399,6 +5427,31 @@ type notFoundErrorForTest struct{}
 func (e *notFoundErrorForTest) Error() string    { return "not found" }
 func (e *notFoundErrorForTest) IsNotFound() bool { return true }
 
+// newLinkWindowsHostMDMEnrollmentStore mocks the first link of an enrollment to a host.
+func newLinkWindowsHostMDMEnrollmentStore(device *fleet.MDMWindowsEnrolledDevice) *mock.Store {
+	ds := new(mock.Store)
+	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
+		return true, nil
+	}
+	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+		return device, nil
+	}
+	// No default fleet configured, so the assignment helper returns before touching anything else.
+	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+		return nil, "", nil
+	}
+	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
+		return nil
+	}
+	ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+		return nil, &notFoundErrorForTest{}
+	}
+	ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+		return nil, nil
+	}
+	return ds
+}
+
 // A pending Autopilot host must keep installed_from_dep when its enrollment is linked out of OOBE.
 func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 	t.Parallel()
@@ -5412,15 +5465,8 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 		{"a pending Autopilot host keeps its marker", true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ds := new(mock.Store)
+			ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{MDMEnrollUserID: "user@example.com", MDMNotInOOBE: true})
 			var depCleared bool
-
-			ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
-				return true, nil
-			}
-			ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
-				return &fleet.MDMWindowsEnrolledDevice{MDMEnrollUserID: "user@example.com", MDMNotInOOBE: true}, nil
-			}
 			ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
 				if tc.hasAutopilotRow {
 					return &fleet.HostAutopilotDevice{HostID: hostID, GroupTag: "Engineering"}, nil
@@ -5431,24 +5477,43 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 				depCleared = !enrolledFromDEP
 				return nil
 			}
-			// No default fleet configured, so the assignment helper returns before touching anything else.
-			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
-				return nil, "", nil
-			}
-			ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
-				return nil
-			}
-			ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
-				return nil, &notFoundErrorForTest{}
-			}
-			ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
-				return nil, nil
-			}
 
-			updated, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1")
+			updated, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
 			require.NoError(t, err)
 			require.True(t, updated)
 			assert.Equal(t, tc.wantDEPCleared, depCleared)
+		})
+	}
+}
+
+func TestLinkWindowsHostMDMEnrollmentReleasesUnusedInstallSecret(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name           string
+		fleetdOnDevice bool
+		alreadyLinked  bool
+		enrollUser     string
+		wantDeleted    bool
+	}{
+		{name: "fleetd reported a user-driven enrollment", fleetdOnDevice: true, enrollUser: "user@example.com", wantDeleted: true},
+		{name: "linked without proof that fleetd runs on the device", enrollUser: "user@example.com"},
+		{name: "already linked, so it happened once before", fleetdOnDevice: true, alreadyLinked: true, enrollUser: "user@example.com"},
+		{name: "programmatic enrollment never gets an install secret", fleetdOnDevice: true, enrollUser: "device-token"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{ID: 7, MDMEnrollUserID: tc.enrollUser})
+			ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
+				return !tc.alreadyLinked, nil
+			}
+			ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc = func(ctx context.Context, enrollmentID uint) error {
+				assert.EqualValues(t, 7, enrollmentID)
+				return nil
+			}
+
+			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", tc.fleetdOnDevice)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantDeleted, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked)
 		})
 	}
 }

@@ -8651,4 +8651,12 @@ func testCleanupHostSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, deleted)
 	assert.False(t, exists(deletedHost))
+
+	// A deleted host's pending install can never report, so it goes the same way.
+	deletedHostPending := seedAt(gone, false, nil, old, old)
+	exec(`UPDATE host_software_installs SET host_deleted_at = ?, updated_at = ? WHERE execution_id = ?`, old, old, deletedHostPending)
+	deleted, err = ds.CleanupHostSoftwareInstalls(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, deleted)
+	assert.False(t, exists(deletedHostPending))
 }

@@ -1282,9 +1282,9 @@ type DeactivateHostDeviceNameCommandsFunc func(ctx context.Context, hostUUIDs []
 
 type SetHostDeviceNameStatusFunc func(ctx context.Context, hostUUID string, status fleet.MDMDeliveryStatus, commandUUID *string, expectedName string, detail string) error
 
-type UpdateHostDeviceNameStatusFromCommandFunc func(ctx context.Context, commandUUID string, acknowledged bool, detail string) error
+type UpdateHostDeviceNameStatusFromCommandFunc func(ctx context.Context, commandUUID string, acknowledged bool, detail string, retryable bool) (fleet.DeviceNameRetryOutcome, error)
 
-type UpdateHostDeviceNameStatusFromReportFunc func(ctx context.Context, hostUUID string, reportedName string) error
+type UpdateHostDeviceNameStatusFromReportFunc func(ctx context.Context, hostUUID string, reportedName string) (fleet.DeviceNameRetryOutcome, error)
 
 type GetHostDeviceNameEnforcementFunc func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error)
 
@@ -2099,6 +2099,8 @@ type WindowsMDMEnrollSecretUsedByOrbitFunc func(ctx context.Context, enrollmentI
 type MintWindowsMDMOneTimeEnrollSecretFunc func(ctx context.Context, enrollmentID uint) error
 
 type QueueWindowsMDMEnrollSecretPushFunc func(ctx context.Context, enrollmentID uint, mdmDeviceID string, pushCmd *fleet.MDMWindowsCommand, installCmd *fleet.MDMWindowsCommand) (bool, error)
+
+type DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc func(ctx context.Context, enrollmentID uint) error
 
 type WindowsMDMEnrollSecretPushedFunc func(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error)
 
@@ -5644,6 +5646,9 @@ type DataStore struct {
 
 	QueueWindowsMDMEnrollSecretPushFunc        QueueWindowsMDMEnrollSecretPushFunc
 	QueueWindowsMDMEnrollSecretPushFuncInvoked bool
+
+	DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc        DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc
+	DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked bool
 
 	WindowsMDMEnrollSecretPushedFunc        WindowsMDMEnrollSecretPushedFunc
 	WindowsMDMEnrollSecretPushedFuncInvoked bool
@@ -10696,14 +10701,14 @@ func (s *DataStore) SetHostDeviceNameStatus(ctx context.Context, hostUUID string
 	return s.SetHostDeviceNameStatusFunc(ctx, hostUUID, status, commandUUID, expectedName, detail)
 }
 
-func (s *DataStore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) error {
+func (s *DataStore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string, retryable bool) (fleet.DeviceNameRetryOutcome, error) {
 	s.mu.Lock()
 	s.UpdateHostDeviceNameStatusFromCommandFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostDeviceNameStatusFromCommandFunc(ctx, commandUUID, acknowledged, detail)
+	return s.UpdateHostDeviceNameStatusFromCommandFunc(ctx, commandUUID, acknowledged, detail, retryable)
 }
 
-func (s *DataStore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID string, reportedName string) error {
+func (s *DataStore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID string, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
 	s.mu.Lock()
 	s.UpdateHostDeviceNameStatusFromReportFuncInvoked = true
 	s.mu.Unlock()
@@ -13557,6 +13562,13 @@ func (s *DataStore) QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollm
 	s.QueueWindowsMDMEnrollSecretPushFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueueWindowsMDMEnrollSecretPushFunc(ctx, enrollmentID, mdmDeviceID, pushCmd, installCmd)
+}
+
+func (s *DataStore) DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx context.Context, enrollmentID uint) error {
+	s.mu.Lock()
+	s.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc(ctx, enrollmentID)
 }
 
 func (s *DataStore) WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error) {

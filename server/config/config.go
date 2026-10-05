@@ -573,12 +573,12 @@ type S3Config struct {
 	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
 	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
 	SoftwareInstallersCloudFrontSigner                crypto.Signer `yaml:"-"`
-	// SoftwareInstallersSignedURL, when true, makes Fleet hand out a presigned
-	// GET URL (instead of proxying the bytes) for software installer, in-house
-	// app and bootstrap package downloads, so clients fetch directly from the
-	// object store. Only supported against a GCS (storage.googleapis.com)
+	// SoftwareInstallersSignedURL, when true, makes Fleet hand out presigned
+	// URLs (instead of proxying the bytes) for software installer, in-house
+	// app and bootstrap package uploads and downloads, so clients talk directly
+	// to the object store. Only supported against a GCS (storage.googleapis.com)
 	// endpoint. This is the GCS counterpart to the CloudFront signing config.
-	SoftwareInstallersSignedURL bool `yaml:"software_installers_signed_url"`
+	SoftwareInstallersSignedURL bool `yaml:"software_installers_gcs_signed_url"`
 }
 
 func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
@@ -627,13 +627,13 @@ func (s S3Config) ValidateSoftwareInstallersSignedURL(initFatal func(err error, 
 		return
 	}
 	if u.Scheme != "https" {
-		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to be an https URL (e.g. https://storage.googleapis.com)."),
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_gcs_signed_url` requires `s3_software_installers_endpoint_url` to be an https URL (e.g. https://storage.googleapis.com)."),
 			"S3 software installers signed URL")
 		return
 	}
 	host := strings.ToLower(u.Hostname())
 	if host != "storage.googleapis.com" && !strings.HasSuffix(host, ".storage.googleapis.com") {
-		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to point at a GCS endpoint (storage.googleapis.com)."),
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_gcs_signed_url` requires `s3_software_installers_endpoint_url` to point at a GCS endpoint (storage.googleapis.com)."),
 			"S3 software installers signed URL")
 		return
 	}
@@ -642,7 +642,7 @@ func (s S3Config) ValidateSoftwareInstallersSignedURL(initFatal func(err error, 
 	// IAM auth doesn't use HMAC creds and is rejected at store init, so skip it then.
 	if !s.SoftwareInstallersGCSIAMAuth &&
 		(s.SoftwareInstallersAccessKeyID == "" || s.SoftwareInstallersSecretAccessKey == "") {
-		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key` for presigning."),
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_gcs_signed_url` requires `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key` for presigning."),
 			"S3 software installers signed URL")
 		return
 	}
@@ -1702,7 +1702,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 	man.addConfigDuration("server.vpp_install_reap_timeout", 24*time.Hour,
-		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it")
+		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it. Android setup experience app installs the device hasn't reported for this long are also failed; for those, zero or less keeps them pending and the vpp_verify_timeout floor doesn't apply")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
 	man.addConfigDuration("server.script_results_retention", 30*24*time.Hour, "Minimum time since a script run recorded its result before the hourly cleanup deletes it. Runs still waiting on a host, and those a host lock, wipe, unlock, setup experience, software uninstall or batch run depends on, are kept regardless (0 disables the cleanup)")
 	man.addConfigDuration("server.software_install_results_retention", 30*24*time.Hour, "Minimum time since a software install or uninstall finished before the hourly cleanup deletes its record. Records a host is still working on, those setup experience depends on, and the most recent install and uninstall per host and package, are kept regardless (0 disables the cleanup)")
@@ -1957,7 +1957,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
-	man.addConfigBool("s3.software_installers_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
+	man.addConfigBool("s3.software_installers_gcs_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap uploads and downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
+	man.addConfigBool("s3.software_installers_signed_url", false, "Deprecated: use s3.software_installers_gcs_signed_url")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -2613,7 +2614,7 @@ func (man Manager) loadS3Config() S3Config {
 		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
 		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
 		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),
-		SoftwareInstallersSignedURL:                       man.getConfigBool("s3.software_installers_signed_url"),
+		SoftwareInstallersSignedURL:                       man.getConfigBool("s3.software_installers_gcs_signed_url") || man.getConfigBool("s3.software_installers_signed_url"),
 	}
 }
 

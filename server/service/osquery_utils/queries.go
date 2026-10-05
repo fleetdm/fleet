@@ -3543,7 +3543,10 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 	if len(rows) > 1 {
 		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
 	}
-	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, rows[0]["data"])
+	// Plain osquery reports the device ID too, so only an orbit node key proves fleetd is on the device.
+	// Covers edge case where plain osquery is enrolled in Fleet when end user enrolls in MDM.
+	fleetdOnDevice := host.OrbitNodeKey != nil && *host.OrbitNodeKey != ""
+	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, rows[0]["data"], fleetdOnDevice)
 	return err
 }
 
@@ -3557,7 +3560,9 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 // this same hostUUID, so the `WHERE host_uuid <> ?` guard short-circuited; (b) no row matched mdmDeviceID at all (e.g.
 // the enrollment was deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
 // rather than infer it from the boolean alone.
-func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string) (bool, error) {
+func LinkWindowsHostMDMEnrollment(
+	ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string, fleetdOnDevice bool,
+) (bool, error) {
 	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "updating windows mdm device id")
@@ -3573,6 +3578,14 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 		return updated, nil
 	}
 	device.HostUUID = hostUUID // in case the read was stale due to replication lag
+	// fleetd reporting this enrollment from the device means it enrolled without the secret minted for Fleet's fleetd install, which
+	// the installer command line left readable on the device. We delete/invalidate it.
+	if fleetdOnDevice {
+		if err := ds.DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx, device.ID); err != nil {
+			logger.ErrorContext(ctx, "failed to delete unused windows one-time enroll secrets", "err", err, "host_id", hostID)
+			ctxerr.Handle(ctx, err)
+		}
+	}
 	// Newly created hosts from user-driven enrollments are assigned the configured default fleet.
 	if err := maybeAssignWindowsEnrollmentDefaultFleet(ctx, logger, ds, hostID, device); err != nil {
 		// Best-effort. In the unlikely event of a failure, the host remains in Unassigned fleet.
