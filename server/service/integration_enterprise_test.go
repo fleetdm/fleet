@@ -6190,6 +6190,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	require.Nil(t, createResp.User)
 	require.Empty(t, createResp.Token)
 
+	var selfModResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", teamAdmin.ID), map[string]any{
+		"global_role": "",
+		"teams":       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+	}, http.StatusUnprocessableEntity, &selfModResp)
+
 	plantedEmail := t.Name() + "_planted@example.com"
 	planted := &fleet.User{
 		Name:  plantedEmail,

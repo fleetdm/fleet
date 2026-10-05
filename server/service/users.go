@@ -876,7 +876,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	var isGlobalAdminDemotion bool
 
-	if p.GlobalRole != nil && *p.GlobalRole != "" {
+	if p.GlobalRole != nil {
 		if !callerIsGlobalAdmin {
 			return nil, authz.ForbiddenWithInternal(
 				"cannot edit global role as a team member",
