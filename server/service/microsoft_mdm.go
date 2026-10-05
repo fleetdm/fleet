@@ -3273,6 +3273,20 @@ func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Cont
 		return "", ctxerr.New(ctx, "hardware ID is enrolled to another host")
 	}
 
+	if hostUUID == "" && entraDeviceID == "" {
+		// Likely the same host enrolling after the deviceid claim was removed from the app registration, so deleting the host
+		// is not the fix.
+		svc.logger.WarnContext(ctx,
+			"refusing windows MDM enrollment: the hardware ID is enrolled to an Entra device, and the Entra access token has no "+
+				"deviceid claim to verify the enrolling host is that device. Add deviceid as an optional access token claim in the "+
+				"manifest of the Microsoft Entra MDM app registration",
+			"mdm_hardware_id", hardwareID,
+			"existing_entra_device_id", boundEntraDeviceID,
+			"existing_host_uuid", existing.HostUUID,
+		)
+		return "", ctxerr.New(ctx, "hardware ID is enrolled to another host")
+	}
+
 	// A plain Entra join after a reset creates a new Entra device, so this is also how a reset device that Fleet did not wipe
 	// comes back; deleting its host releases the hardware ID.
 	svc.logger.WarnContext(ctx,

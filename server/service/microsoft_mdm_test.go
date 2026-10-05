@@ -3790,6 +3790,14 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 
 			// Whole-map equality so a renamed or extra attribute fails too: this log line is the only signal.
 			attrs := warnAttrs(handler, "refusing windows MDM enrollment")
+			if tc.enrollingHost == "" && tc.enrollingEntraDeviceID == "" {
+				require.Equal(t, map[string]string{
+					"mdm_hardware_id":          hwID,
+					"existing_entra_device_id": existingEntraDeviceID,
+					"existing_host_uuid":       tc.existing.HostUUID,
+				}, attrs)
+				return
+			}
 			if tc.enrollingHost == "" || tc.existing.HostUUID == "" {
 				require.Equal(t, map[string]string{
 					"mdm_hardware_id":           hwID,
