@@ -42,6 +42,11 @@ func (e *pssoIdPClientConfigError) Error() string {
 
 func (e *pssoIdPClientConfigError) Internal() string { return e.detail }
 
+// StatusCode is a 4xx because a customer's misconfiguration would otherwise
+// return a 5xx on every sign-in until fixed, setting off server error alerts.
+// Any status but 401 keeps the device from reporting a bad password.
+func (e *pssoIdPClientConfigError) StatusCode() int { return http.StatusBadRequest }
+
 // PSSOOIDCROPGClient validates passwords against any OIDC IdP that exposes
 // the OAuth2 Resource Owner Password Grant on its token endpoint
 type PSSOOIDCROPGClient struct {
