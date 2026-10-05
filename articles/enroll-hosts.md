@@ -188,7 +188,7 @@ Deleting a host doesn't unenroll it, so most hosts come back:
 | macOS, Windows, Linux | Yes, unless fleetd is uninstalled or its enroll secret is deleted | Enroll secret's fleet. Windows hosts where Fleet installed fleetd go to "Unassigned." |
 | Assigned to Fleet in Apple Business (AB) | Yes, right away, as **Pending** | AB's default fleet |
 | iOS, iPadOS | Yes, at the next MDM check-in, unless you unenroll it first | Fleet at last enrollment |
-| Android | Yes, at the next status report, unless you unenroll or wipe it first | Same fleet, or "Unassigned" if it was deleted |
+| Android | Yes, at the next status report, unless you unenroll it first | Same fleet, or "Unassigned" if it was deleted |
 | ChromeOS | Yes, unless the extension is removed or its enroll secret is deleted | Enroll secret's fleet |
 
 Deleting a host also cancels its upcoming activities and clears its MDM command history, so Fleet can't report whether an in-progress command, like a wipe, finished. If Fleet can't reach AB, the delete fails.
