@@ -713,7 +713,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ### Reset policy results
 
-Clears a policy's pass/fail results. Fleet does this automatically when you edit the policy's query or swap in a different script, software package, or VPP app (see [Resetting a policy's automation status](https://fleetdm.com/guides/automations#policy-automations)); use this endpoint to do it in a custom automation. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
+Clears a policy's pass/fail results. Fleet does this automatically when you edit the policy's query or swap in a different script, software package, or VPP app (see [Resetting a policy's automation status](https://fleetdm.com/guides/automations#policy-automations)); use this endpoint to do it in a custom automation. Immediately sets `passing_hosts_count` and `failing_hosts_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
 
 `POST /api/v1/fleet/policies/:policy_id/reset`
 
@@ -1928,7 +1928,7 @@ None.
   "license": {
     "tier": "premium",
     "organization": "fleet",
-    "device_count": 500000,
+    "devices_count": 500000,
     "expiration": "2031-10-16T00:00:00Z",
     "note": ""
   },
@@ -5652,7 +5652,7 @@ This is the API route used by the **My device** page in Fleet Desktop to display
 
 This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS/iPadOS, this is the host's hardware UUID.
 
-For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`, `hardware_serial`, `primary_mac`, `hostname`, `computer_name`, `display_name`, `display_text`, `team_name`, `labels`, and MDM profile data all come back empty, and the `license` object's `organization` and `device_count` are stripped.
+For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`, `hardware_serial`, `primary_mac`, `hostname`, `computer_name`, `display_name`, `display_text`, `team_name`, `labels`, and MDM profile data all come back empty, and the `license` object's `organization` and `devices_count` are stripped.
 
 
 ##### Parameters
@@ -7826,7 +7826,7 @@ Returns a list of labels.
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | fleet_id         | string | query | _Available in Fleet Premium._  Filters to labels belonging to the specified fleet, plus global labels. Specify `"global"` to show only globally-available labels. If omitted, Fleet returns all global labels, plus all labels for fleets to which the requestor has access. |
 
-When `include_host_counts` is `true` (or omitted), `host_count` will only be included for `labels` that are in use by one or more hosts, but `count` will always be included, even if it is `0`. When `include_host_counts` is `false`, `host_count` will always be omitted, and `count` will be returned as `0` for each label. Setting `include_host_counts=false` will improve API performance, especially on deployments with large numbers of hosts and labels.
+When `include_host_counts` is `true` (or omitted), `hosts_count` will only be included for `labels` that are in use by one or more hosts, but `count` will always be included, even if it is `0`. When `include_host_counts` is `false`, `hosts_count` will always be omitted, and `count` will be returned as `0` for each label. Setting `include_host_counts=false` will improve API performance, especially on deployments with large numbers of hosts and labels.
 
 #### Example
 
@@ -7848,7 +7848,7 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "query": "SELECT 1;",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
-      "host_count": 7,
+      "hosts_count": 7,
       "display_text": "All Hosts",
       "count": 7,
       "host_ids": null,
@@ -7866,7 +7866,7 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "platform": "darwin",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
-      "host_count": 1,
+      "hosts_count": 1,
       "display_text": "macOS",
       "count": 1,
       "host_ids": null,
@@ -7884,7 +7884,7 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
-      "host_count": 3,
+      "hosts_count": 3,
       "display_text": "Ubuntu Linux",
       "count": 3,
       "host_ids": null,
@@ -7901,7 +7901,7 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
-      "host_count": 3,
+      "hosts_count": 3,
       "display_text": "CentOS Linux",
       "count": 3,
       "host_ids": null,
@@ -11213,7 +11213,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page. |
-| order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
+| order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_hosts_count`, and `passing_hosts_count`. |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | platform                | string  | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
@@ -11243,8 +11243,8 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
       "platform": "darwin",
       "created_at": "2021-12-15T15:23:57Z",
       "updated_at": "2021-12-15T15:23:57Z",
-      "passing_host_count": 2000,
-      "failing_host_count": 300,
+      "passing_hosts_count": 2000,
+      "failing_hosts_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "labels_include_any": ["Macs on Sonoma"]
     },
@@ -11262,8 +11262,8 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
       "platform": "windows",
       "created_at": "2021-12-31T14:52:27Z",
       "updated_at": "2022-02-10T20:59:35Z",
-      "passing_host_count": 2300,
-      "failing_host_count": 0,
+      "passing_hosts_count": 2300,
+      "failing_hosts_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "labels_exclude_any": ["Compliance exclusions", "Workstations (Canary)"]
     }
@@ -11288,7 +11288,7 @@ _Available in Fleet Premium_
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page. |
-| order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
+| order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_hosts_count`, and `passing_hosts_count`. |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | automation_type         | string  | query | Filters by automation type. Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
@@ -11321,8 +11321,8 @@ _Available in Fleet Premium_
       "platform": "darwin",
       "created_at": "2021-12-16T14:37:37Z",
       "updated_at": "2021-12-16T16:39:00Z",
-      "passing_host_count": 2000,
-      "failing_host_count": 300,
+      "passing_hosts_count": 2000,
+      "failing_hosts_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": true,
       "conditional_access_enabled": true,
@@ -11343,8 +11343,8 @@ _Available in Fleet Premium_
       "platform": "windows",
       "created_at": "2021-12-16T14:37:37Z",
       "updated_at": "2021-12-16T16:39:00Z",
-      "passing_host_count": 2300,
-      "failing_host_count": 0,
+      "passing_hosts_count": 2300,
+      "failing_hosts_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
@@ -11369,8 +11369,8 @@ _Available in Fleet Premium_
       "platform": "darwin",
       "created_at": "2021-12-16T14:37:37Z",
       "updated_at": "2021-12-16T16:39:00Z",
-      "passing_host_count": 2300,
-      "failing_host_count": 3,
+      "passing_hosts_count": 2300,
+      "failing_hosts_count": 3,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
@@ -11396,8 +11396,8 @@ _Available in Fleet Premium_
       "platform": "darwin,windows,linux",
       "created_at": "2022-08-04T19:30:18Z",
       "updated_at": "2022-08-30T15:08:26Z",
-      "passing_host_count": 10,
-      "failing_host_count": 9,
+      "passing_hosts_count": 10,
+      "failing_hosts_count": 9,
       "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ]
@@ -11429,8 +11429,8 @@ _Available in Fleet Premium_
       "platform": "darwin",
       "created_at": "2021-12-16T14:37:37Z",
       "updated_at": "2021-12-16T16:39:00Z",
-      "passing_host_count": 2000,
-      "failing_host_count": 300,
+      "passing_hosts_count": 2000,
+      "failing_hosts_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
@@ -11451,8 +11451,8 @@ _Available in Fleet Premium_
       "platform": "windows",
       "created_at": "2021-12-16T14:37:37Z",
       "updated_at": "2021-12-16T16:39:00Z",
-      "passing_host_count": 2300,
-      "failing_host_count": 0,
+      "passing_hosts_count": 2300,
+      "failing_hosts_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
@@ -11472,8 +11472,8 @@ _Available in Fleet Premium_
       "platform": "darwin,windows,linux",
       "created_at": "2022-08-04T19:30:18Z",
       "updated_at": "2022-08-30T15:08:26Z",
-      "passing_host_count": 10,
-      "failing_host_count": 9,
+      "passing_hosts_count": 10,
+      "failing_hosts_count": 9,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "fleet_maintained": false
     }
@@ -11575,8 +11575,8 @@ _Available in Fleet Premium_
     "platform": "darwin",
     "created_at": "2021-12-15T15:23:57Z",
     "updated_at": "2021-12-15T15:23:57Z",
-    "passing_host_count": 2000,
-    "failing_host_count": 300,
+    "passing_hosts_count": 2000,
+    "failing_hosts_count": 300,
     "host_count_updated_at": "2023-12-20T15:23:57Z"
   }
 }
@@ -11622,8 +11622,8 @@ _Available in Fleet Premium_
     "platform": "darwin",
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
-    "passing_host_count": 0,
-    "failing_host_count": 0,
+    "passing_hosts_count": 0,
+    "failing_hosts_count": 0,
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
@@ -11712,8 +11712,8 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
     "platform": "darwin",
     "created_at": "2022-03-17T20:15:55Z",
     "updated_at": "2022-03-17T20:15:55Z",
-    "passing_host_count": 0,
-    "failing_host_count": 0,
+    "passing_hosts_count": 0,
+    "failing_hosts_count": 0,
     "host_count_updated_at": null,
     "labels_include_any": ["Macs on Sonoma"]
   }
@@ -11801,8 +11801,8 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
     "platform": "darwin",
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
-    "passing_host_count": 0,
-    "failing_host_count": 0,
+    "passing_hosts_count": 0,
+    "failing_hosts_count": 0,
     "host_count_updated_at": null,
     "calendar_events_enabled": false,
     "labels_include_any": ["Macs on Sonoma"],
@@ -11956,8 +11956,8 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
     "platform": "darwin",
     "created_at": "2022-03-17T20:15:55Z",
     "updated_at": "2022-03-17T20:15:55Z",
-    "passing_host_count": 0,
-    "failing_host_count": 0,
+    "passing_hosts_count": 0,
+    "failing_hosts_count": 0,
     "host_count_updated_at": null
   }
 }
@@ -12041,8 +12041,8 @@ Setting `patch_when_closed` to `false` after it was `true` removes the read-only
     "team_id": 2,
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
-    "passing_host_count": 0,
-    "failing_host_count": 0,
+    "passing_hosts_count": 0,
+    "failing_hosts_count": 0,
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
@@ -12913,8 +12913,8 @@ The live report will stop if the request times out. Timeouts happen if targeted 
 {
   "query_id": 123,
   "report_id": 123,
-  "targeted_host_count": 4,
-  "responded_host_count": 2,
+  "targeted_hosts_count": 4,
+  "responded_hosts_count": 2,
   "results": [
     {
       "host_id": 1,
@@ -13682,12 +13682,12 @@ Returns a list of batch script executions.
       "started_at": "2025-07-06T14:00:00Z",
       "status": "finished",
       "canceled": false,
-      "targeted_host_count": 12599,
-      "ran_host_count": 12345,
-      "pending_host_count": 234,
-      "errored_host_count": 18,
-      "incompatible_host_count": 3,
-      "canceled_host_count": 2,
+      "targeted_hosts_count": 12599,
+      "ran_hosts_count": 12345,
+      "pending_hosts_count": 234,
+      "errored_hosts_count": 18,
+      "incompatible_hosts_count": 3,
+      "canceled_hosts_count": 2,
       "created_at": "2025-07-01T10:00:00Z"
     }
   ],
@@ -13736,12 +13736,12 @@ Returns a summary of a batch-run script, including host counts and current statu
   "started_at": "2025-07-06T14:00:00Z",
   "status": "finished",
   "canceled": false,
-  "targeted_host_count": 12599,
-  "ran_host_count": 12345,
-  "pending_host_count": 234,
-  "errored_host_count": 18,
-  "incompatible_host_count": 3,
-  "canceled_host_count": 2,
+  "targeted_hosts_count": 12599,
+  "ran_hosts_count": 12345,
+  "pending_hosts_count": 234,
+  "errored_hosts_count": 18,
+  "incompatible_hosts_count": 3,
+  "canceled_hosts_count": 2,
   "created_at": "2025-07-01T10:00:00Z"
 }
 ```
@@ -15846,7 +15846,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | fleet_id             | integer | query | _Available in Fleet Premium_. Filters only include vulnerabilities affecting the specified fleet. Use `0` to filter by "Unassigned" hosts.  |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
-| order_key               | string  | query | What to order results by. Allowed fields are: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, and `host_count`. Default is `created_at` (descending).      |
+| order_key               | string  | query | What to order results by. Allowed fields are: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, and `hosts_count`. Default is `created_at` (descending).      |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
@@ -16089,7 +16089,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "query": "SELECT 1;",
         "label_type": "builtin",
         "label_membership_type": "dynamic",
-        "host_count": 5,
+        "hosts_count": 5,
         "display_text": "All Hosts",
         "count": 5
       }
@@ -16101,8 +16101,8 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "name": "Client Platform Engineering",
         "description": "",
         "agent_options": null,
-        "user_count": 4,
-        "host_count": 2,
+        "users_count": 4,
+        "hosts_count": 2,
         "display_text": "Client Platform Engineering",
         "count": 2
       }
@@ -16183,8 +16183,8 @@ _Available in Fleet Premium_
         "overrides": {},
         "command_line_flags": {}
       },
-      "user_count": 0,
-      "host_count": 0,
+      "users_count": 0,
+      "hosts_count": 0,
       "secrets": [
         {
           "secret": "",
@@ -16220,8 +16220,8 @@ _Available in Fleet Premium_
           "overrides": {},
           "command_line_flags": {}
         },
-        "user_count": 0,
-        "host_count": 0,
+        "users_count": 0,
+        "hosts_count": 0,
         "secrets": [
           {
             "secret": "+ncixtnZB+IE0OrbrkCLeul3U8LMVITd",
@@ -16264,8 +16264,8 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_count": 4,
-    "host_count": 0,
+    "users_count": 4,
+    "hosts_count": 0,
     "agent_options": {
       "config": {
         "options": {
@@ -16442,8 +16442,8 @@ Returned when the requested name only differs from an existing fleet's name by l
   "team": {
     "name": "workstations",
     "id": 1,
-    "user_count": 0,
-    "host_count": 0,
+    "users_count": 0,
+    "hosts_count": 0,
     "agent_options": {
       "config": {
         "options": {
@@ -16538,8 +16538,8 @@ Returned when the requested name only differs from another fleet's name by lette
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_count": 4,
-    "host_count": 8,
+    "users_count": 4,
+    "hosts_count": 8,
     "agent_options": {
       "config": {
         "options": {
@@ -17031,8 +17031,8 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_count": 2,
-    "host_count": 0,
+    "users_count": 2,
+    "hosts_count": 0,
     "agent_options": {
       "config": {
         "options": {
@@ -17226,8 +17226,8 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_count": 4,
-    "host_count": 8,
+    "users_count": 4,
+    "hosts_count": 8,
     "agent_options": {
       "config": {
         "options": {
@@ -18038,8 +18038,8 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
         "name": "Apples",
         "description": "",
         "agent_options": null,
-        "user_count": 0,
-        "host_count": 0,
+        "users_count": 0,
+        "hosts_count": 0,
         "role": "observer"
       },
       {
@@ -18048,8 +18048,8 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
         "name": "Best of the Best Engineering",
         "description": "",
         "agent_options": null,
-        "user_count": 0,
-        "host_count": 0,
+        "users_count": 0,
+        "hosts_count": 0,
         "role": "maintainer"
       }
     ]
@@ -18247,8 +18247,8 @@ Verify the specified invite.
         "name": "Apples",
         "description": "",
         "agent_options": null,
-        "user_count": 0,
-        "host_count": 0,
+        "users_count": 0,
+        "hosts_count": 0,
         "role": "observer"
       },
       {
@@ -18257,8 +18257,8 @@ Verify the specified invite.
         "name": "Best of the Best Engineering",
         "description": "",
         "agent_options": null,
-        "user_count": 0,
-        "host_count": 0,
+        "users_count": 0,
+        "hosts_count": 0,
         "role": "maintainer"
       }
     ]
