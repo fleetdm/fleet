@@ -3,9 +3,8 @@ import React, { useCallback, useRef, useState } from "react";
 import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
-import Card from "components/Card";
 import DataError from "components/DataError";
-import Icon from "components/Icon";
+import FileUploader from "components/FileUploader";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import {
@@ -31,71 +30,11 @@ import {
   IParseFileResult,
   parseFile,
 } from "../../helpers";
-import ProfileGraphic from "../ProfileGraphic";
 
 const baseClass = "add-profile-modal";
 
-interface IFileChooserProps {
-  isLoading: boolean;
-  onFileOpen: (files: FileList | null) => void;
-}
-
-/** TODO: Legacy component, should be replaced with newer FileUploader */
-const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
-  <div className={`${baseClass}__file-chooser`}>
-    <ProfileGraphic
-      baseClass={baseClass}
-      title="Upload configuration profile"
-      message={
-        <>
-          .mobileconfig and .json for macOS, iOS, and iPadOS.
-          <br />
-          .json for Android.
-          <br />
-          .xml for Windows.
-        </>
-      }
-    />
-    <Button
-      className={`${baseClass}__upload-button`}
-      variant="secondary"
-      isLoading={isLoading}
-    >
-      <label htmlFor="upload-profile">
-        <span className={`${baseClass}__file-chooser--button-wrap`}>
-          Choose file <Icon name="upload" />
-        </span>
-      </label>
-    </Button>
-    <input
-      accept=".json,.mobileconfig,application/x-apple-aspen-config,.xml"
-      id="upload-profile"
-      type="file"
-      onChange={(e) => {
-        onFileOpen(e.target.files);
-      }}
-    />
-  </div>
-);
-
-interface IFileDetailsProps {
-  details: IParseFileResult;
-}
-
-// TODO: if we reuse this one more time, we should consider moving this
-// into FileUploader as a default preview. Currently we have this in
-// AddPackageForm.tsx and here.
-const FileDetails = ({ details: { name, ext } }: IFileDetailsProps) => (
-  <div className={`${baseClass}__selected-file`}>
-    <ProfileGraphic baseClass={baseClass} />
-    <div className={`${baseClass}__selected-file--details`}>
-      <div className={`${baseClass}__selected-file--details--name`}>{name}</div>
-      <div className={`${baseClass}__selected-file--details--platform`}>
-        .{ext}
-      </div>
-    </div>
-  </div>
-);
+const PROFILE_ACCEPT =
+  ".json,.mobileconfig,application/x-apple-aspen-config,.xml";
 
 interface IAddProfileModalProps {
   currentTeamId: number;
@@ -250,13 +189,29 @@ const AddProfileModal = ({
       {isPremiumTier && !isLoadingLabels && isErrorLabels && <DataError />}
       {(!isPremiumTier || (!isLoadingLabels && !isErrorLabels)) && (
         <div className={`${baseClass}__modal-content-wrap`}>
-          <Card color="grey" className={`${baseClass}__file`}>
-            {!fileDetails ? (
-              <FileChooser isLoading={isLoading} onFileOpen={onFileOpen} />
-            ) : (
-              <FileDetails details={fileDetails} />
-            )}
-          </Card>
+          <FileUploader
+            graphicName="file-configuration-profile"
+            title="Upload configuration profile"
+            message={
+              <>
+                .mobileconfig and .json for macOS, iOS, and iPadOS.
+                <br />
+                .json for Android.
+                <br />
+                .xml for Windows.
+              </>
+            }
+            accept={PROFILE_ACCEPT}
+            buttonType="secondary"
+            buttonMessage="Choose file"
+            isLoading={isLoading}
+            onFileUpload={onFileOpen}
+            fileDetails={
+              fileDetails
+                ? { name: fileDetails.name, description: `.${fileDetails.ext}` }
+                : undefined
+            }
+          />
           {isPremiumTier && (
             <div className={`form-field ${baseClass}__target`}>
               <div className="form-field__label">Target</div>

@@ -27944,32 +27944,44 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.NoError(t, err)
 	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
 
-	// --- iOS failure: the device errors the command (e.g. unsupervised) ---
+	// --- iOS failure: the device errors the command ---
 	// Each error re-queues the row until the retries are used up, then it fails.
-	failIOSCommand := func() {
+	failIOSCommand := func(errChain mdm.ErrorChain) {
 		cmd, err := iosFailDevice.Idle()
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
 		require.Equal(t, "Settings", cmd.Command.RequestType)
-		_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{
-			{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
-		})
+		_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{errChain})
 		require.NoError(t, err)
 	}
+	transientErr := mdm.ErrorChain{ErrorCode: 99, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "Something went wrong."}
 	for i := 1; i <= servermdm.MaxAppleDeviceNameRetries; i++ {
-		failIOSCommand()
+		failIOSCommand(transientErr)
 		retriedRow := requireRowStatus(iosFailHost.UUID, nil)
 		require.EqualValues(t, i, retriedRow.Retries)
 		runDeviceNameCron()
 		requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryPending)
 	}
-	failIOSCommand()
+	failIOSCommand(transientErr)
 	failedRow := requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
-	require.Contains(t, failedRow.Detail, "The device is not supervised.")
+	require.Contains(t, failedRow.Detail, "Something went wrong.")
 
 	// once retries are used up, the failed command is not re-sent by subsequent cron runs
 	runDeviceNameCron()
 	requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	cmd, err = iosFailDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// An unsupervised device can never apply the rename, so after a resend that
+	// rejection fails the row right away instead of using retries.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/name_template/resend", iosFailHost.ID), nil, http.StatusAccepted)
+	runDeviceNameCron()
+	failIOSCommand(mdm.ErrorChain{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."})
+	failedRow = requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, failedRow.Detail, "The device is not supervised.")
+	require.Zero(t, failedRow.Retries)
+	runDeviceNameCron()
 	cmd, err = iosFailDevice.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
@@ -30427,4 +30439,103 @@ func (s *integrationMDMTestSuite) TestStagedUpload() {
 	require.Equal(t, "ipa_test_v2.ipa", ipaFilename)
 	require.Equal(t, fmt.Sprintf("%x", ipaV2Sha), ipaStorageID)
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", ipaTitleID), nil, http.StatusNoContent, "fleet_id", "0")
+}
+
+func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	teamID := fmt.Sprint(team.ID)
+
+	create := func(fileName string, content []byte, fields map[string][]string, wantStatus int) string {
+		fields["team_id"] = []string{teamID}
+		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, fields)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
+		defer res.Body.Close()
+		var resp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp.ProfileUUID
+	}
+	update := func(profileUUID string, fields map[string][]string, wantStatus int) {
+		body, headers := generateMultipartRequest(t, "profile", "", nil, s.token, fields)
+		s.DoRawWithHeaders("PATCH", "/api/latest/fleet/configuration_profiles/"+profileUUID, body.Bytes(), wantStatus, headers).Body.Close()
+	}
+	get := func(profileUUID string) *fleet.MDMConfigProfilePayload {
+		var resp getMDMConfigProfileResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/"+profileUUID, getMDMConfigProfileRequest{}, http.StatusOK, &resp)
+		return resp.MDMConfigProfilePayload
+	}
+	installOn := func(hostUUID, profileUUID, identifier string) {
+		require.NoError(t, s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID: profileUUID, ProfileIdentifier: identifier, HostUUID: hostUUID, CommandUUID: uuid.NewString(),
+			OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified, Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem,
+		}}))
+	}
+	requireOptedIn := func(hostUUID, profileUUID string) {
+		ok, err := s.ds.HasHostMDMProfileOptIn(ctx, hostUUID, profileUUID)
+		require.NoError(t, err)
+		require.True(t, ok)
+	}
+	yes := []string{"true"}
+
+	ssUUID := create("ss.mobileconfig", mobileconfigForTest("SS", "com.test.ss"), map[string][]string{"self_service": yes}, http.StatusOK)
+	winUUID := create("hidden.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Hidden/Test"), map[string][]string{"hidden": yes}, http.StatusOK)
+	declUUID := create("hidden-decl.json", declBytesForTest("com.test.hidden.decl", "hidden"), map[string][]string{"hidden": yes}, http.StatusOK)
+	require.True(t, get(ssUUID).SelfService)
+	require.True(t, get(winUUID).Hidden)
+	require.True(t, get(declUUID).Hidden)
+
+	create("ss.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/SS/Test"), map[string][]string{"self_service": yes}, http.StatusUnprocessableEntity)
+	create("ss.json", declBytesForTest("com.test.ss.decl", "ss"), map[string][]string{"self_service": yes}, http.StatusUnprocessableEntity)
+	create("both.mobileconfig", mobileconfigForTest("Both", "com.test.both"), map[string][]string{"self_service": yes, "hidden": yes}, http.StatusUnprocessableEntity)
+	create("bad.mobileconfig", mobileconfigForTest("Bad", "com.test.bad"), map[string][]string{"hidden": {"nope"}}, http.StatusBadRequest)
+	// hidden is validated against the stored self_service
+	update(ssUUID, map[string][]string{"hidden": yes}, http.StatusUnprocessableEntity)
+	update(declUUID, map[string][]string{"self_service": yes}, http.StatusUnprocessableEntity)
+
+	// flipping to self-service opts in hosts that have it, without moving uploaded_at
+	forcedUUID := create("forced.mobileconfig", mobileconfigForTest("Forced", "com.test.forced"), map[string][]string{}, http.StatusOK)
+	installOn("host-1", forcedUUID, "com.test.forced")
+	before := get(forcedUUID)
+	update(forcedUUID, map[string][]string{"self_service": yes}, http.StatusOK)
+	after := get(forcedUUID)
+	require.True(t, after.SelfService)
+	require.Equal(t, before.UploadedAt, after.UploadedAt)
+	requireOptedIn("host-1", forcedUUID)
+	update(forcedUUID, map[string][]string{"description": {"kept"}}, http.StatusOK)
+	require.True(t, get(forcedUUID).SelfService)
+
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	for _, p := range listResp.Profiles {
+		require.Equal(t, p.ProfileUUID == ssUUID || p.ProfileUUID == forcedUUID, p.SelfService, p.Name)
+		require.Equal(t, p.ProfileUUID == winUUID || p.ProfileUUID == declUUID, p.Hidden, p.Name)
+	}
+
+	// batch: the flip seeds opt-ins too, and is declarative for the flags
+	batch := func(profiles []fleet.MDMProfileBatchPayload, wantStatus int) {
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, wantStatus, "team_id", teamID)
+	}
+	batch([]fleet.MDMProfileBatchPayload{{Name: "B", Contents: mobileconfigForTest("B", "com.test.b")}}, http.StatusNoContent)
+	var bUUID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &bUUID, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = 'com.test.b'`)
+	})
+	installOn("host-2", bUUID, "com.test.b")
+	batch([]fleet.MDMProfileBatchPayload{
+		{Name: "B", Contents: mobileconfigForTest("B", "com.test.b"), SelfService: true},
+		{Name: "W", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/W/Test"), Hidden: true},
+		{Name: "A", Contents: []byte(`{"cameraDisabled": true}`), Hidden: true},
+	}, http.StatusNoContent)
+	require.True(t, get(bUUID).SelfService)
+	requireOptedIn("host-2", bUUID)
+	listResp = listMDMConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	require.Len(t, listResp.Profiles, 3)
+	for _, p := range listResp.Profiles {
+		require.Equal(t, p.Name == "W" || p.Name == "A", p.Hidden, p.Name)
+	}
+	batch([]fleet.MDMProfileBatchPayload{{Name: "W", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/W/Test"), SelfService: true}}, http.StatusUnprocessableEntity)
 }
