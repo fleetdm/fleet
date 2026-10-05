@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -42,6 +43,25 @@ func updateHostIdentityCertHostIDBySerial(ctx context.Context, tx sqlx.ExtContex
 		SET host_id = ?
 		WHERE serial = ?`, hostID, serialNumber)
 	return err
+}
+
+// checkEnrollmentHoldsHostIdentityCert rejects enrolling over a host with an unrevoked identity cert unless signed by that host's cert,
+// since enrollment can match a host by serial or osquery identifier rather than by the cert name.
+func checkEnrollmentHoldsHostIdentityCert(
+	ctx context.Context, tx sqlx.QueryerContext, hostID uint, identityCert *types.HostIdentityCertificate,
+) error {
+	if identityCert != nil && identityCert.HostID != nil && *identityCert.HostID == hostID {
+		return nil
+	}
+	var hasCert bool
+	if err := sqlx.GetContext(ctx, tx, &hasCert,
+		`SELECT EXISTS(SELECT 1 FROM host_identity_scep_certificates WHERE host_id = ? AND revoked = 0)`, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "check matched host identity certificate")
+	}
+	if hasCert {
+		return ctxerr.Errorf(ctx, "host %d holds a host identity certificate but the enrollment was not signed with it", hostID)
+	}
+	return nil
 }
 
 func (ds *Datastore) GetHostIdentityCertByName(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {

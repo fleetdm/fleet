@@ -28,6 +28,7 @@ func TestHostIdentitySCEP(t *testing.T) {
 		{"GetHostIdentityCert", testGetHostIdentityCert},
 		{"UpdateHostIdentityCertHostIDBySerial", testUpdateHostIdentityCertHostIDBySerial},
 		{"HostIdentityCertificateIntegration", testHostIdentityCertificateIntegration},
+		{"EnrollRequiresSignatureForCertHost", testEnrollRequiresSignatureForCertHost},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -350,5 +351,96 @@ func testHostIdentityCertificateIntegration(t *testing.T, ds *Datastore) {
 		require.NotNil(t, cert)
 		require.NotNil(t, cert.HostID)
 		assert.Equal(t, host.ID, *cert.HostID)
+	})
+}
+
+func testEnrollRequiresSignatureForCertHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	const (
+		victimOsqueryID = "victim-osquery-id"
+		victimSerial    = "victim-serial"
+		victimNodeKey   = "victim-node-key"
+	)
+	victim, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(victimOsqueryID),
+		NodeKey:         new(victimNodeKey),
+		OrbitNodeKey:    new("victim-orbit-node-key"),
+		UUID:            "victim-uuid",
+		HardwareSerial:  victimSerial,
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	insertSimpleTestCertificate(t, ds, 5001, &victim.ID, victimOsqueryID)
+	victimCert, err := ds.GetHostIdentityCertByName(ctx, victimOsqueryID)
+	require.NoError(t, err)
+	insertSimpleTestCertificate(t, ds, 5002, nil, "attacker-cert")
+	unboundCert, err := ds.GetHostIdentityCertByName(ctx, "attacker-cert")
+	require.NoError(t, err)
+
+	enrollOsquery := func(osqueryID, serial, nodeKey string, cert *types.HostIdentityCertificate) error {
+		_, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryMDMEnabled(true),
+			fleet.WithEnrollOsqueryHostID(osqueryID),
+			fleet.WithEnrollOsqueryHardwareUUID("attacker-uuid"),
+			fleet.WithEnrollOsqueryHardwareSerial(serial),
+			fleet.WithEnrollOsqueryNodeKey(nodeKey),
+			fleet.WithEnrollOsqueryIdentityCert(cert),
+		)
+		return err
+	}
+	enrollOrbit := func(osqueryID, serial, nodeKey string, cert *types.HostIdentityCertificate) error {
+		_, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:      "attacker-uuid",
+				HardwareSerial:    serial,
+				Platform:          "darwin",
+				OsqueryIdentifier: osqueryID,
+			}),
+			fleet.WithEnrollOrbitNodeKey(nodeKey),
+			fleet.WithEnrollOrbitIdentityCert(cert),
+		)
+		return err
+	}
+	requireVictimNodeKey := func(t *testing.T, want string) {
+		host, err := ds.Host(ctx, victim.ID)
+		require.NoError(t, err)
+		require.Equal(t, want, ptr.ValOrZero(host.NodeKey))
+		require.Equal(t, victimOsqueryID, ptr.ValOrZero(host.OsqueryHostID))
+	}
+
+	for _, tc := range []struct {
+		name   string
+		enroll func() error
+	}{
+		{"osquery unsigned serial match", func() error { return enrollOsquery("junk", victimSerial, "attacker-node-key-a", nil) }},
+		{"osquery unsigned osquery id match", func() error { return enrollOsquery(victimOsqueryID, "", "attacker-node-key-b", nil) }},
+		{"osquery signed by unbound cert", func() error { return enrollOsquery("junk", victimSerial, "attacker-node-key-c", unboundCert) }},
+		{"orbit unsigned serial match", func() error { return enrollOrbit("", victimSerial, "attacker-orbit-key-a", nil) }},
+		{"orbit unsigned osquery id match", func() error { return enrollOrbit(victimOsqueryID, "", "attacker-orbit-key-b", nil) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.enroll()
+			require.ErrorContains(t, err, "not signed with it")
+			requireVictimNodeKey(t, victimNodeKey)
+		})
+	}
+
+	t.Run("signed by the host's cert", func(t *testing.T) {
+		require.NoError(t, enrollOrbit(victimOsqueryID, victimSerial, "victim-orbit-node-key-new", victimCert))
+		require.NoError(t, enrollOsquery(victimOsqueryID, victimSerial, "victim-node-key-new", victimCert))
+		requireVictimNodeKey(t, "victim-node-key-new")
+	})
+
+	t.Run("revoked cert no longer protects the host", func(t *testing.T) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_identity_scep_certificates SET revoked = 1 WHERE serial = ?`, victimCert.SerialNumber)
+		require.NoError(t, err)
+		require.NoError(t, enrollOsquery(victimOsqueryID, "", "victim-node-key-unsigned", nil))
+		requireVictimNodeKey(t, "victim-node-key-unsigned")
 	})
 }

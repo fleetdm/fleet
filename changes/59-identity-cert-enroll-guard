@@ -1,0 +1,1 @@
+- Fixed fleetd and osquery enrollment so a host that holds a host identity certificate can only be re-enrolled with a request signed by that certificate.
