@@ -6134,6 +6134,97 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotCreateUserInOtherTea
 	require.NotNil(t, resp.User)
 }
 
+func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlobalRole() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_other"})
+	require.NoError(t, err)
+	defer func() {
+		s.token = s.getTestAdminToken()
+		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+		require.NoError(t, s.ds.DeleteTeam(ctx, otherTeam.ID))
+	}()
+	otherTeamLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:                t.Name() + "_other_label",
+		Query:               "SELECT 1",
+		TeamID:              &otherTeam.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	teamAdminEmail := t.Name() + "_team_admin@example.com"
+	teamAdmin := &fleet.User{
+		Name:  teamAdminEmail,
+		Email: teamAdminEmail,
+		Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleAdmin}},
+	}
+	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, teamAdmin)
+	require.NoError(t, err)
+
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+
+	var createResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", map[string]any{
+		"name":                        "svc",
+		"email":                       t.Name() + "_svc@example.com",
+		"password":                    test.GoodPassword,
+		"global_role":                 "",
+		"teams":                       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"api_only":                    true,
+		"admin_forced_password_reset": false,
+	}, http.StatusUnprocessableEntity, &createResp)
+	_, err = s.ds.UserByEmail(ctx, t.Name()+"_svc@example.com")
+	require.True(t, fleet.IsNotFound(err))
+
+	createResp = createUserResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        t.Name() + "_svc_api",
+		"global_role": "",
+		"fleets":      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+	}, http.StatusUnprocessableEntity, &createResp)
+	require.Nil(t, createResp.User)
+	require.Empty(t, createResp.Token)
+
+	plantedEmail := t.Name() + "_planted@example.com"
+	planted := &fleet.User{
+		Name:  plantedEmail,
+		Email: plantedEmail,
+		Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleAdmin}},
+	}
+	require.NoError(t, planted.SetPassword(test.GoodPassword, 10, 10))
+	planted, err = s.ds.NewUser(ctx, planted)
+	require.NoError(t, err)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE users SET global_role = '' WHERE id = ?`, planted.ID)
+		return err
+	})
+
+	s.token = s.getTestToken(planted.Email, test.GoodPassword)
+
+	var labelsResp fleet.ListLabelsResponse
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusForbidden, &labelsResp, "team_id", fmt.Sprint(otherTeam.ID))
+	labelsResp = fleet.ListLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &labelsResp)
+	for _, lbl := range labelsResp.Labels {
+		require.NotEqual(t, otherTeamLabel.ID, lbl.ID)
+	}
+
+	var modResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", planted.ID), map[string]any{
+		"global_role": fleet.RoleAdmin,
+	}, http.StatusForbidden, &modResp)
+
+	planted, err = s.ds.UserByID(ctx, planted.ID)
+	require.NoError(t, err)
+	require.NotNil(t, planted.GlobalRole)
+	require.Empty(t, *planted.GlobalRole)
+}
+
 func (s *integrationEnterpriseTestSuite) TestDeviceSSOWithoutAppleMDM() {
 	t := s.T()
 
