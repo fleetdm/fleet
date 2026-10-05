@@ -1,1 +1,1 @@
-- Updated policy error messages to say "fleet policies" instead of "team policies" when `run_script`, `install_software`, or `resend_configuration_profile` is set on a global policy.
+- Updated policy error messages to say "fleet-level policies" instead of "team policies" when `run_script`, `install_software`, or `resend_configuration_profile` is set on a global policy.

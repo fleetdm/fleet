@@ -62,7 +62,7 @@ const (
 var (
 	errSoftwareTitleIDOnGlobalPolicy = errors.New("install software title id can be only be set on team policies")
 	errScriptIDOnGlobalPolicy        = errors.New("run script id can only be set on team or \"no team\" policies")
-	errProfileUUIDOnGlobalPolicy     = errors.New("resend configuration profile can only be set on fleet policies")
+	errProfileUUIDOnGlobalPolicy     = errors.New("resend configuration profile can only be set on fleet-level policies")
 )
 
 var policySearchColumns = []string{"p.name"}
