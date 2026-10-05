@@ -34,12 +34,12 @@ quit_and_track_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
     osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
-    if [[ "$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)" != "true" ]]; then
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
       quit_success=true
       break
@@ -100,6 +100,16 @@ detach_dmg() {
   hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || hdiutil detach -force "$MOUNT_POINT" >/dev/null 2>&1 || true
 }
 
+# detach the disk image, relaunch any app that was quit, and fail the install
+abort_install() {
+  detach_dmg
+  local bundle_id
+  for bundle_id in "${BUNDLE_IDS[@]}"; do
+    relaunch_application "$bundle_id"
+  done
+  exit 1
+}
+
 # KiCad installs as a folder of apps (KiCad, Schematic Editor, PCB Editor, and
 # others) in /Applications/KiCad. Every app in that folder is quit before the
 # folder is replaced, and the install stops if one won't quit (for example, the
@@ -127,21 +137,12 @@ while IFS= read -r bundle_id; do
 	[[ -n "$bundle_id" ]] && BUNDLE_IDS+=("$bundle_id")
 done < <(installed_bundle_ids)
 for bundle_id in "${BUNDLE_IDS[@]}"; do
-	if ! quit_and_track_application "$bundle_id"; then
-		detach_dmg
-		for id in "${BUNDLE_IDS[@]}"; do
-			relaunch_application "$id"
-		done
-		exit 1
-	fi
+	quit_and_track_application "$bundle_id" || abort_install
 done
 
 # copy to the applications folder
 if [ -d "$APPDIR/KiCad" ]; then
-	if ! sudo mv "$APPDIR/KiCad" "$TMPDIR/KiCad.bkp"; then
-		detach_dmg
-		exit 1
-	fi
+	sudo mv "$APPDIR/KiCad" "$TMPDIR/KiCad.bkp" || abort_install
 fi
 if ! sudo cp -R "$MOUNT_POINT/KiCad" "$APPDIR"; then
 	# remove the partial copy so a failed install isn't inventoried as the new
@@ -150,8 +151,7 @@ if ! sudo cp -R "$MOUNT_POINT/KiCad" "$APPDIR"; then
 	if [ -d "$TMPDIR/KiCad.bkp" ]; then
 		sudo mv "$TMPDIR/KiCad.bkp" "$APPDIR/KiCad"
 	fi
-	detach_dmg
-	exit 1
+	abort_install
 fi
 detach_dmg
 
