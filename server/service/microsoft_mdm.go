@@ -3283,7 +3283,7 @@ func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Cont
 		"existing_entra_device_id", boundEntraDeviceID,
 		"existing_host_uuid", existing.HostUUID,
 	)
-	return "", ctxerr.New(ctx, "hardware ID is enrolled to another device")
+	return "", ctxerr.New(ctx, "hardware ID is enrolled to another host")
 }
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the enrollment held by the hardware ID, if any.
