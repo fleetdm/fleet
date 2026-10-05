@@ -91,10 +91,10 @@ func TestBulkSetAndroidAppsAvailableForHostsPreservesFleetAgent(t *testing.T) {
 	ds.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
 		return 0, nil
 	}
-	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]string, error) {
-		return []string{"com.example.teamapp"}, nil
+	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
+		return []fleet.VPPAppTeam{{VPPAppID: fleet.VPPAppID{AdamID: "com.example.teamapp"}, AppTeamID: 1}}, nil
 	}
-	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string][]byte, error) {
+	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 		return map[string][]byte{}, nil
 	}
 
@@ -148,7 +148,10 @@ func TestBulkMakeAndroidAppsAvailableForHostPreservesFleetAgent(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string][]byte, error) {
+	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
+		return []fleet.VPPAppTeam{{VPPAppID: fleet.VPPAppID{AdamID: "com.example.vppapp"}, AppTeamID: 1}}, nil
+	}
+	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 		return map[string][]byte{}, nil
 	}
 
@@ -599,4 +602,50 @@ func TestBuildApplicationPolicyWithConfig(t *testing.T) {
 		require.Empty(t, policies[0].WorkProfileWidgets)
 		require.Equal(t, "CREDENTIAL_PROVIDER_ALLOWED", policies[0].CredentialProviderPolicy)
 	})
+}
+
+func TestRunAndroidSetupExperienceInstallsFirstAddedFlaggedVersion(t *testing.T) {
+	const hostUUID = "setup-host-uuid"
+
+	ds := new(mock.Store)
+	ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, uuid string) (*fleet.AndroidHost, error) {
+		return &fleet.AndroidHost{Host: &fleet.Host{ID: 1, UUID: hostUUID}, Device: &android.Device{AppliedPolicyID: new(hostUUID)}}, nil
+	}
+	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
+		return nil, nil
+	}
+	ds.GetVPPAppsToInstallDuringSetupExperienceFunc = func(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error) {
+		return []fleet.VPPAppTeam{
+			{VPPAppID: fleet.VPPAppID{AdamID: "com.example.app", Platform: fleet.AndroidPlatform}, AppTeamID: 1},
+			{VPPAppID: fleet.VPPAppID{AdamID: "com.example.app", Platform: fleet.AndroidPlatform}, AppTeamID: 2},
+		}, nil
+	}
+	var configVersionIDs []uint
+	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
+		configVersionIDs = vppAppTeamIDs
+		return map[string][]byte{}, nil
+	}
+	var installs []*fleet.HostAndroidVPPSoftwareInstall
+	ds.InsertAndroidSetupExperienceSoftwareInstallFunc = func(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error {
+		installs = append(installs, payload)
+		return nil
+	}
+
+	var appPolicies []*androidmanagement.ApplicationPolicy
+	androidModule := &mockAndroidModule{
+		addAppsToAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, policies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+			appPolicies = append(appPolicies, policies...)
+			return map[string]*android.MDMAndroidPolicyRequest{hostUUID: {PolicyVersion: sql.Null[int64]{V: 1, Valid: true}}}, nil
+		},
+	}
+	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+	// run the setup experience with two flagged versions of one app, only the first-added version should be installed
+	err := w.runAndroidSetupExperience(t.Context(), hostUUID, 0, "enterprises/test")
+	require.NoError(t, err)
+	require.Len(t, appPolicies, 1)
+	require.Equal(t, "com.example.app", appPolicies[0].PackageName)
+	require.Equal(t, []uint{1}, configVersionIDs)
+	require.Len(t, installs, 1)
+	require.Equal(t, uint(1), installs[0].VPPAppTeamID)
 }

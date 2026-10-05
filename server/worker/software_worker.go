@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -361,16 +362,23 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
 	}
 
-	appIDs, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
+	appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
 	}
 
-	if len(appIDs) == 0 {
+	if len(appsInScope) == 0 {
 		return nil
 	}
 
-	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, ptr.ValOrZero(androidHost.TeamID))
+	appIDs := make([]string, 0, len(appsInScope))
+	vppAppTeamIDs := make([]uint, 0, len(appsInScope))
+	for _, app := range appsInScope {
+		appIDs = append(appIDs, app.AdamID)
+		vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
+	}
+
+	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
@@ -424,13 +432,21 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	// the enrollment team's setup experience software, do we still run those installs?
 	// my guess is yes (because we don't _uninstall_ on team transfers, so it should be
 	// expected that the original team's software gets installed despite being transferred).
-	setupApps, err := v.Datastore.GetVPPAppsToInstallDuringSetupExperience(ctx, &hostEnrollTeamID, string(fleet.AndroidPlatform))
+	flaggedVersions, err := v.Datastore.GetVPPAppsToInstallDuringSetupExperience(ctx, &hostEnrollTeamID, string(fleet.AndroidPlatform))
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting vpp apps to install during setup experience for team %d", hostEnrollTeamID)
 	}
-	appIDs := make([]string, 0, len(setupApps))
-	for _, app := range setupApps {
+	// Install the first-added flagged version of each app, versions are ordered by id
+	var setupApps []fleet.VPPAppTeam
+	appIDs := make([]string, 0, len(flaggedVersions))
+	vppAppTeamIDs := make([]uint, 0, len(flaggedVersions))
+	for _, app := range flaggedVersions {
+		if slices.Contains(appIDs, app.AdamID) {
+			continue
+		}
+		setupApps = append(setupApps, app)
 		appIDs = append(appIDs, app.AdamID)
+		vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
 	}
 
 	if len(appIDs) > 0 {
@@ -438,7 +454,7 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 		// even if they were already applied when making the apps available for self-service.
 		// However, once installed, if the app config changes it is applied automatically by the
 		// policy change (no need to re-install).
-		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, hostEnrollTeamID)
+		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 		}
@@ -496,7 +512,18 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 		return ctxerr.Wrapf(ctx, err, "getting android host lite by uuid %s", hostUUID)
 	}
 
-	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, applicationIDs, ptr.ValOrZero(host.Host.TeamID))
+	appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, host.Host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
+	}
+	var vppAppTeamIDs []uint
+	for _, app := range appsInScope {
+		if slices.Contains(applicationIDs, app.AdamID) {
+			vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
+		}
+	}
+
+	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
@@ -748,12 +775,19 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 			return ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
 		}
 
-		appIDs, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
+		appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
 		if err != nil {
 			return ctxerr.WrapWithData(ctx, err, "get android apps in scope for host", map[string]any{"host_id": hostID})
 		}
 
-		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, teamID)
+		appIDs := make([]string, 0, len(appsInScope))
+		vppAppTeamIDs := make([]uint, 0, len(appsInScope))
+		for _, app := range appsInScope {
+			appIDs = append(appIDs, app.AdamID)
+			vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
+		}
+
+		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 		}

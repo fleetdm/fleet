@@ -553,8 +553,8 @@ func TestInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 		return nil, nil
 	}
-	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
-		return nil, &notFoundError{}
+	ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{}, nil
 	}
 
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -2522,8 +2522,8 @@ func TestSelfServiceInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testi
 	ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) ([]*fleet.SoftwareInstaller, error) {
 		return nil, nil
 	}
-	ds.GetVPPAppByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.VPPApp, error) {
-		return nil, &notFoundError{}
+	ds.ListHostAppStoreAppVersionsFunc = func(_ context.Context, _ *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{}, nil
 	}
 	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.SoftwareInstaller, error) {
 		return nil, &notFoundError{}

@@ -3230,6 +3230,11 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return ctxerr.Wrapf(ctx, err, "failed to check recent VPP installs")
 	}
 
+	hostVersionByTitleID, err := svc.ds.ListHostAppStoreAppVersions(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get the host's App Store app versions")
+	}
+
 	// When two policies are bound to one app only the first queues an install, so sort to make that
 	// choice stable. Sorted here rather than in GetPoliciesWithAssociatedVPP so it stays verifiable
 	// without a live database.
@@ -3258,12 +3263,8 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppMetadata.VPPAppTeam.AppTeamID, hostID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking if vpp app is label scoped to host")
-		}
-
-		if !scoped {
+		hostVersion, ok := hostVersionByTitleID[vppMetadata.TitleID]
+		if !ok || !hostVersion.InScope {
 			// NOTE: we update the policy status here to stop it from showing up as "failed" in the
 			// host details.
 			incomingPolicyResults[failingPolicyWithVPP.ID] = nil
@@ -3295,7 +3296,16 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, fleet.HostSoftwareInstallOptions{
+		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, vppMetadata.TitleID, hostVersion.VPPAppTeamID)
+		if err != nil {
+			logger.ErrorContext(
+				ctx, "failed to get the host's VPP app version",
+				"err", err,
+			)
+			continue
+		}
+
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken, fleet.HostSoftwareInstallOptions{
 			SelfService:     false,
 			PolicyID:        &policyID,
 			DeferActivation: svc.deferFleetInitiatedActivation(),

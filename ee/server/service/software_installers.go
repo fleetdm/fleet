@@ -1878,30 +1878,24 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	// associates the asset via clientUserIds (#44004), and emits an
 	// InstallApplication command without ChangeManagementState (#44005).
 
-	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
+	vppApp, anyVersions, err := svc.resolveFirstAddedInScopeVPPApp(ctx, host, softwareTitleID, nil)
 	if err != nil {
-		// if we couldn't find an installer or a VPP app, return a bad
-		// request error
-		if fleet.IsNotFound(err) {
-			return &fleet.BadRequestError{
-				Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
-				InternalErr: ctxerr.WrapWithData(
-					ctx, err, "couldn't find an installer or VPP app for software title",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
-				),
-			}
+		return err
+	}
+
+	// if we couldn't find an installer or a VPP app, return a bad
+	// request error
+	if !anyVersions {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
+			InternalErr: ctxerr.NewWithData(
+				ctx, "couldn't find an installer or VPP app for software title",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+			),
 		}
-
-		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
 	}
 
-	// check the label scoping for this VPP app and host
-	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "checking label scoping during vpp software install attempt")
-	}
-
-	if !scoped {
+	if vppApp == nil {
 		return &fleet.BadRequestError{
 			Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
 		}
@@ -2093,7 +2087,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	// is visible in the activity feed and Install Details modal. Doing this
 	// before AssociateAssets also avoids leaking a VPP license.
 	if vppApp.Platform == fleet.IOSPlatform || vppApp.Platform == fleet.IPadOSPlatform {
-		cfg, err := svc.ds.GetVPPAppConfiguration(ctx, vppApp.Platform, vppApp.AdamID, ptr.ValOrZero(host.TeamID))
+		cfg, err := svc.ds.GetVPPAppConfiguration(ctx, vppApp.AppTeamID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return "", ctxerr.Wrap(ctx, err, "get vpp app configuration for pre-flight check")
 		}
@@ -4417,7 +4411,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 	}, nil
 }
 
-func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+func (svc *Service) selfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint, hostVersionByTitleID map[uint]*fleet.HostAppStoreAppVersion) error {
 	// User-enrolled (BYOD) iOS/iPadOS hosts are no longer blocked from
 	// self-service. The downstream VPP install flow handles user-scoped
 	// licensing via clientUserIds. End-to-end success still depends on the
@@ -4482,14 +4476,20 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
 	}
 
-	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
+	vppApp, anyVersions, err := svc.resolveFirstAddedInScopeVPPApp(ctx, host, softwareTitleID, hostVersionByTitleID)
 	if err != nil {
-		// if we couldn't find an installer or a VPP app, try an in-house app
-		if fleet.IsNotFound(err) {
-			return svc.selfServiceInstallInHouseApp(ctx, host, softwareTitleID)
-		}
+		return err
+	}
 
-		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
+	// if we couldn't find an installer or a VPP app, try an in-house app
+	if !anyVersions {
+		return svc.selfServiceInstallInHouseApp(ctx, host, softwareTitleID)
+	}
+
+	if vppApp == nil {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install. This software is not available for this host.",
+		}
 	}
 
 	if !vppApp.SelfService {
@@ -4499,17 +4499,6 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 				ctx, "software title not available through self-service",
 				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
 			),
-		}
-	}
-
-	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "checking vpp label scoping during software install attempt")
-	}
-
-	if !scoped {
-		return &fleet.BadRequestError{
-			Message: "Couldn't install. This software is not available for this host.",
 		}
 	}
 
@@ -4529,11 +4518,16 @@ func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, hos
 		return ctxerr.Wrap(ctx, err, "get software titles for install all")
 	}
 
+	hostVersionByTitleID, err := svc.ds.ListHostAppStoreAppVersions(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host app store app versions for install all")
+	}
+
 	// Queue individual install activities for each title. If any errors occurred while
 	// queuing this title we log them and continue to the next software title.
 	var queuedCount uint
 	for _, title := range titles {
-		if err := svc.SelfServiceInstallSoftwareTitle(ctx, host, title.ID); err != nil {
+		if err := svc.selfServiceInstallSoftwareTitle(ctx, host, title.ID, hostVersionByTitleID); err != nil {
 			svc.logger.ErrorContext(ctx, "enqueuing software install", "title_id", title.ID, "err", err)
 			continue
 		}
@@ -4952,4 +4946,30 @@ func (svc *Service) resetInstallAttemptsForInstallers(ctx context.Context, insta
 	if err := svc.installAttemptCounter.ResetInstallerAttempts(ctx, installerIDs); err != nil {
 		svc.logger.ErrorContext(ctx, "failed to reset policy automation install attempts for updated installers", "software_installer_ids", installerIDs, "err", err)
 	}
+}
+
+func (svc *Service) resolveFirstAddedInScopeVPPApp(ctx context.Context, host *fleet.Host, titleID uint, hostVersionByTitleID map[uint]*fleet.HostAppStoreAppVersion) (vppApp *fleet.VPPApp, anyVersions bool, err error) {
+	if hostVersionByTitleID == nil {
+		hostVersionByTitleID, err = svc.ds.ListHostAppStoreAppVersions(ctx, host)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "listing App Store app versions for install precedence")
+		}
+	}
+	hostVersion, ok := hostVersionByTitleID[titleID]
+	if !ok {
+		return nil, false, nil
+	}
+	if !hostVersion.InScope {
+		return nil, true, nil
+	}
+
+	vppApp, err = svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, titleID, hostVersion.VPPAppTeamID)
+	if err != nil {
+		return nil, true, ctxerr.Wrap(ctx, err, "get App Store app version")
+	}
+	return vppApp, true, nil
+}
+
+func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+	return svc.selfServiceInstallSoftwareTitle(ctx, host, softwareTitleID, nil)
 }

@@ -403,3 +403,13 @@ type DuplicateStringGroup struct {
 	// Indices in the provided input slice
 	Indices []int
 }
+
+// HostAppStoreAppVersion is the App Store app version a host gets for a software title: the first-added version
+// the host is in label scope for, or the first-added version with InScope false when the host is in scope for none.
+type HostAppStoreAppVersion struct {
+	VPPAppTeamID uint   `db:"id"`
+	AdamID       string `db:"adam_id"`
+	TitleID      uint   `db:"title_id"`
+	Name         string `db:"name"`
+	InScope      bool   `db:"in_scope"`
+}

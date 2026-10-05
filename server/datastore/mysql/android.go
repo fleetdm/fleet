@@ -2600,7 +2600,6 @@ WHERE
 
 // GetAndroidAppConfiguration retrieves the configuration for an Android app by app ID and team
 func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error) {
-	// TODO(JK): read the configuration of the instance being installed, this reads the first-added instance
 	stmt := `SELECT configuration FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = 'android' ORDER BY id LIMIT 1`
 
 	var config []byte
@@ -2637,25 +2636,20 @@ func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, 
 	return config, nil
 }
 
-func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error) {
-	// TODO(JK): read the configuration of the version the host is in scope for, this reads the first-added version of each app
+func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 	const bulkGetStmt = `
 	SELECT
 		vat.adam_id AS application_id,
 		vat.configuration
 	FROM vpp_apps_teams vat
-	WHERE vat.adam_id IN (?) AND vat.global_or_team_id = ? AND vat.platform = 'android' AND vat.configuration IS NOT NULL
-		AND vat.id = (
-			SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
-			WHERE vat2.adam_id = vat.adam_id AND vat2.platform = vat.platform AND vat2.global_or_team_id = vat.global_or_team_id
-		)
+	WHERE vat.id IN (?) AND vat.platform = 'android' AND vat.configuration IS NOT NULL
 	`
 
-	if len(appIDs) == 0 {
+	if len(vppAppTeamIDs) == 0 {
 		return nil, nil
 	}
 
-	stmt, args, err := sqlx.In(bulkGetStmt, appIDs, teamID)
+	stmt, args, err := sqlx.In(bulkGetStmt, vppAppTeamIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building bulk get android app configurations query")
 	}

@@ -1214,7 +1214,7 @@ func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context
 	return &dest, nil
 }
 
-func (ds *Datastore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
+func (ds *Datastore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
 	stmt := `
 SELECT
   vat.id,
@@ -1227,12 +1227,11 @@ SELECT
   va.created_at,
   va.updated_at,
   vat.self_service,
+  vat.name version_name,
   vat.created_at added_at
 FROM vpp_apps va
 JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
-WHERE vat.global_or_team_id = ? AND va.title_id = ?
-ORDER BY vat.id
-LIMIT 1
+WHERE vat.global_or_team_id = ? AND va.title_id = ? AND vat.id = ?
   `
 
 	var tmID uint
@@ -1241,7 +1240,7 @@ LIMIT 1
 	}
 
 	var dest fleet.VPPApp
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, tmID, titleID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, tmID, titleID, vppAppTeamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app")
@@ -2965,17 +2964,19 @@ WHERE
 	return users, activities, nil
 }
 
-func (ds *Datastore) GetAndroidAppsInScopeForHost(ctx context.Context, hostID uint) (applicationIDs []string, err error) {
+func (ds *Datastore) GetAndroidAppsInScopeForHost(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
 	stmt := `
 SELECT
-	installable_id
+	installable_id AS adam_id,
+	MIN(vpp_app_team_id) AS id
 FROM (
 		-- no labels
 		SELECT
 			0 AS count_installer_labels,
 			0 AS count_host_labels,
 			0 AS count_host_updated_after_labels,
-			vpp_apps_teams.adam_id AS installable_id
+			vpp_apps_teams.adam_id AS installable_id,
+			vpp_apps_teams.id AS vpp_app_team_id
 			FROM vpp_apps_teams
 			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
 			LEFT JOIN vpp_app_team_labels ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
@@ -2988,14 +2989,15 @@ FROM (
 			COUNT(*) AS count_installer_labels,
 			COUNT(lm.label_id) AS count_host_labels,
 			0 AS count_host_updated_after_labels,
-			vpp_apps_teams.adam_id AS installable_id
+			vpp_apps_teams.adam_id AS installable_id,
+			vpp_apps_teams.id AS vpp_app_team_id
 		FROM
 			vpp_app_team_labels vatl
 			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
 			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
 			LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id AND lm.host_id = ?
 		WHERE vatl.exclude = 0 AND vatl.require_all = 0 AND vpp_apps_teams.platform = 'android'
-		GROUP BY installable_id
+		GROUP BY vpp_apps_teams.id
 		HAVING
 			count_installer_labels > 0
 			AND count_host_labels > 0
@@ -3024,7 +3026,8 @@ FROM (
 				ELSE
 					0
 				END) AS count_host_updated_after_labels,
-			vpp_apps_teams.adam_id AS installable_id
+			vpp_apps_teams.adam_id AS installable_id,
+			vpp_apps_teams.id AS vpp_app_team_id
 		FROM
 			vpp_app_team_labels vatl
 			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
@@ -3032,7 +3035,7 @@ FROM (
 			LEFT OUTER JOIN labels lbl ON lbl.id = vatl.label_id
 			LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id AND lm.host_id = ?
 		WHERE vatl.exclude = 1 AND vatl.require_all = 0 AND vpp_apps_teams.platform = 'android'
-		GROUP BY installable_id
+		GROUP BY vpp_apps_teams.id
 		HAVING
 			count_installer_labels > 0
 			AND count_installer_labels = count_host_updated_after_labels
@@ -3045,26 +3048,30 @@ FROM (
 			COUNT(*) AS count_installer_labels,
 			COUNT(lm.label_id) AS count_host_labels,
 			0 AS count_host_updated_after_labels,
-			vpp_apps_teams.adam_id AS installable_id
+			vpp_apps_teams.adam_id AS installable_id,
+			vpp_apps_teams.id AS vpp_app_team_id
 		FROM
 			vpp_app_team_labels vatl
 			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
 			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
 			LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id AND lm.host_id = ?
 		WHERE vatl.exclude = 0 AND vatl.require_all = 1 AND vpp_apps_teams.platform = 'android'
-		GROUP BY installable_id
+		GROUP BY vpp_apps_teams.id
 		HAVING
 			count_installer_labels > 0
 			AND count_host_labels = count_installer_labels
 		) t
+GROUP BY installable_id
+ORDER BY installable_id
 	`
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID, hostID, hostID, hostID, hostID, hostID)
+	var apps []fleet.VPPAppTeam
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, stmt, hostID, hostID, hostID, hostID, hostID, hostID, hostID, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in android apps in scope for host")
 	}
 
-	return applicationIDs, err
+	return apps, nil
 }
 
 func (ds *Datastore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error) {
@@ -3079,6 +3086,7 @@ WHERE
 	vat.global_or_team_id = ? AND
 	vat.platform = ? AND
 	vat.install_during_setup = 1
+ORDER BY vat.id
 `
 	var tmID uint
 	if teamID != nil {
@@ -3323,12 +3331,17 @@ WHERE
 
 	// Pull the (execution_id, adam_id, platform) tuples for the pending
 	// activations on this host so we can build per-app commands in Go and
-	// inject the managed-app-configuration dict per (adam_id, platform, team).
+	// inject the managed-app-configuration dict of the version being installed.
 	const pendingStmt = `
 SELECT
 	ua.execution_id,
 	vaua.adam_id,
-	vaua.platform
+	vaua.platform,
+	-- use the first-added version for installs without a version, such as installs of a deleted version
+	COALESCE(vaua.vpp_app_team_id, (
+		SELECT MIN(vat_first.id) FROM vpp_apps_teams vat_first
+		WHERE vat_first.adam_id = vaua.adam_id AND vat_first.platform = vaua.platform AND vat_first.global_or_team_id = ?
+	)) AS vpp_app_team_id
 FROM
 	upcoming_activities ua
 	INNER JOIN vpp_app_upcoming_activities vaua
@@ -3337,11 +3350,12 @@ WHERE
 	ua.host_id = ? AND ua.execution_id IN (?)
 `
 	type vppPending struct {
-		ExecutionID string `db:"execution_id"`
-		AdamID      string `db:"adam_id"`
-		Platform    string `db:"platform"`
+		ExecutionID  string `db:"execution_id"`
+		AdamID       string `db:"adam_id"`
+		Platform     string `db:"platform"`
+		VPPAppTeamID *uint  `db:"vpp_app_team_id"`
 	}
-	stmt, args, err := sqlx.In(pendingStmt, hostID, execIDs)
+	stmt, args, err := sqlx.In(pendingStmt, ptr.ValOrZero(hostData.TeamID), hostID, execIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare pending vpp install lookup")
 	}
@@ -3353,29 +3367,18 @@ WHERE
 		return nil
 	}
 
-	// Fetch managed configurations in bulk per platform. Configurations are
-	// keyed on (platform, adam_id, team_id) — host's team_id at install time.
+	// Fetch managed configurations in bulk by the version being installed.
 	// Only iOS / iPadOS get a Configuration dict; macOS VPP installs always
 	// drop the field at the builder level (and we don't even bother fetching).
-	tid := uint(0)
-	if hostData.TeamID != nil {
-		tid = *hostData.TeamID
+	var vppAppTeamIDs []uint
+	for _, p := range pending {
+		if p.VPPAppTeamID != nil && (p.Platform == string(fleet.IOSPlatform) || p.Platform == string(fleet.IPadOSPlatform)) {
+			vppAppTeamIDs = append(vppAppTeamIDs, *p.VPPAppTeamID)
+		}
 	}
-	configsByPlatformAdamID := make(map[string]map[string][]byte, 2)
-	{
-		adamIDsByPlatform := make(map[string][]string, 2)
-		for _, p := range pending {
-			if p.Platform == string(fleet.IOSPlatform) || p.Platform == string(fleet.IPadOSPlatform) {
-				adamIDsByPlatform[p.Platform] = append(adamIDsByPlatform[p.Platform], p.AdamID)
-			}
-		}
-		for platform, adamIDs := range adamIDsByPlatform {
-			cfgs, err := ds.BulkGetVPPAppConfigurationsTx(ctx, tx, fleet.InstallableDevicePlatform(platform), adamIDs, tid)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "bulk get vpp app configurations for install")
-			}
-			configsByPlatformAdamID[platform] = cfgs
-		}
+	configsByVPPAppTeamID, err := ds.BulkGetVPPAppConfigurationsTx(ctx, tx, vppAppTeamIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk get vpp app configurations for install")
 	}
 
 	// Build the InstallApplication plist for each pending activation, then do
@@ -3391,8 +3394,8 @@ WHERE
 	insArgs := make([]any, 0, len(pending)*4)
 	for _, p := range pending {
 		var cfg []byte
-		if cfgs, ok := configsByPlatformAdamID[p.Platform]; ok {
-			cfg = cfgs[p.AdamID]
+		if p.VPPAppTeamID != nil {
+			cfg = configsByVPPAppTeamID[*p.VPPAppTeamID]
 		}
 		if len(cfg) > 0 {
 			substituted, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, ds, cfg, subHost)
@@ -3516,12 +3519,11 @@ WHERE
 	return hasChanged, nil
 }
 
-func (ds *Datastore) GetVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error) {
-	// TODO(JK): read the configuration of the instance being installed, this reads the first-added instance
-	const stmt = `SELECT configuration FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = ? ORDER BY id LIMIT 1`
+func (ds *Datastore) GetVPPAppConfiguration(ctx context.Context, vppAppTeamID uint) ([]byte, error) {
+	const stmt = `SELECT configuration FROM vpp_apps_teams WHERE id = ?`
 
 	var config []byte
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, adamID, teamID, platform)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, vppAppTeamID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, notFound("VPPAppConfiguration"))
@@ -3535,39 +3537,34 @@ func (ds *Datastore) GetVPPAppConfiguration(ctx context.Context, platform fleet.
 	return config, nil
 }
 
-func (ds *Datastore) BulkGetVPPAppConfigurations(ctx context.Context, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
-	return ds.bulkGetVPPAppConfigurations(ctx, ds.reader(ctx), platform, adamIDs, teamID)
+func (ds *Datastore) BulkGetVPPAppConfigurations(ctx context.Context, vppAppTeamIDs []uint) (map[uint][]byte, error) {
+	return ds.bulkGetVPPAppConfigurations(ctx, ds.reader(ctx), vppAppTeamIDs)
 }
 
-func (ds *Datastore) BulkGetVPPAppConfigurationsTx(ctx context.Context, tx sqlx.QueryerContext, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
-	return ds.bulkGetVPPAppConfigurations(ctx, tx, platform, adamIDs, teamID)
+func (ds *Datastore) BulkGetVPPAppConfigurationsTx(ctx context.Context, tx sqlx.QueryerContext, vppAppTeamIDs []uint) (map[uint][]byte, error) {
+	return ds.bulkGetVPPAppConfigurations(ctx, tx, vppAppTeamIDs)
 }
 
-func (ds *Datastore) bulkGetVPPAppConfigurations(ctx context.Context, q sqlx.QueryerContext, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
-	// TODO(JK): read the configuration of the version the host is in scope for, this reads the first-added version of each app
-	if len(adamIDs) == 0 {
+func (ds *Datastore) bulkGetVPPAppConfigurations(ctx context.Context, q sqlx.QueryerContext, vppAppTeamIDs []uint) (map[uint][]byte, error) {
+	if len(vppAppTeamIDs) == 0 {
 		return nil, nil
 	}
 
 	const bulkGetStmt = `
 SELECT
-	vat.adam_id AS application_id,
+	vat.id,
 	vat.configuration
 FROM vpp_apps_teams vat
-WHERE vat.adam_id IN (?) AND vat.global_or_team_id = ? AND vat.platform = ? AND vat.configuration IS NOT NULL
-	AND vat.id = (
-		SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
-		WHERE vat2.adam_id = vat.adam_id AND vat2.platform = vat.platform AND vat2.global_or_team_id = vat.global_or_team_id
-	)
+WHERE vat.id IN (?) AND vat.configuration IS NOT NULL
 `
 
-	stmt, args, err := sqlx.In(bulkGetStmt, adamIDs, teamID, platform)
+	stmt, args, err := sqlx.In(bulkGetStmt, vppAppTeamIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building bulk get vpp app configurations query")
 	}
 
 	var configs []*struct {
-		ApplicationID string `db:"application_id"`
+		ID            uint   `db:"id"`
 		Configuration []byte `db:"configuration"`
 	}
 	err = sqlx.SelectContext(ctx, q, &configs, stmt, args...)
@@ -3575,9 +3572,9 @@ WHERE vat.adam_id IN (?) AND vat.global_or_team_id = ? AND vat.platform = ? AND 
 		return nil, ctxerr.Wrap(ctx, err, "bulk get vpp app configurations")
 	}
 
-	m := make(map[string][]byte, len(configs))
+	m := make(map[uint][]byte, len(configs))
 	for _, c := range configs {
-		m[c.ApplicationID] = c.Configuration
+		m[c.ID] = c.Configuration
 	}
 	return m, nil
 }

@@ -1020,6 +1020,8 @@ type PatchPolicyData struct {
 type SoftwarePackageOrApp struct {
 	// AppStoreID is only present for VPP apps.
 	AppStoreID string `json:"app_store_id,omitempty"`
+	// VersionName is the name of the App Store app version the host gets. Only present for VPP apps in host software responses.
+	VersionName string `json:"version_name,omitempty"`
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
 	// AutomaticInstallPolicies is present for Fleet maintained apps and custom packages

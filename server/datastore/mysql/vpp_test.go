@@ -72,6 +72,7 @@ func TestVPP(t *testing.T) {
 		{"TwoAppStoreAppInstancesInOneFleet", testTwoAppStoreAppInstancesInOneFleet},
 		{"AppStoreAppVersionsEditAndDelete", testAppStoreAppVersionsEditAndDelete},
 		{"SetTeamVPPAppVersions", testSetTeamVPPAppVersions},
+		{"ListHostSoftwareAppStoreAppHostVersion", testListHostSoftwareAppStoreAppHostVersion},
 	}
 
 	for _, c := range cases {
@@ -959,12 +960,12 @@ func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	fooTitleID := fooApp.TitleID
-	gotVPPApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, fooTitleID)
+	gotVPPApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, fooTitleID, fooApp.AppTeamID)
 	require.NoError(t, err)
 	require.Equal(t, "foo", gotVPPApp.AdamID)
 	require.Equal(t, fooTitleID, gotVPPApp.TitleID)
 	// title that doesn't exist
-	_, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, 999)
+	_, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, 999, fooApp.AppTeamID)
 	require.ErrorAs(t, err, &nfe)
 
 	// create an entry for the global team
@@ -973,10 +974,10 @@ func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	barTitleID := barApp.TitleID
 	// not found providing the team id
-	_, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, barTitleID)
+	_, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, barTitleID, barApp.AppTeamID)
 	require.ErrorAs(t, err, &nfe)
 	// found for the global team
-	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, nil, barTitleID)
+	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, nil, barTitleID, barApp.AppTeamID)
 	require.NoError(t, err)
 	require.Equal(t, "bar", gotVPPApp.AdamID)
 	require.Equal(t, barTitleID, gotVPPApp.TitleID)
@@ -3659,13 +3660,13 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	ipadAppTeamID := setupTestAppInFleet(t, ds, adamID, fleet.IPadOSPlatform, teamID)
 
 	// NotFound on empty table.
-	_, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	_, err := ds.GetVPPAppConfiguration(ctx, iosAppTeamID)
 	require.ErrorContains(t, err, "not found")
 	err = ds.DeleteVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
 	require.ErrorContains(t, err, "not found")
 
 	// BulkGet: empty input returns nil map without a query.
-	got, err := ds.BulkGetVPPAppConfigurations(ctx, fleet.IOSPlatform, nil, teamID)
+	got, err := ds.BulkGetVPPAppConfigurations(ctx, nil)
 	require.NoError(t, err)
 	require.Nil(t, got)
 
@@ -3676,18 +3677,18 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), ipadAppTeamID, ipadCfg))
 
 	// Get: per-platform isolation, byte-for-byte round-trip including newlines.
-	gotIOS, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	gotIOS, err := ds.GetVPPAppConfiguration(ctx, iosAppTeamID)
 	require.NoError(t, err)
 	require.Equal(t, iosCfg, gotIOS)
-	gotIPad, err := ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
+	gotIPad, err := ds.GetVPPAppConfiguration(ctx, ipadAppTeamID)
 	require.NoError(t, err)
 	require.Equal(t, ipadCfg, gotIPad)
 
-	// BulkGet: returns matched rows, ignores unknown adam_ids.
-	bulk, err := ds.BulkGetVPPAppConfigurations(ctx, fleet.IOSPlatform, []string{adamID, "9999999999"}, teamID)
+	// BulkGet: returns matched rows, ignores unknown version ids.
+	bulk, err := ds.BulkGetVPPAppConfigurations(ctx, []uint{iosAppTeamID, 999999})
 	require.NoError(t, err)
 	require.Len(t, bulk, 1)
-	require.Equal(t, iosCfg, bulk[adamID])
+	require.Equal(t, iosCfg, bulk[iosAppTeamID])
 
 	// Cross-team isolation: same (adamID, platform) on a different team is independent.
 	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "Other Team"})
@@ -3696,36 +3697,36 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	otherTeamAppTeamID := setupTestAppInFleet(t, ds, adamID, fleet.IOSPlatform, otherTeamID)
 	otherTeamCfg := []byte(`<dict><key>team</key><string>other</string></dict>`)
 	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), otherTeamAppTeamID, otherTeamCfg))
-	gotOther, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, otherTeamID)
+	gotOther, err := ds.GetVPPAppConfiguration(ctx, otherTeamAppTeamID)
 	require.NoError(t, err)
 	require.Equal(t, otherTeamCfg, gotOther)
 	// The original team's row was not touched.
-	gotOriginal, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	gotOriginal, err := ds.GetVPPAppConfiguration(ctx, iosAppTeamID)
 	require.NoError(t, err)
 	require.Equal(t, iosCfg, gotOriginal)
-	// BulkGet against the other team only returns its row.
-	bulk, err = ds.BulkGetVPPAppConfigurations(ctx, fleet.IOSPlatform, []string{adamID}, otherTeamID)
+	// BulkGet with the other team's version only returns its row.
+	bulk, err = ds.BulkGetVPPAppConfigurations(ctx, []uint{otherTeamAppTeamID})
 	require.NoError(t, err)
-	require.Equal(t, otherTeamCfg, bulk[adamID])
+	require.Equal(t, otherTeamCfg, bulk[otherTeamAppTeamID])
 
 	// Update: upsert overwrites.
 	updated := []byte(`<dict><key>v</key><integer>2</integer></dict>`)
 	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), iosAppTeamID, updated))
-	gotIOS, err = ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	gotIOS, err = ds.GetVPPAppConfiguration(ctx, iosAppTeamID)
 	require.NoError(t, err)
 	require.Equal(t, updated, gotIOS)
 
 	// Delete iOS only — iPadOS row survives.
 	require.NoError(t, ds.DeleteVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID))
-	_, err = ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	_, err = ds.GetVPPAppConfiguration(ctx, iosAppTeamID)
 	require.ErrorContains(t, err, "not found")
-	_, err = ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
+	_, err = ds.GetVPPAppConfiguration(ctx, ipadAppTeamID)
 	require.NoError(t, err)
 
 	// Cascade: dropping the parent vpp_apps row removes the config row.
 	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM vpp_apps WHERE adam_id = ? AND platform = ?`, adamID, fleet.IPadOSPlatform)
 	require.NoError(t, err)
-	_, err = ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
+	_, err = ds.GetVPPAppConfiguration(ctx, ipadAppTeamID)
 	require.ErrorContains(t, err, "not found")
 }
 
@@ -4257,9 +4258,10 @@ func testAndroidAppsInScopeHostVitalsExcludeAnyLabel(t *testing.T, ds *Datastore
 
 	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), appTeamID, excludeAnyLabelScope(hostVitalsLabel), softwareTypeVPP))
 
+	expectedApps := []fleet.VPPAppTeam{{VPPAppID: fleet.VPPAppID{AdamID: adamID}, AppTeamID: appTeamID}}
 	appIDs, err := ds.GetAndroidAppsInScopeForHost(ctx, nonMember.ID)
 	require.NoError(t, err)
-	require.Equal(t, []string{adamID}, appIDs)
+	require.Equal(t, expectedApps, appIDs)
 
 	appIDs, err = ds.GetAndroidAppsInScopeForHost(ctx, member.ID)
 	require.NoError(t, err)
@@ -4584,14 +4586,14 @@ func testAppStoreAppVersionsEditAndDelete(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NotEqual(t, firstVersion.AppTeamID, secondVersion.AppTeamID)
 
-		// set a configuration on the second version only, the bulk read should return the first version's empty configuration
+		// set a configuration on the second version only, the bulk read of the first version should return no configuration
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = '<dict></dict>' WHERE id = ?`, secondVersion.AppTeamID)
 			return err
 		})
-		configsByAdamID, err := ds.BulkGetVPPAppConfigurations(ctx, fleet.IOSPlatform, []string{adamID}, fleetID)
+		configsByVersionID, err := ds.BulkGetVPPAppConfigurations(ctx, []uint{firstVersion.AppTeamID})
 		require.NoError(t, err)
-		require.Empty(t, configsByAdamID)
+		require.Empty(t, configsByVersionID)
 
 		// count the versions with names that differ from "Beta" by accent, case, or trailing space, the names should match "Beta"
 		for _, matchingName := range []string{"Bêta", "BETA", "Beta "} {
@@ -4842,5 +4844,102 @@ func testSetTeamVPPAppVersions(t *testing.T, ds *Datastore) {
 		versionCount, _, err := ds.GetVPPAppVersionCount(ctx, &fleetID, app.VPPAppID, "")
 		require.NoError(t, err)
 		require.Zero(t, versionCount)
+	}
+}
+
+func testListHostSoftwareAppStoreAppHostVersion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "host-version-team"})
+	require.NoError(t, err)
+
+	const adamID = "77776666"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+
+	labelA, err := ds.NewLabel(ctx, &fleet.Label{Name: "host-version-label-a", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+	labelB, err := ds.NewLabel(ctx, &fleet.Label{Name: "host-version-label-b", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+
+	cases := []struct {
+		name       string
+		fleetID    uint
+		hostTeamID *uint
+	}{
+		{name: "no team", fleetID: 0, hostTeamID: nil},
+		{name: "team", fleetID: team.ID, hostTeamID: &team.ID},
+	}
+	for _, c := range cases {
+		t.Log(c.name)
+		fleetID := c.fleetID
+
+		// add version A scoped to label A, then version B scoped to label B
+		var versionA *fleet.VPPApp
+		if c.fleetID == 0 {
+			versionA, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID, fleet.IOSPlatform, nil)
+		} else {
+			versionA, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+				Name:             "HostVersionApp",
+				AdamID:           adamID,
+				Platform:         fleet.IOSPlatform,
+				BundleIdentifier: "com.example." + adamID,
+			}, &team.ID, nil)
+		}
+		require.NoError(t, err)
+		versionB, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			Name:             "HostVersionApp",
+			BundleIdentifier: "com.example." + adamID,
+			AdamID:           adamID,
+			Platform:         fleet.IOSPlatform,
+			VersionName:      "Beta",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+		err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), versionA.AppTeamID, fleet.LabelIdentsWithScope{
+			LabelScope: fleet.LabelScopeIncludeAny,
+			ByName:     map[string]fleet.LabelIdent{labelA.Name: {LabelName: labelA.Name, LabelID: labelA.ID}},
+		}, softwareTypeVPP)
+		require.NoError(t, err)
+		err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), versionB.AppTeamID, fleet.LabelIdentsWithScope{
+			LabelScope: fleet.LabelScopeIncludeAny,
+			ByName:     map[string]fleet.LabelIdent{labelB.Name: {LabelName: labelB.Name, LabelID: labelB.ID}},
+		}, softwareTypeVPP)
+		require.NoError(t, err)
+
+		hostInBoth := test.NewHost(t, ds, "both-"+c.name, "", "both-"+c.name, "both-"+c.name, time.Now(), test.WithPlatform("ios"))
+		hostInB := test.NewHost(t, ds, "b-only-"+c.name, "", "b-only-"+c.name, "b-only-"+c.name, time.Now(), test.WithPlatform("ios"))
+		hostInNeither := test.NewHost(t, ds, "neither-"+c.name, "", "neither-"+c.name, "neither-"+c.name, time.Now(), test.WithPlatform("ios"))
+		if c.hostTeamID != nil {
+			err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(c.hostTeamID, []uint{hostInBoth.ID, hostInB.ID, hostInNeither.ID}))
+			require.NoError(t, err)
+			hostInBoth.TeamID = c.hostTeamID
+			hostInB.TeamID = c.hostTeamID
+			hostInNeither.TeamID = c.hostTeamID
+		}
+		require.NoError(t, ds.AddLabelsToHost(ctx, hostInBoth.ID, []uint{labelA.ID, labelB.ID}))
+		require.NoError(t, ds.AddLabelsToHost(ctx, hostInB.ID, []uint{labelB.ID}))
+
+		opts := fleet.HostSoftwareTitleListOptions{IncludeAvailableForInstall: true, IsMDMEnrolled: true}
+
+		// list software for the host in scope for A and B, the title should be listed once with version A
+		hostTitles, _, err := ds.ListHostSoftware(ctx, hostInBoth, opts)
+		require.NoError(t, err)
+		require.Len(t, hostTitles, 1)
+		require.Equal(t, versionA.TitleID, hostTitles[0].ID)
+		require.NotNil(t, hostTitles[0].AppStoreApp)
+		require.Equal(t, fleet.DefaultAppStoreAppVersionName, hostTitles[0].AppStoreApp.VersionName)
+
+		// list software for the host in scope for B only, the title should be listed once with version B
+		hostTitles, _, err = ds.ListHostSoftware(ctx, hostInB, opts)
+		require.NoError(t, err)
+		require.Len(t, hostTitles, 1)
+		require.Equal(t, versionA.TitleID, hostTitles[0].ID)
+		require.NotNil(t, hostTitles[0].AppStoreApp)
+		require.Equal(t, "Beta", hostTitles[0].AppStoreApp.VersionName)
+
+		// list software for the host in scope for neither version, the title should not be listed
+		hostTitles, _, err = ds.ListHostSoftware(ctx, hostInNeither, opts)
+		require.NoError(t, err)
+		require.Empty(t, hostTitles)
 	}
 }

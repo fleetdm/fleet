@@ -3399,7 +3399,8 @@ type Datastore interface {
 	// UpdateInstallerSelfServiceFlag sets an installer's self-service flag without modifying anything else
 	UpdateInstallerSelfServiceFlag(ctx context.Context, selfService bool, id uint) error
 
-	GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPApp, error)
+	// GetVPPAppByTeamAndTitleID returns the version with id vppAppTeamID of the VPP app for the specified team and title ids.
+	GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*VPPApp, error)
 	// GetVPPAppMetadataByTeamAndTitleID returns the VPP app corresponding to the
 	// specified team and title ids. With more than one version on the team it returns the first-added one.
 	GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPAppStoreApp, error)
@@ -3455,8 +3456,13 @@ type Datastore interface {
 	// the provided team. A non-nil vppAppTeamID deletes only that version, nil deletes every version.
 	DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appID VPPAppID, vppAppTeamID *uint) error
 
-	GetAndroidAppsInScopeForHost(ctx context.Context, hostID uint) (applicationIDs []string, err error)
+	// GetAndroidAppsInScopeForHost returns the Android apps the host is in label scope for, each with AdamID and the
+	// AppTeamID of the first-added version the host is in scope for.
+	GetAndroidAppsInScopeForHost(ctx context.Context, hostID uint) ([]VPPAppTeam, error)
 
+	// ListHostAppStoreAppVersions returns the App Store app version the host gets for every App Store app on its fleet,
+	// indexed by software title id.
+	ListHostAppStoreAppVersions(ctx context.Context, host *Host) (map[uint]*HostAppStoreAppVersion, error)
 	// GetSummaryHostSoftwareInstalls returns the software install summary for
 	// the given software installer id.
 	GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*SoftwareInstallerStatusSummary, error)
@@ -3929,9 +3935,9 @@ type Datastore interface {
 
 	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error
 
-	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
-	// all provided apps and returns them indexed by the app id.
-	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error)
+	// BulkGetAndroidAppConfigurations retrieves the Android app configurations of the
+	// versions with the given ids and returns them indexed by the app id.
+	BulkGetAndroidAppConfigurations(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error)
 
 	// DeleteAndroidAppConfiguration removes an Android app configuration.
 	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error
@@ -3939,10 +3945,11 @@ type Datastore interface {
 	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
 	// VPP App Configuration (iOS/iPadOS)
-	GetVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error)
+	GetVPPAppConfiguration(ctx context.Context, vppAppTeamID uint) ([]byte, error)
 	// HasVPPAppConfigurationChanged compares newConfig with the configuration of the version with vppAppTeamID, or of the first-added version when vppAppTeamID is nil.
 	HasVPPAppConfigurationChanged(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error)
-	BulkGetVPPAppConfigurations(ctx context.Context, platform InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error)
+	// BulkGetVPPAppConfigurations returns the configurations of the versions with the given ids, indexed by version id.
+	BulkGetVPPAppConfigurations(ctx context.Context, vppAppTeamIDs []uint) (map[uint][]byte, error)
 	DeleteVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) error
 
 	// In-House App Configuration (iOS/iPadOS).

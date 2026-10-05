@@ -1856,7 +1856,7 @@ type SaveInstallerUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSof
 
 type UpdateInstallerSelfServiceFlagFunc func(ctx context.Context, selfService bool, id uint) error
 
-type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error)
+type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error)
 
 type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error)
 
@@ -1880,7 +1880,9 @@ type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
 
 type DeleteVPPAppFromTeamFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID, vppAppTeamID *uint) error
 
-type GetAndroidAppsInScopeForHostFunc func(ctx context.Context, hostID uint) (applicationIDs []string, err error)
+type GetAndroidAppsInScopeForHostFunc func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error)
+
+type ListHostAppStoreAppVersionsFunc func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error)
 
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
@@ -2238,17 +2240,17 @@ type HasAndroidAppConfigurationChangedFunc func(ctx context.Context, application
 
 type SetAndroidAppInstallPendingApplyConfigFunc func(ctx context.Context, hostUUID string, applicationID string, policyVersion int64) error
 
-type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error)
+type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error)
 
 type DeleteAndroidAppConfigurationFunc func(ctx context.Context, adamID string, teamID uint) error
 
 type ListMDMAndroidUUIDsToHostIDsFunc func(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
-type GetVPPAppConfigurationFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error)
+type GetVPPAppConfigurationFunc func(ctx context.Context, vppAppTeamID uint) ([]byte, error)
 
 type HasVPPAppConfigurationChangedFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error)
 
-type BulkGetVPPAppConfigurationsFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error)
+type BulkGetVPPAppConfigurationsFunc func(ctx context.Context, vppAppTeamIDs []uint) (map[uint][]byte, error)
 
 type DeleteVPPAppConfigurationFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) error
 
@@ -5293,6 +5295,9 @@ type DataStore struct {
 
 	GetAndroidAppsInScopeForHostFunc        GetAndroidAppsInScopeForHostFunc
 	GetAndroidAppsInScopeForHostFuncInvoked bool
+
+	ListHostAppStoreAppVersionsFunc        ListHostAppStoreAppVersionsFunc
+	ListHostAppStoreAppVersionsFuncInvoked bool
 
 	GetSummaryHostSoftwareInstallsFunc        GetSummaryHostSoftwareInstallsFunc
 	GetSummaryHostSoftwareInstallsFuncInvoked bool
@@ -12645,11 +12650,11 @@ func (s *DataStore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfServ
 	return s.UpdateInstallerSelfServiceFlagFunc(ctx, selfService, id)
 }
 
-func (s *DataStore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
+func (s *DataStore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
 	s.mu.Lock()
 	s.GetVPPAppByTeamAndTitleIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPAppByTeamAndTitleIDFunc(ctx, teamID, titleID)
+	return s.GetVPPAppByTeamAndTitleIDFunc(ctx, teamID, titleID, vppAppTeamID)
 }
 
 func (s *DataStore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
@@ -12729,11 +12734,18 @@ func (s *DataStore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appI
 	return s.DeleteVPPAppFromTeamFunc(ctx, teamID, appID, vppAppTeamID)
 }
 
-func (s *DataStore) GetAndroidAppsInScopeForHost(ctx context.Context, hostID uint) (applicationIDs []string, err error) {
+func (s *DataStore) GetAndroidAppsInScopeForHost(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
 	s.mu.Lock()
 	s.GetAndroidAppsInScopeForHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAndroidAppsInScopeForHostFunc(ctx, hostID)
+}
+
+func (s *DataStore) ListHostAppStoreAppVersions(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+	s.mu.Lock()
+	s.ListHostAppStoreAppVersionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAppStoreAppVersionsFunc(ctx, host)
 }
 
 func (s *DataStore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
@@ -13982,11 +13994,11 @@ func (s *DataStore) SetAndroidAppInstallPendingApplyConfig(ctx context.Context, 
 	return s.SetAndroidAppInstallPendingApplyConfigFunc(ctx, hostUUID, applicationID, policyVersion)
 }
 
-func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error) {
+func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 	s.mu.Lock()
 	s.BulkGetAndroidAppConfigurationsFuncInvoked = true
 	s.mu.Unlock()
-	return s.BulkGetAndroidAppConfigurationsFunc(ctx, appIDs, teamID)
+	return s.BulkGetAndroidAppConfigurationsFunc(ctx, vppAppTeamIDs)
 }
 
 func (s *DataStore) DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error {
@@ -14003,11 +14015,11 @@ func (s *DataStore) ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []
 	return s.ListMDMAndroidUUIDsToHostIDsFunc(ctx, hostIDs)
 }
 
-func (s *DataStore) GetVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error) {
+func (s *DataStore) GetVPPAppConfiguration(ctx context.Context, vppAppTeamID uint) ([]byte, error) {
 	s.mu.Lock()
 	s.GetVPPAppConfigurationFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPAppConfigurationFunc(ctx, platform, adamID, teamID)
+	return s.GetVPPAppConfigurationFunc(ctx, vppAppTeamID)
 }
 
 func (s *DataStore) HasVPPAppConfigurationChanged(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error) {
@@ -14017,11 +14029,11 @@ func (s *DataStore) HasVPPAppConfigurationChanged(ctx context.Context, platform 
 	return s.HasVPPAppConfigurationChangedFunc(ctx, platform, adamID, teamID, vppAppTeamID, newConfig)
 }
 
-func (s *DataStore) BulkGetVPPAppConfigurations(ctx context.Context, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
+func (s *DataStore) BulkGetVPPAppConfigurations(ctx context.Context, vppAppTeamIDs []uint) (map[uint][]byte, error) {
 	s.mu.Lock()
 	s.BulkGetVPPAppConfigurationsFuncInvoked = true
 	s.mu.Unlock()
-	return s.BulkGetVPPAppConfigurationsFunc(ctx, platform, adamIDs, teamID)
+	return s.BulkGetVPPAppConfigurationsFunc(ctx, vppAppTeamIDs)
 }
 
 func (s *DataStore) DeleteVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) error {

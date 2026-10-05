@@ -4564,9 +4564,29 @@ FROM (
 		WHERE
 			sil.%[1]s_id = %[2]s
 			AND sil.exclude = 0
+			AND sil.require_all = 0
 		HAVING
 			count_installer_labels > 0
 			AND count_host_labels > 0
+
+		UNION
+
+		-- include all
+		SELECT
+			COUNT(*) AS count_installer_labels,
+			COUNT(lm.label_id) AS count_host_labels,
+			0 AS count_host_updated_after_labels
+		FROM
+			%[1]s_labels sil
+		LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+		AND lm.host_id = h.id
+		WHERE
+			sil.%[1]s_id = %[2]s
+			AND sil.exclude = 0
+			AND sil.require_all = 1
+		HAVING
+			count_installer_labels > 0
+			AND count_host_labels = count_installer_labels
 
 		UNION
 
@@ -4608,7 +4628,7 @@ WHERE
 `, filter)
 
 	var hostIDs []uint
-	if err := sqlx.SelectContext(ctx, tx, &hostIDs, stmt, softwareID, softwareID, softwareID); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &hostIDs, stmt, softwareID, softwareID, softwareID, softwareID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing host ids included in software scope")
 	}
 
@@ -4642,7 +4662,7 @@ WHERE
 		UUID            string  `db:"uuid"`
 		AppliedPolicyID *string `db:"applied_policy_id"`
 	}
-	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID, softwareID); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID, softwareID, softwareID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
 	}
 
@@ -4670,7 +4690,7 @@ WHERE
 `, filter)
 
 	var hostIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &hostIDs, stmt, softwareID, softwareID, softwareID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &hostIDs, stmt, softwareID, softwareID, softwareID, softwareID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing hosts excluded from software scope")
 	}
 

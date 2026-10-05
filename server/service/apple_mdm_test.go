@@ -11173,7 +11173,8 @@ func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
 			optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter,
 		) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 			return []fleet.SoftwareAutoUpdateSchedule{{
-				TitleID: titleID,
+				TitleID:      titleID,
+				VPPAppTeamID: 1,
 				SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
 					AutoUpdateStartTime: new("00:00"),
 					AutoUpdateEndTime:   new("23:59"),
@@ -11198,14 +11199,14 @@ func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
 		ds.MapAdamIDsQueuedInstallsFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
 			return map[string]struct{}{}, nil
 		}
-		ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
+		ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
 			return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{
 				AppTeamID: 1,
 				VPPAppID:  fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform},
 			}}, nil
 		}
-		ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
-			return true, nil
+		ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+			return map[uint]*fleet.HostAppStoreAppVersion{titleID: {VPPAppTeamID: 1, AdamID: adamID, TitleID: titleID, InScope: true}}, nil
 		}
 
 		return svc, ds, installer

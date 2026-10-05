@@ -6204,7 +6204,6 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	if host.Platform == string(fleet.IPadOSPlatform) {
 		source = "ipados_apps"
 	}
-	// TODO(JK): use the schedule of the instance the host is in scope for, this lists one schedule per instance and updates by title
 	softwaresWithAutoUpdateSchedule, err := svc.ds.ListSoftwareAutoUpdateSchedules(
 		ctx,
 		teamID,
@@ -6220,6 +6219,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	// Code below assumes svc.ds.ListSoftwareAutoUpdateSchedules with Enabled=true returns:
 	// 	- all entries with non-nil AutoUpdateStartTime and AutoUpdateEndTime
 	// 	- returned title IDs are VPP applications (currently the only entities that can have update window configured).
+	// 	- one entry per App Store app version, so a title can appear more than once.
 
 	if len(softwaresWithAutoUpdateSchedule) == 0 {
 		// Nothing else to do.
@@ -6273,6 +6273,28 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		ctx, "found software with auto update scheduled, with host local time currently in window",
 		"count", len(softwaresWithinUpdateSchedule),
 	)
+
+	// Drop the schedules of App Store app versions other than the first-added version the host is in scope for.
+	hostVersionByTitleID, err := svc.ds.ListHostAppStoreAppVersions(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host app store app versions")
+	}
+	var softwaresWithinHostVersionUpdateSchedule []fleet.SoftwareAutoUpdateSchedule
+	for _, softwareWithinUpdateSchedule := range softwaresWithinUpdateSchedule {
+		hostVersion, ok := hostVersionByTitleID[softwareWithinUpdateSchedule.TitleID]
+		if !ok || !hostVersion.InScope {
+			logger.DebugContext(ctx, "skipping software, host isn't in scope for any version", "software_title_id", softwareWithinUpdateSchedule.TitleID)
+			continue
+		}
+		if hostVersion.VPPAppTeamID != softwareWithinUpdateSchedule.VPPAppTeamID {
+			continue
+		}
+		softwaresWithinHostVersionUpdateSchedule = append(softwaresWithinHostVersionUpdateSchedule, softwareWithinUpdateSchedule)
+	}
+	softwaresWithinUpdateSchedule = softwaresWithinHostVersionUpdateSchedule
+	if len(softwaresWithinUpdateSchedule) == 0 {
+		return nil
+	}
 
 	// 2. Filter out software that is already at the latest version or higher.
 	var (
@@ -6504,26 +6526,12 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			"installed_version", installedVersionByBundleIdentifierAndSource[bundleIdentifier+softwareTitle.Source],
 		)
 
-		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID)
+		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID, hostVersionByTitleID[softwareTitle.ID].VPPAppTeamID)
 		if err != nil {
 			logger.ErrorContext(
 				ctx, "get VPP app by team and title",
 				"err", err,
 			)
-			continue
-		}
-
-		// Check the label scoping for this VPP app and host.
-		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
-		if err != nil {
-			logger.ErrorContext(
-				ctx, "get VPP app by team and title",
-				"err", err,
-			)
-			continue
-		}
-		if !scoped {
-			logger.DebugContext(ctx, "skipping host because it's not scoped by the configured labels")
 			continue
 		}
 

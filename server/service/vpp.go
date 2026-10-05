@@ -66,11 +66,10 @@ type addAppStoreAppRequest struct {
 }
 
 type addAppStoreAppResponse struct {
-	TitleID uint   `json:"software_title_id,omitempty"`
-	Name    string `json:"name,omitempty"`
-	// TODO(JK) document this
-	VersionID uint  `json:"version_id,omitempty"`
-	Err       error `json:"error,omitempty"`
+	TitleID   uint   `json:"software_title_id,omitempty"`
+	Name      string `json:"name,omitempty"`
+	VersionID uint   `json:"version_id,omitempty"`
+	Err       error  `json:"error,omitempty"`
 }
 
 func (r addAppStoreAppResponse) Error() error { return r.Err }
