@@ -12,6 +12,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
@@ -1346,7 +1347,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 // If the server is already configured, the default API handler is exposed.
 func WithSetup(svc fleet.Service, logger *slog.Logger, applyStarterLibrary func(ctx context.Context, serverURL, token string) error, next http.Handler) http.HandlerFunc {
 	rxOsquery := regexp.MustCompile(`^/api/[^/]+/osquery`)
+	// Once setup has completed, never re-open it for the life of the process,
+	// even if the users table later reads as empty.
+	var setupDone atomic.Bool
 	return func(w http.ResponseWriter, r *http.Request) {
+		if setupDone.Load() {
+			next.ServeHTTP(w, r)
+			return
+		}
 		configRouter := http.NewServeMux()
 		srv := kithttp.NewServer(
 			makeSetupEndpoint(svc, logger, applyStarterLibrary),
@@ -1374,6 +1382,7 @@ func WithSetup(svc fleet.Service, logger *slog.Logger, applyStarterLibrary func(
 			configRouter.ServeHTTP(w, r)
 			return
 		}
+		setupDone.Store(true)
 		next.ServeHTTP(w, r)
 	}
 }

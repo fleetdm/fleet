@@ -37,11 +37,32 @@ const userSummaryColumns = `id, name, email, gravatar_url, api_only`
 
 // NewUser creates a new user
 func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+	return ds.newUser(ctx, user, false)
+}
+
+func (ds *Datastore) NewInitialUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+	return ds.newUser(ctx, user, true)
+}
+
+func (ds *Datastore) newUser(ctx context.Context, user *fleet.User, isInitial bool) (*fleet.User, error) {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate role")
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if isInitial {
+			// FOR UPDATE gap-locks the empty table, so concurrent callers can't both
+			// pass this check; the loser blocks or deadlocks instead of inserting.
+			var id uint
+			err := sqlx.GetContext(ctx, tx, &id, `SELECT id FROM users LIMIT 1 FOR UPDATE`)
+			switch {
+			case err == nil:
+				return ctxerr.Wrap(ctx, alreadyExists("User", user.Email))
+			case !errors.Is(err, sql.ErrNoRows):
+				return ctxerr.Wrap(ctx, err, "check for existing users")
+			}
+		}
+
 		sqlStatement := `
       INSERT INTO users (
       	password,

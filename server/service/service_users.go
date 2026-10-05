@@ -27,10 +27,14 @@ func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) 
 	p.GlobalRole = ptr.String(fleet.RoleAdmin)
 	p.Teams = nil
 
-	return svc.NewUser(ctx, p)
+	return svc.newUser(ctx, p, svc.ds.NewInitialUser)
 }
 
 func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
+	return svc.newUser(ctx, p, svc.ds.NewUser)
+}
+
+func (svc *Service) newUser(ctx context.Context, p fleet.UserPayload, create func(context.Context, *fleet.User) (*fleet.User, error)) (*fleet.User, error) {
 	licChecker, _ := license.FromContext(ctx)
 	lic, _ := licChecker.(*fleet.LicenseInfo)
 	if lic == nil {
@@ -48,7 +52,7 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 		return nil, err
 	}
 
-	user, err = svc.ds.NewUser(ctx, user)
+	user, err = create(ctx, user)
 	if err != nil {
 		return nil, err
 	}
