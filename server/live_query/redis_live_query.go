@@ -667,7 +667,12 @@ func (r *redisLiveQuery) reloadCache() error {
 		sqlKeys = append(sqlKeys, sqlKey)
 	}
 	for _, keys := range redis.SplitKeysBySlot(r.pool, sqlKeys...) {
-		if err := r.collectBatchSQL(keys, sqlCache); err != nil {
+		err := r.collectBatchSQL(keys, sqlCache)
+		if redis.IsRedirect(err) {
+			// The pipeline can't follow a slot that moved (failover, resharding).
+			err = r.collectSQLFollowingRedirects(keys, sqlCache)
+		}
+		if err != nil {
 			return err
 		}
 	}
@@ -769,9 +774,30 @@ func (r *redisLiveQuery) collectBatchSQL(sqlKeys []string, sqlByName map[string]
 			}
 			return fmt.Errorf("receive query sql: %w", err)
 		}
-		sqlByName[extractTargetKeyName(strings.TrimPrefix(key, sqlKeyPrefix))] = sql
+		sqlByName[sqlKeyName(key)] = sql
 	}
 	return nil
+}
+
+func (r *redisLiveQuery) collectSQLFollowingRedirects(sqlKeys []string, sqlByName map[string]string) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	for _, key := range sqlKeys {
+		sql, err := redigo.String(conn.Do("GET", key))
+		if err != nil {
+			if errors.Is(err, redigo.ErrNil) {
+				continue
+			}
+			return fmt.Errorf("get query sql: %w", err)
+		}
+		sqlByName[sqlKeyName(key)] = sql
+	}
+	return nil
+}
+
+func sqlKeyName(sqlKey string) string {
+	return extractTargetKeyName(strings.TrimPrefix(sqlKey, sqlKeyPrefix))
 }
 
 func (r *redisLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
