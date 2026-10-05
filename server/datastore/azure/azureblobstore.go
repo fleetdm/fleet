@@ -6,6 +6,7 @@ package azure
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
@@ -38,10 +39,10 @@ func (fileNotFoundError) IsNotFound() bool {
 // shared-key authentication.
 func newAzureBlobStore(cfg config.AzureConfigInternal) (*azureBlobStore, error) {
 	if cfg.AccountName == "" || cfg.AccountKey == "" {
-		return nil, fmt.Errorf("azure storage account name and account key are required")
+		return nil, errors.New("azure storage account name and account key are required")
 	}
 	if cfg.Container == "" {
-		return nil, fmt.Errorf("azure storage container is required")
+		return nil, errors.New("azure storage container is required")
 	}
 
 	cred, err := azblob.NewSharedKeyCredential(cfg.AccountName, cfg.AccountKey)

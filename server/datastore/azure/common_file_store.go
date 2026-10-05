@@ -128,7 +128,6 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 	g.SetLimit(10)
 
 	for _, key := range toDelete {
-		key := key
 		g.Go(func() error {
 			_, err := s.client.DeleteBlob(ctx, s.container, key, nil)
 			if err != nil {

@@ -565,7 +565,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
 		profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
-		if config.Azure.SoftwareInstallersContainer != "" {
+		switch {
+		case config.Azure.SoftwareInstallersContainer != "":
 			store, err := azure.NewSoftwareInstallerStore(config.Azure)
 			if err != nil {
 				initFatal(err, "initializing Azure Blob software installer store")
@@ -585,7 +586,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				initFatal(err, "initializing Azure Blob software title icon store")
 			}
 			logger.InfoContext(ctx, "using Azure Blob software title icon store", "container", config.Azure.SoftwareInstallersContainer)
-		} else if config.S3.SoftwareInstallersBucket != "" {
+		case config.S3.SoftwareInstallersBucket != "":
 			if config.S3.BucketsAndPrefixesMatch() {
 				logger.WarnContext(ctx,
 					"the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
@@ -632,7 +633,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			if err != nil {
 				initFatal(err, "initializing S3 staged upload store")
 			}
-		} else {
+		default:
 			installerDir := os.TempDir()
 			if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
 				installerDir = dir
