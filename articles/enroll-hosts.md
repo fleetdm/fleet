@@ -162,24 +162,29 @@ In the Google Admin console:
 
 6. Under **Installation Policy**, select **Block**.
 
-### Unenroll
+## Unenroll
+
+Unenroll a host when Fleet should stop managing it, for example when you repurpose the device or give it to an employee through a buyback program.
 
 1. Determine if your host has MDM features turned on by looking at the **MDM status** on the host's **Host details** page. 
 
 2. If MDM is turned on, turn it off:
   - Windows: Skip to step 3 (Uninstall Fleet's agent).
   - macOS: On the **Host details** page, select **Actions > Turn off MDM**.
-  - iOS/iPadOS & Android: On the **Host details** page, select **Actions > Unenroll**.
+  - iOS/iPadOS and personal (BYOD) Android: On the **Host details** page, select **Actions > Unenroll**.
+  - Company-owned Android: On the **Host details** page, select **Actions > Wipe**.
 
 3. For macOS, Windows, and Linux hosts, [uninstall Fleet's agent (fleetd)](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
 
-4. Select **Actions > Delete** to delete the host from Fleet.
+4. For Apple Business (AB) hosts, release or reassign the device in AB.
+
+5. Select **Actions > Delete** to [delete the host](https://fleetdm.com/guides/enroll-hosts#delete-a-host) from Fleet.
 
 > Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts and Android hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) and the [Android MDM setup guide](https://fleetdm.com/guides/android-mdm-setup#re-enrolling-android-hosts) for details.
 
-> The unenroll action on Android hosts sends a wipe command via the Android Management API. [Learn more](https://fleedtdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm)
+> The unenroll action on Android hosts sends a wipe command via the Android Management API. [Learn more](https://fleetdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm)
 
-## Delete a host
+### Delete a host
 
 Deleting a host doesn't unenroll it, so most hosts come back:
 
@@ -193,11 +198,7 @@ Deleting a host doesn't unenroll it, so most hosts come back:
 
 Deleting a host also cancels its upcoming activities and clears its MDM command history, so Fleet can't report whether an in-progress command, like a wipe, finished. If Fleet can't reach AB, the delete fails.
 
-To delete a host for good:
-
-1. Unenroll or [wipe](https://fleetdm.com/guides/lock-wipe-hosts#wipe-a-host) it, and confirm it finished.
-2. Apple hosts: release or reassign it in AB.
-3. Delete it in Fleet.
+To keep a host from coming back, follow the [unenroll steps](https://fleetdm.com/guides/enroll-hosts#unenroll) instead.
 
 ## Debugging
 
