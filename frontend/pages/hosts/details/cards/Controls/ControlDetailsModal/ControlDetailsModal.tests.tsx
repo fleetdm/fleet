@@ -1,8 +1,7 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import { createMockHostMdmProfile } from "__mocks__/hostMock";
+import React from "react";
 
+import { createMockHostMdmProfile } from "__mocks__/hostMock";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   IHostMdmProfile,
@@ -12,6 +11,7 @@ import {
   generateWinDiskEncryptionSetting,
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
 } from "pages/hosts/details/helpers";
+import { createCustomRenderer } from "test/test-utils";
 
 import ControlDetailsModal from "./ControlDetailsModal";
 

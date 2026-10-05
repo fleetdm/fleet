@@ -1,6 +1,9 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
+
+import classnames from "classnames";
+import { kebabCase, noop } from "lodash";
 import React, {
   useMemo,
   useEffect,
@@ -8,7 +11,6 @@ import React, {
   useContext,
   useRef,
 } from "react";
-import classnames from "classnames";
 import {
   Column,
   HeaderGroup,
@@ -20,16 +22,15 @@ import {
   useSortBy,
   useTable,
 } from "react-table";
-import { kebabCase, noop } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
+import Button from "components/buttons/Button";
+import Pagination from "components/Pagination";
+import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
 import useDeepEffect from "hooks/useDeepEffect";
 import sort from "utilities/sort";
-import { AppContext } from "context/app";
 
-import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
-import Pagination from "components/Pagination";
 import ActionButton from "./ActionButton";
 import { IActionButtonProps } from "./ActionButton/ActionButton";
 

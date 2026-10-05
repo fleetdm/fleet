@@ -1,16 +1,15 @@
 import React from "react";
-
-import {
-  IMdmStatusCardData,
-  MDM_ENROLLMENT_STATUS_UI_MAP,
-} from "interfaces/mdm";
+import { CellProps, Column } from "react-table";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import { MDM_STATUS_TOOLTIP } from "utilities/constants";
-import { CellProps, Column } from "react-table";
 import { INumberCellProps } from "interfaces/datatable_config";
+import {
+  IMdmStatusCardData,
+  MDM_ENROLLMENT_STATUS_UI_MAP,
+} from "interfaces/mdm";
+import { MDM_STATUS_TOOLTIP } from "utilities/constants";
 
 type IMdmStatusTableConfig = Column<IMdmStatusCardData>;
 type IMdmStatusCellProps = CellProps<

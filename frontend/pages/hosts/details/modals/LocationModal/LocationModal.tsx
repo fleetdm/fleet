@@ -1,12 +1,11 @@
 import React from "react";
 
-import { IGeoLocation } from "interfaces/host";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import { IGeoLocation } from "interfaces/host";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 

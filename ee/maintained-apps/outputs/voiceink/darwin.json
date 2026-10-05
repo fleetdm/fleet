@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.13",
+      "version": "2.20",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.prakashjoshipax.VoiceInk';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.prakashjoshipax.VoiceInk' AND version_compare(bundle_short_version, '2.13') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.prakashjoshipax.VoiceInk' AND version_compare(bundle_short_version, '2.20') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.prakashjoshipax.VoiceInk' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/Beingpax/VoiceInk/releases/download/v2.13/VoiceInk.dmg",
+      "installer_url": "https://github.com/Beingpax/VoiceInk/releases/download/v2.20/VoiceInk.dmg",
       "install_script_ref": "e5610cbe",
       "uninstall_script_ref": "97305c00",
-      "sha256": "56663e4e233b8a4c6e8250d43268fb5b118128a6fb63226930cc916f7de39317",
+      "sha256": "e0bd8ebb4cffad2cd18e30de39e2d922d085b094d95034b47d965bc845062c7d",
       "default_categories": [
         "Productivity"
       ]

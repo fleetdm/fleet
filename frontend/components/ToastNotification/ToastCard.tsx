@@ -1,10 +1,10 @@
-import React, { useState } from "react";
 import classnames from "classnames";
+import React, { useState } from "react";
 import { toast } from "sonner";
 
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
+import Icon from "components/Icon";
 import { Colors } from "styles/var/colors";
 import { syntaxHighlight } from "utilities/helpers";
 

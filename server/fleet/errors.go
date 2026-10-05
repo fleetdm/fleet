@@ -521,11 +521,22 @@ func (e OrbitError) IsClientError() bool {
 	return code >= 400 && code < 500
 }
 
+// OrbitIDPAuthRequiredMessage is matched verbatim by fleetd to decide it must
+// open the IdP sign-in window, so it must not change.
+const OrbitIDPAuthRequiredMessage = "END_USER_AUTH_REQUIRED"
+
 func NewOrbitIDPAuthRequiredError() *OrbitError {
 	return &OrbitError{
-		Message: "END_USER_AUTH_REQUIRED",
+		Message: OrbitIDPAuthRequiredMessage,
 		code:    http.StatusUnauthorized,
 	}
+}
+
+// IsOrbitIDPAuthRequired reports whether err is the response EnrollOrbit
+// returns when the device's end user must authenticate before enrolling.
+func IsOrbitIDPAuthRequired(err error) bool {
+	orbitErr, ok := errors.AsType[*OrbitError](err)
+	return ok && orbitErr.Message == OrbitIDPAuthRequiredMessage
 }
 
 // Messages that may be surfaced by the server or the fleetctl client.

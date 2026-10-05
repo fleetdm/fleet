@@ -166,9 +166,10 @@ module.exports.custom = {
 
     // Handbook
     'handbook/company/pricing-features-table.yml': 'noahtalerman',
-    'handbook/company/product-maturity-assessment': 'allenhouchins',
+    'handbook/company/product-maturity-assessment.md': 'allenhouchins',
     'handbook/company/testimonials.yml': 'mike-j-thomas',
     'handbook/company/product-groups.md': 'lukeheath',
+    'handbook/company/legal': 'mikermcneil',
     'handbook/company/writing.md': 'mike-j-thomas',
     'handbook/engineering': 'lukeheath',
     'handbook/product-design': 'noahtalerman',
@@ -301,7 +302,7 @@ module.exports.custom = {
     'handbook/company': 'mikermcneil',
     'handbook/ceo': 'mikermcneil',
     'handbook/company/brand.md': ['mikermcneil', 'mike-j-thomas'],
-    'handbook/company/product-maturity-assessment': ['mikermcneil','noahtalerman','allenhouchins'],
+    'handbook/company/product-maturity-assessment.md': ['mikermcneil','noahtalerman','allenhouchins'],
     'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil', 'ireedy'],
     'handbook/company/communications.md': ['mikermcneil', 'ireedy', 'sampfluger88'],
     'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil', 'sampfluger88'],

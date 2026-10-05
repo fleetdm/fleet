@@ -1,11 +1,10 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-
 import { noop } from "lodash";
+import React from "react";
 
-import createMockUser from "__mocks__/userMock";
 import createMockTeam, { createMockTeamSummary } from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
+import { createCustomRenderer } from "test/test-utils";
 
 import UserMenu from ".";
 

@@ -1,17 +1,18 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "react-query";
 import { http, HttpResponse } from "msw";
+import React from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
+
+import {
+  createMockHostAppStoreApp,
+  createMockHostSoftware,
+} from "__mocks__/hostMock";
+import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
   renderWithSetup,
   baseUrl,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
-import {
-  createMockHostAppStoreApp,
-  createMockHostSoftware,
-} from "__mocks__/hostMock";
 
 import VppInstallDetailsModal, {
   getStatusMessage,

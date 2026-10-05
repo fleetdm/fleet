@@ -224,13 +224,11 @@
   &__status-filter {
     width: 195px;
 
-    .Select-menu-outer {
-      width: 364px;
-      max-height: min-content;
-
-      .Select-menu {
-        max-height: none;
-      }
+    // Matches .label-filter-select__menu-list so both filter menus are the
+    // same height and neither scrolls.
+    .react-select__menu-list {
+      max-height: 590px;
+      padding-bottom: 0.75rem;
     }
     .Select-value {
       padding-left: $pad-medium;

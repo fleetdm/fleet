@@ -1,9 +1,8 @@
-import React from "react";
 import { isAxiosError } from "axios";
+import React from "react";
 
 import { getErrorReason } from "interfaces/errors";
 import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
-
 import {
   generateSecretErrMsg,
   getDisplayedSoftwareName,

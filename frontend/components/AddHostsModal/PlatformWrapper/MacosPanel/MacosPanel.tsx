@@ -1,12 +1,12 @@
 import React, { useContext, useState } from "react";
 
+import { renderAppleManualEnrollmentDisabled } from "components/AddHostsModal/helpers";
+import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import Radio from "components/forms/fields/Radio";
 import { AppContext } from "context/app";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
-import CustomLink from "components/CustomLink";
-import Radio from "components/forms/fields/Radio";
-import InputField from "components/forms/fields/InputField";
-import { renderAppleManualEnrollmentDisabled } from "components/AddHostsModal/helpers";
 
 type DeviceType = "companyOwned" | "personalBYOD";
 

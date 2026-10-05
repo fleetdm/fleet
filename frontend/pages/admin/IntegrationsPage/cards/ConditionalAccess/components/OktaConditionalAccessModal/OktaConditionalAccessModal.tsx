@@ -1,26 +1,25 @@
-import React, { useCallback, useContext, useState } from "react";
 import { size } from "lodash";
+import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 
-import { AppContext } from "context/app";
-import configAPI from "services/entities/config";
-import conditionalAccessAPI from "services/entities/conditional_access";
-import { IConfig } from "interfaces/config";
-
-import InputField from "components/forms/fields/InputField";
-import CustomLink from "components/CustomLink";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import FileUploader from "components/FileUploader";
+import InputField from "components/forms/fields/InputField";
+import valid_url from "components/forms/validators/valid_url";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
-import { IInputFieldParseTarget } from "interfaces/form_field";
+import { AppContext } from "context/app";
+import { IConfig } from "interfaces/config";
 import { getErrorReason } from "interfaces/errors";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import conditionalAccessAPI from "services/entities/conditional_access";
+import configAPI from "services/entities/config";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-import FileUploader from "components/FileUploader";
-import valid_url from "components/forms/validators/valid_url";
-import { notify } from "components/ToastNotification";
 
 const baseClass = "okta-conditional-access-modal";
 

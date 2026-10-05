@@ -1,14 +1,15 @@
-import React from "react";
-import { noop } from "lodash";
 import { screen, waitFor } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
+
+import createMockTeam from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
+import { MDM_ENROLLMENT_STATUSES, MdmEnrollmentStatus } from "interfaces/mdm";
 import { createCustomRenderer } from "test/test-utils";
 
-import createMockUser from "__mocks__/userMock";
-import createMockTeam from "__mocks__/teamMock";
-import { MDM_ENROLLMENT_STATUSES, MdmEnrollmentStatus } from "interfaces/mdm";
+import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 import HostActionsDropdown from "./HostActionsDropdown";
-import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 describe("Host Actions Dropdown", () => {
   describe("Transfer action", () => {
@@ -667,6 +668,115 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    it("renders when the user is a global technician", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalTechnician: true,
+            currentUser: createMockUser({ global_role: "technician" }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    it("renders when the user is a technician on the host's fleet", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "technician" })],
+            }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={1}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    it("does not render when the user is a technician on another fleet", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "technician" })],
+            }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={2}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Delete")).not.toBeInTheDocument();
+    });
+
+    it("does not render when the user is a global observer", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalObserver: true,
+            currentUser: createMockUser({ global_role: "observer" }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Delete")).not.toBeInTheDocument();
     });
   });
 
@@ -2061,7 +2171,7 @@ describe("Host Actions Dropdown", () => {
       await user.hover(option);
       await waitFor(() => {
         expect(
-          screen.getByText(/Recovery Lock password is unavailable/i)
+          screen.getByText(/Recovery Lock password isn't available yet/i)
         ).toBeInTheDocument();
       });
     });

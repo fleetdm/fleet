@@ -1,5 +1,5 @@
-import React from "react";
 import { flatMap } from "lodash";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
@@ -34,9 +34,13 @@ const HashCell = ({
     (v) => v.signature_information ?? []
   );
 
+  // An app bundle reports a cdhash; anything Fleet hashes as a plain Mach-O
+  // file, such as a Homebrew formula's executables, reports executable_sha256
+  // instead. Prefer the cdhash so signed apps keep showing the hash they
+  // always have.
   const allHash = flatMap(
     allSignatureInformation,
-    (sigInfo) => sigInfo.hash_sha256 ?? []
+    (sigInfo) => sigInfo.hash_sha256 ?? sigInfo.executable_sha256 ?? []
   );
   const uniqueHash = new Set(allHash);
   const uniqueHashCount = uniqueHash.size;

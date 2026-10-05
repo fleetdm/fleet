@@ -1,8 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
+
 import createMockTeam from "__mocks__/teamMock";
+import { createCustomRenderer } from "test/test-utils";
 
 import ApiUserForm from "./ApiUserForm";
 

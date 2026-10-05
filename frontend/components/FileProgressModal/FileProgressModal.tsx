@@ -1,11 +1,10 @@
-import Card from "components/Card";
-import FileDetails from "components/FileDetails";
-import Modal from "components/Modal";
 import { noop } from "lodash";
 import React from "react";
 
+import Card from "components/Card";
+import FileDetails from "components/FileDetails";
 import { ISupportedGraphicNames } from "components/FileUploader/FileUploader";
-
+import Modal from "components/Modal";
 import { IFileDetails } from "utilities/file/fileUtils";
 
 const baseClass = "file-progress-modal";

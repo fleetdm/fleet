@@ -1,8 +1,8 @@
-import React, { useRef } from "react";
 import classnames from "classnames";
+import React, { useRef } from "react";
 
-import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import TooltipWrapper from "components/TooltipWrapper";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 interface ITooltipTruncatedTextCellProps {
   value: React.ReactNode;

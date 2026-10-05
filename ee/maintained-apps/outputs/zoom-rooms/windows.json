@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.1.6",
+      "version": "7.1.7",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Zoom Rooms%' AND name NOT LIKE '%Installer%' AND publisher LIKE 'Zoom%Communications%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom Rooms%' AND name NOT LIKE '%Installer%' AND publisher LIKE 'Zoom%Communications%' AND version_compare(version, '7.1.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom Rooms%' AND name NOT LIKE '%Installer%' AND publisher LIKE 'Zoom%Communications%' AND version_compare(version, '7.1.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'zoom rooms.exe');"
       },
-      "installer_url": "https://cdn.zoom.us/prod/7.1.6.8048/x64/zoomrooms-7.1.6.8048-x64.msi",
+      "installer_url": "https://cdn.zoom.us/prod/7.1.7.8297/x64/zoomrooms-7.1.7.8297-x64.msi",
       "install_script_ref": "790a33a6",
       "uninstall_script_ref": "6d99782c",
-      "sha256": "a4847a674aa8494297f9bd8a9d676a7d2d5a7db12894af5b7da1f07655de299a",
+      "sha256": "4f97d460b856fd64eec3cbbbdc71c84cdf733eae68c9a5b9a60523b79804c517",
       "default_categories": [
         "Communication"
       ],

@@ -1,11 +1,11 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
 
-import endpoints from "utilities/endpoints";
 import {
   IEditScheduledQuery,
   IPackQueryFormData,
 } from "interfaces/scheduled_query";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
 
 export default {

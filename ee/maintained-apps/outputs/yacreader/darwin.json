@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "10.3.0.260901368",
+      "version": "10.3.1.260922387",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.yacreader.YACReader';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.yacreader.YACReader' AND version_compare(bundle_short_version, '10.3.0.260901368') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.yacreader.YACReader' AND version_compare(bundle_short_version, '10.3.1.260922387') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.yacreader.YACReader' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/YACReader/yacreader/releases/download/10.3.0/YACReader-10.3.0.260901368.MacOSX-U.Qt6.dmg",
+      "installer_url": "https://github.com/YACReader/yacreader/releases/download/10.3.1/YACReader-10.3.1.260922387.MacOSX-U.Qt6.dmg",
       "install_script_ref": "3eb3ceee",
       "uninstall_script_ref": "b38291ce",
-      "sha256": "3b23304407079b7fb77cf7f5f1aeecc54e39014c72f9a877e41ee184e637d2ac",
+      "sha256": "92bbaafd09642ee93c74dd88a666c6b998b6dc81037a88b9be61a2af69d83f1b",
       "default_categories": [
         "Productivity"
       ]

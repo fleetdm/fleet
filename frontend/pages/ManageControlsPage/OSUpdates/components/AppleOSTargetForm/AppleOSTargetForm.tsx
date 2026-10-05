@@ -1,23 +1,23 @@
-import React, { useContext, useState } from "react";
-import { isEmpty } from "lodash";
 import { AxiosResponse } from "axios";
+import { isEmpty } from "lodash";
+import React, { useContext, useState } from "react";
 
-import { IApiError } from "interfaces/errors";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
-import { notify } from "components/ToastNotification";
-import configAPI from "services/entities/config";
-import teamsAPI from "services/entities/teams";
-import { ApplePlatform } from "interfaces/platform";
-
-import InputField from "components/forms/fields/InputField";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
+import InputField from "components/forms/fields/InputField";
 import validatePresence from "components/forms/validators/validate_presence";
-import CustomLink from "components/CustomLink";
-import { AppContext } from "context/app";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IApiError } from "interfaces/errors";
+import { ApplePlatform } from "interfaces/platform";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import configAPI from "services/entities/config";
+import teamsAPI from "services/entities/teams";
+
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "apple-os-target-form";

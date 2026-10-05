@@ -1,12 +1,12 @@
-import React from "react";
 import { render as renderComponent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
 import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 import { notify } from "components/ToastNotification";
-import { IConfig } from "interfaces/config";
 import { AppContext, IAppContext } from "context/app";
+import { IConfig } from "interfaces/config";
+import { createCustomRenderer } from "test/test-utils";
 
 import PackageForm from "./PackageForm";
 

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.36.0.12489",
+      "version": "6.36.2.12515",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'CrisisGo' AND publisher = 'CrisisGo, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CrisisGo' AND publisher = 'CrisisGo, Inc.' AND version_compare(version, '6.36.0.12489') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CrisisGo' AND publisher = 'CrisisGo, Inc.' AND version_compare(version, '6.36.2.12515') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'crisisgo.exe');"
       },
-      "installer_url": "https://crisisgoapp.s3.amazonaws.com/Windows/CrisisGo_6.36.0.msi",
+      "installer_url": "https://crisisgoapp.s3.amazonaws.com/Windows/CrisisGo_6.36.2.msi",
       "install_script_ref": "01aaef68",
       "uninstall_script_ref": "1109525a",
-      "sha256": "03948fee326f2760ad943f24abbeaeffa8aa18b5d6dbd63c3206ba0df018341d",
+      "sha256": "7630f5d9508c1a2255312b0e08938fe4dd59c4c2188b74a77239818db3dc0b91",
       "default_categories": [
         "Communication"
       ],

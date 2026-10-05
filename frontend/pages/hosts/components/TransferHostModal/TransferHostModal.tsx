@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from "react";
 
-import PATHS from "router/paths";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import CustomLink from "components/CustomLink";
+import Modal from "components/Modal";
 import { ITeam } from "interfaces/team";
+import PATHS from "router/paths";
 
 interface ITransferHostModal {
   isGlobalAdmin: boolean;

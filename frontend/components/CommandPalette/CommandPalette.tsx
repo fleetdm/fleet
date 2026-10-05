@@ -1,3 +1,8 @@
+import {
+  Title as DialogTitle,
+  Description as DialogDescription,
+} from "@radix-ui/react-dialog";
+import { Command } from "cmdk";
 import React, {
   useContext,
   useEffect,
@@ -7,22 +12,25 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { Command } from "cmdk";
-import {
-  Title as DialogTitle,
-  Description as DialogDescription,
-} from "@radix-ui/react-dialog";
 import { browserHistory } from "react-router";
 
+import Icon from "components/Icon";
 import { AppContext } from "context/app";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
-import Icon from "components/Icon";
-import { isDarkMode, setThemeMode } from "utilities/theme";
 import paths from "router/paths";
+import { isDarkMode, setThemeMode } from "utilities/theme";
 
+import { isPreFilteredResult } from "./components/constants";
+import FleetPicker from "./components/FleetPicker";
+import HighlightedLabel from "./components/HighlightedLabel";
+import HostPicker from "./components/HostPicker";
+import PolicyPicker from "./components/PolicyPicker";
+import ReportPicker from "./components/ReportPicker";
+import SoftwarePicker from "./components/SoftwarePicker";
+import UprightEmoji from "./components/UprightEmoji";
 import {
   ICommandItem,
   ICommandSubItem,
@@ -33,14 +41,6 @@ import {
   pathSupportsAllFleets,
   pathSupportsUnassigned,
 } from "./helpers";
-import FleetPicker from "./components/FleetPicker";
-import HostPicker from "./components/HostPicker";
-import SoftwarePicker from "./components/SoftwarePicker";
-import ReportPicker from "./components/ReportPicker";
-import PolicyPicker from "./components/PolicyPicker";
-import HighlightedLabel from "./components/HighlightedLabel";
-import UprightEmoji from "./components/UprightEmoji";
-import { isPreFilteredResult } from "./components/constants";
 
 const baseClass = "command-palette";
 

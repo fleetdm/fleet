@@ -1,6 +1,6 @@
-import { IConfig } from "interfaces/config";
-import { IFormErrors, trimFormData } from "hooks/useFormValidation";
 import validUrl from "components/forms/validators/valid_url";
+import { IFormErrors, trimFormData } from "hooks/useFormValidation";
+import { IConfig } from "interfaces/config";
 
 export interface ISsoFormData {
   idpName: string;

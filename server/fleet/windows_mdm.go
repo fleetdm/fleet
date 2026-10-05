@@ -111,6 +111,9 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided(allowCustomDiskEncryption
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
 	}
+	if strings.TrimSpace(m.Name) == "" {
+		return errors.New("Profile name can't be empty.")
+	}
 	fleetNames := mdm.FleetReservedProfileNames()
 	if _, ok := fleetNames[m.Name]; ok {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)

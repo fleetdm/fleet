@@ -1,16 +1,23 @@
 /** software/titles/:id */
 
-import React, { useCallback, useContext, useState } from "react";
-import { useQuery, useQueryClient } from "react-query";
-import { useErrorHandler } from "react-error-boundary";
-import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
+import React, { useCallback, useContext, useEffect, useState } from "react";
+import { useErrorHandler } from "react-error-boundary";
+import { useQuery, useQueryClient } from "react-query";
+import { RouteComponentProps } from "react-router";
 
-import paths from "router/paths";
-import useTeamIdParam from "hooks/useTeamIdParam";
+import Button from "components/buttons/Button";
+import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import TeamsHeader from "components/TeamsHeader";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
-import { AppContext } from "context/app";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import { ignoreAxiosError } from "interfaces/errors";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import {
@@ -27,45 +34,38 @@ import {
   APP_CONTEXT_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
 } from "interfaces/team";
-import {
-  canDownloadSoftwareInstaller,
-  canWriteSoftware,
-} from "utilities/permissions/permissions";
+import paths from "router/paths";
 import softwareAPI, {
   ISoftwareTitleResponse,
   IGetSoftwareTitleQueryKey,
 } from "services/entities/software";
-
-import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  canDownloadSoftwareInstaller,
+  canWriteSoftware,
+} from "utilities/permissions/permissions";
+import { getPathWithQueryParams } from "utilities/url";
 
-import { notify } from "components/ToastNotification";
-import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
-import Spinner from "components/Spinner";
-import MainContent from "components/MainContent";
-import TeamsHeader from "components/TeamsHeader";
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
-import SoftwareSummaryCard from "./SoftwareSummaryCard";
-import LibraryItemAccordion, {
-  LibraryItemLabelKind,
-} from "./LibraryItemAccordion/LibraryItemAccordion";
-import LibraryItemAccordionList from "./LibraryItemAccordion/LibraryItemAccordionList";
-import EditSoftwareModal from "./EditSoftwareModal";
-import DeleteSoftwareModal from "./DeleteSoftwareModal";
-import AddPackageModal from "./AddPackageModal";
-import PoliciesModal from "./PoliciesModal";
-import VersionsModal from "./VersionsModal";
 import { getDisplayedSoftwareName, mergePolicies } from "../helpers";
+
+import AddPackageModal from "./AddPackageModal";
+import DeleteSoftwareModal from "./DeleteSoftwareModal";
+import EditSoftwareModal from "./EditSoftwareModal";
 import {
   buildInstallerDownloadUrl,
   buildLibraryVersionRows,
   canDownloadInstallerRow,
   resolveDownloadTarget,
 } from "./helpers";
+import LibraryItemAccordion, {
+  LibraryItemLabelKind,
+} from "./LibraryItemAccordion/LibraryItemAccordion";
+import LibraryItemAccordionList from "./LibraryItemAccordion/LibraryItemAccordionList";
+import PoliciesModal from "./PoliciesModal";
+import SoftwareSummaryCard from "./SoftwareSummaryCard";
 import TitleVersionsTable from "./TitleVersionsTable";
+import VersionsModal from "./VersionsModal";
 
 const baseClass = "software-title-details-page";
 
@@ -142,6 +142,18 @@ const SoftwareTitleDetailsPage = ({
   // Page-owned so both the Actions menu and the Library accordion badge open
   // the same Versions modal.
   const [showVersionsModal, setShowVersionsModal] = useState(false);
+
+  // Command palette lets the user switch fleets while a modal is open. The
+  // Library section unmounts on nil teamIdForApi, but page-owned modal state
+  // would remount the modal when the user returned to a specific fleet.
+  useEffect(() => {
+    setShowLibraryEditModal(false);
+    setShowDeleteModal(false);
+    setShowAddPackageModal(false);
+    setShowVersionsModal(false);
+    setSelectedPackagePolicies(null);
+    setSelectedInstallerId(null);
+  }, [teamIdForApi]);
 
   const {
     data: softwareTitle,
@@ -265,7 +277,14 @@ const SoftwareTitleDetailsPage = ({
   const renderLibrarySection = (title: ISoftwareTitleDetails) => {
     // Library section is Premium-only
     // Fleet Free should not see it even when an installer is present.
-    if (!isPremiumTier || !isAvailableForInstall) {
+    // "All fleets" (teamIdForApi undefined) has no team scope for
+    // edit/delete/add — the section is a management surface, so hide it
+    // entirely rather than surface actions that would target no fleet.
+    if (
+      !isPremiumTier ||
+      !isAvailableForInstall ||
+      typeof teamIdForApi !== "number"
+    ) {
       return null;
     }
 
@@ -516,6 +535,7 @@ const SoftwareTitleDetailsPage = ({
         <TitleVersionsTable
           router={router}
           data={title.versions ?? []}
+          source={title.source}
           isLoading={isSoftwareTitleLoading}
           teamIdForApi={teamIdForApi}
           isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(title.source)}
@@ -575,7 +595,13 @@ const SoftwareTitleDetailsPage = ({
   };
 
   const renderLibraryEditModal = (title: ISoftwareTitleDetails) => {
-    if (!showLibraryEditModal || !installerResult) return null;
+    if (
+      !showLibraryEditModal ||
+      !installerResult ||
+      typeof teamIdForApi !== "number"
+    ) {
+      return null;
+    }
     const { meta } = installerResult;
     // On a multi-package title, the row callback set `selectedInstallerId`;
     // resolve it to the actual package so the modal edits the right one.

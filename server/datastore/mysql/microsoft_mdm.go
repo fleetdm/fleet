@@ -189,6 +189,17 @@ func (ds *Datastore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Contex
 	return nil
 }
 
+// SetMDMWindowsEnrollmentFleetdBitLockerPINCapable persists the last-observed CapabilityWindowsBitLockerPIN value for the host's most recent
+// Windows MDM enrollment.
+func (ds *Datastore) SetMDMWindowsEnrollmentFleetdBitLockerPINCapable(ctx context.Context, hostUUID string, capable bool) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET fleetd_bitlocker_pin_capable = ? WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+		capable, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set mdm windows enrollment fleetd bitlocker pin capable")
+	}
+	return nil
+}
+
 // SetMDMWindowsManagedLocalAccountEscrowed records whether the host has escrowed a managed local account password for
 // its current enrollment. It reports whether the value actually changed.
 func (ds *Datastore) SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (bool, error) {
@@ -520,6 +531,8 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 			awaiting_configuration,
 			has_pending_commands,
 			fleetd_sync_capable,
+			fleetd_bitlocker_pin_capable,
+			bitlocker_pin_request_pending,
 			managed_local_account_escrowed,
 			managed_local_account_rotation_requested
 		FROM mdm_windows_enrollments
@@ -530,6 +543,8 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 		AwaitingConfiguration                fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
 		HasPendingCommands                   bool                                  `db:"has_pending_commands"`
 		FleetdSyncCapable                    bool                                  `db:"fleetd_sync_capable"`
+		FleetdBitLockerPINCapable            bool                                  `db:"fleetd_bitlocker_pin_capable"`
+		BitLockerPINRequestPending           bool                                  `db:"bitlocker_pin_request_pending"`
 		ManagedLocalAccountEscrowed          bool                                  `db:"managed_local_account_escrowed"`
 		ManagedLocalAccountRotationRequested bool                                  `db:"managed_local_account_rotation_requested"`
 	}
@@ -543,6 +558,8 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 		AwaitingConfiguration:                row.AwaitingConfiguration,
 		HasPendingCommands:                   row.HasPendingCommands,
 		FleetdSyncCapable:                    row.FleetdSyncCapable,
+		FleetdBitLockerPINCapable:            row.FleetdBitLockerPINCapable,
+		BitLockerPINRequestPending:           row.BitLockerPINRequestPending,
 		ManagedLocalAccountEscrowed:          row.ManagedLocalAccountEscrowed,
 		ManagedLocalAccountRotationRequested: row.ManagedLocalAccountRotationRequested,
 	}, nil
@@ -1201,6 +1218,8 @@ func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmen
 		return nil, nil
 	}
 
+	// created_at first, then id: created_at is second-resolution, so id breaks same-second ties, while rows that
+	// predate the id column were backfilled in primary-key order and must keep their chronological order.
 	const query = `
 SELECT
 	wmc.command_uuid,
@@ -1218,7 +1237,7 @@ WHERE
 	wmcq.enrollment_id = ? AND
 	wmcq.acked_at IS NULL
 ORDER BY
-	wmc.created_at ASC
+	wmc.created_at ASC, wmc.id ASC
 `
 
 	var commands []*fleet.MDMWindowsCommand
@@ -1439,14 +1458,18 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 			return ctxerr.Wrap(ctx, err, "updating host profile status")
 		}
 
-		// store the command results
+		// store the command results. updated_at is set explicitly because an
+		// identical re-ack changes no column and MySQL would leave it alone; the
+		// retention sweep reads it as the last time the device spoke about the
+		// command.
 		const insertResultsStmt = `
 INSERT INTO windows_mdm_command_results
     (enrollment_id, command_uuid, raw_result, response_id, status_code)
 VALUES %s
 ON DUPLICATE KEY UPDATE
     raw_result = COALESCE(VALUES(raw_result), raw_result),
-    status_code = COALESCE(VALUES(status_code), status_code)
+    status_code = COALESCE(VALUES(status_code), status_code),
+    updated_at = CURRENT_TIMESTAMP
 `
 		stmt = fmt.Sprintf(insertResultsStmt, strings.TrimSuffix(sb.String(), ","))
 		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
@@ -1919,6 +1942,9 @@ func (ds *Datastore) whereBitLockerStatus(ctx context.Context, status fleet.Disk
 		whereProtectionOff    = `(hd.bitlocker_protection_status = 0)`
 		// Set only when the agent tried to restore protection and could not, or deliberately deferred.
 		whereProtectionError = `(hd.bitlocker_protection_error IS NOT NULL AND hd.bitlocker_protection_error != '')`
+		// Protectors can be deleted while protection stays on, leaving a volume that boots to the recovery prompt.
+		whereBootProtectorSet     = `(hd.bitlocker_boot_protector_set IS NULL OR hd.bitlocker_boot_protector_set = 1)`
+		whereBootProtectorMissing = `(hd.bitlocker_boot_protector_set IS NOT NULL AND hd.bitlocker_boot_protector_set = 0)`
 	)
 
 	whereBitLockerPINSet := `TRUE`
@@ -1933,13 +1959,15 @@ func (ds *Datastore) whereBitLockerStatus(ctx context.Context, status fleet.Disk
 
 	switch status {
 	case fleet.DiskEncryptionVerified:
-		// Verified requires protection to be on (or unknown/NULL for backward compatibility).
+		// Verified requires protection to be on (or unknown/NULL for backward compatibility), and requires something
+		// on the volume to be able to unseal at boot.
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND ` + whereEncrypted + `
 AND ` + whereHostDisksUpdated + `
 AND ` + whereProtectionOn + `
+AND ` + whereBootProtectorSet + `
 AND ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionVerifying:
@@ -1952,22 +1980,28 @@ AND ` + whereBitLockerPINSet
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND (
-    (` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + ` AND ` + whereProtectionOn + `)
+    (` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + ` AND ` + whereProtectionOn + ` AND ` + whereBootProtectorSet + `)
     OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
 )
 AND ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionActionRequired:
-		// Action required means a person has to do something. Two ways to get here:
+		// Action required means a person has to do something. Three ways to get here:
 		// 1. We _would_ be in verified/verifying but a PIN is required and not set, which only the end user can fix, OR
 		// 2. The disk is encrypted with protection off AND the agent reported it cannot restore it, either because
-		//    policy forbids a TPM-only protector, or the TPM is not ready, or it is deferring until a staged restart.
+		//    policy forbids a TPM-only protector, or the TPM is not ready, or it is deferring until a staged restart, OR
+		// 3. The disk is encrypted with protection on but nothing can unseal it at boot AND the agent reported it
+		//    cannot add a protector, so the next restart lands on the recovery prompt and only a person can prevent it.
 		// Protection being off on its own is NOT action required: Fleet repairs that itself, so it belongs in enforcing.
+		// All three need an encrypted volume. A PIN especially cannot be created while one is still encrypting, because
+		// Windows only offers PIN setup on a protected volume, so that host is Fleet's work to finish.
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
-AND (` + whereEncrypted + ` OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `))
-AND (NOT ` + whereBitLockerPINSet + ` OR (` + whereEncrypted + ` AND ` + whereProtectionOff + ` AND ` + whereProtectionError + `))`
+AND ` + whereEncrypted + `
+AND ((NOT ` + whereBitLockerPINSet + ` AND NOT ` + whereBootProtectorMissing + `)
+     OR (` + whereProtectionOff + ` AND ` + whereProtectionError + `)
+     OR (` + whereProtectionOn + ` AND ` + whereBootProtectorMissing + ` AND ` + whereProtectionError + `))`
 
 	case fleet.DiskEncryptionEnforcing:
 		// Possible enforcing scenarios:
@@ -1975,13 +2009,15 @@ AND (NOT ` + whereBitLockerPINSet + ` OR (` + whereEncrypted + ` AND ` + wherePr
 		// - we have the key and host_disks reported unencrypted before the key was updated or outside the 1-hour grace period after key was updated
 		// - the disk is encrypted but protection is off and the agent has not reported a problem, so Fleet is restoring
 		//   it and no one needs to be told to act
+		// - the disk is encrypted and protection is on, but nothing can unseal it at boot, so Fleet is adding a protector
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND (
     NOT ` + whereKeyAvailable + `
     OR (` + whereKeyAvailable + `
         AND (NOT ` + whereEncrypted + `
-            AND (NOT ` + whereHostDisksUpdated + ` OR NOT ` + withinGracePeriod + `)
+            AND (NOT ` + whereHostDisksUpdated + ` OR NOT ` + withinGracePeriod + `
+                 OR NOT ` + whereBitLockerPINSet + `)
 		)
 	)
     OR (` + whereKeyAvailable + `
@@ -1989,6 +2025,12 @@ AND (
         AND ` + whereProtectionOff + `
         AND NOT ` + whereProtectionError + `
         AND ` + whereBitLockerPINSet + `
+    )
+    OR (` + whereKeyAvailable + `
+        AND ` + whereEncrypted + `
+        AND ` + whereProtectionOn + `
+        AND ` + whereBootProtectorMissing + `
+        AND NOT ` + whereProtectionError + `
     )
 )`
 
@@ -2100,6 +2142,7 @@ SELECT
 	COALESCE(client_error, '') as detail,
 	hd.bitlocker_protection_status,
 	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set,
+	hd.bitlocker_boot_protector_set,
 	COALESCE(hd.bitlocker_protection_error, '') as bitlocker_protection_error,
 	COALESCE(hd.bitlocker_protection_outcome, '') as bitlocker_protection_outcome
 FROM
@@ -2125,6 +2168,7 @@ WHERE
 		Detail            string                     `db:"detail"`
 		ProtectionStatus  *int                       `db:"bitlocker_protection_status"`
 		TpmPinSet         bool                       `db:"tpm_pin_set"`
+		BootProtectorSet  *bool                      `db:"bitlocker_boot_protector_set"`
 		ProtectionError   string                     `db:"bitlocker_protection_error"`
 		ProtectionOutcome string                     `db:"bitlocker_protection_outcome"`
 	}
@@ -2147,6 +2191,8 @@ WHERE
 
 	protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == fleet.BitLockerProtectionStatusOff
 	pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
+	// nil means the host has not reported, which reads as "no problem".
+	bootProtectorMissing := dest.BootProtectorSet != nil && !*dest.BootProtectorSet
 
 	deferred := dest.ProtectionOutcome == string(fleet.DiskEncryptionProtectionDeferred)
 
@@ -2158,9 +2204,10 @@ WHERE
 		case deferred:
 			actionRequired = new(fleet.ActionRequiredRestart)
 		// Creating a PIN goes through "Change how the drive is unlocked at startup", which Windows only offers on a
-		// protected volume, so while protection is off there is nothing for the end user to do here and the reason
-		// belongs in the detail instead.
-		case pinMissing && !protectionOff:
+		// protected volume that already has a TPM protector. While protection is off, or while the volume has no
+		// protector able to unseal at boot, the option is simply not there, so there is nothing for the end user to do
+		// and the reason belongs in the detail instead. Fleet adds the missing protector, which puts the option back.
+		case pinMissing && !protectionOff && !bootProtectorMissing:
 			actionRequired = new(fleet.ActionRequiredCreatePIN)
 		}
 	}
@@ -2176,6 +2223,10 @@ WHERE
 			dest.Detail = "BitLocker protection is off and a startup PIN is required. Windows only offers PIN setup while the volume is protected, so the end user cannot create one until protection is restored."
 		case protectionOff:
 			dest.Detail = "BitLocker protection is off. The disk is encrypted but the TPM protector is not active. This may be due to a suspended BitLocker state or a TPM configuration issue."
+		case bootProtectorMissing && dest.ProtectionError != "":
+			dest.Detail = fmt.Sprintf("BitLocker has no protector that can unlock this disk at startup, so the next restart will ask for the recovery key. Fleet could not repair it: %s", dest.ProtectionError)
+		case bootProtectorMissing && pinMissing:
+			dest.Detail = "BitLocker has no protector that can unlock this disk at startup, so the next restart will ask for the recovery key. Windows only offers PIN setup once a TPM protector exists, so the end user cannot create one yet. Fleet is adding a protector."
 		case pinMissing:
 			dest.Detail = "A required BitLocker startup PIN is not set. The disk is encrypted but a PIN must be configured for compliance."
 		}
@@ -2471,58 +2522,32 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 	return nil
 }
 
-// windowsHostProfileStatusSubquery returns a correlated SQL scalar subquery
-// that resolves to one of `<statusPrefix>failed`, `<statusPrefix>pending`,
-// `<statusPrefix>verifying`, `<statusPrefix>verified`, or '<empty>' for the host
-// identified by h.uuid in the outer query.
-//
-// The subquery does a single aggregation pass over host_mdm_windows_profiles
-// via the PK(host_uuid, profile_uuid) prefix.
-//
-// The returned SQL does NOT include outer parentheses; callers wrap in
-// `(...)` as needed for the context (scalar subquery or CASE switch).
-//
-// Priority logic:
-//   - failed: any non-reserved profile has status='failed'.
-//   - pending: any non-reserved profile has status NULL or 'pending'.
-//   - verifying: at least one non-reserved install-type profile has
-//     status='verifying'.
-//     At this CASE branch we already know failed=0 and pending=0, so no
-//     profile has status NULL/pending/failed; since profile status is always
-//     one of {NULL,pending,failed,verifying,verified}, that leaves only
-//     verifying and verified for install-type rows.
-//   - verified: at least one non-reserved install-type profile has
-//     status='verified' and no install verifying exists (enforced by the
-//     earlier verifying branch).
-func windowsHostProfileStatusSubquery(statusPrefix string) (string, []any, error) {
-	caseExpr, args := windowsHostProfileStatusCaseExpr(statusPrefix)
-	stmt := fmt.Sprintf(`
-        SELECT %s
-        FROM host_mdm_windows_profiles hmwp
-        WHERE hmwp.host_uuid = h.uuid`, caseExpr)
-	return sqlx.In(stmt, args...)
+// sqlJoinMDMWindowsProfilesStatus returns a SQL snippet that joins the maintained host_mdm_windows_profiles_status
+// rollup, which holds one aggregate status bucket per host.
+func sqlJoinMDMWindowsProfilesStatus() string {
+	return `
+	LEFT JOIN host_mdm_windows_profiles_status hmwps ON hmwps.host_uuid = h.uuid
+`
 }
 
 // windowsHostProfileStatusCaseExpr returns the SQL CASE expression (and its as-yet-unexpanded args) that reduces a group of
 // host_mdm_windows_profiles rows to a single status bucket. It is the single source of truth for the Windows
 // profile status priority logic (failed > pending > verifying > verified, reserved profiles excluded, install-only for
 // verifying/verified, NULL treated as pending).
-func windowsHostProfileStatusCaseExpr(statusPrefix string) (string, []any) {
+func windowsHostProfileStatusCaseExpr() (string, []any) {
 	reserved := mdm.ListFleetReservedWindowsProfileNames()
 
-	stmt := fmt.Sprintf(`CASE
+	stmt := `CASE
             WHEN SUM(CASE WHEN hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
-                THEN '%sfailed'
+                THEN 'failed'
             WHEN SUM(CASE WHEN (hmwp.status IS NULL OR hmwp.status = ?) AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
-                THEN '%spending'
+                THEN 'pending'
             WHEN SUM(CASE WHEN hmwp.operation_type = ? AND hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
-                THEN '%sverifying'
+                THEN 'verifying'
             WHEN SUM(CASE WHEN hmwp.operation_type = ? AND hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
-                THEN '%sverified'
+                THEN 'verified'
             ELSE ''
-        END`,
-		statusPrefix, statusPrefix, statusPrefix, statusPrefix,
-	)
+        END`
 
 	args := []any{
 		fleet.MDMDeliveryFailed, reserved,
@@ -2537,7 +2562,7 @@ func windowsHostProfileStatusCaseExpr(statusPrefix string) (string, []any) {
 // windowsProfilesStatusUpsertStmtAndArgs returns the upsert statement (and its leading args) that recomputes
 // host_mdm_windows_profiles_status rows for a set of hosts from their current host_mdm_windows_profiles rows.
 func windowsProfilesStatusUpsertStmtAndArgs() (string, []any) {
-	caseExpr, caseArgs := windowsHostProfileStatusCaseExpr("")
+	caseExpr, caseArgs := windowsHostProfileStatusCaseExpr()
 	stmt := fmt.Sprintf(`
 INSERT INTO host_mdm_windows_profiles_status (host_uuid, status)
 SELECT hmwp.host_uuid, %s
@@ -3968,6 +3993,300 @@ LIMIT ?`
 			"deleted", totalDeleted, "max_batches", maxBatches)
 	}
 	return nil
+}
+
+// CleanupStaleMDMWindowsEnrollments reaps the enrollment rows host deletion
+// leaves behind (so a live device can relink when osquery re-enrolls) once
+// they have gone unmodified for the retention window. A live device relinks
+// long before that, since osquery reports its MDM device id on enroll.
+func (ds *Datastore) CleanupStaleMDMWindowsEnrollments(ctx context.Context, olderThan time.Time) (int64, error) {
+	const (
+		batchSize  = 500
+		maxBatches = 200 // 100k enrollments per tick
+	)
+	return cleanupStaleMDMWindowsEnrollmentsDB(ctx, ds, olderThan, batchSize, maxBatches)
+}
+
+// cleanupStaleMDMWindowsEnrollmentsDB selects ids first to bound each DELETE
+// and its FK cascades to one batch. The id cursor means a tick scans the
+// table once, not once per batch. No index on updated_at on purpose: it
+// changes on hot-path check-in writes, and most live rows are old anyway.
+func cleanupStaleMDMWindowsEnrollmentsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
+	const selectStmt = `
+SELECT e.id
+FROM mdm_windows_enrollments e
+WHERE e.id > ? AND ` + staleMDMWindowsEnrollmentPredicate + `
+ORDER BY e.id
+LIMIT ?`
+
+	var (
+		totalDeleted int64
+		lastID       uint
+	)
+	exhausted := true
+	for range maxBatches {
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, selectStmt, lastID, olderThan, batchSize); err != nil {
+			return totalDeleted, ctxerr.Wrap(ctx, err, "select stale windows mdm enrollments")
+		}
+		if len(ids) == 0 {
+			exhausted = false
+			break
+		}
+		lastID = ids[len(ids)-1]
+		n, err := deleteStaleMDMWindowsEnrollmentsByIDs(ctx, ds.writer(ctx), ids, olderThan)
+		if err != nil {
+			return totalDeleted, err
+		}
+		totalDeleted += n
+		if len(ids) < batchSize {
+			exhausted = false
+			break
+		}
+	}
+	if exhausted {
+		ds.logger.WarnContext(ctx, "cleanup stale windows mdm enrollments hit its batch cap, any remaining rows are cleaned on the next run",
+			"deleted", totalDeleted, "max_batches", maxBatches)
+	}
+	return totalDeleted, nil
+}
+
+// staleMDMWindowsEnrollmentPredicate matches enrollments (aliased e) not
+// updated since the bound cutoff that are orphaned or superseded. "Newer"
+// mirrors the ORDER BY in MDMWindowsGetEnrolledDeviceWithHostUUID.
+const staleMDMWindowsEnrollmentPredicate = `e.updated_at < ?
+  AND (
+    e.host_uuid = ''
+    OR NOT EXISTS (SELECT 1 FROM hosts h WHERE h.uuid = e.host_uuid)
+    OR EXISTS (
+      SELECT 1 FROM mdm_windows_enrollments n
+      WHERE n.host_uuid = e.host_uuid
+        AND (n.created_at > e.created_at OR (n.created_at = e.created_at AND n.id > e.id))
+    )
+  )`
+
+// deleteStaleMDMWindowsEnrollmentsByIDs re-evaluates eligibility in the DELETE
+// itself, so a row that relinked, or whose host was recreated with the same
+// UUID, since the id selection survives. MySQL only accepts the self-reference
+// through a materialized derived table, hence NO_MERGE.
+func deleteStaleMDMWindowsEnrollmentsByIDs(ctx context.Context, q sqlx.ExecerContext, ids []uint, olderThan time.Time) (int64, error) {
+	const deleteStmt = `
+DELETE /*+ NO_MERGE(stale) */ tgt FROM mdm_windows_enrollments tgt
+JOIN (
+  SELECT e.id FROM mdm_windows_enrollments e
+  WHERE e.id IN (?) AND ` + staleMDMWindowsEnrollmentPredicate + `
+) stale ON stale.id = tgt.id`
+	stmt, args, err := sqlx.In(deleteStmt, ids, olderThan)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "build delete stale windows mdm enrollments")
+	}
+	res, err := q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "delete stale windows mdm enrollments")
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
+// CleanupMDMWindowsCommandHistory ages out windows_mdm_responses,
+// windows_mdm_command_results and windows_mdm_commands. The queue is left to
+// CleanupWindowsMDMCommandQueue: a queue row still present here means the
+// command is pending, so its command row stays.
+//
+// Responses go first (a result never outlives the response that carried it),
+// then commands nothing references, so a command and the result that pinned
+// it go in the same run.
+func (ds *Datastore) CleanupMDMWindowsCommandHistory(ctx context.Context, olderThan time.Time) (fleet.MDMWindowsCommandHistoryCleanupCounts, error) {
+	const (
+		batchSize  = 500
+		maxBatches = 200 // 100k responses and 100k commands per tick
+	)
+	return cleanupMDMWindowsCommandHistoryDB(ctx, ds, olderThan, batchSize, maxBatches)
+}
+
+func cleanupMDMWindowsCommandHistoryDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (fleet.MDMWindowsCommandHistoryCleanupCounts, error) {
+	var counts fleet.MDMWindowsCommandHistoryCleanupCounts
+
+	// Both loops walk the created_at index behind a keyset cursor, so rows the
+	// sweep keeps are passed once per run rather than once per batch. Kept
+	// rows can be many: a command stays pinned while any offline host still
+	// has it queued, and those are the oldest rows, at the front of the index.
+	// The cursor is (created_at, primary key); created_at alone has ties, and
+	// the secondary index carries the primary key, so the form
+	// "created_at >= last AND (created_at > last OR pk > last_pk)" is a range
+	// on that index.
+
+	// A result is still in use if it was updated inside the retention window
+	// (the device re-acked) or it is the wipe behind host_mdm_actions.wipe_ref,
+	// which is what keeps a host reporting as wiped. Its response stays with
+	// it. Kept rows are excluded here so the delete only sees candidates.
+	const selectResponsesStmt = `
+SELECT wmr.id, wmr.created_at
+FROM windows_mdm_responses wmr
+WHERE wmr.created_at < ?
+	AND wmr.created_at >= ? AND (wmr.created_at > ? OR wmr.id > ?)
+	AND NOT EXISTS (
+		SELECT 1
+		FROM windows_mdm_command_results r
+		LEFT JOIN host_mdm_actions hma ON hma.wipe_ref = r.command_uuid
+		WHERE r.response_id = wmr.id
+			AND (r.updated_at >= ? OR hma.host_id IS NOT NULL)
+	)
+ORDER BY wmr.created_at, wmr.id
+LIMIT ?`
+
+	type responseKey struct {
+		ID        uint      `db:"id"`
+		CreatedAt time.Time `db:"created_at"`
+	}
+	var last responseKey
+	hitCap := true
+	for range maxBatches {
+		var rows []responseKey
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectResponsesStmt,
+			olderThan, last.CreatedAt, last.CreatedAt, last.ID, olderThan, batchSize); err != nil {
+			return counts, ctxerr.Wrap(ctx, err, "select expired windows mdm responses")
+		}
+		if len(rows) == 0 {
+			hitCap = false
+			break
+		}
+		last = rows[len(rows)-1]
+		ids := make([]uint, len(rows))
+		for i, row := range rows {
+			ids[i] = row.ID
+		}
+		// Counted before the error check: the results delete may have
+		// succeeded when the responses delete fails.
+		results, responses, err := deleteMDMWindowsResponsesByIDs(ctx, ds.writer(ctx), ids, olderThan)
+		counts.Results += results
+		counts.Responses += responses
+		if err != nil {
+			return counts, err
+		}
+		// No progress means the reader returned rows the delete refused or
+		// that are already gone (replica lag); stop rather than spin.
+		if responses == 0 || len(rows) < batchSize {
+			hitCap = false
+			break
+		}
+	}
+	if hitCap {
+		ds.logger.WarnContext(ctx, "cleanup windows mdm responses hit its batch cap, any remaining rows are cleaned on the next run",
+			"deleted", counts.Responses, "max_batches", maxBatches)
+	}
+
+	// The wipe_ref check is implied by the two above (a kept result pins its
+	// command, an unacked wipe keeps its queue row), but this delete cascades
+	// to the queue, so it is checked directly.
+	const selectCommandsStmt = `
+SELECT wmc.command_uuid, wmc.created_at
+FROM windows_mdm_commands wmc
+WHERE wmc.created_at < ?
+	AND wmc.created_at >= ? AND (wmc.created_at > ? OR wmc.command_uuid > ?)
+	AND ` + unreferencedWindowsMDMCommandPredicate + `
+ORDER BY wmc.created_at, wmc.command_uuid
+LIMIT ?`
+
+	type commandKey struct {
+		CommandUUID string    `db:"command_uuid"`
+		CreatedAt   time.Time `db:"created_at"`
+	}
+	var lastCmd commandKey
+	hitCap = true
+	for range maxBatches {
+		var rows []commandKey
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectCommandsStmt,
+			olderThan, lastCmd.CreatedAt, lastCmd.CreatedAt, lastCmd.CommandUUID, batchSize); err != nil {
+			return counts, ctxerr.Wrap(ctx, err, "select expired windows mdm commands")
+		}
+		if len(rows) == 0 {
+			hitCap = false
+			break
+		}
+		lastCmd = rows[len(rows)-1]
+		uuids := make([]string, len(rows))
+		for i, row := range rows {
+			uuids[i] = row.CommandUUID
+		}
+		n, err := deleteMDMWindowsCommandsByUUIDs(ctx, ds.writer(ctx), uuids)
+		if err != nil {
+			return counts, err
+		}
+		counts.Commands += n
+		if n == 0 || len(rows) < batchSize {
+			hitCap = false
+			break
+		}
+	}
+	if hitCap {
+		ds.logger.WarnContext(ctx, "cleanup windows mdm commands hit its batch cap, any remaining rows are cleaned on the next run",
+			"deleted", counts.Commands, "max_batches", maxBatches)
+	}
+
+	return counts, nil
+}
+
+// deleteMDMWindowsResponsesByIDs re-checks on the primary what the select saw
+// on the reader: a result re-acked or pinned by a wipe since then survives,
+// and so does the response carrying it.
+func deleteMDMWindowsResponsesByIDs(ctx context.Context, q sqlx.ExecerContext, ids []uint, olderThan time.Time) (results, responses int64, err error) {
+	// Explicit rather than via the response's ON DELETE CASCADE, so the count
+	// is real and the re-check has somewhere to live.
+	const deleteResultsStmt = `
+DELETE r FROM windows_mdm_command_results r
+LEFT JOIN host_mdm_actions hma ON hma.wipe_ref = r.command_uuid
+WHERE r.response_id IN (?) AND r.updated_at < ? AND hma.host_id IS NULL`
+	stmt, args, err := sqlx.In(deleteResultsStmt, ids, olderThan)
+	if err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "build delete expired windows mdm command results")
+	}
+	res, err := q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "delete expired windows mdm command results")
+	}
+	results, _ = res.RowsAffected()
+
+	// Any result that survived pins its response.
+	const deleteResponsesStmt = `
+DELETE wmr FROM windows_mdm_responses wmr
+LEFT JOIN windows_mdm_command_results r ON r.response_id = wmr.id
+WHERE wmr.id IN (?) AND r.response_id IS NULL`
+	stmt, args, err = sqlx.In(deleteResponsesStmt, ids)
+	if err != nil {
+		return results, 0, ctxerr.Wrap(ctx, err, "build delete expired windows mdm responses")
+	}
+	res, err = q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return results, 0, ctxerr.Wrap(ctx, err, "delete expired windows mdm responses")
+	}
+	responses, _ = res.RowsAffected()
+	return results, responses, nil
+}
+
+// unreferencedWindowsMDMCommandPredicate matches a command (aliased wmc) that
+// nothing points at any more. Shared by the select and the delete so the
+// re-check on the primary can never drift from what the reader selected.
+const unreferencedWindowsMDMCommandPredicate = `NOT EXISTS (SELECT 1 FROM windows_mdm_command_queue q WHERE q.command_uuid = wmc.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_results r WHERE r.command_uuid = wmc.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.wipe_ref = wmc.command_uuid)`
+
+// deleteMDMWindowsCommandsByUUIDs re-checks that nothing references the
+// command, since the delete cascades to the queue.
+func deleteMDMWindowsCommandsByUUIDs(ctx context.Context, q sqlx.ExecerContext, uuids []string) (int64, error) {
+	const deleteStmt = `
+DELETE wmc FROM windows_mdm_commands wmc
+WHERE wmc.command_uuid IN (?) AND ` + unreferencedWindowsMDMCommandPredicate
+	stmt, args, err := sqlx.In(deleteStmt, uuids)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "build delete expired windows mdm commands")
+	}
+	res, err := q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "delete expired windows mdm commands")
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
 }
 
 // CleanupWindowsMDMProfilePriorContent garbage-collects retained prior profile content once no host_mdm_windows_profiles row

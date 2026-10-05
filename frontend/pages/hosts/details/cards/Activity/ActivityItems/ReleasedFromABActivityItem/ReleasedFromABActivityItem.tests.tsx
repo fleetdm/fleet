@@ -1,8 +1,9 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import { createMockHostPastActivity } from "__mocks__/activityMock";
 import { ActivityType } from "interfaces/activity";
+
 import ReleasedFromABActivityItem from "./ReleasedFromABActivityItem";
 
 describe("ReleasedFromABActivityItem", () => {

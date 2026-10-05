@@ -1400,7 +1400,7 @@ func syntheticAttestationChain(seed uint64) [][]byte {
 	for i := range chain {
 		// mathrand2 (not this file's crypto/rand) since the bytes only need to be
 		// deterministic per seed, not random in any meaningful sense.
-		rng := mathrand2.New(mathrand2.NewPCG(seed, uint64(i))) // nolint:gosec,G404 // load testing, not security-sensitive
+		rng := mathrand2.New(mathrand2.NewPCG(seed, uint64(i))) //nolint:gosec // G404: load testing, not security-sensitive
 		der := make([]byte, 1024)
 		for j := range der {
 			der[j] = byte(rng.Uint64()) //nolint:gosec // dismiss G115

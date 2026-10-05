@@ -1,0 +1,18 @@
+.host-online-history-modal {
+  .modal__content {
+    @include vertical-modal-layout;
+  }
+
+  &__chart-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 280px;
+  }
+
+  &__no-data {
+    color: $ui-fleet-black-50;
+    font-size: $x-small;
+    text-align: center;
+  }
+}

@@ -1,7 +1,6 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
-import helpers from "utilities/helpers";
+
+import { IHost } from "interfaces/host";
 import {
   CUSTOM_HOST_VITAL_CRITERION,
   ILabel,
@@ -9,8 +8,10 @@ import {
 } from "interfaces/label";
 import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/DynamicLabelForm";
 import { IManualLabelFormData } from "pages/labels/components/ManualLabelForm/ManualLabelForm";
-import { IHost } from "interfaces/host";
 import { INewLabelFormData } from "pages/labels/NewLabelPage/NewLabelPage";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
+import helpers from "utilities/helpers";
 import { buildQueryStringFromParams } from "utilities/url";
 
 export interface ILabelsResponse {

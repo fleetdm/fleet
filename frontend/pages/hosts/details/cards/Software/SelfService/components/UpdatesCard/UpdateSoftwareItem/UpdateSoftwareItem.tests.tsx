@@ -1,11 +1,10 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-
 import { noop } from "lodash";
+import React from "react";
 
 import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
+import { createCustomRenderer } from "test/test-utils";
 
 import UpdateSoftwareItem from "./UpdateSoftwareItem";
 

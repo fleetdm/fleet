@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.25.3",
+      "version": "7.26",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniGraffle7';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniGraffle7' AND version_compare(bundle_short_version, '7.25.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniGraffle7' AND version_compare(bundle_short_version, '7.26') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.omnigroup.OmniGraffle7' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.omnigroup.com/software/macOS/12/OmniGraffle-7.25.3.dmg",
+      "installer_url": "https://downloads.omnigroup.com/software/macOS/14/OmniGraffle-7.26.dmg",
       "install_script_ref": "778f9d9a",
       "uninstall_script_ref": "ba3ffe50",
-      "sha256": "97c9b8a264ec380a4955c1c8a3cf583010003881dd1b0cf46f712d73ef33480b",
+      "sha256": "2f7432ab290969413dfa6ab95f22797a7abef3eb44ec556fb8b95adb021b9ddf",
       "default_categories": [
         "Productivity"
       ]

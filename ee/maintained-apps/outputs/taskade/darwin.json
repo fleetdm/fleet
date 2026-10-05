@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.6.15",
+      "version": "4.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.taskade';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.taskade' AND version_compare(bundle_short_version, '4.6.15') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.taskade' AND version_compare(bundle_short_version, '4.7.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.taskade' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://apps.taskade.com/updates/Taskade-4.6.15-universal.dmg",
+      "installer_url": "https://apps.taskade.com/updates/Taskade-4.7.0-universal.dmg",
       "install_script_ref": "edb48cd4",
       "uninstall_script_ref": "2a7fe7f4",
-      "sha256": "0670e20d19c1bedd3d0c8361296197dcd4843c1d934975c72859c7dad69eb724",
+      "sha256": "6e3bab8969deb74b4f1b201954bef277a265172460fdf30ff3d9d05faec68aef",
       "default_categories": [
         "Productivity"
       ]

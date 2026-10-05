@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
 import classnames from "classnames";
-
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { PlacesType } from "react-tooltip-5";
 
-import FormField from "components/forms/FormField";
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
+import FormField from "components/forms/FormField";
 
 const baseClass = "input-field";
 

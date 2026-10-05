@@ -1,20 +1,18 @@
 import React from "react";
-
 import { InjectedRouter } from "react-router";
 
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import ProbabilityOfExploit from "components/ProbabilityOfExploit/ProbabilityOfExploit";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { formatOperatingSystemDisplayName } from "interfaces/operating_system";
+import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
 import { formatSeverity } from "utilities/helpers";
 import { getPathWithQueryParams } from "utilities/url";
-import { formatOperatingSystemDisplayName } from "interfaces/operating_system";
-import { IVulnerability } from "interfaces/vulnerability";
-
-import ProbabilityOfExploit from "components/ProbabilityOfExploit/ProbabilityOfExploit";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import TooltipWrapper from "components/TooltipWrapper";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 interface ICellProps {
   cell: {

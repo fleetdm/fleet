@@ -324,8 +324,7 @@ func resolveHostNameIDPValue(user *fleet.HostEndUser, fleetVar string) (value st
 	case string(fleet.FleetVarHostEndUserIDPUsername):
 		return user.IdpUserName, fleet.FleetVarHostEndUserIDPUsernameRegexp, true, ""
 	case string(fleet.FleetVarHostEndUserIDPUsernameLocalPart):
-		localPart, _, _ := strings.Cut(user.IdpUserName, "@")
-		return localPart, fleet.FleetVarHostEndUserIDPUsernameLocalPartRegexp, true, ""
+		return fleet.EmailLocalPart(user.IdpUserName), fleet.FleetVarHostEndUserIDPUsernameLocalPartRegexp, true, ""
 	case string(fleet.FleetVarHostEndUserIDPGroups):
 		if len(user.IdpGroups) == 0 {
 			return "", nil, false, noGroupsErr

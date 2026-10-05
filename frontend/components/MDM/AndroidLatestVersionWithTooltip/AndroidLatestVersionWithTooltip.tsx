@@ -2,8 +2,8 @@ import React from "react";
 
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
-import { getPathWithQueryParams } from "utilities/url";
 import { ANDROID_PLAY_STORE_URL } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 interface IAndroidLatestVersionWithTooltipProps {
   /** e.g. com.android.chrome, Component will build link URL using this ID */

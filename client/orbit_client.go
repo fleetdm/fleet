@@ -89,6 +89,15 @@ type OrbitClient struct {
 
 	// openSSOWindow is a function that opens a browser window to the SSO URL.
 	openSSOWindow func() error
+
+	// refreshEnrollSecret, when set, runs before every enroll attempt. A non-empty result replaces enrollSecret, so a secret
+	// delivered while orbit runs is used without a restart.
+	refreshEnrollSecret func() string
+	// enrollSecretRefreshed records that refreshEnrollSecret replaced enrollSecret since the last successful enroll.
+	enrollSecretRefreshed bool
+
+	// onEnrollRejected, when set, runs each time the server rejects the secret an enroll attempt presented.
+	onEnrollRejected func()
 }
 
 // time-to-live for config cache
@@ -112,6 +121,16 @@ type configCache struct {
 
 func (oc *OrbitClient) SetOpenSSOWindowFunc(f func() error) {
 	oc.openSSOWindow = f
+}
+
+// SetEnrollSecretRefresher sets a function consulted before every enroll attempt for a newer enroll secret.
+func (oc *OrbitClient) SetEnrollSecretRefresher(f func() string) {
+	oc.refreshEnrollSecret = f
+}
+
+// SetOnEnrollRejected sets a function called each time the server rejects an enroll attempt's secret.
+func (oc *OrbitClient) SetOnEnrollRejected(f func()) {
+	oc.onEnrollRejected = f
 }
 
 func (oc *OrbitClient) request(verb string, path string, params any, resp any) error {
@@ -574,6 +593,14 @@ func (oc *OrbitClient) Ping() error {
 }
 
 func (oc *OrbitClient) enroll() (string, error) {
+	// Callers hold enrollLock, which is what makes updating enrollSecret here safe.
+	if oc.refreshEnrollSecret != nil {
+		if secret := oc.refreshEnrollSecret(); secret != "" && secret != oc.enrollSecret {
+			oc.enrollSecret = secret
+			oc.enrollSecretRefreshed = true
+		}
+	}
+
 	verb, path := "POST", "/api/fleet/orbit/enroll"
 	params := fleet.EnrollOrbitRequest{
 		EnrollSecret:      oc.enrollSecret,
@@ -674,6 +701,9 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				time.Sleep(20 * time.Second)
 				return retry.ErrorOutcomeResetAttempts
 			default:
+				if errors.Is(err, ErrUnauthenticated) && oc.onEnrollRejected != nil {
+					oc.onEnrollRejected()
+				}
 				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "enroll failed, retrying")
 				return retry.ErrorOutcomeNormalRetry
 			}
@@ -686,6 +716,15 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	}
 	// Enrollment succeeded and the new key has been written, so clear any armed re-enroll / 401 streak.
 	oc.clearReenrollState()
+	// osquery was started with the enroll secret orbit held then, so it would keep re-enrolling with the old one. Restarting hands
+	// it the new secret, and only now is that safe: the node key on disk is valid, so the restarted orbit does not need to enroll.
+	if oc.enrollSecretRefreshed {
+		oc.enrollSecretRefreshed = false
+		if oc.receiverUpdateCancelFunc != nil {
+			log.Info().Msg("enrolled with a newly delivered enroll secret, restarting so osquery uses it")
+			oc.receiverUpdateCancelFunc()
+		}
+	}
 	return orbitNodeKey_, nil
 }
 
@@ -886,6 +925,28 @@ func (oc *OrbitClient) SetOrUpdateDiskEncryptionProtection(outcome fleet.DiskEnc
 	verb, path := "POST", "/api/fleet/orbit/disk_encryption_protection"
 	var resp fleet.OrbitPostDiskEncryptionProtectionResponse
 	return oc.authenticatedRequest(verb, path, &fleet.OrbitPostDiskEncryptionProtectionRequest{
+		Outcome:     outcome,
+		ClientError: clientError,
+	}, &resp)
+}
+
+// GetDiskEncryptionPINDetails collects the BitLocker startup PIN the end user submitted. The server hands it out only
+// once, so the caller must be ready to apply it. A 404 means there is nothing to apply.
+func (oc *OrbitClient) GetDiskEncryptionPINDetails() (pin, requestUUID string, err error) {
+	verb, path := "POST", "/api/fleet/orbit/disk_encryption_pin/details"
+	var resp fleet.OrbitGetDiskEncryptionPINDetailsResponse
+	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitGetDiskEncryptionPINDetailsRequest{}, &resp); err != nil {
+		return "", "", err
+	}
+	return resp.PIN, resp.RequestUUID, nil
+}
+
+// SetDiskEncryptionPINResult reports whether the PIN collected with requestUUID was applied. A 404 means the server no longer wants this outcome.
+func (oc *OrbitClient) SetDiskEncryptionPINResult(requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string) error {
+	verb, path := "POST", "/api/fleet/orbit/disk_encryption_pin/result"
+	var resp fleet.OrbitPostDiskEncryptionPINResultResponse
+	return oc.authenticatedRequest(verb, path, &fleet.OrbitPostDiskEncryptionPINResultRequest{
+		RequestUUID: requestUUID,
 		Outcome:     outcome,
 		ClientError: clientError,
 	}, &resp)

@@ -1,13 +1,13 @@
+import { screen } from "@testing-library/react";
 import React from "react";
 import { QueryClient } from "react-query";
-import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
 
+import { EndUserLocalAccountType } from "interfaces/mdm";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import configAPI from "services/entities/config";
 import mdmAPI from "services/entities/mdm";
 import teamsAPI from "services/entities/teams";
-import { EndUserLocalAccountType } from "interfaces/mdm";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import { createCustomRenderer } from "test/test-utils";
 
 import UsersForm from "./UsersForm";
 

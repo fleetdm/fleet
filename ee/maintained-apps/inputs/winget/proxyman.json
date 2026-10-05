@@ -3,6 +3,7 @@
   "slug": "proxyman/windows",
   "package_identifier": "Proxyman.Proxyman",
   "unique_identifier": "Proxyman",
+  "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "user",

@@ -1,10 +1,10 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
 import { difference, isEqual, uniqueId } from "lodash";
+import PropTypes from "prop-types";
+import React, { Component } from "react";
 import Select from "react-select";
 
-import debounce from "utilities/debounce";
 import targetInterface from "interfaces/target";
+import debounce from "utilities/debounce";
 
 class SelectTargetsInput extends Component {
   static propTypes = {

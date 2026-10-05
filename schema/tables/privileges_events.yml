@@ -1,0 +1,81 @@
+name: privileges_events
+platforms:
+  - darwin
+description: Audit events from [SAP Privileges](https://github.com/SAP/macOS-enterprise-privileges). Reports admin privilege changes (`ADMIN_ADD` / `ADMIN_REMOVE`) and tamper attempts on Privileges' own files and launchd jobs (`CLONE`, `CREATE`, `DELETE`, `RENAME`, `EXEC`), along with Endpoint Security data about the process that made the change. Requires Privileges 2.6.0 or later with its system extension enabled; returns no rows otherwise.
+examples: |-
+  List admin privilege changes from the last 15 minutes. Events come from the unified log, so use a short `last` window in scheduled queries.
+
+  ```
+  SELECT event_type, principal, subject, executable, uid FROM privileges_events WHERE last = '15m' AND event_type LIKE 'ADMIN_%';
+  ```
+columns:
+  - name: event_type
+    type: text
+    required: false
+    description: "`ADMIN_ADD` or `ADMIN_REMOVE` for privilege changes, or one of `CLONE`, `CREATE`, `DELETE`, `RENAME`, `EXEC` for tamper-protection events on Privileges' own files and launchd jobs."
+  - name: principal
+    type: text
+    required: false
+    description: The user or group whose admin membership changed; see `subject` for which. Empty for tamper-protection events.
+  - name: subject
+    type: text
+    required: false
+    description: "`user` or `group` for privilege changes; the affected path for tamper-protection events."
+  - name: executable
+    type: text
+    required: false
+    description: Path of the process that made the change.
+  - name: signing_id
+    type: text
+    required: false
+    description: Code signing identifier of the acting process.
+  - name: team_id
+    type: text
+    required: false
+    description: Apple Developer Team ID of the acting process.
+  - name: cdhash
+    type: text
+    required: false
+    description: Code directory hash of the acting process.
+  - name: pid
+    type: integer
+    required: false
+    description: Process ID of the acting process.
+  - name: ppid
+    type: integer
+    required: false
+    description: Parent process ID of the acting process.
+  - name: uid
+    type: integer
+    required: false
+    description: Effective user ID of the acting process. -1 when the process has no audit session (e.g. daemons).
+  - name: gid
+    type: integer
+    required: false
+    description: Effective group ID of the acting process. -1 when the process has no audit session (e.g. daemons).
+  - name: auid
+    type: integer
+    required: false
+    description: Audit user ID of the acting process. -1 when the process has no audit session (e.g. daemons).
+  - name: responsible_pid
+    type: integer
+    required: false
+    description: Process ID of the responsible process (e.g. the terminal app behind a shell).
+  - name: is_platform_binary
+    type: integer
+    required: false
+    description: Value is 1 if the acting process is an Apple platform binary.
+  - name: is_es_client
+    type: integer
+    required: false
+    description: Value is 1 if the acting process is an Endpoint Security client.
+  - name: process_start_time
+    type: text
+    required: false
+    description: Start time of the process that made the change. This is not the time of the privilege change; the event stream carries no per-event timestamp.
+  - name: last
+    type: text
+    required: false
+    description: Time window to search, passed to `PrivilegesCLI --last` (e.g. `15m`, `3h`, `2d`). Use this as a parameter in the `WHERE` clause.
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+evented: false

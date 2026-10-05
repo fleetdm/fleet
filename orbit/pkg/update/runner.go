@@ -260,26 +260,19 @@ func (r *Runner) UpdateAction() (bool, error) {
 		}
 
 		// Check if we need to update the orbit symlink (e.g. if channel changed)
-		needsSymlinkUpdate := false
+		symlinkStatus := orbitSymlinkOK
 		if target == constant.OrbitTUFTargetName {
 			var err error
-			needsSymlinkUpdate, err = r.needsOrbitSymlinkUpdate()
+			symlinkStatus, err = r.orbitSymlinkStatus()
 			if err != nil {
 				return false, fmt.Errorf("check symlink failed: %w", err)
 			}
 		}
 
 		// Check whether the hash of the repository is different than that of the target local file
-		localBinaryNotUpdated := !bytes.Equal(r.localHashes[target], metaHash)
+		localBinaryOutdated := !bytes.Equal(r.localHashes[target], metaHash)
 
-		// Preventing the update of the symlink on Windows if the binary does not need to be updated
-		if runtime.GOOS == "windows" && needsSymlinkUpdate && !localBinaryNotUpdated {
-			needsSymlinkUpdate = false
-		}
-
-		// Performing update if either the binary is not updated
-		// or the symlink needs to be updated and binary is not updated.
-		if localBinaryNotUpdated || needsSymlinkUpdate {
+		if targetNeedsUpdate(localBinaryOutdated, symlinkStatus, runtime.GOOS) {
 			log.Info().Str("target", target).Msg("update detected")
 			if err := r.updateTarget(target); err != nil {
 				return didUpdate, fmt.Errorf("update %s: %w", target, err)
@@ -294,32 +287,75 @@ func (r *Runner) UpdateAction() (bool, error) {
 	return didUpdate, nil
 }
 
-func (r *Runner) needsOrbitSymlinkUpdate() (bool, error) {
+// orbitSymlinkState describes the state of the `bin/orbit/orbit[.exe]` symlink
+// relative to the orbit binary that the current channel resolves to.
+type orbitSymlinkState int
+
+const (
+	// orbitSymlinkOK means the symlink exists and points to the expected binary.
+	orbitSymlinkOK orbitSymlinkState = iota
+	// orbitSymlinkMissing means there's no file at the symlink path.
+	orbitSymlinkMissing
+	// orbitSymlinkNotSymlink means the path holds a regular file instead of a symlink.
+	// This is the case on Windows right after a fresh install via MSI.
+	orbitSymlinkNotSymlink
+	// orbitSymlinkWrongTarget means the symlink points to a different binary than the
+	// one the current channel resolves to (e.g. the channel changed).
+	orbitSymlinkWrongTarget
+)
+
+// targetNeedsUpdate returns whether the target should be (re)installed given the
+// state of its local binary and of the orbit symlink.
+func targetNeedsUpdate(localBinaryOutdated bool, symlinkStatus orbitSymlinkState, goos string) bool {
+	if localBinaryOutdated {
+		return true
+	}
+	switch symlinkStatus {
+	case orbitSymlinkOK:
+		return false
+	case orbitSymlinkWrongTarget:
+		// The binary for the channel is already downloaded but the symlink points
+		// elsewhere (e.g. channel was changed back to one previously installed),
+		// so we must relink even though the hash matches.
+		return true
+	case orbitSymlinkMissing, orbitSymlinkNotSymlink:
+		// On Windows, orbit.exe is a regular file (not a symlink) after a fresh MSI install.
+		// Skip relinking (and the restart it implies) when the binary is already up to date.
+		return goos != "windows"
+	default:
+		return true
+	}
+}
+
+func (r *Runner) orbitSymlinkStatus() (orbitSymlinkState, error) {
 	localTarget, err := r.updater.Get(constant.OrbitTUFTargetName)
 	if err != nil {
-		return false, fmt.Errorf("get %s binary: %w", constant.OrbitTUFTargetName, err)
+		return orbitSymlinkOK, fmt.Errorf("get %s binary: %w", constant.OrbitTUFTargetName, err)
 	}
 	path := localTarget.ExecPath
 
 	// Symlink Orbit binary
 	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
+	return compareOrbitSymlink(linkPath, path)
+}
 
+// compareOrbitSymlink compares the symlink at linkPath against the expected target path.
+// The returned state is meaningless when err is non-nil.
+func compareOrbitSymlink(linkPath, path string) (orbitSymlinkState, error) {
 	existingPath, err := os.Readlink(linkPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return true, nil
+			return orbitSymlinkMissing, nil
 		}
-
 		if platform.IsInvalidReparsePoint(err) {
-			// On Windows, the symlink may be a file instead of a symlink.
-			// let's handle this case by forcing the update to happen
-			return true, nil
+			return orbitSymlinkNotSymlink, nil
 		}
-
-		return false, fmt.Errorf("read existing symlink: %w", err)
+		return orbitSymlinkOK, fmt.Errorf("read existing symlink: %w", err)
 	}
-
-	return existingPath != path, nil
+	if existingPath != path {
+		return orbitSymlinkWrongTarget, nil
+	}
+	return orbitSymlinkOK, nil
 }
 
 func (r *Runner) updateTarget(target string) error {

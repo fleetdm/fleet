@@ -1,5 +1,5 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import { renderWithSetup } from "test/test-utils";
 
@@ -11,34 +11,6 @@ const password = "p@ssw0rd";
 describe("LoginForm - component", () => {
   const settings = { sso_enabled: false };
   const submitSpy = jest.fn();
-  const baseError = "Unable to authenticate the current user";
-
-  it("renders the base error", () => {
-    render(
-      <LoginForm
-        baseError={baseError}
-        handleSubmit={submitSpy}
-        isSubmitting={false}
-        pendingEmail={false}
-        ssoSettings={settings}
-      />
-    );
-
-    expect(screen.getByText(baseError)).toBeInTheDocument();
-  });
-
-  it("should not render the base error", () => {
-    render(
-      <LoginForm
-        handleSubmit={submitSpy}
-        isSubmitting={false}
-        pendingEmail={false}
-        ssoSettings={settings}
-      />
-    );
-
-    expect(screen.queryByText(baseError)).not.toBeInTheDocument();
-  });
 
   it("renders 2 InputField components", () => {
     render(
@@ -69,9 +41,7 @@ describe("LoginForm - component", () => {
 
     // try to log in
     await user.click(screen.getByRole("button", { name: "Log in" }));
-    expect(
-      screen.getByText("Email field must be completed")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Enter your email")).toBeInTheDocument();
     expect(submitSpy).not.toHaveBeenCalled();
 
     // enter an invalid email
@@ -79,9 +49,7 @@ describe("LoginForm - component", () => {
 
     // try to log in again
     await user.click(screen.getByRole("button", { name: "Log in" }));
-    expect(
-      screen.getByText("Email must be a valid email address")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Enter a valid email")).toBeInTheDocument();
     expect(submitSpy).not.toHaveBeenCalled();
   });
 
@@ -100,9 +68,7 @@ describe("LoginForm - component", () => {
     // try to log in without entering a password
     await user.click(screen.getByRole("button", { name: "Log in" }));
 
-    expect(
-      screen.getByText("Password field must be completed")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Enter your password")).toBeInTheDocument();
     expect(submitSpy).not.toHaveBeenCalled();
   });
 

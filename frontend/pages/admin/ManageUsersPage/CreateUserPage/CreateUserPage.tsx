@@ -1,19 +1,19 @@
 import React, { useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { IApiError } from "interfaces/errors";
-import { ITeam } from "interfaces/team";
-import { IFormErrors } from "hooks/useFormValidation";
-import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import usersAPI from "services/entities/users";
-import invitesAPI from "services/entities/invites";
+import { InjectedRouter } from "react-router";
 
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IFormErrors } from "hooks/useFormValidation";
+import { IApiError } from "interfaces/errors";
+import { ITeam } from "interfaces/team";
+import PATHS from "router/paths";
+import invitesAPI from "services/entities/invites";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import usersAPI from "services/entities/users";
+
 import UserForm from "../components/UserForm";
 import { IUserFormData, NewUserType } from "../components/UserForm/UserForm";
 import { getUserFieldErrors } from "../helpers/userManagementHelpers";

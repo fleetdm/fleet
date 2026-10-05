@@ -1,10 +1,10 @@
-import React from "react";
 import { waitFor } from "@testing-library/react";
 import { Command } from "cmdk";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
 
-import softwareAPI from "services/entities/software";
 import { createMockSoftwareTitle } from "__mocks__/softwareMock";
+import softwareAPI from "services/entities/software";
+import { createCustomRenderer } from "test/test-utils";
 
 import SoftwarePicker from "./SoftwarePicker";
 

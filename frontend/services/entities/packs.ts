@@ -1,11 +1,12 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
+
 import { omit } from "lodash";
 
+import { IUpdatePack } from "interfaces/pack";
+import { ISelectTargetsEntity } from "interfaces/target";
+import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { formatPackTargetsForApi } from "utilities/helpers";
-import { ISelectTargetsEntity } from "interfaces/target";
-import { IUpdatePack } from "interfaces/pack";
 
 interface ICreateProps {
   name: string;

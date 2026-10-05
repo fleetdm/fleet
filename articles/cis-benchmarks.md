@@ -9,6 +9,7 @@ Fleet has implemented native support for CIS Benchmarks for the following platfo
 - macOS 13.0 Ventura
 - macOS 14.0 Sonoma
 - macOS 15.0 Sequoia
+- macOS 26.0 Tahoe
 - Windows 10 Enterprise
 - Windows 11 Enterprise
 
@@ -174,6 +175,7 @@ Certain benchmarks cannot be automated by a policy in Fleet. For a list of speci
 - [macOS 13.0 Ventura](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-13/README.md)
 - [macOS 14.0 Sonoma](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-14/README.md)
 - [macOS 15.0 Sequoia](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-15/README.md)
+- [macOS 26.0 Tahoe](https://github.com/fleetdm/fleet/tree/main/ee/cis/macos-26/README.md)
 - [Windows 10 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-10/README.md)
 - [Windows 11 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/README.md)
 

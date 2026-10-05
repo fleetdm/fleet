@@ -2,21 +2,17 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-
 import { CellProps, Column } from "react-table";
 
-import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import { IHeaderProps, IWebSocketData } from "interfaces/datatable_config";
+import PATHS from "router/paths";
 import {
   getUniqueColsAreNumTypeFromRows,
   humanHostLastSeen,
   internallyTruncateText,
 } from "utilities/helpers";
-import { IHeaderProps, IWebSocketData } from "interfaces/datatable_config";
-
-import PATHS from "router/paths";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 type IQueryReportTableColumnConfig = Column<IWebSocketData>;
 type ITableHeaderProps = IHeaderProps<IWebSocketData>;
@@ -97,12 +93,7 @@ const generateReportColumnConfigsFromResults = (
           <>{val}</>
         );
       },
-      Filter: DefaultColumnFilter, // Component hides filter for last_fetched
-      filterType: "text",
       disableSortBy: false,
-      sortType: colsAreNumTypes.get(colName)
-        ? "alphanumeric"
-        : "caseInsensitive",
     };
   });
   return _unshiftHostname(columnConfigs);

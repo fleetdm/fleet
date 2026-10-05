@@ -863,7 +863,7 @@ Only one of `server_private_key_arn` or `server_private_key` can be set.
 If set, Fleet reads the private key from AWS Secrets Manager instead of directly from `server_private_key`.
 
 - Default value: `""`
-- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_ARN`
 - Config file format:
   ```yaml
   server:
@@ -887,7 +887,7 @@ Optionally, when using Identity and Access Management (IAM) authentication, this
 Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `server_private_key_arn` and `server_private_key_sts_assume_role_arn`.
 
 - Default value: `""`
-- Environment variable: `FLEET_SERVER_PRIVATE_KEY_EXTERNAL_ID`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_EXTERNAL_ID`
 - Config file format:
   ```yaml
   server:
@@ -1399,6 +1399,22 @@ This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fal
     max_distributed_write_body_size: 10MiB
   ```
 
+### osquery_config_in_memory_cache
+
+Caches the scheduled-report section of the osquery config in memory, so that Fleet doesn't rebuild it from the database on every config check-in. Disabled by default.
+
+When enabled, the cache holds that section for one minute, keyed by fleet (team) and the `server_settings.query_reports_disabled` setting, which reduces database reads on config check-ins. It covers only the `packs` key of the response; the rest of the config is rebuilt on every check-in. It's also used only where it can't change what a host receives: hosts with 2017 packs, and fleets with label-scoped reports (whose configs differ per host), always build from the database.
+
+When disabled, every check-in builds that section from the database.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE`
+- Config file format:
+  ```yaml
+  osquery:
+    config_in_memory_cache: true
+  ```
+
 ### osquery_allow_body_auth_fallback
 
 Selects how osquery requests are authenticated.
@@ -1413,6 +1429,40 @@ When `false`, the `Authorization: NodeKey` header is required and the body's `no
   ```yaml
   osquery:
     allow_body_auth_fallback: false
+  ```
+
+### osquery_config_etags
+
+Enables conditional osquery config requests on `/api/osquery/config`. Disabled by default.
+
+When enabled, an agent that sends an `"etag"` field in its config request body receives the config with an `"etag"` key added, and the minimal `{"etag":"ok"}` body when its etag matches the current config. Agents that don't send the field are unaffected either way.
+
+Setting this to `false` is the escape hatch that disables the feature entirely: the request's etag field is ignored, every response is the full config with no `"etag"` key — byte-identical to the behavior before this feature existed for every agent — and no ETag store I/O happens. This is broader than `osquery_redis_config_etags` below, which only disables the Redis short circuit while leaving conditional requests active.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_CONFIG_ETAGS`
+- Config file format:
+  ```yaml
+  osquery:
+    config_etags: false
+  ```
+
+### osquery_redis_config_etags
+
+Enables the Redis-backed ETag short circuit for the osquery config endpoint (`/api/osquery/config`). Disabled by default.
+
+When enabled, Fleet stores config ETags in Redis. When an agent's config request body carries an `"etag"` field matching the stored validator, Fleet answers with the minimal `{"etag":"ok"}` body directly from Redis **without building the config** — skipping that request's database reads entirely. Fleets (teams) whose config is uniform share one ETag per fleet and platform; fleets with label-scoped reports (whose configs are host-specific) use isolated per-host ETags that are invalidated whenever a host's label results are recorded. Qualifying changes (agent options, features, report schedules, label deletion, 2017 packs, fleet/team changes) invalidate the stored ETags immediately; a short "write fence" window after each change keeps Fleet's in-memory caches from repopulating Redis with stale data.
+
+The short circuit is automatically bypassed — falling back to a normal full config build — when the deployment has user-created 2017 packs, when the agent sends no (or an empty) etag, or on any Redis error (the feature fails open and can never block config delivery). Requires Redis; has no effect without it. It also requires `osquery_config_etags` (above): when that is `false`, this option is forced off with a startup warning, and no config ETag Redis traffic occurs at all. Agents that don't send the `"etag"` field receive the config exactly as before this feature existed, with no etag in the response.
+
+When disabled, every config request takes the full-build path, identical to the behavior before this feature existed — use this to A/B test the feature or to rule it out when debugging config delivery.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_REDIS_CONFIG_ETAGS`
+- Config file format:
+  ```yaml
+  osquery:
+    redis_config_etags: false
   ```
 
 ## External activity audit logging
@@ -3006,7 +3056,7 @@ Private key for URL signing. If `s3_software_installers_cloudfront_url` is set, 
 
 *Available in Fleet Premium.*
 
-When `true`, Fleet uses [signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls) that embed a cryptographic key in the download URL that is used by the Fleet agent to download the installer to the host. This enables download of large packages (over 50MB), which is a [limitation of the HTTP 1 protocol](https://github.com/fleetdm/fleet/issues/37352). Uploads of large packages are only supported via [YAML](https://fleetdm.com/docs/configuration/yaml-files). Fleet UI support is [coming soon](https://github.com/fleetdm/fleet/issues/49554).
+When `true`, Fleet uses [signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls) that embed a cryptographic key in the URL used by the Fleet agent to download the installer directly from Google Cloud Storage (GCS) to the host, and by the client uploading the installer (e.g. Fleet UI) to upload it directly to GCS. This enables download and upload of large packages (over 50MB), which is a [limitation of the HTTP 1 protocol](https://github.com/fleetdm/fleet/issues/37352).
 
 This option doesn't work when `s3_carves_gcs_iam_auth` is enabled. Please configure HMAC credentials (`s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key`) instead. 
 
@@ -3653,6 +3703,22 @@ The number of days the signed SCEP client certificates will be valid.
     apple_scep_signer_validity_days: 100
   ```
 
+### mdm.apple_scep_static_challenge_enabled
+
+Whether Fleet accepts its static SCEP challenge when Apple hosts request an MDM identity certificate. Fleet gives each host a one-time challenge tied to that host for automatic (ADE), over-the-air (OTA), and account-driven user enrollments, and for SCEP certificate renewals. The static challenge is only used by the [manual enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile).
+
+Set this to `false` to stop accepting the static challenge. When it's `false`, the manual enrollment profile isn't available, and manual enrollment profiles you downloaded earlier stop working. Hosts that are already enrolled aren't affected.
+
+In a future major release, the default will change to `false`.
+
+- Default value: `true`
+- Environment variable: `FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_scep_static_challenge_enabled: false
+  ```
+
 ### mdm.apple_dep_sync_periodicity
 
 The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business (AB) is configured.
@@ -3693,6 +3759,78 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----BEGIN RSA PRIVATE KEY-----
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
+  ```
+
+### mdm.windows_command_retention
+
+The minimum time since Windows MDM command history was recorded, or last updated, before the hourly cleanup deletes it. Command history is the raw responses devices send when they check in, the per-command results parsed from those responses, and the commands themselves once no result and no queued delivery refers to them. Deleted commands no longer appear in a host's MDM command history.
+
+Two things are kept regardless of age: commands still queued for a device that hasn't acknowledged them, and the wipe command a host's wiped status depends on. Set it to `0` to disable the cleanup.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_WINDOWS_COMMAND_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    windows_command_retention: 336h
+  ```
+
+### mdm.apple_command_cleanup_short_retention
+
+How long Fleet keeps completed Apple MDM commands that it generates on a recurring schedule before deleting them from the command queue. This covers refetch commands (`REFETCH-*`), device name updates (`DEVNAME-*`), App Store (VPP) install verification commands (`VERIFY-VPP-INSTALLS-*`), and `DeclarativeManagement` sync commands. Fleet also uses this window to purge inactive commands, such as a profile install superseded by a newer one or commands cleared when a host re-enrolled.
+
+Fleet only deletes a command after the host responds with a final status (`Acknowledged`, `Error`, or `CommandFormatError`) or it has been marked inactive and would never be sent. Deleted commands no longer appear in the host's MDM commands list.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 24h
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_short_retention: 48h
+  ```
+
+### mdm.apple_command_cleanup_standard_retention
+
+How long Fleet keeps other completed Apple MDM commands before deleting them from the command queue. This covers profile installs and removals (`InstallProfile`, `RemoveProfile`), app installs (`InstallApplication`, `InstallEnterpriseApplication`), `DeviceConfigured`, `DeviceLocation`, recovery lock commands (`SetRecoveryLock`, `VerifyRecoveryLock`), `SetAutoAdminPassword`, and inventory commands run manually through the API (`DeviceInformation`, `InstalledApplicationList`, `CertificateList`, `ProfileList`, `SecurityInfo`, `UserList`).
+
+Fleet never deletes commands it needs to determine a host's state, such as `DeviceLock`, `EraseDevice`, `EnableLostMode`, `DisableLostMode`, and `AccountConfiguration`, or any command type not listed above. Fleet also keeps a command past this window while it's referenced by a host's current profiles, bootstrap package, pending app installations, recovery lock or managed local account rotation, or Enrollment Profile renewal.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_standard_retention: 2160h
+  ```
+
+### mdm.apple_command_cleanup_max_row_deletions_per_run
+
+The maximum number of Apple MDM command queue entries Fleet deletes each time the cleanup runs. The cleanup runs hourly. Each entry is one command sent to one host, along with that host's result.
+
+Raise this value to clear a large backlog faster, at the cost of more database load per run. Set to `0` to stop deleting queue entries.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_ROW_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_row_deletions_per_run: 5000
+  ```
+
+### mdm.apple_command_cleanup_max_command_deletions_per_run
+
+The maximum number of Apple MDM commands Fleet deletes each time the cleanup runs. A command is the payload shared by every host it was sent to. Fleet deletes a command only after no host's queue entry or result refers to it, and only after it's more than 24 hours old. Set to `0` to stop deleting commands.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_COMMAND_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_command_deletions_per_run: 5000
   ```
 
 ### mdm.sso_rate_limit_per_minute
@@ -3816,6 +3954,28 @@ Hosts that already enrolled before end user authentication was enabled are alway
     allow_orbit_end_user_auth_bypass: false
   ```
 
+### mdm.windows_one_time_enroll_secrets
+
+When enabled, Fleet installs fleetd on Windows hosts that turn on MDM (Microsoft Entra, Windows Autopilot, or **Settings > Accounts > Access work or school**) with a one-time enroll secret for that device instead of the global or fleet-level enroll secret. This keeps the shared enroll secret off the device. The setting only affects Windows hosts that have MDM turned on. If fleetd was already installed when a host turned on MDM, Fleet doesn't reinstall it, so the host keeps its original enroll secret.
+
+Fleet delivers the secret on the fleetd install command and through the Fleet-managed "Fleetd enroll secret" configuration profile. Orbit and osquery can each use the secret once, and the second one has to enroll within 60 minutes of the first.
+
+- Recovery: a host that has to enroll again, for example because its node key was deleted, needs a new one-time enroll secret. To issue one, resend the "Fleetd enroll secret" profile from **Host details > OS settings**. fleetd picks it up at the host's next MDM check-in, without a reinstall or restart (requires fleetd v1.63.0). Hosts with an older fleetd need fleetd reinstalled instead. End users can't resend this profile from the **My device** page.
+- Deleted hosts: a deleted Windows host that has MDM turned on enrolls again on its own. [Learn more](https://fleetdm.com/guides/enroll-hosts#delete-a-host).
+- Shared enroll secrets: Fleet doesn't let a global or fleet-level enroll secret enroll fleetd as a Windows host that has MDM turned on or is registered in Windows Autopilot. This includes a deleted host whose device still has MDM turned on. Refused attempts are recorded as `host_enrollment_rejected` activities.
+- Re-imaged devices: Fleet isn't notified when MDM is turned off on a device (re-imaged, disconnected in **Settings > Accounts > Access work or school**, or unenrolled with a script), so Fleet still treats the device as enrolled, even after you delete its host. Such a device can't enroll fleetd with a package. To bring it back, enroll it in MDM again with Windows Autopilot, Microsoft Entra, or **Settings > Accounts > Access work or school**. Fleet then replaces the old enrollment and installs fleetd with a one-time enroll secret. If the device can't enroll in MDM again, delete its host in Fleet. Fleet removes the old enrollment after the `mdm.windows_enrollment_retention` period (30 days by default), and fleetd can then enroll with a package.
+- Reserved names: custom configuration profiles can't be named "Fleetd enroll secret". Custom configuration profiles and MDM commands can't use `$FLEET_HOST_SECRET_` variables.
+
+When you turn this setting off, Fleet removes the "Fleetd enroll secret" profiles and stops accepting the one-time enroll secrets it delivered. Secrets that weren't used yet work again if you turn the setting back on. Hosts that enrolled with a one-time enroll secret can't enroll again, for example after losing their node key, until you turn the setting back on or reinstall fleetd with a package built with a global or fleet-level enroll secret.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_WINDOWS_ONE_TIME_ENROLL_SECRETS`
+- Config file format:
+  ```yaml
+  mdm:
+    windows_one_time_enroll_secrets: true
+  ```
+
 ### fleet_allow_bootstrap_package_during_migration
 
 When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.
@@ -3829,6 +3989,10 @@ This is only supported as an environment variable.
 Specifies the original enrollment profile from the previous MDM, used by Fleet for migrated Apple hosts during SCEP certificate renewal. This profile ensures that migrated hosts can renew their SCEP certificates without requiring re-enrollment or user interaction, enabling seamless MDM migration. Required when migrating hosts from another MDM to Fleet to maintain uninterrupted certificate management.
 
 The enrollment profile must be base64-encoded. This is only supported as an environment variable. 
+
+In the profile's SCEP payload, set `Challenge` to `$FLEET_VAR_SILENT_MIGRATION_SCEP_CHALLENGE`. Fleet replaces it with a one-time challenge for each host when it sends the renewal. This variable is only supported in this profile, not in configuration profiles.
+
+Profiles set up before Fleet 4.94.0 that contain Fleet's static SCEP challenge instead keep working. Fleet logs an error at startup if the profile contains neither the variable nor the static challenge.
 
 - Environment variable: `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE`
 - Note: If you are experiencing systems failing SCEP renewal, please contact [Fleet support](https://fleetdm.com/support).

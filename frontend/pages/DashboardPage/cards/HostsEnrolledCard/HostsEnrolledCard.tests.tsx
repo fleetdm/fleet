@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-empty-function, class-methods-use-this */
-import React from "react";
+
 import { fireEvent, render, screen } from "@testing-library/react";
+import React from "react";
 import { InjectedRouter } from "react-router";
+
 import { ILabelSummary } from "interfaces/label";
 
 import HostsEnrolledCard, { formatPercent } from "./HostsEnrolledCard";

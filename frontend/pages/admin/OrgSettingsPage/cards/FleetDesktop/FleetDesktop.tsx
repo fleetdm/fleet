@@ -1,22 +1,19 @@
 import React, { useState } from "react";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-
-import { isEndUserIdPConfigured } from "utilities/permissions/permissions";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
-import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
-import validUrl from "components/forms/validators/valid_url";
 import validHostname from "components/forms/validators/valid_hostname";
-
+import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import CustomLink from "components/CustomLink";
+import PageDescription from "components/PageDescription";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import { isEndUserIdPConfigured } from "utilities/permissions/permissions";
 
-import { DEFAULT_TRANSPARENCY_URL, IAppConfigFormProps } from "../constants";
 import TooltipWrapper from "../../../../../components/TooltipWrapper";
+import { DEFAULT_TRANSPARENCY_URL, IAppConfigFormProps } from "../constants";
 
 const END_USER_AUTH_LABEL_ID = "end-user-authentication-label";
 

@@ -23,15 +23,14 @@ import Select, {
   ValueContainerProps,
 } from "react-select-5";
 
-import { COLORS } from "styles/var/colors";
-import { PADDING } from "styles/var/padding";
-
-import FormField from "components/forms/FormField";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
-import TooltipWrapper from "components/TooltipWrapper";
+import FormField from "components/forms/FormField";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
 import { TooltipContent } from "interfaces/dropdownOption";
+import { COLORS } from "styles/var/colors";
+import { PADDING } from "styles/var/padding";
 
 interface CustomOptionProps
   extends Omit<OptionProps<CustomOptionType, false>, "data"> {

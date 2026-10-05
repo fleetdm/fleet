@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.1.7",
+      "version": "3.1.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.squirrels.AirParrot-3';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.squirrels.AirParrot-3' AND version_compare(bundle_short_version, '3.1.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.squirrels.AirParrot-3' AND version_compare(bundle_short_version, '3.1.8') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.squirrels.AirParrot-3' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.airsquirrels.com/AirParrot3/Mac/AirParrot-3.1.7.dmg",
+      "installer_url": "https://download.airsquirrels.com/AirParrot3/Mac/AirParrot-3.1.8.dmg",
       "install_script_ref": "a5af95d5",
       "uninstall_script_ref": "cc28f4b8",
-      "sha256": "acb42bb53c1dfde1fec6835fd8fd89a278b215a97f1e08545e45780cebb19409",
+      "sha256": "4f5ab570e7fd8c590b3f1e642bce09a38ae803d7d4249ff521f62dd4926a20e0",
       "default_categories": [
         "Productivity"
       ]

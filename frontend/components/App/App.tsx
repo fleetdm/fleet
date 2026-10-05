@@ -1,41 +1,39 @@
-import React, { useContext, useEffect, useState, useCallback } from "react";
-import { InjectedRouter } from "react-router";
 import { AxiosError, AxiosResponse } from "axios";
-import { useQuery } from "react-query";
-import { ErrorBoundary } from "react-error-boundary";
 import { isBefore } from "date-fns";
+import React, { useContext, useEffect, useState, useCallback } from "react";
+import { ErrorBoundary } from "react-error-boundary";
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import page_titles from "router/page_titles";
-import TableProvider from "context/table";
-import QueryProvider from "context/query";
-import PolicyProvider from "context/policy";
+import Spinner from "components/Spinner";
+import ToastNotification from "components/ToastNotification";
 import { AppContext } from "context/app";
-import authToken from "utilities/auth_token";
+import PolicyProvider from "context/policy";
+import QueryProvider from "context/query";
+import TableProvider from "context/table";
 import useDeepEffect from "hooks/useDeepEffect";
-import { QueryParams } from "utilities/url";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import usersAPI from "services/entities/users";
-import configAPI from "services/entities/config";
-import hostCountAPI from "services/entities/host_count";
-import mdmAppleBMAPI, {
-  IGetAbTokensResponse,
-} from "services/entities/mdm_apple_bm";
-import mdmAppleAPI, {
-  IGetVppTokensResponse,
-} from "services/entities/mdm_apple";
-import mdmAndroidAPI from "services/entities/mdm_android";
-
+import ErrorPageLayout from "layouts/ErrorPageLayout";
 // @ts-ignore
 import Fleet403 from "pages/errors/Fleet403";
 // @ts-ignore
 import Fleet404 from "pages/errors/Fleet404";
 // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
-import ErrorPageLayout from "layouts/ErrorPageLayout";
-
-import Spinner from "components/Spinner";
-import ToastNotification from "components/ToastNotification";
+import page_titles from "router/page_titles";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import hostCountAPI from "services/entities/host_count";
+import mdmAndroidAPI from "services/entities/mdm_android";
+import mdmAppleAPI, {
+  IGetVppTokensResponse,
+} from "services/entities/mdm_apple";
+import mdmAppleBMAPI, {
+  IGetAbTokensResponse,
+} from "services/entities/mdm_apple_bm";
+import usersAPI from "services/entities/users";
+import authToken from "utilities/auth_token";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { QueryParams } from "utilities/url";
 
 interface IAppProps {
   children: JSX.Element;

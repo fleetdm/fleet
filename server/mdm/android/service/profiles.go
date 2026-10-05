@@ -45,7 +45,7 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 	}
 
 	if client == nil {
-		client = newAMAPIClient(ctx, logger, licenseKey)
+		client = NewAMAPIClient(ctx, logger, licenseKey)
 		authSecret, err := getClientAuthenticationSecret(ctx, ds)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting Android client authentication secret for profile reconciler")

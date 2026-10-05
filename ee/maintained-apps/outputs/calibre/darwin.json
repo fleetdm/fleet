@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.14.0",
+      "version": "9.15.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre' AND version_compare(bundle_short_version, '9.14.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre' AND version_compare(bundle_short_version, '9.15.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.kovidgoyal.calibre' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.calibre-ebook.com/9.14.0/calibre-9.14.0.dmg",
+      "installer_url": "https://download.calibre-ebook.com/9.15.0/calibre-9.15.0.dmg",
       "install_script_ref": "099b9491",
       "uninstall_script_ref": "053f5678",
-      "sha256": "a2f825138645ea29d9f77a78c177216c0db855fa0c7b993a16ace230c04fe3d4",
+      "sha256": "1b3a7451175b73ae2baa28fe1bc1c53ee34d65b489881e7ec02c20f9e0ff6019",
       "default_categories": [
         "Productivity"
       ]

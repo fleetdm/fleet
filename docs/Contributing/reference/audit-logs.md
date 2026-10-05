@@ -657,6 +657,36 @@ This activity contains the following fields:
 }
 ```
 
+## host_enrollment_rejected
+
+Generated when Fleet refuses an Orbit or osquery enrollment under the one-time enroll secret rules (see the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration for macOS, and [`mdm.windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) for Windows). Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
+
+This activity contains the following fields:
+- "host_id": ID of the host the attempt targeted, or null if the host is unknown.
+- "host_display_name": Display name of the host, if known.
+- "host_serial": Serial number the enrolling device presented.
+- "host_uuid": Hardware UUID the enrolling device presented.
+- "platform": Platform the enrolling device presented.
+- "enrollment_plane": Which fleetd component attempted to enroll, "orbit" or "osquery".
+- "reason": Why the attempt was refused. One of:
+  - "one_time_secret_spent": the host's one-time enroll secret was already used. Resend the "Fleetd configuration" profile (macOS) or the "Fleetd enroll secret" profile (Windows) to issue a new one.
+  - "one_time_secret_identifier_mismatch": a one-time enroll secret was presented with a different serial number or hardware UUID than it was issued for.
+  - "shared_secret_for_mdm_managed_host": a global or fleet-level enroll secret was used for a host that is enrolled in Fleet MDM, assigned to Fleet in Apple Business, or registered in Windows Autopilot. On Windows, this also covers a deleted host whose device checked in with Fleet MDM after it was deleted.
+
+#### Example
+
+```json
+{
+	"host_id": 123,
+	"host_display_name": "Anna's MacBook Pro",
+	"host_serial": "C02ABC123DEF",
+	"host_uuid": "5F0F24C3-1F58-4C2B-9E7B-1F0E6C2B4D6A",
+	"platform": "darwin",
+	"enrollment_plane": "orbit",
+	"reason": "one_time_secret_spent"
+}
+```
+
 ## mdm_enrolled
 
 Generated when a host is enrolled in Fleet's MDM.
@@ -676,6 +706,7 @@ This activity contains the following fields:
 {
   "host_id": 42,
   "host_serial": "C08VQ2AXHT96",
+  "host_id": "123",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
   "mdm_platform": "apple",
@@ -985,6 +1016,7 @@ This activity contains the following fields:
 ```
 
 ## enabled_macos_disk_encryption
+> **Deprecated:** Use `edited_disk_encryption_settings` instead.
 
 Generated when a user turns on disk encryption for a fleet (or no fleet).
 
@@ -1004,6 +1036,7 @@ This activity contains the following fields:
 ```
 
 ## disabled_macos_disk_encryption
+> **Deprecated:** Use `edited_disk_encryption_settings` instead.
 
 Generated when a user turns off disk encryption for a fleet (or no fleet).
 
@@ -1063,6 +1096,18 @@ This activity contains the following fields:
   "exception": "software"
 }
 ```
+
+## enabled_sso_fleet_desktop
+
+Generated when a user enables SSO in front of Fleet Desktop.
+
+This activity does not contain any detail fields.
+
+## disabled_sso_fleet_desktop
+
+Generated when a user disables SSO in front of Fleet Desktop.
+
+This activity does not contain any detail fields.
 
 ## enabled_historical_dataset
 
@@ -1626,6 +1671,8 @@ This activity contains the following fields:
 - "host_display_name": The display name of the host.
 - "profile_name": The name of the configuration profile.
 - "profile_uuid": The UUID of the configuration profile.
+- "policy_id": The ID of the policy whose failure triggered the resend. `null` if no associated policy.
+- "policy_name": The name of the policy whose failure triggered the resend. `null` if no associated policy.
 
 #### Example
 
@@ -1634,7 +1681,9 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "profile_name": "Passcode requirements",
-  "profile_uuid": "a1234567-1234-1234-1234-1234567890ab"
+  "profile_uuid": "a1234567-1234-1234-1234-1234567890ab",
+  "policy_id": 123,
+  "policy_name": "Fix Wi-Fi"
 }
 ```
 
@@ -1667,6 +1716,7 @@ This activity contains the following fields:
 - "install_uuid": ID of the software installation.
 - "self_service": Whether the installation was initiated by the end user.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
 - "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
@@ -1684,6 +1734,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
+  "software_display_name": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
@@ -1726,6 +1777,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "script_execution_id": ID of the software uninstall script.
 - "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
 - "status": Status of the software uninstallation.
@@ -1738,6 +1790,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
+  "software_display_name": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
   "self_service": false,
   "status": "uninstalled",
@@ -2042,6 +2095,7 @@ This activity contains the following fields:
 - "self_service": App installation was initiated by device owner.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
@@ -2049,6 +2103,8 @@ This activity contains the following fields:
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
+- "version_name": Name of the app version that was installed. An app can have more than one version on the same fleet, each with its own settings and managed app configuration.
+- "configuration": The managed app configuration that was applied, in XML format for iOS and iPadOS apps and JSON format for Android apps. Null if the version has no managed app configuration.
 
 #### Example
 
@@ -2058,11 +2114,32 @@ This activity contains the following fields:
   "self_service": true,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Logic Pro",
+  "software_display_name": "Logic Pro",
   "app_store_id": "1234567",
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro",
-  "from_setup_experience": false
+  "from_setup_experience": false,
+  "version_name": "Logic Pro",
+  "configuration": null
+}
+```
+
+#### Example (iOS app with a managed app configuration)
+
+```json
+{
+  "host_id": 57,
+  "self_service": false,
+  "host_display_name": "Anna's iPhone",
+  "software_title": "Zoom Workplace",
+  "app_store_id": "546505307",
+  "command_uuid": "12345678-90ab-cdef-1234-567890abcdef",
+  "policy_id": null,
+  "policy_name": null,
+  "from_setup_experience": false,
+  "version_name": "Production",
+  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>..."
 }
 ```
 
@@ -2619,6 +2696,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -2628,6 +2706,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 12334
 }
 ```
@@ -2640,6 +2719,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -2649,6 +2729,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 12334
 }
 ```
@@ -2661,6 +2742,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -2670,6 +2752,7 @@ This activity contains the following fields:
   "host_id": 123,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 12334
 }
 ```
@@ -2853,6 +2936,23 @@ This activity contains the following fields:
 {
 	"host_id": 123,
 	"host_display_name": "PWNED-VM-123"
+}
+```
+
+## unbound_host_from_idp_account
+
+Generated when a host's link to an identity provider (IdP) account is removed, for example when the host re-enrolls without end user authentication. Fleet records this activity, so it does not include a user.
+
+This activity contains the following fields:
+- "host_uuid": Hardware UUID of the host.
+- "idp_email": Email of the IdP account the host was linked to.
+
+#### Example
+
+```json
+{
+	"host_uuid": "C8D90CC1-0C2A-52D4-A6F4-DF55522A740F",
+	"idp_email": "anna@example.com"
 }
 ```
 
@@ -3310,6 +3410,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -3319,6 +3420,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 1234
 }
 ```
@@ -3384,7 +3486,7 @@ This activity contains the following fields:
 - "host_uuid": UUID of the host.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "request_type": the type of custom MDM command.
-- "platform": the platform of the host ("darwin" or "windows").
+- "platform": the platform of the host ("darwin", "windows", or "android").
 
 #### Example
 
@@ -3396,6 +3498,19 @@ This activity contains the following fields:
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "request_type": "EraseDevice",
   "platform": "darwin"
+}
+```
+
+Android example:
+
+```json
+{
+  "host_id": 42,
+  "host_display_name": "Samsung SM-A176U1",
+  "host_uuid": "0a22e1b2-51b7-fe74-41b9-381f5a785317",
+  "command_uuid": "fe64941b-f7b8-4275-be57-5eb3535e87da",
+  "request_type": "REBOOT",
+  "platform": "android"
 }
 ```
 
@@ -3441,6 +3556,23 @@ This activity contains the following fields:
 }
 ```
 
+## created_disk_encryption_pin
+
+Generated when a BitLocker PIN is created.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 ## released_from_ab
 
 Generated when a host has been released from Apple Business (AB).
@@ -3479,6 +3611,44 @@ This activity contains the following fields:
 }
 ```
 
+## edited_disk_encryption_settings
+
+Generated when a user edits disk encryption settings for hosts on a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet, `null` if it applies to hosts that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "platform": The platform that disk encryption settings were updated for. Options are "macos", "windows", or "linux".
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
+  "platform": "windows"
+}
+```
+
+## canceled_mdm_command
+
+Generated when a user cancels an upcoming MDM command.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "command_type": The type of MDM command.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro",
+  "command_type": "lock"
+}
+```
+
 ## edited_apple_asset_declaration
 
 Generated when an Apple asset declaration is edited.
@@ -3492,9 +3662,9 @@ This activity contains the following fields:
 
 ```json
 {
-	"fleet_id": 1,
-	"fleet_name": "💻 Workstations",
-	"asset_name": "My Asset"
+  "fleet_id": 1,
+  "fleet_name": "💻 Workstations",
+  "asset_name": "My Asset"
 }
 ```
 
@@ -3517,6 +3687,122 @@ This activity contains the following fields:
 }
 ```
 
+## rotated_disk_encryption_key
+
+Generated when a user triggers rotation of a host's disk encryption key.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+	"host_id": 123,
+	"host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## failed_to_rotate_disk_encryption_key
+
+Generated when Fleet can't rotate a host's disk encryption key after a rotation was triggered. Fleet then prompts the end user for their password at their next login to escrow a new key.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "detail": Why the rotation failed, as reported by the host or by Fleet.
+
+#### Example
+
+```json
+{
+	"host_id": 123,
+	"host_display_name": "Anna's MacBook Pro",
+  "detail": "The host reported an error: NSTaskExitCode 34"
+}
+```
+
+## installed_opt_in_configuration_profile
+
+Generated when an opt-in configuration profile is installed on a host by the user.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service": Whether the installation was initiated by the end user.
+- "profile_name": The name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service": true,
+  "profile_name": "Passcode requirements",
+}
+```
+
+## uninstalled_opt_in_configuration_profile
+
+Generated when an opt-in configuration profile is uninstalled on a host by the user.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service": Whether the installation was initiated by the end user.
+- "profile_name": The name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service": true,
+  "profile_name": "Passcode requirements",
+}
+```
+
+## added_microsoft_graph_credential
+
+Generated when a Microsoft Graph credential is added.
+
+This activity contains the following fields:
+- "tenant_id": the Microsoft Entra tenant ID the credential authenticates against.
+
+#### Example
+
+```json
+{
+	"tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+}
+```
+
+## edited_microsoft_graph_credential
+
+Generated when a Microsoft Graph credential is edited.
+
+This activity contains the following fields:
+- "tenant_id": the Microsoft Entra tenant ID the credential authenticates against.
+	"tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+}
+
+## deleted_microsoft_graph_credential
+
+Generated when a Microsoft Graph credential is deleted.
+
+This activity contains the following fields:
+- "tenant_id": the Microsoft Entra tenant ID the credential authenticated against.
+
+#### Example
+
+```json
+{
+	"tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+}
+```
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

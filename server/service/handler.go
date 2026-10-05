@@ -131,7 +131,7 @@ func MakeHandler(
 	carveStore fleet.CarveStore,
 	featureRoutes []endpointer.HandlerRoutesFunc,
 	extra ...ExtraHandlerOption,
-) http.Handler {
+) (http.Handler, error) {
 	var eopts extraHandlerOpts
 	for _, fn := range extra {
 		fn(&eopts)
@@ -140,7 +140,7 @@ func MakeHandler(
 	// Create the client IP extraction strategy based on config.
 	ipStrategy, err := endpointer.NewClientIPStrategy(config.Server.TrustedProxies)
 	if err != nil {
-		panic(fmt.Sprintf("invalid server.trusted_proxies configuration: %v", err))
+		return nil, fmt.Errorf("invalid server.trusted_proxies configuration: %w", err)
 	}
 
 	fleetAPIOptions := []kithttp.ServerOption{
@@ -160,6 +160,8 @@ func MakeHandler(
 	}
 
 	r := mux.NewRouter()
+
+	fastPathEnabled := true
 	if config.Logging.TracingEnabled {
 		if config.OTELEnabled() {
 			r.Use(otmiddleware.Middleware(
@@ -170,18 +172,24 @@ func MakeHandler(
 					return r.Method + " " + route
 				})))
 		} else {
+			// Elastic APM instrumentation is gorilla-specific and names spans from the matched mux route, so the fast path
+			// cannot be installed alongside it.
 			apmgorilla.Instrument(r)
+			fastPathEnabled = false
 		}
 	}
 
+	// Route-agnostic middleware is collected because it is needed by both the fastpath stdlib router and gorilla.
+	var middlewares []mux.MiddlewareFunc
+
 	if config.Server.GzipResponses {
-		r.Use(func(h http.Handler) http.Handler {
+		middlewares = append(middlewares, func(h http.Handler) http.Handler {
 			return gzhttp.GzipHandler(h)
 		})
 	}
 
 	// Add middleware to extract the client IP and set it in the request context.
-	r.Use(func(handler http.Handler) http.Handler {
+	middlewares = append(middlewares, func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ip := ipStrategy.ClientIP(r.Header, r.RemoteAddr)
 			if ip != "" {
@@ -192,7 +200,11 @@ func MakeHandler(
 	})
 
 	if eopts.httpSigVerifier != nil {
-		r.Use(eopts.httpSigVerifier)
+		middlewares = append(middlewares, eopts.httpSigVerifier)
+	}
+
+	for _, mw := range middlewares {
+		r.Use(mw)
 	}
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, redisPool, fleetAPIOptions, eopts)
@@ -201,7 +213,10 @@ func MakeHandler(
 	}
 	addMetrics(r)
 
-	return r
+	if !fastPathEnabled {
+		return r, nil
+	}
+	return newFastPathHandler(r, middlewares, config)
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics
@@ -295,9 +310,11 @@ const (
 	// ban requests from such IP for a duration of 1 minute.
 	//
 
-	deviceIPAllowedConsecutiveFailingRequestsCount      = 1_000
-	deviceIPAllowedConsecutiveFailingRequestsTimeWindow = 1 * time.Minute
-	deviceIPBanTime                                     = 1 * time.Minute
+	// Exported so bounded contexts with their own device-token endpoints (e.g.
+	// notifications) can apply the same IP ban policy.
+	DeviceIPAllowedConsecutiveFailingRequestsCount      = 1_000
+	DeviceIPAllowedConsecutiveFailingRequestsTimeWindow = 1 * time.Minute
+	DeviceIPBanTime                                     = 1 * time.Minute
 )
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
@@ -660,10 +677,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// platform-agnostic POST /mdm/commands/run. It is still supported
 	// indefinitely for backwards compatibility.
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/enqueue", enqueueMDMAppleCommandEndpoint, enqueueMDMAppleCommandRequest{})
-	// Deprecated: POST /mdm/apple/commandresults is now deprecated, replaced by the
-	// platform-agnostic POST /mdm/commands/commandresults. It is still supported
-	// indefinitely for backwards compatibility.
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/commandresults", getMDMAppleCommandResultsEndpoint, getMDMAppleCommandResultsRequest{})
 	// Deprecated: POST /mdm/apple/commands is now deprecated, replaced by the
 	// platform-agnostic POST /mdm/commands/commands. It is still supported
 	// indefinitely for backwards compatibility.
@@ -893,6 +906,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/ab_tokens", listABMTokensEndpoint, nil)
 	ue.GET("/api/_version_/fleet/ab_tokens/count", countABMTokensEndpoint, nil)
 	ue.PATCH("/api/_version_/fleet/ab_tokens/{id:[0-9]+}/fleets", updateABMTokenTeamsEndpoint, updateABMTokenTeamsRequest{})
+	ue.PATCH("/api/_version_/fleet/ab_tokens/{id:[0-9]+}/default", setABMTokenDefaultEndpoint, setABMTokenDefaultRequest{})
 	ue.PATCH("/api/_version_/fleet/ab_tokens/{id:[0-9]+}/renew", renewABMTokenEndpoint, renewABMTokenRequest{})
 
 	ue.GET("/api/_version_/fleet/mdm/apple/request_csr", getMDMAppleCSREndpoint, getMDMAppleCSRRequest{})
@@ -945,9 +959,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAndroidMW.POST("/api/_version_/fleet/software/web_apps", createAndroidWebAppEndpoint, createAndroidWebAppRequest{})
 
 	ipBanner := redis.NewIPBanner(redisPool, "ipbanner::",
-		deviceIPAllowedConsecutiveFailingRequestsCount,
-		deviceIPAllowedConsecutiveFailingRequestsTimeWindow,
-		deviceIPBanTime,
+		DeviceIPAllowedConsecutiveFailingRequestsCount,
+		DeviceIPAllowedConsecutiveFailingRequestsTimeWindow,
+		DeviceIPBanTime,
 	)
 	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger)
 
@@ -994,6 +1008,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/setup_experience/status", getDeviceSetupExperienceStatusEndpoint, getDeviceSetupExperienceStatusRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/titles/{software_title_id}/icon", getDeviceSoftwareIconEndpoint, getDeviceSoftwareIconRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/disk_encryption_pin", submitDiskEncryptionPINEndpoint, submitDiskEncryptionPINRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/bypass_conditional_access", bypassConditionalAccessEndpoint, bypassConditionalAccessRequest{})
 
 	// Endpoints exempt from the Fleet Desktop SSO gate.
@@ -1128,6 +1143,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, fleet.OrbitPostDiskEncryptionKeyRequest{})
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_protection", postOrbitDiskEncryptionProtectionEndpoint, fleet.OrbitPostDiskEncryptionProtectionRequest{})
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_pin/details", getOrbitDiskEncryptionPINDetailsEndpoint, fleet.OrbitGetDiskEncryptionPINDetailsRequest{})
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_pin/result", postOrbitDiskEncryptionPINResultEndpoint, fleet.OrbitPostDiskEncryptionPINResultRequest{})
 	// managed local account escrow is Windows-MDM-specific, so it fails fast when Windows MDM is off.
 	oeWindowsMDM.POST("/api/fleet/orbit/managed_local_account", postOrbitManagedLocalAccountEndpoint, fleet.OrbitPostManagedLocalAccountRequest{})
 

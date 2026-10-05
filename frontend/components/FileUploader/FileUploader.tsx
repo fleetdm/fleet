@@ -1,13 +1,13 @@
-import React, { useState, useRef } from "react";
 import classnames from "classnames";
+import React, { useState, useRef } from "react";
 
 import Button from "components/buttons/Button";
 import Card from "components/Card";
-import { GraphicNames } from "components/graphics";
-import Icon from "components/Icon";
-import Graphic from "components/Graphic";
 import FileDetails from "components/FileDetails";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Graphic from "components/Graphic";
+import { GraphicNames } from "components/graphics";
+import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "file-uploader";
@@ -292,6 +292,7 @@ export const FileUploader = ({
             accept={accept}
             gitopsCompatible={gitopsCompatible}
             gitOpsModeEnabled={gitOpsModeEnabled}
+            disabled={disabled}
           />
         ) : (
           renderFileUploader()

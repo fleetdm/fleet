@@ -406,6 +406,8 @@ func TestWindowsTOSRedirectURIAllowed(t *testing.T) {
 		// Legitimate Autopilot/Entra broker callback and browser-based federated flows.
 		{"ms-appx-web broker callback", "ms-appx-web://Microsoft.AAD.BrokerPlugin", true},
 		{"ms-appx-web mixed case scheme", "MS-APPX-WEB://Microsoft.AAD.BrokerPlugin", true},
+		{"ms-aadj-redir OOBE callback", "ms-aadj-redir://auth/mdm", true},
+		{"ms-aadj-redir mixed case scheme", "MS-AADJ-REDIR://auth/mdm", true},
 		{"https url", "https://enroll.example.com/continue", true},
 
 		// Script-executing schemes must be rejected (issue #16880).

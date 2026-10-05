@@ -1,0 +1,5 @@
+- name: x86-based Linux hosts
+  description: Linux hosts on x86_64/AMD64 architecture
+  query: SELECT 1 FROM os_version WHERE arch LIKE 'x86_64%' OR arch LIKE 'amd64%';
+  label_membership_type: dynamic
+  platform: linux

@@ -1,10 +1,9 @@
 import React from "react";
 
-import { IMunkiIssue } from "interfaces/host";
-
-import TableContainer from "components/TableContainer";
-import EmptyState from "components/EmptyState";
 import CardHeader from "components/CardHeader";
+import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
+import { IMunkiIssue } from "interfaces/host";
 
 import { munkiIssuesTableHeaders } from "./MunkiIssuesTableConfig";
 

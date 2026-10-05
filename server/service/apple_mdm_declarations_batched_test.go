@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -118,4 +119,68 @@ func TestResolveUserChannelDeliveries(t *testing.T) {
 		require.Empty(t, failed)
 		require.Equal(t, []*fleet.MDMAppleHostDeclaration{removeRow}, toDelete)
 	})
+}
+
+func TestReconcileAppleDeclarationsBatchedDrainLoop(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	savedBatch, savedCap, savedBudget := reconcileAppleDeclarationsBatchSize, reconcileAppleDeclarationsDeliveryCap, reconcileAppleDeclarationsScanBudget
+	t.Cleanup(func() {
+		reconcileAppleDeclarationsBatchSize = savedBatch
+		reconcileAppleDeclarationsDeliveryCap = savedCap
+		reconcileAppleDeclarationsScanBudget = savedBudget
+	})
+
+	reconcileAppleDeclarationsBatchSize = 2
+	reconcileAppleDeclarationsDeliveryCap = 2000
+	reconcileAppleDeclarationsScanBudget = savedBudget
+
+	allHosts := appleHostsNamed("h01", "h02", "h03", "h04", "h05")
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.GetMDMAppleDeclarationReconcileCursorFunc = func(ctx context.Context) (string, error) {
+		return "", nil
+	}
+	ds.SetMDMAppleDeclarationReconcileCursorFunc = func(ctx context.Context, cursor string) error {
+		return nil
+	}
+	ds.BulkUpsertMDMAppleHostDeclarationsFunc = func(ctx context.Context, payload []*fleet.MDMAppleHostDeclaration) error {
+		return nil
+	}
+	ds.BulkDeleteMDMAppleHostDeclarationsFunc = func(ctx context.Context, payload []*fleet.MDMAppleHostDeclaration) error {
+		return nil
+	}
+
+	var windows int
+	ds.GetAppleDeclarationReconcileSnapshotFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]*fleet.AppleHostReconcileInfo, []*fleet.AppleDeclarationForReconcile, map[uint]map[uint]struct{}, map[string][]*fleet.MDMAppleHostDeclaration, bool, error) {
+		windows++
+		var page []*fleet.AppleHostReconcileInfo
+		for _, h := range allHosts {
+			if h.UUID > afterHostUUID {
+				page = append(page, h)
+			}
+			if len(page) == batchSize {
+				break
+			}
+		}
+		return page, nil, nil, nil, len(page) == batchSize, nil
+	}
+
+	var resyncCalls int
+	ds.MDMAppleHostDeclarationsGetAndClearResyncFunc = func(ctx context.Context) ([]string, []string, error) {
+		resyncCalls++
+		return nil, nil, nil
+	}
+
+	require.NoError(t, ReconcileAppleDeclarationsBatched(ctx, ds, nil, logger))
+
+	// h01+h02, h03+h04 (both full), then h05 (short) => 3 windows in a single tick.
+	require.Equal(t, 3, windows, "the drain loop must sweep the fleet within one tick")
+	// The claim is fleet-wide and destructive: called per window, the first would clear the flags for the whole fleet and
+	// every later window would re-query for nothing.
+	require.Equal(t, 1, resyncCalls, "resync flags must be claimed exactly once per tick, outside the drain loop")
 }

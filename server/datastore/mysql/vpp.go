@@ -3134,6 +3134,16 @@ func (ds *Datastore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.Host
 			return ctxerr.Wrap(ctx, err, "updating upcoming activities with new execution id")
 		}
 
+		_, err := tx.ExecContext(ctx, `UPDATE setup_experience_status_results
+			SET nano_command_uuid = ?
+			WHERE nano_command_uuid = ? AND host_uuid = (SELECT uuid FROM hosts WHERE id = ?)
+			AND status NOT IN (?, ?, ?)`,
+			newCommandUUID, vppInstall.InstallCommandUUID, vppInstall.HostID,
+			fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure, fleet.SetupExperienceStatusCancelled)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating setup experience status result with new command uuid")
+		}
+
 		return ds.nanoEnqueueVPPInstall(ctx, tx, vppInstall.HostID, []string{newCommandUUID})
 	})
 }

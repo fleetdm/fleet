@@ -1,8 +1,9 @@
 import PropTypes from "prop-types";
+
 import { IHost } from "./host";
 import { ILabel } from "./label";
-import { ITeam } from "./team";
 import { ITarget } from "./target";
+import { ITeam } from "./team";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,

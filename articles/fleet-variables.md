@@ -32,7 +32,7 @@ Built-in variables:
 | `$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID` | None | Windows | None | ID used for SCEP configuration profile on Windows. It must be included in the `<LocURI>` field. |
 | `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME>` | None | macOS, iOS, iPadOS | None | Fleet-managed one-time Smallstep challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the Smallstep certificate authority configured in **Settings > Integrations > Certificate enrollment**. |
 | `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>` | None | macOS, iOS, iPadOS | None | Fleet-managed Smallstep SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
-| `$FLEET_VAR_NDES_SCEP_CHALLENGE` | None | macOS, iOS, iPadOS, Windows | None | Fleet-managed one-time NDES challenge password used during SCEP certificate configuration profile deployment. |
+| `$FLEET_VAR_NDES_SCEP_CHALLENGE` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows | None | Fleet-managed one-time NDES challenge password used during SCEP certificate configuration profile deployment. |
 | `$FLEET_VAR_NDES_SCEP_PROXY_URL` | None | macOS, iOS, iPadOS, Windows | None | Fleet-managed NDES SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
 
 

@@ -1,7 +1,8 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import { createMockHostSoftware } from "__mocks__/hostMock";
+
 import InventoryVersionsModal from "./InventoryVersionsModal";
 
 // Mock current time for time stamp test
@@ -93,11 +94,15 @@ describe("SoftwareDetailsModal", () => {
               installed_path: "/Applications/foo.app",
               team_identifier: "TEAM1",
               hash_sha256: "hashfoo123",
+              executable_sha256: null,
+              executable_path: null,
             },
             {
               installed_path: "/Applications/bar.app",
               team_identifier: "TEAM2",
               hash_sha256: "hashbar456",
+              executable_sha256: null,
+              executable_path: null,
             },
           ],
         },
@@ -131,6 +136,8 @@ describe("SoftwareDetailsModal", () => {
               installed_path: "/Applications/mock.app",
               team_identifier: "12345TEAMIDENT",
               hash_sha256: "mockhashhere",
+              executable_sha256: null,
+              executable_path: null,
             },
           ],
         },

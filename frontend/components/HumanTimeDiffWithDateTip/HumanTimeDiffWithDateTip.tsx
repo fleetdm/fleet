@@ -1,10 +1,10 @@
-import React from "react";
-
 import { uniqueId } from "lodash";
-import { humanLastSeen, internationalTimeFormat } from "utilities/helpers";
-import { INITIAL_FLEET_DATE } from "utilities/constants";
+import React from "react";
 import ReactTooltip, { Place } from "react-tooltip";
+
 import TooltipWrapper from "components/TooltipWrapper";
+import { INITIAL_FLEET_DATE } from "utilities/constants";
+import { humanLastSeen, internationalTimeFormat } from "utilities/helpers";
 
 interface IHumanTimeDiffWithDateTip {
   timeString: string;

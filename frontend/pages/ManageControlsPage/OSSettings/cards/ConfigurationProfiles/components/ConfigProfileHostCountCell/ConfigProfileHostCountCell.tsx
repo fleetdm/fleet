@@ -1,10 +1,9 @@
 import React from "react";
 
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 const baseClass = "config-profile-host-count-cell";
 

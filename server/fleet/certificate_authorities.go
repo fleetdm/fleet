@@ -509,6 +509,19 @@ func (c *RequestCertificatePayload) AuthzType() string {
 	return "certificate_request"
 }
 
+// IdPCredentialsProvided reports whether the request carries IdP credentials. The three must be
+// supplied together or not at all: a partial set would clear the allowlist on the fields it does
+// carry and then skip introspection entirely, because that only runs once all three are present.
+func (c RequestCertificatePayload) IdPCredentialsProvided() (bool, error) {
+	provided := c.IDPOauthURL != nil && c.IDPToken != nil && c.IDPClientID != nil
+	if !provided && (c.IDPOauthURL != nil || c.IDPToken != nil || c.IDPClientID != nil) {
+		return false, &BadRequestError{
+			Message: "IDP Client ID, Token, and OAuth URL all must be provided, if any are provided when requesting a certificate.",
+		}
+	}
+	return provided, nil
+}
+
 type GroupedCertificateAuthorities struct {
 	EST             []ESTProxyCA           `json:"custom_est_proxy"` // Enrollment over Secure Transport
 	Hydrant         []HydrantCA            `json:"hydrant"`

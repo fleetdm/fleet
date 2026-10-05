@@ -3,15 +3,15 @@ import { useQuery } from "react-query";
 import { Row } from "react-table";
 import { useDebouncedCallback } from "use-debounce";
 
-import { IHost } from "interfaces/host";
-import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
-import useGitOpsMode from "hooks/useGitOpsMode";
-
 import CustomLink from "components/CustomLink";
 import TargetsInput from "components/TargetsInput";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IHost } from "interfaces/host";
+import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
 
 import LabelForm from "../LabelForm";
 import { ILabelFormData } from "../LabelForm/LabelForm";
+
 import { generateTableHeaders } from "./LabelHostTargetTableConfig";
 
 const baseClass = "ManualLabelForm";

@@ -1,6 +1,6 @@
+import { findLastIndex, sortBy, trimStart } from "lodash";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { InjectedRouter } from "react-router";
-import { findLastIndex, sortBy, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";

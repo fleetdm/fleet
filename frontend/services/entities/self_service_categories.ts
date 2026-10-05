@@ -1,11 +1,11 @@
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
-import { buildQueryStringFromParams } from "utilities/url";
 import {
   ICreateSelfServiceCategoryFormData,
   IEditSelfServiceCategoryFormData,
   ISelfServiceCategory,
 } from "interfaces/self_service_category";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export interface ISelfServiceCategoriesResponse {
   self_service_categories: ISelfServiceCategory[];

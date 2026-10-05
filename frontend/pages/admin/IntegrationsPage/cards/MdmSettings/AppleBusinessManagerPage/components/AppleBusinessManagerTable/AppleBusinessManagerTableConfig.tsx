@@ -1,20 +1,20 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IMdmAbToken } from "interfaces/mdm";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { getFleetDisplayName } from "interfaces/team";
-import { IDropdownOption } from "interfaces/dropdownOption";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ActionsDropdown from "components/ActionsDropdown";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IMdmAbToken } from "interfaces/mdm";
+import { getFleetDisplayName } from "interfaces/team";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import RenewDateCell from "../../../components/RenewDateCell";
-import OrgNameCell from "./OrgNameCell";
 import { IRenewDateCellStatusConfig } from "../../../components/RenewDateCell/RenewDateCell";
+
+import OrgNameCell from "./OrgNameCell";
 
 type IAbmTableConfig = Column<IMdmAbToken>;
 type ITableStringCellProps = IStringCellProps<IMdmAbToken>;
@@ -22,33 +22,52 @@ type IRenewDateCellProps = CellProps<IMdmAbToken, IMdmAbToken["renew_date"]>;
 
 type ITableHeaderProps = IHeaderProps<IMdmAbToken>;
 
-const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
-  { value: "editTeams", label: "Edit fleets", disabled: false },
-  { value: "renew", label: "Renew", disabled: false },
-  { value: "delete", label: "Delete", disabled: false },
-];
+export const generateActions = (
+  token: IMdmAbToken,
+  tokensCount: number,
+  gitopsModeEnabled: boolean,
+  repoURL?: string
+): IDropdownOption[] => {
+  const gitOpsDisabledProps = {
+    disabled: true,
+    ...(repoURL ? { tooltipContent: getGitOpsModeTipContent(repoURL) } : {}),
+  };
 
-const generateActions = (gitopsModeEnabled: boolean, repoURL?: string) => {
-  if (!gitopsModeEnabled) {
-    return DEFAULT_ACTION_OPTIONS;
+  let toggleDefaultOption: IDropdownOption = {
+    value: "toggleDefault",
+    label: token.default
+      ? "Remove default for sign-in"
+      : "Set as default for sign-in",
+    disabled: false,
+  };
+  if (gitopsModeEnabled) {
+    toggleDefaultOption = { ...toggleDefaultOption, ...gitOpsDisabledProps };
+  } else if (token.default && tokensCount === 1) {
+    // the backend rejects unsetting a lone token's default
+    toggleDefaultOption = {
+      ...toggleDefaultOption,
+      disabled: true,
+      tooltipContent: (
+        <>
+          The only AB token is always the default.
+          <br />
+          Add another to change it.
+        </>
+      ),
+    };
   }
 
-  return DEFAULT_ACTION_OPTIONS.map((option) => {
-    if (option.value !== "editTeams") {
-      return option;
-    }
-
-    return {
-      ...option,
-      disabled: true,
-      ...(repoURL
-        ? {
-            tooltip: true,
-            tooltipContent: getGitOpsModeTipContent(repoURL),
-          }
-        : {}),
-    };
-  });
+  return [
+    {
+      value: "editTeams",
+      label: "Edit fleets",
+      disabled: false,
+      ...(gitopsModeEnabled ? gitOpsDisabledProps : {}),
+    },
+    toggleDefaultOption,
+    { value: "renew", label: "Renew", disabled: false },
+    { value: "delete", label: "Delete", disabled: false },
+  ];
 };
 
 const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
@@ -72,6 +91,7 @@ const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
 
 export const generateTableConfig = (
   actionSelectHandler: (value: string, team: IMdmAbToken) => void,
+  tokensCount: number,
   gitopsModeEnabled: boolean,
   repoURL?: string
 ): IAbmTableConfig[] => {
@@ -86,8 +106,18 @@ export const generateTableConfig = (
         />
       ),
       Cell: (cellProps: ITableStringCellProps) => {
-        const { terms_expired, org_name } = cellProps.cell.row.original;
-        return <OrgNameCell orgName={org_name} termsExpired={terms_expired} />;
+        const {
+          terms_expired,
+          org_name,
+          default: isDefault,
+        } = cellProps.cell.row.original;
+        return (
+          <OrgNameCell
+            orgName={org_name}
+            termsExpired={terms_expired}
+            isDefault={isDefault}
+          />
+        );
       },
     },
     {
@@ -234,10 +264,16 @@ export const generateTableConfig = (
       Cell: (cellProps) => (
         <div className="abm-actions-wrapper">
           <ActionsDropdown
-            options={generateActions(gitopsModeEnabled, repoURL)}
+            options={generateActions(
+              cellProps.row.original,
+              tokensCount,
+              gitopsModeEnabled,
+              repoURL
+            )}
             onChange={(value: string) =>
               actionSelectHandler(value, cellProps.row.original)
             }
+            menuAlign="right"
             placeholder="Actions"
             disabled={false}
             variant="secondary"

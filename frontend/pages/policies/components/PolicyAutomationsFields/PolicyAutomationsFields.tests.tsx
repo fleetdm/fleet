@@ -1,24 +1,23 @@
-import React from "react";
 import { act, screen } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
-import createMockUser from "__mocks__/userMock";
+import { createMockScript } from "__mocks__/scriptMock";
 import {
   createMockSoftwareTitle,
   createMockSoftwarePackage,
   createMockAppStoreApp,
 } from "__mocks__/softwareMock";
-import { createMockScript } from "__mocks__/scriptMock";
-
+import createMockUser from "__mocks__/userMock";
 import { IPolicy } from "interfaces/policy";
 import { ISoftwareTitle } from "interfaces/software";
+import { createCustomRenderer } from "test/test-utils";
 
+import useProfiles from "./hooks/useProfiles";
+import useScripts from "./hooks/useScripts";
+import useSoftwareTitles from "./hooks/useSoftwareTitles";
 import PolicyAutomationsFields, {
   IPolicyAutomationsFieldsHandle,
 } from "./PolicyAutomationsFields";
-import useSoftwareTitles from "./hooks/useSoftwareTitles";
-import useScripts from "./hooks/useScripts";
-import useProfiles from "./hooks/useProfiles";
 
 jest.mock("./hooks/useSoftwareTitles");
 jest.mock("./hooks/useScripts");
@@ -416,7 +415,7 @@ describe("PolicyAutomationsFields — payload", () => {
     });
   });
 
-  it("maps End user initiated to no continuous automation", () => {
+  it("hides the continuous checkbox on End user initiated and preserves the stored value on the wire", () => {
     const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
       current: null,
     };
@@ -432,11 +431,13 @@ describe("PolicyAutomationsFields — payload", () => {
       { patchOption: "manual" }
     );
 
+    // Manual hides the checkbox but preserves stored continuous — the wire
+    // must not silently downgrade a value the user never touched.
     expect(
       handleRef.current?.getAutomationsPayload().policyUpdate
     ).toMatchObject({
       software_title_id: null,
-      continuous_automations_enabled: false,
+      continuous_automations_enabled: true,
     });
 
     expect(
@@ -510,6 +511,63 @@ describe("PolicyAutomationsFields — payload", () => {
     expect(
       screen.getByRole("checkbox", { name: "continuous-automations-enabled" })
     ).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("maps Force patch + Notify before patching to notify_before_patching:true + continuous on", () => {
+    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
+      current: null,
+    };
+    renderWithHandle(
+      {
+        type: "patch",
+        platform: "darwin",
+        patch_software: { name: "Firefox", software_title_id: 42 },
+        patch_when_closed: false,
+        notify_before_patching: false,
+        continuous_automations_enabled: false,
+      },
+      handleRef,
+      { patchOption: "force", endUserExperience: "notify" }
+    );
+
+    expect(
+      handleRef.current?.getAutomationsPayload().policyUpdate
+    ).toMatchObject({
+      software_title_id: 42,
+      notify_before_patching: true,
+      continuous_automations_enabled: true,
+    });
+  });
+
+  it("locks continuous automation with the Notify tooltip when Notify before patching is selected", async () => {
+    const { user, container } = renderWithHandle(
+      {
+        type: "patch",
+        platform: "darwin",
+        patch_when_closed: false,
+        notify_before_patching: false,
+        continuous_automations_enabled: false,
+      },
+      undefined,
+      { patchOption: "force", endUserExperience: "notify" }
+    );
+
+    const continuous = screen.getByRole("checkbox", {
+      name: "continuous-automations-enabled",
+    });
+    expect(continuous).toHaveAttribute("aria-checked", "true");
+    expect(continuous).toHaveAttribute("aria-disabled", "true");
+
+    const icon = container.querySelector(
+      ".policy-automations-fields__section:last-child .fleet-checkbox__icon"
+    );
+    expect(icon).not.toBeNull();
+    await user.hover(icon as Element);
+    expect(
+      await screen.findByText(
+        "Continuous automation can't be disabled when Notify before patching is selected."
+      )
+    ).toBeInTheDocument();
   });
 });
 

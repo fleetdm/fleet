@@ -175,7 +175,7 @@ In the Google Admin console:
 
 4. Select **Actions > Delete** to delete the host from Fleet.
 
-> Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) for details.
+> Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts and Android hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) and the [Android MDM setup guide](https://fleetdm.com/guides/android-mdm-setup#re-enrolling-android-hosts) for details.
 
 > The unenroll action on Android hosts sends a wipe command via the Android Management API. [Learn more](https://fleedtdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm)
 
@@ -184,6 +184,10 @@ In the Google Admin console:
 Deleting a host removes it from Fleet. It does not unenroll the device or change anything in Apple Business (AB). The MDM enrollment and the management profile stay on the device. The device also stays assigned to Fleet in AB.
 
 Because that assignment is still in place, deleting a host assigned to Fleet in AB brings it straight back as a **Pending** host. To remove it for good, release or reassign the device in AB first, then delete the host in Fleet. If Fleet can't reach AB to check the assignment, the delete fails. Retry once AB is reachable.
+
+If [Windows one-time enroll secrets](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) are enabled, a deleted Windows host that has MDM turned on re-enrolls at its next MDM check-in, in the fleet it was in. If that fleet was deleted, it goes to the [default fleet](https://fleetdm.com/guides/windows-mdm-setup#set-a-default-fleet-for-new-hosts), or "Unassigned" if none is set.
+
+With one-time enroll secrets enabled, a re-imaged Windows device, or one disconnected from MDM, can't enroll with a fleetd package built with a global or fleet-level enroll secret, even after you delete its host. To re-enroll it, turn on MDM again with Windows Autopilot, Microsoft Entra, or **Settings > Accounts > Access work or school**. Or delete its host, wait for `mdm.windows_enrollment_retention` (30 days by default), and then install the package.
 
 Deleting a host also cancels its upcoming activities and removes Fleet's record of the MDM commands it has already sent. Delete a host while a wipe or another command is still in flight, and Fleet can no longer report whether that command completed.
 

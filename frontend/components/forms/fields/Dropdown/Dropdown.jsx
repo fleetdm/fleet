@@ -1,12 +1,13 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
 import classnames from "classnames";
 import { noop, pick } from "lodash";
+import PropTypes from "prop-types";
+import React, { Component } from "react";
 import Select from "react-select";
 
-import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
 import Icon from "components/Icon";
+import dropdownOptionInterface from "interfaces/dropdownOption";
+
 import DropdownOptionTooltipWrapper from "./DropdownOptionTooltipWrapper";
 
 const baseClass = "dropdown";

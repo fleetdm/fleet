@@ -1,13 +1,11 @@
 import React, { useCallback, useState } from "react";
 
-import softwareAPI from "services/entities/software";
-
-import { getErrorReason } from "interfaces/errors";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import softwareAPI from "services/entities/software";
 
 const baseClass = "delete-software-modal";
 

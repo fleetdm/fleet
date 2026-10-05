@@ -1,5 +1,5 @@
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
 
 import { DEFAULT_INSTALLED_VERSION } from "__mocks__/hostMock";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -29,6 +29,8 @@ describe("InstalledPathCell component", () => {
                 installed_path: "",
                 team_identifier: "12345TEAMIDENT",
                 hash_sha256: null,
+                executable_sha256: null,
+                executable_path: null,
               },
             ],
           },
@@ -51,6 +53,8 @@ describe("InstalledPathCell component", () => {
                 installed_path: path,
                 team_identifier: "12345TEAMIDENT",
                 hash_sha256: null,
+                executable_sha256: null,
+                executable_path: null,
               },
             ],
           },
@@ -78,6 +82,8 @@ describe("InstalledPathCell component", () => {
                 installed_path: "/Applications/mock.app",
                 team_identifier: "12345TEAMIDENT",
                 hash_sha256: null,
+                executable_sha256: null,
+                executable_path: null,
               },
             ],
           },

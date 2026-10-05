@@ -1,5 +1,4 @@
 import sendRequest from "services";
-
 import endpoints from "utilities/endpoints";
 
 const hostNameTemplateService = {

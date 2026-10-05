@@ -1,17 +1,16 @@
-import React, { ReactNode } from "react";
 import classnames from "classnames";
+import React, { ReactNode } from "react";
 
-import PATHS from "router/paths";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { ILabelSummary } from "interfaces/label";
-
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
-import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-import Checkbox from "components/forms/fields/Checkbox";
-import CustomLink from "components/CustomLink";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ILabelSummary } from "interfaces/label";
+import PATHS from "router/paths";
 
 const baseClass = "target-label-selector";
 

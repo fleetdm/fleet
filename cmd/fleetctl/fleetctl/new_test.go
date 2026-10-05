@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -110,6 +111,62 @@ func TestNewTemplateStripping(t *testing.T) {
 
 	_, err := runNewCommand(t, "--org-name", "Test", "--dir", outDir)
 	require.NoError(t, err)
+}
+
+// Runs the generated CI scripts rather than asserting the text of the strip:
+// ${FLEET_URL%/} reads as a fix and still leaves every slash after the first.
+func TestNewCIFleetURLNormalization(t *testing.T) {
+	outDir := filepath.Join(t.TempDir(), "out")
+	_, err := runNewCommand(t, "--org-name", "Test", "--dir", outDir)
+	require.NoError(t, err)
+
+	// Everything past the first curl installs fleetctl over the network.
+	untilFirstCurl := func(lines []string) string {
+		for i, line := range lines {
+			if strings.Contains(line, "curl") {
+				return strings.Join(lines[:i], "\n")
+			}
+		}
+		t.Fatal("no curl in generated script")
+		return ""
+	}
+
+	gitlab, err := os.ReadFile(filepath.Join(outDir, ".gitlab-ci.yml"))
+	require.NoError(t, err)
+	var gitlabJob map[string]struct {
+		Script []string `json:"script"`
+	}
+	require.NoError(t, yaml.Unmarshal(gitlab, &gitlabJob))
+
+	action, err := os.ReadFile(filepath.Join(outDir, ".github/fleet-gitops/action.yml"))
+	require.NoError(t, err)
+	var actionDef struct {
+		Runs struct {
+			Steps []struct {
+				Run string `json:"run"`
+			} `json:"steps"`
+		} `json:"runs"`
+	}
+	require.NoError(t, yaml.Unmarshal(action, &actionDef))
+
+	scripts := map[string]string{
+		".gitlab-ci.yml": untilFirstCurl(gitlabJob["fleet-gitops"].Script),
+		"action.yml":     untilFirstCurl(strings.Split(actionDef.Runs.Steps[0].Run, "\n")),
+	}
+
+	suffixes := map[string]string{"no trailing slash": "", "one trailing slash": "/", "two trailing slashes": "//"}
+
+	for name, script := range scripts {
+		for label, suffix := range suffixes {
+			t.Run(name+", "+label, func(t *testing.T) {
+				cmd := exec.Command("bash", "-c", script+"\nprintf '%s' \"$FLEET_URL\"")
+				cmd.Env = append(os.Environ(), "FLEET_URL=https://fleet.example.com"+suffix)
+				out, err := cmd.CombinedOutput()
+				require.NoError(t, err, string(out))
+				assert.Equal(t, "https://fleet.example.com", string(out))
+			})
+		}
+	}
 }
 
 func TestNewDirFlag(t *testing.T) {

@@ -28,7 +28,8 @@ export const getErrorMessage = (e: unknown, hostName: string) => {
 export const canShowMyDeviceButton = (
   // platform is a plain string rather than HostPlatform: legacy ChromeOS hosts
   // report "CrOS", which predates the HostPlatform union.
-  host: Pick<IHost, "fleet_desktop_version" | "mdm"> & { platform: string }
+  host: Pick<IHost, "fleet_desktop_version" | "mdm"> & { platform: string },
+  fleetDesktopSSOEnabled: boolean
 ) => {
   // Android and ChromeOS have no My device page, so the link would only lead to
   // an error. GET /hosts/:id/device_url rejects them for the same reason.
@@ -40,6 +41,10 @@ export const canShowMyDeviceButton = (
     return false;
   }
   if (!isIPadOrIPhone(host.platform) && !host.fleet_desktop_version) {
+    return false;
+  }
+  if (isIPadOrIPhone(host.platform) && fleetDesktopSSOEnabled) {
+    // Remove the button for iOS/iPadOS hosts when Fleet Desktop SSO is enabled.
     return false;
   }
   const uiState = getHostDeviceStatusUIState(

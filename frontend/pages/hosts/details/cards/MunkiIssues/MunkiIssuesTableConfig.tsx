@@ -1,14 +1,13 @@
-import React from "react";
 import { capitalize } from "lodash";
-
-import { abbreviateTimeUnits } from "utilities/helpers";
-import { timeAgo } from "utilities/date_format";
+import React from "react";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IMunkiIssue } from "interfaces/host";
+import { timeAgo } from "utilities/date_format";
+import { abbreviateTimeUnits } from "utilities/helpers";
 
 interface IHeaderProps {
   column: {

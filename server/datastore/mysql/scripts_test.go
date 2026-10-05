@@ -3381,4 +3381,67 @@ func testNewInternalHostScriptExecutionRequest(t *testing.T, ds *Datastore) {
 	pendingUserViaInternal, err := ds.ListPendingHostScriptExecutions(ctx, 2, true)
 	require.NoError(t, err)
 	require.Empty(t, pendingUserViaInternal)
+
+	// Fleet queues the batch path for itself, so the upcoming activity is
+	// attributed to Fleet rather than showing a blank actor.
+	_, err = ds.BatchNewInternalHostScriptExecutionRequests(ctx, []uint{3}, "echo batch internal")
+	require.NoError(t, err)
+
+	batchUpcoming, _, err := ds.ListHostUpcomingActivities(ctx, 3, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, batchUpcoming, 1)
+	require.True(t, batchUpcoming[0].FleetInitiated)
+	require.NotNil(t, batchUpcoming[0].ActorFullName)
+	require.Equal(t, "Fleet", *batchUpcoming[0].ActorFullName)
+
+	// a user-requested run keeps its own actor
+	userUpcoming, _, err := ds.ListHostUpcomingActivities(ctx, 2, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, userUpcoming, 1)
+	require.False(t, userUpcoming[0].FleetInitiated)
+
+	// GetOrbitConfig passes ScriptsDisabled as onlyShowInternal, so an internal
+	// script still reaches the host when an admin has turned scripts off, while
+	// a user-requested one is withheld. End user notifications rely on this.
+	readyInternal, err := ds.ListReadyToExecuteScriptsForHost(ctx, 3, true)
+	require.NoError(t, err)
+	require.Len(t, readyInternal, 1)
+
+	readyUser, err := ds.ListReadyToExecuteScriptsForHost(ctx, 2, true)
+	require.NoError(t, err)
+	require.Empty(t, readyUser)
+
+	// the point of the batch path is many hosts in one call, each with its own
+	// execution ready to run
+	batchExecutionIDs, err := ds.BatchNewInternalHostScriptExecutionRequests(ctx, []uint{4, 5}, "echo batch of two")
+	require.NoError(t, err)
+	require.Len(t, batchExecutionIDs, 2)
+	require.NotEqual(t, batchExecutionIDs[4], batchExecutionIDs[5])
+	for hostID, executionID := range batchExecutionIDs {
+		ready, err := ds.ListReadyToExecuteScriptsForHost(ctx, hostID, true)
+		require.NoError(t, err)
+		require.Len(t, ready, 1)
+		require.Equal(t, executionID, ready[0].ExecutionID)
+
+		// the batch generates its own execution IDs, so check each one really
+		// points at the script that was queued
+		queued, err := ds.GetHostScriptExecutionResult(ctx, executionID)
+		require.NoError(t, err)
+		require.Equal(t, "echo batch of two", queued.ScriptContents)
+	}
+
+	// host 3 already has one activated from above, so a second one queues behind
+	// it instead of being activated underneath it
+	secondForHost3, err := ds.BatchNewInternalHostScriptExecutionRequests(ctx, []uint{3}, "echo second for host 3")
+	require.NoError(t, err)
+	require.Len(t, secondForHost3, 1)
+
+	readyForHost3, err := ds.ListReadyToExecuteScriptsForHost(ctx, 3, true)
+	require.NoError(t, err)
+	require.Len(t, readyForHost3, 1)
+	require.NotEqual(t, secondForHost3[3], readyForHost3[0].ExecutionID)
+
+	upcomingForHost3, _, err := ds.ListHostUpcomingActivities(ctx, 3, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, upcomingForHost3, 2)
 }

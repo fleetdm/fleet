@@ -285,15 +285,6 @@ const (
 	recoveryKeyServerTooOldText  = "Your Fleet server needs an update before it can back up your disk recovery key. Please contact your IT admin."
 )
 
-// promptOutcome is how the passphrase prompt ended.
-type promptOutcome int
-
-const (
-	promptEntered promptOutcome = iota
-	promptCanceled
-	promptTimedOut
-)
-
 type LuksRunner struct {
 	escrower KeyEscrower
 	notifier dialog.Dialog
@@ -333,21 +324,6 @@ type LuksResponse struct {
 func New(escrower KeyEscrower) *LuksRunner {
 	return &LuksRunner{
 		escrower: escrower,
-	}
-}
-
-func (lr *LuksRunner) reportsEscrowStatus() bool {
-	return lr.escrower.GetServerCapabilities().Has(fleet.CapabilityLinuxEscrowStatus)
-}
-
-// sendEscrowStatus is a no-op without the server capability. prompting (per re-prompt) and
-// escrowing (on acceptance) refresh the server's in-flight state through retries and key slot work.
-func (lr *LuksRunner) sendEscrowStatus(status string) {
-	if !lr.reportsEscrowStatus() {
-		return
-	}
-	if err := lr.escrower.SendLinuxKeyEscrowStatus(status); err != nil {
-		log.Debug().Err(err).Str("status", status).Msg("failed to report LUKS escrow status")
 	}
 }
 

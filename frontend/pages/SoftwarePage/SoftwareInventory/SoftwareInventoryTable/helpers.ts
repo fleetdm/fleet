@@ -1,16 +1,15 @@
 import { isEmpty } from "lodash";
 
-import { QueryParams, parseQueryValueToNumberOrUndefined } from "utilities/url";
-import stringUtils from "utilities/strings/stringUtils";
-import { tooltipTextWithLineBreaks } from "utilities/helpers";
-import numberUtils from "utilities/numbers";
-
 import {
   ISeverityFilterValue,
   severityFilters,
   severityForRange,
   severityValueLabel,
 } from "components/SeverityFilter";
+import { tooltipTextWithLineBreaks } from "utilities/helpers";
+import numberUtils from "utilities/numbers";
+import stringUtils from "utilities/strings/stringUtils";
+import { QueryParams, parseQueryValueToNumberOrUndefined } from "utilities/url";
 
 const { isValidNumber } = numberUtils;
 

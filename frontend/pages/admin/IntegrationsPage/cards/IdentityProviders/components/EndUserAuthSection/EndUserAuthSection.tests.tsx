@@ -1,11 +1,11 @@
-import React from "react";
-import { noop } from "lodash";
 import { screen, waitFor } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
 
 import { createMockConfig } from "__mocks__/configMock";
-import { createCustomRenderer } from "test/test-utils";
-import configAPI from "services/entities/config";
 import { IEndUserAuthentication } from "interfaces/config";
+import configAPI from "services/entities/config";
+import { createCustomRenderer } from "test/test-utils";
 
 import EndUserAuthSection from "./EndUserAuthSection";
 

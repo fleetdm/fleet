@@ -1,5 +1,5 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import React from "react";
 
 import { createMockVppApp } from "__mocks__/appleMdm";
 import { createCustomRenderer } from "test/test-utils";

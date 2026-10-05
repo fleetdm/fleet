@@ -21,6 +21,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 )
@@ -39,6 +41,7 @@ type cronSchedulesDeps struct {
 	svc                    fleet.Service
 	carveStore             fleet.CarveStore
 	enrollHostLimiter      fleet.EnrollHostLimiter
+	cleanupStateStore      fleet.MDMAppleCommandCleanupStateStore
 	liveQueryStore         fleet.LiveQueryStore
 	failingPolicySet       fleet.FailingPolicySet
 	redisPool              fleet.RedisPool
@@ -49,6 +52,8 @@ type cronSchedulesDeps struct {
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
 	androidSvc             android.Service
 	activitySvc            activity_api.Service
+	notificationsSvc       notifications_api.Service
+	patchNotificationKind  service.PatchNotificationKind
 	acmeSvc                acme_api.Service
 	chartSvc               chart_api.Service
 	auditLogger            fleet.JSONLogger
@@ -138,7 +143,7 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 
 	deps.register("failed to register cleanups_then_aggregations schedule", func() (fleet.CronSchedule, error) {
 		return newCleanupsAndAggregationSchedule(
-			ctx, deps.instanceID, deps.ds, deps.carveStore, deps.svc, deps.logger, deps.enrollHostLimiter, deps.config, deps.commander, deps.softwareInstallStore, deps.bootstrapPackageStore, deps.softwareTitleIconStore, deps.androidSvc, deps.activitySvc, deps.acmeSvc, deps.chartSvc,
+			ctx, deps.instanceID, deps.ds, deps.carveStore, deps.svc, deps.logger, deps.enrollHostLimiter, deps.cleanupStateStore, deps.config, deps.commander, deps.softwareInstallStore, deps.bootstrapPackageStore, deps.softwareTitleIconStore, deps.androidSvc, deps.activitySvc, deps.notificationsSvc, deps.acmeSvc, deps.chartSvc,
 		)
 	})
 
@@ -215,8 +220,8 @@ func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 // registerMDMCrons covers the Apple MDM worker, DEP profile assigner, service
 // discovery, the Apple/Windows/Android profile managers, the Android device
-// reconciler, the Android default-policy and per-host policy migrations, and
-// the APNs pusher.
+// reconciler, the Android default-policy and per-host policy migrations, the
+// APNs pusher, and the iPhone/iPad refetcher and reviver.
 func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	deps.register("failed to register apple_mdm_worker schedule", func() (fleet.CronSchedule, error) {
 		vppInstaller := deps.svc.(fleet.AppleMDMVPPInstaller)
@@ -240,6 +245,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			redis_key_value.New(deps.redisPool),
 			deps.logger,
 			deps.config.MDM.CertificateProfilesLimit,
+			deps.config.Auth.UseOneTimeEnrollSecrets,
 		)
 	})
 
@@ -328,15 +334,27 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 		})
 	}
 
+	// iPhone/iPad refetcher and reviver run for all license tiers. They power
+	// iOS/iPadOS host vitals refresh (DeviceInformation, InstalledApplicationList,
+	// CertificateList) and BYOD-enrolled device APNs revival, both of which the
+	// BYOD enrollment flow (a Free feature) depends on.
+	deps.register("failed to register apple_mdm_iphone_ipad_refetcher schedule", func() (fleet.CronSchedule, error) {
+		return newIPhoneIPadRefetcher(ctx, deps.instanceID, 10*time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity)
+	})
+
+	deps.register("failed to register apple_mdm_iphone_ipad_reviver schedule", func() (fleet.CronSchedule, error) {
+		return newIPhoneIPadReviver(ctx, deps.instanceID, deps.ds, deps.commander, deps.logger)
+	})
+
 	deps.register("failed to register Apple MDM OS updates schedule", func() (fleet.CronSchedule, error) {
 		return newAppleMDMOSUpdatesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
 }
 
-// registerPremiumCrons covers the Fleet Premium schedules: iPhone/iPad
-// refetcher and reviver, maintained apps, VPP app version refresh (and the
-// one-shot VPP country backfill), recovery lock passwords, managed local
-// account rotation, activities streaming, and the calendar schedule.
+// registerPremiumCrons covers the Fleet Premium schedules: Microsoft Autopilot
+// sync, maintained apps, VPP app version refresh (and the one-shot VPP country
+// backfill), recovery lock passwords, managed local account rotation,
+// activities streaming, and the calendar schedule.
 func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 	if !deps.license.IsPremium() {
 		return
@@ -344,14 +362,6 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register microsoft_autopilot_sync schedule", func() (fleet.CronSchedule, error) {
 		return cron.NewMicrosoftAutopilotSchedule(ctx, deps.instanceID, deps.ds, msgraph.NewClient, deps.logger)
-	})
-
-	deps.register("failed to register apple_mdm_iphone_ipad_refetcher schedule", func() (fleet.CronSchedule, error) {
-		return newIPhoneIPadRefetcher(ctx, deps.instanceID, 10*time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity)
-	})
-
-	deps.register("failed to register apple_mdm_iphone_ipad_reviver schedule", func() (fleet.CronSchedule, error) {
-		return newIPhoneIPadReviver(ctx, deps.instanceID, deps.ds, deps.commander, deps.logger)
 	})
 
 	deps.register("failed to register maintained apps schedule", func() (fleet.CronSchedule, error) {
@@ -385,6 +395,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register cleanup expired ADUE challenges schedule", func() (fleet.CronSchedule, error) {
 		return newCleanupExpiredADUEChallengesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
+
+	deps.register("failed to register end user notifications schedule", func() (fleet.CronSchedule, error) {
+		return newEndUserNotificationsSchedule(ctx, deps.instanceID, deps.ds, deps.notificationsSvc, deps.patchNotificationKind, deps.logger)
 	})
 
 	if deps.config.Activity.EnableAuditLog {

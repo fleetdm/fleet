@@ -1,0 +1,1 @@
+- Added a time cap to APNs push crons to avoid them holding the cron for longer periods.

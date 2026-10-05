@@ -418,17 +418,6 @@ func (f *fakeEscrower) SendLinuxKeyEscrowStatus(status string) error {
 	return f.err
 }
 
-func (f *fakeEscrower) sentStatuses() []string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return append([]string(nil), f.statuses...)
-}
-
-// newStatusEscrower returns a fake escrower whose server accepts escrow status reports.
-func newStatusEscrower() *fakeEscrower {
-	return &fakeEscrower{capabilities: fleet.CapabilityMap{fleet.CapabilityLinuxEscrowStatus: {}}}
-}
-
 func (f *fakeEscrower) GetServerCapabilities() fleet.CapabilityMap {
 	if f.capabilities == nil {
 		return fleet.CapabilityMap{}

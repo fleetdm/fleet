@@ -1,152 +1,238 @@
-$softwareName = "notion"
-$productKey = "661f0cc6-343a-59cb-a5e8-8f6324cc6998"
-$taskName = "fleet-uninstall-$softwareName"
-$scriptPath = "$env:PUBLIC\uninstall-$softwareName.ps1"
-$logFile = "$env:PUBLIC\uninstall-output-$softwareName.txt"
-$exitCodeFile = "$env:PUBLIC\uninstall-exitcode-$softwareName.txt"
+# Notion installs per user, so its uninstall entry is in the installing user's
+# registry hive rather than SYSTEM's, and its uninstaller reads the directory to
+# remove out of the hive of whoever runs it -- run as SYSTEM against a user's
+# install it exits 0 and deletes nothing. So search every hive and run the
+# uninstaller as the user who owns the entry.
+#
+# Match "Notion <version>" rather than "Notion*": Notion Calendar is a separate
+# app from the same publisher and must not be caught here.
 
-# Embedded uninstall script
-$userScript = @"
-`$userKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$productKey"
-`$exitCode = 0
-`$logFile = "$logFile"
-`$exitCodeFile = "$exitCodeFile"
-
-Start-Transcript -Path "$logFile" -Append
-
-try {
-    `$key = Get-ItemProperty -Path `$userKey -ErrorAction Stop
-
-    `$uninstallCommand = if (`$key.QuietUninstallString) {
-        `$key.QuietUninstallString
-    } else {
-        `$key.UninstallString
-    }
-
-    `$splitArgs = `$uninstallCommand.Split('"')
-    if (`$splitArgs.Length -gt 1) {
-        if (`$splitArgs.Length -eq 3) {
-            `$uninstallArgs = `$splitArgs[2].Trim()
-        } elseif (`$splitArgs.Length -gt 3) {
-            Throw "Uninstall command contains multiple quoted strings. Please update the uninstall script.`nUninstall command: `$uninstallCommand"
-        }
-        `$uninstallCommand = `$splitArgs[1]
-    }
-
-    # NSIS installers require /S flag for silent uninstall
-    # Append /S if not already present in the uninstall args
-    if (`$uninstallArgs) {
-        if (`$uninstallArgs -notmatch '\b/S\b') {
-            `$uninstallArgs = "`$uninstallArgs /S".Trim()
-        }
-    } else {
-        `$uninstallArgs = "/S"
-    }
-
-    Write-Host "Uninstall command: `$uninstallCommand"
-    Write-Host "Uninstall args: `$uninstallArgs"
-
-    `$processOptions = @{
-        FilePath = `$uninstallCommand
-        PassThru = `$true
-        Wait     = `$true
-    }
-
-    if (`$uninstallArgs -ne '') {
-        `$processOptions.ArgumentList = "`$uninstallArgs"
-    }
-
-    `$process = Start-Process @processOptions
-    `$exitCode = `$process.ExitCode
-    Write-Host "Uninstall exit code: `$exitCode"
-}
-catch {
-    Write-Host "Error: `$_.Exception.Message"
-    `$exitCode = 1
-}
-finally {
-    Set-Content -Path `$exitCodeFile -Value `$exitCode
-}
-
-Stop-Transcript
-
-Exit `$exitCode
-"@
-
+$displayNamePattern = '^Notion \d'
+$publisher = "Notion Labs, Inc"
+$taskName = "fleet-uninstall-notion"
+$removedDirs = [System.Collections.Generic.List[string]]::new()
+$taskRunning = 267009  # SCHED_S_TASK_RUNNING
 $exitCode = 0
 
-try {
-    # Wait for an interactive user to be logged on
-    while ($true) {
-        $userName = (Get-CimInstance Win32_ComputerSystem).UserName
+function Get-AppEntries {
+    $roots = [System.Collections.Generic.List[string]]::new()
+    $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
+    $roots.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+        if ($hive.Name -match '_Classes$') { continue }
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
+    }
 
-        if ($userName -and $userName -like "*\*") {
-            Write-Output "Interactive user detected: $userName"
-            break
-        } else {
-            Start-Sleep -Seconds 5
+    $entries = @()
+    foreach ($root in $roots) {
+        foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
+            $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
+            if (-not $key.DisplayName) { continue }
+            # Some installers pad these values with nulls (Fork writes "Fork" + 15 of them).
+            $name = ($key.DisplayName -replace "`0", "").Trim()
+            if ($name -notmatch $displayNamePattern) { continue }
+            if (($key.Publisher -replace "`0", "").Trim() -ne $publisher) { continue }
+
+            # Only a real user's entry needs the uninstaller run for them; HKLM and the
+            # service SIDs are already in the right context.
+            $sid = $null
+            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+)\\') { $sid = $matches[1] }
+
+            $entries += [PSCustomObject]@{
+                DisplayName = $name
+                KeyPath     = $sub.PSPath
+                Sid         = $sid
+                Command     = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
+            }
+        }
+    }
+    return $entries
+}
+
+function Resolve-Uninstaller {
+    param([string]$Command)
+
+    $exePath = ""
+    $arguments = ""
+    if ($Command -match '^\s*"([^"]+)"\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    } elseif ($Command -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    } else {
+        Throw "Could not parse uninstall string: $Command"
+    }
+
+    # A 32-bit installer run as SYSTEM is redirected into SysWOW64, but records the
+    # unredirected system32 path that 64-bit PowerShell cannot resolve.
+    if (-not (Test-Path -LiteralPath $exePath)) {
+        $redirected = $exePath -replace '(?i)\\system32\\', '\SysWOW64\'
+        if ($redirected -ne $exePath -and (Test-Path -LiteralPath $redirected)) {
+            Write-Host "  Uninstaller is under SysWOW64, not the recorded $exePath"
+            $exePath = $redirected
         }
     }
 
-    # Write the uninstall script to disk
-    Set-Content -Path $scriptPath -Value $userScript -Force
+    # \b does not match between a space and a slash, so anchor on whitespace.
+    if ($arguments -notmatch '(?i)(^|\s)/S($|\s)') { $arguments = "$arguments /S".Trim() }
 
-    # Build task action: run script, redirect stdout/stderr to log file
-    $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`" *> `"$logFile`" 2>&1"
+    return [PSCustomObject]@{ ExePath = $exePath; Arguments = $arguments }
+}
 
-    $trigger = New-ScheduledTaskTrigger -AtLogOn
+function Invoke-UninstallerAsUser {
+    param([string]$Sid, [string]$ExePath, [string]$Arguments)
 
-    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
+    $account = (New-Object System.Security.Principal.SecurityIdentifier($Sid)).Translate(
+        [System.Security.Principal.NTAccount]).Value
+    Write-Host "  Running the uninstaller as $account"
 
-    $principal = New-ScheduledTaskPrincipal -UserId $userName -RunLevel Highest
+    try {
+        if ($Arguments) {
+            $action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
+        } else {
+            $action = New-ScheduledTaskAction -Execute $ExePath
+        }
+        $trigger = New-ScheduledTaskTrigger -AtLogOn
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+        $principal = New-ScheduledTaskPrincipal -UserId $account
+        $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
+        Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
 
-    $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
+        $startDate = Get-Date
+        Start-ScheduledTask -TaskName $taskName
 
-    Register-ScheduledTask -TaskName $taskName -InputObject $task -User $userName -Force
+        # Wait for a result rather than for the "Running" state, which a fast task can
+        # enter and leave between polls.
+        Start-Sleep -Seconds 2
+        while ($true) {
+            $info = Get-ScheduledTaskInfo -TaskName $taskName
+            $state = (Get-ScheduledTask -TaskName $taskName).State
+            if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+                return $info.LastTaskResult
+            }
+            if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 300) {
+                Write-Host "  Uninstall task still running after 300s; checking the result anyway."
+                return $null
+            }
+            Start-Sleep -Seconds 5
+        }
+    } finally {
+        if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+        }
+    }
+}
 
-    # Start the task
-    Start-ScheduledTask -TaskName $taskName
-
-    # Wait for it to start
-    $startDate = Get-Date
-    $state = (Get-ScheduledTask -TaskName $taskName).State
-    while ($state -ne "Running") {
-        Start-Sleep -Seconds 1
-        $elapsed = (New-Timespan -Start $startDate).TotalSeconds
-        if ($elapsed -gt 120) { throw "Timeout waiting for task to start." }
-        $state = (Get-ScheduledTask -TaskName $taskName).State
+try {
+    $entries = Get-AppEntries
+    if ($entries.Count -eq 0) {
+        Write-Host "Notion is not installed."
+        Exit 0
     }
 
-    # Wait for it to complete
-    while ($state -eq "Running") {
-        Start-Sleep -Seconds 5
-        $elapsed = (New-Timespan -Start $startDate).TotalSeconds
-        if ($elapsed -gt 120) { throw "Timeout waiting for task to finish." }
-        $state = (Get-ScheduledTask -TaskName $taskName).State
+    foreach ($entry in $entries) {
+        Write-Host "Removing '$($entry.DisplayName)' ($($entry.KeyPath))"
+        if (-not $entry.Command) {
+            Write-Host "  No uninstall string recorded; removing the leftover registration."
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+            continue
+        }
+
+        $uninstaller = Resolve-Uninstaller $entry.Command
+        $installDir = Split-Path $uninstaller.ExePath -Parent
+        $removedDirs.Add($installDir)
+
+        # Anything running out of this install directory blocks removal. Matching on the
+        # directory rather than a process name keeps another install of the same app,
+        # in another user's profile, running.
+        Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and $_.Path.StartsWith($installDir, [System.StringComparison]::OrdinalIgnoreCase) } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+
+        if (-not (Test-Path -LiteralPath $uninstaller.ExePath)) {
+            Write-Host "  Uninstaller is gone from $($uninstaller.ExePath); removing the leftover registration."
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+            continue
+        }
+
+        Write-Host "  Uninstall command: $($uninstaller.ExePath)"
+        Write-Host "  Uninstall args: $($uninstaller.Arguments)"
+        if ($entry.Sid) {
+            $result = Invoke-UninstallerAsUser -Sid $entry.Sid -ExePath $uninstaller.ExePath -Arguments $uninstaller.Arguments
+        } else {
+            $process = Start-Process -FilePath $uninstaller.ExePath -ArgumentList $uninstaller.Arguments `
+                -NoNewWindow -PassThru -Wait
+            $result = $process.ExitCode
+        }
+        Write-Host "  Uninstall exit code: $result"
+        if ($null -ne $result -and $result -ne 0 -and $exitCode -eq 0) { $exitCode = $result }
+
+        # An uninstaller that relaunches itself from %TEMP% exits while removal is
+        # still in flight. Either the directory or the registration going away means
+        # it got there.
+        for ($waited = 0; $waited -lt 60; $waited++) {
+            if (-not (Test-Path -LiteralPath $installDir)) { break }
+            if (-not (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue)) {
+                Start-Sleep -Seconds 3
+                break
+            }
+            Start-Sleep -Seconds 1
+        }
+
+        if (Test-Path -LiteralPath $installDir) {
+            Write-Host "  Uninstaller left $installDir behind; removing it."
+            Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $installDir) {
+                Write-Host "  WARNING: could not remove $installDir."
+                if ($exitCode -eq 0) { $exitCode = 1 }
+            }
+        }
+
+        if (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue) {
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 
-    # Show task output
-    if (Test-Path $logFile) {
-        Write-Host "`n--- Scheduled Task Output ---"
-        Get-Content $logFile | Write-Host
+    # Shortcuts sit in the installing user's profile, so an uninstall that could not
+    # reach that profile leaves them behind. Match on where they point rather than on a
+    # filename, which also catches the vendor subfolders some installers create.
+    if ($removedDirs.Count) {
+        $shell = New-Object -ComObject WScript.Shell
+        foreach ($profileDir in (Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue)) {
+            foreach ($root in @(
+                (Join-Path $profileDir.FullName 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs'),
+                (Join-Path $profileDir.FullName 'Desktop')
+            )) {
+                if (-not (Test-Path -LiteralPath $root)) { continue }
+                foreach ($lnk in (Get-ChildItem -LiteralPath $root -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue)) {
+                    $target = $null
+                    try { $target = $shell.CreateShortcut($lnk.FullName).TargetPath } catch {}
+                    if (-not $target) { continue }
+                    foreach ($dir in $removedDirs) {
+                        if ($target.StartsWith($dir, [System.StringComparison]::OrdinalIgnoreCase)) {
+                            Remove-Item -LiteralPath $lnk.FullName -Force -ErrorAction SilentlyContinue
+                            break
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    if (Test-Path $exitCodeFile) {
-        $exitCode = Get-Content $exitCodeFile
-        Write-Host "`nScheduled task exit code: $exitCode"
+    $remaining = Get-AppEntries
+    if ($remaining.Count -gt 0) {
+        Write-Host "WARNING: $($remaining.Count) Notion registration(s) still present:"
+        $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName) [$($_.KeyPath)]" }
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    } else {
+        Write-Host "Notion removed."
     }
 
 } catch {
-    Write-Host "Error: $_"
+    Write-Host "Error running uninstaller: $_"
     $exitCode = 1
-} finally {
-    # Clean up
-    Write-Host "Cleaning up..."
-    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-    Remove-Item -Path $scriptPath -Force -ErrorAction SilentlyContinue
-    Remove-Item -Path $logFile -Force -ErrorAction SilentlyContinue
-    Remove-Item -Path $exitCodeFile -Force -ErrorAction SilentlyContinue
 }
 
 Exit $exitCode

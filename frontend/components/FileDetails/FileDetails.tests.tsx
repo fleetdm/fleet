@@ -1,5 +1,6 @@
-import React from "react";
 import { fireEvent } from "@testing-library/react";
+import React from "react";
+
 import { renderWithSetup } from "test/test-utils";
 import { IFileDetails } from "utilities/file/fileUtils";
 

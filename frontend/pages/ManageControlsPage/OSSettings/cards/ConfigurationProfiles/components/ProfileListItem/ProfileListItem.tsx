@@ -1,21 +1,18 @@
+import classnames from "classnames";
+import { format } from "date-fns";
+import FileSaver from "file-saver";
 import React from "react";
 
-import { format } from "date-fns";
-import { timeAgo } from "utilities/date_format";
-import FileSaver from "file-saver";
-import classnames from "classnames";
-
-import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
-import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
-import mdmAPI, { isDDMProfile } from "services/entities/mdm";
-
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
-
+import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
+import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
+import mdmAPI, { isDDMProfile } from "services/entities/mdm";
+import { timeAgo } from "utilities/date_format";
 import strUtils from "utilities/strings";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "profile-list-item";
 

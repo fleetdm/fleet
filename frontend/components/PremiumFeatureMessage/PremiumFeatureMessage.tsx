@@ -1,5 +1,5 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
 import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";

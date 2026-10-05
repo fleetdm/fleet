@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.7",
+      "version": "4.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.SuspiciousPackageApp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.SuspiciousPackageApp' AND version_compare(bundle_short_version, '4.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.SuspiciousPackageApp' AND version_compare(bundle_short_version, '4.8') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.mothersruin.SuspiciousPackageApp' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.mothersruin.com/software/archives/SuspiciousPackage-4.7.dmg",
+      "installer_url": "https://www.mothersruin.com/software/archives/SuspiciousPackage-4.8.dmg",
       "install_script_ref": "0cdf9027",
       "uninstall_script_ref": "69130fbf",
-      "sha256": "5b8215b7a6536d1d41f1a3485e3428b39f8d3d0f2471ab1a0c69bedb22df4e5b",
+      "sha256": "cbe17b1a1c1d6137e8f36443622863773709d415c0aeec68e41b29ce3fad297f",
       "default_categories": [
         "Developer tools"
       ]

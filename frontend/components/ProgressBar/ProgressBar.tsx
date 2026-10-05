@@ -1,7 +1,7 @@
-import React from "react";
-import { COLORS } from "styles/var/colors";
-
 import classnames from "classnames";
+import React from "react";
+
+import { COLORS } from "styles/var/colors";
 
 const baseClass = "progress-bar";
 

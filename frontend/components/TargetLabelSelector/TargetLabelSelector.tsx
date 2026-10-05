@@ -1,19 +1,18 @@
-import React, { ReactNode, useState } from "react";
 import classnames from "classnames";
+import React, { ReactNode, useState } from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import { ILabelSummary } from "interfaces/label";
-import { listNamesFromSelectedLabels } from "services/entities/labels";
-
 import Button from "components/buttons/Button";
+import DataError from "components/DataError";
 import Checkbox from "components/forms/fields/Checkbox";
 import Radio from "components/forms/fields/Radio";
-import DataError from "components/DataError";
-import Icon from "components/Icon";
 import SearchField from "components/forms/fields/SearchField";
+import Icon from "components/Icon";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import { ILabelSummary } from "interfaces/label";
+import { listNamesFromSelectedLabels } from "services/entities/labels";
 
 const baseClass = "target-label-selector";
 

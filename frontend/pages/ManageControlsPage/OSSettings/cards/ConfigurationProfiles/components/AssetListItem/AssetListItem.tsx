@@ -1,18 +1,17 @@
-import React from "react";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-
-import { timeAgo } from "utilities/date_format";
-import { IMdmAsset } from "interfaces/mdm";
-import mdmAPI from "services/entities/mdm";
-import { notify } from "components/ToastNotification";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
-import ListItem from "components/ListItem";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import ListItem from "components/ListItem";
+import { notify } from "components/ToastNotification";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TooltipWrapper from "components/TooltipWrapper";
+import { IMdmAsset } from "interfaces/mdm";
+import mdmAPI from "services/entities/mdm";
+import { timeAgo } from "utilities/date_format";
 
 const baseClass = "asset-list-item";
 

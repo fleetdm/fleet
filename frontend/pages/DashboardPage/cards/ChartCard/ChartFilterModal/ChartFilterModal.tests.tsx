@@ -1,16 +1,15 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
 import { noop } from "lodash";
-
-import { createCustomRenderer, baseUrl } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
+import { http, HttpResponse } from "msw";
+import React from "react";
 
 import {
   SEVERITY_RANGE_INVALID_MSG,
   SeverityValue,
 } from "components/SeverityFilter";
+import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, baseUrl } from "test/test-utils";
 
 import ChartFilterModal, {
   IChartFilterState,

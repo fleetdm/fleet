@@ -1,6 +1,6 @@
-import React from "react";
-import DOMPurify from "dompurify";
 import classnames from "classnames";
+import DOMPurify from "dompurify";
+import React from "react";
 
 interface IClickableUrls {
   text: string;

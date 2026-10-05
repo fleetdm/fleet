@@ -77,11 +77,11 @@ final class FleetService {
     /// Used to present once when the user foregrounds the app. Main thread only.
     private var deferredPresentationFromHeadlessLaunch = false
 
-    /// Most recent `failing_policies_count` from the desktop API.
+    /// Most recent badge count from the desktop API (see `updateBadge`).
     /// Access only from stateQueue.
     private var _lastBadgeCount: Int?
 
-    /// The `failing_policies_count` reflected by the currently loaded web page.
+    /// The badge count reflected by the currently loaded web page.
     /// Compared to `_lastBadgeCount` when the window is shown to detect a stale
     /// Policies tab (e.g. badge dropped to 0 while the window was closed).
     /// Access only from stateQueue.
@@ -644,11 +644,14 @@ final class FleetService {
     private func updateBadge(from data: Data) {
         struct DesktopResponse: Decodable {
             let failing_policies_count: Int
+            let failing_unhidden_policies_count: Int?
         }
 
         do {
             let response = try JSONDecoder().decode(DesktopResponse.self, from: data)
-            let count = response.failing_policies_count
+            // Servers older than the hidden-policies feature don't send the
+            // unhidden count; fall back to the total to keep the old behavior.
+            let count = response.failing_unhidden_policies_count ?? response.failing_policies_count
             let label: String? = count > 0 ? "\(count)" : nil
             stateQueue.sync {
                 _lastBadgeCount = count

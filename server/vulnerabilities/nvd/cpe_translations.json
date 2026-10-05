@@ -720,6 +720,28 @@
   },
   {
     "software": {
+      "bundle_identifier": ["/^com\\.adobe\\.LightroomClassicCC\\d*$/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["lightroom"],
+      "vendor": ["adobe"],
+      "sw_edition": ["classic"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.adobe.lightroomCC", "com.adobe.mas.lightroomCC"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["lightroom"],
+      "vendor": ["adobe"],
+      "sw_edition": ["desktop"]
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["org.mozilla.firefoxdeveloperedition"],
       "source": ["apps"]
     },

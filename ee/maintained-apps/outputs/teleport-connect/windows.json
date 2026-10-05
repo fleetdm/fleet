@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "18.11.0",
+      "version": "18.11.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Teleport Connect %' AND publisher = 'Gravitational, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Teleport Connect %' AND publisher = 'Gravitational, Inc.' AND version_compare(version, '18.11.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Teleport Connect %' AND publisher = 'Gravitational, Inc.' AND version_compare(version, '18.11.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'teleport connect.exe');"
       },
-      "installer_url": "https://cdn.teleport.dev/Teleport%20Connect%20Setup-18.11.0.exe",
+      "installer_url": "https://cdn.teleport.dev/Teleport%20Connect%20Setup-18.11.2.exe",
       "install_script_ref": "5203db2b",
       "uninstall_script_ref": "df260b5b",
-      "sha256": "1098b9944114326dd11d146b67032f4f8c5aa500e5771b2c38d887e7202a165c",
+      "sha256": "5822f1dffc1d22fe1edac412f4263e6595ae6d5efe5911ca3d85ecbb68b3475a",
       "default_categories": [
         "Productivity"
       ]

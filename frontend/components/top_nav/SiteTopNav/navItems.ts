@@ -1,6 +1,6 @@
+import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import URL_PREFIX from "router/url_prefix";
-import { IUser } from "interfaces/user";
 
 export interface INavItem {
   name: string;

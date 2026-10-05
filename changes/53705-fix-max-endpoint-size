@@ -1,0 +1,1 @@
+- Fixed an issue where lower max request size endpoints got overwritten to the global default.

@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/automatic_policy"
 	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -69,7 +70,10 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     hsi.self_service AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     si.app_open_query AS app_open_query,
-    COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
+    -- Snapshot (not a live policies join): fleetd and the classifier must agree
+    -- on this value. A post-activation policy toggle applies to future
+    -- activations, not to already-queued/in-flight installs.
+    hsi.override_pre_install_query AS override_pre_install_query,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -78,9 +82,6 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
   INNER JOIN
     software_installers si
     ON hsi.software_installer_id = si.id
-  LEFT OUTER JOIN
-    policies p
-    ON p.id = hsi.policy_id
   LEFT OUTER JOIN
     script_contents inst
     ON inst.id = si.install_script_content_id
@@ -103,7 +104,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 		ua.payload->'$.self_service' AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     si.app_open_query AS app_open_query,
-    COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
+    COALESCE(ua.payload->'$.override_pre_install_query', 0) AS override_pre_install_query,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -115,9 +116,6 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
   INNER JOIN
     software_installers si
     ON siua.software_installer_id = si.id
-  LEFT OUTER JOIN
-    policies p
-    ON p.id = siua.policy_id
   LEFT OUTER JOIN
     script_contents inst
     ON inst.id = si.install_script_content_id
@@ -140,8 +138,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 		return nil, ctxerr.Wrap(ctx, err, "get software install details")
 	}
 
-	// A patch-when-closed policy install uses the installer's app open query as its pre-install condition.
-	if result.PatchWhenClosed {
+	if result.OverridePreInstallQuery {
 		result.PreInstallCondition = result.AppOpenQuery
 	}
 
@@ -1965,6 +1962,7 @@ VALUES
 			'software_title_name', ?,
 			'source', ?,
 			'with_retries', ?,
+			'override_pre_install_query', ?,
 			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
 	)`
@@ -2025,6 +2023,7 @@ VALUES
 			installerDetails.TitleName,
 			installerDetails.Source,
 			opts.WithRetries,
+			opts.OverridePreInstallQuery,
 			userID,
 		)
 		if err != nil {
@@ -2311,12 +2310,13 @@ SELECT
 	hsi.updated_at as updated_at,
 	st.source,
 	hsi.attempt_number,
-	COALESCE(p.patch_when_closed, 0) AS patch_when_closed
+	hsi.patch_when_closed,
+	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AS notify_before_patching,
+	hsi.override_pre_install_query
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 	LEFT JOIN software_installers si ON hsi.software_installer_id = si.id
-	LEFT JOIN policies p ON hsi.policy_id = p.id
 WHERE
 	hsi.execution_id = :execution_id AND
 	hsi.uninstall = 0 AND
@@ -2346,7 +2346,9 @@ SELECT
 	ua.updated_at as updated_at,
 	st.source,
 	NULL AS attempt_number,
-	COALESCE(p.patch_when_closed, 0) AS patch_when_closed
+	COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
+	COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
+	COALESCE(ua.payload->'$.override_pre_install_query', 0) AS override_pre_install_query
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
@@ -2781,7 +2783,8 @@ func (ds *Datastore) getLatestUpcomingInstall(ctx context.Context, hostID, insta
 SELECT
 	execution_id,
 	'pending_install' AS status,
-	updated_at
+	updated_at,
+	payload->'$.override_pre_install_query' IS TRUE AS override_pre_install_query
 FROM
 	upcoming_activities
 WHERE
@@ -2808,7 +2811,8 @@ func (ds *Datastore) getLatestPastInstall(ctx context.Context, hostID, installer
 SELECT
 	execution_id,
 	status,
-	updated_at
+	updated_at,
+	override_pre_install_query
 FROM
 	host_software_installs
 WHERE
@@ -4729,18 +4733,11 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 		if exists {
 			return conflict(fleet.SoftwareAlreadyHasVPPAppMessage)
 		}
+	}
 
-		if payload.FleetMaintainedAppID != nil {
-			existingName, conflicts, err := ds.checkConflictingFleetMaintainedAppExists(ctx, payload)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check for conflicting fleet-maintained app")
-			}
-			if conflicts {
-				return ctxerr.Wrap(ctx, fleet.ConflictError{
-					Message: fmt.Sprintf(fleet.CantAddConflictingFMAMessage, existingName, payload.Title),
-				}, "different fleet-maintained app already exists on the title")
-			}
-		}
+	// two different Fleet-maintained apps can't share a title
+	if err := ds.checkConflictingFleetMaintainedApp(ctx, payload); err != nil {
+		return err
 	}
 
 	// custom packages and Fleet-maintained apps can't share a title
@@ -4844,28 +4841,58 @@ func (ds *Datastore) checkFleetMaintainedAppExists(ctx context.Context, payload 
 	return exists, nil
 }
 
+// checkConflictingFleetMaintainedApp rejects adding an FMA to a title that a different FMA
+// already owns on the same team. An FMA title has exactly one active installer, so a second
+// FMA on it would fight the first over which version is live; refusing it here gives a clear
+// message instead of the duplicate-key error the insert would otherwise raise.
+func (ds *Datastore) checkConflictingFleetMaintainedApp(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
+	if payload.FleetMaintainedAppID == nil {
+		return nil
+	}
+	existingName, conflicts, err := ds.checkConflictingFleetMaintainedAppExists(ctx, payload)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "check for conflicting fleet-maintained app")
+	}
+	if conflicts {
+		return ctxerr.Wrap(ctx, fleet.ConflictError{
+			Message: fmt.Sprintf(fleet.CantAddConflictingFMAMessage, existingName, payload.FMADisplayName()),
+		}, "different fleet-maintained app already exists on the title")
+	}
+	return nil
+}
+
 // checkConflictingFleetMaintainedAppExists reports whether the team has an installer for a different
-// FMA on the same macOS title (two FMAs sharing a bundle identifier, e.g. Firefox and Firefox ESR),
-// returning that app's name. Versions of the same app don't conflict. Unlike
-// checkFleetMaintainedAppExists (custom package vs. FMA), this compares FMA IDs. FleetMaintainedAppID
-// must be non-nil — a NULL in the != comparison matches nothing.
+// FMA on the title this payload resolves to, returning that app's name. Two FMAs share a title through
+// a common bundle identifier on macOS (Firefox and Firefox ESR) or a common registry DisplayName on
+// Windows (the x64 and ARM64 Firefox Nightly MSIX both register as "Firefox Nightly"). Versions of the
+// same app don't conflict. Unlike checkFleetMaintainedAppExists (custom package vs. FMA), this compares
+// FMA IDs. FleetMaintainedAppID must be non-nil — a NULL in the != comparison matches nothing.
 func (ds *Datastore) checkConflictingFleetMaintainedAppExists(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (string, bool, error) {
-	if payload.FleetMaintainedAppID == nil || payload.BundleIdentifier == "" {
+	if payload.FleetMaintainedAppID == nil {
 		return "", false, nil
+	}
+
+	// Resolve the title the same way getOrGenerateSoftwareInstallerTitleID will, so the check
+	// can't disagree with where the installer actually lands (e.g. Windows titles that share a
+	// name but have different upgrade codes are distinct). This guards the insert that follows,
+	// so read from the primary: a lagging replica could miss a sibling added moments ago.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	titleID, err := ds.GetExistingSoftwareInstallerTitleID(ctx, payload)
+	switch {
+	case fleet.IsNotFound(err):
+		return "", false, nil
+	case err != nil:
+		return "", false, ctxerr.Wrap(ctx, err, "resolve title for conflicting fleet-maintained app check")
 	}
 
 	const stmt = `
 		SELECT fma.name
 		FROM software_installers si
-		JOIN software_titles st ON st.id = si.title_id
 		JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
-		WHERE si.global_or_team_id = ? AND st.source = ? AND st.bundle_identifier = ?
-			AND si.fleet_maintained_app_id != ?
+		WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.fleet_maintained_app_id != ?
 		LIMIT 1`
-
 	var name string
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt,
-		ptr.ValOrZero(payload.TeamID), payload.Source, payload.BundleIdentifier, *payload.FleetMaintainedAppID)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt, ptr.ValOrZero(payload.TeamID), titleID, *payload.FleetMaintainedAppID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return "", false, nil
@@ -4997,4 +5024,159 @@ func deletePinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeam
 		DELETE FROM software_title_team_pins WHERE team_id = ? AND title_id = ?
 	`, globalOrTeamID, titleID)
 	return err
+}
+
+func (ds *Datastore) ListLastTitleInstallDataForHosts(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
+	if len(hostIDs) == 0 || len(softwareTitleIDs) == 0 {
+		return nil, nil
+	}
+
+	// The install tables are indexed on (host_id, software_installer_id), so the titles are turned into
+	// installers first instead of filtering on the nullable software_title_id columns. Replaced
+	// installers come along, which is the point: an install that went through the installer a title had
+	// an hour ago still counts as that app being installed.
+	const installersStmt = `SELECT si.id, si.title_id FROM software_installers si WHERE si.title_id IN (?)`
+
+	stmt, args, err := sqlx.In(installersStmt, softwareTitleIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list installers for titles statement")
+	}
+
+	var installerRows []struct {
+		InstallerID uint `db:"id"`
+		TitleID     uint `db:"title_id"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &installerRows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list installers for titles")
+	}
+	if len(installerRows) == 0 {
+		return nil, nil
+	}
+
+	titleIDsByInstaller := make(map[uint]uint, len(installerRows))
+	installerIDs := make([]uint, 0, len(installerRows))
+	for _, row := range installerRows {
+		titleIDsByInstaller[row.InstallerID] = row.TitleID
+		installerIDs = append(installerIDs, row.InstallerID)
+	}
+	slices.Sort(installerIDs)
+
+	// Same two reads GetHostLastInstallData does, over every host and installer at once. The window
+	// picks the latest row per pair, which is what MAX(id) picks for a single pair. It orders by id
+	// alone rather than by created_at first the way hostSoftwareInstalls does, because created_at is
+	// taken when the inserting statement starts and can leave a row with a lower id carrying a later
+	// timestamp, and this has to pick the row GetHostLastInstallData would.
+	const pastStmt = `
+WITH latest_past_install AS (
+	SELECT
+		hsi.host_id,
+		hsi.software_installer_id,
+		hsi.execution_id,
+		hsi.status,
+		hsi.updated_at,
+		hsi.override_pre_install_query,
+		ROW_NUMBER() OVER (
+			PARTITION BY hsi.host_id, hsi.software_installer_id
+			ORDER BY hsi.id DESC
+		) AS row_num
+	FROM host_software_installs hsi
+	WHERE hsi.canceled = 0 AND hsi.host_id IN (?) AND hsi.software_installer_id IN (?)
+)
+SELECT host_id, software_installer_id, execution_id, status, updated_at, override_pre_install_query
+FROM latest_past_install
+WHERE row_num = 1
+`
+
+	const upcomingStmt = `
+WITH latest_upcoming_install AS (
+	SELECT
+		ua.host_id,
+		siua.software_installer_id,
+		ua.execution_id,
+		'pending_install' AS status,
+		ua.updated_at,
+		ua.payload->'$.override_pre_install_query' IS TRUE AS override_pre_install_query,
+		ROW_NUMBER() OVER (
+			PARTITION BY ua.host_id, siua.software_installer_id
+			ORDER BY ua.id DESC
+		) AS row_num
+	FROM upcoming_activities ua
+		JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+	WHERE ua.activity_type = 'software_install' AND ua.host_id IN (?) AND siua.software_installer_id IN (?)
+)
+SELECT host_id, software_installer_id, execution_id, status, updated_at, override_pre_install_query
+FROM latest_upcoming_install
+WHERE row_num = 1
+`
+
+	type lastInstallRow struct {
+		HostID                  uint                           `db:"host_id"`
+		InstallerID             uint                           `db:"software_installer_id"`
+		ExecutionID             string                         `db:"execution_id"`
+		Status                  *fleet.SoftwareInstallerStatus `db:"status"`
+		UpdatedAt               time.Time                      `db:"updated_at"`
+		OverridePreInstallQuery bool                           `db:"override_pre_install_query"`
+	}
+
+	type titledInstall struct {
+		titleKey fleet.HostSoftwareTitleKey
+		install  *fleet.HostLastInstallData
+	}
+
+	// Keep the completed install alongside the queued one for the same installer. An activated install
+	// has a row in both tables, so keying by execution keeps it once.
+	installsByExecutionID := make(map[string]titledInstall, len(installerIDs))
+	for _, selectStmt := range []string{pastStmt, upcomingStmt} {
+		stmt, args, err := sqlx.In(selectStmt, hostIDs, installerIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build list host last title install data statement")
+		}
+
+		var rows []lastInstallRow
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list host last title install data")
+		}
+		for _, row := range rows {
+			installsByExecutionID[row.ExecutionID] = titledInstall{
+				titleKey: fleet.HostSoftwareTitleKey{HostID: row.HostID, SoftwareTitleID: titleIDsByInstaller[row.InstallerID]},
+				install: &fleet.HostLastInstallData{
+					ExecutionID:             row.ExecutionID,
+					Status:                  row.Status,
+					UpdatedAt:               row.UpdatedAt,
+					OverridePreInstallQuery: row.OverridePreInstallQuery,
+				},
+			}
+		}
+	}
+
+	installsByTitle := make(map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, len(installsByExecutionID))
+	for _, titled := range installsByExecutionID {
+		installsByTitle[titled.titleKey] = append(installsByTitle[titled.titleKey], titled.install)
+	}
+	return installsByTitle, nil
+}
+
+// ListSoftwareTitleVersionsForHosts reports what the given hosts have installed for the given titles.
+// Driven by the index on software.title_id, so it reads only the titles asked for instead of whole
+// inventories.
+func (ds *Datastore) ListSoftwareTitleVersionsForHosts(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error) {
+	if len(hostIDs) == 0 || len(softwareTitleIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt, args, err := sqlx.In(`
+SELECT hs.host_id, s.title_id, s.version
+FROM software s
+	JOIN host_software hs ON hs.software_id = s.id
+WHERE s.title_id IN (?) AND hs.host_id IN (?)
+`, softwareTitleIDs, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list host software versions statement")
+	}
+
+	var versions []fleet.HostSoftwareTitleVersion
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &versions, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list host software versions for titles")
+	}
+	return versions, nil
 }

@@ -1261,13 +1261,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"policies"})
 				config += "policies:\n  - query: SELECT 1;\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "name is required")
+				require.ErrorContains(t, err, "policy name cannot be empty")
 
 				// Policy query missing
 				config = getConfig([]string{"policies"})
 				config += "policies:\n  - name: Test Policy\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "query is required")
+				require.ErrorContains(t, err, "policy query cannot be empty")
 
 				// Invalid reports
 				config = getConfig([]string{"reports"})
@@ -2112,7 +2112,8 @@ software:
 	)
 	require.NoError(t, err)
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err,
+	require.ErrorContains(
+		t, err,
 		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on team",
 	)
 
@@ -2241,7 +2242,8 @@ controls:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err,
+	assert.ErrorContains(
+		t, err,
 		"was not defined in controls for TeamName",
 	)
 }
@@ -2311,7 +2313,8 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	}
 
 	t.Run("happy path keeps per-package fields and inherits fleet-level setup_experience", func(t *testing.T) {
-		gitops, err := setup(t,
+		gitops, err := setup(
+			t,
 			"      setup_experience: true\n",
 			fmt.Sprintf(`- hash_sha256: %s
   self_service: true
@@ -2339,7 +2342,8 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	// self_service and categories set once at the fleet level apply to every package
 	// that omits them.
 	t.Run("fleet-level self_service and categories inherit to all packages", func(t *testing.T) {
-		gitops, err := setup(t,
+		gitops, err := setup(
+			t,
 			"      self_service: true\n      categories: [\"Productivity\"]\n",
 			fmt.Sprintf(`- hash_sha256: %s
 - hash_sha256: %s
@@ -2421,7 +2425,8 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	// multiple packages. A single package can set setup_experience in the file and
 	// inherit labels from the fleet-level entry.
 	t.Run("single package may set setup_experience and inherit fleet-level labels", func(t *testing.T) {
-		gitops, err := setup(t,
+		gitops, err := setup(
+			t,
 			"      labels_include_all: [macOS]\n",
 			fmt.Sprintf(`- hash_sha256: %s
   setup_experience: true
@@ -2449,7 +2454,8 @@ labels_include_all: [macOS]
 
 	// A hash-only package (no URL) is identified by its hash, not an empty string.
 	t.Run("conflict error identifies a hash-only package by its hash", func(t *testing.T) {
-		_, err := setup(t,
+		_, err := setup(
+			t,
 			"      self_service: true\n",
 			fmt.Sprintf(`- hash_sha256: %s
   self_service: true
@@ -2464,7 +2470,8 @@ labels_include_all: [macOS]
 	// When a package has neither url nor hash, it is identified by the package file path
 	// rather than an empty string (url/hash are required but validated later).
 	t.Run("conflict error falls back to the file path when url and hash are absent", func(t *testing.T) {
-		_, err := setup(t,
+		_, err := setup(
+			t,
 			"      self_service: true\n",
 			fmt.Sprintf(`- self_service: true
 - hash_sha256: %s
@@ -2478,7 +2485,8 @@ labels_include_all: [macOS]
 	// The fleet-level labels rule is file-scope, so it reports once regardless of how
 	// many packages the file lists.
 	t.Run("labels error is reported once for multiple packages", func(t *testing.T) {
-		_, err := setup(t,
+		_, err := setup(
+			t,
 			"      labels_include_all: [macOS]\n",
 			fmt.Sprintf(`- hash_sha256: %s
 - hash_sha256: %s
@@ -5679,7 +5687,7 @@ policies:
     fleet_maintained_app_slug: google-chrome/darwin
     install_software: true
 `,
-			wantErrs: []string{"fleet_maintained_app_slug is only supported for patch policies"},
+			wantErrs: []string{`"fleet_maintained_app_slug" is only supported for patch policies`},
 		},
 		{
 			name: "dynamic policy with install_software true and no slug is allowed (does nothing)",
@@ -5712,7 +5720,7 @@ policies:
 	}
 }
 
-func TestGitOpsPatchWhenClosed(t *testing.T) {
+func TestGitOpsPatchPolicyOptions(t *testing.T) {
 	t.Parallel()
 
 	const fmaSoftware = `
@@ -5728,6 +5736,11 @@ software:
       pre_install_query:
         path: ./preinstall.yml
 `
+	const fmaSoftwareWindows = `
+software:
+  fleet_maintained_apps:
+    - slug: google-chrome/windows
+`
 
 	tests := []struct {
 		name     string
@@ -5735,6 +5748,8 @@ software:
 		policies string
 		// wantErrs empty means the config must apply cleanly.
 		wantErrs []string
+		// unwantedErrs are messages the config must not produce alongside wantErrs.
+		unwantedErrs []string
 		// wantCA, when set, asserts the resulting ContinuousAutomationsEnabled on the single policy.
 		wantCA *bool
 	}{
@@ -5777,7 +5792,7 @@ policies:
     continuous_automations_enabled: false
     patch_when_closed: true
 `,
-			wantErrs: []string{`"continuous_automations_enabled" must be true when "patch_when_closed" is true`},
+			wantErrs: []string{`If "patch_when_closed" is true, "continuous_automations_enabled" can't be set to false.`},
 		},
 		{
 			name:     "patch_when_closed rejects a pre_install_query on the referenced FMA",
@@ -5805,6 +5820,114 @@ policies:
 `,
 			wantCA: new(false),
 		},
+		{
+			name:     "notify_before_patching with continuous_automations omitted auto-sets it true",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    notify_before_patching: true
+`,
+			wantCA: new(true),
+		},
+		{
+			name:     "notify_before_patching with explicit continuous_automations false is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    continuous_automations_enabled: false
+    notify_before_patching: true
+`,
+			wantErrs: []string{`If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`},
+		},
+		{
+			name:     "notify_before_patching rejects a pre_install_query on the referenced FMA",
+			software: fmaSoftwareWithPreInstall,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    notify_before_patching: true
+`,
+			wantErrs: []string{`"pre_install_query" can't be set on Fleet-maintained app "google-chrome/darwin" when "notify_before_patching" is true`},
+		},
+		{
+			// PolicySpec.Verify runs during parsing, so a dry run rejects this too.
+			name:     "notify_before_patching on a dynamic policy is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome installed
+    type: dynamic
+    query: SELECT 1;
+    platform: darwin
+    notify_before_patching: true
+`,
+			wantErrs: []string{`"notify_before_patching" is only supported for patch policies`},
+		},
+		{
+			// Caught during parsing so a dry run rejects it, not just a real apply.
+			name:     "notify_before_patching together with patch_when_closed is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_when_closed: true
+    notify_before_patching: true
+`,
+			wantErrs: []string{`Only one of "patch_when_closed" or "notify_before_patching" can be set to true`},
+		},
+		{
+			// The dry run skips the policy apply, so without this check only a real apply rejects it.
+			name:     "notify_before_patching on a Windows Fleet-maintained app is rejected",
+			software: fmaSoftwareWindows,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    notify_before_patching: true
+`,
+			wantErrs: []string{`"notify_before_patching" is only available for macOS Fleet-maintained apps.`},
+		},
+		{
+			// The slug names no Fleet-maintained app, so there is no platform to judge and the missing app is the only problem worth reporting.
+			name:     "notify_before_patching on a slug missing from software reports only the missing Fleet-maintained app",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    notify_before_patching: true
+`,
+			wantErrs:     []string{`isn't specified under "software.fleet_maintained_apps."`},
+			unwantedErrs: []string{"only available for macOS Fleet-maintained apps"},
+		},
+		{
+			name:     "patch_when_closed on a Windows Fleet-maintained app still applies",
+			software: fmaSoftwareWindows,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    patch_when_closed: true
+`,
+			wantCA: new(true),
+		},
 	}
 
 	for _, tc := range tests {
@@ -5816,6 +5939,9 @@ policies:
 			if len(tc.wantErrs) > 0 {
 				for _, want := range tc.wantErrs {
 					require.ErrorContains(t, err, want)
+				}
+				for _, unwanted := range tc.unwantedErrs {
+					require.NotContains(t, err.Error(), unwanted)
 				}
 				return
 			}
@@ -5922,8 +6048,6 @@ controls:
 }
 
 func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
-	t.Parallel()
-
 	//nolint:gosec // G101: test fixture, not a real credential.
 	const passwordProfile = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -5945,13 +6069,51 @@ func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
 </plist>
 `
 
+	// certProfile substitutes base64 data through an env var and a Fleet secret,
+	// neither of which is expanded on disk.
+	const certProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Cert profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleet.cert</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F7CF282E-D91B-44E9-922F-A719634F9C8F</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.security.pkcs12</string>
+			<key>PayloadContent</key>
+			<data>$CERT_B64</data>
+			<key>Password</key>
+			<string>$FLEET_SECRET_CERT_PASSWORD</string>
+		</dict>
+	</array>
+</dict>
+</plist>
+`
+
 	// writeConfig lays out a gitops dir holding one macOS and one Windows profile,
 	// then appends the given policies section to a team (or global) config.
 	writeConfig := func(t *testing.T, global bool, policies string) (*GitOps, error) {
+		// t.Setenv restores the previous value on cleanup, but it rules out t.Parallel.
+		for k, v := range map[string]string{"CERT_B64": "aGVsbG8gd29ybGQ=", "FLEET_SECRET_CERT_PASSWORD": "p4ssw0rd"} {
+			t.Setenv(k, v)
+		}
 		dir := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(dir, "lib"), 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "password.MOBILECoNFIG"), []byte(passwordProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "screenlock.XmL"), []byte("<Replace></Replace>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "cert.mobileconfig"), []byte(certProfile), 0o644))
 
 		exclude := []string{"controls", "policies"}
 		config := getTeamConfig(exclude)
@@ -5963,6 +6125,7 @@ controls:
   macos_settings:
     custom_settings:
       - path: ./lib/password.MOBILECoNFIG
+      - path: ./lib/cert.mobileconfig
   windows_settings:
     custom_settings:
       - path: ./lib/screenlock.XmL
@@ -5991,6 +6154,18 @@ policies:
 		require.Equal(t, "screenlock", got.Policies[1].ResendConfigurationProfile)
 		// Policies without the key get an empty name so the server unsets any existing profile.
 		require.Empty(t, got.Policies[2].ResendConfigurationProfile)
+	})
+
+	t.Run("resolves a profile with variables substituted into a data payload", func(t *testing.T) {
+		got, err := writeConfig(t, false, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile: Cert profile
+`)
+		require.NoError(t, err)
+		require.Len(t, got.Policies, 1)
+		require.Equal(t, "Cert profile", got.Policies[0].ResendConfigurationProfile)
 	})
 
 	t.Run("errors when the profile is not defined in controls", func(t *testing.T) {

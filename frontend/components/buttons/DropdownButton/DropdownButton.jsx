@@ -1,10 +1,10 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
-import { noop } from "lodash";
 import classnames from "classnames";
+import { noop } from "lodash";
+import PropTypes from "prop-types";
+import React, { Component } from "react";
 
-import ClickOutside from "components/ClickOutside";
 import Button from "components/buttons/Button";
+import ClickOutside from "components/ClickOutside";
 import Icon from "components/Icon";
 
 const baseClass = "dropdown-button";

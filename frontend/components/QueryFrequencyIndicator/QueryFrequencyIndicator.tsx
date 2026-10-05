@@ -1,5 +1,6 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
+
 import Icon from "components/Icon/Icon";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { secondsToDhms } from "utilities/helpers";

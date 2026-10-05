@@ -1,15 +1,18 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
-import React from "react";
+
 import { Meta, StoryObj } from "@storybook/react";
-import { AppContext } from "context/app";
-import createMockConfig from "__mocks__/configMock";
-import { IMdmConfig } from "interfaces/config";
+import React from "react";
 import {
   QueryClient,
   QueryClientProvider,
   QueryClientProviderProps,
 } from "react-query";
+
+import createMockConfig from "__mocks__/configMock";
+import { AppContext } from "context/app";
+import { IMdmConfig } from "interfaces/config";
 import configProfileAPI from "services/entities/config_profiles";
+
 import ConfigProfileStatusModal from "./ConfigProfileStatusModal";
 
 const queryClient = new QueryClient({

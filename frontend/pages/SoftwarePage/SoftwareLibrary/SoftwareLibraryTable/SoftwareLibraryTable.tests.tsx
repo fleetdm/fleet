@@ -1,9 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import React from "react";
 
-import createMockUser from "__mocks__/userMock";
 import { createMockSoftwareTitlesResponse } from "__mocks__/softwareMock";
+import createMockUser from "__mocks__/userMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import SoftwareLibraryTable from "./SoftwareLibraryTable";
 

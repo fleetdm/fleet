@@ -542,7 +542,7 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, macHost, false)
-	err = ds.MDMAppleUpsertHost(testCtx(), macHost, false)
+	err = ds.MDMAppleUpsertHost(testCtx(), macHost, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// create a non-mdm host
@@ -1370,7 +1370,7 @@ func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
 		checkExpected(t, &t1.ID, expectedTeam1)
 
 		// set MDM to off for hosts[0]
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[0].ID, false, false, "", false, "", "", false))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[0].ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone))
 		// hosts[0] is no longer counted
 		expected = hostIDsByProfileStatus{
 			fleet.MDMDeliveryVerified: []uint{hosts[3].ID},
@@ -3808,7 +3808,7 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, macHost, false)
-	err = ds.MDMAppleUpsertHost(testCtx(), macHost, false)
+	err = ds.MDMAppleUpsertHost(testCtx(), macHost, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// Initial sanity check

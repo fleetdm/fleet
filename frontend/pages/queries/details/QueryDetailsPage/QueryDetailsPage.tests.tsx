@@ -1,19 +1,19 @@
-import React from "react";
 import { screen, waitFor, act } from "@testing-library/react";
-import { focusManager } from "react-query";
 import { http, HttpResponse } from "msw";
+import React from "react";
+import { focusManager } from "react-query";
 
+import createMockConfig from "__mocks__/configMock";
+import createMockQueryReport from "__mocks__/queryReportMock";
+import createMockSchedulableQuery from "__mocks__/scheduleableQueryMock";
+import createMockUser from "__mocks__/userMock";
+import { IQueryReportResultRow } from "interfaces/query_report";
+import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
   baseUrl,
   createMockRouter,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
-import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
-import createMockSchedulableQuery from "__mocks__/scheduleableQueryMock";
-import createMockQueryReport from "__mocks__/queryReportMock";
-import { IQueryReportResultRow } from "interfaces/query_report";
 
 import QueryDetailsPage from "./QueryDetailsPage";
 

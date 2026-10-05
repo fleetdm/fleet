@@ -1,13 +1,12 @@
 import React from "react";
 
-import { IVariable } from "interfaces/variables";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import { IVariable } from "interfaces/variables";
 
 export const getTokenFromVariableName = (variableName: string): string =>
   `$FLEET_SECRET_${variableName.toUpperCase()}`;

@@ -1,14 +1,13 @@
 import React from "react";
 
-import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import Spinner from "components/Spinner";
 import { IConfig } from "interfaces/config";
 import { ApplePlatform } from "interfaces/platform";
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 
-import Spinner from "components/Spinner";
-
-import WindowsTargetForm from "../WindowsTargetForm";
-import PlatformTabs from "../PlatformTabs";
 import { OSUpdatesTargetPlatform } from "../../OSUpdates";
+import PlatformTabs from "../PlatformTabs";
+import WindowsTargetForm from "../WindowsTargetForm";
 
 const baseClass = "os-updates-target-section";
 

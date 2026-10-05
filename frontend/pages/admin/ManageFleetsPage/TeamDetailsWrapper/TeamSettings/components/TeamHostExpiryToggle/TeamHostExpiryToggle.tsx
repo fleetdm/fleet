@@ -1,8 +1,8 @@
-import Checkbox from "components/forms/fields/Checkbox";
-import Icon from "components/Icon";
 import React from "react";
 
 import Button from "components/buttons/Button";
+import Checkbox from "components/forms/fields/Checkbox";
+import Icon from "components/Icon";
 
 const baseClass = "team-host-expiry-toggle";
 

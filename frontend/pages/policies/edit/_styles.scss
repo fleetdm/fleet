@@ -5,20 +5,6 @@
     @include vertical-form-layout;
   }
 
-  &__warning {
-    padding: $pad-medium;
-    font-size: $x-small;
-    color: $core-fleet-black;
-    background-color: #fff0b9;
-    border: 1px solid #f2c94c;
-    border-radius: $border-radius;
-
-    p {
-      margin: 0;
-      line-height: 20px;
-    }
-  }
-
   &__observer-query-view {
     width: 90%;
     max-width: 1060px;
