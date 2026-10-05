@@ -697,30 +697,13 @@ As soon as an offer is accepted, IT & Enablement will reach out to the new team 
 
 - **Tracking equipment:** All company-owned devices are tracked in Fleet's ["🍽️ Dogfood" instance](https://dogfood.fleetdm.com/dashboard). When a device is purchased, it's automatically enrolled in dogfood.
 
-- **Checking the warehouse:** Fleet uses [Retriever](https://helloretriever.com) to store and ship devices from the Fleet IT warehouse. Each device Retriever handles shows a **Warehouse status** host vital in dogfood, which updates daily. To see devices that are ready to ship, open **Hosts** in [dogfood](https://dogfood.fleetdm.com/hosts/manage) and filter by the **Warehouse: Ready for deployment** label. For what each status means, see [warehouse statuses](https://fleetdm.com/handbook/company/communications#warehouse-statuses).
+- **Checking the warehouse:** To see which devices in the Fleet IT warehouse are ready to ship, and what each warehouse status means, see [check warehouse inventory](https://fleetdm.com/handbook/it#check-warehouse-inventory).
 
 - **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of IT. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
 
 - **Equipment retention and replacement:** Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
 
 > If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
-
-#### Warehouse statuses
-
-A device's **Warehouse status** in dogfood comes from Retriever. Only devices that Retriever has handled have a status.
-
-| Status | What it means |
-|:--|:--|
-| Ready For Deployment | In the warehouse and available. Request it with a [warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md). |
-| Device Received, Provisioning | Arrived at the warehouse and is being checked or set up. Not available yet. |
-| In Repair, Requires Service, Input Required | In the warehouse but needs repair, service, or a decision from Fleet IT before it can ship. |
-| Administrative Hold, Legal Hold | Held in the warehouse and can't ship. |
-| To Be Retired | Marked for retirement and won't ship. |
-| Deployment Requested, Deployment In Transit | Requested for a Fleetie or on its way to one. |
-| Deployed | With a Fleetie. |
-| Label Generated, Retrieval In Transit, Return Initiated | A return is underway or the device is on its way back to the warehouse. |
-| Not Returned, Lost In Transit | The device didn't make it back to the warehouse. |
-| Disposal Initiated, Delivered For Disposal, Disposed, Device Resold, Returned To Vendor, Transferred Ownership, Returned | No longer in Fleet's inventory, or on its way out. |
 
 
 #### Requesting IT support
