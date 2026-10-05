@@ -1945,6 +1945,7 @@ const ManageHostsPage = ({
         </div>
         <div className={`${baseClass}__filter-dropdowns`}>
           <DropdownWrapper
+            ariaLabel="Filter by status"
             name="status-filter"
             value={status || mdmEnrollmentStatus || ""}
             className={`${baseClass}__status-filter`}
