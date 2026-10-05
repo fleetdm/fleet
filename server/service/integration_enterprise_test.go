@@ -6214,7 +6214,50 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 		require.NotEqual(t, otherTeamLabel.ID, lbl.ID)
 	}
 
+	var meResp getUserResponse
+	s.DoJSON("GET", "/api/latest/fleet/me", nil, http.StatusOK, &meResp)
+	require.Len(t, meResp.AvailableTeams, 1)
+	require.Equal(t, team.ID, meResp.AvailableTeams[0].ID)
+
+	globalAdminEmail := t.Name() + "_global_admin@example.com"
+	globalAdmin := &fleet.User{
+		Name:       globalAdminEmail,
+		Email:      globalAdminEmail,
+		GlobalRole: new(fleet.RoleAdmin),
+	}
+	require.NoError(t, globalAdmin.SetPassword(test.GoodPassword, 10, 10))
+	globalAdmin, err = s.ds.NewUser(ctx, globalAdmin)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, s.ds.DeleteUser(ctx, globalAdmin.ID))
+	}()
+
+	// First step of demoting a global admin: getting them onto a team the caller administers.
+	var teamUsersResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", team.ID), map[string]any{
+		"users": []map[string]any{{"id": globalAdmin.ID, "role": fleet.RoleObserver}},
+	}, http.StatusForbidden, &teamUsersResp)
+	globalAdmin, err = s.ds.UserByID(ctx, globalAdmin.ID)
+	require.NoError(t, err)
+	require.Empty(t, globalAdmin.Teams)
+
+	// Even if a global admin ends up with a membership row on the caller's
+	// team, a team admin must not be able to demote them through it.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO user_teams (user_id, team_id, role) VALUES (?, ?, ?)`,
+			globalAdmin.ID, team.ID, fleet.RoleObserver)
+		return err
+	})
 	var modResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", globalAdmin.ID), map[string]any{
+		"teams": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
+	}, http.StatusForbidden, &modResp)
+	globalAdmin, err = s.ds.UserByID(ctx, globalAdmin.ID)
+	require.NoError(t, err)
+	require.NotNil(t, globalAdmin.GlobalRole)
+	require.Equal(t, fleet.RoleAdmin, *globalAdmin.GlobalRole)
+
+	modResp = modifyUserResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", planted.ID), map[string]any{
 		"global_role": fleet.RoleAdmin,
 	}, http.StatusForbidden, &modResp)
