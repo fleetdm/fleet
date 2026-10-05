@@ -1219,6 +1219,19 @@ type HostSoftwareInstall struct {
 	// Empty if the install was for an uploaded software installer.
 	CommandUUID string    `json:"command_uuid,omitempty"`
 	InstalledAt time.Time `json:"installed_at"`
+
+	// ActorFullName is the display name of the user who triggered the install
+	// (admin or end user). Nil when Fleet initiated the install (policy,
+	// auto-update, setup experience). Currently populated only for VPP app
+	// installs, where the install details modal needs to name the actor for
+	// failure messaging.
+	ActorFullName *string `json:"actor_full_name,omitempty"`
+	// FleetInitiated is true when no user triggered the install (e.g. policy
+	// automation). Mirrors the activity-feed flag; populated for VPP installs.
+	FleetInitiated *bool `json:"fleet_initiated,omitempty"`
+	// SelfService is true when the end user triggered the install via Fleet
+	// Desktop / My Device. Populated for VPP installs.
+	SelfService *bool `json:"self_service,omitempty"`
 }
 
 // HostSoftwareUninstall represents uninstallation of software from a host with a

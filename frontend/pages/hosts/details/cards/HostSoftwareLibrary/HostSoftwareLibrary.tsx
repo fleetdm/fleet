@@ -705,6 +705,15 @@ const HostSoftwareLibrary = ({
             ),
             commandUuid: selectedVPPInstallDetails.commandUuid,
             platform,
+            actorFullName:
+              selectedVPPInstallDetails.app_store_app?.last_install
+                ?.actor_full_name,
+            fleetInitiated:
+              selectedVPPInstallDetails.app_store_app?.last_install
+                ?.fleet_initiated,
+            selfService:
+              selectedVPPInstallDetails.app_store_app?.last_install
+                ?.self_service,
           }}
           hostSoftware={selectedVPPInstallDetails}
           onCancel={() => setSelectedVPPInstallDetails(null)}

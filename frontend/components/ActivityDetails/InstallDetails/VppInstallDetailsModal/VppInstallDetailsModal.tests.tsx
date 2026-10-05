@@ -751,6 +751,82 @@ describe("VPP Install Details Modal", () => {
     ).toBeInTheDocument();
   });
 
+  // Host > Software > Library opens this modal without hitting the activity
+  // feed, so the actor fields come from AppStoreApp.last_install on the host
+  // software response. Admin-initiated 1407 failures should name the admin, not
+  // say "Fleet failed to install".
+  it("names the admin actor on a 1407 failure when opened with actorFullName (Host > Software > Library path)", async () => {
+    const errorResult = `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+  <key>ErrorChain</key>
+  <array>
+    <dict>
+      <key>ErrorCode</key>
+      <integer>1407</integer>
+    </dict>
+  </array>
+  <key>Status</key>
+  <string>Error</string>
+</dict>
+</plist>`;
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), ({ request }) => {
+        const url = new URL(request.url);
+        const commandUuid = url.searchParams.get("command_uuid");
+        return HttpResponse.json({
+          results: [
+            {
+              host_uuid: "11111111-2222-3333-4444-555555555555",
+              command_uuid: commandUuid,
+              status: "Error",
+              updated_at: "2025-08-10T12:05:00Z",
+              request_type: "InstallApplication",
+              hostname: "iPad-kiosk-1334",
+              payload: btoa("<Command />"),
+              result: btoa(errorResult),
+            },
+          ],
+        });
+      })
+    );
+
+    renderWithBackend(
+      <VppInstallDetailsModal
+        details={{
+          fleetInstallStatus: "failed_install",
+          hostDisplayName: "iPad-kiosk-1334",
+          appName: "Zoom",
+          commandUuid: "error-1407-admin-uuid",
+          platform: "ipados",
+          actorFullName: "Carlo DiCelico",
+          fleetInitiated: false,
+          selfService: false,
+        }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          (_, element) =>
+            element?.tagName === "SPAN" &&
+            element.textContent ===
+              "Carlo DiCelico failed to install Zoom on iPad-kiosk-1334."
+        )
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText(
+        (_, element) =>
+          element?.tagName === "SPAN" &&
+          element.textContent ===
+            "Fleet failed to install Zoom on iPad-kiosk-1334."
+      )
+    ).not.toBeInTheDocument();
+  });
+
   it("does not retry the command results request when the API returns 404", async () => {
     let requestCount = 0;
     mockServer.use(

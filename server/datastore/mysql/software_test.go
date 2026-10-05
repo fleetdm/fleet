@@ -6644,6 +6644,57 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.NotNil(t, sw[0].AppStoreApp.LastInstall)
 	assert.Equal(t, vpp1CmdUUID, sw[0].AppStoreApp.LastInstall.CommandUUID)
 	assert.NotNil(t, sw[0].AppStoreApp.LastInstall.InstalledAt)
+	// Actor attribution (admin-initiated here): name present, not fleet-initiated, not self-service.
+	// Powers the install details modal's actor-named failure copy on Host > Software > Library.
+	require.NotNil(t, sw[0].AppStoreApp.LastInstall.ActorFullName)
+	assert.Equal(t, user.Name, *sw[0].AppStoreApp.LastInstall.ActorFullName)
+	require.NotNil(t, sw[0].AppStoreApp.LastInstall.FleetInitiated)
+	assert.False(t, *sw[0].AppStoreApp.LastInstall.FleetInitiated)
+	require.NotNil(t, sw[0].AppStoreApp.LastInstall.SelfService)
+	assert.False(t, *sw[0].AppStoreApp.LastInstall.SelfService)
+
+	// Flip the install's attribution to self-service (no user, self_service=1) and confirm
+	// LastInstall surfaces that. The modal renders the actor as "End user" from this flag.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_vpp_software_installs SET self_service = 1, user_id = NULL WHERE command_uuid = ?`,
+			vpp1CmdUUID)
+		return err
+	})
+	sw, _, err = ds.ListHostSoftware(ctx, host, hostLibraryOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.NotNil(t, sw[0].AppStoreApp.LastInstall)
+	assert.Nil(t, sw[0].AppStoreApp.LastInstall.ActorFullName)
+	require.NotNil(t, sw[0].AppStoreApp.LastInstall.SelfService)
+	assert.True(t, *sw[0].AppStoreApp.LastInstall.SelfService)
+	require.NotNil(t, sw[0].AppStoreApp.LastInstall.FleetInitiated)
+	assert.False(t, *sw[0].AppStoreApp.LastInstall.FleetInitiated)
+
+	// Flip to fleet-initiated (no user, no self-service — e.g. policy automation).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_vpp_software_installs SET self_service = 0, user_id = NULL WHERE command_uuid = ?`,
+			vpp1CmdUUID)
+		return err
+	})
+	sw, _, err = ds.ListHostSoftware(ctx, host, hostLibraryOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.NotNil(t, sw[0].AppStoreApp.LastInstall)
+	assert.Nil(t, sw[0].AppStoreApp.LastInstall.ActorFullName)
+	require.NotNil(t, sw[0].AppStoreApp.LastInstall.FleetInitiated)
+	assert.True(t, *sw[0].AppStoreApp.LastInstall.FleetInitiated)
+	require.NotNil(t, sw[0].AppStoreApp.LastInstall.SelfService)
+	assert.False(t, *sw[0].AppStoreApp.LastInstall.SelfService)
+
+	// Restore the original admin-initiated attribution for the rest of the test.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_vpp_software_installs SET self_service = 0, user_id = ? WHERE command_uuid = ?`,
+			user.ID, vpp1CmdUUID)
+		return err
+	})
 
 	opts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: uint(numberOfApps - 1), IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"}}
 	sw, meta, err := ds.ListHostSoftware(ctx, host, opts)

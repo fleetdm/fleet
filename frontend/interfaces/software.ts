@@ -627,6 +627,12 @@ export interface ISoftwareLastInstall {
 export interface IAppLastInstall {
   command_uuid: string;
   installed_at: string;
+  /** Attribution for the install, surfaced in the install details modal's
+   * actor-named failure copy (parity with the activity feed). Populated for
+   * VPP installs; absent for software_package installs. */
+  actor_full_name?: string;
+  fleet_initiated?: boolean;
+  self_service?: boolean;
 }
 
 interface SignatureInformation {

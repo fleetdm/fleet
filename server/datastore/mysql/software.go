@@ -3863,6 +3863,13 @@ type hostSoftware struct {
 	LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
 	LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
 
+	// VPP-only actor attribution for last_install, populated by hostVPPInstalls.
+	// Surfaced on AppStoreApp.LastInstall so the install details modal can name
+	// the actor on the Host > Software > Library path (not just the activity feed).
+	LastInstallActorFullName *string `db:"last_install_actor_full_name"`
+	LastInstallFleetInitiated *bool  `db:"last_install_fleet_initiated"`
+	LastInstallSelfService    *bool  `db:"last_install_self_service"`
+
 	ExitCode                  *int       `db:"exit_code"`
 	LastOpenedAt              *time.Time `db:"last_opened_at"`
 	BundleIdentifier          *string    `db:"bundle_identifier"`
@@ -4783,7 +4790,8 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 	}
 	vppInstallsStmt := fmt.Sprintf(`
 	(   -- upcoming_vpp_install
-			SELECT id, last_install_install_uuid, last_install_installed_at, vpp_app_adam_id, vpp_app_self_service, status FROM (
+			SELECT id, last_install_install_uuid, last_install_installed_at, vpp_app_adam_id, vpp_app_self_service, status,
+				last_install_actor_full_name, last_install_fleet_initiated, last_install_self_service FROM (
 				SELECT
 						vpp_apps.title_id AS id,
 						ua.execution_id AS last_install_install_uuid,
@@ -4791,6 +4799,12 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 						vaua.adam_id AS vpp_app_adam_id,
 						vat.self_service AS vpp_app_self_service,
 						'pending_install' AS status,
+						u.name AS last_install_actor_full_name,
+						ua.fleet_initiated AS last_install_fleet_initiated,
+						-- self_service for an upcoming install lives in the payload JSON; pending
+						-- installs don't drive the actor-named failure copy, so leaving this NULL
+						-- keeps the UNION shape without needing JSON extraction here.
+						NULL AS last_install_self_service,
 						ROW_NUMBER() OVER (
 							PARTITION BY vaua.adam_id, vaua.platform, ua.activity_type
 							ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
@@ -4803,6 +4817,8 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 					vpp_apps_teams vat ON vaua.adam_id = vat.adam_id AND vaua.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
 				INNER JOIN
 					vpp_apps ON vaua.adam_id = vpp_apps.adam_id AND vaua.platform = vpp_apps.platform
+				LEFT JOIN
+					users u ON u.id = ua.user_id
 				WHERE
 					-- selfServiceFilter
 					%s
@@ -4819,7 +4835,11 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				hvsi.adam_id AS vpp_app_adam_id,
 				vat.self_service AS vpp_app_self_service,
 				-- vppAppHostStatusNamedQuery(hvsi, ncr, status)
-				%s
+				%s,
+				u.name AS last_install_actor_full_name,
+				-- fleet_initiated when no acting user and not self-service (policy, auto-update, setup experience)
+				(hvsi.user_id IS NULL AND hvsi.self_service = 0) AS last_install_fleet_initiated,
+				hvsi.self_service AS last_install_self_service
 			FROM
 				(
 					SELECT ranked_hvsi.*, ROW_NUMBER() OVER (
@@ -4838,6 +4858,8 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				vpp_apps_teams vat ON hvsi.adam_id = vat.adam_id AND hvsi.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
 			INNER JOIN
 				vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
+			LEFT JOIN
+				users u ON u.id = hvsi.user_id
 			WHERE
 				-- selfServiceFilter
 				%s
@@ -5153,7 +5175,10 @@ func promoteSoftwareTitleVPPApp(softwareTitleRecord *hostSoftware) {
 	// promote the last install info to the proper destination fields
 	if softwareTitleRecord.LastInstallInstallUUID != nil && *softwareTitleRecord.LastInstallInstallUUID != "" {
 		softwareTitleRecord.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
-			CommandUUID: *softwareTitleRecord.LastInstallInstallUUID,
+			CommandUUID:    *softwareTitleRecord.LastInstallInstallUUID,
+			ActorFullName:  softwareTitleRecord.LastInstallActorFullName,
+			FleetInitiated: softwareTitleRecord.LastInstallFleetInitiated,
+			SelfService:    softwareTitleRecord.LastInstallSelfService,
 		}
 		if softwareTitleRecord.LastInstallInstalledAt != nil {
 			softwareTitleRecord.AppStoreApp.LastInstall.InstalledAt = *softwareTitleRecord.LastInstallInstalledAt
@@ -5449,6 +5474,9 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 		softwareTitleRecord.SkippedInstall = softwareTitle.SkippedInstall
 		softwareTitleRecord.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
 		softwareTitleRecord.LastInstallInstalledAt = softwareTitle.LastInstallInstalledAt
+		softwareTitleRecord.LastInstallActorFullName = softwareTitle.LastInstallActorFullName
+		softwareTitleRecord.LastInstallFleetInitiated = softwareTitle.LastInstallFleetInitiated
+		softwareTitleRecord.LastInstallSelfService = softwareTitle.LastInstallSelfService
 		softwareTitleRecord.LastUninstallScriptExecutionID = softwareTitle.LastUninstallScriptExecutionID
 		softwareTitleRecord.LastUninstallUninstalledAt = softwareTitle.LastUninstallUninstalledAt
 		if softwareTitle.PackageSelfService != nil {
@@ -5504,7 +5532,10 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 	if softwareTitleRecord.AppStoreApp != nil && softwareTitleRecord.AppStoreApp.LastInstall == nil {
 		if softwareTitle != nil && softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
 			softwareTitleRecord.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
-				CommandUUID: *softwareTitle.LastInstallInstallUUID,
+				CommandUUID:    *softwareTitle.LastInstallInstallUUID,
+				ActorFullName:  softwareTitle.LastInstallActorFullName,
+				FleetInitiated: softwareTitle.LastInstallFleetInitiated,
+				SelfService:    softwareTitle.LastInstallSelfService,
 			}
 			if softwareTitle.LastInstallInstalledAt != nil {
 				softwareTitleRecord.AppStoreApp.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
