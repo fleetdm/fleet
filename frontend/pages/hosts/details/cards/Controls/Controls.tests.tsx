@@ -535,6 +535,7 @@ describe("Controls card", () => {
       const { user } = renderControls({
         ...selfServiceProps,
         isDeviceUser: true,
+        isPremiumTier: true,
         controls: [{ ...installed, hidden: true }],
       });
       await user.click(
@@ -547,6 +548,7 @@ describe("Controls card", () => {
       const { user } = renderControls({
         ...selfServiceProps,
         isDeviceUser: true,
+        isPremiumTier: true,
         controls: [installed],
       });
       await user.hover(screen.getByText("Show hidden profiles"));
@@ -575,6 +577,7 @@ describe("Controls card", () => {
       const { user } = renderControls({
         ...selfServiceProps,
         isDeviceUser: true,
+        isPremiumTier: true,
         controls: [{ ...installed, hidden: true }],
       });
       expect(screen.queryAllByText("Opted in")).toHaveLength(0);
@@ -598,5 +601,16 @@ describe("Controls card", () => {
         "You don't have permission to resend this profile."
       )
     ).toBeInTheDocument();
+  });
+  it("hides the hidden profile toggle on fleet free", async () => {
+    renderControls({
+      isDeviceUser: true,
+      isPremiumTier: false,
+      isMacOSHost: true,
+      controls: [control({ profile_uuid: "a", status: "verified" })],
+    });
+    expect(
+      screen.queryByRole("switch", { name: "Show hidden profiles" })
+    ).not.toBeInTheDocument();
   });
 });
