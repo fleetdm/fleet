@@ -99,7 +99,6 @@ describe("SoftwareFiltersModal component", () => {
       filters: { ...filtersDefault, minCvssScore: 2 },
     });
     await user.click(screen.getByRole("switch"));
-    await openAdvanced(user);
     expect(screen.getByRole("combobox", { name: "Severity" })).toBeEnabled();
     expect(screen.getByLabelText(/Min score/i)).toBeEnabled();
     expect(screen.getByLabelText(/Max score/i)).toBeEnabled();
@@ -275,7 +274,6 @@ describe("SoftwareFiltersModal component", () => {
       },
     });
     await user.click(screen.getByRole("switch"));
-    await openAdvanced(user);
     await selectSeverity(user, "Any severity");
 
     await user.click(screen.getByRole("button", { name: /Apply/i }));
@@ -341,6 +339,33 @@ describe("SoftwareFiltersModal component", () => {
     expect(
       screen.getByRole("combobox", { name: "Severity" })
     ).toBeInTheDocument();
+  });
+
+  it("opens Advanced when turning on Vulnerable software activates a severity", async () => {
+    // Bounds without vulnerable=true (e.g. a hand-edited URL) start hidden, but
+    // the switch makes them part of the submission.
+    const { user } = setUpModal({
+      filters: { ...filtersDefault, minCvssScore: 7, maxCvssScore: 8.9 },
+    });
+    expect(
+      screen.queryByRole("combobox", { name: "Severity" })
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("switch"));
+
+    expect(
+      screen.getByRole("combobox", { name: "Severity" })
+    ).toBeInTheDocument();
+  });
+
+  it("keeps Advanced collapsed when turning on Vulnerable software with Any severity", async () => {
+    const { user } = setUpModal();
+
+    await user.click(screen.getByRole("switch"));
+
+    expect(
+      screen.queryByRole("combobox", { name: "Severity" })
+    ).not.toBeInTheDocument();
   });
 
   describe("Types picker", () => {

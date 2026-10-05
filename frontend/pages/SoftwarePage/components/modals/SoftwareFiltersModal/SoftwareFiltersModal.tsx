@@ -103,6 +103,9 @@ const SoftwareFiltersModal = ({
     const next = !vulnSoftwareFilterEnabled;
     if (!next) {
       setFormErrors({});
+    } else if (severity !== ANY_SEVERITY_VALUE) {
+      // The bounds now apply, so don't submit them from a collapsed section.
+      setShowAdvanced(true);
     }
     setVulnSoftwareFilterEnabled(next);
   };
