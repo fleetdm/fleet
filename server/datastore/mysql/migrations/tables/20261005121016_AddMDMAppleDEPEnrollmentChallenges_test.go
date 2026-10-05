@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261002140527(t *testing.T) {
+func TestUp_20261005121016(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	execNoErr(t, db, `INSERT INTO mdm_apple_enrollment_profiles (token, type, dep_profile) VALUES ('static-token', 'automatic', '{}')`)

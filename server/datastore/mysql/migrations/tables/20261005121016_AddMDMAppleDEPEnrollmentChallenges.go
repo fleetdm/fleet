@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261002140527, Down_20261002140527)
+	MigrationClient.AddMigration(Up_20261005121016, Down_20261005121016)
 }
 
-func Up_20261002140527(tx *sql.Tx) error {
+func Up_20261005121016(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS mdm_apple_dep_enrollment_challenges (
 	id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -42,6 +42,6 @@ ALTER TABLE mdm_apple_enrollment_profiles
 	return nil
 }
 
-func Down_20261002140527(tx *sql.Tx) error {
+func Down_20261005121016(tx *sql.Tx) error {
 	return nil
 }
