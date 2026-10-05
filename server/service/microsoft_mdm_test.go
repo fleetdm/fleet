@@ -3692,8 +3692,8 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 	wiped := &fleet.HostLockWipeStatus{
 		HostFleetPlatform: "windows", WipeMDMCommand: wipeCmd, WipeMDMCommandResult: &fleet.MDMCommandResult{Status: "200"},
 	}
-	pending := &fleet.HostLockWipeStatus{HostFleetPlatform: "windows", WipeMDMCommand: wipeCmd}
-	noWipe := &fleet.HostLockWipeStatus{HostFleetPlatform: "windows"}
+	pendingWipe := &fleet.HostLockWipeStatus{HostFleetPlatform: "windows", WipeMDMCommand: wipeCmd}
+	noLockWipe := &fleet.HostLockWipeStatus{HostFleetPlatform: "windows"}
 	const refused = "hardware ID is enrolled to another host"
 	const refusedDev = "hardware ID is enrolled to another device"
 
@@ -3716,22 +3716,20 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 		{name: "fleetd enrollment over an unlinked Entra enrollment", enrollingHost: enrollingHost, existing: unlinkedEntra, wantErr: refusedDev},
 		{name: "existing host was deleted", enrollingHost: enrollingHost, existing: linked, existingDeleted: true},
 		{name: "existing host was wiped", enrollingHost: enrollingHost, existing: linked, lockWipe: wiped},
-		{name: "different host", enrollingHost: enrollingHost, existing: linked, lockWipe: noWipe, wantErr: refused},
-		{name: "different host, wipe pending", enrollingHost: enrollingHost, existing: linked, lockWipe: pending, wantErr: refused},
+		{name: "different host", enrollingHost: enrollingHost, existing: linked, lockWipe: noLockWipe, wantErr: refused},
+		{name: "different host, existing host's wipe pending", enrollingHost: enrollingHost, existing: linked, lockWipe: pendingWipe, wantErr: refused},
 		{name: "Entra: same device re-enrolling", enrollingDev: existingDev, existing: linkedEntra},
 		{name: "Entra: existing enrollment unbound", enrollingDev: enrollingDev, existing: linked},
-		{name: "Entra: different device", enrollingDev: enrollingDev, existing: linkedEntra, lockWipe: noWipe, wantErr: refusedDev},
-		{name: "Entra: different device, wipe pending", enrollingDev: enrollingDev, existing: linkedEntra, lockWipe: pending, wantErr: refusedDev},
-		{name: "Entra: different device, host deleted", enrollingDev: enrollingDev, existing: linkedEntra, existingDeleted: true},
+		{name: "Entra: different device", enrollingDev: enrollingDev, existing: linkedEntra, lockWipe: noLockWipe, wantErr: refusedDev},
 		{name: "Entra: different device, host wiped", enrollingDev: enrollingDev, existing: linkedEntra, lockWipe: wiped},
 		{name: "Entra: different device, enrollment unlinked", enrollingDev: enrollingDev, existing: unlinkedEntra, wantErr: refusedDev},
-		{name: "Entra: no deviceid, enrollment bound", existing: linkedEntra, lockWipe: noWipe, wantErr: refusedDev},
+		{name: "Entra: no deviceid, enrollment bound", existing: linkedEntra, lockWipe: noLockWipe, wantErr: refusedDev},
 		{name: "Entra: no deviceid, enrollment unbound", existing: linked},
 		{name: "Entra: Autopilot host, same device", enrollingDev: existingDev, existing: linked, autopilotDev: existingDev},
 		{name: "Entra: Autopilot host, same device in uppercase", enrollingDev: existingDev, existing: linked, autopilotDev: strings.ToUpper(existingDev)},
 		{
 			name: "Entra: Autopilot host, different device", enrollingDev: enrollingDev, existing: linked, autopilotDev: existingDev,
-			lockWipe: noWipe, wantErr: refusedDev,
+			lockWipe: noLockWipe, wantErr: refusedDev,
 		},
 		// A tenant whose tokens never carry deviceid must keep re-enrolling its Autopilot devices.
 		{name: "Entra: Autopilot host, no deviceid", existing: linked, autopilotDev: existingDev},

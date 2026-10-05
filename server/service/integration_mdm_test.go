@@ -9506,7 +9506,6 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithAzureToken() {
 		"unique_name": "foo_bar",
 		"scp":         "mdm_delegation",
 		"aud":         s.server.URL + microsoft_mdm.MDE2PolicyPath,
-		"deviceid":    uuid.NewString(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -9691,7 +9690,6 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 		"unique_name": "foo_bar",
 		"scp":         "mdm_delegation",
 		"aud":         s.server.URL,
-		"deviceid":    uuid.NewString(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -23073,40 +23071,34 @@ func (s *integrationMDMTestSuite) TestWindowsMDMEntraEnrollmentBoundToEntraDevic
 		return d
 	}
 
-	victim := newEntraDevice("", uuid.NewString())
-	require.NoError(t, victim.Enroll())
-	enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, victim.HardwareID)
-	require.NoError(t, err)
-	require.Equal(t, victim.EntraDeviceID, enrollment.EntraDeviceID)
-	host := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
-	_, err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, victim.DeviceID)
-	require.NoError(t, err)
-
-	requireVictimEnrollment := func(t *testing.T, mdmDeviceID string) {
+	requireEnrollment := func(t *testing.T, hardwareID, mdmDeviceID, entraDeviceID string) {
 		t.Helper()
-		enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, victim.HardwareID)
+		enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, hardwareID)
 		require.NoError(t, err)
 		require.Equal(t, mdmDeviceID, enrollment.MDMDeviceID)
-		require.Equal(t, victim.EntraDeviceID, enrollment.EntraDeviceID)
+		require.Equal(t, entraDeviceID, enrollment.EntraDeviceID)
 	}
 
+	victim := newEntraDevice("", uuid.NewString())
+	require.NoError(t, victim.Enroll())
+	requireEnrollment(t, victim.HardwareID, victim.DeviceID, victim.EntraDeviceID)
+	host := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
+	_, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, victim.DeviceID)
+	require.NoError(t, err)
+
 	t.Run("another Entra device presenting the hardware ID is refused", func(t *testing.T) {
-		attacker := newEntraDevice(victim.HardwareID, uuid.NewString())
-		require.ErrorContains(t, attacker.Enroll(), "SOAP fault")
-		requireVictimEnrollment(t, victim.DeviceID)
+		require.ErrorContains(t, newEntraDevice(victim.HardwareID, uuid.NewString()).Enroll(), "SOAP fault")
+		requireEnrollment(t, victim.HardwareID, victim.DeviceID, victim.EntraDeviceID)
 	})
 
 	t.Run("a token without a deviceid claim cannot replace a bound enrollment", func(t *testing.T) {
-		noDeviceID := newEntraDevice(victim.HardwareID, "")
-		require.ErrorContains(t, noDeviceID.Enroll(), "SOAP fault")
-		requireVictimEnrollment(t, victim.DeviceID)
+		require.ErrorContains(t, newEntraDevice(victim.HardwareID, "").Enroll(), "SOAP fault")
+		requireEnrollment(t, victim.HardwareID, victim.DeviceID, victim.EntraDeviceID)
 
 		// It still enrolls a hardware ID that no enrollment holds, unbound.
 		unbound := newEntraDevice("", "")
 		require.NoError(t, unbound.Enroll())
-		enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, unbound.HardwareID)
-		require.NoError(t, err)
-		require.Empty(t, enrollment.EntraDeviceID)
+		requireEnrollment(t, unbound.HardwareID, unbound.DeviceID, "")
 	})
 
 	t.Run("a fleetd enrollment of an Autopilot host is bound to its Autopilot Entra device", func(t *testing.T) {
@@ -23118,24 +23110,18 @@ func (s *integrationMDMTestSuite) TestWindowsMDMEntraEnrollmentBoundToEntraDevic
 			return err
 		})
 
-		attacker := newEntraDevice(fleetdDevice.HardwareID, uuid.NewString())
-		require.ErrorContains(t, attacker.Enroll(), "SOAP fault")
-		enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, fleetdDevice.HardwareID)
-		require.NoError(t, err)
-		require.Equal(t, fleetdDevice.DeviceID, enrollment.MDMDeviceID)
+		require.ErrorContains(t, newEntraDevice(fleetdDevice.HardwareID, uuid.NewString()).Enroll(), "SOAP fault")
+		requireEnrollment(t, fleetdDevice.HardwareID, fleetdDevice.DeviceID, "")
 
 		sameDevice := newEntraDevice(fleetdDevice.HardwareID, autopilotEntraDeviceID)
 		require.NoError(t, sameDevice.Enroll())
-		enrollment, err = s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, fleetdDevice.HardwareID)
-		require.NoError(t, err)
-		require.Equal(t, sameDevice.DeviceID, enrollment.MDMDeviceID)
-		require.Equal(t, autopilotEntraDeviceID, enrollment.EntraDeviceID)
+		requireEnrollment(t, fleetdDevice.HardwareID, sameDevice.DeviceID, autopilotEntraDeviceID)
 	})
 
 	t.Run("the same Entra device re-enrolls", func(t *testing.T) {
 		reenrolled := newEntraDevice(victim.HardwareID, victim.EntraDeviceID)
 		require.NoError(t, reenrolled.Enroll())
-		requireVictimEnrollment(t, reenrolled.DeviceID)
+		requireEnrollment(t, victim.HardwareID, reenrolled.DeviceID, victim.EntraDeviceID)
 
 		t.Run("a fleetd re-enrollment of its host keeps the Entra binding", func(t *testing.T) {
 			_, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, reenrolled.DeviceID)
@@ -23146,11 +23132,10 @@ func (s *integrationMDMTestSuite) TestWindowsMDMEntraEnrollmentBoundToEntraDevic
 			fleetdDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey)
 			fleetdDevice.HardwareID = victim.HardwareID
 			require.NoError(t, fleetdDevice.Enroll())
-			requireVictimEnrollment(t, fleetdDevice.DeviceID)
+			requireEnrollment(t, victim.HardwareID, fleetdDevice.DeviceID, victim.EntraDeviceID)
 
-			attacker := newEntraDevice(victim.HardwareID, uuid.NewString())
-			require.ErrorContains(t, attacker.Enroll(), "SOAP fault")
-			requireVictimEnrollment(t, fleetdDevice.DeviceID)
+			require.ErrorContains(t, newEntraDevice(victim.HardwareID, uuid.NewString()).Enroll(), "SOAP fault")
+			requireEnrollment(t, victim.HardwareID, fleetdDevice.DeviceID, victim.EntraDeviceID)
 		})
 	})
 }
