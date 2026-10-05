@@ -2535,7 +2535,8 @@ SELECT
 	hvsi.host_id,
 	hvsi.adam_id,
 	hvsi.command_uuid,
-	hvsi.associated_event_id
+	hvsi.associated_event_id,
+	hvsi.created_at
 FROM
 	host_vpp_software_installs hvsi
 	INNER JOIN hosts h ON hvsi.host_id = h.id

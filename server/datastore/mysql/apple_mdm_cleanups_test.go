@@ -437,6 +437,9 @@ func testNanoCleanupStandardRetentionTier(t *testing.T, ds *Datastore) {
 	admin := f.completed(fleet.SetAutoAdminPasswordCmdName, uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 31*day)
 	f.exec(`INSERT INTO host_managed_local_account_passwords (host_uuid, encrypted_password, command_uuid, status, pending_command_uuid)
 		VALUES (?, 'enc', 'other', 'verified', ?)`, f.deviceID, admin)
+	// a FileVault key rotation is pinned while its key row references it
+	rotation := f.completed(fleet.RotateFileVaultKeyCmdName, uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 31*day)
+	f.exec(`INSERT INTO host_disk_encryption_keys (host_id, base64_encrypted, rotation_command_uuid) VALUES (?, 'enc', ?)`, f.hostID, rotation)
 
 	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
@@ -444,7 +447,7 @@ func testNanoCleanupStandardRetentionTier(t *testing.T, ds *Datastore) {
 	for _, c := range []string{manual, manualErr, manualFormatErr} {
 		require.Zero(t, f.queueRows(c), c)
 	}
-	for _, c := range []string{manualYoung, never, profile, recovery, admin} {
+	for _, c := range []string{manualYoung, never, profile, recovery, admin, rotation} {
 		require.Equal(t, 1, f.queueRows(c), c)
 	}
 
@@ -453,10 +456,11 @@ func testNanoCleanupStandardRetentionTier(t *testing.T, ds *Datastore) {
 	f.exec(`UPDATE host_mdm_apple_profiles SET command_uuid = ? WHERE command_uuid = ?`, uuid.NewString(), profile)
 	f.exec(`UPDATE host_recovery_key_passwords SET pending_set_command_uuid = NULL, set_command_uuid = ? WHERE pending_set_command_uuid = ?`, recovery, recovery)
 	f.exec(`UPDATE host_managed_local_account_passwords SET pending_command_uuid = NULL WHERE pending_command_uuid = ?`, admin)
+	f.exec(`UPDATE host_disk_encryption_keys SET rotation_command_uuid = NULL WHERE rotation_command_uuid = ?`, rotation)
 	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
-	require.Equal(t, fleet.MDMAppleCommandCleanupStats{StandardPairsDeleted: 2, CommandsDeleted: 2}, stats)
-	for _, c := range []string{profile, admin} {
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{StandardPairsDeleted: 3, CommandsDeleted: 3}, stats)
+	for _, c := range []string{profile, admin, rotation} {
 		require.Zero(t, f.queueRows(c), c)
 	}
 	require.Equal(t, 1, f.queueRows(recovery), "current recovery lock command is pinned")

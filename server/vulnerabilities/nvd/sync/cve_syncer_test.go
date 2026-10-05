@@ -17,8 +17,10 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pandatix/nvdapi/v2"
@@ -352,4 +354,61 @@ func copyFile(src, dst string) error {
 
 	// Ensure that the copied contents are flushed to stable storage
 	return destFile.Sync()
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// stalledBody returns prefix, then blocks until ctx is done, like a response
+// whose body stops arriving mid-stream.
+type stalledBody struct {
+	ctx    context.Context
+	prefix []byte
+}
+
+func (b *stalledBody) Read(p []byte) (int, error) {
+	if len(b.prefix) > 0 {
+		n := copy(p, b.prefix)
+		b.prefix = b.prefix[n:]
+		return n, nil
+	}
+	<-b.ctx.Done()
+	return 0, b.ctx.Err()
+}
+
+func (b *stalledBody) Close() error { return nil }
+
+func TestSyncTimesOutStalledNVDRequest(t *testing.T) {
+	// Runs on synctest's fake clock, so the real timeouts and retry waits elapse
+	// instantly. Without a per-request deadline, the stalled body never returns
+	// and synctest fails the test as a deadlock.
+	synctest.Test(t, func(t *testing.T) {
+		var requests int
+		syncer, err := NewCVE(t.TempDir())
+		require.NoError(t, err)
+		syncer.client = fleethttp.NewClient(fleethttp.WithNoTimeout())
+		syncer.client.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			requests++
+			// Headers and part of the body arrive, then the body stalls: the
+			// response-header timeout doesn't apply, so only a per-request deadline
+			// can end the request.
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": {"application/json"}},
+				Body:       &stalledBody{ctx: r.Context(), prefix: []byte(`{"resultsPerPage": 2000, "vulnerabilities": [`)},
+				Request:    r,
+			}, nil
+		})
+
+		start := time.Now()
+		_, err = syncer.sync(t.Context(), nil)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+
+		// The first attempt plus maxRetryAttempts+1 retries, each ended by the
+		// per-request deadline and followed by a retry wait.
+		attempts := maxRetryAttempts + 2
+		require.Equal(t, attempts, requests)
+		require.Equal(t, time.Duration(attempts)*nvdRequestTimeout+time.Duration(attempts-1)*waitTimeForRetry, time.Since(start))
+	})
 }

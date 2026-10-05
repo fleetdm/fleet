@@ -1522,6 +1522,9 @@ type Service interface {
 	// an existing recovery lock password.
 	RotateRecoveryLockPassword(ctx context.Context, hostID uint) error
 
+	// RotateDiskEncryptionKey enqueues a FileVault recovery key rotation for a macOS host.
+	RotateDiskEncryptionKey(ctx context.Context, hostID uint) error
+
 	// GetHostManagedAccountPassword retrieves and decrypts the managed local account
 	// password for the given host ID. Available whenever the row has a stored password
 	// and status is not 'failed' (the row's status may be 'pending' due to a recent view).

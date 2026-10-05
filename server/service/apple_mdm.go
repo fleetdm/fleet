@@ -6003,9 +6003,119 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				return nil, ctxerr.Wrap(r.Context, err, "create failed-to-rotate managed local account activity")
 			}
 		}
+	case fleet.RotateFileVaultKeyCmdName:
+		if err := svc.handleRotateFileVaultKeyResult(r, cmdResult); err != nil {
+			return nil, err
+		}
 	}
 
 	return nil, nil
+}
+
+func (svc *MDMAppleCheckinAndCommandService) handleRotateFileVaultKeyResult(r *mdm.Request, cmdResult *mdm.CommandResults) error {
+	// nanomdm runs this handler with a fresh context. A lagging replica would miss
+	// the pending marker, and with it the rotated key in this result.
+	ctx := ctxdb.RequirePrimary(r.Context, true)
+	host, err := svc.ds.GetHostByDiskEncryptionKeyRotationCommand(ctx, cmdResult.CommandUUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// superseded, cleared by ClearQueue, or sent as a custom command
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get host by disk encryption key rotation command")
+	}
+	if host.UUID != r.ID {
+		svc.logger.WarnContext(ctx, "RotateFileVaultKey command UUID matched a different host",
+			"expected_host_uuid", host.UUID, "checkin_host_uuid", r.ID, "command_uuid", cmdResult.CommandUUID)
+		return nil
+	}
+
+	// NotNow leaves the rotation pending; the device retries on its next check-in.
+	switch cmdResult.Status {
+	case fleet.MDMAppleStatusAcknowledged:
+		const undecryptableReply = "Fleet couldn't decrypt the new key returned by the host."
+		var payload struct {
+			RotateResult struct {
+				EncryptedNewRecoveryKey []byte `plist:"EncryptedNewRecoveryKey"`
+			} `plist:"RotateResult"`
+		}
+		if err := plist.Unmarshal(cmdResult.Raw, &payload); err != nil || len(payload.RotateResult.EncryptedNewRecoveryKey) == 0 {
+			return svc.failDiskEncryptionKeyRotation(ctx, host, cmdResult.CommandUUID, undecryptableReply)
+		}
+		newKey := base64.StdEncoding.EncodeToString(payload.RotateResult.EncryptedNewRecoveryKey)
+		certs, caKey, err := assets.CACertsAndKeyForDecryption(ctx, svc.ds)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "load CA assets to decrypt rotated disk encryption key")
+		}
+		plain, err := mdm_types.DecryptBase64CMSWithCerts(newKey, caKey, certs)
+		if err != nil || len(plain) == 0 {
+			return svc.failDiskEncryptionKeyRotation(ctx, host, cmdResult.CommandUUID, undecryptableReply)
+		}
+
+		// osquery can report the rotated FileVaultPRK.dat before the acknowledgement
+		// arrives. That copy is already stored, archived, and announced, so keep it
+		// rather than storing the reply's envelope of the same key a second time.
+		stored, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "get stored disk encryption key")
+		}
+		if stored != nil && stored.Base64Encrypted != "" && stored.Base64Encrypted != newKey {
+			if storedPlain, err := mdm_types.DecryptBase64CMSWithCerts(stored.Base64Encrypted, caKey, certs); err == nil && bytes.Equal(storedPlain, plain) {
+				if stored.Decryptable == nil || !*stored.Decryptable {
+					if err := svc.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now()); err != nil {
+						return ctxerr.Wrap(ctx, err, "mark stored disk encryption key decryptable")
+					}
+				}
+				return ctxerr.Wrap(ctx, svc.ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, cmdResult.CommandUUID),
+					"clear disk encryption key rotation")
+			}
+		}
+
+		// Stored as decryptable since it was just decrypted; otherwise the key
+		// would read as unavailable until the verification cron runs.
+		archived, err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, newKey, "", new(true))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "store rotated disk encryption key")
+		}
+		if err := svc.ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, cmdResult.CommandUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear disk encryption key rotation")
+		}
+		if archived {
+			if err := svc.newActivityFn(ctx, nil, fleet.ActivityTypeEscrowedDiskEncryptionKey{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+			}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create escrowed disk encryption key activity")
+			}
+		}
+	case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
+		detail := strings.TrimSpace(apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
+		if detail == "" {
+			detail = "The host returned " + cmdResult.Status + "."
+		}
+		return svc.failDiskEncryptionKeyRotation(ctx, host, cmdResult.CommandUUID, detail)
+	}
+	return nil
+}
+
+// failDiskEncryptionKeyRotation leaves the stored key marked as not decryptable,
+// which prompts the end user to regenerate it through Escrow Buddy.
+func (svc *MDMAppleCheckinAndCommandService) failDiskEncryptionKeyRotation(ctx context.Context, host *fleet.Host, cmdUUID, detail string) error {
+	failed, err := svc.ds.FailHostDiskEncryptionKeyRotation(ctx, host.ID, cmdUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fail disk encryption key rotation")
+	}
+	if !failed {
+		return nil
+	}
+	if err := svc.newActivityFn(ctx, nil, fleet.ActivityTypeFailedToRotateDiskEncryptionKey{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		Detail:          detail,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create failed to rotate disk encryption key activity")
+	}
+	return nil
 }
 
 // maybeRefetchForManagedLocalAccountUUID requests a host refetch when the
@@ -6879,9 +6989,9 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 // command sent to enforce a team's host name template. On acknowledgment the
 // host is renamed in Fleet right away — the device just applied the name, so
 // the next osquery/DeviceInformation ingest confirms the rename (verifying →
-// verified) instead of reverting an optimistic early write. On error the
-// enforcement row lands failed with Apple's error chain; the cron only picks
-// up queued rows, so a failed command is not retried until an admin resends.
+// verified) instead of reverting an optimistic early write. On error the row is
+// re-queued until the retry budget (mdm.MaxAppleDeviceNameRetries) is used up,
+// then lands failed with Apple's error chain until an admin resends.
 func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx context.Context, cmdResult *mdm.CommandResults) error {
 	status := cmdResult.Status
 	detail := ""
@@ -6907,15 +7017,20 @@ func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx c
 		// tracks a newer command (template re-saved or resend clicked before this
 		// result arrived); this result is stale and the newer command's result
 		// carries the final name, so it's ignored.
-		if err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, true, ""); err != nil && !fleet.IsNotFound(err) {
+		if _, err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, true, ""); err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "update device name row from acknowledged command")
 		}
 		return nil
 	}
 
-	if err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, false, detail); err != nil && !fleet.IsNotFound(err) {
+	outcome, err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, false, detail)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
 		return ctxerr.Wrap(ctx, err, "update device name row from failed command")
 	}
+	logDeviceNameRetry(ctx, svc.logger, outcome, "command failed", "host_uuid", cmdResult.UDID, "command_uuid", cmdResult.CommandUUID, "detail", detail)
 	return nil
 }
 
@@ -7086,14 +7201,17 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 
 	if deviceNameOK && deviceName != "" && fleet.IsAppleMobilePlatform(host.Platform) {
 		// Reconcile the host-name enforcement row (if any) against the name the
-		// device reported: confirms a rename (verifying → verified) or records
-		// drift (verified → failed). No-op for hosts without a row. A failure here
+		// device reported: confirms a rename (verifying → verified) or re-queues
+		// enforcement on drift. No-op for hosts without a row. A failure here
 		// is logged rather than returned: the refetch results are already
 		// persisted, this is a non-critical verify transition the next refetch
 		// will redo, and aborting would fail the whole MDM check-in. Mirrors the
 		// macOS osquery hook (server/service/osquery.go).
-		if err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, deviceName); err != nil {
+		outcome, err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, deviceName)
+		if err != nil {
 			svc.logger.ErrorContext(ctx, "update host device name status from refetch", "host_uuid", host.UUID, "err", err)
+		} else {
+			logDeviceNameRetry(ctx, svc.logger, outcome, "renamed on device", "host_uuid", host.UUID, "reported_name", deviceName)
 		}
 	}
 

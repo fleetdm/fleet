@@ -195,9 +195,7 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 
 		case fleetVar == string(fleet.FleetVarNDESSCEPChallenge):
 			if deps.NDESConfig == nil {
-				return profileContents, &MicrosoftProfileProcessingError{
-					message: fmt.Sprintf("NDES is not configured. Fleet couldn't populate %s.", fleet.FleetVarNDESSCEPChallenge.WithPrefix()),
-				}
+				return profileContents, &MicrosoftProfileProcessingError{message: fleet.NDESNotConfiguredMsg}
 			}
 			deps.Logger.DebugContext(deps.Context, "fetching NDES challenge", "host_uuid", params.HostUUID, "profile_uuid", params.ProfileUUID)
 			challenge, err := deps.GetNDESSCEPChallenge(deps.Context, *deps.NDESConfig)

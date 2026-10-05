@@ -7364,10 +7364,10 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 		require.Equal(t, commandUUID, currentCommandUUID)
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
 		require.Equal(t, hostUUID, incomingHostUUID)
 		require.Equal(t, "Work iPad", reportedName)
-		return nil
+		return fleet.DeviceNameNotRetried, nil
 	}
 	var vitalsCalls int
 	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
@@ -7506,8 +7506,8 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersion(t *testing.T)
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+		return fleet.DeviceNameNotRetried, nil
 	}
 	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
 		require.Equal(t, hostUUID, incomingHostUUID)
@@ -7776,8 +7776,8 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 			ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 				return nil
 			}
-			ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-				return nil
+			ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+				return fleet.DeviceNameNotRetried, nil
 			}
 			ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
 				return nil
@@ -7866,8 +7866,8 @@ func TestMDMCommandAndReportResultsIOSRefetchMissingProductNameIPhone(t *testing
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+		return fleet.DeviceNameNotRetried, nil
 	}
 
 	var updatedHost *fleet.Host
@@ -8019,13 +8019,13 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 
 			var gotAcknowledged bool
 			var gotDetail string
-			ds.UpdateHostDeviceNameStatusFromCommandFunc = func(ctx context.Context, commandUUID string, acknowledged bool, detail string) error {
+			ds.UpdateHostDeviceNameStatusFromCommandFunc = func(ctx context.Context, commandUUID string, acknowledged bool, detail string) (fleet.DeviceNameRetryOutcome, error) {
 				require.Equal(t, cmdUUID, commandUUID)
 				gotAcknowledged, gotDetail = acknowledged, detail
 				if tc.notFound {
-					return &notFoundError{}
+					return fleet.DeviceNameNotRetried, &notFoundError{}
 				}
-				return nil
+				return fleet.DeviceNameNotRetried, nil
 			}
 
 			err := svc.handleDeviceNameCommandResult(t.Context(), &mdm.CommandResults{
@@ -8089,8 +8089,8 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionNonString(t *t
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+		return fleet.DeviceNameNotRetried, nil
 	}
 	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
 		return nil
@@ -8172,8 +8172,8 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionFallbackTrunca
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+		return fleet.DeviceNameNotRetried, nil
 	}
 	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
 		return nil
@@ -8247,8 +8247,8 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitals(t *testing.T) {
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+		return fleet.DeviceNameNotRetried, nil
 	}
 
 	allFieldsRaw := []byte(`<?xml version="1.0" encoding="UTF-8"?>
@@ -8521,8 +8521,8 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitalsWriteFailure(t *t
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+		return fleet.DeviceNameNotRetried, nil
 	}
 	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
 		return errors.New("boom: vitals write failed")
@@ -11414,6 +11414,59 @@ func TestSendAPNSPing(t *testing.T) {
 		got, err := sendPing(t, test.UserObserver, appleHost("darwin"), enrolled("HOST-UUID"), nil)
 		require.NoError(t, err)
 		require.Equal(t, []string{"HOST-UUID"}, got)
+	})
+}
+
+func TestRotateFileVaultKeyResultIgnoredCases(t *testing.T) {
+	const hostUUID = "host-uuid"
+	host := &fleet.Host{ID: 1, UUID: hostUUID, Platform: "darwin"}
+
+	setup := func(lookup func(ctx context.Context, cmdUUID string) (*fleet.Host, error)) (*mock.Store, *MDMAppleCheckinAndCommandService) {
+		ds := new(mock.Store)
+		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
+			return fleet.RotateFileVaultKeyCmdName, nil
+		}
+		ds.GetHostByDiskEncryptionKeyRotationCommandFunc = lookup
+		svc := &MDMAppleCheckinAndCommandService{
+			ds:     ds,
+			logger: slog.New(slog.DiscardHandler),
+			newActivityFn: func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+				t.Fatalf("unexpected activity %s", activity.ActivityName())
+				return nil
+			},
+		}
+		return ds, svc
+	}
+	report := func(t *testing.T, svc *MDMAppleCheckinAndCommandService, status string) {
+		_, err := svc.CommandAndReportResults(
+			&mdm.Request{Context: t.Context(), EnrollID: &mdm.EnrollID{ID: hostUUID}},
+			&mdm.CommandResults{UDID: hostUUID, CommandUUID: "cmd-1", Status: status},
+		)
+		require.NoError(t, err)
+	}
+
+	t.Run("command not referenced by a key", func(t *testing.T) {
+		ds, svc := setup(func(ctx context.Context, cmdUUID string) (*fleet.Host, error) {
+			return nil, newNotFoundError()
+		})
+		report(t, svc, fleet.MDMAppleStatusError)
+		require.False(t, ds.FailHostDiskEncryptionKeyRotationFuncInvoked)
+	})
+
+	t.Run("command belongs to another host", func(t *testing.T) {
+		ds, svc := setup(func(ctx context.Context, cmdUUID string) (*fleet.Host, error) {
+			return &fleet.Host{ID: 2, UUID: "other-host"}, nil
+		})
+		report(t, svc, fleet.MDMAppleStatusError)
+		require.False(t, ds.FailHostDiskEncryptionKeyRotationFuncInvoked)
+	})
+
+	t.Run("NotNow leaves the rotation pending", func(t *testing.T) {
+		ds, svc := setup(func(ctx context.Context, cmdUUID string) (*fleet.Host, error) { return host, nil })
+		report(t, svc, fleet.MDMAppleStatusNotNow)
+		require.False(t, ds.FailHostDiskEncryptionKeyRotationFuncInvoked)
+		require.False(t, ds.ClearHostDiskEncryptionKeyRotationCommandFuncInvoked)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
 	})
 }
 
