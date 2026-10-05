@@ -231,11 +231,10 @@ const ProfileForm = ({
   // can replace the contents; submitting is what gets blocked.
   const isMDMEnabled = profile ? isPlatformMDMEnabled : isAnyMDMEnabled;
 
-  // Only a .mobileconfig can be self-service. Derived rather than reset, so
-  // pasting another type over a self-service mobileconfig falls back to force.
+  // Only a .mobileconfig can be self-service; replacing the contents with
+  // another type resets it to force.
   const canSelfService = contentType === "mobileconfig";
-  const selfService = canSelfService && formData.selfService;
-  const hidden = !selfService && formData.hidden;
+  const { selfService, hidden } = formData;
 
   const labelKey = generateCustomTargetLabelKey(formData);
   const initialLabelKey = generateCustomTargetLabelKey(initialFormData);
@@ -261,6 +260,10 @@ const ProfileForm = ({
   const deployFields = isPremiumTier ? { selfService, hidden } : {};
   useBlockNavigation(hasChanges || isSubmitting);
 
+  // An existing profile's type is fixed; on add the new contents decide it.
+  const keepsSelfService = (type: ProfileContentType | null) =>
+    !!profile || type === "mobileconfig";
+
   const onFileSelected = async (files: FileList | null) => {
     if (!files || files.length === 0) {
       return;
@@ -280,11 +283,15 @@ const ProfileForm = ({
       return;
     }
     try {
-      commitFields({ contents: await file.text() });
-      setUploadedFile({
-        name: details.name,
-        type: contentTypeForExtension(details.ext),
+      const contents = await file.text();
+      const type = contentTypeForExtension(details.ext);
+      commitFields({
+        contents,
+        ...(!keepsSelfService(detectProfileContentType(contents) ?? type) && {
+          selfService: false,
+        }),
       });
+      setUploadedFile({ name: details.name, type });
       // commitFields validated without the file's type, so a stale error can
       // survive it; submit checks the new contents again.
       clearFieldError("contents");
@@ -305,6 +312,9 @@ const ProfileForm = ({
   // name and type shouldn't come from it.
   const onContentsChange = (value: string) => {
     setField("contents", value);
+    if (!keepsSelfService(detectProfileContentType(value))) {
+      setField("selfService", false);
+    }
     setUploadedFile(null);
   };
 
@@ -601,6 +611,7 @@ const ProfileForm = ({
               renderChildren={(disableChildren) => (
                 <Checkbox
                   name="hidden"
+                  ariaLabel="Hide from end user"
                   value={hidden}
                   onChange={(value: boolean) => commitFields({ hidden: value })}
                   labelTooltipContent="When checked, this profile is hidden from the end user's default list of profiles in Fleet Desktop."

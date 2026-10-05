@@ -59,7 +59,7 @@
     }
 
     /* Prevent icons from being pushed out or shrinking */
-    .component__tooltip-wrapper {
+    .component__tooltip-wrapper:not(:first-child) {
       flex-shrink: 0;
     }
   }

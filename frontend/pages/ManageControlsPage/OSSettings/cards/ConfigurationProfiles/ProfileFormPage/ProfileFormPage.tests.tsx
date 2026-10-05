@@ -835,9 +835,8 @@ describe("ProfileFormPage", () => {
       self_service: true,
     };
 
-    // Checkbox takes its accessible name from its `name` prop.
     const hiddenCheckbox = () =>
-      screen.queryByRole("checkbox", { name: "hidden" });
+      screen.queryByRole("checkbox", { name: "Hide from end user" });
     const chooseDeploy = async (
       user: ReturnType<typeof renderPage>["user"],
       option: string
@@ -875,6 +874,35 @@ describe("ProfileFormPage", () => {
       const args = jest.mocked(mdmAPI.uploadProfile).mock.calls[0][0];
       expect(args.selfService).toBe(true);
       expect(args.hidden).toBe(false);
+    });
+
+    it("resets self-service when the uploaded file is replaced with another type", async () => {
+      const { user } = renderPage(undefined, premiumRender);
+      const upload = async (contents: string, name: string) => {
+        await user.upload(
+          screen.getByLabelText("Upload a profile"),
+          fileWithText(contents, name)
+        );
+        await waitFor(() =>
+          expect(screen.getByLabelText("Profile contents")).toHaveValue(
+            contents
+          )
+        );
+      };
+
+      await upload(MOBILECONFIG, "Opt-in.mobileconfig");
+      await chooseDeploy(user, "End user initiated (manual)");
+      await upload(WINDOWS_XML, "Firewall.xml");
+      await upload(MOBILECONFIG, "Opt-in.mobileconfig");
+      expect(screen.getByText("Force install")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Add profile" }));
+      await waitFor(() =>
+        expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1)
+      );
+      expect(
+        jest.mocked(mdmAPI.uploadProfile).mock.calls[0][0].selfService
+      ).toBe(false);
     });
 
     it("is force-only for other types, which can still be hidden", async () => {
