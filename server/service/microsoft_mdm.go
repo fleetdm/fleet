@@ -1296,6 +1296,8 @@ const (
 	RequestAuthStateTrusted
 )
 
+const windowsMDMAuthNonceTTL = 5 * time.Minute
+
 // isTrustedRequest checks if the incoming request was sent from an MDM-enrolled
 // device. It returns the matched enrollment (when the device was found), the
 // auth state, and an error only when the request is malformed or otherwise
@@ -1368,6 +1370,14 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 	if !bytes.Equal(receivedDigestHash, expectedDigestHash[:]) {
 		// Credentials do not match what we expect
 		return enrolledDevice, RequestAuthStateUnauthorized, nil
+	}
+
+	// OMA-DM scopes the MD5 nonce to the session, so keep it alive while the session continues; otherwise a session outliving the TTL
+	// is challenged mid-session. MsgID 1 starts a new session and is left alone so the nonce still rotates between sessions.
+	if reqSyncML.SyncHdr.MsgID != "1" {
+		if err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, *nonce, windowsMDMAuthNonceTTL); err != nil {
+			svc.logger.WarnContext(ctx, "failed to refresh Windows MDM auth nonce", "device_id", deviceID, "err", err)
+		}
 	}
 
 	// We verified the username, password and nonce match what we expect, so we can ack the rekeyed credentials
@@ -1976,7 +1986,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 	if requestAuthState == RequestAuthStateChallenge || requestAuthState == RequestAuthStateUnauthorized {
 		nonce := uuid.NewString() // using UUID as nonce since it has 122 bits of entropy
 		base64Nonce := base64.StdEncoding.EncodeToString([]byte(nonce))
-		err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, nonce, 5*time.Minute)
+		err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, nonce, windowsMDMAuthNonceTTL)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "store device nonce in kv store")
 		}
