@@ -113,8 +113,8 @@ describe("WelcomeHost - refetch give-up state", () => {
     expect(notify.error).toHaveBeenCalledTimes(1);
   });
 
-  // #54676: each tab-focus re-entry into onSuccess used to schedule a fresh
-  // setTimeout next to the one already pending, so polling sped up.
+  // Each tab-focus re-entry into onSuccess used to schedule a fresh setTimeout
+  // next to the one already pending, so polling sped up.
   it("does not stack polling loops when the tab regains focus mid-refetch", async () => {
     jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
     let now = 1_700_000_000_000;
@@ -150,9 +150,9 @@ describe("WelcomeHost - refetch give-up state", () => {
     expect(pollsInOneInterval).toBe(1);
   });
 
-  // #54677: after give-up, a focus-triggered onSuccess used to re-enter the
-  // "timer just started" branch, open a fresh 60s cycle, and fire the toast
-  // again 60s later.
+  // After give-up, a focus-triggered onSuccess used to re-enter the "timer
+  // just started" branch, open a fresh 60s cycle, and fire the toast again
+  // 60s later.
   it("doesn't restart the refetch window after a timeout when the tab regains focus", async () => {
     jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
     let now = 1_700_000_000_000;

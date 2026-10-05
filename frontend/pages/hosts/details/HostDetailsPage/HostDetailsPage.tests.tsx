@@ -494,8 +494,8 @@ describe("HostDetailsPage - refetch cycle on tab switch", () => {
     jest.resetAllMocks();
   });
 
-  // #54676: each tab-focus re-entry into onSuccess used to schedule a fresh
-  // setTimeout next to the one already pending, so polling sped up.
+  // Each tab-focus re-entry into onSuccess used to schedule a fresh setTimeout
+  // next to the one already pending, so polling sped up.
   it("does not stack polling loops when the tab regains focus mid-refetch", async () => {
     stubQueries(mockOnlineStuckHost());
 
@@ -534,9 +534,9 @@ describe("HostDetailsPage - refetch cycle on tab switch", () => {
     expect(pollsInOneInterval).toBe(1);
   });
 
-  // #54677: after give-up, the server still reports refetch_requested: true,
-  // so a focus-triggered onSuccess used to re-enter the "timer just started"
-  // branch and run a fresh 60s cycle (new toast 60s later).
+  // After give-up, the server still reports refetch_requested: true, so a
+  // focus-triggered onSuccess used to re-enter the "timer just started" branch
+  // and run a fresh 60s cycle (new toast 60s later).
   it("doesn't restart the refetch window after a timeout when the tab regains focus", async () => {
     jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
     const start = 1_700_000_000_000;

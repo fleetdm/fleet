@@ -498,7 +498,7 @@ const HostDetailsPage = ({
   };
 
   // Clears any pending next-poll timer so re-entries into onSuccess (e.g. react-query's
-  // refetchOnWindowFocus) replace the existing timer instead of stacking. See #54676.
+  // refetchOnWindowFocus) replace the existing timer instead of stacking.
   const clearPollingTimer = () => {
     if (pollingTimerRef.current) {
       clearTimeout(pollingTimerRef.current);
@@ -548,7 +548,7 @@ const HostDetailsPage = ({
         }
         // If this host's previous refetch cycle gave up and the server still reports
         // refetch_requested: true (common with slow hosts), skip the restart path so a
-        // focus-triggered re-entry doesn't open a fresh 60s window + repeat toast. See #54677.
+        // focus-triggered re-entry doesn't open a fresh 60s window + repeat toast.
         const alreadyTimedOut =
           timedOutHostIdRef.current === hostIdFromURL &&
           refetchStartTime === null;

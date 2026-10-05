@@ -38,10 +38,10 @@ const WelcomeHost = ({
     false
   );
   // Pending next-poll timer; cleared before scheduling a new one so a focus-triggered
-  // onSuccess re-entry replaces the pending poll instead of stacking. See #54676.
+  // onSuccess re-entry replaces the pending poll instead of stacking.
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
   // True once the current refetch cycle has given up; blocks the restart path in
-  // onSuccess when the server still reports refetch_requested: true. See #54677.
+  // onSuccess when the server still reports refetch_requested: true.
   const didTimeOutRef = useRef(false);
 
   /**
@@ -92,7 +92,7 @@ const WelcomeHost = ({
 
         // Previous cycle gave up and server still reports refetch_requested: true.
         // Skip the restart path so a focus-triggered re-entry doesn't open a fresh
-        // 60s window + repeat toast. See #54677.
+        // 60s window + repeat toast.
         if (didTimeOutRef.current && !refetchStartTime) {
           return;
         }
