@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.18.1",
+      "version": "1.19.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.solotuna.devknife';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.solotuna.devknife' AND version_compare(bundle_short_version, '1.18.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.solotuna.devknife' AND version_compare(bundle_short_version, '1.19.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.solotuna.devknife' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://files.solotuna.com/devknife/DevKnife-1.18.1.dmg",
+      "installer_url": "https://files.solotuna.com/devknife/DevKnife-1.19.0.dmg",
       "install_script_ref": "3057a23a",
       "uninstall_script_ref": "f5fb9623",
-      "sha256": "94df5154892c4b4053a59ee8d46bff6c46891f74c3f5493cc94b8d4558ab9e94",
+      "sha256": "df591cb1933c2573495d048696de779c99606daf465de8ae1ddd824d59cde075",
       "default_categories": [
         "Developer tools"
       ]
