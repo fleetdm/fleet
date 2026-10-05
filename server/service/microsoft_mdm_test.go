@@ -3707,10 +3707,13 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 		lockWipe        *fleet.HostLockWipeStatus
 		dsErr           error
 		wantErr         string
+		wantKept        string // Entra device ID a fleetd re-enrollment carries over
 	}{
 		{name: "no existing enrollment", enrollingHost: enrollingHost},
 		{name: "existing enrollment not linked to a host", enrollingHost: enrollingHost, existing: &fleet.MDMWindowsEnrolledDevice{}},
 		{name: "same host re-enrolling", enrollingHost: existingHost, existing: linked},
+		{name: "same host re-enrolling keeps its Entra device", enrollingHost: existingHost, existing: linkedEntra, wantKept: existingDev},
+		{name: "fleetd enrollment over an unlinked Entra enrollment", enrollingHost: enrollingHost, existing: unlinkedEntra, wantErr: refusedDev},
 		{name: "existing host was deleted", enrollingHost: enrollingHost, existing: linked, existingDeleted: true},
 		{name: "existing host was wiped", enrollingHost: enrollingHost, existing: linked, lockWipe: wiped},
 		{name: "different host", enrollingHost: enrollingHost, existing: linked, lockWipe: noWipe, wantErr: refused},
@@ -3725,6 +3728,7 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 		{name: "Entra: no deviceid, enrollment bound", existing: linkedEntra, lockWipe: noWipe, wantErr: refusedDev},
 		{name: "Entra: no deviceid, enrollment unbound", existing: linked},
 		{name: "Entra: Autopilot host, same device", enrollingDev: existingDev, existing: linked, autopilotDev: existingDev},
+		{name: "Entra: Autopilot host, same device in uppercase", enrollingDev: existingDev, existing: linked, autopilotDev: strings.ToUpper(existingDev)},
 		{
 			name: "Entra: Autopilot host, different device", enrollingDev: enrollingDev, existing: linked, autopilotDev: existingDev,
 			lockWipe: noWipe, wantErr: refusedDev,
@@ -3766,7 +3770,8 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 			handler := testutils.NewTestHandler()
 			svc := &Service{ds: ds, logger: slog.New(handler)}
 
-			err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(t.Context(), hwID, tc.enrollingHost, tc.enrollingDev)
+			kept, err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(t.Context(), hwID, tc.enrollingHost, tc.enrollingDev)
+			require.Equal(t, tc.wantKept, kept)
 			if tc.wantErr == "" {
 				require.NoError(t, err)
 				require.Nil(t, warnAttrs(handler, "refusing windows MDM enrollment"), "an allowed enrollment must not be reported as refused")
@@ -3779,9 +3784,10 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 
 			// Whole-map equality so a renamed or extra attribute fails too: this log line is the only signal.
 			attrs := warnAttrs(handler, "refusing windows MDM enrollment")
-			if tc.enrollingHost == "" {
+			if tc.wantErr == refusedDev {
 				require.Equal(t, map[string]string{
 					"mdm_hardware_id":           hwID,
+					"enrolling_host_uuid":       tc.enrollingHost,
 					"enrolling_entra_device_id": tc.enrollingDev,
 					"existing_entra_device_id":  existingDev,
 					"existing_host_uuid":        tc.existing.HostUUID,

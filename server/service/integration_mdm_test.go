@@ -23136,6 +23136,22 @@ func (s *integrationMDMTestSuite) TestWindowsMDMEntraEnrollmentBoundToEntraDevic
 		reenrolled := newEntraDevice(victim.HardwareID, victim.EntraDeviceID)
 		require.NoError(t, reenrolled.Enroll())
 		requireVictimEnrollment(t, reenrolled.DeviceID)
+
+		t.Run("a fleetd re-enrollment of its host keeps the Entra binding", func(t *testing.T) {
+			_, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, reenrolled.DeviceID)
+			require.NoError(t, err)
+			// fleetd only enrolls a host whose osquery reports MDM off.
+			require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, false, s.server.URL, false, fleet.WellKnownMDMFleet, "",
+				fleet.PersonalEnrollmentTypeNone))
+			fleetdDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey)
+			fleetdDevice.HardwareID = victim.HardwareID
+			require.NoError(t, fleetdDevice.Enroll())
+			requireVictimEnrollment(t, fleetdDevice.DeviceID)
+
+			attacker := newEntraDevice(victim.HardwareID, uuid.NewString())
+			require.ErrorContains(t, attacker.Enroll(), "SOAP fault")
+			requireVictimEnrollment(t, fleetdDevice.DeviceID)
+		})
 	})
 }
 

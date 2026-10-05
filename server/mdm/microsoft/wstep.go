@@ -496,9 +496,12 @@ func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, 
 	// access token claim.
 	deviceIDClaim, _ := claims["deviceid"].(string)
 	if deviceIDClaim != "" {
-		if _, err := uuid.Parse(deviceIDClaim); err != nil {
+		deviceID, err := uuid.Parse(deviceIDClaim)
+		if err != nil {
 			return AzureData{}, ctxerr.Wrap(ctx, err, "invalid deviceid claim format")
 		}
+		// Canonical lowercase, so stored device IDs compare equal regardless of how a token spells them.
+		deviceIDClaim = deviceID.String()
 	}
 
 	return AzureData{

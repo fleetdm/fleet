@@ -350,6 +350,7 @@ func TestAzureDataFromClaims(t *testing.T) {
 			wantErr  string
 		}{
 			{name: "present", deviceID: "261b8f91-f3fb-4f3d-bc31-de657b7f002b", want: "261b8f91-f3fb-4f3d-bc31-de657b7f002b"},
+			{name: "uppercase is normalized", deviceID: "261B8F91-F3FB-4F3D-BC31-DE657B7F002B", want: "261b8f91-f3fb-4f3d-bc31-de657b7f002b"},
 			{name: "absent"},
 			{name: "not a GUID", deviceID: "not-a-device-id", wantErr: "invalid deviceid claim format"},
 			{name: "not a string", deviceID: 42},
