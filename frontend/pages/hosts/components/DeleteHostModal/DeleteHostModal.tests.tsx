@@ -206,10 +206,12 @@ describe("DeleteHostModal", () => {
       true
     );
     expect(screen.getByText("Mac")).toBeVisible();
-    expect(screen.getByText(/but won't remove company data\./i)).toBeVisible();
+    expect(
+      screen.getByText(/won't turn off MDM or remove company data\./i)
+    ).toBeVisible();
     expect(
       screen.getByText(
-        "To re-enroll it, turn on MDM manually or reinstall Fleet's agent."
+        /This host won't re-enroll on its own\. To re-enroll it, turn on MDM manually or reinstall Fleet's agent\./
       )
     ).toBeVisible();
     expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
@@ -229,7 +231,9 @@ describe("DeleteHostModal", () => {
       true
     );
     expect(screen.getByText("Mac")).toBeVisible();
-    expect(screen.getByText(/but won't remove company data\./i)).toBeVisible();
+    expect(
+      screen.getByText(/won't turn off MDM or remove company data\./i)
+    ).toBeVisible();
     expect(
       screen.getByText("sudo profiles renew -type enrollment")
     ).toBeVisible();

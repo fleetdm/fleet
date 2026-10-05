@@ -122,10 +122,13 @@ const DeleteHostModal = ({
     return (
       <>
         <p>
-          This will unenroll <b>{hostText()}</b> but won&apos;t remove company
-          data. {learnMoreLink}
+          This will remove <b>{hostText()}</b> from Fleet. It won&apos;t turn
+          off MDM or remove company data. {learnMoreLink}
         </p>
-        <p>{reEnrollInstructions}</p>
+        <p>
+          {theseHosts} won&apos;t re-enroll on {isPlural ? "their" : "its"} own.{" "}
+          {reEnrollInstructions}
+        </p>
       </>
     );
   };
