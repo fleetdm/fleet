@@ -68,7 +68,7 @@ Learn more in the [Apple MDM setup guide](https://fleetdm.com/guides/apple-mdm-s
 
 > Only turn on this setting if you're just starting to roll out Managed Apple Account sign-in. If your end users already sign in with Managed Apple Accounts, leave it off for now. Hosts enrolled before Fleet 4.93.0 can't sign in to Managed Apple Accounts with this setting on until their next enrollment profile renewal, about every six months.
 >
-> If you want to turn it on sooner, reach out to [Fleet support](https://fleetdm.com/support) to help you with enrollment profile renewal.
+> If you want to turn it on sooner, follow [these instructions](https://docs.google.com/document/d/1f3OZaC9lhN58esD3cXzqEePx2kq_tHX7b1KgwSEOQ3c/edit?tab=t.0).
 
 GitHub issue: [#45829](https://github.com/fleetdm/fleet/issues/45829)
 
