@@ -86,7 +86,7 @@ const WelcomeHost = ({
 
         if (!returnedHost.refetch_requested) {
           didTimeOutRef.current = false;
-          setShowRefetchLoadingSpinner(false);
+          resetHostRefetchStates();
           return;
         }
 

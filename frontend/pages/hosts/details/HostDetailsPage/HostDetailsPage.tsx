@@ -541,9 +541,14 @@ const HostDetailsPage = ({
       retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
-        // Server flipped refetch_requested back to false (or we never were refetching),
-        // so a prior timeout is no longer "sticky": allow a future refetch to run.
-        if (!returnedHost.refetch_requested) {
+        // Server flipped THIS host's refetch_requested back to false, so a prior
+        // timeout for this host is no longer "sticky". Scope the clear to the
+        // current host so navigating A (timed out) -> B -> A doesn't forget A's
+        // timeout and restart its cycle.
+        if (
+          !returnedHost.refetch_requested &&
+          timedOutHostIdRef.current === hostIdFromURL
+        ) {
           timedOutHostIdRef.current = null;
         }
         // If this host's previous refetch cycle gave up and the server still reports
