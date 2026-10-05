@@ -500,7 +500,6 @@ func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, 
 		if err != nil {
 			return AzureData{}, ctxerr.Wrap(ctx, err, "invalid deviceid claim format")
 		}
-		// Canonical lowercase, so stored device IDs compare equal regardless of how a token spells them.
 		deviceIDClaim = deviceID.String()
 	}
 

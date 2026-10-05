@@ -1180,13 +1180,14 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
 
-	// The Entra device ID signed into the token is the only proof of which device is enrolling, since the request names its device
-	// only by a device-reported hardware ID. Without it the enrollment still proceeds, but it cannot be bound to its device and
-	// cannot replace an enrollment that is. Logged here rather than in authBinarySecurityToken so that each enrollment logs it once.
+	// The Entra device ID signed into the token is the only proof of which device is enrolling, since the request names
+	// its device only by a device-reported hardware ID. Without it the enrollment still proceeds, but cannot replace an
+	// enrollment that is bound to this id. Logged here rather than in authBinarySecurityToken so that each enrollment
+	// logs it once.
 	if authToken.IsAzureJWTToken() && entraDeviceID == "" {
 		svc.logger.ErrorContext(ctx, "Entra access token has no deviceid claim, so Fleet cannot protect this Windows MDM enrollment "+
 			"from being replaced by another device. Add deviceid as an optional access token claim in the manifest of the "+
-			"Microsoft Entra MDM app registration (v2.0 access tokens omit it by default)",
+			"Microsoft Entra MDM app registration",
 			"user_id", userID,
 		)
 	}
@@ -3198,9 +3199,6 @@ func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string
 // enrollment names its device only by a device-reported hardware ID, so it is checked against the identity its credential
 // proves: the host of a fleetd (programmatic) enrollment, authenticated by its orbit node key, or the Entra device signed into
 // the access token of an Entra enrollment. entraDeviceID is empty for an enrollment that proves neither.
-//
-// It returns the Entra device ID a fleetd re-enrollment of the same host carries over, so that re-enrolling through fleetd does
-// not unbind an enrollment from its Entra device.
 func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Context, hardwareID, hostUUID, entraDeviceID string) (
 	keptEntraDeviceID string, err error,
 ) {
@@ -3237,8 +3235,7 @@ func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Cont
 	boundEntraDeviceID := existing.EntraDeviceID
 	if hostUUID == "" {
 		// Enrollments made through fleetd, or before Fleet stored the Entra device ID, fall back to the Entra device ID that
-		// Autopilot registered for their host. Enrollments with neither cannot be checked. The fallback only applies to tokens
-		// that carry a device ID, so a tenant whose tokens never include one keeps re-enrolling its Autopilot devices.
+		// Autopilot registered for their host. Enrollments with neither cannot be checked.
 		if boundEntraDeviceID == "" && entraDeviceID != "" && existingHost != nil {
 			autopilotDevice, err := svc.ds.GetHostAutopilotDevice(ctx, existingHost.ID)
 			switch {
@@ -3248,7 +3245,6 @@ func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Cont
 				return "", ctxerr.Wrap(ctx, err, "get Autopilot record of existing enrollment's host")
 			}
 		}
-		// Graph and Entra tokens both use lowercase GUIDs, but compare case-insensitively so that casing never refuses a device.
 		if boundEntraDeviceID == "" || strings.EqualFold(boundEntraDeviceID, entraDeviceID) {
 			return "", nil
 		}
