@@ -775,7 +775,9 @@ SELECT
 	identifier,
 	checksum,
 	created_at,
-	uploaded_at
+	uploaded_at,
+	self_service,
+	hidden
 FROM (
 	SELECT
 		profile_uuid,
@@ -787,7 +789,9 @@ FROM (
 		identifier,
 		checksum,
 		created_at,
-		uploaded_at
+		uploaded_at,
+		self_service,
+		hidden
 	FROM
 		mdm_apple_configuration_profiles
 	WHERE
@@ -806,7 +810,9 @@ FROM (
 		'' as identifier,
 		'' as checksum,
 		created_at,
-		uploaded_at
+		uploaded_at,
+		0 AS self_service,
+		hidden
 	FROM
 		mdm_windows_configuration_profiles
 	WHERE
@@ -825,7 +831,9 @@ FROM (
 		identifier,
 		token AS checksum,
 		created_at,
-		uploaded_at
+		uploaded_at,
+		0 AS self_service,
+		hidden
 	FROM mdm_apple_declarations
 	WHERE team_id = ? AND
 		name NOT IN (?)
@@ -842,7 +850,9 @@ FROM (
 		'' AS identifier,
 		'' AS checksum,
 		created_at,
-		uploaded_at
+		uploaded_at,
+		0 AS self_service,
+		hidden
 	FROM mdm_android_configuration_profiles
 	WHERE team_id = ? AND
 		name NOT IN (?)

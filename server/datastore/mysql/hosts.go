@@ -2298,7 +2298,8 @@ func recordDeletedWindowsHostFleetsDB(ctx context.Context, tx sqlx.ExtContext, h
 			owners[key] = h
 		}
 	}
-	// One statement per fleet rather than per host. Fleet IDs start at 1, so 0 stands for no fleet.
+	// One statement per fleet rather than per host. Fleet IDs start at 1, so 0 stands for no fleet. It is stored as 0, not NULL,
+	// because NULL means no fleet was recorded and sends the host to the default fleet.
 	uuidsByTeam := make(map[uint][]string)
 	for _, owner := range owners {
 		teamID := ptr.ValOrZero(owner.TeamID)
@@ -2308,7 +2309,7 @@ func recordDeletedWindowsHostFleetsDB(ctx context.Context, tx sqlx.ExtContext, h
 		for uuids := range slices.Chunk(uuidsByTeam[teamID], 5000) {
 			stmt, args, err := sqlx.In(`
 				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ? WHERE host_uuid IN (?)`,
-				ptr.UintOrNilIfZero(teamID), uuids)
+				teamID, uuids)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build record of deleted windows hosts' fleets")
 			}

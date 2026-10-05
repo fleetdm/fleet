@@ -2,10 +2,13 @@ import { AxiosResponse } from "axios";
 import React from "react";
 
 import CustomLink from "components/CustomLink";
+import { EditorMode } from "components/Editor/Editor";
 import { LabelTargetMode, TargetType } from "components/TargetLabelSelector";
 import { IApiError } from "interfaces/errors";
+import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
+import { isDDMProfile } from "services/entities/mdm";
 import { generateGenericLearnMoreErrMsg } from "utilities/helpers";
 
 export interface IParseFileResult {
@@ -18,7 +21,7 @@ export const parseFile = async (file: File): Promise<IParseFileResult> => {
   // get the file name and extension
   const nameParts = file.name.split(".");
   const name = nameParts.slice(0, -1).join(".");
-  const ext = nameParts.slice(-1)[0];
+  const ext = nameParts.slice(-1)[0].toLowerCase();
 
   switch (ext) {
     case "xml": {
@@ -38,6 +41,174 @@ export const parseFile = async (file: File): Promise<IParseFileResult> => {
       throw new Error(`Invalid file type: ${ext}`);
     }
   }
+};
+
+/** The kind of profile a piece of text is, as far as the UI can tell. The
+ * server does the real validation; this only picks the file extension the
+ * multipart upload needs and the editor's syntax mode. */
+export type ProfileContentType =
+  | "mobileconfig"
+  | "declaration"
+  | "android"
+  | "windows";
+
+interface IProfileContentTypeInfo {
+  /** Shown above the editor. */
+  label: string;
+  /** Of the file the upload is sent as, which is how the server routes it. */
+  extension: string;
+  platform: ProfilePlatform;
+  editorMode: EditorMode;
+}
+
+export const PROFILE_CONTENT_TYPES: Record<
+  ProfileContentType,
+  IProfileContentTypeInfo
+> = {
+  mobileconfig: {
+    label: "Mobileconfig",
+    extension: "mobileconfig",
+    platform: "darwin",
+    editorMode: "xml",
+  },
+  declaration: {
+    label: "Declaration (DDM)",
+    extension: "json",
+    platform: "darwin",
+    editorMode: "json",
+  },
+  android: {
+    label: "Android",
+    extension: "json",
+    platform: "android",
+    editorMode: "json",
+  },
+  windows: {
+    label: "Windows",
+    extension: "xml",
+    platform: "windows",
+    editorMode: "xml",
+  },
+};
+
+const SERVER_SECRET_PREFIX = "FLEET_SECRET_";
+
+/** What the file picker offers when adding, where the type isn't known yet. */
+export const ADD_PROFILE_ACCEPT =
+  ".json,.mobileconfig,application/x-apple-aspen-config,.xml";
+
+const startsUpper = (key: string) =>
+  key.charAt(0) !== key.charAt(0).toLowerCase();
+const startsLower = (key: string) =>
+  key.charAt(0) !== key.charAt(0).toUpperCase();
+
+/** Detects the profile type from pasted text. JSON is a declaration when its
+ * top-level keys start uppercase, Android when they start lowercase; XML is a
+ * mobileconfig when it is a plist, otherwise Windows SyncML. Returns null for
+ * anything else. */
+export const detectProfileContentType = (
+  text: string
+): ProfileContentType | null => {
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed === null || typeof parsed !== "object") {
+        return null;
+      }
+      // the server's rule: top-level key casing decides the type
+      const keys = Object.keys(parsed);
+      const upper = keys.some(startsUpper);
+      const lower = keys.some(startsLower);
+      if (upper && !lower) {
+        return "declaration";
+      }
+      if (lower && !upper) {
+        return "android";
+      }
+      // the server rejects mixed keys either way; guess so its error shows
+      return "Type" in parsed ? "declaration" : "android";
+    } catch {
+      // the server reads unparseable JSON with a secret as a declaration
+      return trimmed.includes(SERVER_SECRET_PREFIX) ? "declaration" : null;
+    }
+  }
+  if (/<plist[\s>]|<!DOCTYPE plist/i.test(trimmed)) {
+    return "mobileconfig";
+  }
+  // SyncML starts with a command or a comment. Behind an XML declaration it's
+  // still Windows, so the server reports that the declaration isn't allowed.
+  if (
+    /^<(replace|add|atomic|exec|!--)/i.test(
+      trimmed.replace(/^<\?xml[^>]*\?>\s*/i, "")
+    )
+  ) {
+    return "windows";
+  }
+  // as the server does, any other XML declaration is read as a plist
+  if (/^<\?xml/i.test(trimmed)) {
+    return "mobileconfig";
+  }
+  return null;
+};
+
+const EXTENSION_CONTENT_TYPE: Record<string, ProfileContentType> = {
+  mobileconfig: "mobileconfig",
+  xml: "windows",
+  json: "declaration",
+};
+
+/** The type the server gives an uploaded file by its extension, for contents
+ * the UI can't classify, such as a lone `$FLEET_SECRET_` placeholder. */
+export const contentTypeForExtension = (
+  ext: string
+): ProfileContentType | null => EXTENSION_CONTENT_TYPE[ext] ?? null;
+
+/** The type of an existing profile, from what the API returns about it. */
+export const profileContentTypeFor = (
+  profile: IMdmProfile
+): ProfileContentType => {
+  if (isDDMProfile(profile)) {
+    return "declaration";
+  }
+  switch (profile.platform) {
+    case "windows":
+      return "windows";
+    case "android":
+      return "android";
+    default:
+      return "mobileconfig";
+  }
+};
+
+/** File extensions a replacement for an existing profile may have. */
+export const getAcceptedExtensions = (profile: IMdmProfile) => {
+  const type = profileContentTypeFor(profile);
+  // a mobileconfig is a plist, which may be saved as .xml
+  return type === "mobileconfig"
+    ? [".mobileconfig", ".xml"]
+    : [`.${PROFILE_CONTENT_TYPES[type].extension}`];
+};
+
+/** Name given to pasted content that the admin did not name, so the server
+ * derives "New profile" for .xml and .json (a .mobileconfig keeps its
+ * PayloadDisplayName). */
+export const PASTED_PROFILE_DEFAULT_NAME = "New profile";
+
+/** Names are unique per fleet, so an unnamed pasted profile takes "New
+ * profile", then the lowest free "New profile N" from 2. Compared without
+ * case, as the database does. */
+export const nextPastedProfileName = (takenNames: string[]): string => {
+  const taken = new Set(takenNames.map((n) => n.trim().toLowerCase()));
+  const base = PASTED_PROFILE_DEFAULT_NAME;
+  if (!taken.has(base.toLowerCase())) {
+    return base;
+  }
+  let n = 2;
+  while (taken.has(`${base} ${n}`.toLowerCase())) {
+    n += 1;
+  }
+  return `${base} ${n}`;
 };
 
 interface IGenerateCustomTargetLabelKeyArgs {
@@ -77,6 +248,13 @@ export const DEFAULT_EDIT_ERROR_MESSAGE =
   "Couldn't edit configuration profile. Please try again.";
 
 export type ProfileErrorAction = "add" | "edit";
+
+const PROFILE_NAME_TAKEN_REASON =
+  "A configuration profile with this name already exists";
+
+/** A name clash, which belongs to the name field rather than the whole form. */
+export const isProfileNameTakenError = (err: AxiosResponse<IApiError>) =>
+  (err?.data?.errors?.[0]?.reason ?? "").includes(PROFILE_NAME_TAKEN_REASON);
 
 const generateUnsupportedVariableErrMsg = (
   errMsg: string,
@@ -234,6 +412,13 @@ export const getErrorMessage = (
     )
   ) {
     return "Couldn't edit. The uploaded profile must have the same name as the original profile.";
+  }
+
+  if (apiReason.includes(PROFILE_NAME_TAKEN_REASON)) {
+    // the server names the flow itself ("Couldn't add." / "Couldn't edit.")
+    return apiReason.startsWith("Couldn't")
+      ? apiReason
+      : `${couldnt} ${apiReason}`;
   }
 
   if (apiReason.includes("OS updates are already configured")) {

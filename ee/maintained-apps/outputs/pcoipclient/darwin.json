@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.01.2",
+      "version": "26.05.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.teradici.swiftclient';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.teradici.swiftclient' AND version_compare(bundle_short_version, '26.01.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.teradici.swiftclient' AND version_compare(bundle_short_version, '26.05.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.teradici.swiftclient' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.anyware.hp.com/DeAdBCiUYInHcSTy/pcoip-client/raw/names/pcoip-client-dmg/versions/26.01.2/pcoip-client_26.01.2.dmg",
+      "installer_url": "https://dl.anyware.hp.com/pcoip-client/raw/names/pcoip-client-dmg/versions/26.05.5/pcoip-client_26.05.5.dmg",
       "install_script_ref": "3918f173",
       "uninstall_script_ref": "74b47942",
-      "sha256": "5a2adec5fa5664ac1142855b080c0dc53c5de0ddbce76c74ab64f8b895b726d5",
+      "sha256": "b27ab94ec26c3bb54f48caf1e695264ce80a042f0c7b75b9cd06b4d21feb7bad",
       "default_categories": [
         "Productivity"
       ]

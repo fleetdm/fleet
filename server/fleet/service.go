@@ -603,6 +603,8 @@ type Service interface {
 	SandboxEnabled() bool
 	// MaxInstallerSizeBytes returns the configured maximum size for software installer uploads.
 	MaxInstallerSizeBytes() int64
+	// StagedUploadAvailable reports whether clients can upload packages straight to object storage.
+	StagedUploadAvailable(ctx context.Context) bool
 	AppConfigUrls(ctx context.Context) (urls *AppConfigUrls, err error)
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
@@ -1017,11 +1019,12 @@ type Service interface {
 	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, DEPDeviceErrorType, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
-	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, name string, description string) (*MDMAppleConfigProfile, error)
+	// selfService makes the profile opt-in; hidden hides it from end users. Both are premium.
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, name string, description string, selfService, hidden bool) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
 	// activation is an optional custom activation declaration to attach to the
 	// declaration; nil or empty means Fleet generates the activation.
-	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte, description string) (*MDMAppleDeclaration, error)
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte, description string, selfService, hidden bool) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
@@ -1204,7 +1207,8 @@ type Service interface {
 	// skipped so the error can be raised to the user.
 	VerifyAnyMDMConfigured(ctx context.Context) error
 
-	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
+	// MDMAppleUploadBootstrapPackage stores pkg, or the staged upload when stagedUploadID is set.
+	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, stagedUploadID string, teamID uint, dryRun bool) error
 
 	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
 
@@ -1346,7 +1350,7 @@ type Service interface {
 
 	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
 	// the specified team.
-	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, description string) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, description string, selfService, hidden bool) (*MDMWindowsConfigProfile, error)
 
 	// NewMDMUnsupportedConfigProfile is called when a profile with an
 	// unsupported extension is uploaded.
@@ -1369,7 +1373,11 @@ type Service interface {
 	// profileName is the uploaded file's name without its extension, empty when
 	// the request carried no file. Unused by Apple .mobileconfig, which is named
 	// by the PayloadDisplayName in its content.
-	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string) error
+	//
+	// A nil selfService or hidden keeps the stored value. selfService is only
+	// valid for .mobileconfig; flipping it on opts in every host that already
+	// has the profile.
+	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string, selfService, hidden *bool) error
 
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
 	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
@@ -1397,7 +1405,7 @@ type Service interface {
 	// Android MDM
 
 	// NewMDMAndroidConfigProfile creates a new Android configuration profile
-	NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, description string) (*MDMAndroidConfigProfile, error)
+	NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, description string, selfService, hidden bool) (*MDMAndroidConfigProfile, error)
 
 	// DeleteMDMAndroidConfigProfile deletes the specified Android profile.
 	DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error
@@ -1535,6 +1543,9 @@ type Service interface {
 	// Software installers
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (*SoftwareInstaller, error)
+	// CreateStagedUpload returns a presigned URL a client uploads a package of the given size to, for
+	// registering it later with the target's add or edit endpoint.
+	CreateStagedUpload(ctx context.Context, target StagedUploadTarget, teamID uint, size int64) (*StagedUpload, error)
 	UpdateSoftwareInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload) (*SoftwareInstaller, error)
 	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error
 	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint, installerID *uint) (string, error)

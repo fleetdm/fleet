@@ -1,0 +1,1 @@
+- Fixed Platform SSO registration showing "Incorrect username or password" when Fleet's identity provider client settings are wrong. Only a rejected password is now reported as bad credentials; other identity provider errors return a 400 error and are logged.
