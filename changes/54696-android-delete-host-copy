@@ -1,1 +1,0 @@
-- Fixed the **Delete** host modal for Android hosts. It no longer says the host will be unenrolled and its company data removed. It now says the host will re-enroll unless you unenroll it (personal hosts) or wipe it (company-owned hosts) first.
