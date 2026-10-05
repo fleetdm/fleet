@@ -3154,15 +3154,11 @@ WHERE
   )
 `
 
-	const unsetPatchPoliciesWithInstallersNotInList = `
-UPDATE
-	policies
-SET
-	patch_software_title_id = NULL
-WHERE
-	team_id = ? AND
-	patch_software_title_id NOT IN (?)
-`
+	// Plain read, then update by ID: a locking scan on team_id X-locks every policy in the fleet, which
+	// the foreign key check of each software install being queued for it waits on.
+	const loadPatchPoliciesWithInstallersNotInList = `SELECT id FROM policies WHERE team_id = ? AND patch_software_title_id NOT IN (?)`
+
+	const unsetPatchPolicies = `UPDATE policies SET patch_software_title_id = NULL WHERE id IN (?)`
 
 	const countInstallDuringSetupNotInList = `
 SELECT
@@ -3193,6 +3189,8 @@ WHERE
   global_or_team_id = ? AND
   title_id NOT IN (?)
 `
+
+	const loadInstallersNotInList = `SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)`
 
 	// Fleet-maintained app pins are keyed by (team, title) and are not
 	// cascade-deleted when installer rows go away (the FK cascades only on title
@@ -3569,20 +3567,44 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			}
 		}
 
-		stmt, args, err := sqlx.In(unsetInstallersNotInListFromPolicies, globalOrTeamID, titleIDs)
+		// The not-in-list cleanups below can scan and lock every fleet's policies and pending installs,
+		// so skip them when no installer is being removed.
+		stmt, args, err := sqlx.In(loadInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to unset obsolete installers from policies")
+			return ctxerr.Wrap(ctx, err, "build statement to load obsolete installers")
 		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
+		var removedInstallerIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &removedInstallerIDs, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "load obsolete installers")
+		}
+		removingInstallers := len(removedInstallerIDs) > 0
+
+		if removingInstallers {
+			stmt, args, err = sqlx.In(unsetInstallersNotInListFromPolicies, globalOrTeamID, titleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete installers from policies")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
+			}
 		}
 
-		stmt, args, err = sqlx.In(unsetPatchPoliciesWithInstallersNotInList, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(loadPatchPoliciesWithInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to unset obsolete patch policies")
+			return ctxerr.Wrap(ctx, err, "build statement to load obsolete patch policies")
 		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "unset obsolete patch policies")
+		var obsoletePatchPolicyIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &obsoletePatchPolicyIDs, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "load obsolete patch policies")
+		}
+		if len(obsoletePatchPolicyIDs) > 0 {
+			stmt, args, err = sqlx.In(unsetPatchPolicies, obsoletePatchPolicyIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete patch policies")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "unset obsolete patch policies")
+			}
 		}
 
 		// check if any in the list are install_during_setup, fail if there is one
@@ -3614,55 +3636,57 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			}
 		}
 
-		stmt, args, err = sqlx.In(deletePendingUninstallScriptExecutionsNotInList, globalOrTeamID, titleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete pending uninstall script executions")
-		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete pending uninstall script executions")
-		}
+		if removingInstallers {
+			stmt, args, err = sqlx.In(deletePendingUninstallScriptExecutionsNotInList, globalOrTeamID, titleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to delete pending uninstall script executions")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete obsolete pending uninstall script executions")
+			}
 
-		stmt, args, err = sqlx.In(cancelSetupExperienceStatusForDeletedSoftwareInstalls, fleet.SetupExperienceStatusCancelled, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning,
-			globalOrTeamID, titleIDs, globalOrTeamID, titleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to cancel pending setup experience software installs")
-		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "cancel pending setup experience software installs for obsolete host software install records")
-		}
+			stmt, args, err = sqlx.In(cancelSetupExperienceStatusForDeletedSoftwareInstalls, fleet.SetupExperienceStatusCancelled, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning,
+				globalOrTeamID, titleIDs, globalOrTeamID, titleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to cancel pending setup experience software installs")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "cancel pending setup experience software installs for obsolete host software install records")
+			}
 
-		stmt, args, err = sqlx.In(cancelPendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to cancel obsolete pending software installs")
-		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "cancel obsolete pending host software install records")
-		}
+			stmt, args, err = sqlx.In(cancelPendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to cancel obsolete pending software installs")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "cancel obsolete pending host software install records")
+			}
 
-		stmt, args, err = sqlx.In(loadAffectedHostsPendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to load affected hosts for upcoming software installs")
-		}
-		var affectedHostIDs []uint
-		if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming software installs")
-		}
-		activateAffectedHostIDs = affectedHostIDs
+			stmt, args, err = sqlx.In(loadAffectedHostsPendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to load affected hosts for upcoming software installs")
+			}
+			var affectedHostIDs []uint
+			if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming software installs")
+			}
+			activateAffectedHostIDs = affectedHostIDs
 
-		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete upcoming pending software installs")
-		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete upcoming pending host software install records")
-		}
+			stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to delete upcoming pending software installs")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete obsolete upcoming pending host software install records")
+			}
 
-		stmt, args, err = sqlx.In(markSoftwareInstallsNotInListAsRemoved, globalOrTeamID, titleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to mark obsolete host software installs as removed")
-		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "mark obsolete host software installs as removed")
+			stmt, args, err = sqlx.In(markSoftwareInstallsNotInListAsRemoved, globalOrTeamID, titleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to mark obsolete host software installs as removed")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "mark obsolete host software installs as removed")
+			}
 		}
 
 		stmt, args, err = sqlx.In(deleteDisplayNamesNotInList, globalOrTeamID, titleIDs)
@@ -3673,12 +3697,14 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			return ctxerr.Wrap(ctx, err, "delete obsolete display names")
 		}
 
-		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete installers")
-		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+		if removingInstallers {
+			stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete installers")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+			}
 		}
 
 		stmt, args, err = sqlx.In(deletePinnedVersionsNotInList, globalOrTeamID, titleIDs)
@@ -4142,14 +4168,6 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			// Re-point policies off the dropped packages before deleting them, since the
 			// policies FK is RESTRICT. A title removed entirely is handled by the
 			// not-in-list cleanup above, so here the title always keeps a package.
-			repointStmt, repointArgs, err := sqlx.In(repointDeletedInstallerPolicies, globalOrTeamID, keptInstallerIDs, globalOrTeamID, customPackageTitleIDs, keptInstallerIDs)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build statement to re-point dropped policies")
-			}
-			if _, err := tx.ExecContext(ctx, repointStmt, repointArgs...); err != nil {
-				return ctxerr.Wrap(ctx, err, "re-point dropped policies")
-			}
-
 			droppedStmt, droppedArgs, err := sqlx.In(findDroppedPackages, globalOrTeamID, customPackageTitleIDs, keptInstallerIDs)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to find dropped packages")
@@ -4157,6 +4175,15 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			var droppedInstallerIDs []uint
 			if err := sqlx.SelectContext(ctx, tx, &droppedInstallerIDs, droppedStmt, droppedArgs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "find dropped packages")
+			}
+			if len(droppedInstallerIDs) > 0 {
+				repointStmt, repointArgs, err := sqlx.In(repointDeletedInstallerPolicies, globalOrTeamID, keptInstallerIDs, globalOrTeamID, customPackageTitleIDs, keptInstallerIDs)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build statement to re-point dropped policies")
+				}
+				if _, err := tx.ExecContext(ctx, repointStmt, repointArgs...); err != nil {
+					return ctxerr.Wrap(ctx, err, "re-point dropped policies")
+				}
 			}
 			for _, id := range droppedInstallerIDs {
 				affectedHostIDs, err := ds.deleteInstallerInBatch(ctx, tx, id)
