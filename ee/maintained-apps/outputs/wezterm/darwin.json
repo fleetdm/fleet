@@ -4,7 +4,7 @@
       "version": "20240203-110809",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.wez.wezterm';",
-        "patched": "SELECT 1 FROM file WHERE path = '/Applications/WezTerm.app/Contents/MacOS/wezterm-gui' AND size = 136679296;",
+        "patched": "SELECT 1 FROM signature WHERE path = '/Applications/WezTerm.app' AND cdhash IN ('7e667fe9270e8f3dad1f069eb2516e0c1909ed29', '08b4bb671055310999a7ad18df389cdcffda5c3a');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.github.wez.wezterm' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/wezterm/wezterm/releases/download/20240203-110809-5046fc22/WezTerm-macos-20240203-110809-5046fc22.zip",

@@ -248,9 +248,9 @@ func TestIngestValidations(t *testing.T) {
 				)
 			case "wezterm":
 				// The bundle version is a placeholder, so the patched query pins the
-				// frozen release's GUI binary size instead of comparing versions.
+				// frozen release's code-directory hashes instead of comparing versions.
 				require.Equal(t,
-					"SELECT 1 FROM file WHERE path = '/Applications/WezTerm.app/Contents/MacOS/wezterm-gui' AND size = 136679296;",
+					"SELECT 1 FROM signature WHERE path = '/Applications/WezTerm.app' AND cdhash IN ('7e667fe9270e8f3dad1f069eb2516e0c1909ed29', '08b4bb671055310999a7ad18df389cdcffda5c3a');",
 					out.Queries.Patched,
 				)
 			case "swiftdialog":
