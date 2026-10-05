@@ -9206,7 +9206,7 @@ Retrieves an unsigned manual enrollment profile for macOS hosts. Install this pr
 
 To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), [add the end user's email to the enrollment profile](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#using-human-device-mapping).
 
-> **Warning:** Do not change or modify this profile in any way that is not directed by Fleet's documentation. Apple requires most values in this profile to agree with the values initially set at enrollment time when Fleet later sends renewals(approximately every six months by default). Any values changed can block Fleet's ability to renew this profile and may result in Fleet losing its ability to manage a device.
+> **Warning:** Do not change or modify this profile in any way that is not directed by Fleet's documentation. Apple requires most values in this profile to agree with the values initially set at enrollment time when Fleet later sends renewals (approximately every six months by default). Any values changed can block Fleet's ability to renew this profile and may result in Fleet losing its ability to manage a device.
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
