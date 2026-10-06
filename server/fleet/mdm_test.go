@@ -608,6 +608,26 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 			},
 			expected: true,
 		},
+		{
+			name: "Hidden Flag Change Is A Change",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Hidden: false},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Hidden: true},
+			},
+			expected: false,
+		},
+		{
+			name: "SelfService Flag Change Is A Change",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", SelfService: false},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", SelfService: true},
+			},
+			expected: false,
+		},
 	}
 
 	for _, tc := range tests {
@@ -628,13 +648,15 @@ func TestMDMProfileSpecsMatchPanicsOnDuplicatePaths(t *testing.T) {
 	clean := []fleet.MDMProfileSpec{{Path: "/a"}, {Path: "/b"}}
 
 	t.Run("duplicates in a", func(t *testing.T) {
-		require.PanicsWithValue(t,
+		require.PanicsWithValue(
+			t,
 			`MDMProfileSpecsMatch: a contains duplicate Path "/a"; upstream validation should have rejected this`,
 			func() { fleet.MDMProfileSpecsMatch(dup, clean) },
 		)
 	})
 	t.Run("duplicates in b", func(t *testing.T) {
-		require.PanicsWithValue(t,
+		require.PanicsWithValue(
+			t,
 			`MDMProfileSpecsMatch: b contains duplicate Path "/a"; upstream validation should have rejected this`,
 			func() { fleet.MDMProfileSpecsMatch(clean, dup) },
 		)

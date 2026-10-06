@@ -2120,11 +2120,11 @@ func (a ActivityTypeHostBypassedConditionalAccess) ActivityName() string {
 	return "host_bypassed_conditional_access"
 }
 
-// ActivityTypeBoundHostToIdPAccount records the host <-> IdP account link an
-// MDM SSO sign-in created.
+// ActivityTypeBoundHostToIdPAccount records a new or changed host <-> IdP
+// account link.
 type ActivityTypeBoundHostToIdPAccount struct {
 	HostUUID string `json:"host_uuid"`
-	// IdPEmail is the account that signed in and was not linked.
+	// IdPEmail is the account the host is now linked to.
 	IdPEmail string `json:"idp_email"`
 	// ReplacedIdPEmail is the account the host was bound to beforehand, empty
 	// when it had no binding.
@@ -2136,6 +2136,22 @@ func (a ActivityTypeBoundHostToIdPAccount) ActivityName() string {
 }
 
 func (a ActivityTypeBoundHostToIdPAccount) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeUnboundHostFromIdPAccount records the removal of a host's IdP
+// account link.
+type ActivityTypeUnboundHostFromIdPAccount struct {
+	HostUUID string `json:"host_uuid"`
+	// IdPEmail is the account the host was linked to.
+	IdPEmail string `json:"idp_email"`
+}
+
+func (a ActivityTypeUnboundHostFromIdPAccount) ActivityName() string {
+	return "unbound_host_from_idp_account"
+}
+
+func (a ActivityTypeUnboundHostFromIdPAccount) WasFromAutomation() bool {
 	return true
 }
 

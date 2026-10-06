@@ -41,6 +41,7 @@ type MDMWindowsConfigProfile struct {
 	Name             string                      `db:"name" json:"name"`
 	Description      string                      `db:"description" json:"description"`
 	SyncML           []byte                      `db:"syncml" json:"-"`
+	Hidden           bool                        `db:"hidden" json:"hidden"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`

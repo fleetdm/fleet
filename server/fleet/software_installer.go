@@ -673,6 +673,7 @@ type UploadSoftwareInstallerPayload struct {
 	PreInstallQuery      string
 	PostInstallScript    string
 	InstallerFile        *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	StagedUploadID       string          // when set, InstallerFile is read from this staged upload
 	StorageID            string
 	Filename             string
 	Title                string
@@ -804,6 +805,8 @@ type UpdateSoftwareInstallerPayload struct {
 	UserID uint
 	// optional; used for pulling metadata + persisting new installer package to file system
 	InstallerFile *TempFileReader
+	// when set, InstallerFile is read from this staged upload
+	StagedUploadID string
 	// update the installer with these fields (*not* PATCH semantics at that point; while the
 	// associated endpoint is a PATCH, the entire row will be updated to these values, including
 	// blanks, so make sure they're set from either user input or the existing installer row
