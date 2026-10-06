@@ -4342,6 +4342,91 @@ func (svc *Service) saveResultLogsToQueryReports(
 	// Filter results to only the most recent for each query.
 	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
 
+	// Pick the results to store before touching the database, so requests with nothing to store
+	// don't take a slot.
+	type resultToStore struct {
+		result *fleet.ScheduledQueryResult
+		query  *fleet.Query
+	}
+	hostTeamID := uint(0)
+	if host.TeamID != nil {
+		hostTeamID = *host.TeamID
+	}
+	var toStore []resultToStore
+	for _, result := range unmarshaledResultsFiltered {
+		dbQuery, ok := queriesDBData[result.QueryName]
+		if !ok {
+			// Means the query does not exist with such name anymore. Thus we ignore its result.
+			continue
+		}
+
+		if dbQuery.DiscardData || dbQuery.Logging != fleet.LoggingSnapshot {
+			// Ignore result if query is marked as discard data or if logging is not snapshot
+			continue
+		}
+
+		if dbQuery.TeamID != nil && *dbQuery.TeamID != hostTeamID {
+			// The host was transferred to another team/global so we ignore the incoming results
+			// of this query that belong to a different team.
+			continue
+		}
+		toStore = append(toStore, resultToStore{result: result, query: dbQuery})
+	}
+	if len(toStore) == 0 {
+		return
+	}
+
+	// Read the host's stored rows from the replica so unchanged results skip the write
+	// transaction. Without a live query store the rows can't be recorded, so nothing is read.
+	var storedRows map[uint][]*fleet.StoredQueryResultRow
+	releaseRead := func() {}
+	if svc.liveQueryStore != nil {
+		queryIDs := make([]uint, 0, len(toStore))
+		for _, r := range toStore {
+			queryIDs = append(queryIDs, r.query.ID)
+		}
+		var busy bool
+		storedRows, releaseRead, busy = svc.readStoredQueryResultRows(ctx, host.ID, queryIDs)
+		if busy {
+			queryReportWritesSkipped.Add(ctx, int64(len(toStore)), queryReportSkipReason(queryReportSkipReadBusy))
+			svc.logger.DebugContext(ctx, "too many concurrent query report reads, skipping results", "host_id", host.ID)
+			return
+		}
+		defer releaseRead()
+	}
+
+	// Unchanged results only need last_fetched updated, which the query_results_cleanup cron
+	// does in batches; the rest are written below.
+	type resultToWrite struct {
+		query *fleet.Query
+		rows  []*fleet.ScheduledQueryResultRow
+	}
+	var toWrite []resultToWrite
+	for _, r := range toStore {
+		rows := svc.queryResultRows(ctx, r.result, r.query.ID, host.ID)
+		if svc.recordUnchangedQueryResultRows(ctx, rows, storedRows[r.query.ID]) {
+			continue
+		}
+		toWrite = append(toWrite, resultToWrite{query: r.query, rows: rows})
+	}
+	// Don't hold a read slot while waiting on the writer.
+	releaseRead()
+	if len(toWrite) == 0 {
+		return
+	}
+
+	// Skip rather than wait at the limit: waiting requests pile up in memory while the database
+	// is slow, and the host sends fresh results on the report's next run.
+	release, ok := svc.acquireQueryReportWriteSlot(ctx)
+	if !ok {
+		queryReportWritesSkipped.Add(ctx, int64(len(toWrite)), queryReportSkipReason(queryReportSkipWriteBusy))
+		svc.logger.DebugContext(ctx, "too many concurrent query report writes, skipping results", "host_id", host.ID)
+		return
+	}
+	defer release()
+	writeCtx, cancel := context.WithTimeout(ctx, queryReportWriteTimeout)
+	defer cancel()
+
 	// Batch fetch query result counts from Redis for all queries, reading any that Redis
 	// doesn't have from the database and seeding them so later requests hit the cache.
 	var queryResultCounts map[uint]int
@@ -4363,7 +4448,7 @@ func (svc *Service) saveResultLogsToQueryReports(
 			}
 		}
 		if len(missing) > 0 {
-			fromDB, err := svc.ds.ResultCountsForQueries(ctx, missing)
+			fromDB, err := svc.ds.ResultCountsForQueries(writeCtx, missing)
 			if err != nil {
 				svc.logger.ErrorContext(ctx, "count results for queries missing from redis", "err", err)
 				return
@@ -4385,45 +4470,24 @@ func (svc *Service) saveResultLogsToQueryReports(
 	clippedTTLByQuery := make(map[uint]time.Duration)
 	var admittedQueryIDs []uint
 
-	for _, result := range unmarshaledResultsFiltered {
-		dbQuery, ok := queriesDBData[result.QueryName]
-		if !ok {
-			// Means the query does not exist with such name anymore. Thus we ignore its result.
-			continue
-		}
-
-		if dbQuery.DiscardData || dbQuery.Logging != fleet.LoggingSnapshot {
-			// Ignore result if query is marked as discard data or if logging is not snapshot
-			continue
-		}
-
-		hostTeamID := uint(0)
-		if host.TeamID != nil {
-			hostTeamID = *host.TeamID
-		}
-		if dbQuery.TeamID != nil && *dbQuery.TeamID != hostTeamID {
-			// The host was transferred to another team/global so we ignore the incoming results
-			// of this query that belong to a different team.
-			continue
-		}
-
+	for _, w := range toWrite {
 		// Approximate count from Redis; the datastore decides whether replacing
 		// this host's rows fits under the cap, so a full report keeps updating
 		// for hosts already in it.
-		currentCount := queryResultCounts[dbQuery.ID]
+		currentCount := queryResultCounts[w.query.ID]
 
-		res, err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows, currentCount)
+		res, err := svc.ds.OverwriteQueryResultRows(writeCtx, w.rows, maxQueryReportRows, currentCount)
 		if err != nil {
-			svc.logger.ErrorContext(ctx, "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
+			svc.logger.ErrorContext(ctx, "overwrite results", "err", err, "query_id", w.query.ID, "host_id", host.ID)
 			continue
 		}
 		switch {
 		case res.Rejected:
-			clippedTTLByQuery[dbQuery.ID] = queryReportClippedTTL(dbQuery)
+			clippedTTLByQuery[w.query.ID] = queryReportClippedTTL(w.query)
 		case res.NewHost:
-			admittedQueryIDs = append(admittedQueryIDs, dbQuery.ID)
+			admittedQueryIDs = append(admittedQueryIDs, w.query.ID)
 		}
-		rowsAddedByQuery[dbQuery.ID] += res.RowsAdded
+		rowsAddedByQuery[w.query.ID] += res.RowsAdded
 	}
 
 	// Batch increment Redis counters after all successful inserts
@@ -4572,12 +4636,12 @@ func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult)
 	return filteredResults
 }
 
-// overwriteResultRows deletes existing and inserts the new results for a query and host.
+// queryResultRows returns the rows to store for a result of a query on a host.
 //
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+func (svc *Service) queryResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint) []*fleet.ScheduledQueryResultRow {
 	fetchTime := time.Now()
 
 	snapshot := result.Snapshot
@@ -4608,12 +4672,38 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		}
 		rows = append(rows, row)
 	}
+	return rows
+}
 
-	res, err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows, currentCount)
-	if err != nil {
-		return fleet.QueryReportWriteResult{}, ctxerr.Wrap(ctx, err, "overwriting query result rows")
+// recordUnchangedQueryResultRows records the stored rows for the query_results_cleanup cron to
+// update their last_fetched if rows hold the same data and their last_fetched is older than
+// queryResultsLastFetchedRefreshAge. It reports whether that handled the result; if not, the rows
+// must be written.
+func (svc *Service) recordUnchangedQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, stored []*fleet.StoredQueryResultRow) bool {
+	if !queryResultRowsUnchanged(rows, stored) {
+		return false
 	}
-	return res, nil
+	if !queryResultRowsLastFetchedStale(stored, rows[0].LastFetched) {
+		queryReportWritesSkipped.Add(ctx, 1, queryReportSkipReason(queryReportSkipUnchanged))
+		return true
+	}
+	ids := make([]uint, 0, len(stored))
+	for _, row := range stored {
+		ids = append(ids, row.ID)
+	}
+	err := svc.liveQueryStore.RecordQueryResultsLastFetched(ids, rows[0].LastFetched)
+	switch {
+	case err == nil:
+		queryReportWritesSkipped.Add(ctx, 1, queryReportSkipReason(queryReportSkipUnchanged))
+		return true
+	case errors.Is(err, fleet.ErrQueryResultsLastFetchedFull):
+		// Rewriting would add load while the cron is behind; last_fetched just stays stale.
+		queryReportWritesSkipped.Add(ctx, 1, queryReportSkipReason(queryReportSkipLastFetchedDropped))
+		return true
+	default:
+		svc.logger.ErrorContext(ctx, "record query results last fetched", "err", err, "query_id", rows[0].QueryID, "host_id", rows[0].HostID)
+		return false
+	}
 }
 
 // minQueryReportClippedTTL is the shortest time a clipped marker lives. Rejections recur every
