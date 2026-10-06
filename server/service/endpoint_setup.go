@@ -48,6 +48,11 @@ func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger, applyStarterLibra
 			err := ctxerr.New(ctx, "admin password cannot be empty")
 			return setupResponse{Err: err}, nil
 		}
+		// The admin is created first and closes setup, so an invalid server URL must be rejected here.
+		if err := validateSetupServerURL(ctx, ptr.ValOrZero(req.ServerURL)); err != nil {
+			return setupResponse{Err: err}, nil
+		}
+
 		// Creating the initial admin is the only race-safe guard on this
 		// unauthenticated endpoint, so it must succeed before app config and
 		// enroll secrets are overwritten.
@@ -66,6 +71,7 @@ func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger, applyStarterLibra
 		}
 		config, err = svc.NewAppConfig(ctx, *config)
 		if err != nil {
+			logger.ErrorContext(ctx, "setup created the initial admin but failed to save app config and enroll secret", "err", err)
 			return setupResponse{Err: err}, nil
 		}
 

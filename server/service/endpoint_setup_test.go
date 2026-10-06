@@ -154,7 +154,9 @@ func TestSetupConcurrentRequestsCreateSingleAdmin(t *testing.T) {
 	for _, c := range codes {
 		if c == http.StatusOK {
 			succeeded++
+			continue
 		}
+		assert.Equal(t, http.StatusConflict, c)
 	}
 	assert.Equal(t, 1, succeeded)
 
@@ -199,4 +201,23 @@ func TestSetupNotRearmedAfterUsersRemoved(t *testing.T) {
 	appCfg, err := ds.AppConfig(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, "Legit Org", appCfg.OrgInfo.OrgName)
+}
+
+func TestSetupInvalidServerURLKeepsSetupOpen(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+	ctx := t.Context()
+
+	srv, _ := newSetupTestServer(t, ds)
+
+	code, admin := postSetup(t, srv, "admin@example.com", "Legit Org", "not-a-url")
+	assert.Equal(t, http.StatusUnprocessableEntity, code)
+	assert.Nil(t, admin)
+
+	users, err := ds.ListUsers(ctx, fleet.UserListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, users)
+
+	code, admin = postSetup(t, srv, "admin@example.com", "Legit Org", "https://fleet.example.com")
+	require.Equal(t, http.StatusOK, code)
+	require.NotNil(t, admin)
 }

@@ -51,9 +51,13 @@ func (ds *Datastore) newUser(ctx context.Context, user *fleet.User, isInitial bo
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if isInitial {
-			// FOR UPDATE gap-locks the empty table, so concurrent callers can't both
-			// pass this check; the loser blocks or deadlocks instead of inserting.
+			// Serialize on the singleton app config row: a gap lock on the empty users
+			// table isn't taken under READ COMMITTED and deadlocks concurrent callers
+			// under REPEATABLE READ.
 			var id uint
+			if err := sqlx.GetContext(ctx, tx, &id, `SELECT id FROM app_config_json WHERE id = 1 FOR UPDATE`); err != nil {
+				return ctxerr.Wrap(ctx, err, "lock app config for initial user")
+			}
 			err := sqlx.GetContext(ctx, tx, &id, `SELECT id FROM users LIMIT 1 FOR UPDATE`)
 			switch {
 			case err == nil:
