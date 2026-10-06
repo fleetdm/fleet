@@ -731,6 +731,12 @@ type Datastore interface {
 	// Pagination metadata is returned only when opts.IncludeMetadata is set.
 	QueryResultRows(ctx context.Context, queryID uint, filter TeamFilter, opts ListOptions) ([]*ScheduledQueryResultRow, int, *PaginationMetadata, error)
 	QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*ScheduledQueryResultRow, error)
+	// QueryResultRowsForHostByQuery returns a host's stored rows (including rows with null data) for
+	// each of the given queries, read from the replica. Queries with no rows are absent from the result.
+	QueryResultRowsForHostByQuery(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*StoredQueryResultRow, error)
+	// UpdateQueryResultsLastFetched sets last_fetched of the query_results rows with the given IDs to
+	// lastFetched, unless it is already more recent. IDs that no longer exist are ignored.
+	UpdateQueryResultsLastFetched(ctx context.Context, ids []uint, lastFetched time.Time) error
 	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
 	// ResultCountsForQueries returns the number of stored rows with data per query. Queries with
 	// no rows are absent from the result.
@@ -743,6 +749,9 @@ type Datastore interface {
 	// Used in cleanups_then_aggregation cron to cleanup rows that were inserted immediately
 	// after DiscardData was set to true due to query caching.
 	CleanupDiscardedQueryResults(ctx context.Context) error
+	// CleanupStaleQueryResults deletes query results that an edit hid from reads (see
+	// results_valid_from_id) and results of deleted queries.
+	CleanupStaleQueryResults(ctx context.Context) error
 	// CleanupExcessQueryResultRows deletes query result rows that exceed the maximum allowed per query.
 	// It keeps the most recent rows (by id, which correlates with insert order) up to the limit.
 	// Deletes are batched to avoid large binlogs and long lock times. This runs as a cron job.
