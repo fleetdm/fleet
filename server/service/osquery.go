@@ -4424,18 +4424,20 @@ func (svc *Service) saveResultLogsToQueryReports(
 	// Read the host's stored rows from the replica so unchanged results skip the write
 	// transaction. Without a live query store the rows can't be recorded, so nothing is read.
 	var storedRows map[uint][]*fleet.StoredQueryResultRow
+	releaseRead := func() {}
 	if svc.liveQueryStore != nil {
 		queryIDs := make([]uint, 0, len(toStore))
 		for _, r := range toStore {
 			queryIDs = append(queryIDs, r.query.ID)
 		}
 		var busy bool
-		storedRows, busy = svc.readStoredQueryResultRows(ctx, host.ID, queryIDs)
+		storedRows, releaseRead, busy = svc.readStoredQueryResultRows(ctx, host.ID, queryIDs)
 		if busy {
 			queryReportWritesSkipped.Add(ctx, int64(len(toStore)), queryReportSkipReason(queryReportSkipReadBusy))
 			svc.logger.DebugContext(ctx, "too many concurrent query report reads, skipping results", "host_id", host.ID)
 			return
 		}
+		defer releaseRead()
 	}
 
 	// Unchanged results only need last_fetched updated, which the query_results_cleanup cron
@@ -4452,6 +4454,8 @@ func (svc *Service) saveResultLogsToQueryReports(
 		}
 		toWrite = append(toWrite, resultToWrite{query: r.query, rows: rows})
 	}
+	// Don't hold a read slot while waiting on the writer.
+	releaseRead()
 	if len(toWrite) == 0 {
 		return
 	}

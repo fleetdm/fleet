@@ -326,6 +326,28 @@ func TestSaveResultLogsToQueryReportsSkipsWhenBusy(t *testing.T) {
 		assert.Zero(t, writeSlotsHeld)
 	})
 
+	t.Run("read slot is held through the comparison, not the write", func(t *testing.T) {
+		reset()
+		var heldWhileRecording, heldWhileAcquiringWrite int
+		record, acquireWrite := lq.RecordQueryResultsLastFetchedOverride, lq.AcquireQueryReportWriteSlotOverride
+		t.Cleanup(func() {
+			lq.RecordQueryResultsLastFetchedOverride, lq.AcquireQueryReportWriteSlotOverride = record, acquireWrite
+		})
+		lq.RecordQueryResultsLastFetchedOverride = func(rowIDs []uint, fetchedAt time.Time) error {
+			heldWhileRecording = len(serv.queryReportReadSem)
+			return record(rowIDs, fetchedAt)
+		}
+		lq.AcquireQueryReportWriteSlotOverride = func(token string, limit int, lease time.Duration) (bool, error) {
+			heldWhileAcquiringWrite = len(serv.queryReportReadSem)
+			return acquireWrite(token, limit, lease)
+		}
+
+		serv.saveResultLogsToQueryReports(ctx, results, queries, fleet.DefaultMaxQueryReportRows)
+		assert.Equal(t, 1, heldWhileRecording)
+		assert.Zero(t, heldWhileAcquiringWrite)
+		assert.Empty(t, serv.queryReportReadSem)
+	})
+
 	t.Run("nothing changed takes no write slot", func(t *testing.T) {
 		reset()
 		writeSlotsHeld = 1

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"maps"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -107,21 +108,24 @@ func (svc *Service) acquireQueryReportWriteSlot(ctx context.Context) (release fu
 	return func() { releaseSlot(svc.queryReportWriteFallbackSem) }, true
 }
 
-// readStoredQueryResultRows reads a host's stored rows for the given queries from the replica.
-// busy is true if the server is at osquery.max_concurrent_query_report_reads, in which case
-// nothing is read. On a read error the rows are returned empty, so every result is written.
-func (svc *Service) readStoredQueryResultRows(ctx context.Context, hostID uint, queryIDs []uint) (rows map[uint][]*fleet.StoredQueryResultRow, busy bool) {
+// readStoredQueryResultRows takes one of the osquery.max_concurrent_query_report_reads slots and
+// reads a host's stored rows for the given queries from the replica. busy is true if no slot is
+// free, in which case nothing is read. Otherwise release must be called once the rows have been
+// compared, so the slot also bounds the stored rows held in memory and the comparison work; it
+// may be called more than once. On a read error the rows are returned empty, so every result is
+// written.
+func (svc *Service) readStoredQueryResultRows(ctx context.Context, hostID uint, queryIDs []uint) (rows map[uint][]*fleet.StoredQueryResultRow, release func(), busy bool) {
 	if !tryAcquireSlot(svc.queryReportReadSem) {
-		return nil, true
+		return nil, nil, true
 	}
-	defer releaseSlot(svc.queryReportReadSem)
+	release = sync.OnceFunc(func() { releaseSlot(svc.queryReportReadSem) })
 
 	rows, err := svc.ds.QueryResultRowsForHostByQuery(ctx, hostID, queryIDs)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "read stored query results for host", "err", err, "host_id", hostID)
-		return nil, false
+		return nil, release, false
 	}
-	return rows, false
+	return rows, release, false
 }
 
 // queryResultRowsUnchanged reports whether rows hold the same data as stored, in any order.
