@@ -174,20 +174,19 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
 			}
 		}
-	} else {
+	} else if license.IsPremium(ctx) {
 		// We shouldn't have any setup experience steps if we're not on a premium license,
 		// but best to check anyway plus it saves some db queries.
-		if license.IsPremium(ctx) {
-			_, err := a.installSetupExperienceAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "installing setup experience apps on iOS/iPadOS")
-			}
-		}
+		//
 		// Refetch is handled by the iphone_ipad_refetcher cron, which now
 		// picks up freshly-enrolled hosts on its next tick (see
 		// ListIOSAndIPadOSToRefetch). That avoids tying the host's inventory
 		// catch-up to the synchronous enrollment path and keeps a single
 		// source of truth for refetch command emission.
+		_, err := a.installSetupExperienceAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "installing setup experience apps on iOS/iPadOS")
+		}
 	}
 
 	return nil
