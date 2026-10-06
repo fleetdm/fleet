@@ -215,7 +215,7 @@ every LocURI under them.`,
 
           sails.log(`Downloading ${resolvedUrl}...`);
           // Use fetch to download the zip file containing the ADMX template.
-          let response = await fetch(resolvedUrl);
+          let response = await fetch(resolvedUrl);// eslint-disable-line no-undef
 
           if(!response.ok) {
             throw new Error(`Downloading ${resolvedUrl} failed with status ${response.status}.`);
