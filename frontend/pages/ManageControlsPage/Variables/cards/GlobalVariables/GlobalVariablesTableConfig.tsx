@@ -24,7 +24,6 @@ interface IStringCellProps {
 }
 
 interface IDataColumn {
-  id?: string;
   title?: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
@@ -58,7 +57,6 @@ const generateTableHeaders = ({
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      id: "token",
       title: "Variable name",
       Header: "Variable name",
       disableSortBy: true,
