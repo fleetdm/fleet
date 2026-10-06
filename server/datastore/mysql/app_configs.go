@@ -79,21 +79,25 @@ func (ds *Datastore) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, e
 
 func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		configBytes, err := json.Marshal(info)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "marshaling config")
-		}
-
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
-			configBytes,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insert app_config_json")
-		}
-
-		return nil
+		return saveAppConfigDB(ctx, tx, info)
 	})
+}
+
+func saveAppConfigDB(ctx context.Context, tx sqlx.ExtContext, info *fleet.AppConfig) error {
+	configBytes, err := json.Marshal(info)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling config")
+	}
+
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
+		configBytes,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert app_config_json")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) InsertOrReplaceMDMConfigAsset(ctx context.Context, asset fleet.MDMConfigAsset) error {

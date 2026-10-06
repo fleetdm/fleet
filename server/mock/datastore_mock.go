@@ -70,7 +70,7 @@ type CleanupCarvesFunc func(ctx context.Context, now time.Time) (expired int, er
 
 type NewUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error)
 
-type NewInitialUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error)
+type CompleteInitialSetupFunc func(ctx context.Context, admin *fleet.User, appConfig *fleet.AppConfig, enrollSecrets []*fleet.EnrollSecret) (*fleet.User, error)
 
 type HasUsersFunc func(ctx context.Context) (bool, error)
 
@@ -2604,8 +2604,8 @@ type DataStore struct {
 	NewUserFunc        NewUserFunc
 	NewUserFuncInvoked bool
 
-	NewInitialUserFunc        NewInitialUserFunc
-	NewInitialUserFuncInvoked bool
+	CompleteInitialSetupFunc        CompleteInitialSetupFunc
+	CompleteInitialSetupFuncInvoked bool
 
 	HasUsersFunc        HasUsersFunc
 	HasUsersFuncInvoked bool
@@ -6464,11 +6464,11 @@ func (s *DataStore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User,
 	return s.NewUserFunc(ctx, user)
 }
 
-func (s *DataStore) NewInitialUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+func (s *DataStore) CompleteInitialSetup(ctx context.Context, admin *fleet.User, appConfig *fleet.AppConfig, enrollSecrets []*fleet.EnrollSecret) (*fleet.User, error) {
 	s.mu.Lock()
-	s.NewInitialUserFuncInvoked = true
+	s.CompleteInitialSetupFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewInitialUserFunc(ctx, user)
+	return s.CompleteInitialSetupFunc(ctx, admin, appConfig, enrollSecrets)
 }
 
 func (s *DataStore) HasUsers(ctx context.Context) (bool, error) {

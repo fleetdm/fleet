@@ -156,7 +156,8 @@ func TestSetupConcurrentRequestsCreateSingleAdmin(t *testing.T) {
 			succeeded++
 			continue
 		}
-		assert.Equal(t, http.StatusConflict, c)
+		// 404 means the request arrived after setup closed and never reached the setup router.
+		assert.Contains(t, []int{http.StatusConflict, http.StatusNotFound}, c)
 	}
 	assert.Equal(t, 1, succeeded)
 

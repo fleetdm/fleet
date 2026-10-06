@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -10,24 +11,30 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
-	// skipauth: Only the initial user creation should be allowed to skip
-	// authorization (because there is not yet a user context to check against).
+func (svc *Service) CompleteInitialSetup(ctx context.Context, p fleet.UserPayload, appConfig fleet.AppConfig) (*fleet.User, *fleet.AppConfig, error) {
+	// skipauth: No user context exists before the first user is created.
 	svc.authz.SkipAuthorization(ctx)
 
-	setupRequired, err := svc.SetupRequired(ctx)
-	if err != nil {
-		return nil, err
+	if err := validateSetupServerURL(ctx, appConfig.ServerSettings.ServerURL); err != nil {
+		return nil, nil, err
 	}
-	if !setupRequired {
-		return nil, ctxerr.New(ctx, "a user already exists")
+
+	secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
 	}
 
 	// Initial user should be global admin with no explicit teams
 	p.GlobalRole = ptr.String(fleet.RoleAdmin)
 	p.Teams = nil
 
-	return svc.newUser(ctx, p, svc.ds.NewInitialUser)
+	admin, err := svc.newUser(ctx, p, func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+		return svc.ds.CompleteInitialSetup(ctx, user, &appConfig, []*fleet.EnrollSecret{{Secret: secret}})
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return admin, &appConfig, nil
 }
 
 func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {

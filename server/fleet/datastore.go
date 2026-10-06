@@ -73,8 +73,9 @@ type Datastore interface {
 	// UserStore contains methods for managing users in a datastore
 
 	NewUser(ctx context.Context, user *User) (*User, error)
-	// NewInitialUser creates the user only if no other user exists, atomically.
-	NewInitialUser(ctx context.Context, user *User) (*User, error)
+	// CompleteInitialSetup atomically creates the first admin, saves the app config and
+	// replaces the global enroll secrets, failing if any user already exists.
+	CompleteInitialSetup(ctx context.Context, admin *User, appConfig *AppConfig, enrollSecrets []*EnrollSecret) (*User, error)
 	// HasUsers returns whether Fleet has any users registered
 	HasUsers(ctx context.Context) (bool, error)
 	ListUsers(ctx context.Context, opt UserListOptions) ([]*User, error)

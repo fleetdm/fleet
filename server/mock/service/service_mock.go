@@ -77,7 +77,7 @@ type CreateUserFromInviteFunc func(ctx context.Context, p fleet.UserPayload) (us
 
 type CreateUserFunc func(ctx context.Context, p fleet.UserPayload) (user *fleet.User, sessionKey *string, err error)
 
-type CreateInitialUserFunc func(ctx context.Context, p fleet.UserPayload) (user *fleet.User, err error)
+type CompleteInitialSetupFunc func(ctx context.Context, admin fleet.UserPayload, appConfig fleet.AppConfig) (user *fleet.User, info *fleet.AppConfig, err error)
 
 type UserFunc func(ctx context.Context, id uint) (user *fleet.User, err error)
 
@@ -316,8 +316,6 @@ type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.
 type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error)
 
 type HostDeviceURLFunc func(ctx context.Context, hostID uint) (string, error)
-
-type NewAppConfigFunc func(ctx context.Context, p fleet.AppConfig) (info *fleet.AppConfig, err error)
 
 type AppConfigObfuscatedFunc func(ctx context.Context) (info *fleet.AppConfig, err error)
 
@@ -1128,8 +1126,8 @@ type Service struct {
 	CreateUserFunc        CreateUserFunc
 	CreateUserFuncInvoked bool
 
-	CreateInitialUserFunc        CreateInitialUserFunc
-	CreateInitialUserFuncInvoked bool
+	CompleteInitialSetupFunc        CompleteInitialSetupFunc
+	CompleteInitialSetupFuncInvoked bool
 
 	UserFunc        UserFunc
 	UserFuncInvoked bool
@@ -1487,9 +1485,6 @@ type Service struct {
 
 	HostDeviceURLFunc        HostDeviceURLFunc
 	HostDeviceURLFuncInvoked bool
-
-	NewAppConfigFunc        NewAppConfigFunc
-	NewAppConfigFuncInvoked bool
 
 	AppConfigObfuscatedFunc        AppConfigObfuscatedFunc
 	AppConfigObfuscatedFuncInvoked bool
@@ -2776,11 +2771,11 @@ func (s *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (user *fl
 	return s.CreateUserFunc(ctx, p)
 }
 
-func (s *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) (user *fleet.User, err error) {
+func (s *Service) CompleteInitialSetup(ctx context.Context, admin fleet.UserPayload, appConfig fleet.AppConfig) (user *fleet.User, info *fleet.AppConfig, err error) {
 	s.mu.Lock()
-	s.CreateInitialUserFuncInvoked = true
+	s.CompleteInitialSetupFuncInvoked = true
 	s.mu.Unlock()
-	return s.CreateInitialUserFunc(ctx, p)
+	return s.CompleteInitialSetupFunc(ctx, admin, appConfig)
 }
 
 func (s *Service) User(ctx context.Context, id uint) (user *fleet.User, err error) {
@@ -3614,13 +3609,6 @@ func (s *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, error
 	s.HostDeviceURLFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostDeviceURLFunc(ctx, hostID)
-}
-
-func (s *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (info *fleet.AppConfig, err error) {
-	s.mu.Lock()
-	s.NewAppConfigFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewAppConfigFunc(ctx, p)
 }
 
 func (s *Service) AppConfigObfuscated(ctx context.Context) (info *fleet.AppConfig, err error) {

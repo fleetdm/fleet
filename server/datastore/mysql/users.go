@@ -37,37 +37,59 @@ const userSummaryColumns = `id, name, email, gravatar_url, api_only`
 
 // NewUser creates a new user
 func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
-	return ds.newUser(ctx, user, false)
-}
-
-func (ds *Datastore) NewInitialUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
-	return ds.newUser(ctx, user, true)
-}
-
-func (ds *Datastore) newUser(ctx context.Context, user *fleet.User, isInitial bool) (*fleet.User, error) {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate role")
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if isInitial {
-			// Serialize on the singleton app config row: a gap lock on the empty users
-			// table isn't taken under READ COMMITTED and deadlocks concurrent callers
-			// under REPEATABLE READ.
-			var id uint
-			if err := sqlx.GetContext(ctx, tx, &id, `SELECT id FROM app_config_json WHERE id = 1 FOR UPDATE`); err != nil {
-				return ctxerr.Wrap(ctx, err, "lock app config for initial user")
-			}
-			err := sqlx.GetContext(ctx, tx, &id, `SELECT id FROM users LIMIT 1 FOR UPDATE`)
-			switch {
-			case err == nil:
-				return ctxerr.Wrap(ctx, alreadyExists("User", user.Email))
-			case !errors.Is(err, sql.ErrNoRows):
-				return ctxerr.Wrap(ctx, err, "check for existing users")
-			}
+		return newUserDB(ctx, tx, user)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (ds *Datastore) CompleteInitialSetup(ctx context.Context, admin *fleet.User, appConfig *fleet.AppConfig, enrollSecrets []*fleet.EnrollSecret) (*fleet.User, error) {
+	if err := fleet.ValidateRole(admin.GlobalRole, admin.Teams); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate role")
+	}
+	appConfig.ApplyDefaultsForNewInstalls()
+
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Serialize on the singleton app config row: a gap lock on the empty users
+		// table isn't taken under READ COMMITTED and deadlocks concurrent callers
+		// under REPEATABLE READ.
+		var id uint
+		if err := sqlx.GetContext(ctx, tx, &id, `SELECT id FROM app_config_json WHERE id = 1 FOR UPDATE`); err != nil {
+			return ctxerr.Wrap(ctx, err, "lock app config for initial setup")
+		}
+		err := sqlx.GetContext(ctx, tx, &id, `SELECT id FROM users LIMIT 1 FOR UPDATE`)
+		switch {
+		case err == nil:
+			return ctxerr.Wrap(ctx, alreadyExists("User", admin.Email))
+		case !errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, err, "check for existing users")
 		}
 
-		sqlStatement := `
+		if err := newUserDB(ctx, tx, admin); err != nil {
+			return err
+		}
+		if err := saveAppConfigDB(ctx, tx, appConfig); err != nil {
+			return err
+		}
+		return applyEnrollSecretsDB(ctx, tx, nil, enrollSecrets)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return admin, nil
+}
+
+func newUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error {
+	sqlStatement := `
       INSERT INTO users (
       	password,
       	salt,
@@ -83,49 +105,43 @@ func (ds *Datastore) newUser(ctx context.Context, user *fleet.User, isInitial bo
 		invite_id
       ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
       `
-		result, err := tx.ExecContext(ctx, sqlStatement,
-			user.Password,
-			user.Salt,
-			user.Name,
-			user.Email,
-			user.AdminForcedPasswordReset,
-			user.GravatarURL,
-			user.Position,
-			user.SSOEnabled,
-			user.MFAEnabled,
-			user.APIOnly,
-			user.GlobalRole,
-			user.InviteID,
-		)
+	result, err := tx.ExecContext(ctx, sqlStatement,
+		user.Password,
+		user.Salt,
+		user.Name,
+		user.Email,
+		user.AdminForcedPasswordReset,
+		user.GravatarURL,
+		user.Position,
+		user.SSOEnabled,
+		user.MFAEnabled,
+		user.APIOnly,
+		user.GlobalRole,
+		user.InviteID,
+	)
 
-		// set timestamp as close as possible to insert query to be as accurate as possible without needing to SELECT
-		user.CreatedAt = time.Now().UTC().Truncate(time.Second) // truncating because DB is at second resolution
-		user.UpdatedAt = user.CreatedAt
+	// set timestamp as close as possible to insert query to be as accurate as possible without needing to SELECT
+	user.CreatedAt = time.Now().UTC().Truncate(time.Second) // truncating because DB is at second resolution
+	user.UpdatedAt = user.CreatedAt
 
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "create new user")
-		}
-
-		id, _ := result.LastInsertId()
-		user.ID = uint(id) //nolint:gosec // dismiss G115
-
-		if err := saveTeamsForUserDB(ctx, tx, user); err != nil {
-			return err
-		}
-
-		if user.APIOnly && user.APIEndpoints != nil {
-			if err := replaceUserAPIEndpoints(ctx, tx, user.ID, user.APIEndpoints); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
 	if err != nil {
-		return nil, err
+		return ctxerr.Wrap(ctx, err, "create new user")
 	}
 
-	return user, nil
+	id, _ := result.LastInsertId()
+	user.ID = uint(id) //nolint:gosec // dismiss G115
+
+	if err := saveTeamsForUserDB(ctx, tx, user); err != nil {
+		return err
+	}
+
+	if user.APIOnly && user.APIEndpoints != nil {
+		if err := replaceUserAPIEndpoints(ctx, tx, user.ID, user.APIEndpoints); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal interface{}) (*fleet.User, error) {

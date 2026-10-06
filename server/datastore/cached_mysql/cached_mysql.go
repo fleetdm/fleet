@@ -260,6 +260,17 @@ func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) 
 	return ac, nil
 }
 
+func (ds *cachedMysql) CompleteInitialSetup(ctx context.Context, admin *fleet.User, appConfig *fleet.AppConfig, enrollSecrets []*fleet.EnrollSecret) (*fleet.User, error) {
+	user, err := ds.Datastore.CompleteInitialSetup(ctx, admin, appConfig, enrollSecrets)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(ctx, appConfigKey, appConfig, ds.appConfigExp)
+
+	return user, nil
+}
+
 func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	if x, found := ds.c.Get(ctx, appConfigKey); found {
 		ac, ok := x.(*fleet.AppConfig)
