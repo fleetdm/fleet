@@ -78,6 +78,18 @@ describe("AddCertAuthorityModal helpers", () => {
       ).toBe("Invalid SCEP URL. Please correct and try again.");
     });
 
+    it("returns the SCEP URL CA certificate error", () => {
+      expect(
+        getDisplayErrMessage(
+          apiError(
+            "Couldn't add certificate authority. Fleet didn't get a CA certificate from the SCEP URL. Please make sure the URL is correct and Fleet can reach it."
+          )
+        )
+      ).toBe(
+        "Fleet didn't get a CA certificate from the SCEP URL. Please make sure the URL is correct and Fleet can reach it."
+      );
+    });
+
     it("returns the generic URL error when the CA type isn't named", () => {
       expect(
         getDisplayErrMessage(

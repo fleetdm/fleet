@@ -1,0 +1,1 @@
+- Improved the error message shown when Fleet can't get a CA certificate from a SCEP URL while adding or editing a certificate authority.

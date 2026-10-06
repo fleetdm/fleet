@@ -214,6 +214,8 @@ const INVALID_CHALLENGE_ERROR =
   "Invalid challenge. Please correct and try again.";
 const INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR =
   "Invalid challenge URL or credentials. Please correct and try again.";
+const SCEP_URL_NO_CA_CERT_ERROR =
+  "Fleet didn't get a CA certificate from the SCEP URL. Please make sure the URL is correct and Fleet can reach it.";
 
 /**
  * Matches the server's URL errors, which name the CA type inside the message (e.g. "Invalid
@@ -256,6 +258,8 @@ export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
     message = INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR;
   } else if (reason.includes("invalid challenge")) {
     message = INVALID_CHALLENGE_ERROR;
+  } else if (reason.includes("didn't get a ca certificate from the scep url")) {
+    message = SCEP_URL_NO_CA_CERT_ERROR;
   } else if (invalidUrlMatch) {
     message = `${invalidUrlMatch[0]} Please correct and try again.`;
   } else if (

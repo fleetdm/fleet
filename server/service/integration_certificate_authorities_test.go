@@ -276,7 +276,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusBadRequest)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.ndes_scep_proxy")
-			require.Contains(t, errMsg, "Invalid SCEP URL")
+			require.Contains(t, errMsg, "didn't get a CA certificate from the SCEP URL")
 			checkNDESApplied(t, nil)
 		})
 
