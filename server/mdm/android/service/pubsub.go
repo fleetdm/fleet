@@ -834,21 +834,17 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	// lifecycle and update the lifecycle to support Android, so that TurnOnMDM
 	// inserts the host_mdm, and TurnOffMDM deletes it.
 
-	var enrollmentTokenRequest enrollmentTokenRequest
-	err = json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "unmarshalling enrollment token data")
-	}
-
 	if host != nil {
 		svc.logger.DebugContext(ctx, "The enrolling Android host is already present in Fleet. Updating team if needed",
 			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
-		enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
-		if err != nil && !fleet.IsNotFound(err) {
-			return 0, ctxerr.Wrap(ctx, err, "verifying enroll secret")
-		}
-		if err == nil {
-			host.TeamID = enrollSecret.GetTeamID()
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(ctx, device.EnrollmentTokenData)
+		switch {
+		case fleet.IsNotFound(err):
+			// Legacy token whose enroll secret no longer exists: keep the host's current team.
+		case err != nil:
+			return 0, err
+		default:
+			host.TeamID = teamID
 		}
 
 		// If the device was previously known restore the last-known team instead of the enrollment secret's default.
@@ -860,8 +856,8 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 			host.TeamID = priorTeamID
 		}
 
-		if enrollmentTokenRequest.IdpUUID != "" {
-			if err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, enrollmentTokenRequest.IdpUUID); err != nil {
+		if idpUUID != "" {
+			if err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, idpUUID); err != nil {
 				return 0, ctxerr.Wrap(ctx, err, "updating IdP account on re-enrollment")
 			}
 		}

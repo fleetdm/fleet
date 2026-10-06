@@ -39,9 +39,6 @@ func wireDedupHost(t *testing.T, mockDS *AndroidMockDS, hostID uint, hostUUID st
 	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, h *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 		return nil
 	}
-	mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-		return &fleet.EnrollSecret{}, nil
-	}
 	mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error { return nil }
 	mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, id uint) error { return nil }
 	mockDS.ScimUserByHostIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
@@ -69,7 +66,7 @@ func wireDedupHost(t *testing.T, mockDS *AndroidMockDS, hostID uint, hostUUID st
 func makeEnrollmentEnvelope(t *testing.T, messageID, publishTime string) *android.PubSubMessage {
 	msg := createEnrollmentMessage(t, androidmanagement.Device{
 		Name:                createAndroidDeviceId("dedup"),
-		EnrollmentTokenData: `{"enroll_secret":"global"}`,
+		EnrollmentTokenData: `{"fleet_id": null}`,
 	})
 	msg.MessageID = messageID
 	msg.PublishTime = publishTime
@@ -178,9 +175,6 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 			hostLiteCalls++
 			return nil, common_mysql.NotFound("android host lite")
 		}
-		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-			return &fleet.EnrollSecret{}, nil
-		}
 		mockDS.NewAndroidHostFunc = func(ctx context.Context, h *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
 			return &fleet.AndroidHost{Host: &fleet.Host{ID: newHostID, UUID: hostUUID}, Device: h.Device}, nil
 		}
@@ -223,7 +217,7 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 		msg := makeEnrollmentEnvelope(t, "msg-deleted-enrollment", "2026-07-22T10:00:00Z")
 		device := androidmanagement.Device{
 			Name:                createAndroidDeviceId("dedup"),
-			EnrollmentTokenData: `{"enroll_secret":"global"}`,
+			EnrollmentTokenData: `{"fleet_id": null}`,
 			AppliedState:        string(android.DeviceStateDeleted),
 			HardwareInfo: &androidmanagement.HardwareInfo{
 				EnterpriseSpecificId: hostUUID,

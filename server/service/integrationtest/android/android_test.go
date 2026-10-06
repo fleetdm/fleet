@@ -46,9 +46,9 @@ func testHappyPath(t *testing.T, s *Suite) {
 	assert.Equal(t, signupURL.Url, signupDetails.Url)
 }
 
-type enrollmentTokenRequest struct {
-	EnrollSecret string
-	IdpUUID      string
+type enrollmentTokenAdditionalData struct {
+	FleetID *uint  `json:"fleet_id"`
+	IdpUUID string `json:"idp_uuid"`
 }
 
 func testCreateEnrollmentToken(t *testing.T, s *Suite) {
@@ -65,7 +65,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 		require.NoError(t, err)
 	}
 
-	createTeamAndSecret := func(name, secret string, enableEndUserAuth bool) {
+	createTeamAndSecret := func(name, secret string, enableEndUserAuth bool) uint {
 		team, err := s.DS.NewTeam(t.Context(), &fleet.Team{
 			Name: name,
 			Config: fleet.TeamConfig{
@@ -84,6 +84,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			},
 		})
 		require.NoError(t, err)
+		return team.ID
 	}
 
 	setupAndroidEnterprise := func() {
@@ -181,7 +182,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 		t.Run("when enroll secret is passed", func(t *testing.T) {
 			enableAndroidMDM()
-			createTeamAndSecret(globalSecret, globalSecret, false)
+			teamID := createTeamAndSecret(globalSecret, globalSecret, false)
 			setupAndroidEnterprise()
 
 			var resp android.EnrollmentTokenResponse
@@ -195,11 +196,13 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 			require.Equal(t, "PERSONAL_USAGE_ALLOWED", et.AllowPersonalUsage)
 
-			var enrollmentRequest enrollmentTokenRequest
+			var enrollmentRequest enrollmentTokenAdditionalData
 			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
 			require.NoError(t, err)
 
-			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.NotContains(t, et.AdditionalData, globalSecret)
+			require.NotNil(t, enrollmentRequest.FleetID)
+			require.Equal(t, teamID, *enrollmentRequest.FleetID)
 			require.Equal(t, "", enrollmentRequest.IdpUUID)
 
 			t.Cleanup(func() {
@@ -209,7 +212,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 		t.Run("when enroll and idp uuid is set", func(t *testing.T) {
 			enableAndroidMDM()
-			createTeamAndSecret(globalSecret, globalSecret, true)
+			teamID := createTeamAndSecret(globalSecret, globalSecret, true)
 			setupAndroidEnterprise()
 			idpEmail := "test@local.com"
 			err := s.DS.InsertMDMIdPAccount(t.Context(), &fleet.MDMIdPAccount{
@@ -238,11 +241,13 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 			require.Equal(t, "PERSONAL_USAGE_ALLOWED", et.AllowPersonalUsage)
 
-			var enrollmentRequest enrollmentTokenRequest
+			var enrollmentRequest enrollmentTokenAdditionalData
 			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
 			require.NoError(t, err)
 
-			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.NotContains(t, et.AdditionalData, globalSecret)
+			require.NotNil(t, enrollmentRequest.FleetID)
+			require.Equal(t, teamID, *enrollmentRequest.FleetID)
 			require.Equal(t, idpAccount.UUID, enrollmentRequest.IdpUUID)
 
 			t.Cleanup(func() {
@@ -253,7 +258,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 		t.Run("when the session cookie is set", func(t *testing.T) {
 			var sessionID string
 			enableAndroidMDM()
-			createTeamAndSecret(globalSecret, globalSecret, true)
+			teamID := createTeamAndSecret(globalSecret, globalSecret, true)
 			setupAndroidEnterprise()
 			idpEmail := "queryparam@local.com"
 			err := s.DS.InsertMDMIdPAccount(t.Context(), &fleet.MDMIdPAccount{
@@ -296,11 +301,13 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 			require.Equal(t, "PERSONAL_USAGE_DISALLOWED", et.AllowPersonalUsage)
 
-			var enrollmentRequest enrollmentTokenRequest
+			var enrollmentRequest enrollmentTokenAdditionalData
 			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
 			require.NoError(t, err)
 
-			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.NotContains(t, et.AdditionalData, globalSecret)
+			require.NotNil(t, enrollmentRequest.FleetID)
+			require.Equal(t, teamID, *enrollmentRequest.FleetID)
 			require.Equal(t, idpAccount.UUID, enrollmentRequest.IdpUUID)
 
 			// the session is single-use: minting the token burned it
@@ -314,7 +321,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 		t.Run("when idp_uuid query param is ignored in favor of the cookie", func(t *testing.T) {
 			enableAndroidMDM()
-			createTeamAndSecret(globalSecret, globalSecret, true)
+			teamID := createTeamAndSecret(globalSecret, globalSecret, true)
 			setupAndroidEnterprise()
 
 			// Create two IdP accounts
@@ -355,9 +362,12 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			err = json.Unmarshal(decoded, &et)
 			require.NoError(t, err)
 
-			var enrollmentRequest enrollmentTokenRequest
+			var enrollmentRequest enrollmentTokenAdditionalData
 			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
 			require.NoError(t, err)
+
+			require.NotNil(t, enrollmentRequest.FleetID)
+			require.Equal(t, teamID, *enrollmentRequest.FleetID)
 
 			// Query param UUID should win over cookie UUID
 			require.Equal(t, cookieAccount.UUID, enrollmentRequest.IdpUUID)
@@ -369,7 +379,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 		t.Run("when fully_managed is true", func(t *testing.T) {
 			enableAndroidMDM()
-			createTeamAndSecret(globalSecret, globalSecret, false)
+			teamID := createTeamAndSecret(globalSecret, globalSecret, false)
 			setupAndroidEnterprise()
 
 			var resp android.EnrollmentTokenResponse
@@ -383,11 +393,13 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 			require.Equal(t, "PERSONAL_USAGE_DISALLOWED", et.AllowPersonalUsage)
 
-			var enrollmentRequest enrollmentTokenRequest
+			var enrollmentRequest enrollmentTokenAdditionalData
 			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
 			require.NoError(t, err)
 
-			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.NotContains(t, et.AdditionalData, globalSecret)
+			require.NotNil(t, enrollmentRequest.FleetID)
+			require.Equal(t, teamID, *enrollmentRequest.FleetID)
 			require.Equal(t, "", enrollmentRequest.IdpUUID)
 
 			t.Cleanup(func() {
@@ -397,7 +409,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 		t.Run("when fully_managed is false", func(t *testing.T) {
 			enableAndroidMDM()
-			createTeamAndSecret(globalSecret, globalSecret, false)
+			teamID := createTeamAndSecret(globalSecret, globalSecret, false)
 			setupAndroidEnterprise()
 
 			var resp android.EnrollmentTokenResponse
@@ -411,11 +423,13 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 			require.Equal(t, "PERSONAL_USAGE_ALLOWED", et.AllowPersonalUsage)
 
-			var enrollmentRequest enrollmentTokenRequest
+			var enrollmentRequest enrollmentTokenAdditionalData
 			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
 			require.NoError(t, err)
 
-			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.NotContains(t, et.AdditionalData, globalSecret)
+			require.NotNil(t, enrollmentRequest.FleetID)
+			require.Equal(t, teamID, *enrollmentRequest.FleetID)
 			require.Equal(t, "", enrollmentRequest.IdpUUID)
 
 			t.Cleanup(func() {

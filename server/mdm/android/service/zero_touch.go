@@ -26,12 +26,13 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, _ *uint) (*an
 
 // teamEnrollmentRequest is the payload embedded in AMAPI enrollment token additionalData.
 type teamEnrollmentRequest struct {
-	TeamID *uint `json:"fleet_id"`
+	TeamID  *uint  `json:"fleet_id"`
+	IdpUUID string `json:"idp_uuid,omitempty"`
 }
 
 // Supports two formats:
-//   - {"fleet_id": <uint|null>} — zero-touch and new QR tokens
-//   - {"EnrollSecret":"...", "IdpUUID":"..."} — legacy QR tokens
+//   - {"fleet_id": <uint|null>, "idp_uuid": "..."} — zero-touch and QR tokens
+//   - {"EnrollSecret":"...", "IdpUUID":"..."} — legacy QR tokens, issued before the switch to fleet_id
 //
 // If the team no longer exists, falls back to unassigned (nil).
 func (svc *Service) resolveTeamFromEnrollmentData(ctx context.Context, enrollmentTokenData string) (teamID *uint, idpUUID string, err error) {
@@ -40,7 +41,7 @@ func (svc *Service) resolveTeamFromEnrollmentData(ctx context.Context, enrollmen
 		if _, hasTeamID := raw["fleet_id"]; hasTeamID {
 			var data teamEnrollmentRequest
 			if err := json.Unmarshal([]byte(enrollmentTokenData), &data); err != nil {
-				return nil, "", ctxerr.Wrap(ctx, err, "unmarshalling zero-touch additional data")
+				return nil, "", ctxerr.Wrap(ctx, err, "unmarshalling enrollment token additional data")
 			}
 			if data.TeamID != nil {
 				exists, err := svc.fleetDS.TeamExists(ctx, *data.TeamID)
@@ -50,10 +51,10 @@ func (svc *Service) resolveTeamFromEnrollmentData(ctx context.Context, enrollmen
 				if !exists {
 					svc.logger.WarnContext(ctx, "enrollment token team does not exist, assigning to unassigned",
 						"fleet_id", *data.TeamID)
-					return nil, "", nil
+					return nil, data.IdpUUID, nil
 				}
 			}
-			return data.TeamID, "", nil
+			return data.TeamID, data.IdpUUID, nil
 		}
 	}
 
@@ -64,7 +65,9 @@ func (svc *Service) resolveTeamFromEnrollmentData(ctx context.Context, enrollmen
 	}
 	enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, etReq.EnrollSecret)
 	if err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err, "verifying enroll secret")
+		// The IdP UUID is still returned so re-enrollment can keep the IdP association when the
+		// secret has since been deleted.
+		return nil, etReq.IdpUUID, ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 	return enrollSecret.GetTeamID(), etReq.IdpUUID, nil
 }
