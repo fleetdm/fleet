@@ -185,7 +185,7 @@ every LocURI under them.`,
               url: `https://api.github.com/repos/${listedTemplate.repo}/releases/latest`,
               headers: { 'User-Agent': 'fleetdm.com', 'Accept': 'application/vnd.github+json' },
             }).intercept((err)=>{
-              return new Error(`When the regenerate-windows-admx-templates script sent an HTTP request to get the latest ADMX template for ${listedTemplate.displayName}, an error ocurred. Full error ${require('util').inspect(err)}`)
+              return new Error(`When the regenerate-windows-admx-templates script sent an HTTP request to get the latest ADMX template for ${listedTemplate.displayName}, an error ocurred. Full error ${require('util').inspect(err)}`);
             });
             // Get the .zip files attached to the latest release.
             let zipAssets = _.filter(latestReleaseResponse.assets, (asset)=>{ return /\.zip$/i.test(asset.name); });
