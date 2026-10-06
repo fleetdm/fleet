@@ -374,6 +374,13 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
 
+	// Older results still buffered from a previous report: policy 7 is now stale and its buffered result is dropped, policy 1
+	// is still reported and its buffered result is kept.
+	bufferConn := redis.ConfigureDoer(pool, pool.Get())
+	_, err := bufferConn.Do("LPUSH", keyList, "7=-1", "1=-1")
+	require.NoError(t, err)
+	bufferConn.Close()
+
 	ds.StalePolicyIDsForHostFunc = func(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error) {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, results, reported)
@@ -392,8 +399,7 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 
 	res, err := redigo.Strings(conn.Do("LRANGE", keyList, 0, -1))
 	require.NoError(t, err)
-	require.Equal(t, 4, len(res))
-	require.ElementsMatch(t, []string{"1=1", "2=1", "3=-1", "4=0"}, res)
+	require.ElementsMatch(t, []string{"1=1", "2=1", "3=-1", "4=0", "1=-1"}, res)
 
 	ts, err := redigo.Int64(conn.Do("GET", keyTs))
 	require.NoError(t, err)
@@ -418,7 +424,7 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 	err = task.collectPolicyQueryExecutions(ctx, ds, pool, &stats)
 	require.NoError(t, err)
 	require.Equal(t, 1, stats.Keys)
-	require.Equal(t, 4, stats.Items)
+	require.Equal(t, 5, stats.Items)
 	require.False(t, stats.Failed)
 
 	count, err = redigo.Int(conn.Do("ZCARD", policyPassHostIDsKey))

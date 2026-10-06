@@ -127,14 +127,31 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 		return nil, ctxerr.Wrap(ctx, err, "store active host id")
 	}
 
-	// If the collector persists an older buffered result for a policy after its stale row is deleted, the host's next
-	// report finds it stale again.
 	stalePolicyIDs, err := t.datastore.StalePolicyIDsForHost(ctx, host.ID, results)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get stale policy ids for host")
 	}
+	if len(stalePolicyIDs) > 0 {
+		// Drop older buffered results for the stale policies, so that the collector doesn't write back the rows the caller
+		// is about to delete. A collection already in flight can still write them; the host's next report cleans that up.
+		args := redigo.Args{}.Add(keyList)
+		for _, policyID := range stalePolicyIDs {
+			args = args.Add(fmt.Sprintf("%d=1", policyID), fmt.Sprintf("%d=-1", policyID), fmt.Sprintf("%d=0", policyID))
+		}
+		if _, err := removeBufferedPolicyResultsScript.Do(conn, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "remove buffered results of stale policies")
+		}
+	}
 	return stalePolicyIDs, nil
 }
+
+// KEYS[1]: policyPassHostKey; ARGV: list entries to remove
+var removeBufferedPolicyResultsScript = redigo.NewScript(1, `
+	for i = 1, #ARGV do
+		redis.call('LREM', KEYS[1], 0, ARGV[i])
+	end
+	return 0
+`)
 
 func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
 	// Create a root span for this async collection task if OTEL is enabled
