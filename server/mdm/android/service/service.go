@@ -62,6 +62,7 @@ type Service struct {
 	AllowLocalhostServerURL bool
 	keyValueStore           fleet.KeyValueStore
 	clock                   clock.Clock
+	installReapTimeout      time.Duration
 }
 
 func NewService(
@@ -74,9 +75,11 @@ func NewService(
 	newActivity fleet.NewActivityFunc,
 	androidAgentConfig config.AndroidAgentConfig,
 	keyValueStore fleet.KeyValueStore,
+	opts ...ServiceOption,
 ) (android.Service, error) {
 	client := NewAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, newActivity, androidAgentConfig, WithKeyValueStore(keyValueStore))
+	opts = append([]ServiceOption{WithKeyValueStore(keyValueStore)}, opts...)
+	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, newActivity, androidAgentConfig, opts...)
 }
 
 // ServiceOption configures optional dependencies of the android service.
@@ -90,6 +93,12 @@ func WithKeyValueStore(kv fleet.KeyValueStore) ServiceOption {
 // WithClock replaces the clock, for tests.
 func WithClock(clk clock.Clock) ServiceOption {
 	return func(s *Service) { s.clock = clk }
+}
+
+// WithInstallReapTimeout sets how long a setup experience app install can go unreported
+// by the device before it is marked failed. Zero or less keeps it pending indefinitely.
+func WithInstallReapTimeout(d time.Duration) ServiceOption {
+	return func(s *Service) { s.installReapTimeout = d }
 }
 
 func NewServiceWithClient(

@@ -891,6 +891,7 @@ import Rocket from "./png/Rocket.png";
 import RocketChat from "./png/RocketChat.png";
 import RocketmanChoicesPackager from "./png/RocketmanChoicesPackager.png";
 import RocketTypist from "./png/RocketTypist.png";
+import Rowel from "./png/Rowel.png";
 import RoyalTsx from "./png/RoyalTsx.png";
 import Rstudio from "./png/Rstudio.png";
 import Rsyncui from "./png/Rsyncui.png";
@@ -2079,6 +2080,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "rocket typist": RocketTypist,
   "rocket.chat": RocketChat,
   "rocketman choices packager": RocketmanChoicesPackager,
+  rowel: Rowel,
   "royal tsx": RoyalTsx,
   rstudio: Rstudio,
   rsyncui: Rsyncui,
@@ -2348,6 +2350,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   zettlr: Zettlr,
   zight: Zight,
+  "zoom for government": Zoom,
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,

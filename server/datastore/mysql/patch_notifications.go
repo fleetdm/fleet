@@ -109,6 +109,25 @@ WHERE notification_uuid = ? AND software_title_id IN (?)
 	return nil
 }
 
+func (ds *Datastore) SetPatchNotificationAppsUpdatedInInventory(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error {
+	if len(softwareTitleIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(`
+UPDATE patch_notification_apps SET updated_in_inventory = 1
+WHERE notification_uuid = ? AND software_title_id IN (?)
+`, notificationUUID, softwareTitleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build set patch notification apps updated in inventory update")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "set patch notification apps updated in inventory")
+	}
+	return nil
+}
+
 func (ds *Datastore) DeletePatchNotificationApps(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error {
 	if len(softwareTitleIDs) == 0 {
 		return nil
@@ -197,13 +216,13 @@ WHERE
 	AND (
 		-- still being delivered
 		neu.status IN (?, ?)
-		-- status is acted (user clicked update now) and left with an app whose install never queued
+		-- status is acted (user clicked update now) and left with an app whose install never queued, skipping apps the inventory showed as updated
 		OR (
 			neu.status = ?
 			AND EXISTS (
 				SELECT 1
 				FROM patch_notification_apps unhandled
-				WHERE unhandled.notification_uuid = pn.notification_uuid AND unhandled.install_queued = 0
+				WHERE unhandled.notification_uuid = pn.notification_uuid AND unhandled.install_queued = 0 AND unhandled.updated_in_inventory = 0
 			)
 		)
 	)
@@ -232,6 +251,7 @@ SELECT
 	pna.software_title_id,
 	pna.software_installer_id,
 	pna.install_queued,
+	pna.updated_in_inventory,
 	pna.created_at,
 	COALESCE(st.name, '') AS name,
 	COALESCE(NULLIF(stdn.display_name, ''), st.name, '') AS display_name,
@@ -262,8 +282,8 @@ func (ds *Datastore) ListPatchNotificationAppInstallStatuses(ctx context.Context
 	// so an install recorded against a different installer id for the title still reports. Skip installs
 	// older than the app's row, which patched an earlier version. Read execution_status rather than
 	// status, which nulls out once the app leaves the host's inventory, so uninstalling a patched app
-	// does not put its row back to installing. Leave out installs carrying the app open query, which skip
-	// while the app is open and report a failure the notification never asked for.
+	// does not put its row back to installing. Leave out installs that carry the app open query unless they
+	// installed, because a skip while the app is open is recorded as a failed install.
 	const selectStmt = `
 SELECT
 	pna.software_title_id,
@@ -274,7 +294,7 @@ FROM patch_notification_apps pna
 	JOIN host_software_installs hsi ON hsi.software_installer_id = si.id
 		AND hsi.host_id = neu.host_id
 		AND hsi.updated_at > pna.created_at
-		AND hsi.override_pre_install_query = 0
+		AND (hsi.override_pre_install_query = 0 OR hsi.execution_status = ?)
 		AND hsi.execution_status IS NOT NULL
 WHERE pna.notification_uuid = ?
 ORDER BY hsi.id
@@ -284,7 +304,7 @@ ORDER BY hsi.id
 		SoftwareTitleID uint                          `db:"software_title_id"`
 		Status          fleet.SoftwareInstallerStatus `db:"status"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectStmt, notificationUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectStmt, fleet.SoftwareInstalled, notificationUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification app install statuses")
 	}
 
@@ -310,6 +330,7 @@ SELECT
 	pna.software_title_id,
 	pna.software_installer_id,
 	pna.install_queued,
+	pna.updated_in_inventory,
 	pna.created_at,
 	COALESCE(si.version, '') AS installer_version
 FROM patch_notification_apps pna

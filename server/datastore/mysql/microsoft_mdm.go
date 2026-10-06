@@ -86,7 +86,10 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		enrolled_activity_at,
 		created_at,
 		updated_at,
-		host_uuid
+		host_uuid,
+		-- A subquery rather than a join, so hosts sharing a UUID do not multiply the row.
+		(SELECT h.id FROM hosts h WHERE h.uuid = mdm_windows_enrollments.host_uuid AND mdm_windows_enrollments.host_uuid != ''
+			AND h.platform = 'windows' ORDER BY h.id LIMIT 1) AS linked_host_id
 		FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
@@ -235,8 +238,42 @@ func (ds *Datastore) ClearMDMWindowsManagedLocalAccountRotationRequest(ctx conte
 	return cleared > 0, nil
 }
 
-// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
-// returns the device information.
+// MDMWindowsGetEnrolledDeviceByID returns the enrollment with the given row id.
+func (ds *Datastore) MDMWindowsGetEnrolledDeviceByID(ctx context.Context, enrollmentID uint) (*fleet.MDMWindowsEnrolledDevice, error) {
+	stmt := `SELECT
+		id,
+		mdm_device_id,
+		mdm_hardware_id,
+		device_state,
+		device_type,
+		device_name,
+		enroll_type,
+		enroll_user_id,
+		enroll_proto_version,
+		enroll_client_version,
+		not_in_oobe,
+		awaiting_configuration,
+		awaiting_configuration_at,
+		credentials_hash,
+		credentials_acknowledged,
+		hardware_serial,
+		ztd_registration_id,
+		enrolled_activity_at,
+		created_at,
+		updated_at,
+		host_uuid
+		FROM mdm_windows_enrollments WHERE id = ?`
+
+	var winMDMDevice fleet.MDMWindowsEnrolledDevice
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, enrollmentID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithID(enrollmentID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get windows mdm enrollment by id")
+	}
+	return &winMDMDevice, nil
+}
+
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	// Only fetch the most recently enrolled entry which matches the one we enqueue commands for
 	stmt := `SELECT
@@ -464,11 +501,15 @@ func (ds *Datastore) MDMWindowsConflictingEnrollmentHardwareID(ctx context.Conte
 // GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments.
 // Returns (nil, "") when no default is configured (including when the referenced fleet was deleted, which nulls the FK).
 func (ds *Datastore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (*uint, string, error) {
+	return getWindowsEnrollmentDefaultFleetDB(ctx, ds.reader(ctx))
+}
+
+func getWindowsEnrollmentDefaultFleetDB(ctx context.Context, q sqlx.QueryerContext) (*uint, string, error) {
 	var row struct {
 		TeamID   *uint   `db:"default_team_id"`
 		TeamName *string `db:"team_name"`
 	}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, `
+	err := sqlx.GetContext(ctx, q, &row, `
 		SELECT mwec.default_team_id, t.name AS team_name
 		FROM mdm_windows_enrollment_config mwec
 		LEFT JOIN teams t ON t.id = mwec.default_team_id
@@ -2253,6 +2294,7 @@ SELECT
 	name,
 	description,
 	syncml,
+	hidden,
 	created_at,
 	uploaded_at
 FROM
@@ -2303,7 +2345,7 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{profileUUID}); err != nil {
 			return err
 		}
-		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, []string{profileUUID}); err != nil {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, windowsProfileNameTables, "p.profile_uuid IN (?)", []string{profileUUID}); err != nil {
 			return err
 		}
 		if err := deleteMDMWindowsConfigProfile(ctx, tx, profileUUID); err != nil {
@@ -2438,29 +2480,6 @@ func (ds *Datastore) retainWindowsProfilePriorContentDB(ctx context.Context, tx 
 	return nil
 }
 
-// snapshotWindowsProfileNamesForDeletionDB copies each profile's live name onto its host
-// rows before the profile row is deleted: those rows outlive it, and their denormalized
-// profile_name is what reads fall back to once the live name is gone. Casts to BINARY
-// because the column's collation is case-insensitive, so a plain != would skip a rename
-// that only changed case.
-func snapshotWindowsProfileNamesForDeletionDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
-	if len(profileUUIDs) == 0 {
-		return nil
-	}
-	stmt, args, err := sqlx.In(`
-		UPDATE host_mdm_windows_profiles hmwp
-		JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
-		SET hmwp.profile_name = mwcp.name
-		WHERE hmwp.profile_uuid IN (?) AND hmwp.profile_name != CAST(mwcp.name AS BINARY)`, profileUUIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building IN for profile name snapshot")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "snapshotting windows profile names before deletion")
-	}
-	return nil
-}
-
 // GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.
 // Reader-backed; callers that cannot tolerate a replica-lag miss (the reconcile pass consumes each modify-install once) wrap the
 // context with ctxdb.RequirePrimary.
@@ -2484,6 +2503,16 @@ func (ds *Datastore) GetWindowsMDMProfilePriorContents(ctx context.Context, keys
 		return nil, ctxerr.Wrap(ctx, err, "selecting windows profile prior content")
 	}
 	return rows, nil
+}
+
+func (ds *Datastore) ListMDMWindowsConfigProfilesByName(ctx context.Context, name string) ([]*fleet.MDMWindowsConfigProfile, error) {
+	var profiles []*fleet.MDMWindowsConfigProfile
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles,
+		`SELECT profile_uuid, NULLIF(team_id, 0) AS team_id, name FROM mdm_windows_configuration_profiles WHERE name = ?`,
+		name); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list windows configuration profiles by name")
+	}
+	return profiles, nil
 }
 
 func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error {
@@ -2511,7 +2540,7 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{profile.ProfileUUID}); err != nil {
 			return err
 		}
-		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, []string{profile.ProfileUUID}); err != nil {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, windowsProfileNameTables, "p.profile_uuid IN (?)", []string{profile.ProfileUUID}); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profile.ProfileUUID); err != nil {
@@ -3199,8 +3228,8 @@ func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MD
 	profileUUID := "w" + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
-    mdm_windows_configuration_profiles (profile_uuid, team_id, name, description, syncml, uploaded_at)
-(SELECT ?, ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
+    mdm_windows_configuration_profiles (profile_uuid, team_id, name, description, syncml, hidden, uploaded_at)
+(SELECT ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
@@ -3216,7 +3245,7 @@ INSERT INTO
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.Description, cp.SyncML, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.Description, cp.SyncML, cp.Hidden, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):
@@ -3299,6 +3328,7 @@ INSERT INTO
 		Description: cp.Description,
 		SyncML:      cp.SyncML,
 		TeamID:      cp.TeamID,
+		Hidden:      cp.Hidden,
 	}, nil
 }
 
@@ -3316,14 +3346,18 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 			Name        string `db:"name"`
 			Description string `db:"description"`
 			SyncML      []byte `db:"syncml"`
+			Hidden      bool   `db:"hidden"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT name, description, syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT name, description, syncml, hidden FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
 			}
 			return ctxerr.Wrap(ctx, err, "get existing windows config profile")
+		}
+		if cp.Name == "" {
+			cp.Name = existing.Name
 		}
 		if len(cp.SyncML) > 0 {
 			contentChanged := !bytes.Equal(existing.SyncML, cp.SyncML)
@@ -3339,24 +3373,18 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 				}
 			}
 
-			// A rename is a fresh upload even when the bytes are identical, so
-			// uploaded_at survives only a true no-op (as in the batch path).
+			// Only new contents count as a new upload, so a rename doesn't
+			// re-send the profile.
 			const setClause = `UPDATE mdm_windows_configuration_profiles
-SET syncml = ?, name = ?, description = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at)
+SET syncml = ?, name = ?, description = ?, hidden = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at)
 WHERE profile_uuid = ?`
 
-			// A name is unique per team across all four profile tables and no index
-			// spans them, so a cross-platform clash is checked here. In the statement
-			// rather than a preceding SELECT so check and write are atomic, as
-			// NewMDMWindowsConfigProfile does on insert.
 			stmt := setClause
-			args := []any{cp.SyncML, cp.Name, cp.Description, contentChanged || nameChanged, cp.ProfileUUID}
+			args := []any{cp.SyncML, cp.Name, cp.Description, cp.Hidden, contentChanged, cp.ProfileUUID}
 			if nameChanged {
-				stmt += `
-	AND NOT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?)
-	AND NOT EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?)
-	AND NOT EXISTS (SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?)`
-				args = append(args, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+				guard, guardArgs := profileRenameGuard(windowsProfileNameTables.profileTable, cp.Name, teamID)
+				stmt += guard
+				args = append(args, guardArgs...)
 			}
 
 			res, err := tx.ExecContext(ctx, stmt, args...)
@@ -3417,16 +3445,38 @@ WHERE profile_uuid = ?`
 			}, "windows", false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profile variable associations")
 			}
-		} else if existing.Description != cp.Description {
-			// Description is not part of the checksum, so it is written without
-			// touching uploaded_at.
-			res, err := tx.ExecContext(ctx,
-				`UPDATE mdm_windows_configuration_profiles SET description = ? WHERE profile_uuid = ?`,
-				cp.Description, cp.ProfileUUID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "updating windows mdm config profile description")
+		} else if existing.Name != cp.Name || existing.Description != cp.Description || existing.Hidden != cp.Hidden {
+			// Name, description and hidden are not part of the checksum, so they
+			// are written without touching uploaded_at.
+			stmt := `UPDATE mdm_windows_configuration_profiles SET name = ?, description = ?, hidden = ? WHERE profile_uuid = ?`
+			args := []any{cp.Name, cp.Description, cp.Hidden, cp.ProfileUUID}
+			nameChanged := existing.Name != cp.Name
+			if nameChanged {
+				guard, guardArgs := profileRenameGuard(windowsProfileNameTables.profileTable, cp.Name, teamID)
+				stmt += guard
+				args = append(args, guardArgs...)
 			}
+			res, err := tx.ExecContext(ctx, stmt, args...)
+			if err != nil {
+				if IsDuplicate(err) {
+					return ctxerr.Wrap(ctx, &existsError{
+						ResourceType: "MDMWindowsConfigProfile.Name",
+						Identifier:   cp.Name,
+						TeamID:       cp.TeamID,
+					})
+				}
+				return ctxerr.Wrap(ctx, err, "updating windows mdm config profile metadata")
+			}
+			// A rename blocked by the NOT EXISTS guard matches no row; the
+			// profile itself existed at the SELECT above.
 			if aff, _ := res.RowsAffected(); aff == 0 {
+				if nameChanged {
+					return ctxerr.Wrap(ctx, &existsError{
+						ResourceType: "MDMWindowsConfigProfile.Name",
+						Identifier:   cp.Name,
+						TeamID:       cp.TeamID,
+					})
+				}
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
 			}
 		}
@@ -3604,16 +3654,17 @@ WHERE
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_windows_configuration_profiles (
-    profile_uuid, team_id, name, description, syncml, uploaded_at
+    profile_uuid, team_id, name, description, syncml, hidden, uploaded_at
   )
 VALUES
   -- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('` + fleet.MDMWindowsProfileUUIDPrefix + `', CONVERT(UUID() USING utf8mb4)), ?, ?, ?, ?, CURRENT_TIMESTAMP() )
+  ( CONCAT('` + fleet.MDMWindowsProfileUUIDPrefix + `', CONVERT(UUID() USING utf8mb4)), ?, ?, ?, ?, ?, CURRENT_TIMESTAMP() )
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(syncml = VALUES(syncml) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
   name = VALUES(name),
   description = VALUES(description),
-  syncml = VALUES(syncml)
+  syncml = VALUES(syncml),
+  hidden = VALUES(hidden)
 `
 
 	// use a profile team id of 0 if no-team
@@ -3688,7 +3739,7 @@ ON DUPLICATE KEY UPDATE
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, deletedProfileUUIDs); err != nil {
 			return false, nil, ctxerr.Wrap(ctx, err, "retain deleted profiles for async removal")
 		}
-		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, deletedProfileUUIDs); err != nil {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, windowsProfileNameTables, "p.profile_uuid IN (?)", deletedProfileUUIDs); err != nil {
 			return false, nil, err
 		}
 	}
@@ -3745,7 +3796,7 @@ ON DUPLICATE KEY UPDATE
 	// insert the new profiles and the ones that have changed
 	for _, p := range incomingProfs {
 		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Name, p.Description,
-			p.SyncML); err != nil {
+			p.SyncML, p.Hidden); err != nil {
 			return false, nil, ctxerr.Wrapf(ctx, err, "insert new/edited profile with name %q", p.Name)
 		}
 		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
@@ -3803,7 +3854,8 @@ hmwp.host_uuid = ? AND hmwp.profile_name NOT IN(?) AND NOT (hmwp.operation_type 
 		fleet.MDMDeliveryVerified,
 	)
 
-	stmt, args, err := sqlx.In(stmt, hostUUID, mdm.ListFleetReservedWindowsProfileNames())
+	// The Fleetd enroll secret profile stays listed, because resending it from the host is how an admin recovers the host.
+	stmt, args, err := sqlx.In(stmt, hostUUID, []string{mdm.FleetWindowsOSUpdatesProfileName})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building in statement")
 	}

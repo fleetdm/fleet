@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.3",
+      "version": "2026.2.3.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'JetBrains ReSharper%' AND name NOT LIKE 'JetBrains ReSharper C++%' AND name NOT LIKE 'JetBrains ReSharper SDK%' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'JetBrains ReSharper%' AND name NOT LIKE 'JetBrains ReSharper C++%' AND name NOT LIKE 'JetBrains ReSharper SDK%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2026.2.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'JetBrains ReSharper%' AND name NOT LIKE 'JetBrains ReSharper C++%' AND name NOT LIKE 'JetBrains ReSharper SDK%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2026.2.3.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'resharper.exe');"
       },
-      "installer_url": "https://download.jetbrains.com/resharper/dotUltimate.2026.2.3/JetBrains.ReSharper.2026.2.3.web.exe",
+      "installer_url": "https://download.jetbrains.com/resharper/dotUltimate.2026.2.3.1/JetBrains.ReSharper.2026.2.3.1.web.exe",
       "install_script_ref": "a53fa150",
       "uninstall_script_ref": "78b5f38c",
-      "sha256": "8c85be29ccdb41cd0a691d5b2bb0a912c0a501ff1c614e25b987a98843e1e9f7",
+      "sha256": "35cbbf921bf68f9856beb8571407a9823c31aaebc2e86438d51c13822f9d6f7c",
       "default_categories": [
         "Developer tools"
       ]

@@ -105,7 +105,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - Apple setup experience
 - macOS, iOS, and iPadOS configuration & updates
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this product group is `#g-apple-at-work`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/108), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this product group is `#g-apple-at-work`.
 
 
 ### Auto Patching group
@@ -127,7 +127,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - End user self-service
 - Scripts
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this product group is `#g-auto-patching`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/109), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this product group is `#g-auto-patching`.
 
 
 ### Power to the PC group

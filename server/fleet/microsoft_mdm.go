@@ -970,6 +970,9 @@ type MDMWindowsEnrolledDevice struct {
 	EnrolledActivityAt *time.Time `db:"enrolled_activity_at"`
 	CreatedAt          time.Time  `db:"created_at"`
 	UpdatedAt          time.Time  `db:"updated_at"`
+
+	// LinkedHostID is the host that has HostUUID
+	LinkedHostID *uint `db:"linked_host_id"`
 }
 
 // WindowsEnrollmentDefaultFleet is the cacheable shape of Datastore.GetWindowsEnrollmentDefaultFleet (see the cached_mysql

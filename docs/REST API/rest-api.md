@@ -3069,7 +3069,7 @@ _Available in Fleet Premium._
       "deadline_days": 5,
       "grace_period_days": 1
     },
-    "f": {
+    "apple_settings": {
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
@@ -9205,6 +9205,8 @@ X-Content-Type-Options: nosniff
 Retrieves an unsigned manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
 
 To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), [add the end user's email to the enrollment profile](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#using-human-device-mapping).
+
+> **Warning:** Do not change or modify this profile in any way that is not directed by Fleet's documentation. Apple requires most values in this profile to agree with the values initially set at enrollment time when Fleet later sends renewals (approximately every six months by default). Any values changed can block Fleet's ability to renew this profile and may result in Fleet losing its ability to manage a device.
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
@@ -15651,7 +15653,7 @@ When install attempt was skipped because a patch policy has `patch_when_closed` 
 
 _Available in Fleet Premium._
 
-Deletes software that's available for install. This won't uninstall the software from hosts.
+Deletes software that's available for install. For Android hosts, the software is also uninstalled. For all other hosts, the software isn't uninstalled.
 
 `DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 

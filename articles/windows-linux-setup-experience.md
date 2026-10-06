@@ -44,7 +44,7 @@ If end users authenticate before Fleet's agent (fleetd) is installed, for exampl
 fleetctl package --type msi --fleet-url <your_fleet_url> --enroll-secret <your_enroll_secret> --bypass-end-user-auth
 ```
 
-This flag only works if the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) is set to false.
+This flag only works if the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) is set to `true` (the default). If it's set to `false`, Fleet blocks these installers from enrolling.
 ## Install software
 
 ### End user experience
@@ -74,6 +74,8 @@ To replace the Fleet logo with your organization's logo:
 On Windows and Linux hosts, Fleet checks policies before installing setup experience software. If the software has associated policies and the host passes all of them, Fleet skips the install. If the host fails any of them, Fleet installs the software. Software without associated policies is always installed.
 
 To associate a policy with software, use the policy's **Install software** automation. Learn more in the [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+
+[Patch policies](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) don't count, even when they install the app. A patch policy passes on hosts that don't have the app, so Fleet always installs software that only has a patch policy and lets the patch policy keep it up to date afterward.
 
 A policy only counts toward the decision if it applies to the host. For example, a policy scoped to labels that exclude the host is ignored. If none of the associated policies apply to the host, or the host doesn't report policy results within 30 minutes of enrolling, Fleet installs the software.
 
