@@ -915,7 +915,6 @@ module.exports.routes = {
   'GET /handbook/company/software-engineer': '/handbook/company/open-positions/software-engineer',
   'GET /handbook/company/software-engineer-windows-go': '/handbook/company/open-positions/software-engineer-windows-go',
   'GET /handbook/company/open-positions/technical-product-designer': '/handbook/company/open-positions/product-designer',
-  'GET /handbook/company/open-positions/%F0%9F%AB%A7-digital-marketing-manager': '/handbook/company/open-positions/%F0%9F%AB%A7-gtm-engineer',
   'GET /osquery-management': '/endpoint-ops',
   'GET /guides/using-github-actions-to-apply-configuration-profiles-with-fleet': 'https://fleetdm.com/docs/configuration/yaml-files',
   'GET /docs/using-fleet/mdm-macos-updates': '/docs/using-fleet/mdm-os-updates',
