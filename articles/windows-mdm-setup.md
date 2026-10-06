@@ -226,7 +226,7 @@ In Intune, select **Devices**, and under **Device onboarding**, open the **Enrol
     }
     ```
 
-    This adds the host's Entra device ID to the access token Windows sends when it enrolls. Fleet uses it to make sure an enrollment matches the device where the end used logged in. The **Token configuration** page doesn't list `deviceid`, so add it in the manifest. Without it, end users can still enroll, but Fleet can't verify which host an enrollment comes from and logs an error on each enrollment.
+    This adds the host's Entra device ID to the access token Windows sends when it enrolls. Fleet uses it to make sure an enrollment matches the device where the end used logged in. The **Token configuration** page doesn't list `deviceid`, so add it in the manifest. Applications that use v1.0 access tokens already include `deviceid`, and adding it to the manifest doesn't change that. Without it, end users can still enroll, but Fleet can't verify which host an enrollment comes from and logs an error on each enrollment.
 
 **Back in Fleet:**
 
