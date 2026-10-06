@@ -15259,7 +15259,7 @@ Returns the list of Apple App Store (VPP) apps that can be added to the specifie
 | Name    | Type | In | Description |
 | ------- | ---- | -- | ----------- |
 | fleet_id | integer | query | **Required**. The fleet ID. |
-| vpp_token_id | integer | query | The ID of the VPP token to list apps from. The VPP token must be assigned to the fleet. If not specified, apps from the fleet's first-added VPP token are listed. The first-added VPP token is the one that was uploaded to Fleet first, out of the VPP tokens assigned to the fleet. |
+| vpp_token_id | integer | query | **Required if the fleet has more than one VPP token**. The ID of the VPP token to list apps from. The VPP token must be assigned to the fleet. Not needed if the fleet has only one VPP token. |
 
 #### Example
 
