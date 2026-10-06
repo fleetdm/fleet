@@ -1,0 +1,1 @@
+- Fixed macOS hosts briefly showing disk encryption as "Action required" with a banner after being transferred to a fleet with disk encryption off. They now show "Removing enforcement" until the FileVault profile is removed.

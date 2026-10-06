@@ -88,6 +88,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"InstallStatusUsesLatestRowPerHost", testInstallStatusUsesLatestRowPerHost},
 		{"InstallStatusDoesNotScanHistoryPerHostRow", testInstallStatusDoesNotScanHistoryPerHostRow},
 		{"GetSoftwareInstallDetailsCustomHostVitals", testGetSoftwareInstallDetailsCustomHostVitals},
+		{"BatchSetSoftwareInstallersUnchangedDoesNotBlockInstallEnqueues", testBatchSetSoftwareInstallersUnchangedDoesNotBlockInstallEnqueues},
 	}
 
 	for _, c := range cases {
@@ -4239,9 +4240,10 @@ func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// get software title for unknown exec id
-	title, selfService, err := ds.GetDetailsForUninstallFromExecutionID(ctx, "unknown")
+	title, displayName, selfService, err := ds.GetDetailsForUninstallFromExecutionID(ctx, "unknown")
 	require.ErrorIs(t, err, sql.ErrNoRows)
 	require.Empty(t, title)
+	require.Nil(t, displayName)
 	require.False(t, selfService)
 
 	// create a couple pending software install request, the first will be
@@ -4251,7 +4253,7 @@ func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 	req2, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installer2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	_, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
+	_, _, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// record a result for req1, will be deleted from upcoming_activities
@@ -4262,7 +4264,7 @@ func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	_, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
+	_, _, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// create an uninstall request for installer1
@@ -4270,9 +4272,10 @@ func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 	err = ds.InsertSoftwareUninstallRequest(ctx, req3, host.ID, installer1, true)
 	require.NoError(t, err)
 
-	title, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)
+	title, displayName, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)
 	require.NoError(t, err)
 	require.Equal(t, "foobar", title)
+	require.Nil(t, displayName)
 	require.True(t, selfService)
 
 	// record a result for req2, will activate req3 so it is now in host_software_installs too
@@ -4283,9 +4286,10 @@ func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	title, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)
+	title, displayName, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)
 	require.NoError(t, err)
 	require.Equal(t, "foobar", title)
+	require.Nil(t, displayName)
 	require.True(t, selfService)
 }
 
@@ -8648,4 +8652,74 @@ func testCleanupHostSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, deleted)
 	assert.False(t, exists(deletedHost))
+
+	// A deleted host's pending install can never report, so it goes the same way.
+	deletedHostPending := seedAt(gone, false, nil, old, old)
+	exec(`UPDATE host_software_installs SET host_deleted_at = ?, updated_at = ? WHERE execution_id = ?`, old, old, deletedHostPending)
+	deleted, err = ds.CleanupHostSoftwareInstalls(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, deleted)
+	assert.False(t, exists(deletedHostPending))
+}
+
+func testBatchSetSoftwareInstallersUnchangedDoesNotBlockInstallEnqueues(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	payloads := func(names ...string) []*fleet.UploadSoftwareInstallerPayload {
+		var out []*fleet.UploadSoftwareInstallerPayload
+		for _, n := range names {
+			file, err := fleet.NewTempFileReader(bytes.NewReader([]byte(n)), t.TempDir)
+			require.NoError(t, err)
+			out = append(out, &fleet.UploadSoftwareInstallerPayload{
+				InstallScript: "install " + n, InstallerFile: file, StorageID: n, Filename: n + ".pkg",
+				Title: n, Source: "apps", Version: "1.0", UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			})
+		}
+		return out
+	}
+	setup := func(name string, names ...string) (*fleet.Team, []uint, []uint) {
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + name})
+		require.NoError(t, err)
+		_, err = ds.BatchSetSoftwareInstallers(ctx, &tm.ID, payloads(names...))
+		require.NoError(t, err)
+		var ids []uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, `SELECT id FROM software_installers WHERE global_or_team_id = ? ORDER BY id`, tm.ID)
+		})
+		require.Len(t, ids, len(names))
+		var policyIDs []uint
+		for i, id := range ids {
+			p, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("%s-%s-%d", t.Name(), name, i), Query: "SELECT 1", SoftwareInstallerID: &id})
+			require.NoError(t, err)
+			policyIDs = append(policyIDs, p.ID)
+		}
+		return tm, ids, policyIDs
+	}
+	tmA, _, policiesA := setup("A", "a1", "a2")
+	_, idsB, policiesB := setup("B", "b1")
+	host := test.NewHost(t, ds, "h1", "10.0.0.1", "1", "uuid1", time.Now())
+
+	// Policy-automation installs queued, not yet committed, holding the policy rows their foreign key
+	// checks lock: one in another fleet, one on a policy in the applied fleet.
+	enqTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = enqTx.Rollback() }()
+	require.NotEmpty(t, idsB)
+	require.NotEmpty(t, policiesB)
+	require.NotEmpty(t, policiesA)
+	for _, policyID := range []uint{policiesB[0], policiesA[0]} {
+		res, err := enqTx.ExecContext(ctx, `INSERT INTO upcoming_activities (host_id, priority, activity_type, execution_id, payload) VALUES (?, 0, 'software_install', UUID(), JSON_OBJECT())`, host.ID)
+		require.NoError(t, err)
+		uaID, _ := res.LastInsertId()
+		_, err = enqTx.ExecContext(ctx, `INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id, policy_id) VALUES (?, ?, ?)`, uaID, idsB[0], policyID)
+		require.NoError(t, err)
+	}
+
+	// Nothing is removed, so the apply must not touch policies or pending installs it would otherwise lock.
+	applyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	_, err = ds.BatchSetSoftwareInstallers(applyCtx, &tmA.ID, payloads("a1", "a2"))
+	require.NoError(t, err)
+	require.NoError(t, enqTx.Rollback())
 }

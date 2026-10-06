@@ -28,8 +28,10 @@ type MDMAndroidConfigProfile struct {
 	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
 	TeamID           *uint                       `db:"team_id" json:"team_id" renameto:"fleet_id"`
 	Name             string                      `db:"name" json:"name"`
+	Description      string                      `db:"description" json:"description"`
 	RawJSON          []byte                      `db:"raw_json" json:"-"`
 	AutoIncrement    int64                       `db:"auto_increment" json:"auto_increment"`
+	Hidden           bool                        `db:"hidden" json:"hidden"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
@@ -64,6 +66,9 @@ var AndroidPremiumOnlyJSONKeys = map[string]string{
 func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 	if len(bytes.TrimSpace(m.RawJSON)) == 0 {
 		return errors.New("The file should include valid JSON.")
+	}
+	if strings.TrimSpace(m.Name) == "" {
+		return errors.New("Profile name can't be empty.")
 	}
 	fleetNames := mdm.FleetReservedProfileNames()
 	if _, ok := fleetNames[m.Name]; ok {

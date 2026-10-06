@@ -254,7 +254,7 @@
       },
       {
         "name": "identifier",
-        "description": "Unique identifier varying by type: MCP server name, plugin ID (`publisher.name`), agent binary, bundle ID, socket service, or instruction tool. Populated for all types.",
+        "description": "Unique identifier varying by type: MCP server name, plugin ID (`publisher.name`), agent binary, Fleet's name for the app (e.g. `claude-desktop`; the bundle ID is in `detail`), socket service, instruction tool, or browser extension ID. Populated for all types.",
         "type": "text",
         "required": false
       },
@@ -13005,7 +13005,7 @@
         "required": false
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). It is queried as the current console (logged-in) user, so hosts with no console user (headless, or sitting at the login window) return no rows even when Homebrew is installed. It reflects a single Homebrew installation — if both a system-wide install (`/opt/homebrew` or `/usr/local`) and a per-user install (`~/homebrew`) are present, the system-wide one is used. If the console user does not own the Homebrew installation, `current_version` may be out of date because Homebrew's update step can fail for a non-owner. `install_path` assumes Homebrew's default layout; non-default `HOMEBREW_CELLAR` or `HOMEBREW_CASKROOM` locations are not reflected.",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). It is queried as the current console (logged-in) user, so hosts with no console user (headless, or sitting at the login window) return no rows even when Homebrew is installed. It reflects a single Homebrew installation — if both a system-wide install (`/opt/homebrew` or `/usr/local`) and a per-user install (`~/homebrew`) are present, the system-wide one is used. The table never updates Homebrew or its taps. For Homebrew's own formulae and casks, `current_version` comes from Homebrew's package data, which the table refreshes at most once a day on Homebrew 4.4.16 or newer; on older versions it is only as current as the user's last `brew update`. Packages from third-party taps are compared against the tap as of the user's last `brew update`, so a newer upstream version may not be reported. Like `brew outdated`, the table leaves out casks that update themselves (`auto_updates`) or use version `latest`. Results, including errors, are cached for up to 5 minutes, so a package upgraded or removed in that window may still be listed. `install_path` assumes Homebrew's default layout; non-default `HOMEBREW_CELLAR` or `HOMEBREW_CASKROOM` locations are not reflected.",
     "evented": false,
     "examples": "Check the installed and latest available version of an outdated package. This\nexample checks ffmpeg, which should be replaced by the actual package you want\nto check for. This is useful for finding outdated or vulnerable installs,\nthough Fleet will detect vulnerable packages automatically.\n\n```\nSELECT installed_version, current_version FROM homebrew_outdated WHERE name = 'ffmpeg';\n```",
     "url": "https://fleetdm.com/tables/homebrew_outdated",

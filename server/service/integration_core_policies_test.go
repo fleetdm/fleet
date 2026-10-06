@@ -1238,4 +1238,5 @@ func (s *integrationTestSuite) TestTeamPolicyHiddenRequiresPremium() {
 	require.NoError(t, res.Body.Close())
 	require.Contains(t, raw.Host.Issues, "failing_policies_count")
 	require.NotContains(t, raw.Host.Issues, "failing_unhidden_policies_count")
+	require.NotContains(t, raw.Host.Issues, "hidden_policies_count")
 }

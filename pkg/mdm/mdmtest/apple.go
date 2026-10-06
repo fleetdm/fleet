@@ -911,8 +911,14 @@ func (c *TestAppleMDMClient) ACMEEnroll() error {
 		return fmt.Errorf("expected challenge type device-attest-01, got %s", authz.Challenges[0].Type)
 	}
 
+	// Like a real device's hardware key: attested, then used for the CSR.
+	acmeKey, err := testhelpers.GenerateTestKey()
+	if err != nil {
+		return fmt.Errorf("generate ACME key: %w", err)
+	}
+
 	challenge := authz.Challenges[0]
-	leafCert, err := testhelpers.BuildAttestationLeafCert(c.acmeCertCA, c.acmeCertCAKey, c.SerialNumber, challenge.Token)
+	leafCert, err := testhelpers.BuildAttestationLeafCertForKey(c.acmeCertCA, c.acmeCertCAKey, &acmeKey.PublicKey, c.SerialNumber, challenge.Token)
 	if err != nil {
 		return fmt.Errorf("build attestation leaf cert: %w", err)
 	}
@@ -934,7 +940,7 @@ func (c *TestAppleMDMClient) ACMEEnroll() error {
 		return fmt.Errorf("challenge not valid after acceptance, status: %s", challenge.Status)
 	}
 
-	encoded, acmeKey, err := testhelpers.GenerateCSRDER(c.SerialNumber, c.enrollmentSubjectOUs()...)
+	encoded, err := testhelpers.GenerateCSRDERWithKey(acmeKey, c.SerialNumber, c.enrollmentSubjectOUs()...)
 	if err != nil {
 		return fmt.Errorf("generate CSR DER: %w", err)
 	}
@@ -1171,6 +1177,24 @@ func (c *TestAppleMDMClient) AcknowledgeVerifyRecoveryLock(cmdUUID string, passw
 		"EnrollmentID":     "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":      cmdUUID,
 		"PasswordVerified": passwordVerified,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// AcknowledgeRotateFileVaultKey acknowledges a RotateFileVaultKey command with
+// the new recovery key encrypted to the command's ReplyEncryptionCertificate.
+func (c *TestAppleMDMClient) AcknowledgeRotateFileVaultKey(cmdUUID string, encryptedNewRecoveryKey []byte) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":       "Acknowledged",
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
+		"CommandUUID":  cmdUUID,
+		"RotateResult": map[string]any{
+			"EncryptedNewRecoveryKey": encryptedNewRecoveryKey,
+		},
 	}
 	if c.UUID != "" {
 		payload["UDID"] = c.UUID

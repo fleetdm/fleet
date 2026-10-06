@@ -87,7 +87,10 @@
     // Inverse hover over effect
     &:hover,
     &:focus-visible {
-      color: rgba($static-white, 0.7);
+      // !important: same specificity as the `@include link` hover color above,
+      // which resolves to a theme-dependent color (near-black in light mode) —
+      // that reads as broken against this variant's always-dark background.
+      color: rgba($static-white, 0.7) !important;
       text-decoration-color: rgba($static-white, 0.7);
 
       // Dim the whole icon as one composited unit instead of applying alpha

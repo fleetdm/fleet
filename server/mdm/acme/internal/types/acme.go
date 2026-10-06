@@ -177,6 +177,9 @@ type Challenge struct {
 	ChallengeType       string `db:"challenge_type"`
 	Token               string `db:"token"`
 	Status              string `db:"status"`
+	// AttestedPublicKey is the DER SubjectPublicKeyInfo of the device-attest-01 leaf certificate,
+	// recorded when the challenge validates. The CSR at finalize must carry this key.
+	AttestedPublicKey []byte `db:"attested_public_key"`
 	// UpdatedAt is used as validated timestamp if the challenge is valid
 	UpdatedAt time.Time `db:"updated_at"`
 }

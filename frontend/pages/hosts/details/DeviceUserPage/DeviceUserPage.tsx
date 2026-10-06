@@ -712,6 +712,18 @@ const DeviceUserPage = ({
     [deviceAuthToken]
   );
 
+  const installProfile = useCallback(
+    (profileUUID: string): Promise<void> =>
+      deviceUserAPI.installProfile(deviceAuthToken, profileUUID),
+    [deviceAuthToken]
+  );
+
+  const uninstallProfile = useCallback(
+    (profileUUID: string): Promise<void> =>
+      deviceUserAPI.uninstallProfile(deviceAuthToken, profileUUID),
+    [deviceAuthToken]
+  );
+
   const renderDeviceUserPage = () => {
     // While the toggle's refetch is in flight the cached list is for the other
     // toggle state, so blank the card instead of showing the wrong rows.
@@ -993,6 +1005,13 @@ const DeviceUserPage = ({
                     canResendProfiles={isAppleHost || isWindows(host.platform)}
                     resendRequest={resendProfile}
                     onProfileResent={refetchDupDetails}
+                    isMacOSHost={host.platform === "darwin"}
+                    canManageSelfServiceProfiles={
+                      isPremiumTier && host.platform === "darwin"
+                    }
+                    isPremiumTier={isPremiumTier}
+                    installRequest={installProfile}
+                    uninstallRequest={uninstallProfile}
                     router={router}
                   />
                 </TabPanel>
@@ -1021,6 +1040,7 @@ const DeviceUserPage = ({
                     isLoading={isDupDetailsPreviousData}
                     deviceUser
                     showHiddenPolicies={showHiddenPolicies}
+                    hasHiddenPolicies={!!host?.issues?.hidden_policies_count}
                     onToggleShowHiddenPolicies={() =>
                       setShowHiddenPolicies((current) => !current)
                     }

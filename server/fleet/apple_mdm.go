@@ -22,6 +22,11 @@ import (
 
 const ADUEEnrollmentChallengeExpiration = 1 * time.Hour
 
+// MDMAppleDEPEnrollmentChallengeExpiration is how long the one-time token
+// handed out after end user authentication during automatic enrollment (ADE)
+// stays valid.
+const MDMAppleDEPEnrollmentChallengeExpiration = 1 * time.Hour
+
 // Sentinel errors for recovery lock rotation
 var (
 	// ErrRecoveryLockRotationPending indicates a rotation is already in progress for the host.
@@ -55,6 +60,7 @@ type MDMAppleCommandIssuer interface {
 	RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error
 	ClearPasscode(ctx context.Context, hostUUID []string, cmdUUID string) error
+	RotateFileVaultKey(ctx context.Context, hostUUID, cmdUUID string, replyCertDER []byte) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -240,6 +246,9 @@ type MDMAppleConfigProfile struct {
 	// Name corresponds to the payload display name of the associated mobileconfig payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
+	// Description is free text written by the admin. It is not part of the
+	// checksum, so changing it never re-delivers the profile.
+	Description string `db:"description" json:"description"`
 	// Mobileconfig is the byte slice corresponding to the XML property list (i.e. plist)
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
 	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
@@ -302,6 +311,18 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 
 // payloadDisplayNameRegex is used to extract PayloadDisplayName values from raw XML content
 var payloadDisplayNameRegex = regexp.MustCompile(`<key>PayloadDisplayName</key>\s*<string>([^<]*)</string>`)
+
+// PayloadDisplayNameFromMobileconfig returns the top-level PayloadDisplayName
+// of a raw .mobileconfig, or "" when it can't be parsed (for example a stored
+// profile whose <data> still holds an unexpanded secret). A regex won't do:
+// nested payloads carry their own PayloadDisplayName and often come first.
+func PayloadDisplayNameFromMobileconfig(raw []byte) string {
+	parsed, err := mobileconfig.Mobileconfig(raw).ParseConfigProfile()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(parsed.PayloadDisplayName)
+}
 
 // ValidateNoSecretsInProfileName checks if PayloadDisplayName contains FLEET_SECRET_ variables
 // in the raw XML content of a profile.
@@ -958,6 +979,10 @@ type MDMAppleDeclaration struct {
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
 
+	// Description is free text written by the admin. It is not part of the
+	// token, so changing it never re-delivers the declaration.
+	Description string `db:"description" json:"description"`
+
 	// Scope is the channel the declaration is delivered on, parsed from the
 	// declaration's top-level PayloadScope. "System" (the default) targets the
 	// device channel; "User" targets the user channel (macOS only).
@@ -982,6 +1007,8 @@ type MDMAppleDeclaration struct {
 
 	// Nil removes any stored activation on write, which is how one is cleared.
 	Activation *MDMAppleCustomActivation `db:"-" json:"-"`
+
+	Hidden bool `db:"hidden" json:"hidden"`
 
 	CreatedAt           time.Time  `db:"created_at" json:"created_at"`
 	UploadedAt          time.Time  `db:"uploaded_at" json:"uploaded_at"`
@@ -1789,6 +1816,7 @@ const (
 	VerifyRecoveryLockCmdName   = "VerifyRecoveryLock"
 	AccountConfigurationCmdName = "AccountConfiguration"
 	SetAutoAdminPasswordCmdName = "SetAutoAdminPassword"
+	RotateFileVaultKeyCmdName   = "RotateFileVaultKey"
 )
 
 // CancelableAppleMDMRequestTypes are the request types of Apple MDM commands
@@ -1888,6 +1916,18 @@ type ADUEEnrollmentChallenge struct {
 	ID             uint       `db:"id"`
 	IdPAccountUUID string     `db:"idp_account_uuid"`
 	ABMTokenID     *uint      `db:"abm_token_id"`
+	ExpiresAt      time.Time  `db:"expires_at"`
+	UsedAt         *time.Time `db:"used_at"`
+}
+
+// MDMAppleDEPEnrollmentChallenge is a one-time token that lets the device that
+// completed end user authentication during automatic enrollment (ADE) download
+// its enrollment profile.
+type MDMAppleDEPEnrollmentChallenge struct {
+	ID             uint       `db:"id"`
+	IdPAccountUUID string     `db:"idp_account_uuid"`
+	HardwareSerial string     `db:"hardware_serial"`
+	HostUUID       string     `db:"host_uuid"`
 	ExpiresAt      time.Time  `db:"expires_at"`
 	UsedAt         *time.Time `db:"used_at"`
 }

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.1.0",
+      "version": "6.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.moonlight-stream.Moonlight';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.moonlight-stream.Moonlight' AND version_compare(bundle_short_version, '6.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.moonlight-stream.Moonlight' AND version_compare(bundle_short_version, '6.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.moonlight-stream.Moonlight' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/moonlight-stream/moonlight-qt/releases/download/v6.1.0/Moonlight-6.1.0.dmg",
+      "installer_url": "https://github.com/moonlight-stream/moonlight-qt/releases/download/v6.2.0/Moonlight-6.2.0.dmg",
       "install_script_ref": "703cbc76",
       "uninstall_script_ref": "61d9f452",
-      "sha256": "d494740eead8ad4e620cdc8feedb56083bc29cabbbeef34cb82585fd87725fa2",
+      "sha256": "43617e5210d53968fcfb4a46526d1625a9056c6fe97e731673c31193dae776fc",
       "default_categories": [
         "Productivity"
       ]

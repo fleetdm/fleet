@@ -61,6 +61,57 @@ $shadow-transition-width: 16px;
       min-height: 272px;
     }
 
+    // Ghost skeleton rows + overlay for the "no items match" state on tables
+    // that keep their real header (per-column filter inputs) visible. The
+    // ghost rows sit inside the real <tbody> so columns line up with <thead>
+    // for free, fading out toward the bottom; the overlay centers the
+    // message over them.
+    &__ghost-row {
+      // Per-row opacity set inline on the <tr> so the fade degrades gracefully
+      // across browsers (mask-image on <tbody> is unreliable).
+      td {
+        padding: $pad-small $table-cell-padding;
+      }
+    }
+
+    &__ghost-skeleton {
+      display: block;
+      height: 12px;
+      border-radius: 4px;
+      background-color: $ui-fleet-black-10;
+    }
+
+    // Overlay sits OUTSIDE .data-table__wrapper (which is the horizontal scroll
+    // container) and is anchored to .data-table-block, so the message stays
+    // centered in the viewport even when the user scrolls a wide table.
+    &__no-match-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      // Let the real <thead>'s filter inputs stay clickable through the overlay.
+      pointer-events: none;
+      // Keep centering below the thead (sort row ~40px + filter row ~40px).
+      padding-top: 80px;
+    }
+
+    &__no-match-content {
+      pointer-events: auto;
+      padding: $pad-xsmall;
+      text-align: center;
+      background: $core-fleet-white;
+      border-radius: $border-radius-large;
+
+      h3 {
+        margin: 0;
+        font-size: $small;
+        font-weight: $bold;
+        line-height: $line-height;
+        color: $core-fleet-black;
+      }
+    }
+
     &__table {
       position: relative;
       width: 100%;
@@ -281,12 +332,6 @@ $shadow-transition-width: 16px;
         }
         td:last-child {
           border-bottom-right-radius: $border-radius-large;
-        }
-      }
-
-      .single-row {
-        &:hover {
-          cursor: pointer;
         }
       }
 

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.5",
+      "version": "2026.2.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.datagrip';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.datagrip' AND version_compare(bundle_short_version, '2026.2.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.datagrip' AND version_compare(bundle_short_version, '2026.2.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.jetbrains.datagrip' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.jetbrains.com/datagrip/datagrip-2026.2.5-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/datagrip/datagrip-2026.2.6-aarch64.dmg",
       "install_script_ref": "5f954355",
       "uninstall_script_ref": "9129cae5",
-      "sha256": "f4c85cb1a1973764f84184c5fb8e4b86c7fac9aae2731e503f6f331b1217ddc8",
+      "sha256": "cf9f762e3b1bc802c0f096215d30cacfe3878fa48e12233cbdaf699588c7dbb2",
       "default_categories": [
         "Developer tools"
       ]
