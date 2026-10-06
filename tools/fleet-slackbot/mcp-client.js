@@ -6,6 +6,16 @@ const { ErrorCode } = require("@modelcontextprotocol/sdk/types.js");
 // Keeps tool results from blowing up the Claude context window.
 const MAX_TOOL_RESULT_CHARS = 20000;
 
+// Errors the MCP SDK raises when the SSE session is gone. A failed POST means
+// the server never accepted the request (e.g. it restarted and dropped the
+// session), so retrying it on a fresh connection is safe.
+function isConnectionLoss(err) {
+  if (err.code === ErrorCode.ConnectionClosed && err.message.includes("Connection closed")) {
+    return true;
+  }
+  return /^Not connected$|^Error POSTing to endpoint/.test(err.message || "");
+}
+
 class McpClient {
   constructor({ url, authToken, toolTimeoutMs }) {
     this.url = url;
@@ -97,12 +107,14 @@ class McpClient {
     try {
       result = await this.client.callTool({ name, arguments: args }, undefined, options);
     } catch (err) {
-      // Retrying a timeout would re-run the work (e.g. a second live query
-      // against the same hosts), so only retry when the connection dropped.
-      if (err.code === ErrorCode.RequestTimeout) {
+      // Retrying anything else (e.g. a timeout) could re-run work that may
+      // still be in flight, such as a second live query against the same hosts.
+      if (!isConnectionLoss(err)) {
         throw err;
       }
-      console.warn(`[mcp] Tool call failed (${err.message}), reconnecting and retrying...`);
+      console.warn(
+        `[mcp] Tool call failed (${err.message}), reconnecting and retrying...`
+      );
       this._connected = false;
       await this.connect();
       result = await this.client.callTool({ name, arguments: args }, undefined, options);

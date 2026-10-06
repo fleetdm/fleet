@@ -36,6 +36,28 @@ test("does not retry a timed-out call", async () => {
   assert.equal(reconnects(), 0);
 });
 
+test("does not retry errors that aren't connection loss", async () => {
+  let calls = 0;
+  const { mcp, reconnects } = clientWithStub(async () => {
+    calls++;
+    throw new McpError(ErrorCode.InternalError, "boom");
+  });
+  await assert.rejects(mcp.callTool("get_fleets", {}), /boom/);
+  assert.equal(calls, 1);
+  assert.equal(reconnects(), 0);
+});
+
+test("retries when the server rejects the POST (stale session)", async () => {
+  let calls = 0;
+  const { mcp, reconnects } = clientWithStub(async () => {
+    calls++;
+    if (calls === 1) throw new Error("Error POSTing to endpoint (HTTP 404): session not found");
+    return { content: [{ type: "text", text: "ok" }] };
+  });
+  assert.equal(await mcp.callTool("get_fleets", {}), "ok");
+  assert.equal(reconnects(), 1);
+});
+
 test("reconnects and retries once when the connection drops", async () => {
   let calls = 0;
   const { mcp, reconnects } = clientWithStub(async () => {
