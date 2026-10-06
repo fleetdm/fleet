@@ -7222,7 +7222,7 @@
       "name": "QGIS LTR",
       "slug": "qgis@ltr/windows",
       "platform": "windows",
-      "unique_identifier": "QGIS",
+      "unique_identifier": "QGIS LTR",
       "description": "QGIS LTR is the long-term release of QGIS, a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
     },
     {
