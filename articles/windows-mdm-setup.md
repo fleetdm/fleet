@@ -213,11 +213,26 @@ In Intune, select **Devices**, and under **Device onboarding**, open the **Enrol
 
 19. Select **Grant admin consent for [your tenant name]**, and confirm.
 
+20. Select **Manifest** from the sidebar. Under `optionalClaims`, add `deviceid` to `accessToken`, keep any claims already listed, and select **Save**:
+
+    ```json
+    "optionalClaims": {
+        "accessToken": [
+            {
+                "name": "deviceid",
+                "essential": false
+            }
+        ]
+    }
+    ```
+
+    This adds the host's Entra device ID to the access token Windows sends when it enrolls. Fleet uses it to make sure an enrollment matches the device where the end used logged in. The **Token configuration** page doesn't list `deviceid`, so add it in the manifest. Without it, end users can still enroll, but Fleet can't verify which host an enrollment comes from and logs an error on each enrollment.
+
 **Back in Fleet:**
 
-20. Navigate to **Organization settings** > **Integrations** > **MDM** under **Microsoft Entra** select **Edit** next to "Microsoft Entra tenant ID added". Under **Entra tenants**, select **Add**, paste the tenant ID you copied in step 4, and select **Add**. If you don't add the Entra Tenant ID, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
+21. Navigate to **Organization settings** > **Integrations** > **MDM** under **Microsoft Entra** select **Edit** next to "Microsoft Entra tenant ID added". Under **Entra tenants**, select **Add**, paste the tenant ID you copied in step 4, and select **Add**. If you don't add the Entra Tenant ID, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
 
-21. Under **Entra application client IDs**, select **Add**, paste the client ID you copied in step 14, and select **Add**. Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so the client ID is required. If you don't add it, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
+22. Under **Entra application client IDs**, select **Add**, paste the client ID you copied in step 14, and select **Add**. Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so the client ID is required. If you don't add it, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
 
 Now you're ready to automatically enroll Windows hosts to Fleet. The end user will see Microsoft's default initial setup. You can further [simplify the initial device setup with Autopilot](#windows-autopilot), which is similar to Apple's Automated Device Enrollment (DEP).
 
@@ -466,6 +481,21 @@ When resetting a device that was previously enrolled in Fleet via Autopilot, fol
 
 If the device skips Autopilot on the first boot, restart it and try again. 
 The Autopilot service may need a few minutes to sync after the device record cleanup.
+
+## If Fleet refuses a Windows enrollment
+
+Windows identifies a device by its hardware ID when it enrolls. Fleet keeps one enrollment per hardware ID, and a new enrollment can replace it only if it comes from the same host:
+
+- Hosts that enroll by installing Fleet's agent are matched by the host the agent is enrolled as.
+- Hosts that enroll through Microsoft Entra are matched by their Entra device ID, which comes from the `deviceid` claim you added in [step 20](#step-2-connect-fleet-to-microsoft-entra-id). If the earlier enrollment came from Fleet's agent and the host is registered in Autopilot, Fleet uses the Entra device ID from its Autopilot registration.
+
+When an enrollment comes from a different host, Fleet refuses it and the device shows an enrollment error. Find the cause below:
+
+- Windows was reinstalled and the device joined Entra again. Rejoining gives the device a new Entra device ID, unless it's registered in Autopilot. Delete the old host in Fleet (**Host details > Actions > Delete**), then enroll the device again. If Fleet wiped the device before the reinstall, it enrolls without this step.
+- The device was cloned from an image of a computer that was already enrolled. Clones share the original's hardware ID, and Microsoft doesn't support cloning an enrolled image. Reinstall the clone from an image that was never enrolled. Don't delete the original's host, or the clone takes over its enrollment.
+- The `deviceid` claim was removed from the Fleet application in Entra. Add it back as described in [step 20](#step-2-connect-fleet-to-microsoft-entra-id), then enroll the device again.
+
+If the earlier enrollment never appeared as a host, for example because the device was reset before it finished enrolling, there's no host to delete. Fleet removes that enrollment automatically after 30 days without activity, and the device can enroll after that. To change how long Fleet waits, set [`mdm.windows_enrollment_retention`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-enrollment-retention).
 
 ## Turn off Windows MDM
 
