@@ -608,9 +608,9 @@ func matchesSoftwareSource(rowSource, want string) bool {
 	return strings.EqualFold(rowSource, want)
 }
 
-// source is filtered client-side (not a server-side param on this endpoint);
+// source and extensionFor are filtered client-side (not server-side params on this endpoint);
 // perPage caps the merged result.
-func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, vulnerable, source string, perPage int) ([]HostSoftware, bool, error) {
+func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, vulnerable, source, extensionFor string, perPage int) ([]HostSoftware, bool, error) {
 	const apiPerPage = 500
 	out := make([]HostSoftware, 0, perPage)
 	for page := 0; ; page++ {
@@ -654,7 +654,7 @@ func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, 
 
 		shortPage := len(result.Software) < apiPerPage
 		for _, row := range result.Software {
-			if !matchesSoftwareSource(row.Source, source) {
+			if !matchesSoftwareSource(row.Source, source) || !matchesSoftwareSource(row.ExtensionFor, extensionFor) {
 				continue
 			}
 			out = append(out, row)
@@ -673,7 +673,7 @@ func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, 
 	return out, false, nil
 }
 
-func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platform, query, vulnerable, source string, perPage int) ([]SoftwareTitle, bool, error) {
+func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platform, query, vulnerable, source, extensionFor string, perPage int) ([]SoftwareTitle, bool, error) {
 	var teamIDStr string
 	if teamName != "" {
 		teamIDs, err := fc.resolveTeamNames(ctx, []string{teamName})
@@ -705,6 +705,15 @@ func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platfor
 		if v := strings.TrimSpace(vulnerable); v != "" {
 			params.Set("vulnerable", v)
 		}
+		// Fleet matches source case-sensitively and every source is lowercase, so lowercasing keeps
+		// this arg case-insensitive like the per-host filter.
+		if src := strings.ToLower(strings.TrimSpace(source)); src != "" {
+			params.Set("source", src)
+		}
+		// Unlike source, extension_for values are mixed case (JetBrains IDE names), so they're sent as given.
+		if ext := strings.TrimSpace(extensionFor); ext != "" {
+			params.Set("extension_for", ext)
+		}
 
 		resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/software/titles?"+params.Encode(), nil)
 		if err != nil {
@@ -727,9 +736,6 @@ func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platfor
 
 		shortPage := len(result.SoftwareTitles) < apiPerPage
 		for _, row := range result.SoftwareTitles {
-			if !matchesSoftwareSource(row.Source, source) {
-				continue
-			}
 			out = append(out, row)
 			if perPage > 0 && len(out) >= perPage {
 				return out, false, nil
