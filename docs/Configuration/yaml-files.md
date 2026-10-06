@@ -1253,6 +1253,10 @@ org_settings:
         challenge_url: https://example.scep.smallstep.com/xr9f4db7-83f1-48ab-8982-8b6870d4fl85/challenge
         username: $SMALLSTEP_USERNAME
         password: $SMALLSTEP_PASSWORD
+    ejbca:
+      - name: EJBCA_WIFI
+        url: https://ejbca.example.com:8443
+        password: $EJBCA_CLIENT_P12_PASSWORD
 ```
 
 #### digicert
@@ -1305,6 +1309,12 @@ Can only be configured for "All fleets" (`org_settings`).
 - `challenge_url` is the **Webhook URL** from Smallstep.
 - `username` is the **Challenge Basic Authentication Username** from Smallstep.
 - `password` is the **Challenge Basic Authentication Password** from Smallstep.
+
+#### ejbca
+
+- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `url` is the URL of the EJBCA REST API endpoint.
+- `password` is the password for the client certificate.
 
 Can only be configured for "All fleets" (`org_settings`).
 
