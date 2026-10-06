@@ -10032,6 +10032,7 @@ Only Apple (macOS, iOS, iPadOS) `DeviceLock`, `EraseDevice`, `ClearPasscode`, an
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
+- [Add Volume Purchasing Program (VPP) token](#add-volume-purchasing-program-vpp-token)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Update Volume Purchasing Program (VPP) token's fleets](#update-volume-purchasing-program-vpp-tokens-fleets)
 - [Get Android Enterprise](#get-android-enterprise)
@@ -10150,6 +10151,61 @@ None.
       }
     }
   ]
+}
+```
+
+### Add Volume Purchasing Program (VPP) token
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/vpp_tokens`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token | file | form | **Required**. The content token (.vpptoken) file downloaded from Apple Business. |
+
+A new VPP token isn't assigned to any fleet. To assign it, use [Update VPP token's fleets](#update-vpp-tokens-fleets).
+
+#### Example
+
+`POST /api/v1/fleet/vpp_tokens`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
+Content-Type: application/octet-stream
+
+<TOKEN_DATA>
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 202`
+
+```json
+{
+  "token": {
+    "id": 1,
+    "org_name": "Fleet Device Management Inc.",
+    "location": "Fleet Device Management Inc.",
+    "country_code": "us",
+    "renew_date": "2027-10-20T00:00:00Z",
+    "created_at": "2026-10-20T14:02:11Z",
+    "teams": null,
+    "fleets": null
+  }
 }
 ```
 

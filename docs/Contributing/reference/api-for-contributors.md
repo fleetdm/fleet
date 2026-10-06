@@ -563,7 +563,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Update AB token's fleets](#update-ab-tokens-fleets)
 - [Renew AB token](#renew-ab-token)
 - [Delete AB token](#delete-ab-token)
-- [Add VPP token](#add-VPP-token)
 - [Renew VPP token](#renew-vpp-token)
 - [Delete VPP token](#delete-vpp-token)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
@@ -926,54 +925,6 @@ Content-Type: application/octet-stream
 ##### Default response
 
 `Status: 204`
-
-### Add VPP token
-
-`POST /api/v1/fleet/vpp_tokens`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business |
-
-#### Example
-
-`POST /api/v1/fleet/vpp_tokens`
-
-##### Request header
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
-##### Request body
-
-```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
-Content-Type: application/octet-stream
-<TOKEN_DATA>
---------------------------f02md47480und42y
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-"vpp_token": {
-  "id": 1,
-  "org_name": "Fleet Device Management Inc.",
-  "location": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2024-10-20T00:00:00Z",
-  "created_at": "2023-10-20T14:02:11Z",
-  "terms_expired": false,
-  "teams": null,
-  "fleets": null
-}
-```
 
 ### Renew VPP token
 
