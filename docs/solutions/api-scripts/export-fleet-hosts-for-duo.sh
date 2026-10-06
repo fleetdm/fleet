@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script template used in this guide: https://fleetdm.com/guides/require-fleet-managed-hosts-in-duo
+# Script template used in this guide: https://fleetdm.com/guides/duo-conditional-access-integration
 # Writes macos.csv, windows.csv, and linux.csv for Duo's device_cache_sync.py, with the
 # device IDs of Fleet hosts. Set REQUIRE_PASSING_CRITICAL_POLICIES=true to only include hosts
 # that are passing all critical policies. Needs curl and jq.

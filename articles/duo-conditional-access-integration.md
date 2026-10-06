@@ -1,6 +1,6 @@
-# Require Fleet-managed hosts in Duo
+# Conditional access: Duo
 
-This guide shows how to block Duo sign-in from hosts that aren't managed by Fleet. It works on macOS, Windows, and Linux.
+With Fleet's [conditional access](https://fleetdm.com/guides/conditional-access), Duo blocks sign-in from hosts that aren't managed by Fleet. It works on macOS, Windows, and Linux.
 
 How it works:
 
@@ -10,7 +10,7 @@ How it works:
 
 Unlike [PingFederate](https://fleetdm.com/guides/pingfederate-conditional-access-integration), Duo doesn't need a certificate on the host.
 
-> **Note:** [Conditional access](https://fleetdm.com/guides/conditional-access) with Duo, which also blocks hosts that are failing critical Fleet policies, is coming soon. Fleet will add an activity when a host refetches ([macOS, iOS, and iPadOS](https://github.com/fleetdm/fleet/issues/50576), [Windows](https://github.com/fleetdm/fleet/issues/50577), [Linux](https://github.com/fleetdm/fleet/issues/50578)), so the sync can run as soon as an end user fixes an issue and selects **Refetch**. Until then, the best practice is to trust every host in Fleet. If you also block failing hosts today, an end user who fixes the issue can't sign in until the next sync, up to 5 minutes later. To block failing hosts anyway, [mark those policies as critical](https://fleetdm.com/guides/pingfederate-conditional-access-integration#step-2-mark-critical-policies) and set `REQUIRE_PASSING_CRITICAL_POLICIES=true` when you run the export script.
+> **Note:** Blocking hosts that are failing critical Fleet policies with Duo is coming soon. Fleet will add an activity when a host refetches ([macOS, iOS, and iPadOS](https://github.com/fleetdm/fleet/issues/50576), [Windows](https://github.com/fleetdm/fleet/issues/50577), [Linux](https://github.com/fleetdm/fleet/issues/50578)), so the sync can run as soon as an end user fixes an issue and selects **Refetch**. Until then, the best practice is to trust every host in Fleet. If you also block failing hosts today, an end user who fixes the issue can't sign in until the next sync, up to 5 minutes later. To block failing hosts anyway, [mark those policies as critical](https://fleetdm.com/guides/pingfederate-conditional-access-integration#step-2-mark-critical-policies) and set `REQUIRE_PASSING_CRITICAL_POLICIES=true` when you run the export script.
 
 ## Prerequisites
 
@@ -92,9 +92,9 @@ Each sync replaces the previous list, so a newly enrolled host can sign in after
 - **Sign-in denied for a managed host**: Check that Duo Desktop is installed and running, and that the last sync included the host.
 - **Windows host missing from `windows.csv`**: Check that the Step 3 report has results for the host.
 
-<meta name="articleTitle" value="Require Fleet-managed hosts in Duo">
+<meta name="articleTitle" value="Conditional access: Duo">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-09-29">
-<meta name="description" value="Block Duo sign-in from hosts that aren't managed by Fleet.">
+<meta name="description" value="Use Duo for conditional access, blocking sign-in from hosts that aren't managed by Fleet.">
