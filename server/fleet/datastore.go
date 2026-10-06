@@ -747,6 +747,9 @@ type Datastore interface {
 	// Used in cleanups_then_aggregation cron to cleanup rows that were inserted immediately
 	// after DiscardData was set to true due to query caching.
 	CleanupDiscardedQueryResults(ctx context.Context) error
+	// CleanupStaleQueryResults deletes query results that an edit hid from reads (see
+	// results_valid_from_id) and results of deleted queries.
+	CleanupStaleQueryResults(ctx context.Context) error
 	// CleanupExcessQueryResultRows deletes query result rows that exceed the maximum allowed per query.
 	// It keeps the most recent rows (by id, which correlates with insert order) up to the limit.
 	// Deletes are batched to avoid large binlogs and long lock times. This runs as a cron job.

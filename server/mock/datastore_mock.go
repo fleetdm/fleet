@@ -504,6 +504,8 @@ type OverwriteQueryResultRowsFunc func(ctx context.Context, rows []*fleet.Schedu
 
 type CleanupDiscardedQueryResultsFunc func(ctx context.Context) error
 
+type CleanupStaleQueryResultsFunc func(ctx context.Context) error
+
 type CleanupExcessQueryResultRowsFunc func(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
 
 type ListHostReportsFunc func(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts fleet.ListHostReportsOptions) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error)
@@ -3210,6 +3212,9 @@ type DataStore struct {
 
 	CleanupDiscardedQueryResultsFunc        CleanupDiscardedQueryResultsFunc
 	CleanupDiscardedQueryResultsFuncInvoked bool
+
+	CleanupStaleQueryResultsFunc        CleanupStaleQueryResultsFunc
+	CleanupStaleQueryResultsFuncInvoked bool
 
 	CleanupExcessQueryResultRowsFunc        CleanupExcessQueryResultRowsFunc
 	CleanupExcessQueryResultRowsFuncInvoked bool
@@ -7871,6 +7876,13 @@ func (s *DataStore) CleanupDiscardedQueryResults(ctx context.Context) error {
 	s.CleanupDiscardedQueryResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupDiscardedQueryResultsFunc(ctx)
+}
+
+func (s *DataStore) CleanupStaleQueryResults(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupStaleQueryResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupStaleQueryResultsFunc(ctx)
 }
 
 func (s *DataStore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) (map[uint]int, error) {

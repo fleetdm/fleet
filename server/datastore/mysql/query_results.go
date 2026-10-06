@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -46,11 +47,16 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		queryID := rows[0].QueryID
 		hostID := rows[0].HostID
 
+		// Stale rows are still replaced, but aren't counted: the report's count no longer includes them.
 		var existing []struct {
 			ID      uint `db:"id"`
 			HasData bool `db:"has_data"`
 		}
-		selectStmt := `SELECT id, has_data FROM query_results WHERE query_id = ? AND host_id = ?`
+		selectStmt := `
+			SELECT qr.id, (qr.has_data = 1 AND qr.id >= q.results_valid_from_id) AS has_data
+			FROM query_results qr
+			JOIN queries q ON q.id = qr.query_id
+			WHERE qr.query_id = ? AND qr.host_id = ?`
 		if err := sqlx.SelectContext(ctx, tx, &existing, selectStmt, queryID, hostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "selecting existing query results for host")
 		}
@@ -208,6 +214,7 @@ type queryResultRowWithID struct {
 func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.ScheduledQueryResultRow, int, *fleet.PaginationMetadata, error) {
 	whereClause := fmt.Sprintf(`
 		FROM query_results qr
+		JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
 		LEFT JOIN hosts h ON (qr.host_id=h.id)
 		WHERE qr.query_id = ? AND qr.has_data = 1 AND %s
 	`, ds.whereFilterHostsByTeams(filter, "h"))
@@ -283,6 +290,7 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 			SELECT qr.id, qr.query_id, qr.host_id, qr.last_fetched, qr.data,
 				h.hostname, h.computer_name, h.hardware_model, h.hardware_serial
 			FROM query_results qr
+			JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
 			LEFT JOIN hosts h ON (qr.host_id=h.id)
 			WHERE qr.id IN (?)
 		`, batch)
@@ -299,7 +307,8 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 	}
 	results := make([]*fleet.ScheduledQueryResultRow, 0, len(ids))
 	for _, id := range ids {
-		// A row can be replaced by a host check-in between the two queries.
+		// A row can be replaced by a host check-in, or hidden by a results-clearing edit, between
+		// the two queries.
 		if row, ok := rowsByID[id]; ok {
 			results = append(results, row)
 		}
@@ -328,7 +337,10 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 // excluding rows with null data
 func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error) {
 	var count int
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ? AND has_data = 1`, queryID, hostID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `
+		SELECT COUNT(*) FROM query_results qr
+		JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
+		WHERE qr.query_id = ? AND qr.host_id = ? AND qr.has_data = 1`, queryID, hostID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "counting query results for query and host")
 	}
@@ -343,7 +355,11 @@ func (ds *Datastore) ResultCountsForQueries(ctx context.Context, queryIDs []uint
 		return counts, nil
 	}
 
-	stmt, args, err := sqlx.In(`SELECT query_id, COUNT(*) AS n FROM query_results WHERE query_id IN (?) AND has_data = 1 GROUP BY query_id`, queryIDs)
+	stmt, args, err := sqlx.In(`
+		SELECT qr.query_id, COUNT(*) AS n FROM query_results qr
+		JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
+		WHERE qr.query_id IN (?) AND qr.has_data = 1
+		GROUP BY qr.query_id`, queryIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query results count statement")
 	}
@@ -364,9 +380,10 @@ func (ds *Datastore) ResultCountsForQueries(ctx context.Context, queryIDs []uint
 // including rows with null data
 func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
 	selectStmt := `
-               SELECT query_id, host_id, last_fetched, data FROM query_results
-                       WHERE query_id = ? AND host_id = ?
-               `
+		SELECT qr.query_id, qr.host_id, qr.last_fetched, qr.data FROM query_results qr
+		JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
+		WHERE qr.query_id = ? AND qr.host_id = ?
+	`
 	results := []*fleet.ScheduledQueryResultRow{}
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID, hostID)
 	if err != nil {
@@ -382,10 +399,13 @@ func (ds *Datastore) QueryResultRowsForHostByQuery(ctx context.Context, hostID u
 	if len(queryIDs) == 0 {
 		return nil, nil
 	}
+	// Rows hidden by a results-clearing edit must not count as stored, or identical results from
+	// the new version would be skipped as unchanged and then deleted with the hidden rows.
 	stmt, args, err := sqlx.In(`
-		SELECT id, query_id, host_id, last_fetched, data FROM query_results
-		WHERE host_id = ? AND query_id IN (?)
-		ORDER BY id`, hostID, queryIDs)
+		SELECT qr.id, qr.query_id, qr.host_id, qr.last_fetched, qr.data FROM query_results qr
+		JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
+		WHERE qr.host_id = ? AND qr.query_id IN (?)
+		ORDER BY qr.id`, hostID, queryIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building select query result rows for host")
 	}
@@ -418,15 +438,87 @@ func (ds *Datastore) UpdateQueryResultsLastFetched(ctx context.Context, ids []ui
 	return nil
 }
 
+// Above any id a BIGINT UNSIGNED query_results.id will reach.
+const allQueryResultsBeforeID = math.MaxInt64
+
 func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {
-	deleteStmt := `
-		DELETE FROM query_results
-		WHERE query_id IN
-			(SELECT id FROM queries WHERE discard_data = true)
-		`
-	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning up discarded query results")
+	// Both reads go to the primary, and only rows stored before the run are deleted: a report whose
+	// results are turned back on mid-run keeps the rows hosts store from then on.
+	var maxID sql.NullInt64
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &maxID, `SELECT MAX(id) FROM query_results`); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting last query_results id")
+	}
+	if !maxID.Valid {
+		return nil
+	}
+	var queryIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &queryIDs, `SELECT id FROM queries WHERE discard_data = 1`); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting discarded queries")
+	}
+	for _, queryID := range queryIDs {
+		if err := ds.deleteQueryResultsBeforeID(ctx, queryID, uint(maxID.Int64)+1, false, deleteQueryResultsBatchSize); err != nil { //nolint:gosec // dismiss G115
+			return ctxerr.Wrapf(ctx, err, "cleaning up discarded results of query %d", queryID)
+		}
+	}
+	return nil
+}
+
+func (ds *Datastore) deleteStaleQueryResults(ctx context.Context, queryID, validFromID uint) error {
+	if err := ds.deleteQueryResultsBeforeID(ctx, queryID, validFromID, false, deleteQueryResultsBatchSize); err != nil {
+		return err
+	}
+	// A later edit that cleared the results again moved the cutoff, so the query stays pending.
+	// updated_at is kept: this isn't an edit of the report.
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE queries SET results_cleanup_pending = 0, updated_at = updated_at WHERE id = ? AND results_valid_from_id = ?`,
+		queryID, validFromID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clearing query results cleanup flag")
+	}
+	return nil
+}
+
+func (ds *Datastore) CleanupStaleQueryResults(ctx context.Context) error {
+	var pending []struct {
+		ID          uint `db:"id"`
+		ValidFromID uint `db:"results_valid_from_id"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &pending,
+		`SELECT id, results_valid_from_id FROM queries WHERE results_cleanup_pending = 1`); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting queries with stale results")
+	}
+	for _, q := range pending {
+		if err := ds.deleteStaleQueryResults(ctx, q.ID, q.ValidFromID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "cleaning up stale results of query %d", q.ID)
+		}
+	}
+
+	var resultQueryIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &resultQueryIDs, `SELECT DISTINCT query_id FROM query_results`); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting queries with results")
+	}
+	// Read from the primary: a report created moments ago may not be on the replica yet, and
+	// its results would look orphaned.
+	existing := make(map[uint]struct{}, len(resultQueryIDs))
+	for batch := range slices.Chunk(resultQueryIDs, 50000) {
+		stmt, args, err := sqlx.In(`SELECT id FROM queries WHERE id IN (?)`, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building existing queries statement")
+		}
+		var existingIDs []uint
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &existingIDs, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting existing queries")
+		}
+		for _, id := range existingIDs {
+			existing[id] = struct{}{}
+		}
+	}
+	for _, queryID := range resultQueryIDs {
+		if _, ok := existing[queryID]; ok {
+			continue
+		}
+		if err := ds.deleteQueryResultsBeforeID(ctx, queryID, allQueryResultsBeforeID, false, deleteQueryResultsBatchSize); err != nil {
+			return ctxerr.Wrapf(ctx, err, "cleaning up results of deleted query %d", queryID)
+		}
 	}
 	return nil
 }
@@ -471,10 +563,11 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 	var queryCutoffs []cutoffRow
 	cutoffStmt := `
         SELECT query_id, id as cutoff_id FROM (
-            SELECT query_id, id,
-                ROW_NUMBER() OVER (PARTITION BY query_id ORDER BY id DESC) as rn
-            FROM query_results
-            WHERE query_id IN (?) AND has_data = 1
+            SELECT qr.query_id, qr.id,
+                ROW_NUMBER() OVER (PARTITION BY qr.query_id ORDER BY qr.id DESC) as rn
+            FROM query_results qr
+            JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
+            WHERE qr.query_id IN (?) AND qr.has_data = 1
         ) cutoff
         WHERE rn = ?
     `
@@ -509,10 +602,11 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 	}
 	var counts []countRow
 	countStmt := `
-        SELECT query_id, COUNT(*) as count
-        FROM query_results
-        WHERE query_id IN (?) AND has_data = 1
-        GROUP BY query_id
+        SELECT qr.query_id, COUNT(*) as count
+        FROM query_results qr
+        JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
+        WHERE qr.query_id IN (?) AND qr.has_data = 1
+        GROUP BY qr.query_id
     `
 	for batch := range slices.Chunk(queryIDs, queryIDBatchSize) {
 		var batchCounts []countRow
@@ -623,7 +717,7 @@ func (ds *Datastore) ListHostReports(
 		LEFT JOIN LATERAL (
 			SELECT MAX(last_fetched) AS last_result_fetched
 			FROM query_results
-			WHERE query_id = q.id AND host_id = ?
+			WHERE query_id = q.id AND host_id = ? AND id >= q.results_valid_from_id
 		) qr_stats ON TRUE
 	` + whereClause
 	listArgs := append([]any{hostID}, whereArgs...)
@@ -685,10 +779,11 @@ func (ds *Datastore) ListHostReports(
 		NHostResults int  `db:"n_host_results"`
 	}
 	hostCountStmt, hostCountArgs, err := sqlx.In(`
-		SELECT query_id, COUNT(*) AS n_host_results
-		FROM query_results
-		WHERE query_id IN (?) AND host_id = ? AND has_data = 1
-		GROUP BY query_id
+		SELECT qr.query_id, COUNT(*) AS n_host_results
+		FROM query_results qr
+		JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
+		WHERE qr.query_id IN (?) AND qr.host_id = ? AND qr.has_data = 1
+		GROUP BY qr.query_id
 	`, queryIDs, hostID)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "building host count query for host reports")
@@ -713,10 +808,11 @@ func (ds *Datastore) ListHostReports(
 		SELECT qr.query_id, qr.data
 		FROM (
 			SELECT
-				id,
-				ROW_NUMBER() OVER (PARTITION BY query_id ORDER BY last_fetched DESC) AS rn
-			FROM query_results
-			WHERE query_id IN (?) AND host_id = ? AND has_data = 1
+				qr.id,
+				ROW_NUMBER() OVER (PARTITION BY qr.query_id ORDER BY qr.last_fetched DESC) AS rn
+			FROM query_results qr
+			JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
+			WHERE qr.query_id IN (?) AND qr.host_id = ? AND qr.has_data = 1
 		) ranked
 		JOIN query_results qr ON qr.id = ranked.id
 		WHERE ranked.rn = 1
