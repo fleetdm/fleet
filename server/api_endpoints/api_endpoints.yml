@@ -370,7 +370,7 @@
   display_name: "List Volume Purchasing Program (VPP) tokens"
 - method: "PATCH"
   path: "/api/v1/fleet/vpp_tokens/:id/fleets"
-  display_name: "Update VPP token's fleets"
+  display_name: "Update Volume Purchasing Program (VPP) token's fleets"
 - method: "GET"
   path: "/api/v1/fleet/scim/details"
   display_name: "Get identity provider (IdP) details"
