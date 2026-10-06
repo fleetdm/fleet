@@ -1192,6 +1192,16 @@ func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMDelive
 	}
 }
 
+// ProfileOperationFromDiskEncryptionState reports a FileVault profile still
+// recorded as installed but awaiting removal as a removal, so its row reads
+// "Removing enforcement" rather than "Enforcing".
+func (d *MDMHostData) ProfileOperationFromDiskEncryptionState(currOp MDMOperationType) MDMOperationType {
+	if d.MacOSSettings != nil && d.MacOSSettings.DiskEncryption != nil && *d.MacOSSettings.DiskEncryption == DiskEncryptionRemovingEnforcement {
+		return MDMOperationTypeRemove
+	}
+	return currOp
+}
+
 // Only exposed for Datastore tests, to be able to assert the rawDecryptable
 // unexported field.
 func (d *MDMHostData) TestGetRawDecryptable() *int {

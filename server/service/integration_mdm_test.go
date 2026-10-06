@@ -3074,10 +3074,25 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAfterTransferToFleet
 	require.Equal(t, fleet.DiskEncryptionRemovingEnforcement, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
 	require.Nil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
 
+	// the profile row reads "Removing enforcement" (remove + pending), not "Enforcing"
+	requireFileVaultRowRemoving := func(profiles *[]fleet.HostMDMProfile) {
+		require.NotNil(t, profiles)
+		for _, p := range *profiles {
+			if p.ProfileUUID == fileVaultProf.ProfileUUID {
+				require.Equal(t, fleet.MDMOperationTypeRemove, p.OperationType)
+				require.Equal(t, string(fleet.MDMDeliveryPending), *p.Status)
+				return
+			}
+		}
+		require.Fail(t, "FileVault profile row not found")
+	}
+	requireFileVaultRowRemoving(getHostResp.Host.MDM.Profiles)
+
 	var getDeviceResp getDeviceHostResponse
 	s.DoJSON("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK, &getDeviceResp)
 	require.Equal(t, fleet.DiskEncryptionRemovingEnforcement, *getDeviceResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.Nil(t, getDeviceResp.Host.MDM.MacOSSettings.ActionRequired)
+	requireFileVaultRowRemoving(getDeviceResp.Host.MDM.Profiles)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionWithDisabledEncryptionSetting() {
