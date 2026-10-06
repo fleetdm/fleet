@@ -31,7 +31,6 @@ In the next 3 months, Fleet will ship...
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
-- 🪟 Windows enrollment: Authenticate end users with any IdP, no Entra license required ([#48338](https://github.com/fleetdm/fleet/issues/48338))
 - ⏰ Patch deadlines and end user prompts for Windows apps ([#48756](https://github.com/fleetdm/fleet/issues/48756))
 - 📦 Deploy large packages, like local LLMs, Microsoft Office, and Xcode ([#48900](https://github.com/fleetdm/fleet/issues/48900))
 - 💬 Ask questions about your hosts in Slack with Fleet's Slack bot ([#50509](https://github.com/fleetdm/fleet/issues/50509))
