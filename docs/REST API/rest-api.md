@@ -12770,6 +12770,8 @@ Returns a specific report's data.
 
 `count` is the total number of results matching the request across all pages.
 
+`last_fetched` is when Fleet last received the host's results. If the host's results haven't changed, Fleet updates `last_fetched` about once an hour, so it can trail the host's most recent run by up to an hour.
+
 If a report has no results stored, then `results` will be an empty array:
 
 ```json
@@ -12835,6 +12837,8 @@ Returns a specific report's data for a single host.
   ]
 }
 ```
+
+`last_fetched` is when Fleet last received the host's results. If the host's results haven't changed, Fleet updates `last_fetched` about once an hour, so it can trail the host's most recent run by up to an hour.
 
 If a report has no results stored for the specified host, then `results` will be an empty array:
 
