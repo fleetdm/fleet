@@ -16,22 +16,31 @@ Engineering teams version-control production infrastructure, review changes in p
 - **Date:** Tuesday, November 10, 2026
 - **Time:** 11 AM ET / 8 AM PT / 4 PM GMT
 
-Panelists:
+#### Panelists:
 
-![Adam Anklewicz](../website/assets/images/articles/virtual-summit-headshot-adam-anklewicz-100x100@2x.jpeg)
-*[Adam Anklewicz](https://www.linkedin.com/in/ankle/), Thumbtack, Manager of IT Systems Engineering*
+<table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
+  <tbody>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-adam-anklewicz-100x100@2x.jpeg" alt="Adam Anklewicz" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/ankle/">Adam Anklewicz</a></strong>, Treeline, Platform Architect</p></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-brock-walters-100x100@2x.jpeg" alt="Brock Walters" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/brock-walters-247a2990/">Brock Walters</a></strong>, Thumbtack, Manager of IT Systems Engineering</p></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-viktor-filipsson-100x100@2x.jpeg" alt="Viktor Filipsson" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/viktoralexfilipsson/?isSelfProfile=false">Viktor Filipsson</a></strong>, Sonos, Senior IT System Engineer</p></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-betsy-keiser-100x100@2x.jpeg" alt="Betsy Keiser" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/betsykeiser/">Betsy Keiser</a></strong>, SandboxAQ, Staff Client Platform Engineer</p></td>
+    </tr>
+  </tbody>
+</table>
 
-![Brock Walters](../website/assets/images/articles/virtual-summit-headshot-brock-walters-100x100@2x.jpeg)
-*[Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/), Treeline, Platform Architect*
 
-![Viktor Filipsson](../website/assets/images/articles/virtual-summit-headshot-viktor-filipsson-100x100@2x.jpeg)
-*[Viktor Filipsson](https://www.linkedin.com/in/viktoralexfilipsson/?isSelfProfile=false), Sonos, Senior IT System Engineer*
-
-![Betsy Keiser](../website/assets/images/articles/virtual-summit-headshot-betsy-keiser-100x100@2x.jpeg)
-*[Betsy Keiser](https://www.linkedin.com/in/betsykeiser/), SandboxAQ, Staff Client Platform Engineer*
-
-
-[Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-infrastructure-as-code)
+<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-infrastructure-as-code">Reserve a spot in this session</a>
 
 
 ### Open source in enterprise device management
@@ -40,16 +49,26 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
 - **Date:** Tuesday, November 10, 2026
 - **Time:** 11:30 AM ET / 8:30 AM PT / 4:30 PM GMT
 
-Panelists:
+#### Panelists:
 
-- [Daniel Moore](https://www.linkedin.com/in/sodahabit/), Red Hat, Manager and Mac Admin, Endpoint Systems
-- [Patricia Egger](https://www.linkedin.com/in/patricia-egger/), Proton, Head of Security
+<table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
+  <tbody>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/sodahabit/">Daniel Moore</a></strong>, Red Hat, Manager and Mac Admin, Endpoint Systems</p></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/patricia-egger/">Patricia Egger</a></strong>, Proton, Head of Security</p></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-jarryd-stanbrook-100x100@2x.jpeg" alt="Jarryd Stanbrook" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/jarrydstanbrook/">Jarryd Stanbrook</a></strong>, Easygo, IT Systems Administrator</p></td>
+    </tr>
+  </tbody>
+</table>
 
-![Jarryd Stanbrook](../website/assets/images/articles/virtual-summit-headshot-jarryd-stanbrook-100x100@2x.jpeg)
-*[Jarryd Stanbrook](https://www.linkedin.com/in/jarrydstanbrook/), Easygo, IT Systems Administrator*
-
-
-[Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-open-source-in-device-management)
+<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-open-source-in-device-management">Reserve a spot in this session</a>
 
 
 ### AI agents as a device management problem
@@ -58,17 +77,24 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
 - **Date:** Tuesday, November 10, 2026
 - **Time:** 12:00 PM ET / 9:00 AM PT / 5:00 PM GMT
 
-Panelists:
+#### Panelists:
 
-![](../website/assets/images/articles/virtual-summit-headshot-dustin-davis-100x100@2x.jpeg)
-*[Dustin Davis](https://www.linkedin.com/in/1dustindavis/), Pinterest, Sr Manager of IT Platform Engineering*
-
-![](../website/assets/images/articles/virtual-summit-headshot-jason-walton-100x100@2x.jpeg)
-*[Jason Walton](https://www.linkedin.com/in/cjasonwalton/), Schrödinger, VP of Information Security*
+<table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
+  <tbody>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-dustin-davis-100x100@2x.jpeg" alt="Dustin Davis" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/1dustindavis/">Dustin Davis</a></strong>, Pinterest, Sr Manager of IT Platform Engineering</p></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-jason-walton-100x100@2x.jpeg" alt="Jason Walton" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/cjasonwalton/">Jason Walton</a></strong>, Schrödinger, VP of Information Security</p></td>
+    </tr>
+  </tbody>
+</table>
 
 *More panelists to be announced*
 
-[Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem)
+<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem">Reserve a spot in this session</a>
 
 
 ### Device management 2030
@@ -77,17 +103,24 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 - **Date:** Tuesday, November 10, 2026
 - **Time:** 12:30 PM ET / 9:30 AM PT / 5:30 PM GMT
 
-Panelists:
+#### Panelists:
 
-![Mohammed Saqr](../website/assets/images/articles/virtual-summit-headshot-mohammed-saqr-100x100@2x.jpeg)
-*[Mohammed Saqr](https://www.linkedin.com/in/mohammed-saqr/), Block, Manager of Infrastructure and Platform Engineering*
-
-![Dave Hannigan](../website/assets/images/articles/virtual-summit-headshot-dave-hannigan-100x100@2x.png)
-*Dave Hannigan, former CISO, Nubank*
+<table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
+  <tbody>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-mohammed-saqr-100x100@2x.jpeg" alt="Mohammed Saqr" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/mohammed-saqr/">Mohammed Saqr</a></strong>, Block, Manager of Infrastructure and Platform Engineering</p></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-dave-hannigan-100x100@2x.png" alt="Dave Hannigan" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong>Dave Hannigan</strong>, former CISO, Nubank</p></td>
+    </tr>
+  </tbody>
+</table>
 
 *More panelists to be announced*
 
-[Book your slot for this session here](https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030)
+<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030">Reserve a spot in this session</a>
 
 
 ## How to watch
@@ -98,6 +131,7 @@ Panelists:
 - **Cost:** Free
 
 [Add the summit to your Google Calendar](https://calendar.google.com/calendar/render?action=TEMPLATE&text=Fleet+Virtual+Summit+2026&dates=20261110T160000Z%2F20261110T180000Z&details=Four+panel+conversations+on+how+GitOps%2C+open+source%2C+and+AI+agents+get+device+management+to+2030.+Streaming+free+on+LinkedIn+Live.+Details%3A+https%3A%2F%2Ffleetdm.com%2Fannouncements%2Ffleet-virtual-summit-2026&location=https%3A%2F%2Ffleetdm.com%2Fannouncements%2Ffleet-virtual-summit-2026), and [follow Fleet on LinkedIn](https://www.linkedin.com/company/fleetdm) to catch the stream when it goes live.
+
 
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Allen Houchins">

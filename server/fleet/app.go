@@ -378,6 +378,12 @@ func (c DiskEncryptionConfig) MacOSEnforceOnly() bool {
 	return c.MacOSEnabled && !c.MacOSEscrowEnabled
 }
 
+// MacOSFileVaultOff reports whether neither macOS setting is on, so the fleet
+// delivers no FileVault profile and one a host still has is awaiting removal.
+func (c DiskEncryptionConfig) MacOSFileVaultOff() bool {
+	return !c.MacOSEnabled && !c.MacOSEscrowEnabled
+}
+
 // MacOSDiskEncryptionSettingsPayload is the macos_settings object accepted by
 // POST /disk_encryption. Nil fields mean "don't change".
 type MacOSDiskEncryptionSettingsPayload struct {
@@ -1459,6 +1465,7 @@ type enrichedAppConfigFields struct {
 	Logging                *Logging               `json:"logging,omitempty"`
 	Email                  *EmailConfig           `json:"email,omitempty"`
 	MaxSoftwarePackageSize int64                  `json:"max_software_package_size"`
+	StagedUploadAvailable  bool                   `json:"staged_upload_available"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize

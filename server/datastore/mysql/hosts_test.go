@@ -935,6 +935,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
+	enableMacOSDiskEncryptionForTest(t, ds, &team2.ID) // its hosts have a delivered FileVault profile
 
 	var hosts []*fleet.Host
 	for i := 0; i < 20; i++ {
@@ -3552,7 +3553,7 @@ func TestExplainListHostsMobileJoin(t *testing.T) {
 		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)` + hostMDMSeenTimeJoin + hostMobileMDMSeenTimeJoin + `
 		WHERE 1=1 `
 	filtered, args := filterHostsByStatus(time.Now(), baseStmt, fleet.HostListOptions{StatusFilter: fleet.StatusOnline}, nil)
-	stmt := "EXPLAIN " + filtered
+	stmt := "EXPLAIN FORMAT=TRADITIONAL " + filtered
 
 	// Full column list — sqlx.SelectContext rejects extras it can't scan into.
 	type explainRow struct {

@@ -1967,7 +1967,7 @@ policies:
     package_path: ./some_path.yml
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "install_software can only be set on team policies")
+	assert.ErrorContains(t, err, "install_software can only be set on fleet-level policies")
 }
 
 func TestGitOpsGlobalPolicyWithRunScript(t *testing.T) {
@@ -1981,7 +1981,7 @@ policies:
     path: ./some_path.sh
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "run_script can only be set on team policies")
+	assert.ErrorContains(t, err, "run_script can only be set on fleet-level policies")
 }
 
 func TestGitOpsTeamPolicyWithInvalidInstallSoftware(t *testing.T) {
@@ -3806,7 +3806,9 @@ func TestGitOpsGlobProfiles(t *testing.T) {
   apple_settings:
     configuration_profiles:
       - paths: profiles/*.mobileconfig
+        self_service: true
       - path: profiles/beta.json
+        hidden: true
 `
 		yamlPath := filepath.Join(dir, "gitops.yml")
 		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
@@ -3821,6 +3823,10 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		assert.Contains(t, macSettings.CustomSettings[0].Path, "alpha.mobileconfig")
 		assert.Contains(t, macSettings.CustomSettings[1].Path, "gamma.mobileconfig")
 		assert.Contains(t, macSettings.CustomSettings[2].Path, "beta.json")
+		assert.True(t, macSettings.CustomSettings[0].SelfService)
+		assert.True(t, macSettings.CustomSettings[1].SelfService)
+		assert.False(t, macSettings.CustomSettings[2].SelfService)
+		assert.True(t, macSettings.CustomSettings[2].Hidden)
 	})
 
 	t.Run("windows_profiles", func(t *testing.T) {
@@ -5517,7 +5523,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		}
 		errs := parsePolicyInstallSoftware(".", nil, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "install_software can only be set on team policies")
+		assert.Contains(t, errs[0].Error(), "install_software can only be set on fleet-level policies")
 	})
 
 	t.Run("patch policy with the same fleet_maintained_app_slug", func(t *testing.T) {
@@ -6528,7 +6534,7 @@ policies:
   query: SELECT 1;
   resend_configuration_profile: Password policy
 `)
-		require.ErrorContains(t, err, "resend_configuration_profile can only be set on team policies")
+		require.ErrorContains(t, err, "resend_configuration_profile can only be set on fleet-level policies")
 	})
 }
 

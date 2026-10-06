@@ -34,6 +34,7 @@ func TestAndroid(t *testing.T) {
 		{"NewAndroidHost", testNewAndroidHost},
 		{"NewAndroidHostDedupesOrbitEnrolled", testNewAndroidHostDedupesOrbitEnrolled},
 		{"UpdateAndroidHost", testUpdateAndroidHost},
+		{"UpdateAndroidHostEnrollmentTimes", testUpdateAndroidHostEnrollmentTimes},
 		{"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
 		{"NewMDMAndroidConfigProfile", testNewMDMAndroidConfigProfile},
@@ -59,6 +60,8 @@ func TestAndroid(t *testing.T) {
 		{"LockWipeHostViaAndroidMDM", testLockWipeHostViaAndroidMDM},
 		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
+		{"ResetMDMAndroidHostProfilesForRedelivery", testResetMDMAndroidHostProfilesForRedelivery},
+		{"BulkUpsertMDMAndroidHostProfilesUnlessResetSince", testBulkUpsertMDMAndroidHostProfilesUnlessResetSince},
 		{"BatchSetMDMAndroidProfiles_Associations", testBatchSetMDMAndroidProfiles_Associations},
 		{"NewAndroidHostWithIdP", testNewAndroidHostWithIdP},
 		{"AndroidBYODDetection", testAndroidBYODDetection},
@@ -503,6 +506,91 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Nil(t, reloaded.TeamID, "UpdateAndroidHost must not resurrect a team_id that was cleared by a concurrent transfer")
 	})
+}
+
+func testUpdateAndroidHostEnrollmentTimes(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	const enterpriseSpecificID = "es_id_enrollment_times"
+
+	created, err := ds.NewAndroidHost(ctx, createAndroidHost(enterpriseSpecificID), false)
+	require.NoError(t, err)
+
+	longAgo := time.Now().UTC().Add(-48 * time.Hour).Truncate(time.Second)
+	backdate := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx,
+				`UPDATE hosts SET created_at = ?, last_enrolled_at = ? WHERE id = ?`,
+				longAgo, longAgo, created.Host.ID,
+			); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
+				ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
+				created.Host.ID, longAgo,
+			)
+			return err
+		})
+	}
+
+	backdate()
+	beforeReport, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	require.WithinDuration(t, longAgo, beforeReport.SeenTime, time.Second)
+	require.WithinDuration(t, longAgo, beforeReport.LastEnrolledAt, time.Second)
+
+	// A status report is not an enrollment: it refreshes the last-seen time only.
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	afterReport, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, time.Now(), afterReport.SeenTime, time.Minute,
+		"a status report must refresh the host's last-seen time")
+	assert.WithinDuration(t, longAgo, afterReport.LastEnrolledAt, time.Second,
+		"a status report must not move the enrollment time")
+
+	backdate()
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, true, false))
+
+	afterEnroll, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, time.Now(), afterEnroll.LastEnrolledAt, time.Minute,
+		"a re-enrollment must refresh the enrollment time")
+	assert.WithinDuration(t, time.Now(), afterEnroll.SeenTime, time.Minute,
+		"a re-enrollment must refresh the last-seen time")
+	assert.WithinDuration(t, longAgo, afterEnroll.CreatedAt, time.Second,
+		"a re-enrollment reuses the host row, so its creation time must not move")
+
+	backdate()
+	reportedAt := time.Now().UTC().Add(-10 * time.Minute).Truncate(time.Second)
+	created.DetailUpdatedAt = reportedAt
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	delayed, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, reportedAt, delayed.SeenTime, time.Second,
+		"a delayed delivery must be seen at the device's report time, not when Fleet processed it")
+
+	// Two overlapping deliveries can both pass the stale check, so the older one may commit last.
+	created.DetailUpdatedAt = reportedAt.Add(-5 * time.Minute)
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	outOfOrder, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, reportedAt, outOfOrder.SeenTime, time.Second,
+		"an older report committing last must not move the last-seen time backwards")
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_seen_times SET seen_time = NULL WHERE host_id = ?`, created.Host.ID)
+		return err
+	})
+	created.DetailUpdatedAt = reportedAt
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	fromNull, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, reportedAt, fromNull.SeenTime, time.Second,
+		"a NULL seen time must still be replaced by the report time")
 }
 
 func testAndroidMDMStats(t *testing.T, ds *Datastore) {
@@ -3430,7 +3518,7 @@ func testNewAndroidHostWithIdP(t *testing.T, ds *Datastore) {
 	require.NotZero(t, result.Host.ID)
 
 	// associate host with IdP account, triggering reconciliation
-	err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
 	require.NoError(t, err)
 
 	// host_emails table has IdP email
@@ -3440,7 +3528,7 @@ func testNewAndroidHostWithIdP(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "john.doe@example.com", emails[0])
 
 	// is reconciliation idempotent?
-	err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
 	require.NoError(t, err)
 
 	// still only one email (no duplicates)
@@ -3803,13 +3891,17 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	appCfg.ServerSettings.ServerURL = "https://mdm.example.com"
 	require.NoError(t, ds.SaveAppConfig(testCtx(), appCfg))
 
-	// Create 5 android hosts
+	// Create 5 android hosts, some company-owned (installed_from_dep = 1) and some personally-owned
+	isCompanyOwned := func(i int) bool { return i%2 == 0 }
 	var androidHostUUIDs []string
+	var androidHostIDs []uint
 	for i := 0; i < 5; i++ {
 		esid := "enterprise-" + uuid.NewString()
 		h := createAndroidHost(esid)
-		res, err := ds.NewAndroidHost(testCtx(), h, false)
+		companyOwned := isCompanyOwned(i)
+		res, err := ds.NewAndroidHost(testCtx(), h, companyOwned)
 		require.NoError(t, err)
+		androidHostIDs = append(androidHostIDs, res.Host.ID)
 
 		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
 		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
@@ -3842,6 +3934,12 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	err = ds.MDMAppleUpsertHost(testCtx(), macHost, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
+	// Make the macOS host DEP-assigned so the bulk update's platform scoping is exercised.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(testCtx(), `UPDATE host_mdm SET installed_from_dep = 1 WHERE host_id = ?`, macHost.ID)
+		return err
+	})
+
 	// Initial sanity check
 	enrolledCount := 0
 	androidHostProfileCount := 0
@@ -3853,6 +3951,13 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	assert.Equal(t, 10, androidHostProfileCount)
 	require.Equal(t, 6, enrolledCount) // 5 android + 1 macOS
+	var fromDepCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &fromDepCount, `SELECT COUNT(*) FROM host_mdm WHERE installed_from_dep = 1`)
+	})
+	require.Equal(t, 4, fromDepCount) // 3 company-owned android hosts + 1 macOS
+	macHostMDMBefore, err := ds.GetHostMDM(testCtx(), macHost.ID)
+	require.NoError(t, err)
 	// Verify each android host has a certificate template record.
 	for _, hostUUID := range androidHostUUIDs {
 		records, err := ds.GetHostCertificateTemplates(testCtx(), hostUUID)
@@ -3866,6 +3971,25 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 		return sqlx.GetContext(testCtx(), q, &enrolledCount, `SELECT COUNT(*) FROM host_mdm WHERE enrolled = 1`)
 	})
 	require.Equal(t, 1, enrolledCount)
+
+	// Company-owned hosts must report "Off", not "Pending", after unenrollment.
+	for i, hostID := range androidHostIDs {
+		hostMDM, err := ds.GetHostMDM(testCtx(), hostID)
+		require.NoError(t, err)
+		assert.False(t, hostMDM.Enrolled)
+		assert.False(t, hostMDM.InstalledFromDep)
+		assert.Equal(t, !isCompanyOwned(i), hostMDM.IsPersonalEnrollment)
+		assert.Equal(t, fleet.MDMEnrollmentStatusOff, hostMDM.EnrollmentStatus())
+
+		var dbStatus string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(testCtx(), q, &dbStatus, `SELECT enrollment_status FROM host_mdm WHERE host_id = ?`, hostID)
+		})
+		assert.Equal(t, fleet.MDMEnrollmentStatusOff, dbStatus)
+	}
+	macHostMDMAfter, err := ds.GetHostMDM(testCtx(), macHost.ID)
+	require.NoError(t, err)
+	assert.Equal(t, macHostMDMBefore, macHostMDMAfter)
 
 	// Validate profile records deleted
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -4531,4 +4655,207 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 		// Still scoped to host A.
 		requireSeededState(t, hostB)
 	})
+}
+
+func testResetMDMAndroidHostProfilesForRedelivery(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	profile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Redelivery Profile",
+		RawJSON: []byte(`{"cameraDisabled": true}`),
+	}, nil)
+	require.NoError(t, err)
+	var profileChecksum []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &profileChecksum,
+			`SELECT checksum FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, profile.ProfileUUID)
+	})
+
+	// Each host has a delivered, verified install of the applicable profile and a pending
+	// removal of one that no longer applies: nothing needs sending.
+	seedHost := func(esid string) *fleet.AndroidHost {
+		host, err := ds.NewAndroidHost(ctx, createAndroidHost(esid), false)
+		require.NoError(t, err)
+		require.NoError(t, ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+			{
+				HostUUID:                host.Host.UUID,
+				ProfileUUID:             profile.ProfileUUID,
+				ProfileName:             profile.Name,
+				Status:                  &fleet.MDMDeliveryVerified,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Detail:                  "stale detail",
+				RequestFailCount:        1,
+				IncludedInPolicyVersion: new(5),
+				Checksum:                profileChecksum,
+				CanReverify:             true,
+			},
+			{
+				HostUUID:      host.Host.UUID,
+				ProfileUUID:   fleet.MDMAndroidProfileUUIDPrefix + "removed-" + esid,
+				ProfileName:   "Removed Profile",
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+		}))
+		return host
+	}
+	hostA := seedHost("esid-redeliver-a")
+	hostB := seedHost("esid-redeliver-b")
+
+	type profileRow struct {
+		ProfileUUID             string  `db:"profile_uuid"`
+		Status                  *string `db:"status"`
+		OperationType           string  `db:"operation_type"`
+		Detail                  string  `db:"detail"`
+		RequestFailCount        int     `db:"request_fail_count"`
+		IncludedInPolicyVersion *int    `db:"included_in_policy_version"`
+		CanReverify             bool    `db:"can_reverify"`
+	}
+	rowsFor := func(hostUUID string) []profileRow {
+		var rows []profileRow
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `
+				SELECT profile_uuid, status, operation_type, detail, request_fail_count, included_in_policy_version, can_reverify
+				FROM host_mdm_android_profiles WHERE host_uuid = ? ORDER BY operation_type`, hostUUID)
+		})
+		return rows
+	}
+	hostsWithProfilesToSend := func() []string {
+		toInstall, toRemove, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+		require.NoError(t, err)
+		var hostUUIDs []string
+		for _, p := range append(toInstall, toRemove...) {
+			if !slices.Contains(hostUUIDs, p.HostUUID) {
+				hostUUIDs = append(hostUUIDs, p.HostUUID)
+			}
+		}
+		return hostUUIDs
+	}
+
+	seededRows := rowsFor(hostB.Host.UUID)
+	require.Len(t, seededRows, 2)
+	require.Empty(t, hostsWithProfilesToSend())
+
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostA.Host.UUID))
+
+	rows := rowsFor(hostA.Host.UUID)
+	require.Len(t, rows, 1, "the pending removal is dropped")
+	assert.Equal(t, profileRow{
+		ProfileUUID:   profile.ProfileUUID,
+		OperationType: string(fleet.MDMOperationTypeInstall),
+	}, rows[0])
+
+	// The reconciler now re-sends host A's profiles, and only host A's.
+	require.Equal(t, []string{hostA.Host.UUID}, hostsWithProfilesToSend())
+	require.Equal(t, seededRows, rowsFor(hostB.Host.UUID))
+
+	// The host shows the profile as pending, not verified.
+	hostProfiles, err := ds.GetHostMDMAndroidProfiles(ctx, hostA.Host.UUID)
+	require.NoError(t, err)
+	require.Len(t, hostProfiles, 1)
+	require.NotNil(t, hostProfiles[0].Status)
+	assert.Equal(t, fleet.MDMDeliveryPending, *hostProfiles[0].Status)
+
+	// A host that was never sent its profiles gets a reset row for each applicable one.
+	hostC, err := ds.NewAndroidHost(ctx, createAndroidHost("esid-redeliver-c"), false)
+	require.NoError(t, err)
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostC.Host.UUID))
+	assert.Equal(t, []profileRow{{
+		ProfileUUID:   profile.ProfileUUID,
+		OperationType: string(fleet.MDMOperationTypeInstall),
+	}}, rowsFor(hostC.Host.UUID))
+	// Resetting again is a no-op on the rows' content.
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostC.Host.UUID))
+	assert.Len(t, rowsFor(hostC.Host.UUID), 1)
+
+	// A host in a fleet without profiles gets no rows.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "redeliver-no-profiles"})
+	require.NoError(t, err)
+	hostD, err := ds.NewAndroidHost(ctx, createAndroidHost("esid-redeliver-d"), false)
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostD.Host.ID})))
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostD.Host.UUID))
+	assert.Empty(t, rowsFor(hostD.Host.UUID))
+}
+
+func testBulkUpsertMDMAndroidHostProfilesUnlessResetSince(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewAndroidHost(ctx, createAndroidHost("esid-unless-reset"), false)
+	require.NoError(t, err)
+	otherHost, err := ds.NewAndroidHost(ctx, createAndroidHost("esid-unless-reset-other"), false)
+	require.NoError(t, err)
+
+	payload := func(hostUUID, profileUUID string, status *fleet.MDMDeliveryStatus, version int) *fleet.MDMAndroidProfilePayload {
+		return &fleet.MDMAndroidProfilePayload{
+			HostUUID:                hostUUID,
+			ProfileUUID:             profileUUID,
+			ProfileName:             profileUUID,
+			Status:                  status,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: new(version),
+		}
+	}
+	const (
+		resetProfile     = fleet.MDMAndroidProfileUUIDPrefix + "reset"
+		oldNullProfile   = fleet.MDMAndroidProfileUUIDPrefix + "old-null"
+		verifiedProfile  = fleet.MDMAndroidProfileUUIDPrefix + "verified"
+		newProfile       = fleet.MDMAndroidProfileUUIDPrefix + "new"
+		otherHostProfile = fleet.MDMAndroidProfileUUIDPrefix + "other"
+	)
+	require.NoError(t, ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+		payload(host.Host.UUID, resetProfile, &fleet.MDMDeliveryVerified, 1),
+		payload(host.Host.UUID, oldNullProfile, nil, 1),
+		payload(host.Host.UUID, verifiedProfile, &fleet.MDMDeliveryVerified, 1),
+		payload(otherHost.Host.UUID, otherHostProfile, &fleet.MDMDeliveryVerified, 1),
+	}))
+	// oldNullProfile was already waiting to be sent before the writer read the rows.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_android_profiles SET updated_at = NOW(6) - INTERVAL 1 HOUR
+			WHERE profile_uuid = ?`, oldNullProfile)
+		return err
+	})
+
+	since, err := ds.GetMDMAndroidProfilesWriteTime(ctx)
+	require.NoError(t, err)
+	// The host's rows are reset after the writer read them. The other host is not reset.
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, host.Host.UUID))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_android_profiles SET updated_at = NOW(6) - INTERVAL 1 HOUR
+			WHERE profile_uuid = ?`, oldNullProfile)
+		return err
+	})
+	// verifiedProfile is verified again after the reset, so it is no longer waiting.
+	require.NoError(t, ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+		payload(host.Host.UUID, verifiedProfile, &fleet.MDMDeliveryVerified, 1),
+	}))
+
+	require.NoError(t, ds.BulkUpsertMDMAndroidHostProfilesUnlessResetSince(ctx, []*fleet.MDMAndroidProfilePayload{
+		payload(host.Host.UUID, resetProfile, &fleet.MDMDeliveryPending, 2),
+		payload(host.Host.UUID, oldNullProfile, &fleet.MDMDeliveryPending, 2),
+		payload(host.Host.UUID, verifiedProfile, &fleet.MDMDeliveryPending, 2),
+		payload(host.Host.UUID, newProfile, &fleet.MDMDeliveryPending, 2),
+		payload(otherHost.Host.UUID, otherHostProfile, &fleet.MDMDeliveryPending, 2),
+	}, since))
+
+	type row struct {
+		ProfileUUID             string  `db:"profile_uuid"`
+		Status                  *string `db:"status"`
+		IncludedInPolicyVersion *int    `db:"included_in_policy_version"`
+	}
+	var rows []row
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rows,
+			`SELECT profile_uuid, status, included_in_policy_version FROM host_mdm_android_profiles ORDER BY profile_uuid`)
+	})
+	pending := string(fleet.MDMDeliveryPending)
+	assert.ElementsMatch(t, []row{
+		// reset after since: kept as reset so it is sent again
+		{ProfileUUID: resetProfile},
+		// already waiting before since, or no longer waiting: written normally
+		{ProfileUUID: oldNullProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
+		{ProfileUUID: verifiedProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
+		{ProfileUUID: newProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
+		{ProfileUUID: otherHostProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
+	}, rows)
 }

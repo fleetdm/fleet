@@ -147,6 +147,7 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 				Name:        "Global MacOS MobileConfig Profile",
 				Platform:    "darwin",
 				Identifier:  "com.example.global-macos-mobileconfig-profile",
+				SelfService: true,
 				LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{
 					LabelName: "Label A",
 				}, {
@@ -167,6 +168,7 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 				Name:        "Global Windows Profile",
 				Description: "Blocks inbound connections",
 				Platform:    "windows",
+				Hidden:      true,
 				LabelsIncludeAny: []fleet.ConfigurationProfileLabel{{
 					LabelName: "Label D",
 				}},

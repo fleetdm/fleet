@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"crypto/md5" //nolint:gosec // Windows MDM Auth uses MD5
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
@@ -2469,6 +2468,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	const testEnrollmentID uint = 123
 	// Captured before the local `syncml` string variable below shadows the syncml package.
 	pollScheduleLocURI := syncml.DMClientPollIntervalLocURI
+	invalidCredentialsStatus := syncml.CmdStatusInvalidCredentials
 	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 		return &fleet.MDMWindowsEnrolledDevice{
 			ID:              testEnrollmentID,
@@ -2496,11 +2496,25 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		return nil
 	}
 
-	kv.SetFunc = func(ctx context.Context, key string, value string, expireTime time.Duration) error {
-		return nil
+	// Each saved message's CmdRefs, so the test can tell exactly which device responses were persisted.
+	var savedCmdRefs [][]string
+	ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML,
+		commandIDsBeingResent []string,
+	) (*fleet.MDMWindowsSaveResponseResult, error) {
+		savedCmdRefs = append(savedCmdRefs, enrichedSyncML.CmdRefUUIDs)
+		return nil, nil
 	}
 
+	// Keep the raw nonce the service stores so the device digest is built against the nonce currently in effect.
 	var nonce string
+	var nonceSetCalls int
+	var lastNonceTTL time.Duration
+	kv.SetFunc = func(ctx context.Context, key string, value string, expireTime time.Duration) error {
+		nonce = value
+		nonceSetCalls++
+		lastNonceTTL = expireTime
+		return nil
+	}
 	kv.GetFunc = func(ctx context.Context, key string) (*string, error) {
 		return &nonce, nil
 	}
@@ -2531,6 +2545,13 @@ func TestRekeyWindowsDevice(t *testing.T) {
       <CmdID>2</CmdID>
       <Data>1201</Data>
     </Alert>
+    <Status>
+      <CmdID>3</CmdID>
+      <MsgRef>1</MsgRef>
+      <CmdRef>pending-cmd-uuid</CmdRef>
+      <Cmd>Replace</Cmd>
+      <Data>200</Data>
+    </Status>
     <Final />
   </SyncBody>
 </SyncML>`
@@ -2539,7 +2560,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	err := xml.Unmarshal([]byte(syncml), &req)
 	require.NoError(t, err)
 
-	res, err := svc.GetMDMWindowsManagementResponse(ctx, req, []*x509.Certificate{})
+	res, err := svc.GetMDMWindowsManagementResponse(ctx, req)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -2573,7 +2594,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	assert.Equal(t, 0, seenOther, "should not have other commands")
 
 	// Respond with no credentials again to get a nonce
-	res, err = svc.GetMDMWindowsManagementResponse(ctx, req, []*x509.Certificate{})
+	res, err = svc.GetMDMWindowsManagementResponse(ctx, req)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -2583,11 +2604,13 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	for _, cmd := range res.SyncBody.Raw {
 		if cmd.Chal != nil {
 			chalFound = true
-			nonce = *cmd.Chal.Meta.NextNonce.Content
+			// The service stored the raw nonce (captured by kv.SetFunc) and returned its base64 form here.
+			require.Equal(t, base64.StdEncoding.EncodeToString([]byte(nonce)), *cmd.Chal.Meta.NextNonce.Content)
 			break
 		}
 	}
 	require.True(t, chalFound, "should have challenge command")
+	require.Empty(t, savedCmdRefs, "device responses must not be saved before the device authenticates")
 
 	// Now respond with credentials to ack the rekey
 	// WE only need to mock this as we short-circuit when challenging or invalid creds
@@ -2616,13 +2639,21 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
 
-	deviceCredsHash := hashMDMCredentials(username, password, nonce)
-	syncmlWithCreds := fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
+	// parseSyncML unmarshals into a fresh struct because xml.Unmarshal appends repeated elements to an existing struct's slices.
+	parseSyncML := func(raw string) *fleet.SyncML {
+		var msg *fleet.SyncML
+		require.NoError(t, xml.Unmarshal([]byte(raw), &msg))
+		return msg
+	}
+
+	// credsSyncML builds a check-in with the given message ID, auth digest, and SyncBody commands.
+	credsSyncML := func(msgID string, digest []byte, body string) *fleet.SyncML {
+		return parseSyncML(fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
   <SyncHdr>
     <VerDTD>1.2</VerDTD>
     <VerProto>DM/1.2</VerProto>
     <SessionID>1</SessionID>
-    <MsgID>1</MsgID>
+    <MsgID>%s</MsgID>
     <Target>
       <LocURI>fake-mdm-server.com</LocURI>
     </Target>
@@ -2638,23 +2669,82 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	</Cred>
   </SyncHdr>
   <SyncBody>
-    <Alert>
+%s
+    <Final />
+  </SyncBody>
+</SyncML>`, msgID, base64.StdEncoding.EncodeToString(digest), body))
+	}
+	const sessionStartBody = `    <Alert>
       <CmdID>2</CmdID>
       <Data>1201</Data>
     </Alert>
-    <Final />
-  </SyncBody>
-</SyncML>`, base64.StdEncoding.EncodeToString(deviceCredsHash))
-	err = xml.Unmarshal([]byte(syncmlWithCreds), &req)
-	require.NoError(t, err)
+    <Status>
+      <CmdID>3</CmdID>
+      <MsgRef>1</MsgRef>
+      <CmdRef>pending-cmd-uuid</CmdRef>
+      <Cmd>Replace</Cmd>
+      <Data>200</Data>
+    </Status>`
+	const resultsBody = `    <Status>
+      <CmdID>2</CmdID>
+      <MsgRef>1</MsgRef>
+      <CmdRef>get-cmd-uuid</CmdRef>
+      <Cmd>Get</Cmd>
+      <Data>200</Data>
+    </Status>
+    <Results>
+      <CmdID>3</CmdID>
+      <MsgRef>1</MsgRef>
+      <CmdRef>get-cmd-uuid</CmdRef>
+      <Item>
+        <Source>
+          <LocURI>./DevDetail/Ext/Microsoft/DeviceName</LocURI>
+        </Source>
+        <Data>DESKTOP-TEST</Data>
+      </Item>
+    </Results>`
 
-	res, err = svc.GetMDMWindowsManagementResponse(ctx, req, []*x509.Certificate{})
+	// Wrong credentials are challenged again and the device responses are still not saved.
+	challengeNonce := nonce
+	res, err = svc.GetMDMWindowsManagementResponse(ctx, credsSyncML("1", hashMDMCredentials(username, "wrong-password", nonce), sessionStartBody))
+	require.NoError(t, err)
+	require.Len(t, res.SyncBody.Raw, 1, "should short circuit with challenge")
+	require.NotNil(t, res.SyncBody.Raw[0].Chal)
+	require.Equal(t, invalidCredentialsStatus, *res.SyncBody.Raw[0].Data)
+	require.Empty(t, savedCmdRefs, "device responses must not be saved with invalid credentials")
+	require.NotEqual(t, challengeNonce, nonce, "invalid credentials should rotate the nonce")
+	require.Equal(t, base64.StdEncoding.EncodeToString([]byte(nonce)), *res.SyncBody.Raw[0].Chal.Meta.NextNonce.Content)
+
+	// The retry must authenticate against the rotated nonce. MsgID 1 starts the session, so the nonce TTL is not refreshed.
+	nonceSetCalls = 0
+	res, err = svc.GetMDMWindowsManagementResponse(ctx, credsSyncML("1", hashMDMCredentials(username, password, nonce), sessionStartBody))
 	require.NoError(t, err)
 	require.NotNil(t, res)
-
 	require.Equal(t, 1, ackCalled, "acknowledge should have been called once")
+	require.Equal(t, [][]string{{"pending-cmd-uuid"}}, savedCmdRefs, "device responses should be saved once the device authenticates")
+	require.Zero(t, nonceSetCalls, "the nonce TTL must not be refreshed at session start")
 	require.True(t, ds.MDMWindowsRefreshHasPendingCommandsFuncInvoked,
 		"refresh should run when no non-poll commands are pending, even with a poll-schedule command still queued")
+
+	// A mid-session message carrying Results that fails authentication is challenged and its Results are not saved.
+	savedCmdRefs = nil
+	res, err = svc.GetMDMWindowsManagementResponse(ctx, credsSyncML("2", hashMDMCredentials(username, "wrong-password", nonce), resultsBody))
+	require.NoError(t, err)
+	require.Len(t, res.SyncBody.Raw, 1, "should short circuit with challenge")
+	require.NotNil(t, res.SyncBody.Raw[0].Chal)
+	require.Equal(t, invalidCredentialsStatus, *res.SyncBody.Raw[0].Data)
+	require.Empty(t, savedCmdRefs, "mid-session Results must not be saved with invalid credentials")
+
+	// The resent message authenticates, its Results are saved, and the session nonce is kept alive for the rest of the session.
+	nonceSetCalls = 0
+	sessionNonce := nonce
+	res, err = svc.GetMDMWindowsManagementResponse(ctx, credsSyncML("2", hashMDMCredentials(username, password, nonce), resultsBody))
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, [][]string{{"get-cmd-uuid", "get-cmd-uuid"}}, savedCmdRefs, "mid-session Status and Results should be saved")
+	require.Equal(t, 1, nonceSetCalls, "the nonce TTL should be refreshed on an authenticated mid-session message")
+	require.Equal(t, sessionNonce, nonce, "refreshing the TTL must keep the session nonce")
+	require.Equal(t, windowsMDMAuthNonceTTL, lastNonceTTL)
 }
 
 func hashMDMCredentials(username, password, nonce string) []byte {

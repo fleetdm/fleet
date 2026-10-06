@@ -1102,6 +1102,11 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 		switch fvprof.OperationType {
 		case MDMOperationTypeInstall:
 			switch {
+			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified) && cfg.MacOSFileVaultOff():
+				// The profile cron hasn't queued the removal yet (e.g. right after a
+				// transfer, which already deleted the key), so nothing is left to verify.
+				settings.DiskEncryption = DiskEncryptionRemovingEnforcement.addrOf()
+
 			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified):
 				verification := d.keyVerification()
 				// logging out lets the deferred FileVault enablement run; rotating
@@ -1185,6 +1190,16 @@ func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMDelive
 	default:
 		return currStatus
 	}
+}
+
+// ProfileOperationFromDiskEncryptionState reports a FileVault profile still
+// recorded as installed but awaiting removal as a removal, so its row reads
+// "Removing enforcement" rather than "Enforcing".
+func (d *MDMHostData) ProfileOperationFromDiskEncryptionState(currOp MDMOperationType) MDMOperationType {
+	if d.MacOSSettings != nil && d.MacOSSettings.DiskEncryption != nil && *d.MacOSSettings.DiskEncryption == DiskEncryptionRemovingEnforcement {
+		return MDMOperationTypeRemove
+	}
+	return currOp
 }
 
 // Only exposed for Datastore tests, to be able to assert the rawDecryptable

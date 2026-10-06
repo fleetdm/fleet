@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"maps"
 	"net/http"
@@ -32,18 +33,36 @@ import (
 var testBrandTestSerialHashed = "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfea4f11f31c96c6f052b0"
 
 func createAndroidService(t *testing.T, opts ...ServiceOption) (android.Service, *AndroidMockDS) {
+	return createAndroidServiceWithActivity(t, noopNewActivity, opts...)
+}
+
+func createAndroidServiceWithActivity(t *testing.T, newActivity fleet.NewActivityFunc, opts ...ServiceOption) (android.Service, *AndroidMockDS) {
 	androidAPIClient := android_mock.Client{}
 	androidAPIClient.InitCommonMocks()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	mockDS := InitCommonDSMocks()
-	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, noopNewActivity, config.AndroidAgentConfig{}, opts...)
+	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, newActivity, config.AndroidAgentConfig{}, opts...)
 	require.NoError(t, err)
 
 	return svc, mockDS
 }
 
+func withIdPAccountEmails(t *testing.T, mockDS *AndroidMockDS) {
+	prev := mockDS.GetMDMIdPAccountByUUIDFunc
+	t.Cleanup(func() { mockDS.GetMDMIdPAccountByUUIDFunc = prev })
+	mockDS.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+		return &fleet.MDMIdPAccount{UUID: uuid, Email: uuid + "@example.com"}, nil
+	}
+}
+
 func TestPubSubEnrollment(t *testing.T) {
-	svc, mockDS := createAndroidService(t)
+	var linkActivities []fleet.ActivityTypeBoundHostToIdPAccount
+	svc, mockDS := createAndroidServiceWithActivity(t, func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+		if bound, ok := act.(fleet.ActivityTypeBoundHostToIdPAccount); ok {
+			linkActivities = append(linkActivities, bound)
+		}
+		return nil
+	})
 
 	globalSecret := "global"
 	teamSecret := "team"
@@ -186,12 +205,16 @@ func TestPubSubEnrollment(t *testing.T) {
 				require.False(t, companyOwned)
 				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
-			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
-				return nil
+			var linkedHostUUID string
+			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+				linkedHostUUID = hostUUID
+				return "", nil
 			}
 			mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 				return nil
 			}
+			withIdPAccountEmails(t, mockDS)
+			linkActivities = nil
 
 			enrollmentToken := enrollmentTokenRequest{
 				EnrollSecret: "global",
@@ -209,6 +232,11 @@ func TestPubSubEnrollment(t *testing.T) {
 			require.True(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
 			require.True(t, mockDS.NewAndroidHostFuncInvoked)
 			require.True(t, mockDS.MaybeAssociateHostWithScimUserFuncInvoked)
+			require.NotEmpty(t, linkedHostUUID)
+			require.Equal(t, []fleet.ActivityTypeBoundHostToIdPAccount{{
+				HostUUID: linkedHostUUID,
+				IdPEmail: "mock-id@example.com",
+			}}, linkActivities)
 		})
 
 		t.Run("associates scim user with correct host ID after idp association", func(t *testing.T) {
@@ -226,10 +254,10 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 
 			var capturedIdpHostUUID, capturedIdpAcctUUID string
-			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
 				capturedIdpHostUUID = hostUUID
 				capturedIdpAcctUUID = accountUUID
-				return nil
+				return "", nil
 			}
 
 			var capturedScimHostID uint
@@ -331,8 +359,8 @@ func TestPubSubEnrollment(t *testing.T) {
 				require.Equal(t, testBrandTestSerialHashed, host.UUID)
 				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
-			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
-				return nil
+			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+				return "", nil
 			}
 
 			enrollmentToken := enrollmentTokenRequest{
@@ -399,11 +427,13 @@ func TestPubSubEnrollment(t *testing.T) {
 
 		var capturedHostUUID, capturedIdpUUID string
 		mockDS.AssociateHostMDMIdPAccountFuncInvoked = false
-		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
 			capturedHostUUID = hostUUID
 			capturedIdpUUID = accountUUID
-			return nil
+			return "old-user-idp-uuid", nil
 		}
+		withIdPAccountEmails(t, mockDS)
+		linkActivities = nil
 
 		enrollmentToken := enrollmentTokenRequest{
 			EnrollSecret: "global",
@@ -424,6 +454,11 @@ func TestPubSubEnrollment(t *testing.T) {
 		require.Equal(t, "new-user-idp-uuid", capturedIdpUUID)
 		// Re-enrollment should update, not create a new host
 		require.False(t, mockDS.NewAndroidHostFuncInvoked)
+		require.Equal(t, []fleet.ActivityTypeBoundHostToIdPAccount{{
+			HostUUID:         existingHostUUID,
+			IdPEmail:         "new-user-idp-uuid@example.com",
+			ReplacedIdPEmail: "old-user-idp-uuid@example.com",
+		}}, linkActivities)
 	})
 
 	t.Run("re-enrollment with rotated enroll secret does not panic", func(t *testing.T) {
@@ -568,6 +603,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			DeviceID: createAndroidDeviceId("test"),
 		},
 	}
+	hostPolicyName := "enterprises/mock-enterprise-id/policies/" + androidDevice.UUID
 	mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
 		return androidDevice, nil
 	}
@@ -620,7 +656,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, nil)
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion, nil)
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
 		require.NoError(t, err)
@@ -711,7 +747,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, []*androidmanagement.NonComplianceDetail{
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion, []*androidmanagement.NonComplianceDetail{
 			{
 				SettingName:         "DefaultPermissionPolicy",
 				NonComplianceReason: "INVALID_VALUE",
@@ -824,7 +860,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		}
 
 		// the two pending profiles will be set to verified, and the non-compliant profile will be set to failed
-		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion,
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion,
 			[]*androidmanagement.NonComplianceDetail{{SettingName: "passwordPolicies", NonComplianceReason: "USER_ACTION"}})
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
@@ -838,7 +874,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
 
 		// the failed profile will now be verified because it is no longer in non compliance details
-		enrollmentMessage = createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion,
+		enrollmentMessage = createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion,
 			[]*androidmanagement.NonComplianceDetail{})
 		wantedReason2 = fleet.MDMDeliveryVerified
 
@@ -936,7 +972,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion,
+		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion,
 			[]*androidmanagement.NonComplianceDetail{{SettingName: "cameraDisabled", NonComplianceReason: "USER_ACTION"}})
 		require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", &statusReport))
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
@@ -953,9 +989,34 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		statusReport = createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, nil)
+		statusReport = createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion, nil)
 		require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", &statusReport))
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+	})
+
+	// A device still on another policy (e.g. the default one it enrolled with) has none of
+	// the host's profiles, whatever that policy's version.
+	t.Run("status report for a policy other than the host policy verifies nothing", func(t *testing.T) {
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked = false
+		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return []*fleet.MDMAndroidProfilePayload{{
+				ProfileUUID:             uuid.NewString(),
+				ProfileName:             "a",
+				HostUUID:                androidDevice.UUID,
+				Status:                  &fleet.MDMDeliveryPending,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				IncludedInPolicyVersion: new(2),
+			}}, nil
+		}
+
+		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test",
+			fmt.Sprintf("enterprises/mock-enterprise-id/policies/%d", android.DefaultAndroidPolicyID), new(50), nil)
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", &statusReport))
+		require.False(t, mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked)
+		require.False(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+		require.False(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
 	})
 }
 
@@ -1860,8 +1921,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 		}
 
-		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
-			return nil
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+			return "", nil
 		}
 		mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 			return nil
@@ -1920,8 +1981,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 		}
 
-		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
-			return nil
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+			return "", nil
 		}
 		mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 			return nil

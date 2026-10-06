@@ -22,6 +22,11 @@ import (
 
 const ADUEEnrollmentChallengeExpiration = 1 * time.Hour
 
+// MDMAppleDEPEnrollmentChallengeExpiration is how long the one-time token
+// handed out after end user authentication during automatic enrollment (ADE)
+// stays valid.
+const MDMAppleDEPEnrollmentChallengeExpiration = 1 * time.Hour
+
 // Sentinel errors for recovery lock rotation
 var (
 	// ErrRecoveryLockRotationPending indicates a rotation is already in progress for the host.
@@ -1003,6 +1008,8 @@ type MDMAppleDeclaration struct {
 	// Nil removes any stored activation on write, which is how one is cleared.
 	Activation *MDMAppleCustomActivation `db:"-" json:"-"`
 
+	Hidden bool `db:"hidden" json:"hidden"`
+
 	CreatedAt           time.Time  `db:"created_at" json:"created_at"`
 	UploadedAt          time.Time  `db:"uploaded_at" json:"uploaded_at"`
 	SecretsUpdatedAt    *time.Time `db:"secrets_updated_at" json:"-"`
@@ -1909,6 +1916,18 @@ type ADUEEnrollmentChallenge struct {
 	ID             uint       `db:"id"`
 	IdPAccountUUID string     `db:"idp_account_uuid"`
 	ABMTokenID     *uint      `db:"abm_token_id"`
+	ExpiresAt      time.Time  `db:"expires_at"`
+	UsedAt         *time.Time `db:"used_at"`
+}
+
+// MDMAppleDEPEnrollmentChallenge is a one-time token that lets the device that
+// completed end user authentication during automatic enrollment (ADE) download
+// its enrollment profile.
+type MDMAppleDEPEnrollmentChallenge struct {
+	ID             uint       `db:"id"`
+	IdPAccountUUID string     `db:"idp_account_uuid"`
+	HardwareSerial string     `db:"hardware_serial"`
+	HostUUID       string     `db:"host_uuid"`
 	ExpiresAt      time.Time  `db:"expires_at"`
 	UsedAt         *time.Time `db:"used_at"`
 }
