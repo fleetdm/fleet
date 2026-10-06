@@ -1,6 +1,7 @@
 # Fleet news: October 2026
 
-Send any Android Management API command from Fleet, and move Windows Autopilot hosts to the right fleet before they ever enroll. September brought Fleet 4.91.0 and 4.92.0, a customer story from Abridge, and a guide to binary allow lists on macOS 27. Two more releases are planned for October.
+Leaves are starting to fall in the US, but Windows hosts aren't falling into "Unassigned" anymore. September brought Fleet 4.91.0 and 4.92.0, a customer story from Abridge, and a guide to binary allow lists on macOS 27. Two more releases are planned for October, so let's right dive in!
+
 
 ## 🚀 What shipped last month
 
@@ -55,7 +56,7 @@ Don't see your city? [Request a workshop](https://fleetdm.com/contact#gitops) to
 
 - [Fleet](https://www.linkedin.com/company/fleetdm/) [announced it has joined Anthropic's Project Glasswing](https://www.linkedin.com/feed/update/urn:li:activity:7506085598974312448/) to research how frontier AI can strengthen the security of device management systems and MDM protocols, and to share what we learn in the open.
 
-Thanks to everyone who shared what they are building.
+Thank you to everyone who contributes to Fleet and uses it every day.
 
 <meta name="articleTitle" value="Fleet news: October 2026">
 <meta name="authorFullName" value="Allen Houchins">
