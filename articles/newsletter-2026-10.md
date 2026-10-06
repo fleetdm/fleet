@@ -1,6 +1,6 @@
 # Fleet news: October 2026
 
-Leaves are starting to fall in the US, but Windows hosts aren't falling into "Unassigned" anymore. September brought Fleet 4.91.0 and 4.92.0, a customer story from Abridge, and a guide to binary allow lists on macOS 27. Two more releases are planned for October, so let's right dive in!
+Leaves are starting to fall in the US, but Windows hosts aren't falling into "Unassigned" anymore. September brought Fleet 4.91.0 and 4.92.0, a customer story from Abridge, and a guide to binary allow lists on macOS 27. Two more releases are planned for October, so let's dive right in!
 
 
 ## 🚀 What shipped last month
