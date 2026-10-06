@@ -10159,7 +10159,6 @@ _Available in Fleet Premium_
 
 `GET /api/v1/fleet/vpp_tokens`
 
-
 #### Parameters
 
 None.
