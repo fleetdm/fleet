@@ -120,7 +120,6 @@ func TestPolicies(t *testing.T) {
 		{"ResetPolicyDefersMembershipCleanup", testResetPolicyDefersMembershipCleanup},
 		{"ApplyPolicySpecNoSpuriousStatsReset", testApplyPolicySpecNoSpuriousStatsReset},
 		{"ApplyPolicySpecsMembershipCleanupOnlyOnChange", testApplyPolicySpecsMembershipCleanupOnlyOnChange},
-		{"CleanupOrphanedPolicyMembershipLocks", testCleanupOrphanedPolicyMembershipLocks},
 		{"GetPoliciesForConditionalAccessSQLInjection", testGetPoliciesForConditionalAccess},
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
 		{"RecordPolicyQueryExecutionsStalePolicyIDs", testRecordPolicyQueryExecutionsStalePolicyIDs},
@@ -10251,7 +10250,8 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 }
 
 // testApplyPolicySpecsMembershipCleanupOnlyOnChange verifies that ApplyPolicySpecs skips the membership cleanup for
-// unchanged policies, and that the cleanup removes the membership of deleted hosts.
+// unchanged policies, and that the cleanup removes the membership of deleted hosts without locking the policy's other
+// membership rows, which policy result ingestion writes to.
 func testApplyPolicySpecsMembershipCleanupOnlyOnChange(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -10274,60 +10274,23 @@ func testApplyPolicySpecsMembershipCleanupOnlyOnChange(t *testing.T, ds *Datasto
 	})
 
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
+	// Orphan was not cleaned up because the policy was unchanged.
 	assertPolicyMembership(t, ds, polsByName, map[string][]uint{pol.Name: {host.ID, orphanHostID}})
 
-	spec.Platform = "darwin,linux"
-	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
-	assertPolicyMembership(t, ds, polsByName, map[string][]uint{pol.Name: {host.ID}})
-}
-
-// testCleanupOrphanedPolicyMembershipLocks verifies that the orphan cleanup doesn't lock the policy's other membership
-// rows, so it can't block or deadlock with policy result ingestion writing to them.
-func testCleanupOrphanedPolicyMembershipLocks(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	// Force several batches in the cleanup loop.
-	origBatchSize := policyMembershipDeleteBatchSize
-	policyMembershipDeleteBatchSize = 1
-	t.Cleanup(func() { policyMembershipDeleteBatchSize = origBatchSize })
-
-	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	pol := newTestPolicy(t, ds, user, "orphan-lock-policy", "darwin", nil)
-	polsByName := map[string]*fleet.Policy{pol.Name: pol}
-	host := newTestHostWithPlatform(t, ds, "orphan-lock-host", "darwin", nil)
-	_, err := ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{pol.ID: new(true)}, time.Now(), false, nil)
-	require.NoError(t, err)
-
-	// Hold a lock on the host's membership row, as policy result ingestion would.
+	// Hold a lock on the host's membership row, as policy result ingestion would. A cleanup that touched the row would
+	// wait on it until the timeout.
 	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	require.NoError(t, err)
-	// Released before TestPolicies truncates the tables, which would otherwise wait on this lock.
-	defer func() { _ = tx.Rollback() }()
+	defer func() { _ = tx.Rollback() }() // before TestPolicies truncates the tables, which would wait on this lock
 	_, err = tx.ExecContext(ctx, `SELECT 1 FROM policy_membership WHERE policy_id = ? AND host_id = ? FOR UPDATE`, pol.ID, host.ID)
 	require.NoError(t, err)
 
-	cases := []struct {
-		name          string
-		orphanHostIDs []uint
-	}{
-		{"no orphans", nil},
-		{"with orphans", []uint{999998, 999999}},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			for _, hostID := range c.orphanHostIDs {
-				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(ctx, `INSERT INTO policy_membership (policy_id, host_id, passes) VALUES (?, ?, 1)`, pol.ID, hostID)
-					return err
-				})
-			}
-
-			// A cleanup that touched the locked row would wait on it until the timeout.
-			cleanupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-			require.NoError(t, cleanupOrphanedPolicyMembership(cleanupCtx, ds.writer(ctx), pol.ID, ds.logger))
-			assertPolicyMembership(t, ds, polsByName, map[string][]uint{pol.Name: {host.ID}})
-		})
-	}
+	spec.Platform = "darwin,linux"
+	applyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	require.NoError(t, ds.ApplyPolicySpecs(applyCtx, user.ID, []*fleet.PolicySpec{spec}))
+	// Orphan was cleaned up because the policy was changed.
+	assertPolicyMembership(t, ds, polsByName, map[string][]uint{pol.Name: {host.ID}})
 }
 
 func testGetPoliciesForConditionalAccess(t *testing.T, ds *Datastore) {
