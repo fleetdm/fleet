@@ -7482,10 +7482,10 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeBoundHostToIdPAccount{}.ActivityName(),
 		fmt.Sprintf(`{"host_uuid": %q, "idp_email": "sso_user2@example.com", "replaced_idp_email": "sso_user@example.com"}`, mdmDevice.UUID), 0)
 
-	// enrolling without an account removes the link
+	// enrolling with the automatic enrollment token (no account) removes the link
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
 		basePath: "/api/mdm/apple/enroll",
-		token:    q.Get("profile_token"),
+		token:    staticProf.Token,
 		diParam:  di,
 	})
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeUnboundHostFromIdPAccount{}.ActivityName(),
