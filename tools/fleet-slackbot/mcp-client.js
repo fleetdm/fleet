@@ -1,14 +1,16 @@
 const { Client } = require("@modelcontextprotocol/sdk/client/index.js");
 const { SSEClientTransport } = require("@modelcontextprotocol/sdk/client/sse.js");
+const { ErrorCode } = require("@modelcontextprotocol/sdk/types.js");
 
 // Maximum characters to return from any single tool call.
 // Keeps tool results from blowing up the Claude context window.
 const MAX_TOOL_RESULT_CHARS = 20000;
 
 class McpClient {
-  constructor({ url, authToken }) {
+  constructor({ url, authToken, toolTimeoutMs }) {
     this.url = url;
     this.authToken = authToken;
+    this.toolTimeoutMs = toolTimeoutMs;
     this.client = null;
     this.tools = [];
     this._localTools = new Map(); // name → { definition, handler }
@@ -90,15 +92,20 @@ class McpClient {
       }
     }
     console.log(`[mcp] Calling tool: ${name}(${JSON.stringify(args).slice(0, 200)})`);
+    const options = this.toolTimeoutMs ? { timeout: this.toolTimeoutMs } : undefined;
     let result;
     try {
-      result = await this.client.callTool({ name, arguments: args });
+      result = await this.client.callTool({ name, arguments: args }, undefined, options);
     } catch (err) {
-      // Connection may have dropped mid-call — try one reconnect
+      // Retrying a timeout would re-run the work (e.g. a second live query
+      // against the same hosts), so only retry when the connection dropped.
+      if (err.code === ErrorCode.RequestTimeout) {
+        throw err;
+      }
       console.warn(`[mcp] Tool call failed (${err.message}), reconnecting and retrying...`);
       this._connected = false;
       await this.connect();
-      result = await this.client.callTool({ name, arguments: args });
+      result = await this.client.callTool({ name, arguments: args }, undefined, options);
     }
 
     // MCP returns content as an array of content blocks

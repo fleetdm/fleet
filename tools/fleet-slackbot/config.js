@@ -28,6 +28,8 @@ const config = {
   mcp: {
     url: process.env.FLEET_MCP_URL || "http://localhost:8181/sse",
     authToken: process.env.FLEET_MCP_AUTH_TOKEN,
+    // Live queries can take minutes; the SDK default (60s) cuts them off.
+    toolTimeoutMs: parseInt(process.env.FLEET_MCP_TOOL_TIMEOUT_MS || "240000", 10),
   },
 };
 
