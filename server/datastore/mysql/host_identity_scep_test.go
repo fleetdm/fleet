@@ -453,6 +453,13 @@ func testEnrollRequiresSignatureForCertHost(t *testing.T, ds *Datastore) {
 		staleVictimCert.HostID = nil
 		require.NoError(t, enrollOsquery(victimOsqueryID, victimSerial, "victim-node-key-stale-read", &staleVictimCert))
 		requireNodeKeys(t, victim.ID, victimOsqueryID, "victim-node-key-stale-read", "victim-orbit-node-key-new")
+
+		// Another unrevoked cert bound to the same host (e.g. under an older name) does not block signing with this one.
+		insertSimpleTestCertificate(t, ds, 5004, &victim.ID, "victim-older-name")
+		require.NoError(t, enrollOsquery(victimOsqueryID, victimSerial, "victim-node-key-two-certs", victimCert))
+		requireNodeKeys(t, victim.ID, victimOsqueryID, "victim-node-key-two-certs", "victim-orbit-node-key-new")
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_identity_scep_certificates SET revoked = 1 WHERE serial = 5004`)
+		require.NoError(t, err)
 	})
 
 	t.Run("revoked cert no longer protects the host", func(t *testing.T) {

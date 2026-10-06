@@ -56,13 +56,15 @@ func checkEnrollmentHoldsHostIdentityCert(
 	if identityCert != nil {
 		signedSerial = identityCert.SerialNumber
 	}
-	var heldByOtherCert bool
-	if err := sqlx.GetContext(ctx, tx, &heldByOtherCert,
-		`SELECT EXISTS(SELECT 1 FROM host_identity_scep_certificates WHERE host_id = ? AND revoked = 0 AND serial != ?)`,
-		hostID, signedSerial); err != nil {
+	// A host can hold more than one unrevoked cert (different names, or expired ones), so accept any of its own.
+	var unsignedForHost bool
+	if err := sqlx.GetContext(ctx, tx, &unsignedForHost, `
+		SELECT EXISTS(SELECT 1 FROM host_identity_scep_certificates WHERE host_id = ? AND revoked = 0)
+			AND NOT EXISTS(SELECT 1 FROM host_identity_scep_certificates WHERE host_id = ? AND revoked = 0 AND serial = ?)`,
+		hostID, hostID, signedSerial); err != nil {
 		return ctxerr.Wrap(ctx, err, "check matched host identity certificate")
 	}
-	if heldByOtherCert {
+	if unsignedForHost {
 		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedHostIdentityCertRequired, HostID: &hostID},
 			"enrollment not signed with the matched host's identity certificate")
 	}
