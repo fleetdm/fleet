@@ -324,6 +324,38 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-23 16:44:57
 
+### [CVE-2026-91777](https://nvd.nist.gov/vuln/detail/CVE-2026-91777)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Only affects Java/JVM services that deserialize attacker-controlled @JsonIdentityInfo object graphs. jackson is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never parses untrusted JSON.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-databind`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-10-02 15:31:09
+
+### [CVE-2026-91776](https://nvd.nist.gov/vuln/detail/CVE-2026-91776)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Only affects Java/JVM services that deserialize attacker-controlled polymorphic types. jackson is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never parses untrusted JSON.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-databind`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-10-02 15:31:09
+
+### [CVE-2026-89425](https://nvd.nist.gov/vuln/detail/CVE-2026-89425)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Only affects Java/JVM services that parse attacker-controlled malformed JSON. jackson is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never parses untrusted JSON.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-core`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-10-02 15:31:09
+
+### [CVE-2026-89407](https://nvd.nist.gov/vuln/detail/CVE-2026-89407)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Only affects Java/JVM services that parse attacker-controlled input. jackson is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never parses untrusted JSON.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-core`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-10-02 15:31:09
+
 ### [CVE-2026-84445](https://nvd.nist.gov/vuln/detail/CVE-2026-84445)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -355,6 +387,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:deb/debian/libssh2-1t64`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:35:00
+
+### [CVE-2026-68497](https://nvd.nist.gov/vuln/detail/CVE-2026-68497)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Only affects Java/JVM services that deserialize attacker-controlled numeric input. jackson is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never parses untrusted JSON.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-databind`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-10-02 15:31:09
+
+### [CVE-2026-68494](https://nvd.nist.gov/vuln/detail/CVE-2026-68494)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Incomplete fix for GHSA-72hv-8253-57qq; only affects Java/JVM services that feed attacker-controlled chunked input to Jackson's asynchronous (non-blocking) JSON parser. jackson-core is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never parses untrusted streamed JSON.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-core`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-10-05 12:15:28
 
 ### [CVE-2026-6653](https://nvd.nist.gov/vuln/detail/CVE-2026-6653)
 - **Author:** @lucasmrod

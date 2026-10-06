@@ -5720,7 +5720,7 @@ func testApplyPolicySpecsWithResendProfile(t *testing.T, ds *Datastore) {
 		{
 			name:       "profile on a global policy is rejected",
 			spec:       spec("global resend", "", &team1Prof.ProfileUUID),
-			wantErrMsg: "resend configuration profile can only be set on team policies",
+			wantErrMsg: "resend configuration profile can only be set on fleet-level policies",
 		},
 		{
 			name:       "profile belonging to another team is rejected",

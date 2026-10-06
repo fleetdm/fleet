@@ -1,10 +1,11 @@
 import React from "react";
 
+import ApiEndpointCountTag from "components/ApiEndpointCountTag";
+import ApiUserTag from "components/ApiUserTag";
 import StatusIndicator from "components/StatusIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
-import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IInvite } from "interfaces/invite";
@@ -24,18 +25,6 @@ import {
 import ActionsDropdown from "../../../../../components/ActionsDropdown";
 
 const baseClass = "users-table";
-
-const renderApiUserIndicator = () => {
-  return (
-    <Tag tooltip="This user only has API access." size="xsmall">
-      API
-    </Tag>
-  );
-};
-
-const renderApiEndpointCount = (count: number) => (
-  <Tag size="xsmall">{`${count} API endpoint${count === 1 ? "" : "s"}`}</Tag>
-);
 
 interface IHeaderProps {
   column: {
@@ -119,32 +108,14 @@ const generateInviteStatus = (invite: IInvite): string =>
 const renderRole = (cellProps: ICellProps) => {
   if (cellProps.cell.value === "GitOps") {
     return (
-      <TooltipWrapper
-        tipContent={
-          <>
-            The GitOps role is only available for API-only
-            <br />
-            users. This user has no access to the UI.
-          </>
-        }
-      >
+      <TooltipWrapper tipContent="The GitOps role is only available for API-only users. This user has no access to the UI.">
         GitOps
       </TooltipWrapper>
     );
   }
   if (cellProps.cell.value === "Observer+") {
     return (
-      <TooltipWrapper
-        tipContent={
-          <>
-            Users with the Observer+ role have access to all of
-            <br />
-            the same functions as an Observer, with the added
-            <br />
-            ability to run any live report against all hosts.
-          </>
-        }
-      >
+      <TooltipWrapper tipContent="Users with the Observer+ role have access to all of the same functions as an Observer, with the added ability to run any livereport against all hosts.">
         {cellProps.cell.value}
       </TooltipWrapper>
     );
@@ -198,7 +169,7 @@ const generateTableHeaders = (
         return (
           <TooltipTruncatedTextCell
             value={cellProps.cell.value}
-            suffix={apiOnlyUser && renderApiUserIndicator()}
+            suffix={apiOnlyUser && <ApiUserTag />}
           />
         );
       },
@@ -218,7 +189,9 @@ const generateTableHeaders = (
         return (
           <div className={`${baseClass}__permissions-content`}>
             {renderRole(cellProps)}
-            {apiEndpointCount > 0 && renderApiEndpointCount(apiEndpointCount)}
+            {apiEndpointCount > 0 && (
+              <ApiEndpointCountTag count={apiEndpointCount} />
+            )}
           </div>
         );
       },

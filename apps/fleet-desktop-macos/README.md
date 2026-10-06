@@ -17,14 +17,13 @@ It also embeds the **Fleet Platform SSO (PSSO) extension** (`FleetPSSOExtension.
 - **File download support** for `.mobileconfig` profiles and other files served by Fleet
 - **Dark/light mode** respects the user's system appearance
 - **`fleet://` URL scheme** for deep linking to Self-service, Policies, triggering refetches, and Update/Install all
-- **MDM required** — both the app and installer enforce MDM enrollment
+- **Works with or without MDM** — reads the Fleet URL from the fleetd configuration profile, or from the orbit launchd plist on Macs that aren't MDM-enrolled
 - **Code signed and notarized** for secure distribution via `.pkg` installer
 
 ## Requirements
 
 - macOS 13.0 (Ventura) or later for the app; the PSSO extension requires macOS 14.0+ (the password-sync feature targets macOS 26+)
-- MDM-enabled Mac with Fleet's managed preferences profile installed
-- Fleet's orbit agent installed and enrolled
+- Fleet's orbit agent installed and enrolled. MDM enrollment is not required — see [Configuration Sources](#configuration-sources) for where the Fleet URL is read from
 - The orbit identifier file must exist at `/opt/orbit/identifier`
 
 ## Installation
@@ -34,13 +33,13 @@ The signed, notarized `.pkg` is produced by CI (see [CI/CD](#cicd)) and uploaded
 - **Via Fleet (Software):** upload the `.pkg` to Fleet as a software installer. Fleet Desktop will appear in the software catalog for deployment.
 - **Manually:** double-click the `.pkg` and follow the installer.
 
-The installer requires an MDM-enabled Mac. It checks for the Fleet managed preferences profile before proceeding — if the profile is not found, the installer displays an error and aborts. The app is placed in `/Applications` with `root:admin` ownership and `755` permissions. On upgrades, the installer gracefully quits Fleet Desktop before installing and automatically relaunches it afterward.
+The app is placed in `/Applications` with `root:admin` ownership and `755` permissions. On upgrades, the installer gracefully quits Fleet Desktop before installing and automatically relaunches it afterward.
 
 Installing the app into `/Applications` is also what registers the bundled `FleetPSSOExtension.appex` with the system so it becomes selectable by a `com.apple.extensiblesso` configuration profile.
 
 ## How It Works
 
-1. **Reads the Fleet URL** from MDM managed preferences (see [Configuration Sources](#configuration-sources))
+1. **Reads the Fleet URL** from the fleetd configuration profile, or from the orbit launchd plist on Macs that aren't MDM-enrolled (see [Configuration Sources](#configuration-sources))
 2. **Reads the device token** from `/opt/orbit/identifier` (managed by orbit, rotates hourly)
 3. **Opens the self-service portal** at `{FleetURL}/device/{token}/self-service` in an embedded browser window
 
@@ -63,6 +62,8 @@ When Fleet serves downloadable content (e.g., MDM enrollment profiles):
 
 - App Transport Security (ATS) is enforced for the in-app WebView — the embedded portal requires HTTPS
 - External links are restricted to `https`, `http`, and `mailto` schemes
+- The transparency link's redirect is resolved by the app and only an absolute destination is opened in the default browser, so the device token never reaches the browser
+- During an SSO flow, navigations to a known authenticator app scheme (`com-okta-authenticator`, used by Okta Verify for FastPass) are handed to that app; any other custom scheme ends the flow
 - Device tokens are percent-encoded and not exposed in error messages
 - Downloaded files are only auto-opened if they are `.mobileconfig` profiles
 - The WebView uses a non-persistent data store (no cookies or cache persist between sessions)
@@ -107,7 +108,7 @@ Both the host app and the extension carry restricted (Apple-managed) entitlement
 | Extension only | `com.apple.security.app-sandbox` | `true` |
 | Extension only | `com.apple.security.network.client` | `true` |
 
-The host app is deliberately **not** sandboxed — it reads `/opt/orbit/identifier` and the managed-preferences plist outside any container. App extensions are always sandboxed.
+The host app is deliberately **not** sandboxed — it reads `/opt/orbit/identifier` and fleetd's configuration plists outside any container. App extensions are always sandboxed.
 
 ## Development
 
@@ -167,10 +168,13 @@ To test end to end locally (a dev-signed app/extension against your local Fleet 
 
 | File | Key | Purpose |
 |------|-----|---------|
-| `/Library/Managed Preferences/com.fleetdm.fleetd.config.plist` | `FleetURL` | Fleet server URL (delivered via MDM profile) |
+| `/Library/Managed Preferences/com.fleetdm.fleetd.config.plist` | `FleetURL` | Fleet server URL delivered via the fleetd MDM configuration profile. Checked first. |
+| `/Library/LaunchDaemons/com.fleetdm.orbit.plist` | `EnvironmentVariables.ORBIT_FLEET_URL` | Fleet server URL baked in by `fleetctl package --fleet-url`. Used when the managed preference is absent (Macs that aren't MDM-enrolled). |
 | `/opt/orbit/identifier` | — | Device authentication token (rotates hourly) |
 
-> **Note:** Fleet Desktop only supports MDM-enabled Macs. If the managed preferences file is not present, the app displays an error and the installer refuses to proceed.
+A scheme-less value such as `fleet.example.com:8080` is treated as HTTPS, matching orbit. If neither plist provides a URL, the app displays an error and quits.
+
+> **Note:** A Mac enrolled with `--use-system-config` whose configuration profile was later removed keeps the URL only in `/opt/orbit/fleet_url.txt`, which only root can read, so the app can't use it. Re-deliver the profile or reinstall fleetd with `--fleet-url`.
 
 ### URL Scheme
 

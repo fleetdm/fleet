@@ -146,12 +146,17 @@ will be disabled and/or hidden in the UI.
       // Track AMAPI requests per Android enterprise ID (keyed by enterprise ID) so we can
       // graph request volume per enterprise in Datadog. Reset every minute alongside the total.
       sails.androidProxyApiRequestCountByEnterpriseId = {};
+      // Track AMAPI requests keyed by enterpriseId:requestType so we can graph request volume
+      // broken down by request type and enterprise in Datadog. Reset every minute.
+      sails.androidProxyApiRequestCountByRequestType = {};
       if (sails.config.custom.androidEnterpriseServiceAccountEmailAddress && sails.config.custom.androidEnterpriseServiceAccountPrivateKey) {
         let logAndResetAndroidProxyApiRequestCount = ()=>{
           let requestCountInLastMinute = sails.androidProxyApiRequestCount;
           sails.androidProxyApiRequestCount = 0;// Reset for the next minute.
           let requestCountByEnterpriseId = sails.androidProxyApiRequestCountByEnterpriseId;
           sails.androidProxyApiRequestCountByEnterpriseId = {};// Reset for the next minute.
+          let requestCountByRequestType = sails.androidProxyApiRequestCountByRequestType;
+          sails.androidProxyApiRequestCountByRequestType = {};// Reset for the next minute.
           if (requestCountInLastMinute === 0) {
             return;// Stay quiet on idle minutes so the metric lines are easy to grep.
           }
@@ -160,6 +165,7 @@ will be disabled and/or hidden in the UI.
           if (sails.config.environment === 'production' && sails.config.custom.datadogApiKey) {
             let timestampInSeconds = Math.floor(Date.now() / 1000);
             let thisDyno = process.env.DYNO;
+            let sanitizeUrl = (url) => { try { return new URL(url).origin; } catch (unused) { return 'unknown'; } };
             // Create an array of metrics, and add the total request count.
             let metricsToSendToDatadog = [{
               metric: 'android_proxy.amapi_request_count',
@@ -169,29 +175,52 @@ will be disabled and/or hidden in the UI.
               tags: [`dyno:${thisDyno}`],
             }];
 
-            let perEnterpriseMetrics = Object.keys(requestCountByEnterpriseId).map((enterpriseId)=>({
-              metric: 'android_proxy.amapi_request_count_by_enterprise',
-              type: 1,
-              interval: 60,
-              points: [{ timestamp: timestampInSeconds, value: requestCountByEnterpriseId[enterpriseId] }],
-              tags: [`dyno:${thisDyno}`, `android_enterprise_id:${enterpriseId}`],
-            }));
+            let perEnterpriseMetrics = Object.keys(requestCountByEnterpriseId).map((enterpriseId)=>{
+              let entry = requestCountByEnterpriseId[enterpriseId];
+              let tags = [`dyno:${thisDyno}`, `android_enterprise_id:${enterpriseId}`];
+              if (entry.fleetServerUrl) {
+                tags.push(`fleet_server_url:${sanitizeUrl(entry.fleetServerUrl)}`);
+              }
+              return {
+                metric: 'android_proxy.amapi_request_count_by_enterprise',
+                type: 1,
+                interval: 60,
+                points: [{ timestamp: timestampInSeconds, value: entry.count }],
+                tags: tags,
+              };
+            });
             metricsToSendToDatadog = metricsToSendToDatadog.concat(perEnterpriseMetrics);
 
-            sails.helpers.http.post.with({
-              url: 'https://api.us5.datadoghq.com/api/v2/series',
-              data: {
-                series: metricsToSendToDatadog
-              },
-              headers: {
-                'DD-API-KEY': sails.config.custom.datadogApiKey,
-                'Content-Type': 'application/json',
-              },
-            }).exec((err)=>{
-              if (err) {
-                sails.log.warn(`Background task failed: failed to send AMAPI request-count metric to Datadog. Full error: ${require('util').inspect(err)}`);
-              }
-            });//_∏_
+            let perRequestTypeMetrics = Object.keys(requestCountByRequestType).map((key)=>{
+              let entry = requestCountByRequestType[key];
+              return {
+                metric: 'android_proxy.amapi_request_count_by_request_type',
+                type: 1,
+                interval: 60,
+                points: [{ timestamp: timestampInSeconds, value: entry.count }],
+                tags: [`dyno:${thisDyno}`, `android_enterprise_id:${entry.enterpriseId}`, `fleet_server_url:${sanitizeUrl(entry.fleetServerUrl)}`, `request_type:${entry.requestType}`],
+              };
+            });
+            metricsToSendToDatadog = metricsToSendToDatadog.concat(perRequestTypeMetrics);
+
+            // Chunk metrics into batches of 500 to stay under Datadog's 512 KB request body limit.
+            let chunkedMetrics = _.chunk(metricsToSendToDatadog, 500);
+            for (let chunk of chunkedMetrics) {
+              sails.helpers.http.post.with({
+                url: 'https://api.us5.datadoghq.com/api/v2/series',
+                data: {
+                  series: chunk
+                },
+                headers: {
+                  'DD-API-KEY': sails.config.custom.datadogApiKey,
+                  'Content-Type': 'application/json',
+                },
+              }).exec((err)=>{
+                if (err) {
+                  sails.log.warn(`Background task failed: failed to send AMAPI request-count metric to Datadog. Full error: ${require('util').inspect(err)}`);
+                }
+              });//_∏_
+            }
           }//ﬁ
 
           sails.log.info(`Android proxy: ${requestCountInLastMinute} Android Management API request(s) in the last minute.`);

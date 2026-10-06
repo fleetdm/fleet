@@ -3,6 +3,7 @@ import React from "react";
 
 import createMockHost from "__mocks__/hostMock";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { renderWithSetup } from "test/test-utils";
 
 import HostMdmStatusCell from "./HostMdmStatusCell";
 
@@ -39,14 +40,30 @@ describe("HostMdmStatusCell", () => {
     expect(screen.getByText("On (manual - personal)")).toBeInTheDocument();
   });
 
+  it("renders 'On (personal)' with its tooltip for iOS hosts with account-driven enrollment", async () => {
+    const host = createMockHost({ platform: "ios" } as any);
+    const { user } = renderWithSetup(
+      <HostMdmStatusCell
+        row={{ original: host }}
+        cell={{ value: "On (personal)" } as any}
+      />
+    );
+
+    await user.hover(screen.getByText("On (personal)"));
+
+    expect(
+      await screen.findByText(/Enrolled via a Managed Apple Account/)
+    ).toBeInTheDocument();
+  });
+
   it("renders 'Pending' for macOS hosts with pending enrollment", () => {
     renderCell("darwin", "Pending");
     expect(screen.getByText("Pending")).toBeInTheDocument();
   });
 
   it("renders the MDM status for Android hosts", () => {
-    renderCell("android", "On (manual - personal)");
-    expect(screen.getByText("On (manual - personal)")).toBeInTheDocument();
+    renderCell("android", "On (personal)");
+    expect(screen.getByText("On (personal)")).toBeInTheDocument();
   });
 
   it("renders the MDM status for Windows hosts", () => {

@@ -498,6 +498,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		},
 		config.MDM.AndroidAgent,
 		redis_key_value.New(redisPool),
+		android_service.WithInstallReapTimeout(config.Server.VPPInstallReapTimeout),
 	)
 	if err != nil {
 		initFatal(err, "initializing android service")
@@ -554,6 +555,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var softwareInstallStore fleet.SoftwareInstallerStore
 	var bootstrapPackageStore fleet.MDMBootstrapPackageStore
 	var softwareTitleIconStore fleet.SoftwareTitleIconStore
+	var stagedUploadStore fleet.StagedUploadStore
 	var distributedLock fleet.Lock
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
@@ -600,6 +602,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				initFatal(err, "initializing S3 software title icon store")
 			}
 			logger.InfoContext(ctx, "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
+
+			stagedUploadStore, err = s3.NewStagedUploadStore(config.S3)
+			if err != nil {
+				initFatal(err, "initializing S3 staged upload store")
+			}
 		} else {
 			installerDir := os.TempDir()
 			if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -647,6 +654,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,
+			stagedUploadStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
 			redis_install_attempts.New(redisPool),
@@ -785,6 +793,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		softwareInstallStore:   softwareInstallStore,
 		bootstrapPackageStore:  bootstrapPackageStore,
 		softwareTitleIconStore: softwareTitleIconStore,
+		stagedUploadStore:      stagedUploadStore,
 		androidSvc:             androidSvc,
 		activitySvc:            activitySvc,
 		notificationsSvc:       notificationsSvc,
@@ -970,6 +979,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/", serveCSP), config)))
 
 	if len(config.Server.PrivateKey) > 0 {
+		mdmStorage.SetNewActivityFunc(svc.NewActivity)
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 		ddmService := service.NewMDMAppleDDMService(ds, logger)
 		getTokenService := service.NewMDMAppleGetTokenService(ds, logger)

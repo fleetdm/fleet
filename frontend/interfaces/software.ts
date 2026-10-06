@@ -584,6 +584,7 @@ export interface ISoftwareInstallResult {
   host_display_name?: string;
   install_uuid: string;
   software_title: string;
+  software_display_name?: string | null;
   software_title_id: number;
   software_package: string;
   host_id: number;
@@ -632,11 +633,7 @@ export interface IAppLastInstall {
 interface SignatureInformation {
   installed_path: string;
   team_identifier: string;
-  /** The cdhash of a code-signed app bundle. Null for anything Fleet hashes as
-   * a plain Mach-O file, such as a Homebrew formula's executables. */
   hash_sha256: string | null;
-  executable_sha256: string | null;
-  executable_path: string | null;
 }
 export interface ISoftwareLastUninstall {
   script_execution_id: string;

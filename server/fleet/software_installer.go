@@ -511,6 +511,8 @@ type HostSoftwareInstallerResult struct {
 	InstallUUID string `json:"install_uuid" db:"execution_id"`
 	// SoftwareTitle is the title of the software.
 	SoftwareTitle string `json:"software_title" db:"software_title"`
+	// SoftwareDisplayName is the fleet-scoped "Software name" override for the title, when set.
+	SoftwareDisplayName *string `json:"software_display_name,omitempty" db:"software_display_name"`
 	// SoftwareTitleID is the unique numerical ID of the software title assigned by the datastore.
 	SoftwareTitleID *uint `json:"software_title_id" db:"software_title_id"`
 	// SoftwareInstallerID is the unique numerical ID of the software installer assigned by the datastore.
@@ -673,6 +675,7 @@ type UploadSoftwareInstallerPayload struct {
 	PreInstallQuery      string
 	PostInstallScript    string
 	InstallerFile        *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	StagedUploadID       string          // when set, InstallerFile is read from this staged upload
 	StorageID            string
 	Filename             string
 	Title                string
@@ -804,6 +807,8 @@ type UpdateSoftwareInstallerPayload struct {
 	UserID uint
 	// optional; used for pulling metadata + persisting new installer package to file system
 	InstallerFile *TempFileReader
+	// when set, InstallerFile is read from this staged upload
+	StagedUploadID string
 	// update the installer with these fields (*not* PATCH semantics at that point; while the
 	// associated endpoint is a PATCH, the entire row will be updated to these values, including
 	// blanks, so make sure they're set from either user input or the existing installer row

@@ -1,0 +1,1 @@
+- Fixed the Save button on a fleet's agent options page spinning forever when the YAML has a syntax error.
