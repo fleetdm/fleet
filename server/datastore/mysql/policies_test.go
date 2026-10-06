@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log/slog"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,8 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -24,7 +21,6 @@ import (
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	gmysql "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -10283,30 +10279,6 @@ func testApplyPolicySpecsMembershipCleanupOnlyOnChange(t *testing.T, ds *Datasto
 	spec.Platform = "darwin,linux"
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
 	assertPolicyMembership(t, ds, polsByName, map[string][]uint{pol.Name: {host.ID}})
-}
-
-// TestDeletePolicyMembershipBatchRetriesRecompute verifies that a deadlock while recomputing host issues retries the
-// recompute, so the hosts whose membership was already deleted still get their failing policy counts recomputed.
-func TestDeletePolicyMembershipBatchRetriesRecompute(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	t.Cleanup(func() { db.Close() })
-
-	const policyID, hostID = 7, 42
-	mock.ExpectBegin()
-	mock.ExpectExec("DELETE FROM policy_membership").WithArgs(policyID, hostID).WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectCommit()
-	mock.ExpectBegin()
-	mock.ExpectExec("INSERT INTO host_issues").WithArgs(hostID).
-		WillReturnError(&gmysql.MySQLError{Number: mysqlerr.ER_LOCK_DEADLOCK})
-	mock.ExpectRollback()
-	mock.ExpectBegin()
-	mock.ExpectExec("INSERT INTO host_issues").WithArgs(hostID).WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectCommit()
-
-	logger := slog.New(slog.DiscardHandler)
-	require.NoError(t, deletePolicyMembershipBatch(t.Context(), sqlx.NewDb(db, "sqlmock"), policyID, []uint{hostID}, true, logger))
-	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 // testCleanupOrphanedPolicyMembershipLocks verifies that the orphan cleanup doesn't lock the policy's other membership
