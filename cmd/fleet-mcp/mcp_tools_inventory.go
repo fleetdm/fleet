@@ -37,15 +37,20 @@ func registerGetOSVersions(s *server.MCPServer, fleetClient *FleetClient) {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get OS versions: %v", err)), nil
 		}
 
-		totalHosts := 0
-		for _, v := range res.OSVersions {
-			totalHosts += v.HostsCount
+		// A truncated list would understate the total, so omit it rather than mislead.
+		var totalHosts *int
+		if !res.Truncated {
+			sum := 0
+			for _, v := range res.OSVersions {
+				sum += v.HostsCount
+			}
+			totalHosts = &sum
 		}
 
 		return jsonResult(struct {
 			Fleet      string `json:"fleet,omitempty"`
 			Platform   string `json:"platform,omitempty"`
-			TotalHosts int    `json:"total_hosts"`
+			TotalHosts *int   `json:"total_hosts,omitempty"`
 			*OSVersionsResult
 		}{
 			Fleet:            fleet,
