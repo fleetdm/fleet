@@ -492,6 +492,10 @@ type QueryResultRowsFunc func(ctx context.Context, queryID uint, filter fleet.Te
 
 type QueryResultRowsForHostFunc func(ctx context.Context, queryID uint, hostID uint) ([]*fleet.ScheduledQueryResultRow, error)
 
+type QueryResultRowsForHostByQueryFunc func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error)
+
+type UpdateQueryResultsLastFetchedFunc func(ctx context.Context, ids []uint, lastFetched time.Time) error
+
 type ResultCountForQueryAndHostFunc func(ctx context.Context, queryID uint, hostID uint) (int, error)
 
 type ResultCountsForQueriesFunc func(ctx context.Context, queryIDs []uint) (map[uint]int, error)
@@ -3250,6 +3254,12 @@ type DataStore struct {
 
 	QueryResultRowsForHostFunc        QueryResultRowsForHostFunc
 	QueryResultRowsForHostFuncInvoked bool
+
+	QueryResultRowsForHostByQueryFunc        QueryResultRowsForHostByQueryFunc
+	QueryResultRowsForHostByQueryFuncInvoked bool
+
+	UpdateQueryResultsLastFetchedFunc        UpdateQueryResultsLastFetchedFunc
+	UpdateQueryResultsLastFetchedFuncInvoked bool
 
 	ResultCountForQueryAndHostFunc        ResultCountForQueryAndHostFunc
 	ResultCountForQueryAndHostFuncInvoked bool
@@ -7974,6 +7984,20 @@ func (s *DataStore) QueryResultRowsForHost(ctx context.Context, queryID uint, ho
 	s.QueryResultRowsForHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueryResultRowsForHostFunc(ctx, queryID, hostID)
+}
+
+func (s *DataStore) QueryResultRowsForHostByQuery(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+	s.mu.Lock()
+	s.QueryResultRowsForHostByQueryFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueryResultRowsForHostByQueryFunc(ctx, hostID, queryIDs)
+}
+
+func (s *DataStore) UpdateQueryResultsLastFetched(ctx context.Context, ids []uint, lastFetched time.Time) error {
+	s.mu.Lock()
+	s.UpdateQueryResultsLastFetchedFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateQueryResultsLastFetchedFunc(ctx, ids, lastFetched)
 }
 
 func (s *DataStore) ResultCountForQueryAndHost(ctx context.Context, queryID uint, hostID uint) (int, error) {

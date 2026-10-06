@@ -93,6 +93,26 @@ func (q nopLiveQuery) ClearQueryReportsClipped([]uint) error {
 	return nil
 }
 
+func (q nopLiveQuery) RecordQueryResultsLastFetched([]uint, time.Time) error {
+	return nil
+}
+
+func (q nopLiveQuery) LoadQueryResultsLastFetched() (map[uint]time.Time, error) {
+	return map[uint]time.Time{}, nil
+}
+
+func (q nopLiveQuery) ClearProcessedQueryResultsLastFetched() error {
+	return nil
+}
+
+func (q nopLiveQuery) AcquireQueryReportWriteSlot(string, int, time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (q nopLiveQuery) ReleaseQueryReportWriteSlot(string) error {
+	return nil
+}
+
 func (q nopLiveQuery) LiveQueryStore() fleet.LiveQueryStore {
 	return q
 }
