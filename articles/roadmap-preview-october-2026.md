@@ -10,8 +10,9 @@ The Fleet roadmap is set for fall 2026. This quarter is about AI you can put to 
 
 In the next 3 months, Fleet will ship...
 
-- 🚀 Fleet 5:
-  - 🤖 AI-native configuration profile builder: Describe what you want in plain English and get a validated profile for Apple, Windows, and Android. Use your company's approved LLM ([#51813](https://github.com/fleetdm/fleet/issues/51813), [#51979](https://github.com/fleetdm/fleet/issues/51979), [#54801](https://github.com/fleetdm/fleet/issues/54801), [#51815](https://github.com/fleetdm/fleet/issues/51815))
+- 🧠 Starting in October: Generate configuration profiles, including Windows CSPs, with Fleet's AI skill in Claude, Codex, or Copilot, or from Slack and Microsoft Teams. New GitOps repos get the skill out of the box with `fleetctl new` ([#53265](https://github.com/fleetdm/fleet/issues/53265))
+- 🚀 Fleet 5 (December):
+  - 🤖 AI-native configuration profile builder: Generate any kind of profile right in the Fleet UI. Describe what you want in plain English and get a validated profile for Apple, Windows, and Android. Use your company's approved LLM ([#51813](https://github.com/fleetdm/fleet/issues/51813), [#51979](https://github.com/fleetdm/fleet/issues/51979), [#54801](https://github.com/fleetdm/fleet/issues/54801), [#51815](https://github.com/fleetdm/fleet/issues/51815))
   - 👁️‍🗨️ AI governance: See AI tools, AI skills, and AI agent sessions on each host, and find vulnerable MCP servers ([#51599](https://github.com/fleetdm/fleet/issues/51599), [#51288](https://github.com/fleetdm/fleet/issues/51288), [#51383](https://github.com/fleetdm/fleet/issues/51383), [#51825](https://github.com/fleetdm/fleet/issues/51825), [#54548](https://github.com/fleetdm/fleet/issues/54548))
   - ✨ Fleet's MCP server, hosted for you in your Fleet instance ([#44448](https://github.com/fleetdm/fleet/issues/44448))
   - 🧹 A cleaner, more consistent API ([5.0.0 milestone](https://github.com/fleetdm/fleet/milestone/295))
