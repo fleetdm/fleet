@@ -1020,7 +1020,7 @@ type PatchPolicyData struct {
 type SoftwarePackageOrApp struct {
 	// AppStoreID is only present for VPP apps.
 	AppStoreID string `json:"app_store_id,omitempty"`
-	// VersionName is the name of the App Store app version the host gets. Only present for VPP apps in host software responses.
+	// VersionName is only present for VPP apps.
 	VersionName string `json:"version_name,omitempty"`
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
@@ -1477,8 +1477,7 @@ type HostSoftwareInstallOptions struct {
 	DeferActivation bool
 	// VPPAppTeamID is the vpp_apps_teams row an App Store app install is for.
 	VPPAppTeamID uint
-	// ForConfigurationResend means the install request re-sends an iOS/iPadOS App Store app with its version's
-	// configuration after an edit or delete of the app's versions, which means it was Fleet-initiated.
+	// ForConfigurationResend means the install request re-sends an iOS/iPadOS App Store app configuration, which means it was Fleet-initiated.
 	ForConfigurationResend bool
 }
 

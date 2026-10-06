@@ -5711,7 +5711,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, err
 		}
 	}
-	// Join each App Store app to the one version the host gets, sentinel 0 keeps the IN() list valid
+	// Join each App Store app to the one version the host gets, start the list with 0 so IN() is never empty
 	hostVPPAppTeamIDs := []uint{0}
 	for _, version := range hostVPPAppVersionByTitleID {
 		hostVPPAppTeamIDs = append(hostVPPAppTeamIDs, version.VPPAppTeamID)

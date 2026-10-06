@@ -5020,9 +5020,27 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 
 		// get the hosts with an unactivated install, only the host whose install waits should be returned
 		allHostIDs := []uint{hostWithActivatedInstall.ID, hostWithUnactivatedInstall.ID, hostWithoutApp.ID}
-		unactivatedHostIDs, err := ds.GetHostIDsWithUnactivatedVPPAppInstall(ctx, adamID, allHostIDs)
+		unactivatedHostIDs, err := ds.GetHostIDsWithUnactivatedVPPAppInstall(ctx, app.AppTeamID, allHostIDs)
 		require.NoError(t, err)
 		require.Equal(t, map[uint]struct{}{hostWithUnactivatedInstall.ID: {}}, unactivatedHostIDs)
+
+		// get the hosts in scope of the app among two of the hosts, only those two should be returned
+		includedHostIDs, err := ds.GetIncludedHostIDMapForVPPAppHosts(ctx, app.AppTeamID, []uint{hostWithActivatedInstall.ID, hostWithoutApp.ID})
+		require.NoError(t, err)
+		require.Equal(t, map[uint]struct{}{hostWithActivatedInstall.ID: {}, hostWithoutApp.ID: {}}, includedHostIDs)
+
+		// add a second version of the app and get the hosts with an unactivated install of it, no host should be returned
+		otherVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			Name:             "ResendApp",
+			BundleIdentifier: bundleID,
+			VPPAppID:         fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform},
+			VersionName:      "Other",
+		}, c.hostTeamID, nil)
+		require.NoError(t, err)
+		require.NotEqual(t, app.AppTeamID, otherVersion.AppTeamID)
+		unactivatedHostIDs, err = ds.GetHostIDsWithUnactivatedVPPAppInstall(ctx, otherVersion.AppTeamID, allHostIDs)
+		require.NoError(t, err)
+		require.Empty(t, unactivatedHostIDs)
 
 		// list the hosts' install versions, only the activated install on a host with the app in inventory should be returned
 		installedVersionByHostID, err := ds.ListHostAppStoreAppInstallVersions(ctx, app.VPPAppID, fleetID, nil)

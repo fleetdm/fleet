@@ -6237,9 +6237,18 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		installedVersionByBundleIdentifierAndSource[software.BundleIdentifier+software.Source] = software.Version
 	}
 
-	// 1. Filter out software that is not within the configured update window in the host timezone.
+	hostVersionByTitleID, err := svc.ds.ListHostAppStoreAppVersions(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host app store app versions")
+	}
+
+	// 1. Filter out software that is not the host's App Store app version or not within the configured update window in the host timezone.
 	var softwaresWithinUpdateSchedule []fleet.SoftwareAutoUpdateSchedule
 	for _, softwareWithAutoUpdateSchedule := range softwaresWithAutoUpdateSchedule {
+		hostVersion, ok := hostVersionByTitleID[softwareWithAutoUpdateSchedule.TitleID]
+		if !ok || !hostVersion.InScope || hostVersion.VPPAppTeamID != softwareWithAutoUpdateSchedule.VPPAppTeamID {
+			continue
+		}
 		logger := logger.With(
 			"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
 			"team_id", softwareWithAutoUpdateSchedule.TeamID,
@@ -6274,28 +6283,6 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		ctx, "found software with auto update scheduled, with host local time currently in window",
 		"count", len(softwaresWithinUpdateSchedule),
 	)
-
-	// Drop the schedules of App Store app versions other than the first-added version the host is in scope for.
-	hostVersionByTitleID, err := svc.ds.ListHostAppStoreAppVersions(ctx, host)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list host app store app versions")
-	}
-	var softwaresWithinHostVersionUpdateSchedule []fleet.SoftwareAutoUpdateSchedule
-	for _, softwareWithinUpdateSchedule := range softwaresWithinUpdateSchedule {
-		hostVersion, ok := hostVersionByTitleID[softwareWithinUpdateSchedule.TitleID]
-		if !ok || !hostVersion.InScope {
-			logger.DebugContext(ctx, "skipping software, host isn't in scope for any version", "software_title_id", softwareWithinUpdateSchedule.TitleID)
-			continue
-		}
-		if hostVersion.VPPAppTeamID != softwareWithinUpdateSchedule.VPPAppTeamID {
-			continue
-		}
-		softwaresWithinHostVersionUpdateSchedule = append(softwaresWithinHostVersionUpdateSchedule, softwareWithinUpdateSchedule)
-	}
-	softwaresWithinUpdateSchedule = softwaresWithinHostVersionUpdateSchedule
-	if len(softwaresWithinUpdateSchedule) == 0 {
-		return nil
-	}
 
 	// 2. Filter out software that is already at the latest version or higher.
 	var (

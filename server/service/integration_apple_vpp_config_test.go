@@ -1364,6 +1364,29 @@ func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
 		require.Equal(t, testID, versions[1].VPPAppsTeamsID)
 		require.Equal(t, "tëst", versions[1].VersionName)
 
+		countResendJobs := func() int {
+			var count int
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &count,
+					`SELECT COUNT(*) FROM jobs WHERE name = 'software_worker' AND args->>'$.task' = 'resend_vpp_app_configuration' AND args->>'$.application_id' = ? AND args->'$.fleet_id' = ?`,
+					iosAdamID, fleetID)
+			})
+			return count
+		}
+		// check the applies above queued no re-send, none of them changed a version's configuration or labels
+		resendJobsBeforeRemove := countResendJobs()
+		require.Zero(t, resendJobsBeforeRemove)
+
+		// apply only the Production version, the Test version should be removed and a re-send queued for the hosts that had it
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{productionVersion}},
+			http.StatusOK, &batchResp, c.queryParams...)
+		versions, err = s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
+		require.NoError(t, err)
+		require.Len(t, versions, 1)
+		require.Equal(t, productionID, versions[0].VPPAppsTeamsID)
+		require.Equal(t, resendJobsBeforeRemove+1, countResendJobs())
+
 		// dry run the iOS app as an entry without versions and an entry with versions, the request should fail
 		unnamedVersion := testVersion
 		unnamedVersion.VersionName = ""
@@ -1404,11 +1427,13 @@ func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
 		require.Len(t, forSetup, 1)
 		require.Equal(t, versions[0].VPPAppsTeamsID, forSetup[0].AppTeamID)
 
-		// apply no apps, every version of the iOS app should be deleted
+		// apply no apps, every version of the iOS app should be deleted and no re-send queued
+		resendJobsBeforeDeleteAll := countResendJobs()
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{}}, http.StatusOK, &batchResp, c.queryParams...)
 		_, err = s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
 		require.True(t, fleet.IsNotFound(err))
+		require.Equal(t, resendJobsBeforeDeleteAll, countResendJobs())
 	}
 }
 

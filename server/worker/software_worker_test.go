@@ -291,7 +291,7 @@ func TestMakeAndroidAppAvailableBatching(t *testing.T) {
 		AndroidBatchSize: 2, // batch size of 2 → 3 batches (2+2+1)
 	}
 
-	err := w.makeAndroidAppAvailable(t.Context(), "com.example.app", 1, "enterprises/test", false)
+	err := w.makeAndroidAppAvailable(t.Context(), "com.example.app", 1, "enterprises/test", false, false)
 	require.NoError(t, err)
 
 	// Phase 1 should queue 3 batch jobs (2+2+1 hosts), no AMAPI calls.
@@ -650,8 +650,8 @@ func TestMakeAndroidAppAvailableSendsEachHostItsVersionConfiguration(t *testing.
 	}
 	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
 
-	// edit version A and run the queued jobs, each host should get one policy entry with its own version's configuration
-	err := w.makeAndroidAppAvailable(t.Context(), "com.example.app", versionAID, "enterprises/test", false)
+	// edit version A's labels and run the queued jobs, each host should get one policy entry with its own version's configuration
+	err := w.makeAndroidAppAvailable(t.Context(), "com.example.app", versionAID, "enterprises/test", false, true)
 	require.NoError(t, err)
 	require.Len(t, jobs, 2)
 	for _, job := range jobs {
@@ -670,7 +670,7 @@ func TestMakeAndroidAppAvailableSendsEachHostItsVersionConfiguration(t *testing.
 	versionIDs = []uint{versionBID}
 	jobs = nil
 	policiesByHost = make(map[string][]*androidmanagement.ApplicationPolicy)
-	err = w.makeAndroidAppAvailable(t.Context(), "com.example.app", versionBID, "enterprises/test", false)
+	err = w.makeAndroidAppAvailable(t.Context(), "com.example.app", versionBID, "enterprises/test", false, true)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 	err = w.Run(t.Context(), *jobs[0].Args)
@@ -678,6 +678,19 @@ func TestMakeAndroidAppAvailableSendsEachHostItsVersionConfiguration(t *testing.
 	require.Len(t, policiesByHost, 2)
 	require.Len(t, policiesByHost["host-in-a-and-b"], 1)
 	require.JSONEq(t, configB, string(policiesByHost["host-in-a-and-b"][0].ManagedConfiguration))
+	require.Len(t, policiesByHost["host-in-b"], 1)
+	require.JSONEq(t, configB, string(policiesByHost["host-in-b"][0].ManagedConfiguration))
+
+	// edit only version B's configuration with both versions present, only the host whose version is B should be pushed
+	versionIDs = []uint{versionAID, versionBID}
+	jobs = nil
+	policiesByHost = make(map[string][]*androidmanagement.ApplicationPolicy)
+	err = w.makeAndroidAppAvailable(t.Context(), "com.example.app", versionBID, "enterprises/test", true, false)
+	require.NoError(t, err)
+	require.Len(t, jobs, 1)
+	err = w.Run(t.Context(), *jobs[0].Args)
+	require.NoError(t, err)
+	require.Len(t, policiesByHost, 1)
 	require.Len(t, policiesByHost["host-in-b"], 1)
 	require.JSONEq(t, configB, string(policiesByHost["host-in-b"][0].ManagedConfiguration))
 }
@@ -730,7 +743,7 @@ func TestRunAndroidSetupExperienceInstallsFirstAddedFlaggedVersion(t *testing.T)
 
 type resendVPPInstaller struct {
 	installErrByHostID map[uint]error
-	// installedAppTeamIDByHostID holds the version each successful install used
+	// installedAppTeamIDByHostID records the version each successful install used
 	installedAppTeamIDByHostID map[uint]uint
 }
 
@@ -786,7 +799,7 @@ func TestResendVPPAppConfiguration(t *testing.T) {
 			hostMovedToA: new(versionB), hostMovedFromAToNone: new(versionA), hostMovedFromBToNone: new(versionB),
 		}, nil
 	}
-	ds.GetIncludedHostIDMapForVPPAppFunc = func(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
+	ds.GetIncludedHostIDMapForVPPAppHostsFunc = func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
 		if vppAppTeamID == versionA {
 			return map[uint]struct{}{hostInAAndB: {}, hostWithDeletedInAAndB: {}, hostMovedToA: {}}, nil
 		}
@@ -869,7 +882,8 @@ func TestResendVPPAppConfiguration(t *testing.T) {
 	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
 		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: appID, AppTeamID: vppAppTeamID}, TitleID: titleID}, nil
 	}
-	ds.GetHostIDsWithUnactivatedVPPAppInstallFunc = func(ctx context.Context, adamID string, hostIDs []uint) (map[uint]struct{}, error) {
+	ds.GetHostIDsWithUnactivatedVPPAppInstallFunc = func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
+		require.Equal(t, versionB, vppAppTeamID)
 		return map[uint]struct{}{hostInB: {}}, nil
 	}
 	installer.installedAppTeamIDByHostID = make(map[uint]uint)
@@ -878,7 +892,7 @@ func TestResendVPPAppConfiguration(t *testing.T) {
 	require.Equal(t, map[uint]uint{hostWithDeletedInB: versionB}, installer.installedAppTeamIDByHostID)
 
 	// run the batch with a host that can't take the install and a host whose install fails at Apple, the batch should fail so it is retried
-	ds.GetHostIDsWithUnactivatedVPPAppInstallFunc = func(ctx context.Context, adamID string, hostIDs []uint) (map[uint]struct{}, error) {
+	ds.GetHostIDsWithUnactivatedVPPAppInstallFunc = func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
 		return map[uint]struct{}{}, nil
 	}
 	installer.installedAppTeamIDByHostID = make(map[uint]uint)

@@ -2026,6 +2026,9 @@ func (svc *Service) InstallInHouseAppForSetupExperience(ctx context.Context, hos
 
 func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	opts.VPPAppTeamID = vppApp.AppTeamID
+	if opts.ForConfigurationResend {
+		opts.DeferActivation = svc.config.Activity.FleetInitiatedReleasePerMinute > 0
+	}
 
 	// Pre-flight: resolve the managed app configuration's Fleet variables for
 	// this host BEFORE anything irreversible (reserving a VPP license, enqueuing
@@ -4941,7 +4944,7 @@ func (svc *Service) deleteAppStoreAppVersions(ctx context.Context, teamID *uint,
 				_, seen := seenHosts[hostUUID]
 				if !seen {
 					seenHosts[hostUUID] = struct{}{}
-					// Uninstall the app from a host whose version is deleted, unless a later version that remains includes it
+					// Uninstall the app from a host whose version is deleted, unless a later version that isn't deleted includes it
 					if deletingVersion {
 						androidHostsToUninstall[hostUUID] = policyID
 					}

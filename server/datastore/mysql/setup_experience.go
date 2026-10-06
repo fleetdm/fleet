@@ -372,7 +372,7 @@ AND %s`
 
 	var stmtSoftwareCombined string
 	if len(softwareUnionParts) > 0 {
-		// A title can now hold several packages or App Store app versions, and more than one can be flagged
+		// A title can now have several packages or App Store app versions, and more than one can be flagged
 		// for setup. Queue only the first-added (smallest installer_id, then smallest vpp_app_team_id) package
 		// or version per title so setup doesn't double-queue; labels don't apply during setup.
 		stmtSoftwareCombined = fmt.Sprintf(`

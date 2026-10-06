@@ -439,7 +439,8 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 		return &labels, nil
 
 	default:
-		return nil, nil
+		// Return an empty scope for no labels, the same value label validation returns for no labels
+		return &labels, nil
 	}
 }
 
@@ -538,6 +539,7 @@ ORDER BY id
 
 	var toAddApps []fleet.VPPAppTeam
 	var toRemoveVersionIDs []uint
+	removedVersionAppIDs := make(map[fleet.VPPAppID]struct{})
 
 	// Install only the first-added version of each app during setup, the first existing version in the list or else the first new version
 	setupIncomingIndexByApp := make(map[fleet.VPPAppID]int)
@@ -553,6 +555,9 @@ ORDER BY id
 			return false, errDeleteInstallerInstalledDuringSetup
 		}
 		toRemoveVersionIDs = append(toRemoveVersionIDs, existingVersion.AppTeamID)
+		if existingVersion.Platform == fleet.IOSPlatform || existingVersion.Platform == fleet.IPadOSPlatform {
+			removedVersionAppIDs[existingVersion.VPPAppID] = struct{}{}
+		}
 	}
 
 	// Re-send iOS and iPadOS apps whose version configuration changed, or whose version labels changed which version
@@ -562,8 +567,10 @@ ORDER BY id
 	labelsChangedAppIDs := make(map[fleet.VPPAppID]struct{})
 
 	appsWithChangedLabels := make(map[uint]map[uint]struct{})
+	incomingAppIDs := make(map[fleet.VPPAppID]struct{})
 	var vppTokenRequired, setupExperienceChanged bool
 	for i, incomingApp := range incomingVersions {
+		incomingAppIDs[incomingApp.VPPAppID] = struct{}{}
 		if incomingApp.Platform.IsApplePlatform() {
 			vppTokenRequired = true
 		}
@@ -711,9 +718,21 @@ ORDER BY id
 
 		for appID := range resendAppIDs {
 			_, versionLabelsChanged := labelsChangedAppIDs[appID]
-			err := insertResendVPPAppConfigurationJob(ctx, tx, appID, ptr.ValOrZero(teamID), configChangedAppTeamIDsByApp[appID], versionLabelsChanged, nil)
+			err = insertResendVPPAppConfigurationJob(ctx, tx, appID, ptr.ValOrZero(teamID), configChangedAppTeamIDsByApp[appID], versionLabelsChanged, nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps queueing vpp app configuration resend")
+			}
+		}
+
+		// Re-send iOS and iPadOS apps to hosts whose installed version was removed, when another version of the app is left
+		for appID := range removedVersionAppIDs {
+			_, hasIncomingVersion := incomingAppIDs[appID]
+			if !hasIncomingVersion {
+				continue
+			}
+			err = insertResendVPPAppConfigurationJob(ctx, tx, appID, ptr.ValOrZero(teamID), nil, false, nil)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps queueing vpp app configuration resend for removed versions")
 			}
 		}
 
@@ -2553,11 +2572,18 @@ func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, 
 }
 
 func (ds *Datastore) GetIncludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
-	return ds.getIncludedHostIDMapForSoftware(ctx, ds.writer(ctx), vppAppTeamID, softwareTypeVPP)
+	return ds.getIncludedHostIDMapForSoftware(ctx, ds.writer(ctx), vppAppTeamID, softwareTypeVPP, nil)
+}
+
+func (ds *Datastore) GetIncludedHostIDMapForVPPAppHosts(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
+	if len(hostIDs) == 0 {
+		return map[uint]struct{}{}, nil
+	}
+	return ds.getIncludedHostIDMapForSoftware(ctx, ds.writer(ctx), vppAppTeamID, softwareTypeVPP, hostIDs)
 }
 
 func (ds *Datastore) GetIncludedHostIDMapForVPPAppTx(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint) (map[uint]struct{}, error) {
-	return ds.getIncludedHostIDMapForSoftware(ctx, tx, vppAppTeamID, softwareTypeVPP)
+	return ds.getIncludedHostIDMapForSoftware(ctx, tx, vppAppTeamID, softwareTypeVPP, nil)
 }
 
 func (ds *Datastore) GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
@@ -3798,7 +3824,7 @@ func insertResendVPPAppConfigurationJob(ctx context.Context, tx sqlx.ExtContext,
 	return nil
 }
 
-func (ds *Datastore) GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, adamID string, hostIDs []uint) (map[uint]struct{}, error) {
+func (ds *Datastore) GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
 	if len(hostIDs) == 0 {
 		return map[uint]struct{}{}, nil
 	}
@@ -3813,9 +3839,9 @@ WHERE
 	ua.host_id IN (?) AND
 	ua.activity_type = 'vpp_app_install' AND
 	ua.activated_at IS NULL AND
-	vaua.adam_id = ?
+	vaua.vpp_app_team_id = ?
 `
-	query, args, err := sqlx.In(stmt, hostIDs, adamID)
+	query, args, err := sqlx.In(stmt, hostIDs, vppAppTeamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build hosts with unactivated vpp app install query")
 	}
