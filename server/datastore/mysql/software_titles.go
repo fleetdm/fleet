@@ -1129,10 +1129,22 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) (s
 	return outerSQL, args
 }
 
-// optimizedTitlesTypeFilterSQL renders the type filter as EXISTS probes for the optimized titles
-// queries: one on the host counts arm (sthc) and one on the installer-only arm (t). Each probe is a
-// primary key lookup on software_titles, so the scan still drives from the host counts index. args
-// cover the host counts arm, plus the installer-only arm when a team is set.
+// optimizedTitlesTypeFilterSQL renders the type filter as EXISTS subqueries for the optimized titles
+// queries: one on the host counts arm (sthc) and one on the installer-only arm (t). MySQL rewrites
+// the EXISTS as a semi-join driven from software_titles: no index starts with source, so it scans
+// idx_sw_titles, joins the matching titles to the host counts by primary key, and sorts them before
+// applying the LIMIT. A filtered request therefore costs about one scan of the titles index instead of
+// the index-ordered scan that stops at the LIMIT; an index on (source, extension_for) would let it
+// seek instead. EXPLAIN ANALYZE of the all-fleets list with source=apps on 200k titles (10% apps):
+//
+//	-> Limit: 21 row(s)
+//	    -> Sort: sthc.hosts_count DESC, sthc.software_title_id DESC, limit input to 21 row(s) per chunk
+//	        -> Nested loop inner join                                 (rows=19897)
+//	            -> Filter: (st.source = 'apps')                       (rows=19897)
+//	                -> Covering index scan on st using idx_sw_titles  (rows=200000)
+//	            -> Single-row index lookup on sthc using PRIMARY      (loops=19897)
+//
+// args cover the host counts arm, plus the installer-only arm when a team is set.
 func optimizedTitlesTypeFilterSQL(opts fleet.SoftwareTitleListOptions) (hostCounts, installerOnly string, args []any) {
 	filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "st")
 	if filterSQL == "" {
