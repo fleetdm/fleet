@@ -645,6 +645,52 @@ func TestListSoftwareTitles_PaginatesUntilShortPage(t *testing.T) {
 	}
 }
 
+func TestListOSVersions_ScopesAndPaginates(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/fleet/fleets":
+			_ = json.NewEncoder(w).Encode(map[string]any{"teams": []Team{{ID: 275, Name: "💻 Workstations"}}})
+		case "/api/v1/fleet/os_versions":
+			calls.Add(1)
+			q := r.URL.Query()
+			if q.Get("team_id") != "275" || q.Get("platform") != "darwin" || q.Get("max_vulnerabilities") != "0" || q.Get("order_key") != "hosts_count" {
+				t.Errorf("unexpected query %q", r.URL.RawQuery)
+			}
+			n := 100
+			if q.Get("page") == "1" {
+				n = 3
+			}
+			versions := make([]OSVersion, n)
+			for i := range versions {
+				versions[i] = OSVersion{Name: fmt.Sprintf("macOS 27.0.%d", i), Platform: "darwin", HostsCount: 1}
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"counts_updated_at": "2026-10-06T14:00:00Z", "os_versions": versions})
+		default:
+			t.Errorf("unexpected path %q", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	res, err := newTestClient(srv.URL).ListOSVersions(t.Context(), "💻 workstations", "macos")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := len(res.OSVersions), 103; got != want {
+		t.Errorf("len(OSVersions) = %d, want %d", got, want)
+	}
+	if res.Truncated {
+		t.Errorf("expected truncated=false")
+	}
+	if res.CountsUpdatedAt != "2026-10-06T14:00:00Z" {
+		t.Errorf("CountsUpdatedAt = %q", res.CountsUpdatedAt)
+	}
+	if got := calls.Load(); got != 2 {
+		t.Errorf("expected 2 page calls, got %d", got)
+	}
+}
+
 func TestListSoftwareTitles_AppliesSourceFilter(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/fleet/software/titles" {
