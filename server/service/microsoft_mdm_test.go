@@ -3751,21 +3751,15 @@ func TestESPReleaseIncludesSkipUserStatusPage(t *testing.T) {
 			"signing in to an already-enrolled device hits a fresh Account setup ESP that hangs (#51380)")
 }
 
-// TestWarnOnWindowsMDMHardwareIDCollision covers the detection added for issue #50612. The enrollment itself is
-// deliberately unchanged: a second host presenting an already-held HW device id still takes over the enrollment, but
-// Fleet now says so.
-func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
+// TestCheckWindowsMDMEnrollmentCanReplaceExisting covers which fleetd enrollments may replace the existing enrollment held
+// by the hardware ID they present. Replacing it deletes that enrollment and its host's lock/wipe and related state.
+func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 	const (
 		hwID          = "F19B99942A3B9C53679F46017599C1FC4953B9BD3F0BC20FF681D0F93FAE5992"
 		enrollingHost = "7C3BA655-C134-4CA5-A23B-CA8147643DA0"
-		incumbentHost = "A5D3F1A9-1B40-49DC-9D54-B4F558850CB9"
+		existingHost  = "A5D3F1A9-1B40-49DC-9D54-B4F558850CB9"
+		deviceID      = "CA47C1C7D55D0643B85CDDE133EE5B99"
 	)
-
-	secTokenMsg := &fleet.RequestSecurityToken{
-		AdditionalContext: fleet.AdditionalContext{
-			ContextItems: []fleet.ContextItem{{Name: syncml.ReqSecTokenContextItemHWDevID, Value: hwID}},
-		},
-	}
 
 	// Attributes of the first warning whose message contains want, or nil when nothing matched.
 	warnAttrs := func(h *testutils.TestHandler, want string) map[string]string {
@@ -3780,60 +3774,102 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 		return nil
 	}
 
+	linked := &fleet.MDMWindowsEnrolledDevice{ID: 1, HostUUID: existingHost}
+	// An enrollment holding the device ID under another hardware ID.
+	linkedOtherHardwareID := &fleet.MDMWindowsEnrolledDevice{ID: 2, HostUUID: existingHost}
+	wipeCmd := &fleet.MDMCommand{}
+	wiped := &fleet.HostLockWipeStatus{
+		HostFleetPlatform: "windows", WipeMDMCommand: wipeCmd, WipeMDMCommandResult: &fleet.MDMCommandResult{Status: "200"},
+	}
+	pendingWipe := &fleet.HostLockWipeStatus{HostFleetPlatform: "windows", WipeMDMCommand: wipeCmd}
+	noLockWipe := &fleet.HostLockWipeStatus{HostFleetPlatform: "windows"}
+	const refused = "hardware ID is enrolled to another host"
+	const refusedDeviceID = "device ID is enrolled to another host"
+
 	for _, tc := range []struct {
 		name            string
 		enrollingHost   string
-		deletedHostUUID string
-		deleteErr       error
-		wantErr         bool
-		wantCollision   bool
+		existing        *fleet.MDMWindowsEnrolledDevice // nil means no enrollment holds the hardware ID
+		byDeviceID      *fleet.MDMWindowsEnrolledDevice // nil means no enrollment holds the device ID
+		existingDeleted bool
+		lockWipe        *fleet.HostLockWipeStatus
+		dsErr           error
+		wantErr         string
 	}{
+		{name: "no existing enrollment", enrollingHost: enrollingHost},
+		{name: "existing enrollment not linked to a host", enrollingHost: enrollingHost, existing: &fleet.MDMWindowsEnrolledDevice{}},
+		{name: "same host re-enrolling", enrollingHost: existingHost, existing: linked},
+		{name: "existing host was deleted", enrollingHost: enrollingHost, existing: linked, existingDeleted: true},
+		{name: "existing host was wiped", enrollingHost: enrollingHost, existing: linked, lockWipe: wiped},
+		{name: "different host", enrollingHost: enrollingHost, existing: linked, lockWipe: noLockWipe, wantErr: refused},
+		{name: "different host, existing host's wipe pending", enrollingHost: enrollingHost, existing: linked, lockWipe: pendingWipe, wantErr: refused},
+		{name: "same enrollment holds both IDs", enrollingHost: existingHost, existing: linked, byDeviceID: linked},
+		{name: "device ID held by the same host", enrollingHost: existingHost, byDeviceID: linkedOtherHardwareID},
 		{
-			name: "enrollment taken from a different host", enrollingHost: enrollingHost, deletedHostUUID: incumbentHost,
-			wantCollision: true,
+			name: "device ID held by another host", enrollingHost: enrollingHost, byDeviceID: linkedOtherHardwareID, lockWipe: noLockWipe,
+			wantErr: refusedDeviceID,
 		},
-		{name: "same host re-enrolling", enrollingHost: enrollingHost, deletedHostUUID: enrollingHost},
-		{name: "deleted enrollment was not linked to a host", enrollingHost: enrollingHost},
-		{name: "enrolling host is unknown, as in an automatic enrollment", deletedHostUUID: incumbentHost},
-		{
-			name: "nothing was enrolled with that hardware id", enrollingHost: enrollingHost,
-			deleteErr: &notFoundError{},
-		},
-		{
-			name: "the delete fails", enrollingHost: enrollingHost, deletedHostUUID: incumbentHost,
-			deleteErr: errors.New("db is down"), wantErr: true,
-		},
+		{name: "device ID held by a wiped host", enrollingHost: enrollingHost, byDeviceID: linkedOtherHardwareID, lockWipe: wiped},
+		{name: "automatic enrollment is not checked", existing: linked},
+		{name: "lookup fails", enrollingHost: enrollingHost, dsErr: errors.New("db is down"), wantErr: "db is down"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc = func(_ context.Context, gotHWID string) (string, error) {
+			ds.MDMWindowsGetEnrolledDeviceWithHardwareIDFunc = func(_ context.Context, gotHWID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 				require.Equal(t, hwID, gotHWID)
-				if tc.deleteErr != nil {
-					return "", tc.deleteErr
+				if tc.dsErr != nil {
+					return nil, tc.dsErr
 				}
-				return tc.deletedHostUUID, nil
+				if tc.existing == nil {
+					return nil, &notFoundError{}
+				}
+				return tc.existing, nil
+			}
+			ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(_ context.Context, gotDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				require.Equal(t, deviceID, gotDeviceID)
+				if tc.byDeviceID == nil {
+					return nil, &notFoundError{}
+				}
+				return tc.byDeviceID, nil
+			}
+			ds.HostByUUIDFunc = func(_ context.Context, gotUUID string) (*fleet.Host, error) {
+				require.Equal(t, existingHost, gotUUID)
+				if tc.existingDeleted {
+					return nil, &notFoundError{}
+				}
+				return &fleet.Host{ID: 1, UUID: gotUUID, Platform: "windows"}, nil
+			}
+			ds.GetHostLockWipeStatusFunc = func(_ context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+				require.Equal(t, existingHost, host.UUID)
+				return tc.lockWipe, nil
 			}
 			handler := testutils.NewTestHandler()
 			svc := &Service{ds: ds, logger: slog.New(handler)}
 
-			err := svc.removeWindowsDeviceIfAlreadyMDMEnrolled(t.Context(), secTokenMsg, tc.enrollingHost)
-			if tc.wantErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err, "a duplicate hardware ID must never fail an enrollment")
+			err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(t.Context(), hwID, deviceID, tc.enrollingHost)
+			if tc.enrollingHost == "" {
+				require.False(t, ds.MDMWindowsGetEnrolledDeviceWithHardwareIDFuncInvoked)
 			}
-			require.True(t, ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFuncInvoked)
-
-			attrs := warnAttrs(handler, "hardware ID already held by another host")
-			if !tc.wantCollision {
-				require.Nil(t, attrs, "this is not a collision and must not be reported as one")
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				require.Nil(t, warnAttrs(handler, "refusing windows MDM enrollment"), "an allowed enrollment must not be reported as refused")
 				return
 			}
+			require.ErrorContains(t, err, tc.wantErr)
+			if tc.dsErr != nil {
+				return
+			}
+
 			// Whole-map equality so a renamed or extra attribute fails too: this log line is the only signal.
+			attrs := warnAttrs(handler, "refusing windows MDM enrollment")
+			idKey, id := "mdm_hardware_id", hwID
+			if tc.wantErr == refusedDeviceID {
+				idKey, id = "mdm_device_id", deviceID
+			}
 			require.Equal(t, map[string]string{
-				"mdm_hardware_id":     hwID,
+				idKey:                 id,
 				"enrolling_host_uuid": tc.enrollingHost,
-				"existing_host_uuid":  tc.deletedHostUUID,
+				"existing_host_uuid":  existingHost,
 			}, attrs)
 		})
 	}
