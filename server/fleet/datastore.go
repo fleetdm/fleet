@@ -1836,8 +1836,9 @@ type Datastore interface {
 	SetHostMDMMigrationCompleted(ctx context.Context, hostID uint) error
 
 	// IngestMDMAppleDeviceFromOTAEnrollment creates new host records for
-	// MDM-enrolled devices via OTA that are not already enrolled in Fleet.
-	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo) error
+	// MDM-enrolled devices via OTA that are not already enrolled in Fleet. It
+	// returns the IdP account the host was linked to before, empty if none.
+	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo) (previousAcctUUID string, err error)
 
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
@@ -2592,12 +2593,15 @@ type Datastore interface {
 	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error)
 
 	// ReconcileMDMAppleEnrollRef returns the legacy enrollment reference for a
-	// device with the given host UUID.
-	ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *MDMAppleMachineInfo) (string, error)
+	// device with the given host UUID, and the IdP account the host was linked
+	// to before, empty if none. With an empty enrollRef the link is removed in
+	// its own transaction, so the previous account is returned even with an error.
+	ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *MDMAppleMachineInfo) (legacyRef string, previousAcctUUID string, err error)
 	// GetMDMIdPAccountByHostUUID returns the MDM IdP account that associated with the given host UUID.
 	GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*MDMIdPAccount, error)
 	// AssociateHostMDMIdPAccount associates the given host UUID with the MDM IdP account UUID
-	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID string, accountUUID string) error
+	// and returns the account it was linked to before, empty if none.
+	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID string, accountUUID string) (previousAcctUUID string, err error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
@@ -2618,6 +2622,9 @@ type Datastore interface {
 
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
+
+	// MDMWindowsGetEnrolledDeviceWithHardwareID returns the enrollment held by a Windows MDM hardware ID (HWDevID)
+	MDMWindowsGetEnrolledDeviceWithHardwareID(ctx context.Context, mdmHardwareID string) (*MDMWindowsEnrolledDevice, error)
 
 	// MDMWindowsEnqueuePollScheduleCommand enqueues the DMClient poll-schedule Replace command and records the intended relaxed state for the
 	// enrollment.
@@ -4329,6 +4336,21 @@ type Datastore interface {
 	// CleanupExpiredADUEEnrollmentChallenges deletes enrollment challenges expired more than 1 day ago.
 	CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) error
 
+	// InsertMDMAppleDEPEnrollmentChallenge generates and inserts a one-time automatic enrollment
+	// challenge bound to the MDM IdP account and to the device's hardware serial and UDID, valid
+	// for the given duration. Returns the generated challenge string.
+	InsertMDMAppleDEPEnrollmentChallenge(ctx context.Context, idpAccountUUID, hardwareSerial, hostUUID string, expiration time.Duration) (challenge string, err error)
+	// GetMDMAppleDEPEnrollmentChallenge returns the automatic enrollment challenge, whether or not
+	// it's used or expired.
+	GetMDMAppleDEPEnrollmentChallenge(ctx context.Context, challenge string) (*MDMAppleDEPEnrollmentChallenge, error)
+	// ConsumeMDMAppleDEPEnrollmentChallenge marks the automatic enrollment challenge as used and
+	// returns it. It returns a not found error if the challenge doesn't exist, was already used, or
+	// is expired.
+	ConsumeMDMAppleDEPEnrollmentChallenge(ctx context.Context, challenge string) (*MDMAppleDEPEnrollmentChallenge, error)
+	// CleanupExpiredMDMAppleDEPEnrollmentChallenges deletes automatic enrollment challenges expired
+	// more than 1 day ago.
+	CleanupExpiredMDMAppleDEPEnrollmentChallenges(ctx context.Context) error
+
 	ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*DDMAsset, error)
 	GetAppleDDMAsset(ctx context.Context, assetUUID string) (*DDMAsset, error)
 	GetAppleDDMAssetForDelivery(ctx context.Context, identifier string, hostUUID string) (*DownloadableDDMAsset, error)
@@ -4438,7 +4460,7 @@ type AndroidDatastore interface {
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
-	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error
+	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) (previousAcctUUID string, err error)
 	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
 	// TeamLite retrieves a Team by ID, including only id, created_at, name, filename, description, config fields.
 	TeamLite(ctx context.Context, tid uint) (*TeamLite, error)
