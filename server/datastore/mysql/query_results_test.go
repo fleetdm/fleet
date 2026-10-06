@@ -603,14 +603,10 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, res.RowsAdded)
 
-	// Assert that the data has not changed
+	// Results of a deleted query are never returned; CleanupStaleQueryResults deletes them.
 	results, err = ds.QueryResultRowsForHost(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID)
 	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, overwriteRows[0].QueryID, results[0].QueryID)
-	require.Equal(t, overwriteRows[0].HostID, results[0].HostID)
-	require.Equal(t, overwriteRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
-	require.JSONEq(t, string(*overwriteRows[0].Data), string(*results[0].Data))
+	require.Empty(t, results)
 }
 
 func testQueryResultRowsListOptions(t *testing.T, ds *Datastore) {

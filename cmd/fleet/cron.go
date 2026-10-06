@@ -1924,6 +1924,10 @@ func newQueryResultsCleanupSchedule(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger.With("cron", name)),
+		// Runs first so the excess cleanup's counts don't include rows about to be deleted.
+		schedule.WithJob("cleanup_stale_query_results", func(ctx context.Context) error {
+			return ds.CleanupStaleQueryResults(ctx)
+		}),
 		schedule.WithJob("cleanup_excess_query_results", func(ctx context.Context) error {
 			appConfig, err := ds.AppConfig(ctx)
 			if err != nil {
