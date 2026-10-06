@@ -36,6 +36,8 @@ func TestScripts(t *testing.T) {
 		{"BatchSetScriptsDoesNotLockOtherPolicies", testBatchSetScriptsDoesNotLockOtherPolicies},
 		{"BatchSetScriptsUnsetsScriptAddedMidApply", testBatchSetScriptsUnsetsScriptAddedMidApply},
 		{"BatchSetScriptsLocksUnsetPolicyAtEnd", testBatchSetScriptsLocksUnsetPolicyAtEnd},
+		{"BatchSetScriptsUnchangedDoesNotBlockScriptRuns", testBatchSetScriptsUnchangedDoesNotBlockScriptRuns},
+		{"BatchSetScriptsCancelsRunQueuedMidApply", testBatchSetScriptsCancelsRunQueuedMidApply},
 		{"TestLockHostViaScript", testLockHostViaScript},
 		{"TestUnlockHostViaScript", testUnlockHostViaScript},
 		{"TestLockUnlockWipeViaScripts", testLockUnlockWipeViaScripts},
@@ -906,16 +908,17 @@ func testBatchSetScriptsLocksUnsetPolicyAtEnd(t *testing.T, ds *Datastore) {
 	policy, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", ScriptID: &goneID})
 	require.NoError(t, err)
 
-	// Park the apply inside its per-script loop by holding a script contents row it upserts.
+	// Park the apply inside its per-script loop by holding the script contents row an edited script
+	// upserts. Unchanged scripts are skipped, so the edit is what puts it in the loop.
 	blockTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	require.NoError(t, err)
 	defer func() { _ = blockTx.Rollback() }()
-	_, err = blockTx.ExecContext(ctx, `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?) FOR UPDATE`, md5ChecksumScriptContent("echo a"))
+	_, err = blockTx.ExecContext(ctx, `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?) FOR UPDATE`, md5ChecksumScriptContent("echo a2"))
 	require.NoError(t, err)
 
 	applyErr := make(chan error, 1)
 	go func() {
-		_, err := ds.BatchSetScripts(ctx, &tm.ID, kept)
+		_, err := ds.BatchSetScripts(ctx, &tm.ID, []*fleet.Script{{Name: "a.sh", ScriptContents: "echo a2"}, kept[1]})
 		applyErr <- err
 	}()
 	// innodb_trx only refreshes when it hasn't been read for 100ms, so poll slower than that.
@@ -939,6 +942,139 @@ func testBatchSetScriptsLocksUnsetPolicyAtEnd(t *testing.T, ds *Datastore) {
 	policy, err = ds.Policy(ctx, policy.ID)
 	require.NoError(t, err)
 	require.Nil(t, policy.ScriptID)
+}
+
+func testBatchSetScriptsUnchangedDoesNotBlockScriptRuns(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tmA, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " A"})
+	require.NoError(t, err)
+	tmB, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " B"})
+	require.NoError(t, err)
+	scriptsA := make([]*fleet.Script, 0, 12)
+	for i := range 12 {
+		scriptsA = append(scriptsA, &fleet.Script{Name: fmt.Sprintf("a%d.sh", i), ScriptContents: fmt.Sprintf("echo a%d", i)})
+	}
+	setA, err := ds.BatchSetScripts(ctx, &tmA.ID, scriptsA)
+	require.NoError(t, err)
+	setB, err := ds.BatchSetScripts(ctx, &tmB.ID, []*fleet.Script{{Name: "b.sh", ScriptContents: "echo b"}})
+	require.NoError(t, err)
+	require.Len(t, setA, 12)
+	require.Len(t, setB, 1)
+	scriptA, scriptB := setA[0], setB[0]
+	contentsA, contentsB := "echo "+strings.TrimSuffix(scriptA.Name, ".sh"), "echo b"
+
+	h1 := test.NewHost(t, ds, "h1", "10.0.0.1", "1", "uuid1", time.Now())
+	h2 := test.NewHost(t, ds, "h2", "10.0.0.2", "2", "uuid2", time.Now())
+	enqueue := func(ctx context.Context, tx sqlx.ExtContext, hostID uint, s fleet.ScriptResponse, contents string) error {
+		req := &fleet.HostScriptRequestPayload{HostID: hostID, ScriptID: &s.ID, ScriptContents: contents}
+		if tx == nil {
+			_, err := ds.NewHostScriptExecutionRequest(ctx, req)
+			return err
+		}
+		res, err := insertScriptContents(ctx, tx, contents)
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+		req.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
+		_, err = ds.newHostScriptExecutionRequest(ctx, tx, req, false)
+		return err
+	}
+	require.NoError(t, enqueue(ctx, nil, h1.ID, scriptA, contentsA))
+
+	// Script runs being queued, not yet committed, in this fleet and another one.
+	enqTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = enqTx.Rollback() }()
+	require.NoError(t, enqueue(ctx, enqTx, h2.ID, scriptA, contentsA))
+	require.NoError(t, enqueue(ctx, enqTx, h2.ID, scriptB, contentsB))
+
+	applyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	_, err = ds.BatchSetScripts(applyCtx, &tmA.ID, scriptsA)
+	require.NoError(t, err)
+	require.NoError(t, enqTx.Rollback())
+
+	// Park an apply that edits one script, then queue runs of an unchanged script and of another
+	// fleet's script. Neither waits on the apply.
+	blockTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = blockTx.Rollback() }()
+	edited := append([]*fleet.Script{{Name: scriptsA[11].Name, ScriptContents: "echo edited"}}, scriptsA[:11]...)
+	_, err = blockTx.ExecContext(ctx, `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?) FOR UPDATE`, md5ChecksumScriptContent("echo edited"))
+	require.NoError(t, err)
+	applyErr := make(chan error, 1)
+	go func() {
+		_, err := ds.BatchSetScripts(ctx, &tmA.ID, edited)
+		applyErr <- err
+	}()
+	// innodb_trx only refreshes when it hasn't been read for 100ms, so poll slower than that.
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &waiting, `SELECT COUNT(*) FROM information_schema.innodb_trx WHERE trx_state = 'LOCK WAIT'`)
+		return err == nil && waiting > 0
+	}, 5*time.Second, 250*time.Millisecond)
+	for _, s := range []struct {
+		script   fleet.ScriptResponse
+		contents string
+	}{{scriptA, contentsA}, {scriptB, contentsB}} {
+		enqCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		require.NoError(t, enqueue(enqCtx, nil, h2.ID, s.script, s.contents), s.script.Name)
+		cancel()
+	}
+	require.NoError(t, blockTx.Rollback())
+	require.NoError(t, <-applyErr)
+
+	pending, err := ds.ListPendingHostScriptExecutions(ctx, h1.ID, false)
+	require.NoError(t, err)
+	require.Len(t, pending, 1, "unchanged script keeps its pending run")
+}
+
+func testBatchSetScriptsCancelsRunQueuedMidApply(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	set, err := ds.BatchSetScripts(ctx, &tm.ID, []*fleet.Script{{Name: "kept.sh", ScriptContents: "echo kept"}, {Name: "gone.sh", ScriptContents: "echo gone"}})
+	require.NoError(t, err)
+	var gone fleet.ScriptResponse
+	for _, s := range set {
+		if s.Name == "gone.sh" {
+			gone = s
+		}
+	}
+	host := test.NewHost(t, ds, "h1", "10.0.0.1", "1", "uuid1", time.Now())
+
+	// Park an apply that removes gone.sh inside its per-script loop, after its snapshot is taken.
+	blockTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = blockTx.Rollback() }()
+	_, err = blockTx.ExecContext(ctx, `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?) FOR UPDATE`, md5ChecksumScriptContent("echo kept2"))
+	require.NoError(t, err)
+	applyErr := make(chan error, 1)
+	go func() {
+		_, err := ds.BatchSetScripts(ctx, &tm.ID, []*fleet.Script{{Name: "kept.sh", ScriptContents: "echo kept2"}})
+		applyErr <- err
+	}()
+	// innodb_trx only refreshes when it hasn't been read for 100ms, so poll slower than that.
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &waiting, `SELECT COUNT(*) FROM information_schema.innodb_trx WHERE trx_state = 'LOCK WAIT'`)
+		return err == nil && waiting > 0
+	}, 5*time.Second, 250*time.Millisecond)
+
+	enqCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	_, err = ds.NewHostScriptExecutionRequest(enqCtx, &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &gone.ID, ScriptContents: "echo gone"})
+	require.NoError(t, err)
+
+	require.NoError(t, blockTx.Rollback())
+	require.NoError(t, <-applyErr)
+
+	var orphaned int
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &orphaned, `SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID))
+	require.Zero(t, orphaned)
 }
 
 func testBatchSetScriptsUnsetsScriptAddedMidApply(t *testing.T, ds *Datastore) {
