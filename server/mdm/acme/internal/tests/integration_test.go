@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"net/url"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
