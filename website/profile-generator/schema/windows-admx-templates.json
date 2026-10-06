@@ -1,25 +1,11 @@
 {
-  "generatedAt": "2026-10-06T18:14:16.540Z",
+  "generatedAt": "2026-10-06T19:57:47.826Z",
   "templates": [
-    {
-      "id": "google",
-      "displayName": "Google (shared parent category)",
-      "isSharedParent": true,
-      "vendorVersion": "2026-10-06",
-      "sourceUrl": "https://dl.google.com/dl/edgedl/chrome/policy/policy_templates.zip",
-      "appName": "Google",
-      "path": "admx-templates/google/google.admx",
-      "bytes": 338,
-      "installLocUri": "./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/Google/Policy/GoogleAdmxFile"
-    },
     {
       "id": "google-chrome",
       "displayName": "Google Chrome",
       "keywords": [
         "chrome"
-      ],
-      "requires": [
-        "google"
       ],
       "vendorVersion": "155.0.8059.40",
       "sourceUrl": "https://dl.google.com/dl/edgedl/chrome/policy/policy_templates.zip",
@@ -37,9 +23,6 @@
         "google drive",
         "gcpw"
       ],
-      "requires": [
-        "google"
-      ],
       "vendorVersion": "2025-08-10",
       "sourceUrl": "https://dl.google.com/dl/update2/enterprise/googleupdateadmx.zip",
       "appName": "GoogleUpdate",
@@ -48,24 +31,10 @@
       "installLocUri": "./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/GoogleUpdate/Policy/GoogleUpdateAdmxFile"
     },
     {
-      "id": "mozilla",
-      "displayName": "Mozilla (shared parent category)",
-      "isSharedParent": true,
-      "vendorVersion": "2026-09-16",
-      "sourceUrl": "https://github.com/mozilla/policy-templates/releases/download/v8.3/policy_templates_v8.3.zip",
-      "appName": "Mozilla",
-      "path": "admx-templates/mozilla/mozilla.admx",
-      "bytes": 417,
-      "installLocUri": "./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/Mozilla/Policy/MozillaAdmxFile"
-    },
-    {
       "id": "mozilla-firefox",
       "displayName": "Mozilla Firefox",
       "keywords": [
         "firefox",
-        "mozilla"
-      ],
-      "requires": [
         "mozilla"
       ],
       "vendorVersion": "2026-09-16",

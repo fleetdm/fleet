@@ -48,7 +48,7 @@ every LocURI under them.`,
     // (the display name in kebab case), where it is saved (admx-templates/<id>/<file name>.admx), its AppName
     // (the namespace its .admx defines, without "Policies", e.g., Google.Policies.Chrome is GoogleChrome), where
     // it is ingested (ADMXInstall/<AppName>/Policy/<AppName>AdmxFile), its en-US .adml
-    // (<folder>/en-US/<name>.adml, the layout every vendor ships) and any shared parent template it needs.
+    // (<folder>/en-US/<name>.adml, the layout every vendor ships).
 
     // To add an ADMX template, add an entry to this list following the commented-out example below, then run `sails run regenerate-windows-admx-templates`.
     let TEMPLATES = [
@@ -237,301 +237,259 @@ every LocURI under them.`,
         }
         // Get the downloaded package this template comes from.
         let downloaded = downloadedPackages[packageSource];
-        // The folder inside the .zip that holds the app's .admx, where its .adml and any shared parent template are also looked for.
+        // The folder inside the .zip that holds the app's .admx, where its .adml is also looked for.
         let admxFolder = path.posix.dirname(listedTemplate.admxPathInPackage);
 
-        // A shared parent template defines only a vendor's root category, which the app's own root category
-        // points at across namespaces (chrome.admx's googlechrome has parentCategory Google:Cat_Google, and
-        // declares <using namespace="Google.Policies" prefix="Google"/>).  Each one is ingested ahead of the
-        // templates that need it, under its own AppName, so Chrome and Google Update share one copy rather than
-        // each installing a second definition of the same namespace.  A namespace no file in the folder
-        // defines (Microsoft.Policies.Windows) is one Windows already has.
-        let appAdmxText = readFromPackage(downloaded.zipPath, listedTemplate.admxPathInPackage);
-        let sharedParents = [];
-        // Match each <using namespace="..." prefix="..."/> element, which names another template's namespace this one refers to.
-        let usingRegExp = /<using\b((?:[^>"]|"[^"]*")*?)\/?>/g;
-        let usingMatch;
-        // Loop through the <using> elements in the app's .admx.
-        while ((usingMatch = usingRegExp.exec(appAdmxText)) !== null) {
-          // Read the <using> element's attributes, e.g., {namespace: 'Google.Policies', prefix: 'Google'}.
-          let using = parseAttributes(usingMatch[1]);
-          // Look through the other .admx files in the same folder of the .zip for the one that defines this namespace, and add it as a shared parent.
-          for (let entry of downloaded.entries) {
-            if(entry === listedTemplate.admxPathInPackage || path.posix.dirname(entry) !== admxFolder || !/\.admx$/i.test(entry)) {
+        // Combine the listed template with its id, the display name in kebab case.
+        let template = Object.assign({}, listedTemplate, {id: _.kebabCase(listedTemplate.displayName)});
+        // Read the app's .admx out of the .zip.
+        let admxText = readFromPackage(downloaded.zipPath, template.admxPathInPackage);
+
+        // Throw an error if an ADMX template contains "]]>", which would break how it will be injected into ADMX-backed XML policies
+        if(_.contains(admxText, ']]>')) {
+          throw new Error(`${template.admxPathInPackage} contains "]]>", so it cannot be embedded in a CDATA section.`);
+        }
+
+        // Name the template after the namespace its .admx defines, without "Policies", e.g., Google.Policies.Chrome is GoogleChrome.  Windows builds every policy's LocURI from this name, and a vendor's namespace is meant to be unique, so two templates never share one.
+        let targetNamespace = parseAttributes((admxText.match(/<target\b((?:[^>"]|"[^"]*")*?)\/?>/) || [])[1] || '').namespace;
+        if(!targetNamespace) {
+          throw new Error(`${template.admxPathInPackage} has no <target namespace="..."/> element, so the script cannot name the template.  Check that admxPathInPackage points to an .admx file.`);
+        }
+        let appName = _.map(_.reject(targetNamespace.split('.'), (segment)=>{ return /^policies$/i.test(segment); }), _.capitalize).join('').replace(/[^A-Za-z0-9]/g, '');
+        let templateWithTheSameAppName = _.find(templatesToWrite, (written)=>{ return written.entry.appName === appName; });
+        if(templateWithTheSameAppName) {
+          throw new Error(`${template.displayName} and ${templateWithTheSameAppName.template.displayName} both define the ${targetNamespace} namespace, so they would install over each other.  Remove one of them from TEMPLATES.`);
+        }
+
+        // Use Chrome's version comment as the template's version, or the date the vendor's package was published when there is none.
+        let vendorVersion = (admxText.match(/<!--\s*chrome version:\s*([\d.]+)\s*-->/) || [])[1] || downloaded.lastModified;
+        // Save the template under its file name inside the .zip (chrome.admx, firefox.admx).
+        let savedAs = path.posix.basename(template.admxPathInPackage);
+        templatesToWrite.push({
+          template,
+          admxText,
+          savedAs,
+          entry: {
+            id: template.id,
+            displayName: template.displayName,
+            keywords: template.keywords,
+            vendorVersion,
+            sourceUrl: downloaded.resolvedUrl,
+            appName,
+            path: `admx-templates/${template.id}/${savedAs}`,
+            bytes: Buffer.byteLength(admxText, 'utf8'),
+            installLocUri: `./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/${appName}/Policy/${appName}AdmxFile`,
+          },
+        });
+
+        // Find the template's en-US .adml, which holds the display names, descriptions and element labels its .admx refers to.
+        let admlPathInPackage = `${admxFolder}/en-US/${path.posix.basename(template.admxPathInPackage).replace(/\.admx$/i, '.adml')}`;
+        if(!_.contains(downloaded.entries, admlPathInPackage)) {
+          throw new Error(`Could not find the en-US .adml for ${template.displayName}.  The script expects it at ${admlPathInPackage} in ${downloaded.resolvedUrl}, beside the .admx in an en-US folder.  Check that admxPathInPackage is correct, and that the vendor's package includes an en-US .adml.`);
+        }
+        // Read the .adml's contents.
+        let admlText = readFromPackage(downloaded.zipPath, admlPathInPackage);
+        let strings = {};
+        // Match each string in the .adml, e.g., <string id="HomepageLocation">Configure the home page URL</string>.
+        let stringRegExp = /<string\s+id="([^"]+)"\s*>([\s\S]*?)<\/string>/g;
+        let match;
+        // Loop through the matched strings, and store each one's decoded text by its id.
+        while ((match = stringRegExp.exec(admlText)) !== null) {
+          strings[match[1]] = decodeEntities(match[2]).trim();
+        }
+        let labelsByPresentationId = {};
+        // Match each presentation in the .adml, e.g., <presentation id="HomepageLocation"><textBox refId="HomepageLocation"><label>Home page URL</label></textBox></presentation>.
+        let presentationRegExp = /<presentation\s+id="([^"]+)"\s*>([\s\S]*?)<\/presentation>/g;
+        // Loop through the matched presentations, and store the label of each element it lays out (the text beside its box in the Group Policy editor) by the element's id.
+        while ((match = presentationRegExp.exec(admlText)) !== null) {
+          let labels = {};
+          let controlRegExp = /<(\w+)\b((?:[^>"]|"[^"]*")*?)(?:\/>|>([\s\S]*?)<\/\1>)/g;
+          let control;
+          while ((control = controlRegExp.exec(match[2])) !== null) {
+            let refId = (control[2].match(/\brefId="([^"]+)"/) || [])[1];
+            if(!refId) {
               continue;
             }
-            let candidateText = readFromPackage(downloaded.zipPath, entry);
-            let targetNamespace = parseAttributes((candidateText.match(/<target\b((?:[^>"]|"[^"]*")*?)\/?>/) || [])[1] || '').namespace;
-            if(targetNamespace === using.namespace) {
-              sharedParents.push({id: _.kebabCase(using.prefix), displayName: `${using.prefix} (shared parent category)`, isSharedParent: true, admxPathInPackage: entry, admxText: candidateText});
+            let inner = control[3] || '';
+            // Use the text of the control's <label>, or the control's own text when it has none, e.g., <checkBox refId="HomepageLocked">Don't allow the homepage to be changed.</checkBox>.
+            let label = (inner.match(/<label>([\s\S]*?)<\/label>/) || [])[1] || inner.replace(/<[^>]+>[\s\S]*?<\/[^>]+>/g, '').replace(/<[^>]+>/g, '');
+            labels[refId] = decodeEntities(label).replace(/\s+/g, ' ').trim();
+          }
+          labelsByPresentationId[match[1]] = labels;
+        }
+
+        let unresolvedStrings = [];
+        // Look up the text a $(string.Id) reference in the .admx points to, and record any reference the .adml has no string for.
+        let resolve = (reference)=>{
+          // Get the string id from a reference like $(string.HomepageLocation), or undefined when the value is plain text rather than a reference.
+          let stringId = (String(reference || '').match(/^\$\(string\.([^)]+)\)$/) || [])[1];
+
+          if(!stringId) {
+            return reference;
+          }
+
+          if(strings[stringId] === undefined) {
+            unresolvedStrings.push(stringId);
+            return undefined;
+          }
+          return strings[stringId];
+        };
+
+        let categoriesByName = {};
+        // Match each category in the .admx, e.g., <category name="Startup" displayName="$(string.Startup_group)"><parentCategory ref="googlechrome"/></category>.
+        let categoryRegExp = /<category\b((?:[^>"]|"[^"]*")*?)(?:\/>|>([\s\S]*?)<\/category>)/g;
+        // Loop through the matched categories, and store each one's parent by its name, so a policy's full category path can be built below.
+        while ((match = categoryRegExp.exec(admxText)) !== null) {
+          let attributes = parseAttributes(match[1]);
+          categoriesByName[attributes.name] = {
+            name: attributes.name,
+            parentRef: (String(match[2] || '').match(/<parentCategory\s+ref="([^"]+)"/) || [])[1],
+          };
+        }
+
+        let nodesForThisTemplate = [];
+        let droppedForRegistryKey = [];
+        // Match each policy in the .admx, e.g., <policy name="HomepageLocation" class="Both" key="Software\Policies\Google\Chrome">...</policy>.
+        let policyRegExp = /<policy\b((?:[^>"]|"[^"]*")*?)(?:\/>|>([\s\S]*?)<\/policy>)/g;
+        // Loop through the matched policies, and build a node for each one the generator can offer.
+        while ((match = policyRegExp.exec(admxText)) !== null) {
+
+          // Read the policy's attributes (name, class, key, displayName, explainText, presentation).
+          let attributes = parseAttributes(match[1]);
+
+          // The XML inside the policy element: its parent category, and the elements it takes values for.
+          let body = match[2] || '';
+
+          // Windows builds the area from the category chain joined by ~.  A parent in another namespace
+          // (prefix:Name) ends the chain, which is what puts Chrome's policies under
+          // Chrome~Policy~googlechrome~... rather than under Google's Cat_Google.
+          let categoryPath = [];
+          // Start from the category the policy's <parentCategory> points to.
+          let category = categoriesByName[(body.match(/<parentCategory\s+ref="([^"]+)"/) || [])[1]];
+          // Walk up through each category's parent, adding it to the front of the path, until reaching the root or a parent in another template's namespace.
+          while (category) {
+            categoryPath.unshift(category.name);
+            if(!category.parentRef || _.contains(category.parentRef, ':') || _.contains(categoryPath, category.parentRef)) {
               break;
             }
+            category = categoriesByName[category.parentRef];
           }
-        }
-
-        // Combine the listed template with the values worked out from its package: its id, the shared parents it requires, and its .admx text.
-        let appTemplate = Object.assign({}, listedTemplate, {id: _.kebabCase(listedTemplate.displayName), requires: _.pluck(sharedParents, 'id'), admxText: appAdmxText});
-        // Now loop through the shared parent templates and then the app's template, and queue each one to be written.
-        for (let template of sharedParents.concat([appTemplate])) {
-          // Skip a template that is already queued, which happens when two apps share a parent like google.admx.
-          if(_.find(templatesToWrite, (written)=>{ return written.template.id === template.id; })) {
+          if(categoryPath.length === 0) {
             continue;
           }
-          let admxText = template.admxText;
-
-          // Throw an error if an ADMX template contains "]]>", which would break how it will be injected into ADMX-backed XML policies
-          if(_.contains(admxText, ']]>')) {
-            throw new Error(`${template.admxPathInPackage} contains "]]>", so it cannot be embedded in a CDATA section.`);
+          if(template.onlyCategories && !_.contains(template.onlyCategories, _.last(categoryPath))) {
+            continue;
           }
-
-          // Name the template after the namespace its .admx defines, without "Policies", e.g., Google.Policies.Chrome is GoogleChrome.  Windows builds every policy's LocURI from this name, and a vendor's namespace is meant to be unique, so two templates never share one.
-          let targetNamespace = parseAttributes((admxText.match(/<target\b((?:[^>"]|"[^"]*")*?)\/?>/) || [])[1] || '').namespace;
-          if(!targetNamespace) {
-            throw new Error(`${template.admxPathInPackage} has no <target namespace="..."/> element, so the script cannot name the template.  Check that admxPathInPackage points to an .admx file.`);
-          }
-          let appName = _.map(_.reject(targetNamespace.split('.'), (segment)=>{ return /^policies$/i.test(segment); }), _.capitalize).join('').replace(/[^A-Za-z0-9]/g, '');
-          let templateWithTheSameAppName = _.find(templatesToWrite, (written)=>{ return written.entry.appName === appName; });
-          if(templateWithTheSameAppName) {
-            throw new Error(`${template.displayName} and ${templateWithTheSameAppName.template.displayName} both define the ${targetNamespace} namespace, so they would install over each other.  Remove one of them from TEMPLATES.`);
-          }
-
-          // Use Chrome's version comment as the template's version, or the date the vendor's package was published when there is none.
-          let vendorVersion = (admxText.match(/<!--\s*chrome version:\s*([\d.]+)\s*-->/) || [])[1] || downloaded.lastModified;
-          // Save the template under its file name inside the .zip (chrome.admx, firefox.admx).
-          let savedAs = path.posix.basename(template.admxPathInPackage);
-          templatesToWrite.push({
-            template,
-            admxText,
-            savedAs,
-            entry: {
-              id: template.id,
-              displayName: template.displayName,
-              keywords: template.keywords,
-              isSharedParent: template.isSharedParent || undefined,
-              requires: template.isSharedParent || template.requires.length === 0 ? undefined : template.requires,
-              vendorVersion,
-              sourceUrl: downloaded.resolvedUrl,
-              appName,
-              path: `admx-templates/${template.id}/${savedAs}`,
-              bytes: Buffer.byteLength(admxText, 'utf8'),
-              installLocUri: `./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/${appName}/Policy/${appName}AdmxFile`,
-            },
-          });
-
-          // Stop here for a shared parent template, since it only defines a category and has no policies to parse.
-          if(template.isSharedParent) {
+          // Chrome keeps every policy it has retired in the template, under RemovedPolicies, so that existing
+          // Group Policy objects still open.  Setting one does nothing, so it is never worth offering.
+          if(_.contains(categoryPath, 'RemovedPolicies')) {
             continue;
           }
 
-          // Find the template's en-US .adml, which holds the display names, descriptions and element labels its .admx refers to.
-          let admlPathInPackage = `${admxFolder}/en-US/${path.posix.basename(template.admxPathInPackage).replace(/\.admx$/i, '.adml')}`;
-          if(!_.contains(downloaded.entries, admlPathInPackage)) {
-            throw new Error(`Could not find the en-US .adml for ${template.displayName}.  The script expects it at ${admlPathInPackage} in ${downloaded.resolvedUrl}, beside the .admx in an en-US folder.  Check that admxPathInPackage is correct, and that the vendor's package includes an en-US .adml.`);
-          }
-          // Read the .adml's contents.
-          let admlText = readFromPackage(downloaded.zipPath, admlPathInPackage);
-          let strings = {};
-          // Match each string in the .adml, e.g., <string id="HomepageLocation">Configure the home page URL</string>.
-          let stringRegExp = /<string\s+id="([^"]+)"\s*>([\s\S]*?)<\/string>/g;
-          let match;
-          // Loop through the matched strings, and store each one's decoded text by its id.
-          while ((match = stringRegExp.exec(admlText)) !== null) {
-            strings[match[1]] = decodeEntities(match[2]).trim();
-          }
-          let labelsByPresentationId = {};
-          // Match each presentation in the .adml, e.g., <presentation id="HomepageLocation"><textBox refId="HomepageLocation"><label>Home page URL</label></textBox></presentation>.
-          let presentationRegExp = /<presentation\s+id="([^"]+)"\s*>([\s\S]*?)<\/presentation>/g;
-          // Loop through the matched presentations, and store the label of each element it lays out (the text beside its box in the Group Policy editor) by the element's id.
-          while ((match = presentationRegExp.exec(admlText)) !== null) {
-            let labels = {};
-            let controlRegExp = /<(\w+)\b((?:[^>"]|"[^"]*")*?)(?:\/>|>([\s\S]*?)<\/\1>)/g;
-            let control;
-            while ((control = controlRegExp.exec(match[2])) !== null) {
-              let refId = (control[2].match(/\brefId="([^"]+)"/) || [])[1];
-              if(!refId) {
-                continue;
-              }
-              let inner = control[3] || '';
-              // Use the text of the control's <label>, or the control's own text when it has none, e.g., <checkBox refId="HomepageLocked">Don't allow the homepage to be changed.</checkBox>.
-              let label = (inner.match(/<label>([\s\S]*?)<\/label>/) || [])[1] || inner.replace(/<[^>]+>[\s\S]*?<\/[^>]+>/g, '').replace(/<[^>]+>/g, '');
-              labels[refId] = decodeEntities(label).replace(/\s+/g, ' ').trim();
+          // Find the presentation that labels this policy's elements in the Group Policy editor.
+          let presentationId = (String(attributes.presentation || '').match(/^\$\(presentation\.([^)]+)\)$/) || [])[1];
+          let labels = labelsByPresentationId[presentationId] || {};
+          let registryKeys = _.compact([attributes.key]);
+          let admxElements = [];
+          // The XML inside the policy's <elements>, which defines each value the policy takes when enabled.
+          let elementsBody = (body.match(/<elements>([\s\S]*?)<\/elements>/) || [])[1] || '';
+          // Match each element the policy takes a value for, e.g., <text id="HomepageLocation" valueName="HomepageLocation"/>.
+          let elementRegExp = /<(text|decimal|longDecimal|boolean|enum|list|multiText)\b((?:[^>"]|"[^"]*")*?)(?:\/>|>([\s\S]*?)<\/\1>)/g;
+          let elementMatch;
+          // Loop through the matched elements, and record each one's type, id, label and allowed values.
+          while ((elementMatch = elementRegExp.exec(elementsBody)) !== null) {
+            let elementAttributes = parseAttributes(elementMatch[2]);
+            if(elementAttributes.key) {
+              registryKeys.push(elementAttributes.key);
             }
-            labelsByPresentationId[match[1]] = labels;
-          }
-
-          let unresolvedStrings = [];
-          // Look up the text a $(string.Id) reference in the .admx points to, and record any reference the .adml has no string for.
-          let resolve = (reference)=>{
-            // Get the string id from a reference like $(string.HomepageLocation), or undefined when the value is plain text rather than a reference.
-            let stringId = (String(reference || '').match(/^\$\(string\.([^)]+)\)$/) || [])[1];
-
-            if(!stringId) {
-              return reference;
-            }
-
-            if(strings[stringId] === undefined) {
-              unresolvedStrings.push(stringId);
-              return undefined;
-            }
-            return strings[stringId];
-          };
-
-          let categoriesByName = {};
-          // Match each category in the .admx, e.g., <category name="Startup" displayName="$(string.Startup_group)"><parentCategory ref="googlechrome"/></category>.
-          let categoryRegExp = /<category\b((?:[^>"]|"[^"]*")*?)(?:\/>|>([\s\S]*?)<\/category>)/g;
-          // Loop through the matched categories, and store each one's parent by its name, so a policy's full category path can be built below.
-          while ((match = categoryRegExp.exec(admxText)) !== null) {
-            let attributes = parseAttributes(match[1]);
-            categoriesByName[attributes.name] = {
-              name: attributes.name,
-              parentRef: (String(match[2] || '').match(/<parentCategory\s+ref="([^"]+)"/) || [])[1],
+            let element = {
+              type: elementMatch[1],
+              id: elementAttributes.id,
+              label: labels[elementAttributes.id] || undefined,
+              required: elementAttributes.required === 'true' || undefined,
             };
-          }
-
-          let nodesForThisTemplate = [];
-          let droppedForRegistryKey = [];
-          // Match each policy in the .admx, e.g., <policy name="HomepageLocation" class="Both" key="Software\Policies\Google\Chrome">...</policy>.
-          let policyRegExp = /<policy\b((?:[^>"]|"[^"]*")*?)(?:\/>|>([\s\S]*?)<\/policy>)/g;
-          // Loop through the matched policies, and build a node for each one the generator can offer.
-          while ((match = policyRegExp.exec(admxText)) !== null) {
-
-            // Read the policy's attributes (name, class, key, displayName, explainText, presentation).
-            let attributes = parseAttributes(match[1]);
-
-            // The XML inside the policy element: its parent category, and the elements it takes values for.
-            let body = match[2] || '';
-
-            // Windows builds the area from the category chain joined by ~.  A parent in another namespace
-            // (prefix:Name) ends the chain, which is what puts Chrome's policies under
-            // Chrome~Policy~googlechrome~... rather than under Google's Cat_Google.
-            let categoryPath = [];
-            // Start from the category the policy's <parentCategory> points to.
-            let category = categoriesByName[(body.match(/<parentCategory\s+ref="([^"]+)"/) || [])[1]];
-            // Walk up through each category's parent, adding it to the front of the path, until reaching the root or a parent in another template's namespace.
-            while (category) {
-              categoryPath.unshift(category.name);
-              if(!category.parentRef || _.contains(category.parentRef, ':') || _.contains(categoryPath, category.parentRef)) {
-                break;
-              }
-              category = categoriesByName[category.parentRef];
+            // Record the allowed range of a number element.
+            if(element.type === 'decimal' || element.type === 'longDecimal') {
+              element.min = elementAttributes.minValue !== undefined ? Number(elementAttributes.minValue) : undefined;
+              element.max = elementAttributes.maxValue !== undefined ? Number(elementAttributes.maxValue) : undefined;
             }
-            if(categoryPath.length === 0) {
-              continue;
+            if(element.type === 'list') {
+              // Without explicitValue the admin supplies only values and Windows names them (valuePrefix + 1,
+              // 2, ...), but the <data> payload still carries name/value pairs either way.
+              element.explicitValue = elementAttributes.explicitValue === 'true' || undefined;
             }
-            if(template.onlyCategories && !_.contains(template.onlyCategories, _.last(categoryPath))) {
-              continue;
-            }
-            // Chrome keeps every policy it has retired in the template, under RemovedPolicies, so that existing
-            // Group Policy objects still open.  Setting one does nothing, so it is never worth offering.
-            if(_.contains(categoryPath, 'RemovedPolicies')) {
-              continue;
-            }
+            // Record the choices of an enum (drop-down) element: each item's value and label.
+            if(element.type === 'enum') {
+              element.items = [];
+              let itemRegExp = /<item\b((?:[^>"]|"[^"]*")*?)>([\s\S]*?)<\/item>/g;
+              let itemMatch;
+              // Loop through the enum's <item> elements.
+              while ((itemMatch = itemRegExp.exec(elementMatch[3] || '')) !== null) {
+                // The XML inside the item's <value>, e.g., <decimal value="5"/>.
+                let valueBody = (itemMatch[2].match(/<value>([\s\S]*?)<\/value>/) || [])[1] || '';
+                // Use the item's number value when it has one.
+                let value = (valueBody.match(/<(?:decimal|longDecimal)\s+value="([^"]*)"/) || [])[1];
 
-            // Find the presentation that labels this policy's elements in the Group Policy editor.
-            let presentationId = (String(attributes.presentation || '').match(/^\$\(presentation\.([^)]+)\)$/) || [])[1];
-            let labels = labelsByPresentationId[presentationId] || {};
-            let registryKeys = _.compact([attributes.key]);
-            let admxElements = [];
-            // The XML inside the policy's <elements>, which defines each value the policy takes when enabled.
-            let elementsBody = (body.match(/<elements>([\s\S]*?)<\/elements>/) || [])[1] || '';
-            // Match each element the policy takes a value for, e.g., <text id="HomepageLocation" valueName="HomepageLocation"/>.
-            let elementRegExp = /<(text|decimal|longDecimal|boolean|enum|list|multiText)\b((?:[^>"]|"[^"]*")*?)(?:\/>|>([\s\S]*?)<\/\1>)/g;
-            let elementMatch;
-            // Loop through the matched elements, and record each one's type, id, label and allowed values.
-            while ((elementMatch = elementRegExp.exec(elementsBody)) !== null) {
-              let elementAttributes = parseAttributes(elementMatch[2]);
-              if(elementAttributes.key) {
-                registryKeys.push(elementAttributes.key);
-              }
-              let element = {
-                type: elementMatch[1],
-                id: elementAttributes.id,
-                label: labels[elementAttributes.id] || undefined,
-                required: elementAttributes.required === 'true' || undefined,
-              };
-              // Record the allowed range of a number element.
-              if(element.type === 'decimal' || element.type === 'longDecimal') {
-                element.min = elementAttributes.minValue !== undefined ? Number(elementAttributes.minValue) : undefined;
-                element.max = elementAttributes.maxValue !== undefined ? Number(elementAttributes.maxValue) : undefined;
-              }
-              if(element.type === 'list') {
-                // Without explicitValue the admin supplies only values and Windows names them (valuePrefix + 1,
-                // 2, ...), but the <data> payload still carries name/value pairs either way.
-                element.explicitValue = elementAttributes.explicitValue === 'true' || undefined;
-              }
-              // Record the choices of an enum (drop-down) element: each item's value and label.
-              if(element.type === 'enum') {
-                element.items = [];
-                let itemRegExp = /<item\b((?:[^>"]|"[^"]*")*?)>([\s\S]*?)<\/item>/g;
-                let itemMatch;
-                // Loop through the enum's <item> elements.
-                while ((itemMatch = itemRegExp.exec(elementMatch[3] || '')) !== null) {
-                  // The XML inside the item's <value>, e.g., <decimal value="5"/>.
-                  let valueBody = (itemMatch[2].match(/<value>([\s\S]*?)<\/value>/) || [])[1] || '';
-                  // Use the item's number value when it has one.
-                  let value = (valueBody.match(/<(?:decimal|longDecimal)\s+value="([^"]*)"/) || [])[1];
-
-                  // Otherwise use the item's string value, e.g., <string>always</string>.
-                  if(value === undefined) {
-                    value = decodeEntities((valueBody.match(/<string>([\s\S]*?)<\/string>/) || [])[1] || '');
-                  }
-
-                  element.items.push({value, label: resolve(parseAttributes(itemMatch[1]).displayName)});
+                // Otherwise use the item's string value, e.g., <string>always</string>.
+                if(value === undefined) {
+                  value = decodeEntities((valueBody.match(/<string>([\s\S]*?)<\/string>/) || [])[1] || '');
                 }
+
+                element.items.push({value, label: resolve(parseAttributes(itemMatch[1]).displayName)});
               }
-              admxElements.push(_.omit(element, _.isUndefined));
             }
-            // Find the first registry key this policy writes to that Windows won't let an installed template set.
-            let blockedKey = _.find(registryKeys, (registryKey)=>{
-              let normalized = String(registryKey).toLowerCase().replace(/\\?$/, '\\');
-              return _.any(BLOCKED_REGISTRY_PREFIXES, (prefix)=>{ return _.startsWith(normalized, prefix); }) &&
-                !_.any(ALLOWED_REGISTRY_PREFIXES, (prefix)=>{ return _.startsWith(normalized, prefix.replace(/\\?$/, '\\')); });
-            });
-            // Leave out a policy that writes to a blocked key, and record it for the warning logged below.
-            if(blockedKey) {
-              droppedForRegistryKey.push(`${attributes.name} (${blockedKey})`);
-              continue;
-            }
-
-            // Keep only the first sentence of the policy's explanation: the full text is documentation, and in the
-            // lookup index long text pulls the model towards whichever policy shares a word with the request.
-            let explanation = String(resolve(attributes.explainText) || '').replace(/\s+/g, ' ').trim().split(/(?<=[a-z0-9)]\.)\s+(?=[A-Z])/)[0];
-            if(explanation.length > 200) {
-              explanation = explanation.slice(0, 200).replace(/\s+\S*$/, '') + '…';
-            }
-            // Turn the policy's ADMX class into the scopes it can be set in: User, Device, or both.
-            let scopes = attributes.class === 'User' ? ['User'] : (attributes.class === 'Machine' ? ['Device'] : ['Device', 'User']);
-            // Build the policy's area the way Windows names it after the template is installed: <AppName>~Policy~<category path>.
-            let area = `${appName}~Policy~${categoryPath.join('~')}`;
-            nodesForThisTemplate.push({
-              csp: 'Policy',
-              admxTemplate: template.id,
-              area,
-              name: attributes.name,
-              // The policy's LocURI, under ./Device/ unless the policy can only be set for a user.
-              locUri: `./${scopes[0]}/Vendor/MSFT/Policy/Config/${area}/${attributes.name}`,
-              // The policy's display name and first sentence of explanation, since several templates reuse one explanation across many policies.
-              description: _.compact([resolve(attributes.displayName), explanation]).join(' -- '),
-              scopes,
-              format: 'chr',
-              accessType: 'Add, Delete, Get, Replace',
-              admxElements,
-              deprecated: _.contains(categoryPath, 'DeprecatedPolicies') || undefined,
-            });
+            admxElements.push(_.omit(element, _.isUndefined));
+          }
+          // Find the first registry key this policy writes to that Windows won't let an installed template set.
+          let blockedKey = _.find(registryKeys, (registryKey)=>{
+            let normalized = String(registryKey).toLowerCase().replace(/\\?$/, '\\');
+            return _.any(BLOCKED_REGISTRY_PREFIXES, (prefix)=>{ return _.startsWith(normalized, prefix); }) &&
+              !_.any(ALLOWED_REGISTRY_PREFIXES, (prefix)=>{ return _.startsWith(normalized, prefix.replace(/\\?$/, '\\')); });
+          });
+          // Leave out a policy that writes to a blocked key, and record it for the warning logged below.
+          if(blockedKey) {
+            droppedForRegistryKey.push(`${attributes.name} (${blockedKey})`);
+            continue;
           }
 
-          if(droppedForRegistryKey.length > 0) {
-            sails.log.warn(`${template.id}: dropped ${droppedForRegistryKey.length} policies that write to registry keys Windows will not let an ingested template set: ${droppedForRegistryKey.join(', ')}`);
+          // Keep only the first sentence of the policy's explanation: the full text is documentation, and in the
+          // lookup index long text pulls the model towards whichever policy shares a word with the request.
+          let explanation = String(resolve(attributes.explainText) || '').replace(/\s+/g, ' ').trim().split(/(?<=[a-z0-9)]\.)\s+(?=[A-Z])/)[0];
+          if(explanation.length > 200) {
+            explanation = explanation.slice(0, 200).replace(/\s+\S*$/, '') + '…';
           }
-          if(unresolvedStrings.length > 0) {
-            sails.log.warn(`${template.id}: ${_.uniq(unresolvedStrings).length} $(string.*) references have no en-US string (first few: ${_.uniq(unresolvedStrings).slice(0, 5).join(', ')}).`);
-          }
-          if(nodesForThisTemplate.length === 0) {
-            throw new Error(`Refusing to write: ${template.id} produced no policies.  The vendor's file has probably changed shape.`);
-          }
-          sails.log(`${template.id} ${vendorVersion}: ${nodesForThisTemplate.length} policies in ${_.uniq(_.pluck(nodesForThisTemplate, 'area')).length} areas (${Math.round(Buffer.byteLength(admxText, 'utf8') / 1024)} KB).`);
-          allNodes = allNodes.concat(nodesForThisTemplate);
+          // Turn the policy's ADMX class into the scopes it can be set in: User, Device, or both.
+          let scopes = attributes.class === 'User' ? ['User'] : (attributes.class === 'Machine' ? ['Device'] : ['Device', 'User']);
+          // Build the policy's area the way Windows names it after the template is installed: <AppName>~Policy~<category path>.
+          let area = `${appName}~Policy~${categoryPath.join('~')}`;
+          nodesForThisTemplate.push({
+            csp: 'Policy',
+            admxTemplate: template.id,
+            area,
+            name: attributes.name,
+            // The policy's LocURI, under ./Device/ unless the policy can only be set for a user.
+            locUri: `./${scopes[0]}/Vendor/MSFT/Policy/Config/${area}/${attributes.name}`,
+            // The policy's display name and first sentence of explanation, since several templates reuse one explanation across many policies.
+            description: _.compact([resolve(attributes.displayName), explanation]).join(' -- '),
+            scopes,
+            format: 'chr',
+            accessType: 'Add, Delete, Get, Replace',
+            admxElements,
+            deprecated: _.contains(categoryPath, 'DeprecatedPolicies') || undefined,
+          });
         }
+
+        if(droppedForRegistryKey.length > 0) {
+          sails.log.warn(`${template.id}: dropped ${droppedForRegistryKey.length} policies that write to registry keys Windows will not let an ingested template set: ${droppedForRegistryKey.join(', ')}`);
+        }
+        if(unresolvedStrings.length > 0) {
+          sails.log.warn(`${template.id}: ${_.uniq(unresolvedStrings).length} $(string.*) references have no en-US string (first few: ${_.uniq(unresolvedStrings).slice(0, 5).join(', ')}).`);
+        }
+        if(nodesForThisTemplate.length === 0) {
+          throw new Error(`Refusing to write: ${template.id} produced no policies.  The vendor's file has probably changed shape.`);
+        }
+        sails.log(`${template.id} ${vendorVersion}: ${nodesForThisTemplate.length} policies in ${_.uniq(_.pluck(nodesForThisTemplate, 'area')).length} areas (${Math.round(Buffer.byteLength(admxText, 'utf8') / 1024)} KB).`);
+        allNodes = allNodes.concat(nodesForThisTemplate);
       }
     } finally {
       fs.rmSync(workDir, {recursive: true, force: true});
