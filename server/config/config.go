@@ -1817,7 +1817,7 @@ func (man Manager) addConfigs() {
 		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for hosts with 2017 packs and for fleets with label-scoped reports, whose config differs per host.")
 	man.addConfigInt("osquery.max_concurrent_query_report_reads", 40,
 		"Maximum number of osquery log requests per Fleet server that read a host's stored report results from the database at once, to skip writing results that haven't changed. Requests over the limit skip storing report results (log destinations are unaffected). 0 disables the limit.")
-	man.addConfigInt("osquery.max_concurrent_query_report_writes", 75,
+	man.addConfigInt("osquery.max_concurrent_query_report_writes", 20,
 		"Maximum number of osquery log requests across all Fleet servers that write changed report results to the database at once. Requests over the limit skip storing their changed report results (log destinations are unaffected). 0 disables the limit.")
 	man.addConfigBool("osquery.allow_body_auth_fallback", true,
 		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")

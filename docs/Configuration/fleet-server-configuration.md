@@ -1385,14 +1385,14 @@ The maximum number of osquery log requests that each Fleet server checks against
 
 ### osquery_max_concurrent_query_report_writes
 
-The maximum number of osquery log requests, across all Fleet servers, that write changed report results to the database at the same time. Unlike `osquery_max_concurrent_query_report_reads`, this limit is shared through Redis, so it doesn't change when you add or remove Fleet servers. Results that haven't changed don't count toward it. When the limit is reached, Fleet skips storing the request's changed report results instead of waiting on the database. The host sends fresh results on the report's next run. Results still go to the log destination for reports with automations on. If Redis can't be reached, each Fleet server allows up to 20 writes at a time instead. Set it to 0 to remove the limit.
+The maximum number of osquery log requests, across all Fleet servers, that write changed report results to the database at the same time. Unlike `osquery_max_concurrent_query_report_reads`, this limit is shared through Redis, so it doesn't change when you add or remove Fleet servers. Results that haven't changed don't count toward it. When the limit is reached, Fleet skips storing the request's changed report results instead of waiting on the database. The host sends fresh results on the report's next run. Results still go to the log destination for reports with automations on. If Redis can't be reached, each Fleet server allows up to 2 writes at a time instead. Set it to 0 to remove the limit.
 
-- Default value: 75
+- Default value: 20
 - Environment variable: `FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_WRITES`
 - Config file format:
   ```yaml
   osquery:
-    max_concurrent_query_report_writes: 100
+    max_concurrent_query_report_writes: 40
   ```
 
 ### osquery_max_log_write_body_size

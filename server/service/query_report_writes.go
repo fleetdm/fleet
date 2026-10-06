@@ -74,7 +74,7 @@ const (
 	queryReportWriteSlotLease = 2 * queryReportWriteTimeout
 	// queryReportWriteFallbackLimit is the per-server write limit used when the shared slots in
 	// Redis can't be reached.
-	queryReportWriteFallbackLimit = 20
+	queryReportWriteFallbackLimit = 2
 )
 
 // acquireQueryReportWriteSlot takes one of the osquery.max_concurrent_query_report_writes slots
