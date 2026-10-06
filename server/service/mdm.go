@@ -672,18 +672,17 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 
 	host := hosts[0]
 
-	// Wipe is COBO-only on Android, so a custom wipe must clear the same validation as the
-	// dedicated wipe endpoint. AMAPI derives the type from wipeParams when type is omitted, so
-	// any payload carrying wipeParams is a wipe regardless of what its type field says - don't
-	// let a caller-supplied type decide whether the check runs.
+	// A custom wipe must clear the same validation as the dedicated wipe endpoint. AMAPI
+	// derives the type from wipeParams when type is omitted, so any payload carrying
+	// wipeParams is a wipe regardless of what its type field says - don't let a
+	// caller-supplied type decide whether the check runs.
 	if cmdType == string(android.MDMAndroidCommandTypeWipe) || cmdPayload.WipeParams != nil {
-		// read from the primary: a replica lagging behind a recent enrollment would report
-		// the wrong ownership and let the wipe through
+		// read from the primary so the validator never sees a replica-stale host
 		ctx = ctxdb.RequirePrimary(ctx, true)
 		// hosts came from ListHostsLiteByUUIDs, which selects no MDM columns, so the
-		// enrollment status has to come from a separate load. Reusing the shared validator
-		// rather than re-deriving the rule here is what keeps this refusal identical to the
-		// dedicated endpoint's; the extra queries are noise next to the AMAPI round trip.
+		// validator gets a fully loaded host. Reusing the shared validator rather than
+		// re-deriving the rules here is what keeps this refusal identical to the dedicated
+		// endpoint's; the extra queries are noise next to the AMAPI round trip.
 		hostWithMDM, err := svc.ds.Host(ctx, host.ID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host")

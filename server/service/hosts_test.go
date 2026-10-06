@@ -5593,10 +5593,6 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 	}
 }
 
-// TestWipeHostFreeTierAndroidBYORejected verifies the core (Fleet Free) WipeHost rejects BYO (personally-owned)
-// Android hosts, since Wipe is COBO-only (BYO uses Unenroll). The non-Android license gate is already covered by the
-// free-tier TestPremiumEndpointsWithoutLicense integration test, and the Premium BYO rejection by
-// TestAndroidLockWipeClearPasscode; this guards the same rejection in the core implementation.
 // A caller who can list hosts but has no access to the host's fleet must not be
 // able to tell an existing host from a missing one.
 func TestHostMDMEndpointsMaskCrossFleetDenial(t *testing.T) {
@@ -5633,21 +5629,74 @@ func TestHostMDMEndpointsMaskCrossFleetDenial(t *testing.T) {
 	})
 }
 
-func TestWipeHostFreeTierAndroidBYORejected(t *testing.T) {
-	ds := new(mock.Store)
-	// Default newTestService license is Fleet Free.
-	svc, ctx := newTestService(t, ds, nil, nil)
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
-
+// TestWipeHostFreeTierAndroid verifies the core (Fleet Free) WipeHost wipes Android hosts regardless of ownership. The
+// non-Android license gate is already covered by the free-tier TestPremiumEndpointsWithoutLicense integration test, and
+// Premium by TestAndroidLockWipeClearPasscode.
+func TestWipeHostFreeTierAndroid(t *testing.T) {
 	const hostID = 1
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new(fleet.MDMEnrollmentStatusPersonal)}}, nil
+	testCases := []struct {
+		name             string
+		enrollmentStatus string
+		androidEnabled   bool
+		wantErr          string
+	}{
+		{name: "company-owned", enrollmentStatus: fleet.MDMEnrollmentStatusAutomatic, androidEnabled: true},
+		{name: "personally-owned", enrollmentStatus: fleet.MDMEnrollmentStatusPersonal, androidEnabled: true},
+		{
+			name:             "android MDM off",
+			enrollmentStatus: fleet.MDMEnrollmentStatusPersonal,
+			androidEnabled:   false,
+			wantErr:          fleet.AndroidMDMNotConfiguredMessage,
+		},
 	}
-	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 
-	err := svc.WipeHost(ctx, hostID, nil)
-	var badRequest *fleet.BadRequestError
-	require.ErrorAs(t, err, &badRequest)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new(tc.enrollmentStatus)}}, nil
+			}
+			ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: tc.androidEnabled}}, nil
+			}
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+				return true, nil
+			}
+			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+				return &fleet.HostLockWipeStatus{}, nil
+			}
+
+			var wipedHostID uint
+			androidMock := &mockAndroidService{
+				WipeAndroidHostFunc: func(_ context.Context, id uint) error {
+					wipedHostID = id
+					return nil
+				},
+			}
+			// Default newTestService license is Fleet Free.
+			opts := &TestServerOpts{SkipCreateTestUsers: true, AndroidModule: androidMock}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+			var capturedActivity activity_api.ActivityDetails
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+				capturedActivity = act
+				return nil
+			}
+
+			err := svc.WipeHost(ctx, hostID, nil)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				require.Zero(t, wipedHostID, "a rejected wipe must not reach AMAPI")
+				require.Nil(t, capturedActivity)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, uint(hostID), wipedHostID)
+			require.IsType(t, fleet.ActivityTypeWipedHost{}, capturedActivity)
+		})
+	}
 }
 
 func TestBulkOperationFilterValidation(t *testing.T) {
