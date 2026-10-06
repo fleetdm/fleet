@@ -3545,12 +3545,17 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 	)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
+	var activities []fleet.ActivityDetails
 	svc := MDMAppleCheckinAndCommandService{
 		notificationsSvc: &mock.MockNotificationsService{},
 		ds:               ds,
 		mdmLifecycle:     mdmLifecycle,
 		commander:        cmdr,
 		logger:           slog.New(slog.DiscardHandler),
+		newActivityFn: func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+			activities = append(activities, act)
+			return nil
+		},
 	}
 
 	const (
@@ -3636,7 +3641,7 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 			require.Equal(t, "idp-uuid", uuid)
 			return &fleet.MDMIdPAccount{UUID: "idp-uuid", Email: "bearer.user@example.com"}, nil
 		}
-		ds.AssociateHostMDMIdPAccountFunc = func(context.Context, string, string) error { return nil }
+		ds.AssociateHostMDMIdPAccountFunc = func(context.Context, string, string) (string, error) { return "", nil }
 		ds.SetHostManagedAppleIDFuncInvoked = false
 		var gotMAID string
 		ds.SetHostManagedAppleIDFunc = func(_ context.Context, _ uint, managedAppleID string) error {
@@ -3659,6 +3664,10 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.SetHostManagedAppleIDFuncInvoked)
 		require.Equal(t, "bearer.user@example.com", gotMAID)
+		require.Equal(t, []fleet.ActivityDetails{fleet.ActivityTypeBoundHostToIdPAccount{
+			HostUUID: enrollID,
+			IdPEmail: "bearer.user@example.com",
+		}}, activities)
 	})
 
 	t.Run("UserEnrollmentDevice without IDP account clears managed_apple_id", func(t *testing.T) {
@@ -11673,4 +11682,46 @@ func TestRotateFileVaultKeyResultIgnoredCases(t *testing.T) {
 func TestRefetchCleanupRetentionOrDefault(t *testing.T) {
 	require.Equal(t, 30*24*time.Hour, refetchCleanupRetentionOrDefault(0), "disabled short tier keeps the previous 30-day reach")
 	require.Equal(t, 6*time.Hour, refetchCleanupRetentionOrDefault(6*time.Hour))
+}
+
+func TestReconcileMDMAppleEnrollRefLogsCommittedRemoval(t *testing.T) {
+	ds := new(mock.DataStore)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	ds.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+		return &fleet.MDMIdPAccount{UUID: uuid, Email: uuid + "@example.com"}, nil
+	}
+	var activities []activity_api.ActivityDetails
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+		activities = append(activities, act)
+		return nil
+	}
+	machineInfo := &fleet.MDMAppleMachineInfo{UDID: "host-uuid-1", Serial: "serial-1"}
+	lookupErr := errors.New("legacy enroll ref lookup failed")
+
+	t.Run("removal committed before the error is still logged", func(t *testing.T) {
+		activities = nil
+		ds.ReconcileMDMAppleEnrollRefFunc = func(ctx context.Context, enrollRef string, mi *fleet.MDMAppleMachineInfo) (string, string, error) {
+			return "", "acct-1", lookupErr
+		}
+
+		_, err := svc.ReconcileMDMAppleEnrollRef(ctx, "", machineInfo)
+		require.ErrorIs(t, err, lookupErr)
+		require.Equal(t, []activity_api.ActivityDetails{fleet.ActivityTypeUnboundHostFromIdPAccount{
+			HostUUID: "host-uuid-1",
+			IdPEmail: "acct-1@example.com",
+		}}, activities)
+	})
+
+	t.Run("rolled back link is not logged", func(t *testing.T) {
+		activities = nil
+		ds.ReconcileMDMAppleEnrollRefFunc = func(ctx context.Context, enrollRef string, mi *fleet.MDMAppleMachineInfo) (string, string, error) {
+			return "", "", lookupErr
+		}
+
+		_, err := svc.ReconcileMDMAppleEnrollRef(ctx, "acct-2", machineInfo)
+		require.ErrorIs(t, err, lookupErr)
+		require.Empty(t, activities)
+	})
 }

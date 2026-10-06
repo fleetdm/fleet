@@ -2940,10 +2940,14 @@ func (svc *Service) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef st
 		}
 	}
 
-	legacyRef, err := svc.ds.ReconcileMDMAppleEnrollRef(ctx, enrollRef, machineInfo)
+	legacyRef, previousAcctUUID, err := svc.ds.ReconcileMDMAppleEnrollRef(ctx, enrollRef, machineInfo)
 	if err != nil && !fleet.IsNotFound(err) {
+		if previousAcctUUID != "" {
+			shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.NewActivity, svc.logger, machineInfo.UDID, previousAcctUUID, enrollRef)
+		}
 		return "", ctxerr.Wrap(ctx, err, "check legacy enroll ref")
 	}
+	shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.NewActivity, svc.logger, machineInfo.UDID, previousAcctUUID, enrollRef)
 	svc.logger.InfoContext(ctx, "check legacy enroll ref", "host_uuid", machineInfo.UDID, "legacy_enroll_ref", legacyRef)
 
 	return legacyRef, nil
@@ -5488,10 +5492,11 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			} else {
 				acctUUID = idpAccount.UUID
 				managedAppleID = idpAccount.Email
-				err = svc.ds.AssociateHostMDMIdPAccount(r.Context, r.ID, acctUUID)
+				previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccount(r.Context, r.ID, acctUUID)
 				if err != nil {
 					return ctxerr.Wrap(r.Context, err, "associating host with idp account")
 				}
+				shared_mdm.LogHostIdPAccountLinkChange(r.Context, svc.ds, svc.newActivityFn, svc.logger, r.ID, previousAcctUUID, acctUUID)
 			}
 		}
 
@@ -9504,10 +9509,11 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 	// before responding, create a host record, and assign the host to the
 	// team that matches the enroll secret provided.
-	err = svc.ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, enrollSecretInfo.TeamID, idpUUID, deviceInfo)
+	previousAcctUUID, err := svc.ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, enrollSecretInfo.TeamID, idpUUID, deviceInfo)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new host record")
 	}
+	shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.NewActivity, svc.logger, deviceInfo.UDID, previousAcctUUID, idpUUID)
 
 	// at this point we know the device can be enrolled, so we respond with
 	// a signed enrollment profile

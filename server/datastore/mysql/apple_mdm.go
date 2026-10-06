@@ -2033,8 +2033,10 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 	teamID *uint,
 	idpUUID string,
 	deviceInfo fleet.MDMAppleMachineInfo,
-) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+) (string, error) {
+	var previousAcctUUID string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		previousAcctUUID = ""
 		toInsert := []hostToCreateFromMDM{
 			{
 				HardwareSerial: deviceInfo.Serial,
@@ -2047,7 +2049,7 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 		if idpUUID != "" && len(hosts) > 0 {
 			host := hosts[0]
 			ds.logger.InfoContext(ctx, fmt.Sprintf("associating host %s with idp account %s", host.UUID, idpUUID))
-			err = associateHostMDMIdPAccountDB(ctx, tx, host.UUID, idpUUID)
+			previousAcctUUID, err = associateHostMDMIdPAccountDB(ctx, tx, host.UUID, idpUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "associating host with idp account")
 			}
@@ -2076,14 +2078,24 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 			}
 		} else if idpUUID == "" && len(hosts) > 0 {
 			ds.logger.InfoContext(ctx, "clearing previous mdm idp account association", "host_uuid", hosts[0].UUID)
-			if _, err := tx.ExecContext(ctx, "DELETE FROM host_mdm_idp_accounts WHERE host_uuid = ?", hosts[0].UUID); err != nil {
+			linkedAcctUUID, clearErr := getHostMDMIdPAccountUUIDForUpdateDB(ctx, tx, hosts[0].UUID)
+			if clearErr == nil {
+				if _, clearErr = tx.ExecContext(ctx, "DELETE FROM host_mdm_idp_accounts WHERE host_uuid = ?", hosts[0].UUID); clearErr == nil {
+					previousAcctUUID = linkedAcctUUID
+				}
+			}
+			if clearErr != nil {
 				// We intentionally do not error out here, to avoid breaking the other queries if we fail to remove this, as this is non-critical to remove.
-				ds.logger.ErrorContext(ctx, "failed to clear mdm idp account association", "host_uuid", hosts[0].UUID, "error", err)
+				ds.logger.ErrorContext(ctx, "failed to clear mdm idp account association", "host_uuid", hosts[0].UUID, "error", clearErr)
 			}
 		}
 
 		return ctxerr.Wrap(ctx, err, "creating host from OTA enrollment")
 	})
+	if err != nil {
+		return "", err
+	}
+	return previousAcctUUID, nil
 }
 
 func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
@@ -7987,15 +7999,18 @@ func (ds *Datastore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID s
 	return &res, nil
 }
 
-func (ds *Datastore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error {
+func (ds *Datastore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) (string, error) {
+	var previousAcctUUID string
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := associateHostMDMIdPAccountDB(ctx, tx, hostUUID, idpAcctUUID); err != nil {
+		var err error
+		previousAcctUUID, err = associateHostMDMIdPAccountDB(ctx, tx, hostUUID, idpAcctUUID)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "associate host mdm idp account")
 		}
 
 		// get the host ID from the UUID to reconcile IdP accounts
 		var hostID uint
-		err := sqlx.GetContext(ctx, tx, &hostID, `SELECT id FROM hosts WHERE uuid = ?`, hostUUID)
+		err = sqlx.GetContext(ctx, tx, &hostID, `SELECT id FROM hosts WHERE uuid = ?`, hostUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get host ID for IdP reconciliation")
 		}
@@ -8012,30 +8027,45 @@ func (ds *Datastore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, i
 
 		return nil
 	})
-	return err
+	if err != nil {
+		return "", err
+	}
+	return previousAcctUUID, nil
 }
 
-func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
+func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, string, error) {
 	if machineInfo == nil {
 		ds.logger.InfoContext(ctx, "reconcile mdm apple enroll ref: machine info is nil")
-		return "", ctxerr.New(ctx, "machine info is nil")
+		return "", "", ctxerr.New(ctx, "machine info is nil")
 	}
 
+	var previousAcctUUID string
 	if enrollRef == "" {
 		// delete from host_mdm_idp_accounts if enrollRef is empty, which indicates a new enrollment without IDP.
 		// we do this outside the transaction to avoid breaking the getMDMAppleLegacyEnrollRefDB logic, if we fail here.
-		if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_idp_accounts WHERE host_uuid = ?`, machineInfo.UDID); err != nil {
+		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			var err error
+			previousAcctUUID, err = getHostMDMIdPAccountUUIDForUpdateDB(ctx, tx, machineInfo.UDID)
+			if err != nil {
+				return err
+			}
+			_, err = tx.ExecContext(ctx, `DELETE FROM host_mdm_idp_accounts WHERE host_uuid = ?`, machineInfo.UDID)
+			return err
+		}); err != nil {
 			// log the error, but let the flow continue
 			ds.logger.ErrorContext(ctx, "failed to delete host mdm idp account association for empty enroll ref", "err", err, "host_uuid", machineInfo.UDID)
+			previousAcctUUID = ""
 		}
 	}
 
-	var result string
+	var result, replacedAcctUUID string
 	// TODO: maybe we don't need a transaction here?
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if enrollRef != "" {
 			// only associate if we have a non-empty enroll ref, to avoid empty account_uuid in table.
-			if err := associateHostMDMIdPAccountDB(ctx, tx, machineInfo.UDID, enrollRef); err != nil {
+			var err error
+			replacedAcctUUID, err = associateHostMDMIdPAccountDB(ctx, tx, machineInfo.UDID, enrollRef)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "associate host mdm idp account")
 			}
 		}
@@ -8047,26 +8077,27 @@ func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef s
 		result = legacyRef
 		return nil
 	})
-
-	return result, err
+	if err != nil {
+		// The removal above is already committed, so it is still reported; a new
+		// link rolls back with this transaction.
+		return "", previousAcctUUID, err
+	}
+	if enrollRef != "" {
+		previousAcctUUID = replacedAcctUUID
+	}
+	return result, previousAcctUUID, nil
 }
 
 func (ds *Datastore) AssociateHostMDMIdPAccountFromSSO(ctx context.Context, hostUUID string, acctUUID string, replaceExisting bool) (string, error) {
 	var previousAcctUUID string
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// FOR UPDATE locks the (possibly absent) row so a concurrent binding
-		// cannot slip in between this read and the write below.
-		previousAcctUUID = ""
-		switch err := sqlx.GetContext(
-			ctx, tx, &previousAcctUUID,
-			`SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = ? FOR UPDATE`, hostUUID,
-		); {
-		case errors.Is(err, sql.ErrNoRows):
-		case err != nil:
-			return ctxerr.Wrap(ctx, err, "get existing host mdm idp account")
+		var err error
+		previousAcctUUID, err = getHostMDMIdPAccountUUIDForUpdateDB(ctx, tx, hostUUID)
+		if err != nil {
+			return err
 		}
 		if replaceExisting || previousAcctUUID == "" {
-			return associateHostMDMIdPAccountDB(ctx, tx, hostUUID, acctUUID)
+			return upsertHostMDMIdPAccountDB(ctx, tx, hostUUID, acctUUID)
 		}
 		return nil
 	})
@@ -8076,7 +8107,32 @@ func (ds *Datastore) AssociateHostMDMIdPAccountFromSSO(ctx context.Context, host
 	return previousAcctUUID, nil
 }
 
-func associateHostMDMIdPAccountDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, acctUUID string) error {
+// associateHostMDMIdPAccountDB links the host to the account and returns the
+// account it was linked to before, empty if none.
+func associateHostMDMIdPAccountDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, acctUUID string) (string, error) {
+	previousAcctUUID, err := getHostMDMIdPAccountUUIDForUpdateDB(ctx, tx, hostUUID)
+	if err != nil {
+		return "", err
+	}
+	if err := upsertHostMDMIdPAccountDB(ctx, tx, hostUUID, acctUUID); err != nil {
+		return "", err
+	}
+	return previousAcctUUID, nil
+}
+
+// getHostMDMIdPAccountUUIDForUpdateDB locks the (possibly absent) row so a
+// concurrent write cannot slip in between this read and the caller's write.
+func getHostMDMIdPAccountUUIDForUpdateDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) (string, error) {
+	var acctUUID string
+	err := sqlx.GetContext(ctx, tx, &acctUUID,
+		`SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = ? FOR UPDATE`, hostUUID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", ctxerr.Wrap(ctx, err, "get existing host mdm idp account")
+	}
+	return acctUUID, nil
+}
+
+func upsertHostMDMIdPAccountDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, acctUUID string) error {
 	const stmt = `
 INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid)
 VALUES (?, ?)
