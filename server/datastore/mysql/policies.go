@@ -733,16 +733,16 @@ func assertProfileTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamI
 }
 
 func cleanupPolicy(
-	ctx context.Context, queryerContext sqlx.QueryerContext, db *sqlx.DB, policyID uint, policyPlatform string,
+	ctx context.Context, queryerContext sqlx.QueryerContext, dbWriter *sqlx.DB, policyID uint, policyPlatform string,
 	shouldRemoveAllPolicyMemberships bool,
 	removePolicyStats bool, logger *slog.Logger,
 ) error {
 	var err error
 
 	if shouldRemoveAllPolicyMemberships {
-		err = cleanupPolicyMembershipForPolicy(ctx, queryerContext, db, policyID, logger)
+		err = cleanupPolicyMembershipForPolicy(ctx, queryerContext, dbWriter, policyID, logger)
 	} else {
-		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, queryerContext, db, policyID, policyPlatform, logger)
+		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, queryerContext, dbWriter, policyID, policyPlatform, logger)
 	}
 	if err != nil {
 		return err
@@ -755,7 +755,7 @@ func cleanupPolicy(
 			return err
 		}
 		// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
-		if err := common_mysql.WithRetryTxx(ctx, db, fn, logger); err != nil {
+		if err := common_mysql.WithRetryTxx(ctx, dbWriter, fn, logger); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup policy stats")
 		}
 	}
@@ -2489,7 +2489,7 @@ func cleanupConditionalAccessOnTeamChange(ctx context.Context, tx sqlx.ExtContex
 }
 
 func cleanupPolicyMembershipOnPolicyUpdate(
-	ctx context.Context, queryerContext sqlx.QueryerContext, db *sqlx.DB, policyID uint, platforms string,
+	ctx context.Context, queryerContext sqlx.QueryerContext, dbWriter *sqlx.DB, policyID uint, platforms string,
 	logger *slog.Logger,
 ) error {
 	// Clean up hosts that don't match the platform criteria.
@@ -2520,13 +2520,13 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 				break
 			}
 
-			if err := deletePolicyMembershipBatch(ctx, db, policyID, batchHostIDs, true, logger); err != nil {
+			if err := deletePolicyMembershipBatch(ctx, dbWriter, policyID, batchHostIDs, true, logger); err != nil {
 				return ctxerr.Wrap(ctx, err, "batch cleanup policy membership for platform")
 			}
 			afterHostID = batchHostIDs[len(batchHostIDs)-1]
 		}
 		// Clean up orphaned memberships (host_id refs to deleted hosts, not covered by INNER JOIN above)
-		if err := cleanupOrphanedPolicyMembership(ctx, db, policyID, logger); err != nil {
+		if err := cleanupOrphanedPolicyMembership(ctx, dbWriter, policyID, logger); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup orphaned policy membership for platform")
 		}
 	}
@@ -2600,7 +2600,7 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 			break
 		}
 
-		if err := deletePolicyMembershipBatch(ctx, db, policyID, batchHostIDs, true, logger); err != nil {
+		if err := deletePolicyMembershipBatch(ctx, dbWriter, policyID, batchHostIDs, true, logger); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch cleanup policy membership for labels")
 		}
 		afterLabelHostID = batchHostIDs[len(batchHostIDs)-1]
@@ -2614,7 +2614,7 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 func cleanupPolicyMembershipForPolicy(
 	ctx context.Context,
 	queryerContext sqlx.QueryerContext,
-	exec *sqlx.DB,
+	dbWriter *sqlx.DB,
 	policyID uint,
 	logger *slog.Logger,
 ) error {
@@ -2640,13 +2640,13 @@ func cleanupPolicyMembershipForPolicy(
 			break
 		}
 
-		if err := deletePolicyMembershipBatch(ctx, exec, policyID, batchHostIDs, true, logger); err != nil {
+		if err := deletePolicyMembershipBatch(ctx, dbWriter, policyID, batchHostIDs, true, logger); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch cleanup policy membership")
 		}
 		afterHostID = batchHostIDs[len(batchHostIDs)-1]
 	}
 	// Clean up orphaned memberships (host_id refs to deleted hosts, not covered by INNER JOIN above)
-	if err := cleanupOrphanedPolicyMembership(ctx, exec, policyID, logger); err != nil {
+	if err := cleanupOrphanedPolicyMembership(ctx, dbWriter, policyID, logger); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleanup orphaned policy membership")
 	}
 
@@ -2656,11 +2656,11 @@ func cleanupPolicyMembershipForPolicy(
 // cleanupOrphanedPolicyMembership deletes the policy's membership rows whose host no longer exists. Deleting a host
 // already deletes its rows, so there is usually nothing to do. The non-locking read uses the same db as the
 // delete, because a lagging replica could report a newly created host as missing.
-func cleanupOrphanedPolicyMembership(ctx context.Context, db *sqlx.DB, policyID uint, logger *slog.Logger) error {
+func cleanupOrphanedPolicyMembership(ctx context.Context, dbWriter *sqlx.DB, policyID uint, logger *slog.Logger) error {
 	var afterHostID uint
 	for {
 		var batchHostIDs []uint
-		err := sqlx.SelectContext(ctx, db, &batchHostIDs, `
+		err := sqlx.SelectContext(ctx, dbWriter, &batchHostIDs, `
 			SELECT pm.host_id
 			FROM policy_membership pm
 			LEFT JOIN hosts h ON pm.host_id = h.id
@@ -2675,7 +2675,7 @@ func cleanupOrphanedPolicyMembership(ctx context.Context, db *sqlx.DB, policyID 
 		}
 
 		// The hosts no longer exist, so there are no host_issues to recompute.
-		if err := deletePolicyMembershipBatch(ctx, db, policyID, batchHostIDs, false, logger); err != nil {
+		if err := deletePolicyMembershipBatch(ctx, dbWriter, policyID, batchHostIDs, false, logger); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch delete orphaned policy membership")
 		}
 		afterHostID = batchHostIDs[len(batchHostIDs)-1]
@@ -2686,21 +2686,21 @@ func cleanupOrphanedPolicyMembership(ctx context.Context, db *sqlx.DB, policyID 
 // hosts' failing policy counts. Each step retries on its own, so that a deadlock in the recompute can't skip hosts
 // whose membership was already deleted.
 func deletePolicyMembershipBatch(
-	ctx context.Context, db *sqlx.DB, policyID uint, hostIDs []uint, recomputeHostIssues bool, logger *slog.Logger,
+	ctx context.Context, dbWriter *sqlx.DB, policyID uint, hostIDs []uint, recomputeHostIssues bool, logger *slog.Logger,
 ) error {
 	stmt, args, err := sqlx.In(`DELETE FROM policy_membership WHERE policy_id = ? AND host_id IN (?)`, policyID, hostIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building batch delete for policy membership")
 	}
 	// Retry each step to avoid deadlocks with policy result ingestion.
-	if err := common_mysql.WithRetryTxx(ctx, db, func(tx sqlx.ExtContext) error {
+	if err := common_mysql.WithRetryTxx(ctx, dbWriter, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, stmt, args...)
 		return err
 	}, logger); err != nil {
 		return ctxerr.Wrap(ctx, err, "batch delete policy membership")
 	}
 	if recomputeHostIssues {
-		if err := common_mysql.WithRetryTxx(ctx, db, func(tx sqlx.ExtContext) error {
+		if err := common_mysql.WithRetryTxx(ctx, dbWriter, func(tx sqlx.ExtContext) error {
 			return updateHostIssuesFailingPolicies(ctx, tx, hostIDs)
 		}, logger); err != nil {
 			return ctxerr.Wrap(ctx, err, "recompute host issues after policy membership delete")
