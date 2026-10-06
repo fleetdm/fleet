@@ -286,7 +286,7 @@ func TestRetryableError(t *testing.T) {
 }
 
 func TestWithRetry(t *testing.T) {
-	deadlockErr := ctxerr.Wrap(context.Background(), &gmysql.MySQLError{Number: mysqlerr.ER_LOCK_DEADLOCK}, "cleanup")
+	deadlockErr := ctxerr.Wrap(t.Context(), &gmysql.MySQLError{Number: mysqlerr.ER_LOCK_DEADLOCK}, "cleanup")
 	duplicateErr := &gmysql.MySQLError{Number: mysqlerr.ER_DUP_ENTRY}
 
 	cases := []struct {

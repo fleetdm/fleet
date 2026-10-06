@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -21,6 +23,7 @@ import (
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	gmysql "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -10284,25 +10287,10 @@ func testApplyPolicySpecsMembershipCleanupOnlyOnChange(t *testing.T, ds *Datasto
 		})
 		return hostIDs
 	}
-	backdateUpdatedAt := func() {
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE policies SET updated_at = DATE_SUB(NOW(), INTERVAL 2 DAY) WHERE id = ?`, pol.ID)
-			return err
-		})
-	}
-	updatedRecently := func() bool {
-		var recent bool
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &recent, `SELECT updated_at > DATE_SUB(NOW(), INTERVAL 1 DAY) FROM policies WHERE id = ?`, pol.ID)
-		})
-		return recent
-	}
 
 	t.Run("unchanged policy is not cleaned up", func(t *testing.T) {
-		backdateUpdatedAt()
 		require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
 		assert.Equal(t, []uint{labeledHost.ID, unlabeledHost.ID, orphanHostID, otherOrphanHostID}, membershipHostIDs())
-		assert.False(t, updatedRecently())
 	})
 
 	t.Run("platform change removes orphaned membership", func(t *testing.T) {
@@ -10312,20 +10300,15 @@ func testApplyPolicySpecsMembershipCleanupOnlyOnChange(t *testing.T, ds *Datasto
 	})
 
 	t.Run("label change removes hosts outside the labels", func(t *testing.T) {
-		backdateUpdatedAt()
 		spec.LabelsIncludeAny = []string{label.Name}
 		require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
 		assert.Equal(t, []uint{labeledHost.ID}, membershipHostIDs())
-		// The CleanupPolicyMembership cron only revisits recently updated policies.
-		assert.True(t, updatedRecently())
 	})
 
 	t.Run("unchanged labels are not cleaned up", func(t *testing.T) {
-		backdateUpdatedAt()
 		insertOrphans()
 		require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
 		assert.Equal(t, []uint{labeledHost.ID, orphanHostID, otherOrphanHostID}, membershipHostIDs())
-		assert.False(t, updatedRecently())
 	})
 
 	t.Run("cron cleanup removes orphaned membership", func(t *testing.T) {
@@ -10337,6 +10320,24 @@ func testApplyPolicySpecsMembershipCleanupOnlyOnChange(t *testing.T, ds *Datasto
 		require.NoError(t, ds.CleanupPolicyMembership(ctx, time.Now()))
 		assert.Equal(t, []uint{labeledHost.ID}, membershipHostIDs())
 	})
+}
+
+// TestDeletePolicyMembershipBatchRetriesRecompute verifies that a deadlock while recomputing host issues retries the whole
+// batch, so the hosts whose membership was already deleted still get their failing policy counts recomputed.
+func TestDeletePolicyMembershipBatchRetriesRecompute(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { db.Close() })
+
+	const policyID, hostID = 7, 42
+	mock.ExpectExec("DELETE FROM policy_membership").WithArgs(policyID, hostID).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("INSERT INTO host_issues").WithArgs(hostID).
+		WillReturnError(&gmysql.MySQLError{Number: mysqlerr.ER_LOCK_DEADLOCK})
+	mock.ExpectExec("DELETE FROM policy_membership").WithArgs(policyID, hostID).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("INSERT INTO host_issues").WithArgs(hostID).WillReturnResult(sqlmock.NewResult(0, 1))
+
+	require.NoError(t, deletePolicyMembershipBatch(t.Context(), sqlx.NewDb(db, "sqlmock"), policyID, []uint{hostID}, true))
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 // testCleanupOrphanedPolicyMembershipLocks verifies that the orphan cleanup only locks the orphaned rows, instead of
@@ -10371,7 +10372,7 @@ func testCleanupOrphanedPolicyMembershipLocks(t *testing.T, ds *Datastore) {
 			tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 			require.NoError(t, err)
 			defer func() { _ = tx.Rollback() }()
-			require.NoError(t, cleanupOrphanedPolicyMembership(ctx, tx, tx, pol.ID))
+			require.NoError(t, cleanupOrphanedPolicyMembership(ctx, tx, pol.ID))
 
 			var lockedHostIDs []uint
 			require.NoError(t, sqlx.SelectContext(ctx, tx, &lockedHostIDs, `
