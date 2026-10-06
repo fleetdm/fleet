@@ -59,8 +59,8 @@ Don't see your city? [Request a workshop](https://fleetdm.com/contact#gitops) to
 Thank you to everyone who contributes to Fleet and uses it every day.
 
 <meta name="articleTitle" value="Fleet news: October 2026">
-<meta name="authorFullName" value="Allen Houchins">
-<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="authorFullName" value="Aube Paul">
+<meta name="authorGitHubUsername" value="robinedev">
 <meta name="publishedOn" value="2026-10-01">
 <meta name="category" value="newsletter">
 <meta name="description" value="What shipped in Fleet 4.91.0 and 4.92.0, what's planned for 4.93.0 and 4.94.0, October workshops, and September's best guides and customer stories.">
