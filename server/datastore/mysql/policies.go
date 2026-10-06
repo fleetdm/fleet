@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -80,6 +81,27 @@ type policyCleanupArgs struct {
 	platform                         string
 	shouldRemoveAllPolicyMemberships bool
 	removePolicyStats                bool
+}
+
+// policyLabelScope is one label a policy is scoped to, used to detect label scope changes in ApplyPolicySpecs.
+type policyLabelScope struct {
+	LabelName  string
+	Exclude    bool
+	RequireAll bool
+}
+
+func policySpecLabelScopes(spec *fleet.PolicySpec) map[policyLabelScope]struct{} {
+	scopes := make(map[policyLabelScope]struct{})
+	add := func(names []string, exclude, requireAll bool) {
+		for _, name := range names {
+			scopes[policyLabelScope{LabelName: name, Exclude: exclude, RequireAll: requireAll}] = struct{}{}
+		}
+	}
+	add(spec.LabelsIncludeAny, false, false)
+	add(spec.LabelsIncludeAll, false, true)
+	add(spec.LabelsExcludeAny, true, false)
+	add(spec.LabelsExcludeAll, true, true)
+	return scopes
 }
 
 func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -711,16 +733,16 @@ func assertProfileTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamI
 }
 
 func cleanupPolicy(
-	ctx context.Context, queryerContext sqlx.QueryerContext, extContext sqlx.ExtContext, policyID uint, policyPlatform string,
+	ctx context.Context, queryerContext sqlx.QueryerContext, dbWriter *sqlx.DB, policyID uint, policyPlatform string,
 	shouldRemoveAllPolicyMemberships bool,
 	removePolicyStats bool, logger *slog.Logger,
 ) error {
 	var err error
 
 	if shouldRemoveAllPolicyMemberships {
-		err = cleanupPolicyMembershipForPolicy(ctx, queryerContext, extContext, policyID)
+		err = cleanupPolicyMembershipForPolicy(ctx, queryerContext, dbWriter, policyID, logger)
 	} else {
-		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, queryerContext, extContext, policyID, policyPlatform)
+		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, queryerContext, dbWriter, policyID, policyPlatform, logger)
 	}
 	if err != nil {
 		return err
@@ -732,13 +754,8 @@ func cleanupPolicy(
 			_, err := tx.ExecContext(ctx, `DELETE FROM policy_stats WHERE policy_id = ?`, policyID)
 			return err
 		}
-		if _, isDB := extContext.(*sqlx.DB); isDB {
-			// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
-			err = common_mysql.WithRetryTxx(ctx, extContext.(*sqlx.DB), fn, logger)
-		} else {
-			err = fn(extContext)
-		}
-		if err != nil {
+		// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
+		if err := common_mysql.WithRetryTxx(ctx, dbWriter, fn, logger); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup policy stats")
 		}
 	}
@@ -1886,6 +1903,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		NeedsFullMembershipCleanup bool    `db:"needs_full_membership_cleanup"`
 	}
 	teamIDToPoliciesByName := make(map[*uint]map[string]policyLite, len(teamIDToPolicies))
+	teamIDToPolicyLabelsByName := make(map[*uint]map[string]map[policyLabelScope]struct{}, len(teamIDToPolicies))
 	for teamID, teamPolicySpecs := range teamIDToPolicies {
 		teamIDToPoliciesByName[teamID] = make(map[string]policyLite, len(teamPolicySpecs))
 		policyNames := make([]string, 0, len(teamPolicySpecs))
@@ -1913,6 +1931,37 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		}
 		for _, p := range policies {
 			teamIDToPoliciesByName[teamID][p.Name] = p
+		}
+
+		// Load each policy's current label scoping, so we can later tell whether the spec changed it.
+		if teamID == nil {
+			query, args, err = sqlx.In(`SELECT p.name AS policy_name, l.name AS label_name, pl.exclude, pl.require_all
+				FROM policy_labels pl JOIN policies p ON p.id = pl.policy_id JOIN labels l ON l.id = pl.label_id
+				WHERE p.team_id IS NULL AND p.name IN (?)`, policyNames)
+		} else {
+			query, args, err = sqlx.In(`SELECT p.name AS policy_name, l.name AS label_name, pl.exclude, pl.require_all
+				FROM policy_labels pl JOIN policies p ON p.id = pl.policy_id JOIN labels l ON l.id = pl.label_id
+				WHERE p.team_id = ? AND p.name IN (?)`, *teamID, policyNames)
+		}
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building query to get policy labels by policy name")
+		}
+		var policyLabels []struct {
+			PolicyName string `db:"policy_name"`
+			LabelName  string `db:"label_name"`
+			Exclude    bool   `db:"exclude"`
+			RequireAll bool   `db:"require_all"`
+		}
+		if err := sqlx.SelectContext(ctx, queryerContext, &policyLabels, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "getting policy labels by policy name")
+		}
+		teamIDToPolicyLabelsByName[teamID] = make(map[string]map[policyLabelScope]struct{}, len(policies))
+		for _, pl := range policyLabels {
+			if teamIDToPolicyLabelsByName[teamID][pl.PolicyName] == nil {
+				teamIDToPolicyLabelsByName[teamID][pl.PolicyName] = make(map[policyLabelScope]struct{})
+			}
+			scope := policyLabelScope{LabelName: pl.LabelName, Exclude: pl.Exclude, RequireAll: pl.RequireAll}
+			teamIDToPolicyLabelsByName[teamID][pl.PolicyName][scope] = struct{}{}
 		}
 	}
 
@@ -2116,7 +2165,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					removePolicyStats                bool
 					shouldUpdatePatchPolicyName      bool
 				)
-				if insertOnDuplicateDidInsertOrUpdate(res) {
+				policyRowChanged := insertOnDuplicateDidInsertOrUpdate(res)
+				if policyRowChanged {
 					// Figure out if the query, platform, software installer, VPP app, script or config profile changed.
 					if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok {
 						switch {
@@ -2189,6 +2239,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					return ctxerr.Wrap(ctx, err, "exec policies update labels")
 				}
 
+				// Only clean up membership when the policy or its labels changed.
+				_, prevFound := teamIDToPoliciesByName[teamID][spec.Name]
+				labelsChanged := !maps.Equal(teamIDToPolicyLabelsByName[teamID][spec.Name], policySpecLabelScopes(spec))
+				needsCleanup := !prevFound || policyRowChanged || shouldRemoveAllPolicyMemberships || labelsChanged
+
 				// Mark this policy for cleanup, so that the policy cleanup cron job can pick it up
 				// in case we fail and don't retry
 				if shouldRemoveAllPolicyMemberships {
@@ -2205,12 +2260,14 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				}
 				// Defer cleanup outside the transaction to avoid long-held row locks on
 				// policy_membership.
-				pendingCleanups = append(pendingCleanups, policyCleanupArgs{
-					policyID:                         policyID,
-					platform:                         spec.Platform,
-					shouldRemoveAllPolicyMemberships: shouldRemoveAllPolicyMemberships,
-					removePolicyStats:                removePolicyStats,
-				})
+				if needsCleanup {
+					pendingCleanups = append(pendingCleanups, policyCleanupArgs{
+						policyID:                         policyID,
+						platform:                         spec.Platform,
+						shouldRemoveAllPolicyMemberships: shouldRemoveAllPolicyMemberships,
+						removePolicyStats:                removePolicyStats,
+					})
+				}
 			}
 		}
 		return nil
@@ -2223,9 +2280,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 	// Run cleanup after labels are updated so the cleanup function can
 	// query the current label criteria from the database.
-	// Always run cleanup since labels may have changed even if the main policy
-	// fields didn't (the cleanup function is safe to call and will only delete
-	// memberships that don't match current criteria).
 	for _, args := range pendingCleanups {
 		if err := ds.cleanupPolicyAfterCommit(
 			ctx,
@@ -2435,7 +2489,8 @@ func cleanupConditionalAccessOnTeamChange(ctx context.Context, tx sqlx.ExtContex
 }
 
 func cleanupPolicyMembershipOnPolicyUpdate(
-	ctx context.Context, queryerContext sqlx.QueryerContext, db sqlx.ExecerContext, policyID uint, platforms string,
+	ctx context.Context, queryerContext sqlx.QueryerContext, dbWriter *sqlx.DB, policyID uint, platforms string,
+	logger *slog.Logger,
 ) error {
 	// Clean up hosts that don't match the platform criteria.
 	// Page through rows using the (policy_id, host_id) PK as a cursor so each SELECT+DELETE
@@ -2465,26 +2520,13 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 				break
 			}
 
-			batchStmt, args, err := sqlx.In(
-				`DELETE FROM policy_membership WHERE policy_id = ? AND host_id IN (?)`,
-				policyID, batchHostIDs,
-			)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "building batch delete for platform policy membership")
-			}
-			if _, err = db.ExecContext(ctx, batchStmt, args...); err != nil {
+			if err := deletePolicyMembershipBatch(ctx, dbWriter, policyID, batchHostIDs, true, logger); err != nil {
 				return ctxerr.Wrap(ctx, err, "batch cleanup policy membership for platform")
-			}
-			if err := updateHostIssuesFailingPolicies(ctx, db, batchHostIDs); err != nil {
-				return err
 			}
 			afterHostID = batchHostIDs[len(batchHostIDs)-1]
 		}
 		// Clean up orphaned memberships (host_id refs to deleted hosts, not covered by INNER JOIN above)
-		if _, err := db.ExecContext(ctx, `
-			DELETE pm FROM policy_membership pm
-			LEFT JOIN hosts h ON pm.host_id = h.id
-			WHERE pm.policy_id = ? AND h.id IS NULL`, policyID); err != nil {
+		if err := cleanupOrphanedPolicyMembership(ctx, dbWriter, policyID, logger); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup orphaned policy membership for platform")
 		}
 	}
@@ -2558,18 +2600,8 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 			break
 		}
 
-		batchStmt, args, err := sqlx.In(
-			`DELETE FROM policy_membership WHERE policy_id = ? AND host_id IN (?)`,
-			policyID, batchHostIDs,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building batch delete for label policy membership")
-		}
-		if _, err = db.ExecContext(ctx, batchStmt, args...); err != nil {
+		if err := deletePolicyMembershipBatch(ctx, dbWriter, policyID, batchHostIDs, true, logger); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch cleanup policy membership for labels")
-		}
-		if err := updateHostIssuesFailingPolicies(ctx, db, batchHostIDs); err != nil {
-			return err
 		}
 		afterLabelHostID = batchHostIDs[len(batchHostIDs)-1]
 	}
@@ -2582,8 +2614,9 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 func cleanupPolicyMembershipForPolicy(
 	ctx context.Context,
 	queryerContext sqlx.QueryerContext,
-	exec sqlx.ExecerContext,
+	dbWriter *sqlx.DB,
 	policyID uint,
+	logger *slog.Logger,
 ) error {
 	// Page through policy_membership using (policy_id, host_id) as a cursor. Selecting and deleting one
 	// batch at a time means we never load all host IDs into memory at once, and each DELETE holds
@@ -2607,29 +2640,72 @@ func cleanupPolicyMembershipForPolicy(
 			break
 		}
 
-		batchStmt, args, err := sqlx.In(
-			`DELETE FROM policy_membership WHERE policy_id = ? AND host_id IN (?)`,
-			policyID, batchHostIDs,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building batch delete for policy membership")
-		}
-		if _, err = exec.ExecContext(ctx, batchStmt, args...); err != nil {
+		if err := deletePolicyMembershipBatch(ctx, dbWriter, policyID, batchHostIDs, true, logger); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch cleanup policy membership")
-		}
-		if err := updateHostIssuesFailingPolicies(ctx, exec, batchHostIDs); err != nil {
-			return err
 		}
 		afterHostID = batchHostIDs[len(batchHostIDs)-1]
 	}
 	// Clean up orphaned memberships (host_id refs to deleted hosts, not covered by INNER JOIN above)
-	if _, err := exec.ExecContext(ctx, `
-		DELETE pm FROM policy_membership pm
-		LEFT JOIN hosts h ON pm.host_id = h.id
-		WHERE pm.policy_id = ? AND h.id IS NULL`, policyID); err != nil {
+	if err := cleanupOrphanedPolicyMembership(ctx, dbWriter, policyID, logger); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleanup orphaned policy membership")
 	}
 
+	return nil
+}
+
+// cleanupOrphanedPolicyMembership deletes the policy's membership rows whose host no longer exists. Deleting a host
+// already deletes its rows, so there is usually nothing to do. The non-locking read uses the same db as the
+// delete, because a lagging replica could report a newly created host as missing.
+func cleanupOrphanedPolicyMembership(ctx context.Context, dbWriter *sqlx.DB, policyID uint, logger *slog.Logger) error {
+	var afterHostID uint
+	for {
+		var batchHostIDs []uint
+		err := sqlx.SelectContext(ctx, dbWriter, &batchHostIDs, `
+			SELECT pm.host_id
+			FROM policy_membership pm
+			LEFT JOIN hosts h ON pm.host_id = h.id
+			WHERE pm.policy_id = ? AND pm.host_id > ? AND h.id IS NULL
+			ORDER BY pm.host_id ASC
+			LIMIT ?`, policyID, afterHostID, policyMembershipDeleteBatchSize)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "select batch of orphaned policy membership")
+		}
+		if len(batchHostIDs) == 0 {
+			return nil
+		}
+
+		// The hosts no longer exist, so there are no host_issues to recompute.
+		if err := deletePolicyMembershipBatch(ctx, dbWriter, policyID, batchHostIDs, false, logger); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch delete orphaned policy membership")
+		}
+		afterHostID = batchHostIDs[len(batchHostIDs)-1]
+	}
+}
+
+// deletePolicyMembershipBatch deletes the policy's membership rows of the given hosts and, if requested, recomputes the
+// hosts' failing policy counts. Each step retries on its own, so that a deadlock in the recompute can't skip hosts
+// whose membership was already deleted.
+func deletePolicyMembershipBatch(
+	ctx context.Context, dbWriter *sqlx.DB, policyID uint, hostIDs []uint, recomputeHostIssues bool, logger *slog.Logger,
+) error {
+	stmt, args, err := sqlx.In(`DELETE FROM policy_membership WHERE policy_id = ? AND host_id IN (?)`, policyID, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building batch delete for policy membership")
+	}
+	// Retry each step to avoid deadlocks with policy result ingestion.
+	if err := common_mysql.WithRetryTxx(ctx, dbWriter, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, stmt, args...)
+		return err
+	}, logger); err != nil {
+		return ctxerr.Wrap(ctx, err, "batch delete policy membership")
+	}
+	if recomputeHostIssues {
+		if err := common_mysql.WithRetryTxx(ctx, dbWriter, func(tx sqlx.ExtContext) error {
+			return updateHostIssuesFailingPolicies(ctx, tx, hostIDs)
+		}, logger); err != nil {
+			return ctxerr.Wrap(ctx, err, "recompute host issues after policy membership delete")
+		}
+	}
 	return nil
 }
 
@@ -2660,7 +2736,7 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 	}
 
 	for _, pol := range pols {
-		if err := cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.reader(ctx), ds.writer(ctx), pol.ID, pol.Platform); err != nil {
+		if err := cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.reader(ctx), ds.writer(ctx), pol.ID, pol.Platform, ds.logger); err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete outdated hosts membership for policy: %d; platforms: %v", pol.ID, pol.Platform)
 		}
 	}
@@ -2674,7 +2750,7 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 		return ctxerr.Wrap(ctx, err, "select policies needing full membership cleanup")
 	}
 	for _, polID := range fullCleanupPolIDs {
-		if err := cleanupPolicyMembershipForPolicy(ctx, ds.reader(ctx), ds.writer(ctx), polID); err != nil {
+		if err := cleanupPolicyMembershipForPolicy(ctx, ds.reader(ctx), ds.writer(ctx), polID, ds.logger); err != nil {
 			return ctxerr.Wrapf(ctx, err, "full membership cleanup for policy %d", polID)
 		}
 		if _, err := ds.writer(ctx).ExecContext(ctx,
