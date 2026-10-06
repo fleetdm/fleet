@@ -28,10 +28,18 @@ func (svc *Service) CompleteInitialSetup(ctx context.Context, p fleet.UserPayloa
 	p.GlobalRole = ptr.String(fleet.RoleAdmin)
 	p.Teams = nil
 
+	var committed bool
 	admin, err := svc.newUser(ctx, p, func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
-		return svc.ds.CompleteInitialSetup(ctx, user, &appConfig, []*fleet.EnrollSecret{{Secret: secret}})
+		user, err := svc.ds.CompleteInitialSetup(ctx, user, &appConfig, []*fleet.EnrollSecret{{Secret: secret}})
+		committed = err == nil
+		return user, err
 	})
 	if err != nil {
+		if committed {
+			// The client sees a failure and a retry is rejected, but setup is fully
+			// applied; logging lets operators tell that apart from a failed setup.
+			svc.logger.ErrorContext(ctx, "initial setup completed but a follow-up step failed; the admin can log in", "err", err)
+		}
 		return nil, nil, err
 	}
 	return admin, &appConfig, nil
