@@ -119,6 +119,7 @@ func TestPolicies(t *testing.T) {
 		{"ResetPolicyDefersMembershipCleanup", testResetPolicyDefersMembershipCleanup},
 		{"ApplyPolicySpecNoSpuriousStatsReset", testApplyPolicySpecNoSpuriousStatsReset},
 		{"ApplyPolicySpecsMembershipCleanupOnlyOnChange", testApplyPolicySpecsMembershipCleanupOnlyOnChange},
+		{"StalePolicyIDsForHost", testStalePolicyIDsForHost},
 		{"GetPoliciesForConditionalAccessSQLInjection", testGetPoliciesForConditionalAccess},
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
 		{"RecordPolicyQueryExecutionsStalePolicyIDs", testRecordPolicyQueryExecutionsStalePolicyIDs},
@@ -10244,6 +10245,41 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	assert.Equal(t, uint(1), policies[0].FailingHostCount, "policy stats should not have been reset")
+}
+
+func testStalePolicyIDsForHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	passingPolicy := newTestPolicy(t, ds, user, "stale-passing-policy", "darwin", nil)
+	failingPolicy := newTestPolicy(t, ds, user, "stale-failing-policy", "darwin", nil)
+	otherPolicy := newTestPolicy(t, ds, user, "stale-other-policy", "darwin", nil)
+	host := newTestHostWithPlatform(t, ds, "stale-host", "darwin", nil)
+	otherHost := newTestHostWithPlatform(t, ds, "stale-other-host", "darwin", nil)
+	hostWithoutRows := newTestHostWithPlatform(t, ds, "stale-host-without-rows", "darwin", nil)
+	allResults := map[uint]*bool{passingPolicy.ID: new(true), failingPolicy.ID: new(false), otherPolicy.ID: new(true)}
+	for _, h := range []*fleet.Host{host, otherHost} {
+		_, err := ds.RecordPolicyQueryExecutions(ctx, h, allResults, time.Now(), false, nil)
+		require.NoError(t, err)
+	}
+
+	cases := []struct {
+		name     string
+		hostID   uint
+		reported map[uint]*bool
+		want     []uint
+	}{
+		{"all policies reported", host.ID, allResults, nil},
+		{"some policies reported", host.ID, map[uint]*bool{failingPolicy.ID: new(true)}, []uint{passingPolicy.ID, otherPolicy.ID}},
+		{"no policies reported", host.ID, nil, []uint{passingPolicy.ID, failingPolicy.ID, otherPolicy.ID}},
+		{"host without membership", hostWithoutRows.ID, nil, nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := ds.StalePolicyIDsForHost(ctx, c.hostID, c.reported)
+			require.NoError(t, err)
+			assert.ElementsMatch(t, c.want, got)
+		})
+	}
 }
 
 // testApplyPolicySpecsMembershipCleanupOnlyOnChange verifies that ApplyPolicySpecs skips the membership cleanup for

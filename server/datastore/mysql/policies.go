@@ -1478,6 +1478,22 @@ func (ds *Datastore) PolicyQueriesForHostFiltered(ctx context.Context, host *fle
 	return ds.policyQueriesForHostInScope(ctx, host, policyIDs)
 }
 
+func (ds *Datastore) StalePolicyIDsForHost(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error) {
+	var storedPolicyIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &storedPolicyIDs,
+		`SELECT policy_id FROM policy_membership WHERE host_id = ?`, hostID,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host policy membership")
+	}
+	var stalePolicyIDs []uint
+	for _, policyID := range storedPolicyIDs {
+		if _, ok := reported[policyID]; !ok {
+			stalePolicyIDs = append(stalePolicyIDs, policyID)
+		}
+	}
+	return stalePolicyIDs, nil
+}
+
 // ClearHostPolicyMembershipForPolicies deletes the host's policy_membership rows for the given policies.
 func (ds *Datastore) ClearHostPolicyMembershipForPolicies(ctx context.Context, hostID uint, policyIDs []uint) error {
 	if len(policyIDs) == 0 {
