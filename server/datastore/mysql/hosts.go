@@ -498,7 +498,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 			SUM(stats.user_time) AS user_time,
 			SUM(stats.wall_time) AS wall_time
 		FROM scheduled_query_stats stats WHERE stats.host_id = ? GROUP BY stats.scheduled_query_id) as sqs ON (q.id = sqs.scheduled_query_id)
-		LEFT JOIN query_results qr ON (q.id = qr.query_id AND qr.host_id = ?)
+		LEFT JOIN query_results qr ON (q.id = qr.query_id AND qr.host_id = ? AND qr.id >= q.results_valid_from_id)
 	`
 
 	filter1 := `
@@ -515,6 +515,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 				SELECT 1 FROM query_results
 				WHERE query_results.query_id = q.id
 				AND query_results.host_id = ?
+				AND query_results.id >= q.results_valid_from_id
 			)
 		GROUP BY q.id
 	`
