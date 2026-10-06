@@ -136,6 +136,11 @@ func TestGenerateOpenQuery(t *testing.T) {
 	got = patch_policy.GenerateOpenQuery("windows", "", "Raspberry Pi Imager")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rpi-imager.exe');", got)
 
+	// Citrix Workspace: only the HDX session processes count as open. SelfService.exe is too generic a
+	// name to match on, and the per-user helpers run for the whole session.
+	got = patch_policy.GenerateOpenQuery("windows", "", "Citrix Workspace")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('wfica32.exe','cdviewer.exe','citrix.desktopviewer.app.exe'));", got)
+
 	// Unknown platform yields no query.
 	// every Firefox channel and architecture ships firefox.exe
 	for _, title := range []string{"Mozilla Firefox", "Mozilla Firefox ESR", "Mozilla Firefox Developer Edition (ARM64)", "Mozilla Firefox Nightly (ARM64)"} {
