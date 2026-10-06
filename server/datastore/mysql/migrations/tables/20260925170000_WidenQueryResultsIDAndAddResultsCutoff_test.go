@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261006142541(t *testing.T) {
+func TestUp_20260925170000(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	queryID := execNoErrLastID(t, db, `INSERT INTO queries (name, description, query) VALUES ('q', '', 'SELECT 1')`)
