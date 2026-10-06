@@ -53,6 +53,13 @@ As a consequence, Fleet Desktop will issue a new token if the current token is:
 
 This change is imperceptible to users, as clicking on the "My device" tray item always uses a valid token. If a user visits an address with an expired token, they will get a message instructing them to click on the tray item again.
 
+**Single Sign-On (SSO)**
+
+Fleet can be configured to require an end user to authenticate via SSO to view the "My Device" page. 
+
+To require SSO to view the "My Device" page, click on your profile in the top right and select **Settings**.
+On the settings page, go to **Organization Settings > Fleet Desktop > End user authentication**.
+
 ## Advanced
 
 ### Hide the menu bar icon on macOS

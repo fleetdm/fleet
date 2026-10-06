@@ -112,12 +112,11 @@ func (r SoapResponseContainer) HijackRender(ctx context.Context, w http.Response
 type SyncMLReqMsgContainer struct {
 	Data   *fleet.SyncML
 	Params url.Values
-	Certs  []*x509.Certificate
 	Err    error
 }
 
 // MDM SOAP request decoder
-func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, _ []*x509.Certificate) error {
 	// Reading the request bytes
 	reqBytes, err := io.ReadAll(r)
 	if err != nil {
@@ -126,9 +125,6 @@ func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u
 
 	// Set the request parameters
 	req.Params = u
-
-	// Set the request certs
-	req.Certs = c
 
 	// Handle empty body scenario
 	req.Data = &fleet.SyncML{Raw: reqBytes}
@@ -862,7 +858,7 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 // It receives a SyncML message with protocol commands, it process the commands and responds with a
 // SyncML message with protocol commands results and more protocol commands for the calling host
 // Note: This logic needs to be improved with better SyncML message parsing, better message tracking
-// and better security authentication (done through TLS and in-message hash)
+// and better security authentication (done through the in-message credentials hash)
 func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
 	reqSyncML := request.(*SyncMLReqMsgContainer).Data
 
@@ -873,7 +869,7 @@ func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, sv
 	}
 
 	// Getting the MS-MDM response message
-	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML, request.(*SyncMLReqMsgContainer).Certs)
+	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MSMDM, err)
 		return getSoapResponseFault(reqSyncML.SyncHdr.MsgID, soapFault), nil
@@ -1173,9 +1169,17 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
 
-	// Removing the device if already MDM enrolled
-	err = svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, secTokenMsg, hostUUID)
+	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
+	}
+
+	reqDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
+	}
+
+	if err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(ctx, reqHWDeviceID, reqDeviceID, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
 
@@ -1183,6 +1187,11 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	deviceProvisioning, credentialsHash, err := svc.getDeviceProvisioningInformation(ctx, secTokenMsg)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device provisioning information")
+	}
+
+	// Only after provisioning succeeded, so a request with a bad CSR cannot destroy the existing enrollment's state.
+	if err := svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, reqHWDeviceID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
 
 	// Token is authorized
@@ -1212,13 +1221,13 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 }
 
 // GetMDMWindowsManagementResponse returns a valid SyncML response message
-func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.SyncML, error) {
+func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.SyncML, error) {
 	if reqSyncML == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
 	// Checking if the incoming request is trusted
-	enrolledDevice, requestAuthState, err := svc.isTrustedRequest(ctx, reqSyncML, reqCerts)
+	enrolledDevice, requestAuthState, err := svc.isTrustedRequest(ctx, reqSyncML)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "management request is not trusted")
 	}
@@ -1300,6 +1309,8 @@ const (
 	RequestAuthStateTrusted
 )
 
+const windowsMDMAuthNonceTTL = 5 * time.Minute
+
 // isTrustedRequest checks if the incoming request was sent from an MDM-enrolled
 // device. It returns the matched enrollment (when the device was found), the
 // auth state, and an error only when the request is malformed or otherwise
@@ -1307,7 +1318,7 @@ const (
 // RequestAuthStateChallenge or RequestAuthStateUnauthorized) are reported via
 // the returned auth state and may return a nil error. The returned enrolled
 // device may be nil when the state is RequestAuthStateUntrusted.
-func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.MDMWindowsEnrolledDevice, requestAuthState, error) {
+func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.MDMWindowsEnrolledDevice, requestAuthState, error) {
 	if reqSyncML == nil {
 		return nil, RequestAuthStateUntrusted, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
@@ -1323,22 +1334,13 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 		return nil, RequestAuthStateUntrusted, errors.New("device was not MDM enrolled")
 	}
 
-	// Check if TLS certs contains device ID on its common name
-	if len(reqCerts) > 0 {
-		for _, reqCert := range reqCerts {
-			if strings.Contains(reqCert.Subject.CommonName, deviceID) {
-				return enrolledDevice, RequestAuthStateTrusted, nil
-			}
-		}
-	}
-
 	if !enrolledDevice.CredentialsAcknowledged && enrolledDevice.CredentialsHash == nil {
 		// Device has not gotten new credentials, rekey the device only once
 		return enrolledDevice, RequestAuthStateRekey, nil
 	}
 
 	if reqSyncML.SyncHdr.Cred == nil {
-		// No certs, but no credentials present - challenge the device
+		// No credentials present - challenge the device
 		return enrolledDevice, RequestAuthStateChallenge, nil
 	}
 
@@ -1381,6 +1383,14 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 	if !bytes.Equal(receivedDigestHash, expectedDigestHash[:]) {
 		// Credentials do not match what we expect
 		return enrolledDevice, RequestAuthStateUnauthorized, nil
+	}
+
+	// OMA-DM scopes the MD5 nonce to the session, so keep it alive while the session continues; otherwise a session outliving the TTL
+	// is challenged mid-session. MsgID 1 starts a new session and is left alone so the nonce still rotates between sessions.
+	if reqSyncML.SyncHdr.MsgID != "1" {
+		if err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, *nonce, windowsMDMAuthNonceTTL); err != nil {
+			svc.logger.WarnContext(ctx, "failed to refresh Windows MDM auth nonce", "device_id", deviceID, "err", err)
+		}
 	}
 
 	// We verified the username, password and nonce match what we expect, so we can ack the rekeyed credentials
@@ -1989,7 +1999,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 	if requestAuthState == RequestAuthStateChallenge || requestAuthState == RequestAuthStateUnauthorized {
 		nonce := uuid.NewString() // using UUID as nonce since it has 122 bits of entropy
 		base64Nonce := base64.StdEncoding.EncodeToString([]byte(nonce))
-		err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, nonce, 5*time.Minute)
+		err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, nonce, windowsMDMAuthNonceTTL) //nolint:nilaway // svc is a non-nil receiver
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "store device nonce in kv store")
 		}
@@ -2019,11 +2029,8 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 			},
 		}
 
+		// Not persisted until the device authenticates; the client resends the whole package with credentials.
 		responseCmds = append(responseCmds, ackMsg)
-		err = saveResponse([]string{})
-		if err != nil {
-			return nil, err
-		}
 		return responseCmds, nil
 	}
 
@@ -3169,45 +3176,87 @@ func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string
 	return nil
 }
 
-// removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
-// HW DeviceID is used to check the list of enrolled devices
-func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(
-	ctx context.Context, secTokenMsg *fleet.RequestSecurityToken, hostUUID string,
-) error {
-	// Getting the HW DeviceID from the RequestSecurityToken msg
-	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
-	if err != nil {
-		return err
+// checkWindowsMDMEnrollmentCanReplaceExisting refuses a fleetd (programmatic) enrollment that would replace another host's
+// enrollment. A fleetd enrollment authenticates its host with the orbit node key, so it may only replace that host's own
+// enrollment. Both identifiers the device reports are checked: re-enrollment deletes the enrollment holding the hardware ID,
+// and management sessions load the newest enrollment holding the device ID.
+func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Context, hardwareID, deviceID, hostUUID string) error {
+	if hostUUID == "" {
+		return nil
 	}
 
-	// Device is already enrolled, let's remove it
-	deletedHostUUID, err := svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, reqHWDeviceID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil
+	byHardwareID, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, hardwareID)
+	switch {
+	case fleet.IsNotFound(err):
+		byHardwareID = nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get existing enrollment for hardware ID")
+	}
+	if byHardwareID != nil {
+		if err := svc.checkWindowsMDMEnrollmentOwner(ctx, byHardwareID, "hardware ID", "mdm_hardware_id", hardwareID, hostUUID); err != nil {
+			return err
 		}
-		return err
 	}
 
-	svc.warnOnWindowsMDMHardwareIDCollision(ctx, reqHWDeviceID, hostUUID, deletedHostUUID)
-
-	return nil
+	byDeviceID, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get existing enrollment for device ID")
+	}
+	if byHardwareID != nil && byDeviceID.ID == byHardwareID.ID {
+		return nil
+	}
+	return svc.checkWindowsMDMEnrollmentOwner(ctx, byDeviceID, "device ID", "mdm_device_id", deviceID, hostUUID)
 }
 
-// warnOnWindowsMDMHardwareIDCollision reports that the enrollment just deleted for the hardware ID the enrolling device
-// presented belonged to a different host.
-func (svc *Service) warnOnWindowsMDMHardwareIDCollision(ctx context.Context, hardwareID, hostUUID, deletedHostUUID string) {
-	if hostUUID == "" || deletedHostUUID == "" || deletedHostUUID == hostUUID {
-		return
+// checkWindowsMDMEnrollmentOwner refuses a fleetd enrollment of hostUUID that would take over existing, the enrollment holding
+// the identifier id (idName in messages, idKey in log attributes).
+func (svc *Service) checkWindowsMDMEnrollmentOwner(ctx context.Context, existing *fleet.MDMWindowsEnrolledDevice, idName, idKey,
+	id, hostUUID string,
+) error {
+	if existing.HostUUID == "" || existing.HostUUID == hostUUID {
+		return nil
 	}
 
+	existingHost, err := svc.ds.HostByUUID(ctx, existing.HostUUID)
+	switch {
+	case fleet.IsNotFound(err):
+		// The host was deleted, so there is nothing left to protect. This is also how an admin releases a hardware ID
+		// held by a stale host.
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get host of existing enrollment")
+	}
+
+	// The hardware ID survives a wipe, and some devices come back from one as a new host.
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, existingHost)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get lock/wipe status of existing enrollment's host")
+	}
+	if lockWipe.IsWiped() {
+		return nil
+	}
+
+	// Otherwise two hosts sharing a hardware ID come from cloning an already-enrolled image, which neither Fleet nor
+	// Microsoft supports, or from a host presenting another's hardware ID or device ID.
 	svc.logger.WarnContext(ctx,
-		"windows host is enrolling in MDM with a hardware ID already held by another host, which takes over that host's "+
-			"enrollment and leaves it unmanaged",
-		"mdm_hardware_id", hardwareID,
+		"refusing windows MDM enrollment with a "+idName+" enrolled to another host; delete the other host if it is stale",
+		idKey, id,
 		"enrolling_host_uuid", hostUUID,
-		"existing_host_uuid", deletedHostUUID,
+		"existing_host_uuid", existing.HostUUID,
 	)
+	return ctxerr.New(ctx, idName+" is enrolled to another host")
+}
+
+// removeWindowsDeviceIfAlreadyMDMEnrolled removes the enrollment held by the hardware ID, if any.
+func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context, hardwareID string) error {
+	_, err := svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, hardwareID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return err
+	}
+	return nil
 }
 
 // getDeviceProvisioningInformation returns a valid WapProvisioningDoc
