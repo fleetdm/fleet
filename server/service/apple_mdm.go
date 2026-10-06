@@ -2942,6 +2942,9 @@ func (svc *Service) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef st
 
 	legacyRef, previousAcctUUID, err := svc.ds.ReconcileMDMAppleEnrollRef(ctx, enrollRef, machineInfo)
 	if err != nil && !fleet.IsNotFound(err) {
+		if previousAcctUUID != "" {
+			shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.NewActivity, svc.logger, machineInfo.UDID, previousAcctUUID, enrollRef)
+		}
 		return "", ctxerr.Wrap(ctx, err, "check legacy enroll ref")
 	}
 	shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.NewActivity, svc.logger, machineInfo.UDID, previousAcctUUID, enrollRef)

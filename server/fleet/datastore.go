@@ -2594,7 +2594,8 @@ type Datastore interface {
 
 	// ReconcileMDMAppleEnrollRef returns the legacy enrollment reference for a
 	// device with the given host UUID, and the IdP account the host was linked
-	// to before, empty if none.
+	// to before, empty if none. With an empty enrollRef the link is removed in
+	// its own transaction, so the previous account is returned even with an error.
 	ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *MDMAppleMachineInfo) (legacyRef string, previousAcctUUID string, err error)
 	// GetMDMIdPAccountByHostUUID returns the MDM IdP account that associated with the given host UUID.
 	GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*MDMIdPAccount, error)
