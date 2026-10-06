@@ -93,7 +93,7 @@ func TestBulkSetAndroidAppsAvailableForHostsPreservesFleetAgent(t *testing.T) {
 		return 0, nil
 	}
 	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
-		return []fleet.VPPAppTeam{{VPPAppID: fleet.VPPAppID{AdamID: "com.example.teamapp"}, AppTeamID: 1}}, nil
+		return []fleet.VPPAppTeam{{AdamID: "com.example.teamapp", AppTeamID: 1}}, nil
 	}
 	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 		return map[string][]byte{}, nil
@@ -150,7 +150,7 @@ func TestBulkMakeAndroidAppsAvailableForHostPreservesFleetAgent(t *testing.T) {
 		}, nil
 	}
 	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
-		return []fleet.VPPAppTeam{{VPPAppID: fleet.VPPAppID{AdamID: "com.example.vppapp"}, AppTeamID: 1}}, nil
+		return []fleet.VPPAppTeam{{AdamID: "com.example.vppapp", AppTeamID: 1}}, nil
 	}
 	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 		return map[string][]byte{}, nil
@@ -707,8 +707,8 @@ func TestRunAndroidSetupExperienceInstallsFirstAddedFlaggedVersion(t *testing.T)
 	}
 	ds.GetVPPAppsToInstallDuringSetupExperienceFunc = func(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error) {
 		return []fleet.VPPAppTeam{
-			{VPPAppID: fleet.VPPAppID{AdamID: "com.example.app", Platform: fleet.AndroidPlatform}, AppTeamID: 1},
-			{VPPAppID: fleet.VPPAppID{AdamID: "com.example.app", Platform: fleet.AndroidPlatform}, AppTeamID: 2},
+			{AdamID: "com.example.app", Platform: fleet.AndroidPlatform, AppTeamID: 1},
+			{AdamID: "com.example.app", Platform: fleet.AndroidPlatform, AppTeamID: 2},
 		}, nil
 	}
 	var configVersionIDs []uint
@@ -786,7 +786,7 @@ func TestResendVPPAppConfiguration(t *testing.T) {
 	var jobs []*fleet.Job
 	ds := new(mock.Store)
 	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
-		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: appID}, TitleID: titleID}, nil
+		return &fleet.VPPApp{VPPAppID: appID, TitleID: titleID}, nil
 	}
 	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
 		return []*fleet.VPPAppStoreApp{{VPPAppID: appID, VPPAppsTeamsID: versionA}, {VPPAppID: appID, VPPAppsTeamsID: versionB}}, nil
@@ -880,7 +880,7 @@ func TestResendVPPAppConfiguration(t *testing.T) {
 		return &fleet.Host{ID: id, Platform: "ios"}, nil
 	}
 	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
-		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: appID, AppTeamID: vppAppTeamID}, TitleID: titleID}, nil
+		return &fleet.VPPApp{VPPAppID: appID, AppTeamID: vppAppTeamID, TitleID: titleID}, nil
 	}
 	ds.GetHostIDsWithUnactivatedVPPAppInstallFunc = func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
 		require.Equal(t, versionB, vppAppTeamID)

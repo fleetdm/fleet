@@ -4276,7 +4276,7 @@ func testAndroidAppsInScopeHostVitalsExcludeAnyLabel(t *testing.T, ds *Datastore
 
 	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), appTeamID, excludeAnyLabelScope(hostVitalsLabel), softwareTypeVPP))
 
-	expectedApps := []fleet.VPPAppTeam{{VPPAppID: fleet.VPPAppID{AdamID: adamID}, AppTeamID: appTeamID}}
+	expectedApps := []fleet.VPPAppTeam{{AdamID: adamID, AppTeamID: appTeamID}}
 	appIDs, err := ds.GetAndroidAppsInScopeForHost(ctx, nonMember.ID)
 	require.NoError(t, err)
 	require.Equal(t, expectedApps, appIDs)
@@ -4905,6 +4905,7 @@ func testListHostSoftwareAppStoreAppHostVersion(t *testing.T, ds *Datastore) {
 			}, &team.ID, nil)
 		}
 		require.NoError(t, err)
+		require.NotNil(t, versionA)
 		versionB, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 			Name:             "HostVersionApp",
 			BundleIdentifier: "com.example." + adamID,
@@ -5006,7 +5007,8 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 			Name:             "ResendApp",
 			BundleIdentifier: bundleID,
-			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform}},
+			AdamID:           adamID,
+			Platform:         fleet.IOSPlatform,
 		}, c.hostTeamID, nil)
 		require.NoError(t, err)
 
@@ -5033,7 +5035,8 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		otherVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 			Name:             "ResendApp",
 			BundleIdentifier: bundleID,
-			VPPAppID:         fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform},
+			AdamID:           adamID,
+			Platform:         fleet.IOSPlatform,
 			VersionName:      "Other",
 		}, c.hostTeamID, nil)
 		require.NoError(t, err)

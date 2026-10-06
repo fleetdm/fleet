@@ -6458,7 +6458,7 @@ func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
 		return map[uint]*fleet.HostAppStoreAppVersion{0: {VPPAppTeamID: 1, AdamID: adamID, InScope: true}}, nil
 	}
 	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
-		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 1, VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: fleet.MacOSPlatform}}}, nil
+		return &fleet.VPPApp{AppTeamID: 1, AdamID: adamID, Platform: fleet.MacOSPlatform}, nil
 	}
 
 	var installCalled bool
@@ -6547,7 +6547,7 @@ func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
 		return map[uint]*fleet.HostAppStoreAppVersion{0: {VPPAppTeamID: 1, AdamID: adamID, InScope: true}}, nil
 	}
 	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
-		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 1, VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: fleet.MacOSPlatform}}}, nil
+		return &fleet.VPPApp{AppTeamID: 1, AdamID: adamID, Platform: fleet.MacOSPlatform}, nil
 	}
 
 	var (

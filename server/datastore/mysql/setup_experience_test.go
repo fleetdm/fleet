@@ -1793,10 +1793,10 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			HostUUID:          hostUUID,
 			Name:              "vpp",
 			Status:            fleet.SetupExperienceStatusPending,
-			VPPAppTeamID:      ptr.Uint(vppAppsTeamsID),
-			VPPAppVersionName: ptr.String(fleet.DefaultAppStoreAppVersionName),
-			SoftwareTitleID:   ptr.Uint(vppApp.TitleID),
-			Source:            ptr.String("apps"),
+			VPPAppTeamID:      new(vppAppsTeamsID),
+			VPPAppVersionName: new(fleet.DefaultAppStoreAppVersionName),
+			SoftwareTitleID:   new(vppApp.TitleID),
+			Source:            new("apps"),
 		},
 		{
 			HostUUID:                hostUUID,
@@ -3148,6 +3148,7 @@ func testEnqueueSetupExperienceFirstAddedAppStoreAppVersion(t *testing.T, ds *Da
 			}, &team.ID, nil)
 		}
 		require.NoError(t, err)
+		require.NotNil(t, versionA)
 		versionB, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 			Name:             "SetupVersionsApp",
 			BundleIdentifier: "com.example." + adamID,
