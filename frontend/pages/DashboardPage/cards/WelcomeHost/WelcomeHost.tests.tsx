@@ -112,4 +112,82 @@ describe("WelcomeHost - refetch give-up state", () => {
     // Still only the one call from the original give-up -- not a second one.
     expect(notify.error).toHaveBeenCalledTimes(1);
   });
+
+  // Each tab-focus re-entry into onSuccess used to schedule a fresh setTimeout
+  // next to the one already pending, so polling sped up.
+  it("does not stack polling loops when the tab regains focus mid-refetch", async () => {
+    jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
+    let now = 1_700_000_000_000;
+    jest.spyOn(Date, "now").mockImplementation(() => now);
+
+    (hostAPI.loadHostDetails as jest.Mock).mockResolvedValue({
+      host: mockOnlineStuckRefetchHost(),
+    });
+
+    renderWelcomeHost();
+    await screen.findByText("Antivirus healthy");
+
+    for (let i = 0; i < 3; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => {
+        window.dispatchEvent(new Event("focus"));
+        window.dispatchEvent(new Event("visibilitychange"));
+        await jest.advanceTimersByTimeAsync(0);
+      });
+    }
+
+    const callsBeforeAdvance = (hostAPI.loadHostDetails as jest.Mock).mock.calls
+      .length;
+
+    now += 1000;
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(1000);
+    });
+
+    const pollsInOneInterval =
+      (hostAPI.loadHostDetails as jest.Mock).mock.calls.length -
+      callsBeforeAdvance;
+    expect(pollsInOneInterval).toBe(1);
+  });
+
+  // After give-up, a focus-triggered onSuccess used to re-enter the "timer
+  // just started" branch, open a fresh 60s cycle, and fire the toast again
+  // 60s later.
+  it("doesn't restart the refetch window after a timeout when the tab regains focus", async () => {
+    jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
+    let now = 1_700_000_000_000;
+    jest.spyOn(Date, "now").mockImplementation(() => now);
+
+    (hostAPI.loadHostDetails as jest.Mock).mockResolvedValue({
+      host: mockOnlineStuckRefetchHost(),
+    });
+
+    renderWelcomeHost();
+    await screen.findByText("Antivirus healthy");
+
+    // Trip the give-up branch on the first polling tick.
+    now += 61000;
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(1000);
+    });
+
+    await waitFor(() => {
+      expect(notify.error).toHaveBeenCalledTimes(1);
+    });
+
+    // Tab switch, then let a full fresh 60s window elapse. Without the fix,
+    // the focus-triggered onSuccess restarts a new cycle and the toast fires
+    // a second time around now.
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(new Event("visibilitychange"));
+      await jest.advanceTimersByTimeAsync(0);
+    });
+    now += 65000;
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(1000);
+    });
+
+    expect(notify.error).toHaveBeenCalledTimes(1);
+  });
 });
