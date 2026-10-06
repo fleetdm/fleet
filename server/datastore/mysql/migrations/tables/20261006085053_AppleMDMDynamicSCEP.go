@@ -40,14 +40,17 @@ func Up_20261006085053(tx *sql.Tx) error {
 		}
 	}
 
-	_, err := tx.Exec(`ALTER TABLE acme_enrollments
-		-- acme (fresh ADE enrollment) or acme_renewal
-		ADD COLUMN purpose VARCHAR(31) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'acme',
-		-- acme_renewal only: the enrollment's device channel ID
-		ADD COLUMN enrollment_id VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL;
-  	`)
-	if err != nil {
-		return fmt.Errorf("error altering table acme_enrollments: %w", err)
+	// both columns are added in one go, so we just check one
+	if !columnExists(tx, "acme_enrollments", "purpose") {
+		_, err := tx.Exec(`ALTER TABLE acme_enrollments
+			-- acme (fresh ADE enrollment) or acme_renewal
+			ADD COLUMN purpose VARCHAR(31) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'acme',
+			-- acme_renewal only: the enrollment's device channel ID
+			ADD COLUMN enrollment_id VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL;
+		  `)
+		if err != nil {
+			return fmt.Errorf("error altering table acme_enrollments: %w", err)
+		}
 	}
 	return nil
 }

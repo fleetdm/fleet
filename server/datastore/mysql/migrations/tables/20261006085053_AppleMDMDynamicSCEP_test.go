@@ -46,4 +46,23 @@ func TestUp_20261006085053(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "acme_renewal", renewal.Purpose)
 	require.Equal(t, sql.NullString{String: "enroll-3", Valid: true}, renewal.EnrollmentID)
+
+	insertChallenge := `INSERT INTO mdm_apple_scep_challenges (challenge, purpose, host_uuid, expires_at, issued_cert_serial)
+		VALUES (?, 'ade', 'UDID1', DATE_ADD(NOW(6), INTERVAL 1 HOUR), ?)`
+	execNoErr(t, db, insertChallenge, "abc", 1)
+	// binary collation: a challenge differing only by case is a distinct value
+	execNoErr(t, db, insertChallenge, "ABC", 2)
+	// NULL serials don't collide with each other
+	execNoErr(t, db, insertChallenge, "def", nil)
+	execNoErr(t, db, insertChallenge, "ghi", nil)
+
+	_, err = db.Exec(insertChallenge, "abc", 3)
+	require.ErrorContains(t, err, "Duplicate entry")
+
+	_, err = db.Exec(insertChallenge, "jkl", 1)
+	require.ErrorContains(t, err, "Duplicate entry")
+
+	var challenges []string
+	require.NoError(t, db.Select(&challenges, `SELECT challenge FROM mdm_apple_scep_challenges ORDER BY id`))
+	require.Equal(t, []string{"abc", "ABC", "def", "ghi"}, challenges)
 }
