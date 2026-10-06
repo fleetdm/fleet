@@ -608,7 +608,7 @@ func TestPubSubEnrollment(t *testing.T) {
 			return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 		}
 
-		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{ //nolint:gosec // G101: test data, not a credential
 			Name:                createAndroidDeviceId("test-zt-new"),
 			EnrollmentTokenData: `{"fleet_id": 7}`,
 		})
@@ -679,7 +679,7 @@ func TestPubSubEnrollment(t *testing.T) {
 			return nil, common_mysql.NotFound("mdm idp account")
 		}
 
-		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{ //nolint:gosec // G101: test data, not a credential
 			Name:                createAndroidDeviceId("test-zt-re-enroll"),
 			EnrollmentTokenData: `{"fleet_id": 7}`,
 		})
