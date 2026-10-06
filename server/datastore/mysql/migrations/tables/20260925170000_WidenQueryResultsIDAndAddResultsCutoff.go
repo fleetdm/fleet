@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261006142541, Down_20261006142541)
+	MigrationClient.AddMigration(Up_20260925170000, Down_20260925170000)
 }
 
-func Up_20261006142541(tx *sql.Tx) error {
+func Up_20260925170000(tx *sql.Tx) error {
 	return withSteps([]migrationStep{
 		widenQueryResultsID,
 		addQueryResultsCutoff,
@@ -51,6 +51,6 @@ func addQueryResultsCutoff(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261006142541(tx *sql.Tx) error {
+func Down_20260925170000(tx *sql.Tx) error {
 	return nil
 }
