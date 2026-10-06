@@ -10,9 +10,11 @@ The Fleet roadmap is set for fall 2026. This quarter is about AI you can put to 
 
 In the next 3 months, Fleet will ship...
 
-- 🤖 AI-native configuration profile builder: Describe what you want in plain English and get a validated profile for Apple, Windows, and Android. Use your company's approved LLM ([#51813](https://github.com/fleetdm/fleet/issues/51813), [#51979](https://github.com/fleetdm/fleet/issues/51979), [#54801](https://github.com/fleetdm/fleet/issues/54801), [#51815](https://github.com/fleetdm/fleet/issues/51815))
-- 👁️‍🗨️ AI governance: See AI tools, AI skills, and AI agent sessions on each host, and find vulnerable MCP servers ([#51599](https://github.com/fleetdm/fleet/issues/51599), [#51288](https://github.com/fleetdm/fleet/issues/51288), [#51383](https://github.com/fleetdm/fleet/issues/51383), [#51825](https://github.com/fleetdm/fleet/issues/51825), [#54548](https://github.com/fleetdm/fleet/issues/54548))
-- ✨ Fleet's MCP server, hosted for you in your Fleet instance ([#44448](https://github.com/fleetdm/fleet/issues/44448))
+- 🚀 Fleet 5:
+  - 🤖 AI-native configuration profile builder: Describe what you want in plain English and get a validated profile for Apple, Windows, and Android. Use your company's approved LLM ([#51813](https://github.com/fleetdm/fleet/issues/51813), [#51979](https://github.com/fleetdm/fleet/issues/51979), [#54801](https://github.com/fleetdm/fleet/issues/54801), [#51815](https://github.com/fleetdm/fleet/issues/51815))
+  - 👁️‍🗨️ AI governance: See AI tools, AI skills, and AI agent sessions on each host, and find vulnerable MCP servers ([#51599](https://github.com/fleetdm/fleet/issues/51599), [#51288](https://github.com/fleetdm/fleet/issues/51288), [#51383](https://github.com/fleetdm/fleet/issues/51383), [#51825](https://github.com/fleetdm/fleet/issues/51825), [#54548](https://github.com/fleetdm/fleet/issues/54548))
+  - ✨ Fleet's MCP server, hosted for you in your Fleet instance ([#44448](https://github.com/fleetdm/fleet/issues/44448))
+  - 🧹 A cleaner, more consistent API ([5.0.0 milestone](https://github.com/fleetdm/fleet/milestone/295))
 - 🪟 Windows apps: Deploy Microsoft Store apps and `.zip` packages, and give end users Fleet Desktop on Windows ([#43493](https://github.com/fleetdm/fleet/issues/43493), [#38800](https://github.com/fleetdm/fleet/issues/38800), [#48755](https://github.com/fleetdm/fleet/issues/48755))
 - 📋 Windows configuration profiles: Upload profiles exported from Intune, see the XML applied to each host, use IdP user variables, and resend profiles when variables change ([#48198](https://github.com/fleetdm/fleet/issues/48198), [#54471](https://github.com/fleetdm/fleet/issues/54471), [#50144](https://github.com/fleetdm/fleet/issues/50144), [#44852](https://github.com/fleetdm/fleet/issues/44852))
 - 🖥️ Windows enrollment: Show a custom end user agreement (EULA) and match Autopilot hosts without relying on the serial number ([#50146](https://github.com/fleetdm/fleet/issues/50146), [#51180](https://github.com/fleetdm/fleet/issues/51180))
@@ -27,7 +29,6 @@ In the next 3 months, Fleet will ship...
 - 🧩 Host vitals: Pull any attribute from your IdP and create custom vitals ([#42922](https://github.com/fleetdm/fleet/issues/42922))
 - 🏷️ Labels for mobile devices: Use built-in host vitals (e.g. public IP) to create labels for iOS/iPadOS and Android hosts ([#39088](https://github.com/fleetdm/fleet/issues/39088))
 - 🗓️ Run scripts on a recurring schedule ([#29496](https://github.com/fleetdm/fleet/issues/29496))
-- 🚀 Fleet 5: A cleaner, more consistent API, with long-term support for Fleet 4 ([#33768](https://github.com/fleetdm/fleet/issues/33768), [#33767](https://github.com/fleetdm/fleet/issues/33767))
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
