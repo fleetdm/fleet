@@ -193,6 +193,7 @@ policies:
     critical: false
     calendar_events_enabled: false
     conditional_access_enabled: true
+    hidden: false
     labels_include_any:
       - Engineering
       - Customer Support
@@ -211,6 +212,7 @@ policies:
   critical: false
   calendar_events_enabled: false
   conditional_access_enabled: true
+  hidden: false
   resend_configuration_profile: "Passcode requirements"
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
@@ -408,7 +410,7 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `apple_require_hardware_attestation` specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from AB as part of DEP enrollment (default: `false`). Can only be configured for "All fleets" (default.yml).
 - `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
-- `name_template` sets a naming convention for macOS, iOS, and iPadOS hosts. Fleet resolves the template per host, renames the host on the device via an MDM command, and updates the host's name in Fleet. Supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `_USERNAME_LOCAL_PART`, `_GROUPS`, `_DEPARTMENT`, `_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. A referenced custom variable must already exist. Supported for fleets and for hosts that aren't in a fleet ("Unassigned"): set it in a fleet's YAML, or in `no_team.yml`/`default.yml` controls to apply it to "Unassigned" hosts. Removing the key clears the template but doesn't rename any host. _Available in Fleet Premium._
+- `name_template` sets a naming convention for macOS, iOS, and iPadOS hosts. Fleet resolves the template per host, renames the host on the device via an MDM command, and updates the host's name in Fleet. Supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `_USERNAME_LOCAL_PART`, `_GROUPS`, `_DEPARTMENT`, `_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. A referenced custom variable must already exist. Supported for fleets and for hosts that aren't in a fleet ("Unassigned"): set it in a fleet's YAML, or in `no_team.yml`/`default.yml` controls to apply it to "Unassigned" hosts. Removing the key clears the template but doesn't rename any host. If a host is renamed on the device, or the device rejects the rename, Fleet tries again automatically, up to 3 times, before marking the host as failed. Fleet detects a rename the next time the host reports its name (about every hour). On macOS, this requires fleetd to be installed and running. _Available in Fleet Premium._
 
 > `enable_disk_encryption` at this level is deprecated. Please use per-platform (`apple_settings`, `windows_settings`, `linux_settings`) instead.
 > `windows_require_bitlocker_pin` at this level is deprecated. Please use `windows_settings.require_bitlocker_pin` instead.
@@ -483,6 +485,8 @@ controls:
       - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
+      - path: ../lib/windows/profiles/background-task.xml
+        hidden: true
       - path:  ../lib/windows/profiles/win-firewall.xml
           name: Windows Firewall
           description: Configures firewall rules
@@ -555,9 +559,9 @@ controls:
 
 > PayloadScope set to "User" in a DDM declaration's top-level JSON is required for user-scoped payloads, see [Custom OS settings](https://fleetdm.com/guides/custom-os-settings#macos) for details.`
 
-Use `self_service` to specify whether end users can manually install from **Fleet Desktop > Controls**. When set to true, profile will not be deployed automatically and is opt-in.
+Use `self_service` to specify whether end users can manually install from **Fleet Desktop > Controls**. When set to true, profile will not be deployed automatically and is opt-in. Only supported for `.mobileconfig` profiles. Labels still decide which hosts can see the profile.
 
-Use `hidden` to specify whether to hide the profile from the end user by default on **Fleet Desktop > Controls**. End users can toggle "Show hidden profiles" in the UI to view all profiles on the host, but these profiles do not require the end user to take any action. `self_service` must be set to `false` (force install of profile) to use this option.
+Use `hidden` to specify whether to hide the profile from the end user by default on **Fleet Desktop > Controls**. End users can toggle "Show hidden profiles" in the UI to view all profiles on the host, but these profiles do not require the end user to take any action. `self_service` must be set to `false` (force install of profile) to use this option. Supported for `.mobileconfig`, declaration (`.json`), and Windows (`.xml`) profiles.
 
 ### android_settings
 
@@ -568,6 +572,8 @@ Use `hidden` to specify whether to hide the profile from the end user by default
 Each entry can use either `path:` or `paths:`. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for glob pattern support.
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+Use `hidden` to mark a profile that doesn't require any action from the end user. Hidden profiles show a hidden indicator on **Host details > Controls**. `self_service` isn't supported for Android profiles.
 
 #### android_settings.certificates
 

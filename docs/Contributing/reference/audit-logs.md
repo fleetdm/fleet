@@ -657,6 +657,36 @@ This activity contains the following fields:
 }
 ```
 
+## host_enrollment_rejected
+
+Generated when Fleet refuses an Orbit or osquery enrollment under the one-time enroll secret rules (see the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration for macOS, and [`mdm.windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) for Windows). Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
+
+This activity contains the following fields:
+- "host_id": ID of the host the attempt targeted, or null if the host is unknown.
+- "host_display_name": Display name of the host, if known.
+- "host_serial": Serial number the enrolling device presented.
+- "host_uuid": Hardware UUID the enrolling device presented.
+- "platform": Platform the enrolling device presented.
+- "enrollment_plane": Which fleetd component attempted to enroll, "orbit" or "osquery".
+- "reason": Why the attempt was refused. One of:
+  - "one_time_secret_spent": the host's one-time enroll secret was already used. Resend the "Fleetd configuration" profile (macOS) or the "Fleetd enroll secret" profile (Windows) to issue a new one.
+  - "one_time_secret_identifier_mismatch": a one-time enroll secret was presented with a different serial number or hardware UUID than it was issued for.
+  - "shared_secret_for_mdm_managed_host": a global or fleet-level enroll secret was used for a host that is enrolled in Fleet MDM, assigned to Fleet in Apple Business, or registered in Windows Autopilot. On Windows, this also covers a deleted host whose device checked in with Fleet MDM after it was deleted.
+
+#### Example
+
+```json
+{
+	"host_id": 123,
+	"host_display_name": "Anna's MacBook Pro",
+	"host_serial": "C02ABC123DEF",
+	"host_uuid": "5F0F24C3-1F58-4C2B-9E7B-1F0E6C2B4D6A",
+	"platform": "darwin",
+	"enrollment_plane": "orbit",
+	"reason": "one_time_secret_spent"
+}
+```
+
 ## mdm_enrolled
 
 Generated when a host is enrolled in Fleet's MDM.
@@ -2906,6 +2936,23 @@ This activity contains the following fields:
 {
 	"host_id": 123,
 	"host_display_name": "PWNED-VM-123"
+}
+```
+
+## unbound_host_from_idp_account
+
+Generated when a host's link to an identity provider (IdP) account is removed, for example when the host re-enrolls without end user authentication. Fleet records this activity, so it does not include a user.
+
+This activity contains the following fields:
+- "host_uuid": Hardware UUID of the host.
+- "idp_email": Email of the IdP account the host was linked to.
+
+#### Example
+
+```json
+{
+	"host_uuid": "C8D90CC1-0C2A-52D4-A6F4-DF55522A740F",
+	"idp_email": "anna@example.com"
 }
 ```
 
