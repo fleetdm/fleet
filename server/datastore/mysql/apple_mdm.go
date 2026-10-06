@@ -9444,8 +9444,8 @@ func (ds *Datastore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge st
 	}
 
 	rows, err := ds.writer(ctx).ExecContext(ctx, `UPDATE mdm_apple_scep_challenges
-		SET consumed_at = NOW()
-	WHERE challenge = ? AND consumed_at IS NULL AND expires_at > NOW()
+		SET consumed_at = NOW(6)
+	WHERE challenge = ? AND consumed_at IS NULL AND expires_at > NOW(6)
 	`, challenge)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "consume apple scep challenge")
