@@ -9460,7 +9460,7 @@ func (ds *Datastore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge st
 			return notFound("apple SCEP challenge")
 		}
 
-		err = sqlx.GetContext(ctx, ds.writer(ctx), &info, `SELECT purpose, host_uuid, hardware_serial, idp_account_uuid FROM mdm_apple_scep_challenges WHERE challenge = ?`, challenge)
+		err = sqlx.GetContext(ctx, tx, &info, `SELECT purpose, host_uuid, hardware_serial, idp_account_uuid FROM mdm_apple_scep_challenges WHERE challenge = ?`, challenge)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fetch apple scep challenge info")
 		}
