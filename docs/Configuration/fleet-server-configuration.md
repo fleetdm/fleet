@@ -3775,6 +3775,64 @@ Two things are kept regardless of age: commands still queued for a device that h
     windows_command_retention: 336h
   ```
 
+### mdm.apple_command_cleanup_short_retention
+
+How long Fleet keeps completed Apple MDM commands that it generates on a recurring schedule before deleting them from the command queue. This covers refetch commands (`REFETCH-*`), device name updates (`DEVNAME-*`), App Store (VPP) install verification commands (`VERIFY-VPP-INSTALLS-*`), and `DeclarativeManagement` sync commands. Fleet also uses this window to purge inactive commands, such as a profile install superseded by a newer one or commands cleared when a host re-enrolled.
+
+Fleet only deletes a command after the host responds with a final status (`Acknowledged`, `Error`, or `CommandFormatError`) or it has been marked inactive and would never be sent. Deleted commands no longer appear in the host's MDM commands list.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 24h
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_short_retention: 48h
+  ```
+
+### mdm.apple_command_cleanup_standard_retention
+
+How long Fleet keeps other completed Apple MDM commands before deleting them from the command queue. This covers profile installs and removals (`InstallProfile`, `RemoveProfile`), app installs (`InstallApplication`, `InstallEnterpriseApplication`), `DeviceConfigured`, `DeviceLocation`, recovery lock commands (`SetRecoveryLock`, `VerifyRecoveryLock`), `SetAutoAdminPassword`, and inventory commands run manually through the API (`DeviceInformation`, `InstalledApplicationList`, `CertificateList`, `ProfileList`, `SecurityInfo`, `UserList`).
+
+Fleet never deletes commands it needs to determine a host's state, such as `DeviceLock`, `EraseDevice`, `EnableLostMode`, `DisableLostMode`, and `AccountConfiguration`, or any command type not listed above. Fleet also keeps a command past this window while it's referenced by a host's current profiles, bootstrap package, pending app installations, recovery lock or managed local account rotation, or Enrollment Profile renewal.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_standard_retention: 2160h
+  ```
+
+### mdm.apple_command_cleanup_max_row_deletions_per_run
+
+The maximum number of Apple MDM command queue entries Fleet deletes each time the cleanup runs. The cleanup runs hourly. Each entry is one command sent to one host, along with that host's result.
+
+Raise this value to clear a large backlog faster, at the cost of more database load per run. Set to `0` to stop deleting queue entries.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_ROW_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_row_deletions_per_run: 5000
+  ```
+
+### mdm.apple_command_cleanup_max_command_deletions_per_run
+
+The maximum number of Apple MDM commands Fleet deletes each time the cleanup runs. A command is the payload shared by every host it was sent to. Fleet deletes a command only after no host's queue entry or result refers to it, and only after it's more than 24 hours old. Set to `0` to stop deleting commands.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_COMMAND_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_command_deletions_per_run: 5000
+  ```
+
 ### mdm.sso_rate_limit_per_minute
 
 The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
@@ -3894,6 +3952,28 @@ Hosts that already enrolled before end user authentication was enabled are alway
   ```yaml
   mdm:
     allow_orbit_end_user_auth_bypass: false
+  ```
+
+### mdm.windows_one_time_enroll_secrets
+
+When enabled, Fleet installs fleetd on Windows hosts that turn on MDM (Microsoft Entra, Windows Autopilot, or **Settings > Accounts > Access work or school**) with a one-time enroll secret for that device instead of the global or fleet-level enroll secret. This keeps the shared enroll secret off the device. The setting only affects Windows hosts that have MDM turned on. If fleetd was already installed when a host turned on MDM, Fleet doesn't reinstall it, so the host keeps its original enroll secret.
+
+Fleet delivers the secret on the fleetd install command and through the Fleet-managed "Fleetd enroll secret" configuration profile. Orbit and osquery can each use the secret once, and the second one has to enroll within 60 minutes of the first.
+
+- Recovery: a host that has to enroll again, for example because its node key was deleted, needs a new one-time enroll secret. To issue one, resend the "Fleetd enroll secret" profile from **Host details > OS settings**. fleetd picks it up at the host's next MDM check-in, without a reinstall or restart (requires fleetd v1.63.0). Hosts with an older fleetd need fleetd reinstalled instead. End users can't resend this profile from the **My device** page.
+- Deleted hosts: a deleted Windows host that has MDM turned on enrolls again on its own. [Learn more](https://fleetdm.com/guides/enroll-hosts#delete-a-host).
+- Shared enroll secrets: Fleet doesn't let a global or fleet-level enroll secret enroll fleetd as a Windows host that has MDM turned on or is registered in Windows Autopilot. This includes a deleted host whose device still has MDM turned on. Refused attempts are recorded as `host_enrollment_rejected` activities.
+- Re-imaged devices: Fleet isn't notified when MDM is turned off on a device (re-imaged, disconnected in **Settings > Accounts > Access work or school**, or unenrolled with a script), so Fleet still treats the device as enrolled, even after you delete its host. Such a device can't enroll fleetd with a package. To bring it back, enroll it in MDM again with Windows Autopilot, Microsoft Entra, or **Settings > Accounts > Access work or school**. Fleet then replaces the old enrollment and installs fleetd with a one-time enroll secret. If the device can't enroll in MDM again, delete its host in Fleet. Fleet removes the old enrollment after the `mdm.windows_enrollment_retention` period (30 days by default), and fleetd can then enroll with a package.
+- Reserved names: custom configuration profiles can't be named "Fleetd enroll secret". Custom configuration profiles and MDM commands can't use `$FLEET_HOST_SECRET_` variables.
+
+When you turn this setting off, Fleet removes the "Fleetd enroll secret" profiles and stops accepting the one-time enroll secrets it delivered. Secrets that weren't used yet work again if you turn the setting back on. Hosts that enrolled with a one-time enroll secret can't enroll again, for example after losing their node key, until you turn the setting back on or reinstall fleetd with a package built with a global or fleet-level enroll secret.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_WINDOWS_ONE_TIME_ENROLL_SECRETS`
+- Config file format:
+  ```yaml
+  mdm:
+    windows_one_time_enroll_secrets: true
   ```
 
 ### fleet_allow_bootstrap_package_during_migration

@@ -4,7 +4,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## Apps
 
-| Type | Name | Version | Publisher | Identifier | Install path | File hashes | Last opened | Vulnerabilities | Caveats |
+| Type | Name | Version | Vendor | Identifier | Install path | File hashes | Last opened | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | macOS apps | ✅ | ✅ | ✅ Apple Developer Team ID | ✅ Bundle ID | ✅ | ✅ cdhash and executable SHA-256 | ✅ | ✅ | — |
 | Windows apps | ✅ | ✅ | ✅ | ✅ Upgrade code | ✅ | ❌ | ✅ | ✅ | Includes Microsoft Store (MSIX/Appx) apps on recent versions of Fleet's agent. |
@@ -98,7 +98,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## Browser extensions
 
-| Browser | Collected on | Name | Version | Publisher | Extension ID | Install path | Vulnerabilities | Caveats |
+| Browser | Collected on | Name | Version | Vendor | Extension ID | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Chrome | macOS, Windows, Linux, ChromeOS | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ChromeOS reports no install path. |
 | Chromium, Brave, Edge, Edge Beta, Opera, and Yandex | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | — |
@@ -114,7 +114,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## Packages
 
-| Type | Collected on | Name | Version | Publisher | Install path | Last opened | Vulnerabilities | Caveats |
+| Type | Collected on | Name | Version | Vendor | Install path | Last opened | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Homebrew | macOS | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | Formulae, plus casks that don't install a `.app` bundle. Those appear under Apps. Homebrew on Linux isn't collected. |
 | Chocolatey | Windows | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | — |
@@ -131,7 +131,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## IDE extensions
 
-| Type | Collected on | Name | Version | Publisher | Extension ID | Install path | Vulnerabilities | Caveats |
+| Type | Collected on | Name | Version | Vendor | Extension ID | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | VS Code, VS Code Insiders, VSCodium, VSCodium Insiders, Cursor, Windsurf (Devin), and Trae | macOS, Windows, Linux | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Remote-server variants are collected too. Learn more in the [vscode_extensions](https://fleetdm.com/tables/vscode_extensions) reference. |
 | JetBrains: CLion, DataGrip, GoLand, IntelliJ IDEA (and Community Edition), PhpStorm, PyCharm (and Community Edition), ReSharper, Rider, RubyMine, RustRover, and WebStorm | macOS, Windows, Linux | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | Fleet reads 13 products installed under the `JetBrains` directory. Learn more in the [jetbrains_plugins](https://fleetdm.com/tables/jetbrains_plugins) reference. |
@@ -141,7 +141,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## Plugins
 
-| Type | Collected on | Name | Version | Publisher | Plugin ID | Install path | Vulnerabilities | Caveats |
+| Type | Collected on | Name | Version | Vendor | Plugin ID | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Adobe CEP extensions for Photoshop, Illustrator, Premiere Pro, After Effects, InDesign, InCopy, Animate, Dreamweaver, Audition, Bridge, Lightroom, Lightroom Classic, XD, and Prelude | macOS, Windows | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ Adobe files CVEs against the host application, which Fleet detects under Apps. | Adobe ships no Linux applications. The **Type** column shows "Plugin (Adobe)" for every host application, because the host application is read from the manifest but not stored. |
 | Adobe UXP plugins for Photoshop, XD, InDesign, InCopy, and Premiere Pro | macOS, Windows | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | Fleet scans the shared `Adobe/UXP/extensions` directory. Plugins that Creative Cloud installs under `Adobe/UXP/PluginsStorage` haven't been verified. |
@@ -155,23 +155,25 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## AI tools
 
-Fleet's agent includes an [ai_tools](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/table/ai_tools/README.md) osquery table that inventories AI software separately from the tables above. You can query it directly, but its results don't feed software inventory yet: none of it appears on the **Software** pages, and vulnerability matching doesn't run against it.
+Fleet Premium marks AI tools in software inventory. To see only AI tools, go to **Software**, select **Filters**, and turn on **AI tools**. Fleet finds AI tools with the [ai_tools](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/table/ai_tools/README.md) table in Fleet's agent.
 
-| Type | Collected on | Name | Version | Publisher | Install path | Vulnerabilities | Caveats |
+If Fleet already collects an AI tool as another type, such as a macOS app or an npm package, it keeps that type. Fleet adds three types for AI tools it doesn't collect any other way: **MCP server**, **AI skill**, and **AI CLI tool**.
+
+| Type | Collected on | Name | Version | Vendor | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| AI desktop apps | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `apps` type. Covers AI desktop apps such as ChatGPT, Claude, LM Studio, Ollama, and Jan. |
-| AI agent CLIs | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `agents` type. Covers coding-agent CLIs such as Claude Code, Cursor CLI, and aider. |
-| MCP servers | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `mcp_server` type. |
-| AI IDE plugins | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `ide_plugins` type. Covers AI coding-assistant plugins specifically, separate from the general-purpose [IDE extensions](#ide-extensions) above. |
-| Live AI and MCP sockets | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `sockets` type: locally listening ports for running AI tools, such as a local model server's API port. Not a software concept, so name, version, and publisher don't apply. |
-| Agent instruction files | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `agent_instruction` type: files such as `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, and `.windsurfrules`. Not software, so version and publisher don't apply. |
-| AI browser extensions | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `browser_extension` type, separate from the general [browser extensions](#browser-extensions) above. |
-| AI skills | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Files such as Claude Code's `SKILL.md` or a project's `.agents/skills` directory aren't inventoried as their own entities.  |
-| AI models | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't enumerate installed model weights or which model a local runner has loaded. Only the runner app or listening socket is visible, under AI desktop apps and Live AI and MCP sockets above. |
+| AI desktop apps | macOS, Windows | ✅ | ✅ | ✅ | ✅ | ✅ | Keep their existing type, such as macOS app or Windows app. Covers apps such as ChatGPT, Claude, Cursor, LM Studio, and Ollama. |
+| AI mobile apps | iOS/iPadOS, Android | ✅ | ✅ | ❌ | ❌ | ❌ | Collected as iOS, iPadOS, or Android apps, but not marked as AI tools. The `ai_tools` table runs in Fleet's agent, which doesn't run on mobile devices. |
+| AI CLI tools | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ Only when installed with a package manager. | CLIs installed with a package manager keep that type, such as npm package, Homebrew package, or Go binary. Learn more in [Packages](#packages) and [Binaries and other](#binaries-and-other). CLIs installed any other way, such as Claude Code's native installer, appear as **AI CLI tool**. |
+| MCP servers | macOS, Windows, Linux | ✅ | N/A | ❌ | ✅ | ❌ | Appear as **MCP server**. Most MCP servers don't have a version, because they update on the fly, locally or remotely. The install path is the config file that declares the server. |
+| AI skills | macOS, Windows, Linux | ✅ | N/A | N/A | ✅ | N/A | Appear as **AI skill**. Covers two kinds of markdown files that steer AI agents. Agent instructions, such as `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, and `.windsurfrules`, load in every session. Skills, such as Claude Code's `SKILL.md` or a project's `.agents/skills` directory, load only when a task needs them. Skills are [coming soon](https://github.com/fleetdm/fleet/issues/51288). Neither has a version or vulnerabilities. |
+| AI IDE extensions | macOS, Windows, Linux | ✅ | ✅ | ✅ | ✅ | ✅ | Keep their [IDE extensions](#ide-extensions) type, such as VS Code extension. |
+| AI browser extensions | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ | Keep their [browser extensions](#browser-extensions) type, such as Chrome extension. |
+| Live AI and MCP sockets | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | Open network ports for running AI tools, such as a local model server's API port. They aren't software, so they don't appear in software inventory. You can report on them with the `ai_tools` table's `sockets` type. |
+| AI models | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't collect installed model weights or which model a local runner has loaded. Only the runner app is visible, under AI desktop apps. |
 
 ## Binaries and other
 
-| Type | Collected on | Name | Version | Publisher | Install path | Vulnerabilities | Caveats |
+| Type | Collected on | Name | Version | Vendor | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Go binaries | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ When the NVD has a matching entry. | Collected from each user's `~/go/bin` directory. Needs Fleet's agent. Learn more in the [go_binaries](https://github.com/fleetdm/fleet/tree/main/orbit/pkg/table/go_binaries) reference. |
 | macOS widgets | macOS, as part of their app | ✅ | ✅ | ✅ | ✅ | ✅ | Collected under Apps. Widgets are WidgetKit extensions that ship inside apps that already appear there. |

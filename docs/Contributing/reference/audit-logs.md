@@ -2960,6 +2960,23 @@ This activity contains the following fields:
 }
 ```
 
+## unbound_host_from_idp_account
+
+Generated when a host's link to an identity provider (IdP) account is removed, for example when the host re-enrolls without end user authentication. Fleet records this activity, so it does not include a user.
+
+This activity contains the following fields:
+- "host_uuid": Hardware UUID of the host.
+- "idp_email": Email of the IdP account the host was linked to.
+
+#### Example
+
+```json
+{
+	"host_uuid": "C8D90CC1-0C2A-52D4-A6F4-DF55522A740F",
+	"idp_email": "anna@example.com"
+}
+```
+
 ## created_custom_variable
 
 Generated when custom variable is added.
