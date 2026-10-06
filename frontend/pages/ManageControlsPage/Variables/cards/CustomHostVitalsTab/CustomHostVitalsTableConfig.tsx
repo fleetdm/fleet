@@ -68,12 +68,15 @@ const generateTableHeaders = ({
         const token = getTokenFromVitalId(cellProps.row.original.id);
         return (
           <div className="custom-host-vitals-tab__token">
-            <TextCell value={token} />
+            <TextCell
+              value={token}
+              className="custom-host-vitals-tab__token-text"
+            />
             <CopyButton
               copyText={token}
               variant="subdued"
               size="small"
-              className="row-hover-button"
+              rowHover
             />
           </div>
         );

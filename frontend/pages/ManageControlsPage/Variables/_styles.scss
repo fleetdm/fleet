@@ -15,6 +15,11 @@
     align-items: center;
     gap: $pad-xsmall;
     width: fit-content;
+    max-width: 100%;
+  }
+
+  &__token-text {
+    width: 250px; // Fixed so copy buttons line up across rows
   }
 
   &__actions {
@@ -43,6 +48,11 @@
     // Shrink to content so the copy button sits next to the token value
     // instead of being pushed to the right edge of the (wider) cell.
     width: fit-content;
+    max-width: 100%;
+  }
+
+  &__token-text {
+    width: 250px; // Fixed so copy buttons line up across rows
   }
 
   &__actions {

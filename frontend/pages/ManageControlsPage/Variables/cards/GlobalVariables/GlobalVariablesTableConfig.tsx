@@ -65,12 +65,12 @@ const generateTableHeaders = ({
         const token = getTokenFromVariableName(cellProps.row.original.name);
         return (
           <div className="global-variables__token">
-            <TextCell value={token} />
+            <TextCell value={token} className="global-variables__token-text" />
             <CopyButton
               copyText={token}
               variant="subdued"
               size="small"
-              className="row-hover-button"
+              rowHover
             />
           </div>
         );
