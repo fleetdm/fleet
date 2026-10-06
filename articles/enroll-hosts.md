@@ -188,7 +188,7 @@ To keep a host from coming back, follow the [unenroll steps](https://fleetdm.com
 
 Deleting a host doesn't unenroll it, so most hosts come back:
 
-| Platform | Comes back | Fleet |
+| Platform | Comes back | Which fleet? |
 |---|---|---|
 | macOS | Yes, unless Fleet's agent is uninstalled or its enroll secret is deleted. Hosts assigned to Fleet in Apple Business (AB) come back right away as **Pending**. | Enroll secret's fleet. AB hosts go to AB's default fleet. |
 | Windows | Yes, unless Fleet's agent is uninstalled or its enroll secret is deleted | Enroll secret's fleet. Hosts that got Fleet's agent when they turned on MDM, through [manual enrollment](https://fleetdm.com/guides/windows-mdm-setup#manual-enrollment), [automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment), or [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot), go to "Unassigned." |
