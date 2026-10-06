@@ -1169,9 +1169,17 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
 
-	// Removing the device if already MDM enrolled
-	err = svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, secTokenMsg, hostUUID)
+	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
+	}
+
+	reqDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
+	}
+
+	if err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(ctx, reqHWDeviceID, reqDeviceID, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
 
@@ -1179,6 +1187,11 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	deviceProvisioning, credentialsHash, err := svc.getDeviceProvisioningInformation(ctx, secTokenMsg)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device provisioning information")
+	}
+
+	// Only after provisioning succeeded, so a request with a bad CSR cannot destroy the existing enrollment's state.
+	if err := svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, reqHWDeviceID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
 
 	// Token is authorized
@@ -3163,45 +3176,87 @@ func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string
 	return nil
 }
 
-// removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
-// HW DeviceID is used to check the list of enrolled devices
-func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(
-	ctx context.Context, secTokenMsg *fleet.RequestSecurityToken, hostUUID string,
-) error {
-	// Getting the HW DeviceID from the RequestSecurityToken msg
-	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
-	if err != nil {
-		return err
+// checkWindowsMDMEnrollmentCanReplaceExisting refuses a fleetd (programmatic) enrollment that would replace another host's
+// enrollment. A fleetd enrollment authenticates its host with the orbit node key, so it may only replace that host's own
+// enrollment. Both identifiers the device reports are checked: re-enrollment deletes the enrollment holding the hardware ID,
+// and management sessions load the newest enrollment holding the device ID.
+func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Context, hardwareID, deviceID, hostUUID string) error {
+	if hostUUID == "" {
+		return nil
 	}
 
-	// Device is already enrolled, let's remove it
-	deletedHostUUID, err := svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, reqHWDeviceID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil
+	byHardwareID, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, hardwareID)
+	switch {
+	case fleet.IsNotFound(err):
+		byHardwareID = nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get existing enrollment for hardware ID")
+	}
+	if byHardwareID != nil {
+		if err := svc.checkWindowsMDMEnrollmentOwner(ctx, byHardwareID, "hardware ID", "mdm_hardware_id", hardwareID, hostUUID); err != nil {
+			return err
 		}
-		return err
 	}
 
-	svc.warnOnWindowsMDMHardwareIDCollision(ctx, reqHWDeviceID, hostUUID, deletedHostUUID)
-
-	return nil
+	byDeviceID, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get existing enrollment for device ID")
+	}
+	if byHardwareID != nil && byDeviceID.ID == byHardwareID.ID {
+		return nil
+	}
+	return svc.checkWindowsMDMEnrollmentOwner(ctx, byDeviceID, "device ID", "mdm_device_id", deviceID, hostUUID)
 }
 
-// warnOnWindowsMDMHardwareIDCollision reports that the enrollment just deleted for the hardware ID the enrolling device
-// presented belonged to a different host.
-func (svc *Service) warnOnWindowsMDMHardwareIDCollision(ctx context.Context, hardwareID, hostUUID, deletedHostUUID string) {
-	if hostUUID == "" || deletedHostUUID == "" || deletedHostUUID == hostUUID {
-		return
+// checkWindowsMDMEnrollmentOwner refuses a fleetd enrollment of hostUUID that would take over existing, the enrollment holding
+// the identifier id (idName in messages, idKey in log attributes).
+func (svc *Service) checkWindowsMDMEnrollmentOwner(ctx context.Context, existing *fleet.MDMWindowsEnrolledDevice, idName, idKey,
+	id, hostUUID string,
+) error {
+	if existing.HostUUID == "" || existing.HostUUID == hostUUID {
+		return nil
 	}
 
+	existingHost, err := svc.ds.HostByUUID(ctx, existing.HostUUID)
+	switch {
+	case fleet.IsNotFound(err):
+		// The host was deleted, so there is nothing left to protect. This is also how an admin releases a hardware ID
+		// held by a stale host.
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get host of existing enrollment")
+	}
+
+	// The hardware ID survives a wipe, and some devices come back from one as a new host.
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, existingHost)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get lock/wipe status of existing enrollment's host")
+	}
+	if lockWipe.IsWiped() {
+		return nil
+	}
+
+	// Otherwise two hosts sharing a hardware ID come from cloning an already-enrolled image, which neither Fleet nor
+	// Microsoft supports, or from a host presenting another's hardware ID or device ID.
 	svc.logger.WarnContext(ctx,
-		"windows host is enrolling in MDM with a hardware ID already held by another host, which takes over that host's "+
-			"enrollment and leaves it unmanaged",
-		"mdm_hardware_id", hardwareID,
+		"refusing windows MDM enrollment with a "+idName+" enrolled to another host; delete the other host if it is stale",
+		idKey, id,
 		"enrolling_host_uuid", hostUUID,
-		"existing_host_uuid", deletedHostUUID,
+		"existing_host_uuid", existing.HostUUID,
 	)
+	return ctxerr.New(ctx, idName+" is enrolled to another host")
+}
+
+// removeWindowsDeviceIfAlreadyMDMEnrolled removes the enrollment held by the hardware ID, if any.
+func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context, hardwareID string) error {
+	_, err := svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, hardwareID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return err
+	}
+	return nil
 }
 
 // getDeviceProvisioningInformation returns a valid WapProvisioningDoc

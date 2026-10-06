@@ -2056,6 +2056,9 @@ func testQueriesClearResultsThenCleanup(t *testing.T, ds *Datastore) {
 		hostCount, err := ds.ResultCountForQueryAndHost(ctx, q.ID, hosts[0].ID)
 		require.NoError(t, err)
 		require.Equal(t, min(want, rowsPerHost), hostCount)
+		byQuery, err := ds.QueryResultRowsForHostByQuery(ctx, hosts[0].ID, []uint{q.ID})
+		require.NoError(t, err)
+		require.Len(t, byQuery[q.ID], min(want, rowsPerHost))
 	}
 	const allRows = 5 * rowsPerHost
 

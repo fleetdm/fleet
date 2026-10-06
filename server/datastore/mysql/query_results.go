@@ -9,6 +9,7 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -388,6 +389,51 @@ func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID
 	}
 
 	return results, nil
+}
+
+// QueryResultRowsForHostByQuery returns a host's stored rows for each of the given queries,
+// including rows with null data. Rows are returned in insert order.
+func (ds *Datastore) QueryResultRowsForHostByQuery(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+	if len(queryIDs) == 0 {
+		return nil, nil
+	}
+	// Rows hidden by a results-clearing edit must not count as stored, or identical results from
+	// the new version would be skipped as unchanged and then deleted with the hidden rows.
+	stmt, args, err := sqlx.In(`
+		SELECT qr.id, qr.query_id, qr.host_id, qr.last_fetched, qr.data FROM query_results qr
+		JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
+		WHERE qr.host_id = ? AND qr.query_id IN (?)
+		ORDER BY qr.id`, hostID, queryIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building select query result rows for host")
+	}
+	var rows []*fleet.StoredQueryResultRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows for host")
+	}
+	byQuery := make(map[uint][]*fleet.StoredQueryResultRow)
+	for _, row := range rows {
+		byQuery[row.QueryID] = append(byQuery[row.QueryID], row)
+	}
+	return byQuery, nil
+}
+
+// UpdateQueryResultsLastFetched updates rows by primary key: an update by (query_id, host_id)
+// takes next-key locks on the secondary index, which block other hosts inserting results for
+// the same query. Both secondary indexes include last_fetched, so their entries for the updated
+// rows are still rewritten.
+func (ds *Datastore) UpdateQueryResultsLastFetched(ctx context.Context, ids []uint, lastFetched time.Time) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(`UPDATE query_results SET last_fetched = GREATEST(last_fetched, ?) WHERE id IN (?)`, lastFetched, ids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building update query results last fetched")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating query results last fetched")
+	}
+	return nil
 }
 
 // Above any id a BIGINT UNSIGNED query_results.id will reach.
