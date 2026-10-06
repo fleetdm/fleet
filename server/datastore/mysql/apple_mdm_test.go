@@ -94,6 +94,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
 		{"TestUpsertMDMAppleFleetConfigProfile", testUpsertMDMAppleFleetConfigProfile},
 		{"TestMDMAppleResetEnrollment", testMDMAppleResetEnrollment},
+		{"TestBootstrapPackageStatusManuallyEnrolledHosts", testBootstrapPackageStatusManuallyEnrolledHosts},
 		{"TestMDMAppleResetEnrollmentScimLink", testMDMAppleResetEnrollmentScimLink},
 		{"TestMDMAppleResetOnReenrollment", testMDMAppleResetOnReenrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
@@ -6262,6 +6263,85 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &optInCount,
 		`SELECT COUNT(*) FROM host_mdm_profile_opt_ins WHERE host_uuid = ?`, host.UUID))
 	require.Zero(t, optInCount)
+}
+
+func testBootstrapPackageStatusManuallyEnrolledHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(0),
+		Name:   t.Name(),
+		Sha256: []byte("sha"),
+		Bytes:  []byte("content"),
+		Token:  uuid.New().String(),
+	}, nil)
+	require.NoError(t, err)
+
+	// manually enrolled hosts (installed_from_dep = 0)
+	newManualHost := func(i int) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("manual-host-%d", i),
+			OsqueryHostID: new(fmt.Sprintf("manual-osq-%d", i)),
+			NodeKey:       new(fmt.Sprintf("manual-key-%d", i)),
+			UUID:          fmt.Sprintf("manual-uuid-%d", i),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "foo.mdm.example.com", false, "", "", fleet.PersonalEnrollmentTypeNone))
+		return h
+	}
+	hostNoPackage, hostPending, hostInstalled, hostFailed := newManualHost(1), newManualHost(2), newManualHost(3), newManualHost(4)
+
+	for i, h := range []*fleet.Host{hostPending, hostInstalled, hostFailed} {
+		cmdUUID := fmt.Sprintf("manual-cmd-%d", i)
+		_, err := ds.writer(ctx).Exec(`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, 'InstallEnterpriseApplication', '<?xml')`, cmdUUID)
+		require.NoError(t, err)
+		require.NoError(t, ds.RecordHostBootstrapPackage(ctx, cmdUUID, h.UUID))
+	}
+	for _, res := range []struct {
+		host   *fleet.Host
+		cmd    string
+		status string
+	}{
+		{hostInstalled, "manual-cmd-1", "Acknowledged"},
+		{hostFailed, "manual-cmd-2", "Error"},
+	} {
+		_, err := ds.writer(ctx).Exec(`INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '<?xml')`, res.host.UUID, res.cmd, res.status)
+		require.NoError(t, err)
+	}
+
+	sum, err := ds.GetMDMAppleBootstrapPackageSummary(ctx, 0)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, sum.Installed)
+	require.EqualValues(t, 1, sum.Failed)
+	require.EqualValues(t, 1, sum.Pending)
+
+	// the host that was never sent the package has no status
+	_, err = ds.GetHostMDMMacOSSetup(ctx, hostNoPackage.ID)
+	require.True(t, fleet.IsNotFound(err))
+	for host, want := range map[*fleet.Host]fleet.MDMBootstrapPackageStatus{
+		hostPending:   fleet.MDMBootstrapPackagePending,
+		hostInstalled: fleet.MDMBootstrapPackageInstalled,
+		hostFailed:    fleet.MDMBootstrapPackageFailed,
+	} {
+		setup, err := ds.GetHostMDMMacOSSetup(ctx, host.ID)
+		require.NoError(t, err)
+		require.Equal(t, want, setup.BootstrapPackageStatus)
+	}
+
+	listWithStatus := func(status fleet.MDMBootstrapPackageStatus) []uint {
+		hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MDMBootstrapPackageFilter: &status})
+		require.NoError(t, err)
+		var ids []uint
+		for _, h := range hosts {
+			ids = append(ids, h.ID)
+		}
+		return ids
+	}
+	require.Equal(t, []uint{hostPending.ID}, listWithStatus(fleet.MDMBootstrapPackagePending))
+	require.Equal(t, []uint{hostInstalled.ID}, listWithStatus(fleet.MDMBootstrapPackageInstalled))
+	require.Equal(t, []uint{hostFailed.ID}, listWithStatus(fleet.MDMBootstrapPackageFailed))
 }
 
 func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {

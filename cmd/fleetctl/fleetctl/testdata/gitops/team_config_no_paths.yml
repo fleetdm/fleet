@@ -56,6 +56,7 @@ controls:
     apple_enable_release_device_manually: false
     macos_script: ./lib/setup_script.sh
     macos_manual_agent_install: false
+    macos_bootstrap_package_manual_enrollment: true
   macos_updates:
     deadline: null
     minimum_version: null

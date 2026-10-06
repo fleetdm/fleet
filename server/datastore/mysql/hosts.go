@@ -2146,7 +2146,7 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
         LEFT JOIN
             host_dep_assignments hda ON hda.host_id = hh.id
         WHERE
-	      hh.id = h.id AND hmdm.installed_from_dep = 1`
+	      hh.id = h.id AND (hmdm.installed_from_dep = 1 OR hmabp.host_uuid IS NOT NULL)`
 
 	// NOTE: The approach below assumes that there is only one bootstrap package per host. If this
 	// is not the case, then the query will need to be updated to use a GROUP BY and HAVING

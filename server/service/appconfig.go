@@ -2296,6 +2296,9 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 	}
+	if mdm.MacOSSetup.BootstrapPackageManualEnrollment && oldMdm.MacOSSetup.BootstrapPackageManualEnrollment != mdm.MacOSSetup.BootstrapPackageManualEnrollment && !lic.IsPremium() {
+		invalid.Append("setup_experience.macos_bootstrap_package_manual_enrollment", ErrMissingLicense.Error())
+	}
 	if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
 		mdm.WindowsSettings.EnableManagedLocalAccount.Value != oldMdm.WindowsSettings.EnableManagedLocalAccount.Value && !lic.IsPremium() {
 		invalid.Append("windows_settings.enable_managed_local_account", ErrMissingLicense.Error())
@@ -2354,6 +2357,11 @@ func (svc *Service) validateMDM(
 
 		if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
 			invalid.Append("setup_experience.macos_bootstrap_package",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if mdm.MacOSSetup.BootstrapPackageManualEnrollment && oldMdm.MacOSSetup.BootstrapPackageManualEnrollment != mdm.MacOSSetup.BootstrapPackageManualEnrollment {
+			invalid.Append("setup_experience.macos_bootstrap_package_manual_enrollment",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 

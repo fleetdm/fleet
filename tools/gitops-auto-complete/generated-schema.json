@@ -4679,6 +4679,13 @@
             "null"
           ]
         },
+        "macos_bootstrap_package_manual_enrollment": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "macos_manual_agent_install": {
           "description": "type: `boolean`",
           "type": [

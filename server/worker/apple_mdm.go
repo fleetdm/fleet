@@ -142,8 +142,37 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 	}
 
 	if isMacOS(args.Platform) {
-		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		var installBootstrap, manualAgentInstall bool
+		if args.TeamID == nil {
+			appCfg, err := a.getAppConfig(ctx, nil)
+			if err != nil {
+				return err
+			}
+			installBootstrap = appCfg.MDM.MacOSSetup.BootstrapPackageManualEnrollment
+			manualAgentInstall = appCfg.MDM.MacOSSetup.ManualAgentInstall.Value
+		} else {
+			team, err := a.getTeamConfig(ctx, nil, *args.TeamID)
+			if err != nil {
+				return err
+			}
+			installBootstrap = team.Config.MDM.MacOSSetup.BootstrapPackageManualEnrollment
+			manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+		}
+
+		var bootstrapCmdUUID string
+		if installBootstrap {
+			var err error
+			if bootstrapCmdUUID, err = a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "installing bootstrap package")
+			}
+		}
+
+		// Fleet skips fleetd only if a bootstrap package (expected to contain fleetd) was actually
+		// sent, so a missing package doesn't leave the host without an agent.
+		if !manualAgentInstall || bootstrapCmdUUID == "" {
+			if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+			}
 		}
 	} else {
 		// We shouldn't have any setup experience steps if we're not on a premium license,
@@ -755,7 +784,7 @@ func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string,
 	if err != nil {
 		var nfe fleet.NotFoundError
 		if errors.As(err, &nfe) {
-			a.Log.InfoContext(ctx, "unable to find a bootstrap package for DEP enrolled device, skipping installation", "host_uuid", hostUUID)
+			a.Log.InfoContext(ctx, "unable to find a bootstrap package for enrolled device, skipping installation", "host_uuid", hostUUID)
 			return "", nil
 		}
 
