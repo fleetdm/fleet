@@ -1371,30 +1371,6 @@ The minimum time difference between the software's "last opened at" timestamp re
     min_software_last_opened_at_diff: 4h
   ```
 
-### osquery_max_concurrent_query_report_reads
-
-The maximum number of osquery log requests that each Fleet server checks against stored report results at the same time. Fleet reads a host's stored results from the database (the read replica, if configured) so it can skip writing results that haven't changed. When a server is at the limit, it skips storing report results for the request instead of waiting on the database. The host sends fresh results on the report's next run. Results still go to the log destination for reports with automations on. Set it to 0 to remove the limit.
-
-- Default value: 40
-- Environment variable: `FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_READS`
-- Config file format:
-  ```yaml
-  osquery:
-    max_concurrent_query_report_reads: 80
-  ```
-
-### osquery_max_concurrent_query_report_writes
-
-The maximum number of osquery log requests, across all Fleet servers, that write changed report results to the database at the same time. Unlike `osquery_max_concurrent_query_report_reads`, this limit is shared through Redis, so it doesn't change when you add or remove Fleet servers. Results that haven't changed don't count toward it. When the limit is reached, Fleet skips storing the request's changed report results instead of waiting on the database. The host sends fresh results on the report's next run. Results still go to the log destination for reports with automations on. If Redis can't be reached, each Fleet server allows up to 2 writes at a time instead. Set it to 0 to remove the limit.
-
-- Default value: 20
-- Environment variable: `FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_WRITES`
-- Config file format:
-  ```yaml
-  osquery:
-    max_concurrent_query_report_writes: 40
-  ```
-
 ### osquery_max_log_write_body_size
 
 Maximum HTTP request body size accepted by `/api/osquery/log`. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default (10MiB).
