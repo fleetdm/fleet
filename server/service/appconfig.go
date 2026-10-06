@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	strconv "strconv"
 	"strings"
 
@@ -1651,6 +1652,27 @@ func (svc *Service) applyVPPTokenAssignments(
 	}
 	// 2. Set VPP assignments that are defined in the config.
 	for tokenID, tokenTeams := range vppAssignments {
+		var currentTokenTeams []fleet.TeamTuple
+		for _, tok := range vppToks {
+			if tok.ID == tokenID {
+				currentTokenTeams = tok.Teams
+			}
+		}
+
+		// Updating a token's fleets clears its policy install automations, so skip tokens whose fleets are unchanged
+		currentTeamIDs := make([]uint, 0, len(currentTokenTeams))
+		for _, currentTeam := range currentTokenTeams {
+			currentTeamIDs = append(currentTeamIDs, currentTeam.ID)
+		}
+		slices.Sort(currentTeamIDs)
+		currentTeamIDs = slices.Compact(currentTeamIDs)
+		configTeamIDs := slices.Clone(tokenTeams)
+		slices.Sort(configTeamIDs)
+		configTeamIDs = slices.Compact(configTeamIDs)
+		if (currentTokenTeams == nil) == (tokenTeams == nil) && slices.Equal(currentTeamIDs, configTeamIDs) {
+			continue
+		}
+
 		if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
 			if errTokConstraint, ok := errors.AsType[fleet.ErrVPPTokenTeamConstraint](err); ok {
 				return ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
