@@ -85,6 +85,22 @@ describe("EnrollmentAttemptDetailsModal", () => {
     );
   });
 
+  it("explains an enrollment that wasn't signed with the host's identity certificate", () => {
+    renderModal({
+      hostDisplayName: "Anna's laptop",
+      reason: "host_identity_cert_required",
+    });
+    expect(screen.getByText(/rejected an enrollment for/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /wasn't signed with this host's identity certificate\. Another device may have tried to enroll as this host\./
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/not valid for this host/i)
+    ).not.toBeInTheDocument();
+  });
+
   it("falls back to the serial number when there is no display name", () => {
     renderModal({ hostSerial: "C02ABC", reason: "one_time_secret_spent" });
     expect(screen.getByText(/a host with serial number/i)).toBeInTheDocument();

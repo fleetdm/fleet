@@ -435,7 +435,10 @@ func testEnrollRequiresSignatureForCertHost(t *testing.T, ds *Datastore) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.enroll()
-			require.ErrorContains(t, err, "not signed with it")
+			var rejected *fleet.EnrollmentRejectedError
+			require.ErrorAs(t, err, &rejected)
+			require.Equal(t, fleet.EnrollmentRejectedHostIdentityCertRequired, rejected.Reason)
+			require.Equal(t, victim.ID, ptr.ValOrZero(rejected.HostID))
 			requireNodeKeys(t, victim.ID, victimOsqueryID, victimNodeKey, "victim-orbit-node-key")
 		})
 	}

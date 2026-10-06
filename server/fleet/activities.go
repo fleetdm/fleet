@@ -477,7 +477,7 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 }
 
 // ActivityTypeHostEnrollmentRejected is recorded when an orbit or osquery
-// enrollment is refused by the one-time enroll secret rules. Emission is
+// enrollment is refused by the enroll secret or host identity certificate rules. Emission is
 // rate-limited per host and reason by the service layer, since a stuck agent
 // retries every few minutes.
 type ActivityTypeHostEnrollmentRejected struct {
