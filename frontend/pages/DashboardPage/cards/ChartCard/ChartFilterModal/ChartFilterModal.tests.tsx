@@ -329,6 +329,35 @@ describe("ChartFilterModal severity", () => {
       );
     });
   });
+
+  describe("host filter tabs", () => {
+    const tab = (name: RegExp) => screen.getByRole("tab", { name });
+
+    it("opens on Specific hosts when no host filter is set", () => {
+      renderModal({ initialTab: "hosts" });
+
+      expect(tab(/Specific hosts/i)).toHaveAttribute("aria-selected", "true");
+      expect(tab(/Exclude hosts/i)).toHaveAttribute("aria-selected", "false");
+    });
+
+    it("opens on Exclude hosts when that filter is already applied", () => {
+      renderModal({
+        initialTab: "hosts",
+        filters: { ...baseFilters, hostFilterMode: "exclude" },
+      });
+
+      expect(tab(/Exclude hosts/i)).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("returns to Specific hosts on Clear all", async () => {
+      const { user } = renderModal({ initialTab: "hosts" });
+
+      await user.click(tab(/Exclude hosts/i));
+      await user.click(screen.getByRole("button", { name: /Clear all/i }));
+
+      expect(tab(/Specific hosts/i)).toHaveAttribute("aria-selected", "true");
+    });
+  });
 });
 
 describe("ChartFilterModal Clear all scope", () => {

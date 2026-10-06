@@ -139,7 +139,7 @@ const ChartFilterModal = ({
   // Host filter mode is either "include" or "exclude", used when selecting
   // individual hosts to filter on.
   const [hostFilterMode, setHostFilterMode] = useState<HostFilterMode>(
-    filters.hostFilterMode === "none" ? "exclude" : filters.hostFilterMode
+    filters.hostFilterMode === "none" ? "include" : filters.hostFilterMode
   );
   // Individual hosts selected for filtering.
   const [selectedHosts, setSelectedHosts] = useState<IHost[]>(
@@ -387,7 +387,7 @@ const ChartFilterModal = ({
     : hasActiveHostFilters(draft);
 
   // Inner host include/exclude tab.
-  const tabIndex = hostFilterMode === "include" ? 0 : 1;
+  const tabIndex = hostFilterMode === "exclude" ? 1 : 0;
 
   const renderHostSearch = () => (
     <div className={`${baseClass}__host-search`}>
