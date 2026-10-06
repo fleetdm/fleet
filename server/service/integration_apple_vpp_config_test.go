@@ -371,17 +371,21 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		return id
 	}
 
-	// installAndCaptureCmd triggers an install and returns the InstallApplication bytes,
-	// then completes the verification so the host is ready for another install.
-	installAndCaptureCmd := func(t *testing.T, host *fleet.Host, dev *mdmtest.TestAppleMDMClient, titleID uint, installed fleet.Software) []byte {
+	// drainPendingCommands completes pending verification commands from prior installs, and the installs that
+	// re-send the app after a configuration change.
+	drainPendingCommands := func(t *testing.T, dev *mdmtest.TestAppleMDMClient, installed fleet.Software) {
 		t.Helper()
 		installed.Installed = true
-		// Drain any pending verification commands from prior installs.
 		for {
 			cmd, err := dev.Idle()
 			require.NoError(t, err)
 			if cmd == nil {
 				break
+			}
+			if cmd.Command.RequestType == "InstallApplication" {
+				_, err = dev.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+				continue
 			}
 			require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType,
 				"unexpected pending command %q while draining verifications", cmd.Command.RequestType)
@@ -389,6 +393,14 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 				[]fleet.Software{installed})
 			require.NoError(t, err)
 		}
+	}
+
+	// installAndCaptureCmd triggers an install and returns the InstallApplication bytes,
+	// then completes the verification so the host is ready for another install.
+	installAndCaptureCmd := func(t *testing.T, host *fleet.Host, dev *mdmtest.TestAppleMDMClient, titleID uint, installed fleet.Software) []byte {
+		t.Helper()
+		installed.Installed = true
+		drainPendingCommands(t, dev, installed)
 
 		var installResp installSoftwareResponse
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID),
@@ -566,6 +578,9 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			"updated install should still carry a Configuration dict")
 		require.Contains(t, raw, "<string>updated</string>",
 			"updated install must carry the latest stored config bytes")
+
+		// complete the install that re-sends the updated configuration, so the failed install below is the host's latest
+		drainPendingCommands(t, iosDev, app2Installed)
 
 		// Updating to a config that references an IDP variable the host hasn't
 		// been linked to → the install is RECORDED AS FAILED (visible in the
@@ -804,7 +819,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		require.Contains(t, string(cmd.Raw), "<string>update</string>",
 			"scheduled auto-update must use the latest stored config bytes")
 
-		isAuto, err := s.ds.IsAutoUpdateVPPInstall(ctx, cmd.CommandUUID)
+		isAuto, _, err := s.ds.GetVPPInstallAutomationReasons(ctx, cmd.CommandUUID)
 		require.NoError(t, err)
 		require.True(t, isAuto, "command must be recorded with from_auto_update=true")
 
@@ -1523,6 +1538,26 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersionHostPrecedence() {
 		})
 		return count
 	}
+	resendJobsBeforeLabelsEdit := countResendJobs()
+
+	// edit version A's labels to include label B, a re-send should be queued for the hosts whose version changed
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), &updateAppStoreAppRequest{
+		TeamID: &team.ID, VersionID: &addAResp.VersionID, SelfService: new(true), LabelsIncludeAny: []string{labelA.Name, labelB.Name},
+	}, http.StatusOK, &updateAppStoreAppResponse{})
+	require.Equal(t, resendJobsBeforeLabelsEdit+1, countResendJobs())
+	var versionLabelsChanged bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &versionLabelsChanged,
+			`SELECT args->'$.version_labels_changed' = TRUE FROM jobs WHERE name = 'software_worker' AND args->>'$.task' = 'resend_vpp_app_configuration' ORDER BY id DESC LIMIT 1`)
+	})
+	require.True(t, versionLabelsChanged)
+
+	// edit version A with the same labels, no re-send should be queued
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), &updateAppStoreAppRequest{
+		TeamID: &team.ID, VersionID: &addAResp.VersionID, SelfService: new(true), LabelsIncludeAny: []string{labelA.Name, labelB.Name},
+	}, http.StatusOK, &updateAppStoreAppResponse{})
+	require.Equal(t, resendJobsBeforeLabelsEdit+1, countResendJobs())
+
 	resendJobsBeforeDelete := countResendJobs()
 
 	// delete version A, a configuration re-send should be queued for the hosts that move to version B

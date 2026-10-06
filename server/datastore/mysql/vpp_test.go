@@ -498,6 +498,23 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.Nil(t, actUser)
 	require.Equal(t, cmd3, act.CommandUUID)
 	require.True(t, act.SelfService)
+
+	// queue a configuration re-send install, it should be Fleet-initiated
+	cmd8 := uuid.NewString()
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h3.ID, vpp3, cmd8, uuid.NewString(), fleet.HostSoftwareInstallOptions{
+		ForConfigurationResend: true,
+		VPPAppTeamID:           va3InTeam1.AppTeamID,
+	})
+	require.NoError(t, err)
+	var fleetInitiated bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &fleetInitiated, `SELECT fleet_initiated FROM upcoming_activities WHERE execution_id = ?`, cmd8)
+	})
+	require.True(t, fleetInitiated)
+	fromAutoUpdate, fromConfigurationResend, err := ds.GetVPPInstallAutomationReasons(ctx, cmd8)
+	require.NoError(t, err)
+	require.False(t, fromAutoUpdate)
+	require.True(t, fromConfigurationResend)
 }
 
 // simulates creating the VPP app install request on the host, returns the command UUID.

@@ -1477,16 +1477,17 @@ type HostSoftwareInstallOptions struct {
 	DeferActivation bool
 	// VPPAppTeamID is the vpp_apps_teams row an App Store app install is for.
 	VPPAppTeamID uint
-	// FleetInitiated marks an install request Fleet queued on its own that has none of the other fleet-initiated reasons.
-	FleetInitiated bool
+	// ForConfigurationResend means the install request re-sends an iOS/iPadOS App Store app with its version's
+	// configuration after an edit or delete of the app's versions, which means it was Fleet-initiated.
+	ForConfigurationResend bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
-// Software installs initiated via a policy, scheduled updates, setup
-// experience or marked FleetInitiated are fleet-initiated (and we also make
-// sure SelfService is false, as this case is always user-initiated).
+// Software installs initiated via a policy, scheduled updates, configuration
+// re-sends or setup experience are fleet-initiated (and we also make sure
+// SelfService is false, as this case is always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && (o.FleetInitiated || o.PolicyID != nil || o.ForScheduledUpdates || o.ForSetupExperience)
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates || o.ForConfigurationResend || o.ForSetupExperience)
 }
 
 // Priority returns the upcoming activities queue priority to use for this

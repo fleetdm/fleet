@@ -1479,9 +1479,14 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
 	}
 
-	// Re-send the app to iOS and iPadOS hosts that have it when this version's configuration changed
-	if (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) && appleConfigChanged {
-		err = worker.QueueResendVPPAppConfigurationJob(ctx, svc.ds, svc.logger, meta.VPPAppID, ptr.ValOrZero(teamID), []uint{insertedApp.AppTeamID}, nil)
+	// Re-send the app to iOS and iPadOS hosts that have it when this version's configuration changed, or its labels
+	// changed which version a host gets
+	if (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) && (appleConfigChanged || labelsChanged) {
+		var configChangedAppTeamIDs []uint
+		if appleConfigChanged {
+			configChangedAppTeamIDs = []uint{insertedApp.AppTeamID}
+		}
+		err = worker.QueueResendVPPAppConfigurationJob(ctx, svc.ds, svc.logger, meta.VPPAppID, ptr.ValOrZero(teamID), configChangedAppTeamIDs, labelsChanged, nil)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "enqueuing job to resend vpp app configuration")
 		}

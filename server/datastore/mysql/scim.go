@@ -2254,7 +2254,7 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 			continue
 		}
 		appID := fleet.VPPAppID{AdamID: app.ApplicationID, Platform: app.Platform}
-		err = insertResendVPPAppConfigurationJob(ctx, tx, appID, app.GlobalOrTeamID, []uint{app.AppTeamID}, hostIDs)
+		err = insertResendVPPAppConfigurationJob(ctx, tx, appID, app.GlobalOrTeamID, []uint{app.AppTeamID}, false, hostIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queue vpp app configuration resend")
 		}

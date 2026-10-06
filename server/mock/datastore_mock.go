@@ -1974,7 +1974,7 @@ type GetVPPInstallReleaseInfoForCancelFunc func(ctx context.Context, hostID uint
 
 type GetVPPAppInstallStatusByCommandUUIDFunc func(ctx context.Context, commandUUID string) (bool, error)
 
-type IsAutoUpdateVPPInstallFunc func(ctx context.Context, commandUUID string) (bool, error)
+type GetVPPInstallAutomationReasonsFunc func(ctx context.Context, commandUUID string) (fromAutoUpdate bool, fromConfigurationResend bool, err error)
 
 type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
 
@@ -5440,8 +5440,8 @@ type DataStore struct {
 	GetVPPAppInstallStatusByCommandUUIDFunc        GetVPPAppInstallStatusByCommandUUIDFunc
 	GetVPPAppInstallStatusByCommandUUIDFuncInvoked bool
 
-	IsAutoUpdateVPPInstallFunc        IsAutoUpdateVPPInstallFunc
-	IsAutoUpdateVPPInstallFuncInvoked bool
+	GetVPPInstallAutomationReasonsFunc        GetVPPInstallAutomationReasonsFunc
+	GetVPPInstallAutomationReasonsFuncInvoked bool
 
 	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
 	GetVPPTokenByLocationFuncInvoked bool
@@ -13078,11 +13078,11 @@ func (s *DataStore) GetVPPAppInstallStatusByCommandUUID(ctx context.Context, com
 	return s.GetVPPAppInstallStatusByCommandUUIDFunc(ctx, commandUUID)
 }
 
-func (s *DataStore) IsAutoUpdateVPPInstall(ctx context.Context, commandUUID string) (bool, error) {
+func (s *DataStore) GetVPPInstallAutomationReasons(ctx context.Context, commandUUID string) (fromAutoUpdate bool, fromConfigurationResend bool, err error) {
 	s.mu.Lock()
-	s.IsAutoUpdateVPPInstallFuncInvoked = true
+	s.GetVPPInstallAutomationReasonsFuncInvoked = true
 	s.mu.Unlock()
-	return s.IsAutoUpdateVPPInstallFunc(ctx, commandUUID)
+	return s.GetVPPInstallAutomationReasonsFunc(ctx, commandUUID)
 }
 
 func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPTokenDB, error) {

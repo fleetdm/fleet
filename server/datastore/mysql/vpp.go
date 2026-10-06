@@ -555,8 +555,11 @@ ORDER BY id
 		toRemoveVersionIDs = append(toRemoveVersionIDs, existingVersion.AppTeamID)
 	}
 
-	// Re-send iOS and iPadOS apps whose version configuration changed to the hosts that have them
+	// Re-send iOS and iPadOS apps whose version configuration changed, or whose version labels changed which version
+	// a host gets, to the hosts that have them
+	resendAppIDs := make(map[fleet.VPPAppID]struct{})
 	configChangedAppTeamIDsByApp := make(map[fleet.VPPAppID][]uint)
+	labelsChangedAppIDs := make(map[fleet.VPPAppID]struct{})
 
 	appsWithChangedLabels := make(map[uint]map[uint]struct{})
 	var vppTokenRequired, setupExperienceChanged bool
@@ -592,7 +595,12 @@ ORDER BY id
 		}
 
 		if isExistingApp && changed.Configuration && (incomingApp.Platform == fleet.IOSPlatform || incomingApp.Platform == fleet.IPadOSPlatform) {
+			resendAppIDs[incomingApp.VPPAppID] = struct{}{}
 			configChangedAppTeamIDsByApp[incomingApp.VPPAppID] = append(configChangedAppTeamIDsByApp[incomingApp.VPPAppID], incomingApp.AppTeamID)
+		}
+		if changed.Labels && (incomingApp.Platform == fleet.IOSPlatform || incomingApp.Platform == fleet.IPadOSPlatform) {
+			resendAppIDs[incomingApp.VPPAppID] = struct{}{}
+			labelsChangedAppIDs[incomingApp.VPPAppID] = struct{}{}
 		}
 
 		if changed.Any {
@@ -701,8 +709,9 @@ ORDER BY id
 			}
 		}
 
-		for appID, configChangedAppTeamIDs := range configChangedAppTeamIDsByApp {
-			err := insertResendVPPAppConfigurationJob(ctx, tx, appID, ptr.ValOrZero(teamID), configChangedAppTeamIDs, nil)
+		for appID := range resendAppIDs {
+			_, versionLabelsChanged := labelsChangedAppIDs[appID]
+			err := insertResendVPPAppConfigurationJob(ctx, tx, appID, ptr.ValOrZero(teamID), configChangedAppTeamIDsByApp[appID], versionLabelsChanged, nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps queueing vpp app configuration resend")
 			}
@@ -1277,6 +1286,7 @@ VALUES
 		JSON_OBJECT(
 			'self_service', ?,
 			'from_auto_update', ?,
+			'from_configuration_resend', ?,
 			'associated_event_id', ?,
 			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
@@ -1316,6 +1326,7 @@ VALUES
 			commandUUID,
 			opts.SelfService,
 			opts.ForScheduledUpdates,
+			opts.ForConfigurationResend,
 			associatedEventID,
 			userID,
 		)
@@ -1634,6 +1645,7 @@ VALUES
 		// Status and SelfService are already set from the row; carry the
 		// trigger-source flags (not stored on the install row) and the reason.
 		act.FromAutoUpdate = opts.ForScheduledUpdates
+		act.FromConfigurationResend = opts.ForConfigurationResend
 		act.FromSetupExperience = opts.ForSetupExperience
 		act.FailureReason = failureReason
 	}
@@ -3190,19 +3202,20 @@ func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, in
 	return appStoreAppChanges{}, nil
 }
 
-func (ds *Datastore) IsAutoUpdateVPPInstall(ctx context.Context, commandUUID string) (bool, error) {
+func (ds *Datastore) GetVPPInstallAutomationReasons(ctx context.Context, commandUUID string) (fromAutoUpdate bool, fromConfigurationResend bool, err error) {
 	stmt := `
-SELECT COUNT(*) > 0
+SELECT
+	COALESCE(MAX(JSON_EXTRACT(payload, '$.from_auto_update') = 1), 0) AS from_auto_update,
+	COALESCE(MAX(JSON_EXTRACT(payload, '$.from_configuration_resend') = 1), 0) AS from_configuration_resend
 FROM upcoming_activities
 WHERE execution_id = ?
   AND activity_type = 'vpp_app_install'
-  AND JSON_EXTRACT(payload, '$.from_auto_update') = 1
 `
-	var isAutoUpdate bool
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &isAutoUpdate, stmt, commandUUID); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update")
+	err = ds.reader(ctx).QueryRowxContext(ctx, stmt, commandUUID).Scan(&fromAutoUpdate, &fromConfigurationResend)
+	if err != nil {
+		return false, false, ctxerr.Wrap(ctx, err, "get vpp install automation reasons")
 	}
-	return isAutoUpdate, nil
+	return fromAutoUpdate, fromConfigurationResend, nil
 }
 
 func (ds *Datastore) checkSoftwareConflictsForVPPApp(ctx context.Context, tx sqlx.QueryerContext, teamID *uint, teamName string, appID fleet.VPPAppID) error {
@@ -3764,7 +3777,7 @@ WHERE
 	return installedVersionByHostID, nil
 }
 
-func insertResendVPPAppConfigurationJob(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, fleetID uint, configChangedAppTeamIDs []uint, hostIDs []uint) error {
+func insertResendVPPAppConfigurationJob(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, fleetID uint, configChangedAppTeamIDs []uint, versionLabelsChanged bool, hostIDs []uint) error {
 	// Write the args in the format of the software worker's softwareWorkerArgs
 	args, err := json.Marshal(map[string]any{
 		"task":                        "resend_vpp_app_configuration",
@@ -3772,6 +3785,7 @@ func insertResendVPPAppConfigurationJob(ctx context.Context, tx sqlx.ExtContext,
 		"platform":                    appID.Platform,
 		"fleet_id":                    fleetID,
 		"config_changed_app_team_ids": configChangedAppTeamIDs,
+		"version_labels_changed":      versionLabelsChanged,
 		"host_ids":                    hostIDs,
 	})
 	if err != nil {

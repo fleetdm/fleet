@@ -85,6 +85,8 @@ type softwareWorkerArgs struct {
 	Platform fleet.InstallableDevicePlatform `json:"platform,omitempty"`
 	// ConfigChangedAppTeamIDs are the vpp_apps_teams ids of the versions whose configuration changed.
 	ConfigChangedAppTeamIDs []uint `json:"config_changed_app_team_ids,omitempty"` //nolint:apiparamcheck // not user-facing
+	// VersionLabelsChanged re-sends to hosts whose latest install isn't the version their labels give them now.
+	VersionLabelsChanged bool `json:"version_labels_changed,omitempty"`
 	// HostIDs limits a configuration re-send to these hosts, all hosts of the fleet when empty.
 	HostIDs []uint `json:"host_ids,omitempty"`
 }
@@ -959,13 +961,14 @@ func QueueMakeAndroidAppAvailableForHostsJob(ctx context.Context, ds fleet.Datas
 	return nil
 }
 
-func QueueResendVPPAppConfigurationJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, appID fleet.VPPAppID, fleetID uint, configChangedAppTeamIDs []uint, hostIDs []uint) error {
+func QueueResendVPPAppConfigurationJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, appID fleet.VPPAppID, fleetID uint, configChangedAppTeamIDs []uint, versionLabelsChanged bool, hostIDs []uint) error {
 	args := &softwareWorkerArgs{
 		Task:                    resendVPPAppConfigurationTask,
 		ApplicationID:           appID.AdamID,
 		Platform:                appID.Platform,
 		FleetID:                 fleetID,
 		ConfigChangedAppTeamIDs: configChangedAppTeamIDs,
+		VersionLabelsChanged:    versionLabelsChanged,
 		HostIDs:                 hostIDs,
 	}
 	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
@@ -1020,13 +1023,14 @@ func (v *SoftwareWorker) resendVPPAppConfiguration(ctx context.Context, args sof
 			}
 			assignedHostIDs[hostID] = struct{}{}
 
-			// Re-send after a configuration change only to hosts whose version's configuration changed, and after a delete
-			// only to hosts whose install's version was deleted
-			if len(args.ConfigChangedAppTeamIDs) > 0 {
-				if !slices.Contains(args.ConfigChangedAppTeamIDs, version.VPPAppsTeamsID) {
-					continue
-				}
-			} else if installedVersionID != nil {
+			switch {
+			// Re-send to hosts whose version's configuration changed
+			case slices.Contains(args.ConfigChangedAppTeamIDs, version.VPPAppsTeamsID):
+			// Re-send to hosts whose label scoping now gives them a different version than the one installed
+			case args.VersionLabelsChanged && !ptr.Equal(installedVersionID, &version.VPPAppsTeamsID):
+			// Re-send to hosts whose installed version was deleted and whose label scoping gives them another version
+			case len(args.ConfigChangedAppTeamIDs) == 0 && installedVersionID == nil:
+			default:
 				continue
 			}
 			hostIDsByVersionID[version.VPPAppsTeamsID] = append(hostIDsByVersionID[version.VPPAppsTeamsID], hostID)
@@ -1105,8 +1109,8 @@ func (v *SoftwareWorker) resendVPPAppConfigurationBatch(ctx context.Context, arg
 		token, err := v.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
 		if err == nil {
 			_, err = v.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, fleet.HostSoftwareInstallOptions{
-				FleetInitiated:  true,
-				DeferActivation: v.DeferActivation,
+				ForConfigurationResend: true,
+				DeferActivation:        v.DeferActivation,
 			})
 		}
 		if err != nil {

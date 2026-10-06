@@ -762,6 +762,11 @@ func TestResendVPPAppConfiguration(t *testing.T) {
 		hostWithDeletedInAAndB = uint(6)
 		hostDeleted            = uint(7)
 		hostOnOtherFleet       = uint(8)
+		// hostMovedToA installed version B, then labels moved it to version A only
+		hostMovedToA = uint(9)
+		// hostMovedFromAToNone and hostMovedFromBToNone installed a version, then labels moved them out of every version
+		hostMovedFromAToNone = uint(10)
+		hostMovedFromBToNone = uint(11)
 	)
 	appID := fleet.VPPAppID{AdamID: "1234", Platform: fleet.IOSPlatform}
 
@@ -778,11 +783,12 @@ func TestResendVPPAppConfiguration(t *testing.T) {
 		return map[uint]*uint{
 			hostInAAndB: new(versionA), hostInB: new(versionB), hostWithDeletedInB: nil, hostWithDeletedNone: nil,
 			hostMovedToB: new(versionA), hostWithDeletedInAAndB: nil,
+			hostMovedToA: new(versionB), hostMovedFromAToNone: new(versionA), hostMovedFromBToNone: new(versionB),
 		}, nil
 	}
 	ds.GetIncludedHostIDMapForVPPAppFunc = func(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
 		if vppAppTeamID == versionA {
-			return map[uint]struct{}{hostInAAndB: {}, hostWithDeletedInAAndB: {}}, nil
+			return map[uint]struct{}{hostInAAndB: {}, hostWithDeletedInAAndB: {}, hostMovedToA: {}}, nil
 		}
 		return map[uint]struct{}{hostInAAndB: {}, hostInB: {}, hostWithDeletedInB: {}, hostMovedToB: {}, hostWithDeletedInAAndB: {}}, nil
 	}
@@ -793,13 +799,14 @@ func TestResendVPPAppConfiguration(t *testing.T) {
 	installer := &resendVPPInstaller{}
 	w := &SoftwareWorker{Datastore: ds, VPPInstaller: installer, Log: slog.New(slog.DiscardHandler)}
 
-	runResend := func(configChangedAppTeamIDs []uint) error {
+	runResend := func(configChangedAppTeamIDs []uint, versionLabelsChanged bool) error {
 		jobs = nil
 		argsJSON, err := json.Marshal(softwareWorkerArgs{
 			Task:                    resendVPPAppConfigurationTask,
 			ApplicationID:           appID.AdamID,
 			Platform:                appID.Platform,
 			ConfigChangedAppTeamIDs: configChangedAppTeamIDs,
+			VersionLabelsChanged:    versionLabelsChanged,
 		})
 		require.NoError(t, err)
 		return w.Run(t.Context(), argsJSON)
@@ -816,20 +823,30 @@ func TestResendVPPAppConfiguration(t *testing.T) {
 	}
 
 	// change version B's configuration, the hosts whose version is B should be queued, including the host labels moved to B
-	err := runResend([]uint{versionB})
+	err := runResend([]uint{versionB}, false)
 	require.NoError(t, err)
 	require.Equal(t, map[uint][]uint{versionB: {hostInB, hostWithDeletedInB, hostMovedToB}}, queuedHostIDsByVersionID())
 
 	// change version A's configuration, the hosts in A and B should be queued for A since A is the first-added version
-	err = runResend([]uint{versionA})
+	err = runResend([]uint{versionA}, false)
 	require.NoError(t, err)
-	require.Equal(t, map[uint][]uint{versionA: {hostInAAndB, hostWithDeletedInAAndB}}, queuedHostIDsByVersionID())
+	require.Equal(t, map[uint][]uint{versionA: {hostInAAndB, hostWithDeletedInAAndB, hostMovedToA}}, queuedHostIDsByVersionID())
 
 	// delete a version, only hosts whose install's version was deleted and that a remaining version includes should be queued,
 	// each for its first-added version, and the host labels moved to B should not be queued since its install's version exists
-	err = runResend(nil)
+	err = runResend(nil, false)
 	require.NoError(t, err)
 	require.Equal(t, map[uint][]uint{versionA: {hostWithDeletedInAAndB}, versionB: {hostWithDeletedInB}}, queuedHostIDsByVersionID())
+
+	// change a version's labels, the hosts installed with a version other than their current one or a deleted version are queued for their current version
+	err = runResend(nil, true)
+	require.NoError(t, err)
+	require.Equal(t, map[uint][]uint{versionA: {hostWithDeletedInAAndB, hostMovedToA}, versionB: {hostWithDeletedInB, hostMovedToB}}, queuedHostIDsByVersionID())
+
+	// change version B's configuration and a version's labels in one edit, the hosts on version B and the hosts installed with a version other than their current one are queued
+	err = runResend([]uint{versionB}, true)
+	require.NoError(t, err)
+	require.Equal(t, map[uint][]uint{versionA: {hostWithDeletedInAAndB, hostMovedToA}, versionB: {hostInB, hostWithDeletedInB, hostMovedToB}}, queuedHostIDsByVersionID())
 
 	// run the version B batch with an install of the app waiting on one host, the other host should get version B
 	batchArgsJSON, err := json.Marshal(softwareWorkerArgs{
@@ -906,7 +923,7 @@ func TestResendVPPAppConfiguration(t *testing.T) {
 	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 		return nil, platform_mysql.NotFound("VPPApp")
 	}
-	err = runResend(nil)
+	err = runResend(nil, false)
 	require.NoError(t, err)
 	require.Empty(t, jobs)
 

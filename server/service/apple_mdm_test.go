@@ -4650,8 +4650,8 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, _ string, _ string, _ fleet.SetupExperienceStatusResultStatus) (bool, error) {
 			return false, nil
 		}
-		ds.IsAutoUpdateVPPInstallFunc = func(_ context.Context, _ string) (bool, error) {
-			return false, nil
+		ds.GetVPPInstallAutomationReasonsFunc = func(_ context.Context, _ string) (bool, bool, error) {
+			return false, false, nil
 		}
 		var activityCmdResult *mdm.CommandResults
 		ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, c *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
@@ -4725,7 +4725,7 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 // TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure covers the
 // iPad terminal-failure emission path in the InstallApplication handler.
 // Before #45011, this branch called GetPastActivityDataForVPPAppInstall and
-// emitted the activity without ever consulting IsAutoUpdateVPPInstall, so a
+// emitted the activity without ever consulting GetVPPInstallAutomationReasons, so a
 // scheduled auto-update that terminally failed was attributed to actor_full_name
 // instead of Fleet. The InstalledApplicationList success handler already did
 // the right thing; this test locks in parity for the failure path.
@@ -4762,9 +4762,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testin
 	ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, _ string, _ string, _ fleet.SetupExperienceStatusResultStatus) (bool, error) {
 		return false, nil
 	}
-	ds.IsAutoUpdateVPPInstallFunc = func(_ context.Context, cmd string) (bool, error) {
+	ds.GetVPPInstallAutomationReasonsFunc = func(_ context.Context, cmd string) (bool, bool, error) {
 		require.Equal(t, commandUUID, cmd)
-		return true, nil
+		return true, false, nil
 	}
 	ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, _ *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 		return nil, &fleet.ActivityInstalledAppStoreApp{HostID: 1, Status: string(fleet.SoftwareInstallFailed)}, nil
@@ -4783,7 +4783,7 @@ func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testin
 	)
 	require.NoError(t, err)
 
-	require.True(t, ds.IsAutoUpdateVPPInstallFuncInvoked)
+	require.True(t, ds.GetVPPInstallAutomationReasonsFuncInvoked)
 	require.True(t, ds.GetPastActivityDataForVPPAppInstallFuncInvoked)
 	require.NotNil(t, emitted)
 	require.True(t, emitted.FromAutoUpdate, "auto-update terminal failures must carry FromAutoUpdate so the activity is attributed to Fleet")

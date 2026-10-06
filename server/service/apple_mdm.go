@@ -5766,12 +5766,13 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			// returns false and the activity is attributed to actor_full_name
 			// instead of Fleet. The success path is handled separately in the
 			// InstalledApplicationList result handler.
-			fromAutoUpdate, err := svc.ds.IsAutoUpdateVPPInstall(r.Context, cmdResult.CommandUUID)
+			fromAutoUpdate, fromConfigurationResend, err := svc.ds.GetVPPInstallAutomationReasons(r.Context, cmdResult.CommandUUID)
 			if err != nil {
-				return nil, ctxerr.Wrap(r.Context, err, "checking if failed vpp install is from auto update")
+				return nil, ctxerr.Wrap(r.Context, err, "checking if failed vpp install is from auto update or a configuration re-send")
 			}
 			act.FromSetupExperience = fromSetupExperience
 			act.FromAutoUpdate = fromAutoUpdate
+			act.FromConfigurationResend = fromConfigurationResend
 			if err := svc.newActivityFn(r.Context, user, act); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}

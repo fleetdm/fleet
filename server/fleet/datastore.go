@@ -3589,9 +3589,9 @@ type Datastore interface {
 	// GetVPPAppInstallStatusByCommandUUID returns whether the VPP app from the given install command
 	// is currently installed. Returns false if the command doesn't exist or app is not installed.
 	GetVPPAppInstallStatusByCommandUUID(ctx context.Context, commandUUID string) (bool, error)
-	// IsAutoUpdateVPPInstall determines whether a VPP install command was triggered by auto-update config
-	IsAutoUpdateVPPInstall(ctx context.Context, commandUUID string) (bool, error)
-
+	// GetVPPInstallAutomationReasons returns whether a VPP install command was triggered by auto-update config, and
+	// whether it re-sends an App Store app configuration.
+	GetVPPInstallAutomationReasons(ctx context.Context, commandUUID string) (fromAutoUpdate bool, fromConfigurationResend bool, err error)
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
 
 	// GetIncludedHostIDMapForVPPApp gets the set of hosts that are targeted/in scope for the
