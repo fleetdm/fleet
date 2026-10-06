@@ -3404,8 +3404,8 @@ type Datastore interface {
 	// GetVPPAppMetadataByTeamAndTitleID returns the VPP app corresponding to the
 	// specified team and title ids. With more than one version on the team it returns the first-added one.
 	GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPAppStoreApp, error)
-	// GetVPPAppVersionsByTeamAndTitleID returns every version of the VPP app for the specified team and title ids, first-added first.
-	GetVPPAppVersionsByTeamAndTitleID(ctx context.Context, teamID uint, titleID uint) ([]*VPPAppStoreApp, error)
+	// GetAppStoreAppVersionsByTeamAndTitleID returns every version of the VPP app for the specified team and title ids, first-added first.
+	GetAppStoreAppVersionsByTeamAndTitleID(ctx context.Context, teamID uint, titleID uint) ([]*VPPAppStoreApp, error)
 
 	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
 	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
@@ -3463,6 +3463,19 @@ type Datastore interface {
 	// ListHostAppStoreAppVersions returns the App Store app version the host gets for every App Store app on its fleet,
 	// indexed by software title id.
 	ListHostAppStoreAppVersions(ctx context.Context, host *Host) (map[uint]*HostAppStoreAppVersion, error)
+
+	// GetAppStoreAppVersionIDsFromSpecificVersion returns the ids of every version of the app that the version with vppAppTeamID
+	// belongs to, on the same fleet and platform, first-added first.
+	GetAppStoreAppVersionIDsFromSpecificVersion(ctx context.Context, vppAppTeamID uint) ([]uint, error)
+
+	// ListHostAppStoreAppInstallVersions returns, for each host on the fleet whose inventory has the app, the version id
+	// of its latest install of the app, nil when that install has no version. A non-empty hostIDs limits it to those hosts.
+	ListHostAppStoreAppInstallVersions(ctx context.Context, appID VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*uint, error)
+
+	// GetHostIDsWithUnactivatedVPPAppInstall returns the hosts among hostIDs that have an install of the app waiting in
+	// the upcoming activities queue that hasn't activated yet.
+	GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, adamID string, hostIDs []uint) (map[uint]struct{}, error)
+
 	// GetSummaryHostSoftwareInstalls returns the software install summary for
 	// the given software installer id.
 	GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*SoftwareInstallerStatusSummary, error)
@@ -3544,8 +3557,8 @@ type Datastore interface {
 	// InsertVPPAppWithTeam writes the VPP app version to the team. A non-nil existingVPPAppTeamID updates that version by id,
 	// nil inserts the version or updates the one with the same name.
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*VPPApp, error)
-	// GetVPPAppVersionCount returns how many versions of the VPP app are on the team, and whether one of them is named versionName.
-	GetVPPAppVersionCount(ctx context.Context, teamID *uint, appID VPPAppID, versionName string) (versionCount uint, versionNameExists bool, err error)
+	// GetAppStoreAppVersionCount returns how many versions of the VPP app are on the team, and whether one of them is named versionName.
+	GetAppStoreAppVersionCount(ctx context.Context, teamID *uint, appID VPPAppID, versionName string) (versionCount uint, versionNameExists bool, err error)
 	// GetDuplicateStringGroupsUnderCollation returns groups of strings from values that are duplicates under the utf8mb4_unicode_ci collation,
 	// as the indices of the strings in values, one group per set of duplicates.
 	GetDuplicateStringGroupsUnderCollation(ctx context.Context, values []string) ([]DuplicateStringGroup, error)

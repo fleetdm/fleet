@@ -1137,7 +1137,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.Nil(t, titleResp.SoftwareTitle.AppStoreApp)
 
 	// rename the other fleet's only version, then apply GitOps with the app without versions, the renamed version should be replaced by a new Default version
-	otherVersions, err := s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, otherTeam.ID, titleID)
+	otherVersions, err := s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, otherTeam.ID, titleID)
 	require.NoError(t, err)
 	require.Len(t, otherVersions, 1)
 	renamedVersionID := otherVersions[0].VPPAppsTeamsID
@@ -1146,7 +1146,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 		batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, SelfService: true}}},
 		http.StatusOK, &batchAssociateAppStoreAppsResponse{}, "fleet_name", otherTeam.Name)
-	otherVersions, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, otherTeam.ID, titleID)
+	otherVersions, err = s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, otherTeam.ID, titleID)
 	require.NoError(t, err)
 	require.Len(t, otherVersions, 1)
 	require.Equal(t, fleet.DefaultAppStoreAppVersionName, otherVersions[0].VersionName)
@@ -1283,7 +1283,7 @@ func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
 			http.StatusOK, &batchResp, c.queryParams...)
 		require.Len(t, batchResp.Apps, 2)
 		titleID := *batchResp.Apps[0].TitleID
-		versions, err := s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
+		versions, err := s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
 		require.NoError(t, err)
 		require.Len(t, versions, 2)
 		productionID := versions[0].VPPAppsTeamsID
@@ -1306,7 +1306,7 @@ func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{testVersion, productionVersion}},
 			http.StatusOK, &batchResp, c.queryParams...)
-		versions, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
+		versions, err = s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
 		require.NoError(t, err)
 		require.Len(t, versions, 2)
 		require.Equal(t, productionID, versions[0].VPPAppsTeamsID)
@@ -1343,7 +1343,7 @@ func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{productionVersion, renamedTestVersion}},
 			http.StatusOK, &batchResp, c.queryParams...)
-		versions, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
+		versions, err = s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
 		require.NoError(t, err)
 		require.Len(t, versions, 2)
 		require.Equal(t, testID, versions[1].VPPAppsTeamsID)
@@ -1378,7 +1378,7 @@ func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, InstallDuringSetup: new(true)}}},
 			http.StatusOK, &batchResp, c.queryParams...)
-		versions, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
+		versions, err = s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
 		require.NoError(t, err)
 		require.Len(t, versions, 1)
 		require.Equal(t, fleet.DefaultAppStoreAppVersionName, versions[0].VersionName)
@@ -1392,7 +1392,7 @@ func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
 		// apply no apps, every version of the iOS app should be deleted
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{}}, http.StatusOK, &batchResp, c.queryParams...)
-		_, err = s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
+		_, err = s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
 		require.True(t, fleet.IsNotFound(err))
 	}
 }
@@ -1513,6 +1513,27 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersionHostPrecedence() {
 	require.Equal(t, addBResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[1].ID)
 	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApps[1].Status)
 	require.Equal(t, uint(1), titleResp.SoftwareTitle.AppStoreApps[1].Status.Pending)
+
+	countResendJobs := func() int {
+		var count int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count,
+				`SELECT COUNT(*) FROM jobs WHERE name = 'software_worker' AND args->>'$.task' = 'resend_vpp_app_configuration' AND args->>'$.application_id' = ?`,
+				iosAdamID)
+		})
+		return count
+	}
+	resendJobsBeforeDelete := countResendJobs()
+
+	// delete version A, a configuration re-send should be queued for the hosts that move to version B
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
+		"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addAResp.VersionID))
+	require.Equal(t, resendJobsBeforeDelete+1, countResendJobs())
+
+	// delete every remaining version of the app, no configuration re-send should be queued since deleting never removes the app from hosts
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
+		"fleet_id", fmt.Sprint(team.ID))
+	require.Equal(t, resendJobsBeforeDelete+1, countResendJobs())
 }
 
 func getFirstAddedVPPAppConfigurationForTest(t *testing.T, ds *mysql.Datastore, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error) {

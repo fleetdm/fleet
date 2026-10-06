@@ -1860,7 +1860,7 @@ type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, title
 
 type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error)
 
-type GetVPPAppVersionsByTeamAndTitleIDFunc func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error)
+type GetAppStoreAppVersionsByTeamAndTitleIDFunc func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error)
 
 type MapAdamIDsPendingInstallFunc func(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
@@ -1883,6 +1883,12 @@ type DeleteVPPAppFromTeamFunc func(ctx context.Context, teamID *uint, appID flee
 type GetAndroidAppsInScopeForHostFunc func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error)
 
 type ListHostAppStoreAppVersionsFunc func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error)
+
+type GetAppStoreAppVersionIDsFromSpecificVersionFunc func(ctx context.Context, vppAppTeamID uint) ([]uint, error)
+
+type ListHostAppStoreAppInstallVersionsFunc func(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*uint, error)
+
+type GetHostIDsWithUnactivatedVPPAppInstallFunc func(ctx context.Context, adamID string, hostIDs []uint) (map[uint]struct{}, error)
 
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
@@ -1946,7 +1952,7 @@ type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.V
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*fleet.VPPApp, error)
 
-type GetVPPAppVersionCountFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID, versionName string) (versionCount uint, versionNameExists bool, err error)
+type GetAppStoreAppVersionCountFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID, versionName string) (versionCount uint, versionNameExists bool, err error)
 
 type GetDuplicateStringGroupsUnderCollationFunc func(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error)
 
@@ -5263,8 +5269,8 @@ type DataStore struct {
 	GetVPPAppMetadataByTeamAndTitleIDFunc        GetVPPAppMetadataByTeamAndTitleIDFunc
 	GetVPPAppMetadataByTeamAndTitleIDFuncInvoked bool
 
-	GetVPPAppVersionsByTeamAndTitleIDFunc        GetVPPAppVersionsByTeamAndTitleIDFunc
-	GetVPPAppVersionsByTeamAndTitleIDFuncInvoked bool
+	GetAppStoreAppVersionsByTeamAndTitleIDFunc        GetAppStoreAppVersionsByTeamAndTitleIDFunc
+	GetAppStoreAppVersionsByTeamAndTitleIDFuncInvoked bool
 
 	MapAdamIDsPendingInstallFunc        MapAdamIDsPendingInstallFunc
 	MapAdamIDsPendingInstallFuncInvoked bool
@@ -5298,6 +5304,15 @@ type DataStore struct {
 
 	ListHostAppStoreAppVersionsFunc        ListHostAppStoreAppVersionsFunc
 	ListHostAppStoreAppVersionsFuncInvoked bool
+
+	GetAppStoreAppVersionIDsFromSpecificVersionFunc        GetAppStoreAppVersionIDsFromSpecificVersionFunc
+	GetAppStoreAppVersionIDsFromSpecificVersionFuncInvoked bool
+
+	ListHostAppStoreAppInstallVersionsFunc        ListHostAppStoreAppInstallVersionsFunc
+	ListHostAppStoreAppInstallVersionsFuncInvoked bool
+
+	GetHostIDsWithUnactivatedVPPAppInstallFunc        GetHostIDsWithUnactivatedVPPAppInstallFunc
+	GetHostIDsWithUnactivatedVPPAppInstallFuncInvoked bool
 
 	GetSummaryHostSoftwareInstallsFunc        GetSummaryHostSoftwareInstallsFunc
 	GetSummaryHostSoftwareInstallsFuncInvoked bool
@@ -5392,8 +5407,8 @@ type DataStore struct {
 	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
 	InsertVPPAppWithTeamFuncInvoked bool
 
-	GetVPPAppVersionCountFunc        GetVPPAppVersionCountFunc
-	GetVPPAppVersionCountFuncInvoked bool
+	GetAppStoreAppVersionCountFunc        GetAppStoreAppVersionCountFunc
+	GetAppStoreAppVersionCountFuncInvoked bool
 
 	GetDuplicateStringGroupsUnderCollationFunc        GetDuplicateStringGroupsUnderCollationFunc
 	GetDuplicateStringGroupsUnderCollationFuncInvoked bool
@@ -12664,11 +12679,11 @@ func (s *DataStore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamI
 	return s.GetVPPAppMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID)
 }
 
-func (s *DataStore) GetVPPAppVersionsByTeamAndTitleID(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
+func (s *DataStore) GetAppStoreAppVersionsByTeamAndTitleID(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
 	s.mu.Lock()
-	s.GetVPPAppVersionsByTeamAndTitleIDFuncInvoked = true
+	s.GetAppStoreAppVersionsByTeamAndTitleIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPAppVersionsByTeamAndTitleIDFunc(ctx, teamID, titleID)
+	return s.GetAppStoreAppVersionsByTeamAndTitleIDFunc(ctx, teamID, titleID)
 }
 
 func (s *DataStore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error) {
@@ -12746,6 +12761,27 @@ func (s *DataStore) ListHostAppStoreAppVersions(ctx context.Context, host *fleet
 	s.ListHostAppStoreAppVersionsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostAppStoreAppVersionsFunc(ctx, host)
+}
+
+func (s *DataStore) GetAppStoreAppVersionIDsFromSpecificVersion(ctx context.Context, vppAppTeamID uint) ([]uint, error) {
+	s.mu.Lock()
+	s.GetAppStoreAppVersionIDsFromSpecificVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppStoreAppVersionIDsFromSpecificVersionFunc(ctx, vppAppTeamID)
+}
+
+func (s *DataStore) ListHostAppStoreAppInstallVersions(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*uint, error) {
+	s.mu.Lock()
+	s.ListHostAppStoreAppInstallVersionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAppStoreAppInstallVersionsFunc(ctx, appID, fleetID, hostIDs)
+}
+
+func (s *DataStore) GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, adamID string, hostIDs []uint) (map[uint]struct{}, error) {
+	s.mu.Lock()
+	s.GetHostIDsWithUnactivatedVPPAppInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostIDsWithUnactivatedVPPAppInstallFunc(ctx, adamID, hostIDs)
 }
 
 func (s *DataStore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
@@ -12965,11 +13001,11 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID, existingVPPAppTeamID)
 }
 
-func (s *DataStore) GetVPPAppVersionCount(ctx context.Context, teamID *uint, appID fleet.VPPAppID, versionName string) (versionCount uint, versionNameExists bool, err error) {
+func (s *DataStore) GetAppStoreAppVersionCount(ctx context.Context, teamID *uint, appID fleet.VPPAppID, versionName string) (versionCount uint, versionNameExists bool, err error) {
 	s.mu.Lock()
-	s.GetVPPAppVersionCountFuncInvoked = true
+	s.GetAppStoreAppVersionCountFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPAppVersionCountFunc(ctx, teamID, appID, versionName)
+	return s.GetAppStoreAppVersionCountFunc(ctx, teamID, appID, versionName)
 }
 
 func (s *DataStore) GetDuplicateStringGroupsUnderCollation(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {

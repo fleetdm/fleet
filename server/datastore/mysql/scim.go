@@ -2203,10 +2203,13 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 		return nil
 	}
 
-	// Find app configs that use any of the affected variables.
-	const findAffectedApps = `
+	// Find app configs that use any of the affected variables. Skip a version when the host is in scope
+	// for an earlier version of the same app, the host gets the configuration of that earlier version.
+	findAffectedApps := fmt.Sprintf(`
 	SELECT DISTINCT
 		vat.adam_id AS application_id,
+		vat.platform,
+		vat.global_or_team_id,
 		vat.id AS app_team_id
 	FROM
 		mdm_configuration_profile_variables mcpv
@@ -2218,8 +2221,14 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 			ON vat.global_or_team_id = COALESCE(h.team_id, 0)
 	WHERE
 		fv.name IN (?) AND
-		h.id IN (?)
-`
+		h.id IN (?) AND
+		NOT EXISTS (
+			SELECT 1 FROM vpp_apps_teams earlier_vat
+			WHERE earlier_vat.adam_id = vat.adam_id AND earlier_vat.platform = vat.platform
+				AND earlier_vat.global_or_team_id = vat.global_or_team_id AND earlier_vat.id < vat.id
+				AND EXISTS (%s)
+		)
+`, fmt.Sprintf(labelScopedFilter, softwareTypeVPP, "earlier_vat.id"))
 
 	findStmt, findArgs, err := sqlx.In(findAffectedApps, affectedVars, hostIDs)
 	if err != nil {
@@ -2227,12 +2236,28 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 	}
 
 	type affectedApp struct {
-		ApplicationID string `db:"application_id"`
-		AppTeamID     uint   `db:"app_team_id"`
+		ApplicationID  string                          `db:"application_id"`
+		Platform       fleet.InstallableDevicePlatform `db:"platform"`
+		GlobalOrTeamID uint                            `db:"global_or_team_id"`
+		AppTeamID      uint                            `db:"app_team_id"`
 	}
-	var apps []affectedApp
-	if err := sqlx.SelectContext(ctx, tx, &apps, findStmt, findArgs...); err != nil {
+	var affectedApps []affectedApp
+	if err := sqlx.SelectContext(ctx, tx, &affectedApps, findStmt, findArgs...); err != nil {
 		return ctxerr.Wrap(ctx, err, "find affected app configs")
+	}
+
+	// Re-send iOS and iPadOS apps with the new configuration to the affected hosts that have them
+	var apps []affectedApp
+	for _, app := range affectedApps {
+		if app.Platform != fleet.IOSPlatform && app.Platform != fleet.IPadOSPlatform {
+			apps = append(apps, app)
+			continue
+		}
+		appID := fleet.VPPAppID{AdamID: app.ApplicationID, Platform: app.Platform}
+		err = insertResendVPPAppConfigurationJob(ctx, tx, appID, app.GlobalOrTeamID, []uint{app.AppTeamID}, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "queue vpp app configuration resend")
+		}
 	}
 
 	if len(apps) == 0 {

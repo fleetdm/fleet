@@ -4648,11 +4648,13 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				INNER JOIN
 						vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
 				LEFT JOIN
-					-- use the first-added version for installs without a version, such as installs of a deleted version
-					vpp_apps_teams vat ON vat.id = COALESCE(vaua.vpp_app_team_id, (
-						SELECT MIN(vat_first.id) FROM vpp_apps_teams vat_first
-						WHERE vat_first.adam_id = vaua.adam_id AND vat_first.platform = vaua.platform AND vat_first.global_or_team_id = :global_or_team_id
-					)) AND vat.global_or_team_id = :global_or_team_id
+					-- use the install's version when it's on the host's fleet, else the first-added version there, such as for installs of a deleted version or from another fleet
+					vpp_apps_teams vat ON vat.id = (
+						SELECT vat_fleet.id FROM vpp_apps_teams vat_fleet
+						WHERE vat_fleet.adam_id = vaua.adam_id AND vat_fleet.platform = vaua.platform AND vat_fleet.global_or_team_id = :global_or_team_id
+						ORDER BY vat_fleet.id <=> vaua.vpp_app_team_id DESC, vat_fleet.id
+						LIMIT 1
+					)
 				INNER JOIN
 					vpp_apps ON vaua.adam_id = vpp_apps.adam_id AND vaua.platform = vpp_apps.platform
 				WHERE
@@ -4687,11 +4689,13 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 			LEFT JOIN
 				nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 			INNER JOIN
-				-- use the first-added version for installs without a version, such as installs of a deleted version
-				vpp_apps_teams vat ON vat.id = COALESCE(hvsi.vpp_app_team_id, (
-					SELECT MIN(vat_first.id) FROM vpp_apps_teams vat_first
-					WHERE vat_first.adam_id = hvsi.adam_id AND vat_first.platform = hvsi.platform AND vat_first.global_or_team_id = :global_or_team_id
-				)) AND vat.global_or_team_id = :global_or_team_id
+				-- use the install's version when it's on the host's fleet, else the first-added version there, such as for installs of a deleted version or from another fleet
+				vpp_apps_teams vat ON vat.id = (
+					SELECT vat_fleet.id FROM vpp_apps_teams vat_fleet
+					WHERE vat_fleet.adam_id = hvsi.adam_id AND vat_fleet.platform = hvsi.platform AND vat_fleet.global_or_team_id = :global_or_team_id
+					ORDER BY vat_fleet.id <=> hvsi.vpp_app_team_id DESC, vat_fleet.id
+					LIMIT 1
+				)
 			INNER JOIN
 				vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
 			WHERE
@@ -4905,16 +4909,18 @@ func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint, globalOr
 		INNER JOIN
 			vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
 		INNER JOIN
-			-- use the first-added version for installs without a version, such as installs of a deleted version
-			vpp_apps_teams ON vpp_apps_teams.id = COALESCE(hvsi.vpp_app_team_id, (
-				SELECT MIN(vat_first.id) FROM vpp_apps_teams vat_first
-				WHERE vat_first.adam_id = hvsi.adam_id AND vat_first.platform = hvsi.platform AND vat_first.global_or_team_id = ?
-			)) AND vpp_apps_teams.global_or_team_id = ?
+			-- use the install's version when it's on the host's fleet, else the first-added version there, such as for installs of a deleted version or from another fleet
+			vpp_apps_teams ON vpp_apps_teams.id = (
+				SELECT vat_fleet.id FROM vpp_apps_teams vat_fleet
+				WHERE vat_fleet.adam_id = hvsi.adam_id AND vat_fleet.platform = hvsi.platform AND vat_fleet.global_or_team_id = ?
+				ORDER BY vat_fleet.id <=> hvsi.vpp_app_team_id DESC, vat_fleet.id
+				LIMIT 1
+			)
 		WHERE
 			hvsi.host_id = ?
 	`
 	var vppInstalled []*hostSoftware
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vppInstalled, vppInstalledStmt, globalOrTeamID, globalOrTeamID, hostID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vppInstalled, vppInstalledStmt, globalOrTeamID, hostID)
 	if err != nil {
 		return nil, err
 	}

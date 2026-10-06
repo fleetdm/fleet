@@ -138,7 +138,7 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				}
 				return &fleet.VPPAppStoreApp{VPPAppsTeamsID: *tt.teamID}, nil
 			}
-			ds.GetVPPAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
+			ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
 				return []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: teamID}}, nil
 			}
 			ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {

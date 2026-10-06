@@ -864,7 +864,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	// Check if an existing version uses this name
-	existingVersionCount, versionNameExists, err := svc.ds.GetVPPAppVersionCount(ctx, teamID, appID.VPPAppID, appID.VersionName)
+	existingVersionCount, versionNameExists, err := svc.ds.GetAppStoreAppVersionCount(ctx, teamID, appID.VPPAppID, appID.VersionName)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing app store app versions")
 	}
@@ -1312,7 +1312,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
-	versions, err := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, ptr.ValOrZero(teamID), titleID)
+	versions, err := svc.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, ptr.ValOrZero(teamID), titleID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
 	}
@@ -1465,10 +1465,26 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
+	var appleConfigChanged bool
+	if payload.Configuration != nil && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
+		appleConfigChanged, err = svc.ds.HasVPPAppConfigurationChanged(ctx, meta.Platform, meta.AdamID, ptr.ValOrZero(teamID), &meta.VPPAppsTeamsID, datastoreConfig)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: checking if vpp app configuration changed")
+		}
+	}
+
 	// Update the app
 	insertedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID, &meta.VPPAppsTeamsID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
+	}
+
+	// Re-send the app to iOS and iPadOS hosts that have it when this version's configuration changed
+	if (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) && appleConfigChanged {
+		err = worker.QueueResendVPPAppConfigurationJob(ctx, svc.ds, svc.logger, meta.VPPAppID, ptr.ValOrZero(teamID), []uint{insertedApp.AppTeamID}, nil)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "enqueuing job to resend vpp app configuration")
+		}
 	}
 
 	// if labelsChanged, new hosts may require having the app made available, and if config
@@ -1527,7 +1543,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	// Read the edited version again so the response and the activity show its stored values
-	updatedVersions, err := svc.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, ptr.ValOrZero(teamID), titleID)
+	updatedVersions, err := svc.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, ptr.ValOrZero(teamID), titleID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting updated app metadata")
 	}

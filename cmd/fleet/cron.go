@@ -1133,6 +1133,8 @@ func newWorkerIntegrationsSchedule(
 	chartSvc chart_api.Service,
 	androidBatchSize int,
 	newActivitySvc activity_api.NewActivityService,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+	deferActivation bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -1197,6 +1199,8 @@ func newWorkerIntegrationsSchedule(
 		Log:              logger,
 		AndroidModule:    androidModule,
 		AndroidBatchSize: androidBatchSize,
+		VPPInstaller:     vppInstaller,
+		DeferActivation:  deferActivation,
 	}
 	chartScrubGlobal := &worker.ChartScrubGlobal{
 		ChartService: chartSvc,

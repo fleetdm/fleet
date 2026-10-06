@@ -580,6 +580,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	// initialization pattern works fine in our normal fleet server setup
 	appleMDMJob.VPPInstaller = svc
 	appleMDMJob.InHouseAppInstaller = svc
+	softwareWorker.VPPInstaller = svc
 
 	users, server := RunServerForTestsWithServiceWithDS(s.T(), ctx, s.ds, svc, &serverConfig)
 
