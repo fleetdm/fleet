@@ -871,7 +871,7 @@ software:
   app_store_apps:
     - app_store_id: "546505307" # Added from the fleet's first-added VPP token
       platform: ios
-    - app_store_id: "1091189122" # Added from the VPP token for the "Acme Japan" organization unit
+    - app_store_id: "1091189122" # Added from the second VPP token
       platform: ios
       location: Acme Japan
 ```
