@@ -20,6 +20,12 @@ In the next 3 months, Fleet will ship...
 - 🔐 Conditional access: Okta on Windows and Linux, and require Fleet-managed hosts in Google ([#53284](https://github.com/fleetdm/fleet/issues/53284), [#53286](https://github.com/fleetdm/fleet/issues/53286), [#54888](https://github.com/fleetdm/fleet/issues/54888))
 - 🔗 Asset management: Send host data to ServiceNow and Oomnitza ([#38864](https://github.com/fleetdm/fleet/issues/38864), [#38866](https://github.com/fleetdm/fleet/issues/38866))
 - 📱 Android: Kiosk mode, app patching, OS updates, and zero-touch enrollment into the right fleet ([#51586](https://github.com/fleetdm/fleet/issues/51586), [#54356](https://github.com/fleetdm/fleet/issues/54356), [#54359](https://github.com/fleetdm/fleet/issues/54359), [#51479](https://github.com/fleetdm/fleet/issues/51479))
+- 🩹 Patch policies: Set a deadline for macOS apps ([#39176](https://github.com/fleetdm/fleet/issues/39176))
+- ⏰ macOS updates: Update to the latest version within a major version ([#45511](https://github.com/fleetdm/fleet/issues/45511))
+- 🛍️ Self-service: Let macOS end users install opt-in configuration profiles ([#46834](https://github.com/fleetdm/fleet/issues/46834))
+- 🍏 Enroll and manage tvOS ([#38791](https://github.com/fleetdm/fleet/issues/38791))
+- 🧩 Host vitals: Pull any attribute from your IdP and create custom vitals ([#42922](https://github.com/fleetdm/fleet/issues/42922))
+- 🏷️ Labels for mobile devices: Use built-in host vitals (e.g. public IP) to create labels for iOS/iPadOS and Android hosts ([#39088](https://github.com/fleetdm/fleet/issues/39088))
 - 🗓️ Run scripts on a recurring schedule ([#29496](https://github.com/fleetdm/fleet/issues/29496))
 - 🚀 Fleet 5: A cleaner, more consistent API, with long-term support for Fleet 4 ([#33768](https://github.com/fleetdm/fleet/issues/33768), [#33767](https://github.com/fleetdm/fleet/issues/33767))
 
