@@ -2060,7 +2060,8 @@ None.
     "periodicity": 3600000000000,
     "recent_vulnerability_max_age": 2592000000000000
   },
-  "max_software_package_size": 10737418240
+  "max_software_package_size": 10737418240,
+  "staged_upload_available": false
 }
 ```
 
@@ -9494,9 +9495,10 @@ Upload a bootstrap package that will be automatically installed during DEP setup
 
 | Name    | Type   | In   | Description                                                                                                                                                                                                            |
 | ------- | ------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| package | file   | body | **Required**. The bootstrap package installer. It must be a signed `pkg` file.                                                                                                                                         |
+| package | file   | body | The bootstrap package installer. It must be a signed `pkg` file. Required unless `upload_id` is specified.                                                                                                                                         |
+| upload_id | string | body | The `upload_id` from [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload). Use instead of `package` for a package uploaded directly to GCS. |
+| filename | string | body | The package's file name, for example `bootstrap-package.pkg`. Required with `upload_id`. |
 | fleet_id | string | body | The fleet ID for the package. If specified, the package will be installed to hosts that are assigned to the specified fleet. If not specified, the package will be installed on "Unassigned" hosts. |
-| manual_agent_install | boolean | body | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
 #### Example
 
@@ -9512,6 +9514,27 @@ assigned to a fleet. Note that in this example the form data specifies `fleet_id
 fleet_id="1"
 package="bootstrap-package.pkg"
 ```
+
+##### Default response
+
+`Status: 200`
+
+
+#### Staged upload example
+
+Register a bootstrap package that was uploaded to the URL from [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload).
+
+`POST /api/v1/fleet/bootstrap`
+
+
+##### Request body
+
+```http
+fleet_id="1"
+upload_id="9c8c3146-a2ef-450b-9cc6-70b005d8554e"
+filename="bootstrap-package.pkg"
+```
+
 
 ##### Default response
 
@@ -15110,6 +15133,58 @@ Linux vulnerabilities are based on kernel vulnerabilities for hosts running the 
 
 Operating systems other than Windows, macOS, and Linux do not report vulnerabilities.
 
+
+### Create staged upload
+
+_Available in Fleet Premium._
+
+Get a short-lived URL for uploading a package directly to Google Cloud Storage (GCS), so the package bytes don't pass through the Fleet server. Use this for packages larger than your load balancer or ingress allows, like Cloud Run's 32 MiB limit.
+
+Available when [`s3_software_installers_gcs_signed_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-software-installers-gcs-signed-url) is on. [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) returns `staged_upload_available: true` when it is.
+
+`POST /api/v1/fleet/staged_upload`
+
+
+#### Parameters
+
+| Name     | Type    | In   | Description |
+| -------- | ------- | ---- | ----------- |
+| target   | string  | body | **Required.** What the package is for: `software_package` or `bootstrap_package`. |
+| fleet_id | integer | body | The fleet ID. If not specified, the upload is for "Unassigned". |
+| size     | integer | body | **Required.** The package size in bytes. It can't be larger than [`server_max_installer_size`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-max-installer-size). |
+
+Upload the package to `url` with a `PUT` request whose `Content-Length` matches `size`, without a Fleet `Authorization` header. Then pass `upload_id` and the package's file name as `filename` to [Add package](https://fleetdm.com/docs/rest-api/rest-api#add-package), [Update package](https://fleetdm.com/docs/rest-api/rest-api#update-package), or [Create bootstrap package](https://fleetdm.com/docs/rest-api/rest-api#create-bootstrap-package) in place of the file. The URL expires at `expires_at`. Staged uploads that aren't registered are deleted after 24 hours.
+
+
+#### Example
+
+`POST /api/v1/fleet/staged_upload`
+
+
+##### Request body
+
+```json
+{
+  "target": "software_package",
+  "fleet_id": 1,
+  "size": 524288000
+}
+```
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "upload_id": "9c8c3146-a2ef-450b-9cc6-70b005d8554e",
+  "url": "https://storage.googleapis.com/fleet-installers/uploads/9c8c3146-a2ef-450b-9cc6-70b005d8554e?X-Amz-Algorithm=AWS4-HMAC-SHA256&...",
+  "expires_at": "2026-10-02T22:00:00Z"
+}
+```
+
+
 ### Add package
 
 _Available in Fleet Premium._
@@ -15126,7 +15201,9 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | body | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`. |
+| software        | file    | body | Installer package file or custom script file. Required unless `upload_id` is specified. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`. |
+| upload_id       | string  | body | The `upload_id` from [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload). Use instead of `software` for a package uploaded directly to GCS. |
+| filename        | string  | body | The package's file name, including its extension. Required with `upload_id`. |
 | fleet_id         | integer | body | The fleet ID. Adds a software package to the specified fleet. If not specified, it will add the software for "Unassigned" hosts. |
 | install_script  | string | body | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh`, `.py`, and `.ps1`. |
 | uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
@@ -15214,6 +15291,8 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
 | software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`.   |
+| upload_id       | string  | body | The `upload_id` from [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload). Use instead of `software` to replace the package with one uploaded directly to GCS. |
+| filename        | string  | body | The package's file name, including its extension. Required with `upload_id`. |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
 | categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |

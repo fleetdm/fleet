@@ -3056,18 +3056,40 @@ Private key for URL signing. If `s3_software_installers_cloudfront_url` is set, 
 
 *Available in Fleet Premium.*
 
-When `true`, Fleet uses [signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls) that embed a cryptographic key in the URL used by the Fleet agent to download the installer directly from Google Cloud Storage (GCS) to the host, and by the client uploading the installer (e.g. Fleet UI) to upload it directly to GCS. This enables download and upload of large packages (over 50MB), which is a [limitation of the HTTP 1 protocol](https://github.com/fleetdm/fleet/issues/37352).
+When `true`, Fleet uses [signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls) so package bytes move directly between Google Cloud Storage (GCS) and the client instead of through the Fleet server:
 
-This option doesn't work when `s3_carves_gcs_iam_auth` is enabled. Please configure HMAC credentials (`s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key`) instead. 
+- Hosts download software installers, in-house apps, and bootstrap packages from GCS.
+- The Fleet UI, `fleetctl`, and the [REST API](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload) upload software packages and bootstrap packages to GCS, then register them with Fleet.
 
-Use this only with `s3_carves_endpoint_url` set to `https://storage.googleapis.com`.
+This lets Fleet hosted on GCP Cloud Run handle packages larger than 32 MiB, Cloud Run's request size limit over [HTTP/1](https://github.com/fleetdm/fleet/issues/37352).
+
+This option has three requirements:
+
+- Set `s3_software_installers_endpoint_url` to `https://storage.googleapis.com`.
+- Use HMAC credentials in `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key`. This option can't be combined with `s3_software_installers_gcs_iam_auth` or `s3_software_installers_sts_assume_role_arn`.
+- For uploads from the Fleet UI, add a cross-origin resource sharing (CORS) rule to the bucket that allows `PUT` from your Fleet URL. `fleetctl` and API clients don't need it. For example, save the following as `cors.json`:
+
+  ```json
+  [
+    {
+      "origin": ["https://fleet.example.com"],
+      "method": ["PUT"],
+      "responseHeader": ["Content-Type"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+  ```
+
+  Then apply it with `gcloud storage buckets update gs://<bucket> --cors-file=cors.json`.
+
+The previous name, `s3_software_installers_signed_url` (`FLEET_S3_SOFTWARE_INSTALLERS_SIGNED_URL`), is deprecated but still works.
 
 - Default value: false
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_GCS_SIGNED_URL`
 - Config file format:
   ```yaml
   s3:
-    software_installers_gcS_signed_url: true
+    software_installers_gcs_signed_url: true
   ```
 
 ### s3_carves_bucket
