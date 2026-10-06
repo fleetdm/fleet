@@ -50,21 +50,18 @@ func updateHostIdentityCertHostIDBySerial(ctx context.Context, tx sqlx.ExtContex
 func checkEnrollmentHoldsHostIdentityCert(
 	ctx context.Context, tx sqlx.QueryerContext, hostID uint, identityCert *types.HostIdentityCertificate,
 ) error {
-	if identityCert != nil && identityCert.HostID != nil && *identityCert.HostID == hostID {
-		return nil
+	// Compare cert serials.
+	var signedSerial uint64 // serials start at 1, so 0 matches no cert
+	if identityCert != nil {
+		signedSerial = identityCert.SerialNumber
 	}
-	// Lock the host row and use a locking read so a concurrent enrollment that binds a cert to this host is seen after it commits,
-	// instead of this transaction's stale snapshot.
-	var lockedID uint
-	if err := sqlx.GetContext(ctx, tx, &lockedID, `SELECT id FROM hosts WHERE id = ? FOR UPDATE`, hostID); err != nil {
-		return ctxerr.Wrap(ctx, err, "lock matched host for identity certificate check")
-	}
-	var certSerials []uint64
-	if err := sqlx.SelectContext(ctx, tx, &certSerials,
-		`SELECT serial FROM host_identity_scep_certificates WHERE host_id = ? AND revoked = 0 FOR SHARE`, hostID); err != nil {
+	var heldByOtherCert bool
+	if err := sqlx.GetContext(ctx, tx, &heldByOtherCert,
+		`SELECT EXISTS(SELECT 1 FROM host_identity_scep_certificates WHERE host_id = ? AND revoked = 0 AND serial != ?)`,
+		hostID, signedSerial); err != nil {
 		return ctxerr.Wrap(ctx, err, "check matched host identity certificate")
 	}
-	if len(certSerials) > 0 {
+	if heldByOtherCert {
 		return ctxerr.Errorf(ctx, "host %d holds a host identity certificate but the enrollment was not signed with it", hostID)
 	}
 	return nil

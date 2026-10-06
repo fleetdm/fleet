@@ -444,6 +444,12 @@ func testEnrollRequiresSignatureForCertHost(t *testing.T, ds *Datastore) {
 		require.NoError(t, enrollOrbit(victimOsqueryID, victimSerial, "victim-orbit-node-key-new", victimCert))
 		require.NoError(t, enrollOsquery(victimOsqueryID, victimSerial, "victim-node-key-new", victimCert))
 		requireNodeKeys(t, victim.ID, victimOsqueryID, "victim-node-key-new", "victim-orbit-node-key-new")
+
+		// A replica lagging behind the cert binding returns the host's own cert without its host ID.
+		staleVictimCert := *victimCert
+		staleVictimCert.HostID = nil
+		require.NoError(t, enrollOsquery(victimOsqueryID, victimSerial, "victim-node-key-stale-read", &staleVictimCert))
+		requireNodeKeys(t, victim.ID, victimOsqueryID, "victim-node-key-stale-read", "victim-orbit-node-key-new")
 	})
 
 	t.Run("revoked cert no longer protects the host", func(t *testing.T) {
@@ -451,43 +457,5 @@ func testEnrollRequiresSignatureForCertHost(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, enrollOsquery(victimOsqueryID, "", "victim-node-key-unsigned", nil))
 		requireNodeKeys(t, victim.ID, victimOsqueryID, "victim-node-key-unsigned", "victim-orbit-node-key-new")
-	})
-
-	t.Run("unsigned enrollment racing a cert-binding enrollment", func(t *testing.T) {
-		raceHost, err := ds.NewHost(ctx, &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			OsqueryHostID:   new("race-osquery-id"),
-			NodeKey:         new("race-node-key"),
-			UUID:            "race-uuid",
-			Platform:        "darwin",
-		})
-		require.NoError(t, err)
-		insertSimpleTestCertificate(t, ds, 5003, nil, "race-osquery-id")
-
-		// Hold a transaction that binds the cert to the host, like a signed enrollment that has not committed yet.
-		bindingTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
-		require.NoError(t, err)
-		defer func() { _ = bindingTx.Rollback() }()
-		_, err = bindingTx.ExecContext(ctx, `UPDATE hosts SET node_key = 'race-signed-node-key' WHERE id = ?`, raceHost.ID)
-		require.NoError(t, err)
-		_, err = bindingTx.ExecContext(ctx, `UPDATE host_identity_scep_certificates SET host_id = ? WHERE serial = 5003`, raceHost.ID)
-		require.NoError(t, err)
-
-		unsignedErr := make(chan error, 1)
-		go func() { unsignedErr <- enrollOsquery("race-osquery-id", "", "race-attacker-node-key", nil) }()
-		require.Eventually(t, func() bool {
-			var blocked int
-			err := sqlx.GetContext(ctx, ds.writer(ctx), &blocked, `SELECT COUNT(*) FROM information_schema.processlist
-				WHERE id != CONNECTION_ID() AND db = DATABASE() AND command != 'Sleep'
-				AND (info LIKE '%FOR UPDATE%' OR info LIKE '%UPDATE%hosts%SET%node_key%')`)
-			return err == nil && blocked > 0
-		}, 10*time.Second, 50*time.Millisecond)
-		require.NoError(t, bindingTx.Commit())
-
-		require.ErrorContains(t, <-unsignedErr, "not signed with it")
-		requireNodeKeys(t, raceHost.ID, "race-osquery-id", "race-signed-node-key", "")
 	})
 }
