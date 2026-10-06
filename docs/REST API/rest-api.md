@@ -10033,7 +10033,7 @@ Only Apple (macOS, iOS, iPadOS) `DeviceLock`, `EraseDevice`, `ClearPasscode`, an
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
-- [Update VPP token's fleets](#update-vpp-tokens-fleets)
+- [Update Volume Purchasing Program (VPP) token's fleets](#update-volume-purchasing-program-vpp-tokens-fleets)
 - [Get Android Enterprise](#get-android-enterprise)
 - [Delete Android Enterprise](#delete-android-enterprise)
 - [List Microsoft Graph credentials](#list-microsoft-graph-credentials)
@@ -10221,7 +10221,7 @@ None.
 }
 ```
 
-### Update VPP token's fleets
+### Update Volume Purchasing Program (VPP) token's fleets
 
 _Available in Fleet Premium_
 
