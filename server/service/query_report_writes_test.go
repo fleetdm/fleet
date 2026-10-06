@@ -62,6 +62,20 @@ func TestQueryResultRowsUnchanged(t *testing.T) {
 	}
 }
 
+func TestQueryResultRowsLastFetchedStale(t *testing.T) {
+	now := time.Now()
+	stored := func(ages ...time.Duration) []*fleet.StoredQueryResultRow {
+		rows := make([]*fleet.StoredQueryResultRow, 0, len(ages))
+		for _, age := range ages {
+			rows = append(rows, &fleet.StoredQueryResultRow{LastFetched: now.Add(-age)})
+		}
+		return rows
+	}
+	assert.False(t, queryResultRowsLastFetchedStale(stored(time.Minute, queryResultsLastFetchedRefreshAge-time.Minute), now))
+	assert.True(t, queryResultRowsLastFetchedStale(stored(queryResultsLastFetchedRefreshAge), now))
+	assert.True(t, queryResultRowsLastFetchedStale(stored(time.Minute, queryResultsLastFetchedRefreshAge+time.Minute), now))
+}
+
 func TestSaveResultLogsToQueryReportsSkipsUnchanged(t *testing.T) {
 	ds := new(mock.Store)
 	lq := makeLiveQueryStore(t, 0)
@@ -86,13 +100,14 @@ func TestSaveResultLogsToQueryReportsSkipsUnchanged(t *testing.T) {
 		"pack/Global/Changed": {ID: 2, Logging: fleet.LoggingSnapshot},
 	}
 
+	storedLastFetched := time.Now().Add(-queryResultsLastFetchedRefreshAge - time.Hour)
 	stored := func(queryID, rowID uint) []*fleet.StoredQueryResultRow {
 		return []*fleet.StoredQueryResultRow{{
 			ID:          rowID,
 			QueryID:     queryID,
 			HostID:      42,
 			Data:        new(json.RawMessage(`{"hour": "20"}`)),
-			LastFetched: time.Now().Add(-time.Hour),
+			LastFetched: storedLastFetched,
 		}}
 	}
 	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
@@ -113,6 +128,7 @@ func TestSaveResultLogsToQueryReportsSkipsUnchanged(t *testing.T) {
 	}
 	reset := func() {
 		written, recorded, recordErr = nil, nil, nil
+		storedLastFetched = time.Now().Add(-queryResultsLastFetchedRefreshAge - time.Hour)
 	}
 
 	t.Run("unchanged rows are recorded instead of written", func(t *testing.T) {
@@ -120,6 +136,14 @@ func TestSaveResultLogsToQueryReportsSkipsUnchanged(t *testing.T) {
 		serv.saveResultLogsToQueryReports(ctx, results, queries, fleet.DefaultMaxQueryReportRows)
 		require.Equal(t, []uint{2}, written)
 		require.Equal(t, []uint{100}, recorded)
+	})
+
+	t.Run("unchanged rows with a recent last_fetched are neither recorded nor written", func(t *testing.T) {
+		reset()
+		storedLastFetched = time.Now().Add(-queryResultsLastFetchedRefreshAge / 2)
+		serv.saveResultLogsToQueryReports(ctx, results, queries, fleet.DefaultMaxQueryReportRows)
+		require.Equal(t, []uint{2}, written)
+		require.Empty(t, recorded)
 	})
 
 	t.Run("rows are written if they can't be recorded", func(t *testing.T) {

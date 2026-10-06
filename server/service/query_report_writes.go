@@ -148,6 +148,23 @@ func queryResultRowsUnchanged(rows []*fleet.ScheduledQueryResultRow, stored []*f
 	return slices.Equal(newCanonical, storedCanonical)
 }
 
+// queryResultsLastFetchedRefreshAge is how old stored rows' last_fetched must be before an
+// unchanged result refreshes it: updating last_fetched rewrites both secondary indexes of every
+// row and logs full row images to the binlog, so doing it on every run costs the writer nearly as
+// much as rewriting the rows.
+const queryResultsLastFetchedRefreshAge = time.Hour
+
+// queryResultRowsLastFetchedStale reports whether any of the stored rows' last_fetched is older
+// than queryResultsLastFetchedRefreshAge at fetchedAt.
+func queryResultRowsLastFetchedStale(stored []*fleet.StoredQueryResultRow, fetchedAt time.Time) bool {
+	for _, row := range stored {
+		if fetchedAt.Sub(row.LastFetched) >= queryResultsLastFetchedRefreshAge {
+			return true
+		}
+	}
+	return false
+}
+
 // canonicalResultRows returns each row's data re-encoded and sorted, so rows compare equal
 // regardless of row order or of how MySQL's JSON type reorders keys and re-escapes strings.
 // Null data is kept as an empty string.

@@ -4717,11 +4717,16 @@ func (svc *Service) queryResultRows(ctx context.Context, result *fleet.Scheduled
 }
 
 // recordUnchangedQueryResultRows records the stored rows for the query_results_cleanup cron to
-// update their last_fetched if rows hold the same data. It reports whether that handled the
-// result; if not, the rows must be written.
+// update their last_fetched if rows hold the same data and their last_fetched is older than
+// queryResultsLastFetchedRefreshAge. It reports whether that handled the result; if not, the rows
+// must be written.
 func (svc *Service) recordUnchangedQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, stored []*fleet.StoredQueryResultRow) bool {
 	if !queryResultRowsUnchanged(rows, stored) {
 		return false
+	}
+	if !queryResultRowsLastFetchedStale(stored, rows[0].LastFetched) {
+		queryReportWritesSkipped.Add(ctx, 1, queryReportSkipReason(queryReportSkipUnchanged))
+		return true
 	}
 	ids := make([]uint, 0, len(stored))
 	for _, row := range stored {
