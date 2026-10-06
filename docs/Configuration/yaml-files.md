@@ -860,7 +860,7 @@ To add the same App Store app for multiple platforms, specify the `app_store_id`
 
 If a fleet has more than one VPP token, Fleet uses the first-added VPP token for Apple App Store apps without a `location`. The first-added VPP token is the one that was uploaded to Fleet first, out of the VPP tokens assigned to the fleet (including a VPP token assigned to "All fleets"). If the app isn't available in that VPP token, GitOps fails. Specify `location` to add it from a different VPP token.
 
-Each Apple App Store app can be added to a fleet from only one VPP token per platform. Fleet uses that VPP token for all requests to Apple related to the app in that fleet, like assigning licenses.
+Each Apple App Store app can be added to a fleet from only one VPP token per platform. Fleet uses that VPP token to assigning licenses.
 
 If an app is already added to the fleet and `location` isn't specified, Fleet keeps the app's current VPP token. This way, adding a new VPP token to a fleet, or removing one, doesn't change the VPP token of apps that are already added. If you specify a `location` that's different from the app's current VPP token, GitOps fails. To move an app to a different VPP token, remove the app from your YAML, run GitOps, and then add the app back with the new `location`.
 
