@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<policyDefinitions xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" revision="4.8" schemaVersion="1.0">
+  <policyNamespaces>
+    <target namespace="Mozilla.Policies" prefix="Mozilla"/>
+  </policyNamespaces>
+  <resources minRequiredRevision="4.8" />
+  <categories>
+    <category displayName="$(string.mozilla)" name="Cat_Mozilla"/>
+  </categories>
+</policyDefinitions>
