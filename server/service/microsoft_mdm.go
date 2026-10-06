@@ -1174,7 +1174,12 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
 
-	if err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(ctx, reqHWDeviceID, hostUUID); err != nil {
+	reqDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
+	}
+
+	if err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(ctx, reqHWDeviceID, reqDeviceID, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
 
@@ -3173,19 +3178,44 @@ func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string
 
 // checkWindowsMDMEnrollmentCanReplaceExisting refuses a fleetd (programmatic) enrollment that would replace another host's
 // enrollment. A fleetd enrollment authenticates its host with the orbit node key, so it may only replace that host's own
-// enrollment.
-func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Context, hardwareID, hostUUID string) error {
+// enrollment. Both identifiers the device reports are checked: re-enrollment deletes the enrollment holding the hardware ID,
+// and management sessions load the newest enrollment holding the device ID.
+func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Context, hardwareID, deviceID, hostUUID string) error {
 	if hostUUID == "" {
 		return nil
 	}
 
-	existing, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, hardwareID)
+	byHardwareID, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, hardwareID)
+	switch {
+	case fleet.IsNotFound(err):
+		byHardwareID = nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get existing enrollment for hardware ID")
+	}
+	if byHardwareID != nil {
+		if err := svc.checkWindowsMDMEnrollmentOwner(ctx, byHardwareID, "hardware ID", "mdm_hardware_id", hardwareID, hostUUID); err != nil {
+			return err
+		}
+	}
+
+	byDeviceID, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	switch {
 	case fleet.IsNotFound(err):
 		return nil
 	case err != nil:
-		return ctxerr.Wrap(ctx, err, "get existing enrollment for hardware ID")
+		return ctxerr.Wrap(ctx, err, "get existing enrollment for device ID")
 	}
+	if byHardwareID != nil && byDeviceID.ID == byHardwareID.ID {
+		return nil
+	}
+	return svc.checkWindowsMDMEnrollmentOwner(ctx, byDeviceID, "device ID", "mdm_device_id", deviceID, hostUUID)
+}
+
+// checkWindowsMDMEnrollmentOwner refuses a fleetd enrollment of hostUUID that would take over existing, the enrollment holding
+// the identifier id (idName in messages, idKey in log attributes).
+func (svc *Service) checkWindowsMDMEnrollmentOwner(ctx context.Context, existing *fleet.MDMWindowsEnrolledDevice, idName, idKey,
+	id, hostUUID string,
+) error {
 	if existing.HostUUID == "" || existing.HostUUID == hostUUID {
 		return nil
 	}
@@ -3210,14 +3240,14 @@ func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Cont
 	}
 
 	// Otherwise two hosts sharing a hardware ID come from cloning an already-enrolled image, which neither Fleet nor
-	// Microsoft supports, or from a host presenting another's hardware ID.
+	// Microsoft supports, or from a host presenting another's hardware ID or device ID.
 	svc.logger.WarnContext(ctx,
-		"refusing windows MDM enrollment with a hardware ID enrolled to another host; delete the other host if it is stale",
-		"mdm_hardware_id", hardwareID,
+		"refusing windows MDM enrollment with a "+idName+" enrolled to another host; delete the other host if it is stale",
+		idKey, id,
 		"enrolling_host_uuid", hostUUID,
 		"existing_host_uuid", existing.HostUUID,
 	)
-	return ctxerr.New(ctx, "hardware ID is enrolled to another host")
+	return ctxerr.New(ctx, idName+" is enrolled to another host")
 }
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the enrollment held by the hardware ID, if any.

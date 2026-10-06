@@ -23190,6 +23190,18 @@ func (s *integrationMDMTestSuite) TestWindowsMDMEnrollDoesNotReplaceAnotherHosts
 		requireEnrollmentIntact(t)
 	})
 
+	t.Run("another fleetd host presenting the device ID is refused", func(t *testing.T) {
+		// Management sessions load the newest enrollment holding the device ID, so a second one would take over the host.
+		otherHost := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
+		otherDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *otherHost.OrbitNodeKey)
+		otherDevice.DeviceID = hostDevice.DeviceID
+		require.ErrorContains(t, otherDevice.Enroll(), "SOAP fault")
+		enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, hostDevice.DeviceID)
+		require.NoError(t, err)
+		require.Equal(t, hostDevice.HardwareID, enrollment.MDMHardwareID)
+		require.Equal(t, host.UUID, enrollment.HostUUID)
+	})
+
 	t.Run("a re-enrollment that fails provisioning leaves the enrollment in place", func(t *testing.T) {
 		// fleetd only enrolls a host whose osquery reports MDM off.
 		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, false, s.server.URL, false, fleet.WellKnownMDMFleet, "",

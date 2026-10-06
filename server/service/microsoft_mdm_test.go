@@ -3758,6 +3758,7 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 		hwID          = "F19B99942A3B9C53679F46017599C1FC4953B9BD3F0BC20FF681D0F93FAE5992"
 		enrollingHost = "7C3BA655-C134-4CA5-A23B-CA8147643DA0"
 		existingHost  = "A5D3F1A9-1B40-49DC-9D54-B4F558850CB9"
+		deviceID      = "CA47C1C7D55D0643B85CDDE133EE5B99"
 	)
 
 	// Attributes of the first warning whose message contains want, or nil when nothing matched.
@@ -3773,7 +3774,9 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 		return nil
 	}
 
-	linked := &fleet.MDMWindowsEnrolledDevice{HostUUID: existingHost}
+	linked := &fleet.MDMWindowsEnrolledDevice{ID: 1, HostUUID: existingHost}
+	// An enrollment holding the device ID under another hardware ID.
+	linkedOtherHardwareID := &fleet.MDMWindowsEnrolledDevice{ID: 2, HostUUID: existingHost}
 	wipeCmd := &fleet.MDMCommand{}
 	wiped := &fleet.HostLockWipeStatus{
 		HostFleetPlatform: "windows", WipeMDMCommand: wipeCmd, WipeMDMCommandResult: &fleet.MDMCommandResult{Status: "200"},
@@ -3781,11 +3784,13 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 	pendingWipe := &fleet.HostLockWipeStatus{HostFleetPlatform: "windows", WipeMDMCommand: wipeCmd}
 	noLockWipe := &fleet.HostLockWipeStatus{HostFleetPlatform: "windows"}
 	const refused = "hardware ID is enrolled to another host"
+	const refusedDeviceID = "device ID is enrolled to another host"
 
 	for _, tc := range []struct {
 		name            string
 		enrollingHost   string
 		existing        *fleet.MDMWindowsEnrolledDevice // nil means no enrollment holds the hardware ID
+		byDeviceID      *fleet.MDMWindowsEnrolledDevice // nil means no enrollment holds the device ID
 		existingDeleted bool
 		lockWipe        *fleet.HostLockWipeStatus
 		dsErr           error
@@ -3798,6 +3803,13 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 		{name: "existing host was wiped", enrollingHost: enrollingHost, existing: linked, lockWipe: wiped},
 		{name: "different host", enrollingHost: enrollingHost, existing: linked, lockWipe: noLockWipe, wantErr: refused},
 		{name: "different host, existing host's wipe pending", enrollingHost: enrollingHost, existing: linked, lockWipe: pendingWipe, wantErr: refused},
+		{name: "same enrollment holds both IDs", enrollingHost: existingHost, existing: linked, byDeviceID: linked},
+		{name: "device ID held by the same host", enrollingHost: existingHost, byDeviceID: linkedOtherHardwareID},
+		{
+			name: "device ID held by another host", enrollingHost: enrollingHost, byDeviceID: linkedOtherHardwareID, lockWipe: noLockWipe,
+			wantErr: refusedDeviceID,
+		},
+		{name: "device ID held by a wiped host", enrollingHost: enrollingHost, byDeviceID: linkedOtherHardwareID, lockWipe: wiped},
 		{name: "automatic enrollment is not checked", existing: linked},
 		{name: "lookup fails", enrollingHost: enrollingHost, dsErr: errors.New("db is down"), wantErr: "db is down"},
 	} {
@@ -3813,6 +3825,13 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 				}
 				return tc.existing, nil
 			}
+			ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(_ context.Context, gotDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				require.Equal(t, deviceID, gotDeviceID)
+				if tc.byDeviceID == nil {
+					return nil, &notFoundError{}
+				}
+				return tc.byDeviceID, nil
+			}
 			ds.HostByUUIDFunc = func(_ context.Context, gotUUID string) (*fleet.Host, error) {
 				require.Equal(t, existingHost, gotUUID)
 				if tc.existingDeleted {
@@ -3827,7 +3846,7 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 			handler := testutils.NewTestHandler()
 			svc := &Service{ds: ds, logger: slog.New(handler)}
 
-			err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(t.Context(), hwID, tc.enrollingHost)
+			err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(t.Context(), hwID, deviceID, tc.enrollingHost)
 			if tc.enrollingHost == "" {
 				require.False(t, ds.MDMWindowsGetEnrolledDeviceWithHardwareIDFuncInvoked)
 			}
@@ -3843,8 +3862,12 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 
 			// Whole-map equality so a renamed or extra attribute fails too: this log line is the only signal.
 			attrs := warnAttrs(handler, "refusing windows MDM enrollment")
+			idKey, id := "mdm_hardware_id", hwID
+			if tc.wantErr == refusedDeviceID {
+				idKey, id = "mdm_device_id", deviceID
+			}
 			require.Equal(t, map[string]string{
-				"mdm_hardware_id":     hwID,
+				idKey:                 id,
 				"enrolling_host_uuid": tc.enrollingHost,
 				"existing_host_uuid":  existingHost,
 			}, attrs)
