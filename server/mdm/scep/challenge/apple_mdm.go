@@ -37,16 +37,19 @@ func AppleMDMChallengeMiddleware(logger *slog.Logger, store AppleMDMSCEPStore, s
 
 		if staticChallengeEnabled {
 			assets, err := store.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge}, nil)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "failed to get SCEP challenge assets")
+			if err == nil {
+				// no error, proceed with static challenge check
+				staticSCEPChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
+				if subtle.ConstantTimeCompare([]byte(m.ChallengePassword), []byte(staticSCEPChallenge)) == 1 {
+					// pass on match, on failure fall through to dynamic challenge check
+					// do not sign certificate with information since we don't have it for static challenge
+					return next.SignX509CSRWithCallback(m.CSR, apple_mdm.AppleMDMSCEPCertificateSubject(hasNewEnrollmentOU), nil)
+				}
+			} else {
+				logger.ErrorContext(ctx, "failed to get SCEP challenge assets", "error", err)
 			}
 
-			staticSCEPChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
-			if subtle.ConstantTimeCompare([]byte(m.ChallengePassword), []byte(staticSCEPChallenge)) == 1 {
-				// pass on match, on failure fall through to dynamic challenge check
-				// do not sign certificate with information since we don't have it for static challenge
-				return next.SignX509CSRWithCallback(m.CSR, apple_mdm.AppleMDMSCEPCertificateSubject(hasNewEnrollmentOU), nil)
-			}
+			// falling through to always do dynamic check if datastore errors
 		}
 
 		// attempt the challenge as a dynamic challenge
