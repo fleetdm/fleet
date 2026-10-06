@@ -461,7 +461,7 @@ func TestPubSubEnrollment(t *testing.T) {
 		}}, linkActivities)
 	})
 
-	t.Run("re-enrollment with rotated enroll secret does not panic", func(t *testing.T) {
+	t.Run("re-enrollment with rotated enroll secret is rejected", func(t *testing.T) {
 		mockDS.NewAndroidHostFuncInvoked = false
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{
@@ -491,19 +491,8 @@ func TestPubSubEnrollment(t *testing.T) {
 			return nil, common_mysql.NotFound("enroll secret")
 		}
 
-		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
-			return nil, false, nil
-		}
-
-		var capturedTeamID *uint
 		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
-			capturedTeamID = host.TeamID
-			return nil
-		}
-		mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
-			return nil
-		}
-		mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+			t.Error("UpdateAndroidHost should not be called when enroll secret is invalid")
 			return nil
 		}
 
@@ -517,16 +506,12 @@ func TestPubSubEnrollment(t *testing.T) {
 			EnrollmentTokenData: string(enrollTokenData),
 		})
 
-		// Should not panic even though VerifyEnrollSecret returns nil.
+		// Device should not be allowed to re-enroll with an invalid enroll secret.
 		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
-		require.NoError(t, err)
-
-		// Host should keep its original team since enroll secret was not found.
-		require.NotNil(t, capturedTeamID)
-		require.Equal(t, originalTeamID, *capturedTeamID)
+		require.Error(t, err)
 	})
 
-	t.Run("re-enrollment restores prior team from android_devices", func(t *testing.T) {
+	t.Run("re-enrollment uses enroll secret team not last known team", func(t *testing.T) {
 		mockDS.NewAndroidHostFuncInvoked = false
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{
@@ -549,13 +534,14 @@ func TestPubSubEnrollment(t *testing.T) {
 			}, nil
 		}
 
-		// Enroll secret points to team 1 (the default).
-		defaultTeamID := uint(1)
+		// Enroll secret points to team 1.
+		enrollSecretTeamID := uint(1)
 		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-			return &fleet.EnrollSecret{Secret: secret, TeamID: &defaultTeamID}, nil
+			return &fleet.EnrollSecret{Secret: secret, TeamID: &enrollSecretTeamID}, nil
 		}
 
-		// Prior team from android_devices is team 19 (admin transferred).
+		// "Last known team" from android_devices is team 19 (admin transferred).
+		// This should NOT be used — the enroll secret's team should win.
 		priorTeamID := uint(19)
 		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
 			return &priorTeamID, true, nil
@@ -586,9 +572,9 @@ func TestPubSubEnrollment(t *testing.T) {
 		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
 		require.NoError(t, err)
 
-		// Should use the prior team (19), not the enroll secret's team (1).
+		// Should use the enroll secret's team (1), not the "last known team" (19).
 		require.NotNil(t, capturedTeamID)
-		require.Equal(t, priorTeamID, *capturedTeamID)
+		require.Equal(t, enrollSecretTeamID, *capturedTeamID)
 	})
 }
 

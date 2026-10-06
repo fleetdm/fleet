@@ -845,21 +845,10 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 		svc.logger.DebugContext(ctx, "The enrolling Android host is already present in Fleet. Updating team if needed",
 			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 		enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
-		if err != nil && !fleet.IsNotFound(err) {
+		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "verifying enroll secret")
 		}
-		if err == nil {
-			host.TeamID = enrollSecret.GetTeamID()
-		}
-
-		// If the device was previously known restore the last-known team instead of the enrollment secret's default.
-		hostKey := getAndroidHostKey(device)
-		if priorTeamID, found, err := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); err != nil {
-			svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enroll secret", "err", err)
-			ctxerr.Handle(ctx, err)
-		} else if found {
-			host.TeamID = priorTeamID
-		}
+		host.TeamID = enrollSecret.GetTeamID()
 
 		if enrollmentTokenRequest.IdpUUID != "" {
 			previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, enrollmentTokenRequest.IdpUUID)
@@ -1305,15 +1294,6 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(ctx, device.EnrollmentTokenData)
 	if err != nil {
 		return 0, err
-	}
-
-	// If the device was previously known restore the last-known team instead of the token's default.
-	hostKey := getAndroidHostKey(device)
-	if priorTeamID, found, tlErr := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); tlErr != nil {
-		svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enrollment data default", "err", tlErr)
-		ctxerr.Handle(ctx, tlErr)
-	} else if found {
-		teamID = priorTeamID
 	}
 
 	deviceID, err := svc.getDeviceID(ctx, device)
