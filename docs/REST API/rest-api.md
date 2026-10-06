@@ -10159,7 +10159,6 @@ _Available in Fleet Premium_
 
 `GET /api/v1/fleet/vpp_tokens`
 
-`created_at` is when the VPP token was uploaded to Fleet. Renewing a VPP token doesn't change it. If a fleet has more than one VPP token, the first-added VPP token is the one that was uploaded first.
 
 #### Parameters
 
