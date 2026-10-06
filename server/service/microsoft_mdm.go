@@ -1188,7 +1188,12 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 		)
 	}
 
-	keptEntraDeviceID, err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(ctx, reqHWDeviceID, hostUUID, entraDeviceID)
+	reqDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
+	}
+
+	keptEntraDeviceID, err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(ctx, reqHWDeviceID, reqDeviceID, hostUUID, entraDeviceID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
@@ -3190,19 +3195,58 @@ func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string
 }
 
 // checkWindowsMDMEnrollmentCanReplaceExisting refuses an enrollment that would replace another device's enrollment. The
-// enrollment names its device only by a device-reported hardware ID, so it is checked against the identity its credential
+// enrollment names its device only by identifiers the device reports, so it is checked against the identity its credential
 // proves: the host of a fleetd (programmatic) enrollment, authenticated by its orbit node key, or the Entra device signed into
-// the access token of an Entra enrollment. entraDeviceID is empty for an enrollment that proves neither.
-func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Context, hardwareID, hostUUID, entraDeviceID string) (
-	keptEntraDeviceID string, err error,
-) {
-	existing, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, hardwareID)
+// the access token of an Entra enrollment. entraDeviceID is empty for an enrollment that proves neither. Both reported
+// identifiers are checked: re-enrollment deletes the enrollment holding the hardware ID, and management sessions load the
+// newest enrollment holding the device ID.
+//
+// It returns the Entra device ID a fleetd re-enrollment of the same host carries over, so that re-enrolling through fleetd does
+// not unbind an enrollment from its Entra device.
+func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Context, hardwareID, deviceID, hostUUID,
+	entraDeviceID string,
+) (keptEntraDeviceID string, err error) {
+	byHardwareID, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, hardwareID)
 	switch {
 	case fleet.IsNotFound(err):
-		return "", nil
+		byHardwareID = nil
 	case err != nil:
 		return "", ctxerr.Wrap(ctx, err, "get existing enrollment for hardware ID")
 	}
+	if byHardwareID != nil {
+		keptEntraDeviceID, err = svc.checkWindowsMDMEnrollmentOwner(ctx, byHardwareID, "hardware ID", "mdm_hardware_id", hardwareID,
+			hostUUID, entraDeviceID)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	byDeviceID, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	switch {
+	case fleet.IsNotFound(err):
+		return keptEntraDeviceID, nil
+	case err != nil:
+		return "", ctxerr.Wrap(ctx, err, "get existing enrollment for device ID")
+	}
+	if byHardwareID != nil && byDeviceID.ID == byHardwareID.ID {
+		return keptEntraDeviceID, nil
+	}
+	keptByDeviceID, err := svc.checkWindowsMDMEnrollmentOwner(ctx, byDeviceID, "device ID", "mdm_device_id", deviceID, hostUUID,
+		entraDeviceID)
+	if err != nil {
+		return "", err
+	}
+	if keptEntraDeviceID == "" {
+		keptEntraDeviceID = keptByDeviceID
+	}
+	return keptEntraDeviceID, nil
+}
+
+// checkWindowsMDMEnrollmentOwner refuses an enrollment that would take over existing, the enrollment holding the identifier id
+// (idName in messages, idKey in log attributes). See checkWindowsMDMEnrollmentCanReplaceExisting.
+func (svc *Service) checkWindowsMDMEnrollmentOwner(ctx context.Context, existing *fleet.MDMWindowsEnrolledDevice, idName, idKey,
+	id, hostUUID, entraDeviceID string,
+) (keptEntraDeviceID string, err error) {
 	if hostUUID != "" {
 		if existing.HostUUID == hostUUID {
 			return existing.EntraDeviceID, nil
@@ -3257,41 +3301,41 @@ func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Cont
 
 	if hostUUID != "" && existing.HostUUID != "" {
 		// Otherwise two hosts sharing a hardware ID come from cloning an already-enrolled image, which neither Fleet nor
-		// Microsoft supports, or from a host presenting another's hardware ID.
+		// Microsoft supports, or from a host presenting another's hardware ID or device ID.
 		svc.logger.WarnContext(ctx,
-			"refusing windows MDM enrollment with a hardware ID enrolled to another host; delete the other host if it is stale",
-			"mdm_hardware_id", hardwareID,
+			"refusing windows MDM enrollment with a "+idName+" enrolled to another host; delete the other host if it is stale",
+			idKey, id,
 			"enrolling_host_uuid", hostUUID,
 			"existing_host_uuid", existing.HostUUID,
 		)
-		return "", ctxerr.New(ctx, "hardware ID is enrolled to another host")
+		return "", ctxerr.New(ctx, idName+" is enrolled to another host")
 	}
 
 	if hostUUID == "" && entraDeviceID == "" {
 		// Likely the same host enrolling after the deviceid claim was removed from the app registration, so deleting the host
 		// is not the fix.
 		svc.logger.WarnContext(ctx,
-			"refusing windows MDM enrollment: the hardware ID is enrolled to an Entra device, and the Entra access token has no "+
+			"refusing windows MDM enrollment: the "+idName+" is enrolled to an Entra device, and the Entra access token has no "+
 				"deviceid claim to verify the enrolling host is that device. Add deviceid as an optional access token claim in the "+
 				"manifest of the Microsoft Entra MDM app registration",
-			"mdm_hardware_id", hardwareID,
+			idKey, id,
 			"existing_entra_device_id", boundEntraDeviceID,
 			"existing_host_uuid", existing.HostUUID,
 		)
-		return "", ctxerr.New(ctx, "hardware ID is enrolled to another host")
+		return "", ctxerr.New(ctx, idName+" is enrolled to another host")
 	}
 
 	// A plain Entra join after a reset creates a new Entra device, so this is also how a reset device that Fleet did not wipe
 	// comes back; deleting its host releases the hardware ID.
 	svc.logger.WarnContext(ctx,
-		"refusing windows MDM enrollment with a hardware ID enrolled to another Entra device; delete the host if it is stale",
-		"mdm_hardware_id", hardwareID,
+		"refusing windows MDM enrollment with a "+idName+" enrolled to another Entra device; delete the host if it is stale",
+		idKey, id,
 		"enrolling_host_uuid", hostUUID,
 		"enrolling_entra_device_id", entraDeviceID,
 		"existing_entra_device_id", boundEntraDeviceID,
 		"existing_host_uuid", existing.HostUUID,
 	)
-	return "", ctxerr.New(ctx, "hardware ID is enrolled to another host")
+	return "", ctxerr.New(ctx, idName+" is enrolled to another host")
 }
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the enrollment held by the hardware ID, if any.
