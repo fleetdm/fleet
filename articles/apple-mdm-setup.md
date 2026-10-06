@@ -4,7 +4,7 @@ To turn on macOS, iOS, and iPadOS MDM features, follow the instructions on this 
 
 To use automatic enrollment (aka zero-touch) features on macOS, iOS, and iPadOS, follow instructions to connect Fleet with Apple Business (AB).
 
-To turn on Windows MDM features, head to this [Windows MDM setup article](https://fleetdm.com/guides/windows-mdm-setup).
+To turn on MDM features on other platforms, head to the [Windows MDM setup](https://fleetdm.com/guides/windows-mdm-setup) or [Android MDM setup](https://fleetdm.com/guides/android-mdm-setup) guides. Migrating from another MDM solution? See the [macOS](https://fleetdm.com/guides/mdm-migration), [Windows](https://fleetdm.com/guides/windows-mdm-setup#automatic-windows-mdm-migration), and [Android BYOD](https://fleetdm.com/guides/android-byod-mdm-migration) migration guides.
 
 ## Turn on Apple MDM
 

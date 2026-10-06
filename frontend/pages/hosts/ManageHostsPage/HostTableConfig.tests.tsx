@@ -276,18 +276,26 @@ describe("HostTableConfig - Serial number column", () => {
     expect(screen.queryByText("Not supported")).not.toBeInTheDocument();
   });
 
-  it("shows 'Not supported' for a personal (BYOD) Android host", () => {
+  it("shows 'Not supported' for an Android work-profile host", () => {
     renderSerialCell("", "android", {
-      enrollment_status: "On (manual - personal)",
+      enrollment_status: "On (personal)",
     });
     expect(screen.getByText("Not supported")).toBeInTheDocument();
   });
 
-  it("shows 'Not supported' for a personal (BYOD) iOS host", () => {
+  it("shows 'Not supported' for an account-driven enrolled iOS host", () => {
     renderSerialCell("", "ios", {
+      enrollment_status: "On (personal)",
+    });
+    expect(screen.getByText("Not supported")).toBeInTheDocument();
+  });
+
+  it("shows 'Not supported' for a manual BYOD iOS host", () => {
+    renderSerialCell("IPHONE123", "ios", {
       enrollment_status: "On (manual - personal)",
     });
     expect(screen.getByText("Not supported")).toBeInTheDocument();
+    expect(screen.queryByText("IPHONE123")).not.toBeInTheDocument();
   });
 });
 

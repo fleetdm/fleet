@@ -1,0 +1,15 @@
+.uninstall-profile-modal {
+  .modal__content {
+    @include vertical-modal-layout;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  &__confirm {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+}

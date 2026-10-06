@@ -1568,3 +1568,25 @@ func TestValidateWebSocketConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestSoftwareInstallersSignedURLKeys(t *testing.T) {
+	for _, c := range []struct {
+		env  string
+		want bool
+	}{
+		{"", false},
+		{"FLEET_S3_SOFTWARE_INSTALLERS_GCS_SIGNED_URL", true},
+		{"FLEET_S3_SOFTWARE_INSTALLERS_SIGNED_URL", true},
+	} {
+		t.Run(c.env, func(t *testing.T) {
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			if c.env != "" {
+				t.Setenv(c.env, "true")
+			}
+			cmd := &cobra.Command{}
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			require.Equal(t, c.want, NewManager(cmd).LoadConfig().S3.SoftwareInstallersSignedURL)
+		})
+	}
+}

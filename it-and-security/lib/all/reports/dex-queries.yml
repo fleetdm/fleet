@@ -99,6 +99,7 @@
       si.cpu_brand,
 
       CASE
+        WHEN ci.model LIKE '%Apple M6%'               THEN 'apple_m6'
         WHEN ci.model LIKE '%Apple M5%'               THEN 'apple_m5'
         WHEN ci.model LIKE '%Apple M4%'               THEN 'apple_m4'
         WHEN ci.model LIKE '%Apple M3%'               THEN 'apple_m3'

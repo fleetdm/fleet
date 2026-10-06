@@ -1,0 +1,1 @@
+- Updated fleetd's host identity certificate enrollment to share the Fleet server's SCEP client. It now accepts a CA certificate chain served as PKCS7 and reports a malformed SCEP reply as an error instead of crashing.

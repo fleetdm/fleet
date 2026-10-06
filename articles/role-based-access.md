@@ -18,7 +18,7 @@ Unlike admins, maintainers cannot edit higher level settings like application co
 
 `Applies only to Fleet Premium`
 
-Technicians have the ability to run scripts, view their results, and install/uninstall software.
+Technicians have the ability to run saved scripts, view their results, and install/uninstall software.
 
 ### Observer
 
@@ -114,7 +114,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View certificate authorities (CA)\*                                                                                                        |          |            |            | ✅         | ✅    | ✅      |
 | View certificate authority secrets (CA)\*                                                                                                  |          |            |            |            | ✅    | ✅      |
 | Request certificates (CA)\*                                                                                                                |          |            |            |            | ✅    | ✅      |
-| Run scripts on hosts                                                                                                                       |          |            | ✅         | ✅         | ✅    |         |
+| Run saved scripts on hosts                                                                                                                 |          |            | ✅         | ✅         | ✅    |         |
+| Run arbitrary scripts on hosts                                                                                                             |          |            |            | ✅         | ✅    |         |
 | Schedule scripts on hosts                                                                                                                  |          |            |            | ✅         | ✅    |         |
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 | Edit/upload saved scripts\*                                                                                                                |          |            |            | ✅         | ✅    | ✅      |
@@ -196,7 +197,8 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Edit a fleet's [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                  |               |                |                 | ✅              | ✅         | ✅          |
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                           |               |                |                 | ✅              | ✅         | ✅          |
-| Run scripts on hosts                                                                                                             |               |                | ✅              | ✅              | ✅         |             |
+| Run saved scripts on hosts                                                                                                       |               |                | ✅              | ✅              | ✅         |             |
+| Run arbitrary scripts on hosts                                                                                                   |               |                |                 | ✅              | ✅         |             |
 | Schedule scripts on hosts                                                                                                        |               |                |                 | ✅              | ✅         |             |
 | View saved scripts                                                                                                               | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Edit/upload saved scripts                                                                                                        |               |                |                 | ✅              | ✅         |             |

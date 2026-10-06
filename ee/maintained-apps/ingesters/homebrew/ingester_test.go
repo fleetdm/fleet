@@ -87,7 +87,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -147,6 +147,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "webex", UniqueIdentifier: "Cisco-Systems.Spark", InstallerFormat: "dmg", Name: "Webex", Slug: "webex/darwin"}},
 		{"", inputApp{Token: "firefox@developer-edition", UniqueIdentifier: "org.mozilla.firefoxdeveloperedition", InstallerFormat: "dmg", Name: "Mozilla Firefox Developer Edition", Slug: "firefox@developer-edition/darwin"}},
 		{"", inputApp{Token: "microsoft-edge", UniqueIdentifier: "com.microsoft.edgemac", InstallerFormat: "dmg", Name: "Microsoft Edge", Slug: "microsoft-edge/darwin"}},
+		{"", inputApp{Token: "google-chrome", UniqueIdentifier: "com.google.Chrome", InstallerFormat: "pkg", Name: "Google Chrome", Slug: "google-chrome/darwin"}},
 		{"", inputApp{Token: "firefox@nightly", UniqueIdentifier: "org.mozilla.nightly", InstallerFormat: "dmg", Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/darwin"}},
 		{"", inputApp{Token: "i1profiler", UniqueIdentifier: "com.x-rite.i1Profiler", InstallerFormat: "zip", Name: "i1Profiler", Slug: "i1profiler/darwin"}},
 		{"", inputApp{Token: "steam", UniqueIdentifier: "com.valvesoftware.steam", InstallerFormat: "dmg", Name: "Steam", Slug: "steam/darwin"}},
@@ -265,12 +266,21 @@ func TestIngestValidations(t *testing.T) {
 				)
 			}
 
-			// The managed "is app open" query matches only the app's own executable, so
-			// in-bundle login items and helpers that outlive the app don't count as open.
-			require.Equal(t,
-				fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');", out.UniqueIdentifier),
-				out.Queries.Open,
-			)
+			switch c.inputApp.Token {
+			case "google-chrome", "microsoft-edge":
+				// Ingest a Chromium browser, the open query should also match the executable in the browser's code sign clone.
+				require.Equal(t,
+					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');", out.UniqueIdentifier),
+					out.Queries.Open,
+				)
+			default:
+				// The managed "is app open" query matches only the app's own executable, so
+				// in-bundle login items and helpers that outlive the app don't count as open.
+				require.Equal(t,
+					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');", out.UniqueIdentifier),
+					out.Queries.Open,
+				)
+			}
 		})
 	}
 }

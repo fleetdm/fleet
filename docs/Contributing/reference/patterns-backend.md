@@ -12,6 +12,7 @@ Table of Contents
   - [Timestamps](#timestamps)
   - [UUIDs](#uuids)
   - [Say no to `goqu`](#say-no-to-goqu)
+  - [Unbounded tables](#unbounded-tables)
   - [Data retention](#data-retention)
   - [Re-usable transactionable functions](#re-usable-transactionable-functions)
 - [Specific features](#specific-features)
@@ -126,6 +127,21 @@ Benefits of binary UUIDs include:
 Do not use [goqu](https://github.com/doug-martin/goqu); use MySQL queries directly. Searching for, understanding, and debugging direct MySQL
 queries is easier. If needing to modify an existing `goqu` query, try to rewrite it in
 MySQL. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=8041045095900447703).
+
+### Unbounded tables
+
+Tables that grow with hosts multiplied by time (per-host history such as script results, command results, report results, and MDM command queues) will eventually hold tens of millions of rows on large instances. Unbounded growth has caused production incidents: slow cleanups saturating the writer, and deletes on parent rows that time out or deadlock. Treat bounding a table as part of creating it, not as a follow-up.
+
+Every per-host history table must have:
+- **A retention window.** Decide how long rows are kept when the table is created. Make it configurable if customers may reasonably need a different window.
+- **A cleanup cron.** A scheduled job deletes rows outside the retention window. Ship it in the same PR as the table.
+- **A supporting index.** The cleanup query's `WHERE` clause must be served by an index (for example, an index whose leading column is `created_at`), so cleanup does not full-scan the table. Run `EXPLAIN` on the cleanup query against realistic data.
+
+Cleanup queries must also:
+- Delete in small batches (for example, `DELETE ... LIMIT 1000` in a loop, or a keyset cursor), each in its own short transaction, so no single statement holds locks for long or floods replication. See `CleanupNanoCommands` in `server/datastore/mysql/apple_mdm_cleanups.go` for an example.
+- Be resumable. If a run times out or the server restarts, the next run picks up where it left off without redoing work.
+
+Avoid foreign keys with `ON DELETE CASCADE` or `ON DELETE SET NULL` from an unbounded table to a parent row (such as a policy, script, or software title). Deleting one parent then rewrites an unbounded number of child rows inside the caller's transaction, which can time out or deadlock an API or GitOps request. Instead, clean up or detach child rows in batches outside the parent's delete transaction.
 
 ### Data retention
 

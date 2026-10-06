@@ -1,6 +1,6 @@
 cask "fleet-desktop" do
   version "1.5.1"
-  sha256 "dd2679974588344fe641d15a662a0e8caabf264d5f7d3fb94f62fcf3418e4b5e"
+  sha256 "666fdf85b9389e256b40ebb15f428fb04f27aebe0e5d833e5d5e1df8a92b721b"
 
   url "https://download.fleetdm.com/fleet-desktop-macos/v#{version}/fleet_desktop-v#{version}.pkg"
   name "Fleet Desktop"
@@ -11,7 +11,7 @@ cask "fleet-desktop" do
     skip "Manually versioned upon release"
   end
 
-  depends_on macos: ">= :ventura"
+  depends_on macos: :ventura
 
   pkg "fleet_desktop-v#{version}.pkg"
 
