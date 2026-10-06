@@ -10159,6 +10159,8 @@ _Available in Fleet Premium_
 
 `GET /api/v1/fleet/vpp_tokens`
 
+`created_at` is when the VPP token was uploaded to Fleet. Renewing a VPP token doesn't change it. If a fleet has more than one VPP token, the first-added VPP token is the one that was uploaded first.
+
 #### Parameters
 
 None.
@@ -10180,6 +10182,7 @@ None.
       "location": "https://example.com/mdm/apple/mdm",
       "country_code": "us",
       "renew_date": "2023-11-29T00:00:00Z",
+      "created_at": "2022-11-29T14:02:11Z",
       "teams": [
         {
           "name": "💻 Workstations",
@@ -10264,6 +10267,7 @@ When a VPP token is removed from a fleet, App Store apps that were added to that
     "location": "Fleet Device Management Inc.",
     "country_code": "us",
     "renew_date": "2027-10-20T00:00:00Z",
+    "created_at": "2026-10-20T14:02:11Z",
     "teams": [
       {
         "name": "💻 Workstations",
