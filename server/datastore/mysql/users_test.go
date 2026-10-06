@@ -30,7 +30,7 @@ func TestUsers(t *testing.T) {
 		{"Delete", testUsersDelete},
 		{"Save", testUsersSave},
 		{"Has", testUsersHas},
-		{"NewInitialUser", testUsersNewInitialUser},
+		{"CompleteInitialSetup", testUsersCompleteInitialSetup},
 		{"List", testUsersList},
 		{"Teams", testUsersTeams},
 		{"CreateWithTeams", testUsersCreateWithTeams},
@@ -265,24 +265,39 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	assert.Equal(t, "Cannot specify both global and fleet-scoped roles", ferr.Message)
 }
 
-func testUsersNewInitialUser(t *testing.T, ds *Datastore) {
+func testUsersCompleteInitialSetup(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	first, err := ds.NewInitialUser(ctx, &fleet.User{
-		Name:       "first",
-		Password:   []byte("p4ssw0rd.123"),
-		Email:      "first@example.com",
-		GlobalRole: new(fleet.RoleAdmin),
-	})
+	newAdmin := func(email string) *fleet.User {
+		return &fleet.User{
+			Name:       email,
+			Password:   []byte("p4ssw0rd.123"),
+			Email:      email,
+			GlobalRole: new(fleet.RoleAdmin),
+		}
+	}
+	newConfig := func(orgName string) *fleet.AppConfig {
+		return &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: orgName}}
+	}
+
+	// A failure in a later step must roll back the admin and app config, leaving setup open.
+	_, err := ds.NewTeam(ctx, &fleet.Team{Name: "team", Secrets: []*fleet.EnrollSecret{{Secret: "taken"}}})
+	require.NoError(t, err)
+	_, err = ds.CompleteInitialSetup(ctx, newAdmin("rolledback@example.com"), newConfig("Rolled Back Org"), []*fleet.EnrollSecret{{Secret: "taken"}})
+	require.ErrorContains(t, err, "insert secrets")
+
+	has, err := ds.HasUsers(ctx)
+	require.NoError(t, err)
+	require.False(t, has)
+	appCfg, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, appCfg.OrgInfo.OrgName)
+
+	first, err := ds.CompleteInitialSetup(ctx, newAdmin("first@example.com"), newConfig("First Org"), []*fleet.EnrollSecret{{Secret: "first"}})
 	require.NoError(t, err)
 	require.NotZero(t, first.ID)
 
-	_, err = ds.NewInitialUser(ctx, &fleet.User{
-		Name:       "second",
-		Password:   []byte("p4ssw0rd.123"),
-		Email:      "second@example.com",
-		GlobalRole: new(fleet.RoleAdmin),
-	})
+	_, err = ds.CompleteInitialSetup(ctx, newAdmin("second@example.com"), newConfig("Second Org"), []*fleet.EnrollSecret{{Secret: "second"}})
 	var existsErr *existsError
 	require.ErrorAs(t, err, &existsErr)
 
@@ -290,6 +305,15 @@ func testUsersNewInitialUser(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, users, 1)
 	assert.Equal(t, first.ID, users[0].ID)
+
+	appCfg, err = ds.AppConfig(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "First Org", appCfg.OrgInfo.OrgName)
+
+	secrets, err := ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, "first", secrets[0].Secret)
 }
 
 func testUsersHas(t *testing.T, ds *Datastore) {

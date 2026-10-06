@@ -33,59 +33,53 @@ func TestCleanupURL(t *testing.T) {
 	}
 }
 
-func TestCreateAppConfig(t *testing.T) {
+func TestCompleteInitialSetup(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+	var gotConfig *fleet.AppConfig
+	var gotSecrets []*fleet.EnrollSecret
+	ds.CompleteInitialSetupFunc = func(ctx context.Context, admin *fleet.User, appConfig *fleet.AppConfig, enrollSecrets []*fleet.EnrollSecret) (*fleet.User, error) {
+		gotConfig = appConfig
+		gotSecrets = enrollSecrets
+		admin.ID = 1
+		return admin, nil
 	}
 
-	appConfigTests := []struct {
-		configPayload fleet.AppConfig
-	}{
-		{
-			configPayload: fleet.AppConfig{
-				OrgInfo: fleet.OrgInfo{
-					OrgLogoURL: "acme.co/images/logo.png",
-					OrgName:    "Acme",
-				},
-				ServerSettings: fleet.ServerSettings{
-					ServerURL:         "https://acme.co:8080/",
-					LiveQueryDisabled: true,
-				},
-			},
+	payload := fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Acme",
+		},
+		ServerSettings: fleet.ServerSettings{
+			ServerURL:         "https://acme.co:8080/",
+			LiveQueryDisabled: true,
 		},
 	}
+	admin, _, err := svc.CompleteInitialSetup(ctx, fleet.UserPayload{
+		Name:       new("Admin"),
+		Email:      new("admin@example.com"),
+		Password:   new("p4ssw0rd.123456"),
+		GlobalRole: new(fleet.RoleObserver),
+	}, payload)
+	require.NoError(t, err)
 
-	for _, tt := range appConfigTests {
-		var result *fleet.AppConfig
-		ds.NewAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) (*fleet.AppConfig, error) {
-			result = config
-			return config, nil
-		}
+	assert.Equal(t, fleet.RoleAdmin, *admin.GlobalRole)
+	require.NotNil(t, gotConfig)
+	assert.Equal(t, payload.OrgInfo.OrgName, gotConfig.OrgInfo.OrgName)
+	assert.Equal(t, "https://acme.co:8080/", gotConfig.ServerSettings.ServerURL)
+	assert.Equal(t, payload.ServerSettings.LiveQueryDisabled, gotConfig.ServerSettings.LiveQueryDisabled)
+	require.Len(t, gotSecrets, 1)
+	assert.Len(t, gotSecrets[0].Secret, 32)
 
-		var gotSecrets []*fleet.EnrollSecret
-		ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
-			gotSecrets = secrets
-			return nil
-		}
-
-		ctx = test.UserContext(ctx, test.UserAdmin)
-		_, err := svc.NewAppConfig(ctx, tt.configPayload)
-		require.Nil(t, err)
-
-		payload := tt.configPayload
-		assert.Equal(t, payload.OrgInfo.OrgLogoURL, result.OrgInfo.OrgLogoURL)
-		assert.Equal(t, payload.OrgInfo.OrgName, result.OrgInfo.OrgName)
-		assert.Equal(t, "https://acme.co:8080/", result.ServerSettings.ServerURL)
-		assert.Equal(t, payload.ServerSettings.LiveQueryDisabled, result.ServerSettings.LiveQueryDisabled)
-
-		// Ensure enroll secret was set
-		require.NotNil(t, gotSecrets)
-		require.Len(t, gotSecrets, 1)
-		assert.Len(t, gotSecrets[0].Secret, 32)
-	}
+	ds.CompleteInitialSetupFuncInvoked = false
+	payload.ServerSettings.ServerURL = "not-a-url"
+	_, _, err = svc.CompleteInitialSetup(ctx, fleet.UserPayload{
+		Email:    new("admin@example.com"),
+		Password: new("p4ssw0rd.123456"),
+	}, payload)
+	var invalid *fleet.InvalidArgumentError
+	require.ErrorAs(t, err, &invalid)
+	assert.False(t, ds.CompleteInitialSetupFuncInvoked)
 }
 
 func TestEmptyEnrollSecret(t *testing.T) {

@@ -203,9 +203,9 @@ type Service interface {
 	// The sessionKey is only returned (not-nil) when creating API-only (non-SSO) users.
 	CreateUser(ctx context.Context, p UserPayload) (user *User, sessionKey *string, err error)
 
-	// CreateInitialUser creates the first user, skipping authorization checks.  If a user already exists this method
-	// should fail.
-	CreateInitialUser(ctx context.Context, p UserPayload) (user *User, err error)
+	// CompleteInitialSetup creates the first admin together with the initial app config and global enroll secret,
+	// skipping authorization checks. If a user already exists this method should fail.
+	CompleteInitialSetup(ctx context.Context, admin UserPayload, appConfig AppConfig) (user *User, info *AppConfig, err error)
 
 	// User returns a valid User given a User ID.
 	User(ctx context.Context, id uint) (user *User, err error)
@@ -596,7 +596,6 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
 
-	NewAppConfig(ctx context.Context, p AppConfig) (info *AppConfig, err error)
 	// AppConfigObfuscated returns the global application config with obfuscated credentials.
 	AppConfigObfuscated(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)

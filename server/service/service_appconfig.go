@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -14,33 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
 )
-
-func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet.AppConfig, error) {
-	// skipauth: No user context yet when the app config is first created.
-	svc.authz.SkipAuthorization(ctx)
-
-	newConfig, err := svc.ds.NewAppConfig(ctx, &p)
-	if err != nil {
-		return nil, err
-	}
-
-	// Set up a default enroll secret
-	secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
-	}
-	secrets := []*fleet.EnrollSecret{
-		{
-			Secret: secret,
-		},
-	}
-	err = svc.ds.ApplyEnrollSecrets(ctx, nil, secrets)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "save enroll secret")
-	}
-
-	return newConfig, nil
-}
 
 func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) error {
 	vc, ok := viewer.FromContext(ctx)
