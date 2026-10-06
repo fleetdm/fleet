@@ -155,8 +155,9 @@ func queryResultRowsUnchanged(rows []*fleet.ScheduledQueryResultRow, stored []*f
 // queryResultsLastFetchedRefreshAge is how old stored rows' last_fetched must be before an
 // unchanged result refreshes it: updating last_fetched rewrites both secondary indexes of every
 // row and logs full row images to the binlog, so doing it on every run costs the writer nearly as
-// much as rewriting the rows.
-const queryResultsLastFetchedRefreshAge = time.Hour
+// much as rewriting the rows. It's under an hour so 1h-interval reports, whose runs osquery splays
+// by up to 10% and whose results arrive with variable delay, still refresh on every run.
+const queryResultsLastFetchedRefreshAge = 50 * time.Minute
 
 // queryResultRowsLastFetchedStale reports whether any of the stored rows' last_fetched is older
 // than queryResultsLastFetchedRefreshAge at fetchedAt.
