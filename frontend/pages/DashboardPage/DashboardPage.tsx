@@ -22,8 +22,8 @@ import Spinner from "components/Spinner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
-import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { isHistoricalDataEnabled } from "interfaces/charts";
 import { IConfig } from "interfaces/config";
 import {

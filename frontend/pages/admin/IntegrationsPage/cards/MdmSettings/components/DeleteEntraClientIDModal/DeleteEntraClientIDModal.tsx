@@ -4,8 +4,8 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
-import configAPI from "services/entities/config";
 import useUpdateAppConfig from "hooks/useUpdateAppConfig";
+import configAPI from "services/entities/config";
 
 const baseClass = "delete-entra-client-id-modal";
 

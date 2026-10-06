@@ -7,10 +7,10 @@ import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PageDescription from "components/PageDescription";
 import { notify } from "components/ToastNotification";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import SettingsSection from "pages/admin/components/SettingsSection";
-import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import configAPI from "services/entities/config";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 

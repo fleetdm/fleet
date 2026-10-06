@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from "react-query";
 
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
 import configAPI from "services/entities/config";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI from "services/entities/teams";
-import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 
 /** The per-policy automation fields settable from the modal. */
 export type IPolicyAutomationUpdate = Pick<

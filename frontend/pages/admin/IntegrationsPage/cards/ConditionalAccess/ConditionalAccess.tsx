@@ -12,6 +12,7 @@ import SectionHeader from "components/SectionHeader";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
@@ -19,7 +20,6 @@ import conditionalAccessAPI, {
   ConfirmMSConditionalAccessResponse,
 } from "services/entities/conditional_access";
 import configAPI from "services/entities/config";
-import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,

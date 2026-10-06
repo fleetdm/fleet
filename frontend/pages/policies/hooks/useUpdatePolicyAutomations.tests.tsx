@@ -1,10 +1,10 @@
-import React from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import React from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 
-import { AppContext, IAppContext, initialState } from "context/app";
 import createMockConfig from "__mocks__/configMock";
 import createMockPolicy from "__mocks__/policyMock";
+import { AppContext, IAppContext, initialState } from "context/app";
 import { IConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
 import configAPI from "services/entities/config";

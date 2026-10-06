@@ -1,9 +1,9 @@
-import React from "react";
 import { renderHook } from "@testing-library/react";
+import React from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 
-import { AppContext, IAppContext, initialState } from "context/app";
 import createMockConfig from "__mocks__/configMock";
+import { AppContext, IAppContext, initialState } from "context/app";
 
 import useUpdateAppConfig from "./useUpdateAppConfig";
 

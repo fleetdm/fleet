@@ -9,6 +9,7 @@ import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { notify } from "components/ToastNotification";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 import { IApiError } from "interfaces/errors";
 import {
@@ -19,7 +20,6 @@ import {
   IGlobalIntegrations,
 } from "interfaces/integration";
 import SettingsSection from "pages/admin/components/SettingsSection";
-import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import configAPI from "services/entities/config";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 

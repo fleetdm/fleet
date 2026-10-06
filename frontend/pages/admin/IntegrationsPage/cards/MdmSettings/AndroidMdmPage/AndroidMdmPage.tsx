@@ -19,11 +19,11 @@ import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 import { getErrorReason } from "interfaces/errors";
 import PATHS from "router/paths";
 import mdmAndroidAPI from "services/entities/mdm_android";
-import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 
 import TurnOffAndroidMdmModal from "./components/TurnOffAndroidMdmModal";

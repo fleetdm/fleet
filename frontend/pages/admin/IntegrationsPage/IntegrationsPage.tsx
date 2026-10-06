@@ -1,11 +1,11 @@
 import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
-import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 import configAPI from "services/entities/config";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
