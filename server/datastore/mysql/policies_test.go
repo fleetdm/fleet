@@ -10328,7 +10328,8 @@ func testCleanupOrphanedPolicyMembershipLocks(t *testing.T, ds *Datastore) {
 	// Hold a lock on the host's membership row, as policy result ingestion would.
 	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = tx.Rollback() })
+	// Released before TestPolicies truncates the tables, which would otherwise wait on this lock.
+	defer func() { _ = tx.Rollback() }()
 	_, err = tx.ExecContext(ctx, `SELECT 1 FROM policy_membership WHERE policy_id = ? AND host_id = ? FOR UPDATE`, pol.ID, host.ID)
 	require.NoError(t, err)
 
