@@ -3122,7 +3122,7 @@ CREATE TABLE `queries` (
   `logging_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'snapshot',
   `discard_data` tinyint(1) NOT NULL DEFAULT '1',
   `is_scheduled` tinyint(1) GENERATED ALWAYS AS ((`schedule_interval` > 0)) STORED NOT NULL,
-  `results_valid_from_id` int unsigned NOT NULL DEFAULT '0',
+  `results_valid_from_id` bigint unsigned NOT NULL DEFAULT '0',
   `results_cleanup_pending` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_team_id_name_unq` (`team_id_char`,`name`),
@@ -3153,7 +3153,7 @@ CREATE TABLE `query_labels` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `query_results` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `query_id` int unsigned NOT NULL,
   `host_id` int unsigned NOT NULL,
   `osquery_version` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,

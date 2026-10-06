@@ -390,16 +390,25 @@ func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID
 	return results, nil
 }
 
-// Above any query_results id, which is an INT UNSIGNED.
-const allQueryResultsBeforeID = math.MaxUint32 + 1
+// Above any id a BIGINT UNSIGNED query_results.id will reach.
+const allQueryResultsBeforeID = math.MaxInt64
 
 func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {
+	// Both reads go to the primary, and only rows stored before the run are deleted: a report whose
+	// results are turned back on mid-run keeps the rows hosts store from then on.
+	var maxID sql.NullInt64
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &maxID, `SELECT MAX(id) FROM query_results`); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting last query_results id")
+	}
+	if !maxID.Valid {
+		return nil
+	}
 	var queryIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryIDs, `SELECT id FROM queries WHERE discard_data = 1`); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &queryIDs, `SELECT id FROM queries WHERE discard_data = 1`); err != nil {
 		return ctxerr.Wrap(ctx, err, "selecting discarded queries")
 	}
 	for _, queryID := range queryIDs {
-		if err := ds.deleteQueryResultsBeforeID(ctx, queryID, allQueryResultsBeforeID, false, deleteQueryResultsBatchSize); err != nil {
+		if err := ds.deleteQueryResultsBeforeID(ctx, queryID, uint(maxID.Int64)+1, false, deleteQueryResultsBatchSize); err != nil { //nolint:gosec // dismiss G115
 			return ctxerr.Wrapf(ctx, err, "cleaning up discarded results of query %d", queryID)
 		}
 	}
