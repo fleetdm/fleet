@@ -1446,6 +1446,7 @@ module.exports.routes = {
   'GET /learn-more-about/android-manual-sync': '/guides/how-to-manually-sync-an-android-device',
   'GET /learn-more-about/policy-automation-resend-configuration-profile': '/guides/policy-automation-resend-configuration-profile',
   'GET /learn-more-about/device-attestation': '/guides/what-is-device-attestation',
+  'GET /learn-more-about/nixos-package-management': 'https://nixos.org/manual/nixos/stable/#sec-package-management',
 
   // Sitemap
   // =============================================================================================================

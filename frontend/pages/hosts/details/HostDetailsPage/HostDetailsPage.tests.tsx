@@ -385,3 +385,34 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
     expect(screen.queryAllByRole("switch")).toHaveLength(0);
   });
 });
+
+describe("HostDetailsPage - software library", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("explains that software is installed outside of Fleet on NixOS hosts", async () => {
+    const host = createMockHost({ platform: "nixos", status: "online" });
+    stubQueries(host);
+
+    renderHostDetails({
+      location: { ...mockLocation, pathname: "/hosts/1/software/library" },
+    });
+
+    expect(
+      await screen.findByText(
+        /Installing software on NixOS hosts happens outside of Fleet./
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Software library is currently not supported on this host"
+      )
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/learn-more-about/nixos-package-management"
+    );
+    expect(hostAPI.getHostSoftware).not.toHaveBeenCalled();
+  });
+});

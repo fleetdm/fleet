@@ -67,6 +67,7 @@ import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
 } from "interfaces/mdm";
 import {
+  HostPlatform,
   isAppleDevice,
   isMacOS,
   isAndroid,
@@ -190,6 +191,41 @@ const tripleHeightCardClass = `${baseClass}__card--triple-height`;
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
+const NIXOS_PACKAGE_MANAGEMENT_LINK =
+  "https://fleetdm.com/learn-more-about/nixos-package-management";
+
+/** Returns why the software library is unsupported on the host's platform, or
+ * undefined if it's supported. Android hosts don't support software installs
+ * yet. iOS/iPadOS user-enrolled (BYOD account-driven) hosts now do. */
+const getSoftwareLibraryUnsupportedInfo = (
+  platform: HostPlatform
+): string | JSX.Element | undefined => {
+  if (isAndroid(platform)) {
+    return (
+      <>
+        Software install is coming soon.{" "}
+        <CustomLink
+          text="Learn more"
+          url={ANDROID_SW_INSTALL_LEARN_MORE_LINK}
+          newTab
+        />
+      </>
+    );
+  }
+  if (platform === "nixos") {
+    return (
+      <>
+        Installing software on NixOS hosts happens outside of Fleet.{" "}
+        <CustomLink
+          text="Learn more"
+          url={NIXOS_PACKAGE_MANAGEMENT_LINK}
+          newTab
+        />
+      </>
+    );
+  }
+  return undefined;
+};
 
 const ACTIVITY_CARD_DATA_STALE_TIME = 5000; // 5 seconds
 
@@ -1567,6 +1603,9 @@ const HostDetailsPage = ({
     isHostTeamMaintainer;
 
   const showSoftwareLibraryTab = isPremiumTier;
+  const softwareLibraryUnsupportedInfo = getSoftwareLibraryUnsupportedInfo(
+    host.platform
+  );
   const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
@@ -1614,21 +1653,14 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              {/* Android hosts don't support software installs yet. iOS/iPadOS
-               user-enrolled (BYOD account-driven) hosts now do. */}
-              {isAndroidHost ? (
+              {softwareLibraryUnsupportedInfo ? (
                 <EmptyState
-                  info={
-                    <>
-                      Software install is coming soon.{" "}
-                      <CustomLink
-                        text="Learn more"
-                        url={ANDROID_SW_INSTALL_LEARN_MORE_LINK}
-                        newTab
-                      />
-                    </>
+                  info={softwareLibraryUnsupportedInfo}
+                  header={
+                    host.platform === "nixos"
+                      ? undefined
+                      : "Software library is currently not supported on this host"
                   }
-                  header="Software library is currently not supported on this host"
                 />
               ) : (
                 <SoftwareLibraryCard
