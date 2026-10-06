@@ -3158,7 +3158,7 @@ WHERE
 	// the foreign key check of each software install being queued for it waits on.
 	const loadPatchPoliciesWithInstallersNotInList = `SELECT id FROM policies WHERE team_id = ? AND patch_software_title_id NOT IN (?)`
 
-	const unsetPatchPolicies = `UPDATE policies SET patch_software_title_id = NULL WHERE id IN (?)`
+	const unsetPatchPolicies = `UPDATE policies SET patch_software_title_id = NULL WHERE id IN (?) AND patch_software_title_id NOT IN (?)`
 
 	const countInstallDuringSetupNotInList = `
 SELECT
@@ -3190,7 +3190,8 @@ WHERE
   title_id NOT IN (?)
 `
 
-	const loadInstallersNotInList = `SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)`
+	// Locking read so an installer added after this transaction's snapshot is still removed.
+	const loadInstallersNotInList = `SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?) FOR SHARE`
 
 	// Fleet-maintained app pins are keyed by (team, title) and are not
 	// cascade-deleted when installer rows go away (the FK cascades only on title
@@ -3598,7 +3599,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			return ctxerr.Wrap(ctx, err, "load obsolete patch policies")
 		}
 		if len(obsoletePatchPolicyIDs) > 0 {
-			stmt, args, err = sqlx.In(unsetPatchPolicies, obsoletePatchPolicyIDs)
+			stmt, args, err = sqlx.In(unsetPatchPolicies, obsoletePatchPolicyIDs, titleIDs)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete patch policies")
 			}
