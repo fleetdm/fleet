@@ -134,34 +134,14 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger
 		return nil
 	}
 
-	return backoff.Retry(operation, newRetryBackOff())
-}
-
-// WithRetry runs fn outside of a transaction, retrying it with the same backoff as WithRetryTxx when it fails with a
-// retryable error. Each statement in fn commits on its own, so fn must be safe to rerun after a partial run.
-func WithRetry(ctx context.Context, fn func() error) error {
-	operation := func() error {
-		err := fn()
-		if err != nil && IsReadOnlyError(err) {
-			TriggerFatalError(ctx, err)
-			return backoff.Permanent(err)
-		}
-		if err != nil && !retryableError(err) {
-			return backoff.Permanent(err)
-		}
-		return err
-	}
-	return backoff.Retry(operation, backoff.WithContext(newRetryBackOff(), ctx))
-}
-
-func newRetryBackOff() backoff.BackOff {
 	expBo := backoff.NewExponentialBackOff()
 	// MySQL innodb_lock_wait_timeout default is 50 seconds, so transaction can be waiting for a lock for several seconds.
 	// Setting a higher MaxElapsedTime to increase probability that transaction will be retried.
 	// This will reduce the number of retryable 'Deadlock found' errors. However, with a loaded DB, we will still see
 	// 'Context cancelled' errors when the server drops long-lasting connections.
 	expBo.MaxElapsedTime = 1 * time.Minute
-	return backoff.WithMaxRetries(expBo, 5)
+	bo := backoff.WithMaxRetries(expBo, 5)
+	return backoff.Retry(operation, bo)
 }
 
 // RetryableError determines whether a MySQL error can be retried. By default

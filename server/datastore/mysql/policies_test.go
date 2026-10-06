@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strconv"
 	"strings"
@@ -8677,7 +8678,7 @@ func testBatchedPolicyMembershipCleanup(t *testing.T, ds *Datastore) {
 
 	// Run the full cleanup function directly (simulates what ApplyPolicySpecs triggers when a
 	// query changes — shouldRemoveAllPolicyMemberships == true).
-	err = cleanupPolicyMembershipForPolicy(ctx, ds.reader(ctx), ds.writer(ctx), pol.ID)
+	err = cleanupPolicyMembershipForPolicy(ctx, ds.reader(ctx), ds.writer(ctx), pol.ID, ds.logger)
 	require.NoError(t, err)
 
 	// All policy_membership rows must be gone.
@@ -8749,7 +8750,7 @@ func testBatchedPolicyMembershipCleanupOnPolicyUpdate(t *testing.T, ds *Datastor
 	require.Equal(t, 6, count)
 
 	// Run the platform-aware cleanup (simulates CleanupPolicyMembership cron).
-	err = cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.reader(ctx), ds.writer(ctx), pol.ID, pol.Platform)
+	err = cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.reader(ctx), ds.writer(ctx), pol.ID, pol.Platform, ds.logger)
 	require.NoError(t, err)
 
 	// Only the windows host should remain.
@@ -8814,7 +8815,7 @@ func testBatchedPolicyMembershipCleanupOnPolicyUpdate(t *testing.T, ds *Datastor
 
 	// Run cleanupPolicyMembershipOnPolicyUpdate with no platform restriction so
 	// only the label-based branch fires.
-	err = cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.reader(ctx), ds.writer(ctx), lblPol.ID, "" /* no platform filter */)
+	err = cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.reader(ctx), ds.writer(ctx), lblPol.ID, "" /* no platform filter */, ds.logger)
 	require.NoError(t, err)
 
 	// Only the host that belongs to the include label should remain.
@@ -10322,21 +10323,27 @@ func testApplyPolicySpecsMembershipCleanupOnlyOnChange(t *testing.T, ds *Datasto
 	})
 }
 
-// TestDeletePolicyMembershipBatchRetriesRecompute verifies that a deadlock while recomputing host issues retries the whole
-// batch, so the hosts whose membership was already deleted still get their failing policy counts recomputed.
+// TestDeletePolicyMembershipBatchRetriesRecompute verifies that a deadlock while recomputing host issues retries the
+// recompute, so the hosts whose membership was already deleted still get their failing policy counts recomputed.
 func TestDeletePolicyMembershipBatchRetriesRecompute(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	t.Cleanup(func() { db.Close() })
 
 	const policyID, hostID = 7, 42
+	mock.ExpectBegin()
 	mock.ExpectExec("DELETE FROM policy_membership").WithArgs(policyID, hostID).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO host_issues").WithArgs(hostID).
 		WillReturnError(&gmysql.MySQLError{Number: mysqlerr.ER_LOCK_DEADLOCK})
-	mock.ExpectExec("DELETE FROM policy_membership").WithArgs(policyID, hostID).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectRollback()
+	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO host_issues").WithArgs(hostID).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
 
-	require.NoError(t, deletePolicyMembershipBatch(t.Context(), sqlx.NewDb(db, "sqlmock"), policyID, []uint{hostID}, true))
+	logger := slog.New(slog.DiscardHandler)
+	require.NoError(t, deletePolicyMembershipBatch(t.Context(), sqlx.NewDb(db, "sqlmock"), policyID, []uint{hostID}, true, logger))
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -10372,7 +10379,7 @@ func testCleanupOrphanedPolicyMembershipLocks(t *testing.T, ds *Datastore) {
 			tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 			require.NoError(t, err)
 			defer func() { _ = tx.Rollback() }()
-			require.NoError(t, cleanupOrphanedPolicyMembership(ctx, tx, pol.ID))
+			require.NoError(t, cleanupOrphanedPolicyMembership(ctx, tx, pol.ID, ds.logger))
 
 			var lockedHostIDs []uint
 			require.NoError(t, sqlx.SelectContext(ctx, tx, &lockedHostIDs, `
