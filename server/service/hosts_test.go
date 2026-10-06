@@ -182,7 +182,8 @@ func setupHostDetailsMDMAppleDiskEncryptionMocks(ds *mock.Store) {
 func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds := new(mock.Store)
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
-		return fleet.DiskEncryptionConfig{}, nil
+		// a FileVault profile is only delivered while a macOS setting is on
+		return fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, nil
 	}
 	svc := &Service{ds: ds}
 

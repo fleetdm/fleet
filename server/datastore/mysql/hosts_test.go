@@ -935,6 +935,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
+	enableMacOSDiskEncryptionForTest(t, ds, &team2.ID) // its hosts have a delivered FileVault profile
 
 	var hosts []*fleet.Host
 	for i := 0; i < 20; i++ {

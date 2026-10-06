@@ -1967,7 +1967,7 @@ policies:
     package_path: ./some_path.yml
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "install_software can only be set on team policies")
+	assert.ErrorContains(t, err, "install_software can only be set on fleet-level policies")
 }
 
 func TestGitOpsGlobalPolicyWithRunScript(t *testing.T) {
@@ -1981,7 +1981,7 @@ policies:
     path: ./some_path.sh
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "run_script can only be set on team policies")
+	assert.ErrorContains(t, err, "run_script can only be set on fleet-level policies")
 }
 
 func TestGitOpsTeamPolicyWithInvalidInstallSoftware(t *testing.T) {
@@ -5523,7 +5523,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		}
 		errs := parsePolicyInstallSoftware(".", nil, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "install_software can only be set on team policies")
+		assert.Contains(t, errs[0].Error(), "install_software can only be set on fleet-level policies")
 	})
 
 	t.Run("patch policy with the same fleet_maintained_app_slug", func(t *testing.T) {
@@ -6534,7 +6534,7 @@ policies:
   query: SELECT 1;
   resend_configuration_profile: Password policy
 `)
-		require.ErrorContains(t, err, "resend_configuration_profile can only be set on team policies")
+		require.ErrorContains(t, err, "resend_configuration_profile can only be set on fleet-level policies")
 	})
 }
 
