@@ -49,18 +49,3 @@
     }
   }
 }
-
-.global-variables,
-.custom-host-vitals-tab {
-  // Token text fills the cell so the copy button sits at the right edge,
-  // matching other tables' row-hover actions.
-  &__token {
-    display: flex;
-    align-items: center;
-    gap: $pad-xsmall;
-  }
-
-  &__token-text {
-    flex: 1;
-  }
-}

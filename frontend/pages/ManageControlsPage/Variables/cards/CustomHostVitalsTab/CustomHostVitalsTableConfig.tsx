@@ -6,7 +6,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import { ICustomHostVital } from "interfaces/custom_host_vitals";
 
 export const getTokenFromVitalId = (id: number): string =>
@@ -57,7 +57,12 @@ const generateTableHeaders = ({
       disableSortBy: false,
       sortType: "caseInsensitive",
       accessor: "name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <TooltipTruncatedTextCell
+          value={cellProps.cell.value}
+          className="w250"
+        />
+      ),
     },
     {
       title: "Variable name",
@@ -67,18 +72,19 @@ const generateTableHeaders = ({
       Cell: (cellProps) => {
         const token = getTokenFromVitalId(cellProps.row.original.id);
         return (
-          <div className="custom-host-vitals-tab__token">
-            <TextCell
-              value={token}
-              className="custom-host-vitals-tab__token-text"
-            />
-            <CopyButton
-              copyText={token}
-              variant="subdued"
-              size="small"
-              rowHover
-            />
-          </div>
+          <TooltipTruncatedTextCell
+            value={token}
+            suffix={
+              <CopyButton
+                copyText={token}
+                variant="subdued"
+                size="small"
+                rowHover
+              />
+            }
+            justifySuffixEnd
+            className="w400"
+          />
         );
       },
     },

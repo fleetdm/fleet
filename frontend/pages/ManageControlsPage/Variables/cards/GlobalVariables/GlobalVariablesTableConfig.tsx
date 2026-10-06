@@ -5,7 +5,7 @@ import CopyButton from "components/buttons/CopyButton";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import { IVariable } from "interfaces/variables";
 
 export const getTokenFromVariableName = (variableName: string): string =>
@@ -54,7 +54,12 @@ const generateTableHeaders = ({
       disableSortBy: false,
       sortType: "caseInsensitive",
       accessor: "name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <TooltipTruncatedTextCell
+          value={cellProps.cell.value}
+          className="w250"
+        />
+      ),
     },
     {
       title: "Variable name",
@@ -64,15 +69,19 @@ const generateTableHeaders = ({
       Cell: (cellProps) => {
         const token = getTokenFromVariableName(cellProps.row.original.name);
         return (
-          <div className="global-variables__token">
-            <TextCell value={token} className="global-variables__token-text" />
-            <CopyButton
-              copyText={token}
-              variant="subdued"
-              size="small"
-              rowHover
-            />
-          </div>
+          <TooltipTruncatedTextCell
+            value={token}
+            suffix={
+              <CopyButton
+                copyText={token}
+                variant="subdued"
+                size="small"
+                rowHover
+              />
+            }
+            justifySuffixEnd
+            className="w400"
+          />
         );
       },
     },

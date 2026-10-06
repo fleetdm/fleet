@@ -13,6 +13,9 @@ import CustomHostVitalsTab, {
   CUSTOM_HOST_VITALS_PAGE_SIZE,
 } from "./CustomHostVitalsTab";
 
+// Table cells also render their text in a hidden truncation tooltip.
+const CELL_TEXT = { selector: ".data-table__tooltip-truncated-text" };
+
 // The tab filters server-side, so intercept GET /custom_host_vitals and return
 // the seeded vitals matching the `query` param — by name or the derived
 // $FLEET_HOST_VITAL_<id> token — mirroring the backend's search behavior.
@@ -99,9 +102,13 @@ describe("CustomHostVitalsTab - URL-persistent search", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Department")).toBeInTheDocument();
-      expect(screen.queryByText("Asset tag")).not.toBeInTheDocument();
-      expect(screen.queryByText("Purchase date")).not.toBeInTheDocument();
+      expect(screen.getByText("Department", CELL_TEXT)).toBeInTheDocument();
+      expect(
+        screen.queryByText("Asset tag", CELL_TEXT)
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Purchase date", CELL_TEXT)
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -111,8 +118,10 @@ describe("CustomHostVitalsTab - URL-persistent search", () => {
     render(<CustomHostVitalsTab {...props} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Department")).toBeInTheDocument();
-      expect(screen.queryByText("Asset tag")).not.toBeInTheDocument();
+      expect(screen.getByText("Department", CELL_TEXT)).toBeInTheDocument();
+      expect(
+        screen.queryByText("Asset tag", CELL_TEXT)
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -121,9 +130,9 @@ describe("CustomHostVitalsTab - URL-persistent search", () => {
     render(<CustomHostVitalsTab {...props} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Asset tag")).toBeInTheDocument();
-      expect(screen.getByText("Department")).toBeInTheDocument();
-      expect(screen.getByText("Purchase date")).toBeInTheDocument();
+      expect(screen.getByText("Asset tag", CELL_TEXT)).toBeInTheDocument();
+      expect(screen.getByText("Department", CELL_TEXT)).toBeInTheDocument();
+      expect(screen.getByText("Purchase date", CELL_TEXT)).toBeInTheDocument();
     });
 
     const searchInput = screen.getByPlaceholderText(
@@ -199,7 +208,7 @@ describe("CustomHostVitalsTab - server-side pagination and sort", () => {
     const props = makeProps();
     const { user } = render(<CustomHostVitalsTab {...props} />);
 
-    await screen.findByText("Vital 01");
+    await screen.findByText("Vital 01", CELL_TEXT);
     const nextButton = screen.getByRole("button", { name: /next/i });
     expect(nextButton).toBeEnabled();
 
