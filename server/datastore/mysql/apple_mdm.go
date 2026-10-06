@@ -9437,3 +9437,51 @@ WHERE host_uuid = ? AND profile_uuid = ?`,
 		fleet.MDMOperationTypeRemove, hostUUID, profileUUID)
 	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile removal")
 }
+
+func (ds *Datastore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error) {
+	if len(challenge) == 0 {
+		return nil, fleet.NewInvalidArgumentError("challenge", "challenge cannot be empty")
+	}
+
+	rows, err := ds.writer(ctx).ExecContext(ctx, `UPDATE mdm_apple_scep_challenges
+		SET consumed_at = NOW()
+	WHERE challenge = ? AND consumed_at IS NULL AND expires_at > NOW()
+	`, challenge)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "consume apple scep challenge")
+	}
+
+	affected, err := rows.RowsAffected()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "consume apple scep challenge")
+	}
+	if affected == 0 {
+		return nil, notFound("apple SCEP challenge")
+	}
+
+	var info fleet.AppleSCEPChallengeInfo
+	err = sqlx.GetContext(ctx, ds.writer(ctx), &info, `SELECT purpose, host_uuid, hardware_serial, idp_account_uuid FROM mdm_apple_scep_challenges WHERE challenge = ?`, challenge)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "fetch apple scep challenge info")
+	}
+
+	return &info, nil
+}
+
+func (ds *Datastore) SetAppleSCEPChallengeIssuedCert(ctx context.Context, challenge string, certSerial int64) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE mdm_apple_scep_challenges
+		SET issued_cert_serial = ?
+		WHERE challenge = ? AND consumed_at IS NOT NULL AND issued_cert_serial IS NULL
+	`, certSerial, challenge)
+	return ctxerr.Wrap(ctx, err, "set apple scep challenge issued cert")
+}
+
+func (ds *Datastore) CleanupAppleSCEPChallenges(ctx context.Context) error {
+	const stmt = `DELETE FROM mdm_apple_scep_challenges
+		WHERE consumed_at < NOW(6) - INTERVAL 7 DAY
+		OR (consumed_at IS NULL AND expires_at < NOW(6) - INTERVAL 7 DAY)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning up apple scep challenges")
+	}
+	return nil
+}

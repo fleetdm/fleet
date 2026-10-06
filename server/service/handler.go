@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/multi"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/nanomdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/challenge"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -1438,7 +1439,7 @@ func RegisterAppleMDMProtocolServices(
 	svc fleet.Service,
 	ds fleet.Datastore,
 ) error {
-	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig, ds); err != nil {
+	if err := registerAppleMDMSCEP(mux, scepConfig, scepStorage, ds, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
 	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, getTokenService, logger, fleetConfig, ds); err != nil {
@@ -1512,33 +1513,23 @@ func registerPSSO(
 	return nil
 }
 
-// registerSCEP registers the HTTP handler for SCEP service needed for enrollment to MDM.
+// registerAppleMDMSCEP registers the HTTP handler for SCEP service needed for enrollment to Apple MDM.
 // Returns the SCEP CA certificate that can be used by verifiers.
-func registerSCEP(
+func registerAppleMDMSCEP(
 	mux *http.ServeMux,
 	scepConfig config.MDMConfig,
 	scepStorage scep_depot.Depot,
-	mdmStorage fleet.MDMAppleStore,
+	mdmStorage challenge.AppleMDMSCEPStore,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
 	appCfgGetter fleet.GetsAppConfig,
 ) error {
-	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
+	depotSigner := scep_depot.NewSigner(
 		scepStorage,
 		scep_depot.WithValidityDays(scepConfig.AppleSCEPSignerValidityDays),
-		// This value was allowed to be configured via --mdm_apple_scep_signer_allow_renewal_days but there was no real use case for
-		// customizing it and it was confusing for customers, so it has been removed and replaced with the default of 14. For discussion,
-		// see https://github.com/fleetdm/fleet/issues/38611 and https://github.com/fleetdm/fleet/issues/37880#issuecomment-3805983198
-		// Fleet has a 180-day renewal cron that is completely unrelated to this or its value
-		scep_depot.WithAllowRenewalDays(14),
-	))
-	assets, err := mdmStorage.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge}, nil)
-	if err != nil {
-		return fmt.Errorf("retrieving SCEP challenge: %w", err)
-	}
+	)
 
-	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
-	signer = scepserver.StaticChallengeMiddleware(scepChallenge, signer)
+	signer := challenge.AppleMDMChallengeMiddleware(logger.With("component", "mdm-apple-scep"), mdmStorage, scepConfig.AppleSCEPStaticChallengeEnabled, depotSigner)
 	scepService := NewSCEPService(
 		mdmStorage,
 		signer,

@@ -1149,6 +1149,9 @@ type MDMConfig struct {
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
+
+	// AppleSCEPStaticChallengeEnabled controls whether static SCEP challenges are allowed alongside dynamic challenges.
+	AppleSCEPStaticChallengeEnabled bool `yaml:"apple_scep_static_challenge_enabled"`
 }
 
 // IsCustomDiskEncryptionEnabled reports whether custom disk encryption configuration profiles are allowed. Any of the equivalent
@@ -2141,6 +2144,7 @@ func (man Manager) addConfigs() {
 	man.hideConfig("mdm.android_agent.signing_sha256")
 	man.addConfigInt("mdm.android_batch_size", 100, "Maximum number of hosts per batch for Android MDM API operations (100 default; 0 = no limit)")
 	man.hideConfig("mdm.android_batch_size")
+	man.addConfigBool("mdm.apple_scep_static_challenge_enabled", true, "Allows static SCEP challenges to be used alongside dynamic challenges for Apple MDM SCEP")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -2529,8 +2533,8 @@ func (man Manager) LoadConfig() FleetConfig {
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
-			AndroidBatchSize: man.getConfigInt("mdm.android_batch_size"),
-
+			AndroidBatchSize:                         man.getConfigInt("mdm.android_batch_size"),
+			AppleSCEPStaticChallengeEnabled:          man.getConfigBool("mdm.apple_scep_static_challenge_enabled"),
 			AppleCommandCleanupShortRetention:        man.getConfigDuration("mdm.apple_command_cleanup_short_retention"),
 			AppleCommandCleanupStandardRetention:     man.getConfigDuration("mdm.apple_command_cleanup_standard_retention"),
 			AppleCommandCleanupMaxRowDeletionsPerRun: man.getConfigInt("mdm.apple_command_cleanup_max_row_deletions_per_run"),
