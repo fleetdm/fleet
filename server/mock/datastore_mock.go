@@ -772,6 +772,8 @@ type GetSetupExperiencePolicyResultFunc func(ctx context.Context, hostID uint, p
 
 type ClearHostPolicyMembershipForPoliciesFunc func(ctx context.Context, hostID uint, policyIDs []uint) error
 
+type StalePolicyIDsForHostFunc func(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error)
+
 type ClearHostPolicyUpdatedAtFunc func(ctx context.Context, hostID uint) error
 
 type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error)
@@ -3676,6 +3678,9 @@ type DataStore struct {
 
 	ClearHostPolicyMembershipForPoliciesFunc        ClearHostPolicyMembershipForPoliciesFunc
 	ClearHostPolicyMembershipForPoliciesFuncInvoked bool
+
+	StalePolicyIDsForHostFunc        StalePolicyIDsForHostFunc
+	StalePolicyIDsForHostFuncInvoked bool
 
 	ClearHostPolicyUpdatedAtFunc        ClearHostPolicyUpdatedAtFunc
 	ClearHostPolicyUpdatedAtFuncInvoked bool
@@ -8969,6 +8974,13 @@ func (s *DataStore) ClearHostPolicyMembershipForPolicies(ctx context.Context, ho
 	s.ClearHostPolicyMembershipForPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ClearHostPolicyMembershipForPoliciesFunc(ctx, hostID, policyIDs)
+}
+
+func (s *DataStore) StalePolicyIDsForHost(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error) {
+	s.mu.Lock()
+	s.StalePolicyIDsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.StalePolicyIDsForHostFunc(ctx, hostID, reported)
 }
 
 func (s *DataStore) ClearHostPolicyUpdatedAt(ctx context.Context, hostID uint) error {

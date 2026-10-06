@@ -374,9 +374,17 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
 
-	_, err := task.RecordPolicyQueryExecutions(ctx, host, results, now, false, nil)
+	ds.StalePolicyIDsForHostFunc = func(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error) {
+		require.Equal(t, host.ID, hostID)
+		require.Equal(t, results, reported)
+		return []uint{7}, nil
+	}
+	stalePolicyIDs, err := task.RecordPolicyQueryExecutions(ctx, host, results, now, false, nil)
 	require.NoError(t, err)
 	require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+	require.True(t, ds.StalePolicyIDsForHostFuncInvoked)
+	ds.StalePolicyIDsForHostFuncInvoked = false
+	require.Equal(t, []uint{7}, stalePolicyIDs)
 
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
@@ -486,9 +494,17 @@ func testRecordPolicyQueryExecutionsNoPoliciesAsync(t *testing.T, ds *mock.Store
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
 
-	_, err := task.RecordPolicyQueryExecutions(ctx, host, emptyResults, now, false, nil)
+	ds.StalePolicyIDsForHostFunc = func(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error) {
+		require.Equal(t, host.ID, hostID)
+		require.Empty(t, reported)
+		return []uint{7, 9}, nil
+	}
+	stalePolicyIDs, err := task.RecordPolicyQueryExecutions(ctx, host, emptyResults, now, false, nil)
 	require.NoError(t, err)
 	require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+	require.True(t, ds.StalePolicyIDsForHostFuncInvoked)
+	ds.StalePolicyIDsForHostFuncInvoked = false
+	require.Equal(t, []uint{7, 9}, stalePolicyIDs)
 
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()

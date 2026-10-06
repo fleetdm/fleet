@@ -28,11 +28,12 @@ const (
 // redis list will be LTRIM'd if there are more policy IDs than this.
 var maxRedisPolicyResultsPerHost = 1000
 
-// RecordPolicyQueryExecutions records the incoming policy results for the host.
-// Under synchronous processing it returns the host's stale policy IDs (see
-// fleet.Datastore.RecordPolicyQueryExecutions); under async processing the
-// results are buffered in Redis and cannot be compared against stored rows
-// yet, so it always returns nil stale policy IDs.
+// RecordPolicyQueryExecutions records the incoming policy results for the host
+// and returns the host's stale policy IDs: policies with a stored
+// policy_membership row but no incoming result (see
+// fleet.Datastore.RecordPolicyQueryExecutions). Under async processing the
+// results are buffered in Redis, but the stored rows can still be compared
+// against them.
 func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time, deferred bool, newlyPassingPolicyIDs []uint) ([]uint, error) {
 	cfg := t.taskConfigs[config.AsyncTaskPolicyMembership]
 	if !cfg.Enabled {
@@ -125,7 +126,14 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 	if _, err := storePurgeActiveHostID(t.pool, policyPassHostIDsKey, host.ID, ts, ts.Add(-ttl)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "store active host id")
 	}
-	return nil, nil
+
+	// If the collector persists an older buffered result for a policy after its stale row is deleted, the host's next
+	// report finds it stale again.
+	stalePolicyIDs, err := t.datastore.StalePolicyIDsForHost(ctx, host.ID, results)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get stale policy ids for host")
+	}
+	return stalePolicyIDs, nil
 }
 
 func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {

@@ -1153,6 +1153,11 @@ type Datastore interface {
 	// writes a fresh row and advances updated_at. Used at setup-experience enqueue time for the gating policies.
 	ClearHostPolicyMembershipForPolicies(ctx context.Context, hostID uint, policyIDs []uint) error
 
+	// StalePolicyIDsForHost returns the policies the host has a policy_membership row for but no result in reported, i.e.
+	// the policies that are no longer in scope for the host. Used by async policy processing, which only writes the
+	// reported results to policy_membership later.
+	StalePolicyIDsForHost(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error)
+
 	// ClearHostPolicyUpdatedAt resets the host's policy_updated_at to a stale sentinel so its full policy set re-runs promptly.
 	// Used after a setup-experience gating policy result is consumed (setup reports only the gated subset).
 	ClearHostPolicyUpdatedAt(ctx context.Context, hostID uint) error

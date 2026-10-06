@@ -1,0 +1,1 @@
+- Fixed hosts keeping a policy's result after leaving the policy's label scope when async host processing is enabled for policy membership, which inflated their failing policy counts until the policy was edited.
