@@ -14,14 +14,20 @@ interface IBootstrapAdvancedOptionsProps {
   currentTeamId: number;
   disableInstallManually: boolean;
   selectManualAgentInstall: boolean;
-  onChange: (value: boolean) => void;
+  onChangeManualAgentInstall: (value: boolean) => void;
+  disableManualEnrollmentInstall: boolean;
+  selectManualEnrollmentInstall: boolean;
+  onChangeManualEnrollmentInstall: (value: boolean) => void;
 }
 
 const BootstrapAdvancedOptions = ({
   currentTeamId,
   disableInstallManually,
   selectManualAgentInstall,
-  onChange,
+  onChangeManualAgentInstall,
+  disableManualEnrollmentInstall,
+  selectManualEnrollmentInstall,
+  onChangeManualEnrollmentInstall,
 }: IBootstrapAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -32,6 +38,7 @@ const BootstrapAdvancedOptions = ({
     try {
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
+        macos_bootstrap_package_manual_enrollment: selectManualEnrollmentInstall,
         macos_manual_agent_install: selectManualAgentInstall,
       });
       notify.success("Successfully updated.");
@@ -52,6 +59,14 @@ const BootstrapAdvancedOptions = ({
     </>
   );
 
+  const manualEnrollmentTooltip = (
+    <>
+      If enabled, Fleet also installs the bootstrap package on macOS hosts that
+      enroll manually. If <b>Install Fleet&apos;s agent (fleetd) manually</b> is
+      also enabled, Fleet won&apos;t install fleetd on these hosts.
+    </>
+  );
+
   return (
     <div className={baseClass}>
       <RevealButton
@@ -68,8 +83,20 @@ const BootstrapAdvancedOptions = ({
             renderChildren={(gitopsDisable) => (
               <div className={`${baseClass}__advanced-options-controls`}>
                 <Checkbox
+                  value={selectManualEnrollmentInstall}
+                  onChange={onChangeManualEnrollmentInstall}
+                  disabled={gitopsDisable || disableManualEnrollmentInstall}
+                >
+                  <TooltipWrapper
+                    tipContent={manualEnrollmentTooltip}
+                    disableTooltip={gitopsDisable}
+                  >
+                    Install on manually enrolled hosts
+                  </TooltipWrapper>
+                </Checkbox>
+                <Checkbox
                   value={selectManualAgentInstall}
-                  onChange={onChange}
+                  onChange={onChangeManualAgentInstall}
                   disabled={gitopsDisable || disableInstallManually}
                 >
                   <TooltipWrapper
@@ -84,7 +111,9 @@ const BootstrapAdvancedOptions = ({
                 <div>
                   <Button
                     disabled={
-                      gitopsDisable || disableInstallManually || isSaving
+                      gitopsDisable ||
+                      disableManualEnrollmentInstall ||
+                      isSaving
                     }
                     type="submit"
                     isLoading={isSaving}

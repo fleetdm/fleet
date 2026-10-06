@@ -27,7 +27,9 @@ import {
 } from "utilities/constants";
 
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import getManualAgentInstallSetting from "../../helpers";
+import getManualAgentInstallSetting, {
+  getBootstrapPackageManualEnrollmentSetting,
+} from "../../helpers";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/InstallSoftwareForm/helpers";
 
@@ -49,6 +51,10 @@ const BootstrapPackage = ({
   const [
     selectedManualAgentInstall,
     setSelectedManualAgentInstall,
+  ] = useState<boolean>(false);
+  const [
+    selectedManualEnrollmentInstall,
+    setSelectedManualEnrollmentInstall,
   ] = useState<boolean>(false);
   const [
     showDeleteBootstrapPackageModal,
@@ -96,6 +102,9 @@ const BootstrapPackage = ({
           setSelectedManualAgentInstall(
             getManualAgentInstallSetting(currentTeamId, data)
           );
+          setSelectedManualEnrollmentInstall(
+            getBootstrapPackageManualEnrollmentSetting(currentTeamId, data)
+          );
         }
       },
     }
@@ -114,6 +123,13 @@ const BootstrapPackage = ({
       onSuccess: (data) => {
         setSelectedManualAgentInstall(
           getManualAgentInstallSetting(currentTeamId, undefined, data)
+        );
+        setSelectedManualEnrollmentInstall(
+          getBootstrapPackageManualEnrollmentSetting(
+            currentTeamId,
+            undefined,
+            data
+          )
         );
       },
     }
@@ -142,6 +158,7 @@ const BootstrapPackage = ({
       await mdmAPI.deleteBootstrapPackage(currentTeamId);
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
+        macos_bootstrap_package_manual_enrollment: false,
         macos_manual_agent_install: false,
       });
       notify.success("Successfully deleted.");
@@ -189,9 +206,10 @@ const BootstrapPackage = ({
             hasSetupExperienceScript
           }
           selectManualAgentInstall={selectedManualAgentInstall}
-          onChange={(manualAgentInstall) => {
-            setSelectedManualAgentInstall(manualAgentInstall);
-          }}
+          onChangeManualAgentInstall={setSelectedManualAgentInstall}
+          disableManualEnrollmentInstall={noPackageUploaded}
+          selectManualEnrollmentInstall={selectedManualEnrollmentInstall}
+          onChangeManualEnrollmentInstall={setSelectedManualEnrollmentInstall}
         />
       </>
     );

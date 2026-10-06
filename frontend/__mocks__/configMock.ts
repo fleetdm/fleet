@@ -46,6 +46,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   },
   setup_experience: {
     macos_bootstrap_package: "",
+    macos_bootstrap_package_manual_enrollment: false,
     macos_manual_agent_install: false,
     enable_end_user_authentication: false,
     apple_setup_assistant: null,
