@@ -10309,8 +10309,8 @@ func TestDeletePolicyMembershipBatchRetriesRecompute(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-// testCleanupOrphanedPolicyMembershipLocks verifies that the orphan cleanup only locks the orphaned rows, instead of
-// every membership row of the policy.
+// testCleanupOrphanedPolicyMembershipLocks verifies that the orphan cleanup doesn't lock the policy's other membership
+// rows, so it can't block or deadlock with policy result ingestion writing to them.
 func testCleanupOrphanedPolicyMembershipLocks(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	// Force several batches in the cleanup loop.
@@ -10320,11 +10320,17 @@ func testCleanupOrphanedPolicyMembershipLocks(t *testing.T, ds *Datastore) {
 
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	pol := newTestPolicy(t, ds, user, "orphan-lock-policy", "darwin", nil)
-	for i := range 3 {
-		h := newTestHostWithPlatform(t, ds, fmt.Sprintf("orphan-lock-host-%d", i), "darwin", nil)
-		_, err := ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{pol.ID: new(true)}, time.Now(), false, nil)
-		require.NoError(t, err)
-	}
+	polsByName := map[string]*fleet.Policy{pol.Name: pol}
+	host := newTestHostWithPlatform(t, ds, "orphan-lock-host", "darwin", nil)
+	_, err := ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{pol.ID: new(true)}, time.Now(), false, nil)
+	require.NoError(t, err)
+
+	// Hold a lock on the host's membership row, as policy result ingestion would.
+	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = tx.Rollback() })
+	_, err = tx.ExecContext(ctx, `SELECT 1 FROM policy_membership WHERE policy_id = ? AND host_id = ? FOR UPDATE`, pol.ID, host.ID)
+	require.NoError(t, err)
 
 	cases := []struct {
 		name          string
@@ -10342,22 +10348,11 @@ func testCleanupOrphanedPolicyMembershipLocks(t *testing.T, ds *Datastore) {
 				})
 			}
 
-			// Run the cleanup in a transaction so that its locks are still held when inspected.
-			tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
-			require.NoError(t, err)
-			defer func() { _ = tx.Rollback() }()
-			require.NoError(t, cleanupOrphanedPolicyMembership(ctx, tx, pol.ID, ds.logger))
-
-			var lockedHostIDs []uint
-			require.NoError(t, sqlx.SelectContext(ctx, tx, &lockedHostIDs, `
-				SELECT DISTINCT CAST(SUBSTRING_INDEX(LOCK_DATA, ', ', -1) AS UNSIGNED)
-				FROM performance_schema.data_locks
-				WHERE OBJECT_SCHEMA = DATABASE() AND OBJECT_NAME = 'policy_membership'
-				  AND LOCK_TYPE = 'RECORD' AND THREAD_ID = (
-				    SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = CONNECTION_ID()
-				  )
-				ORDER BY 1`))
-			assert.Equal(t, c.orphanHostIDs, lockedHostIDs)
+			// A cleanup that touched the locked row would wait on it until the timeout.
+			cleanupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			require.NoError(t, cleanupOrphanedPolicyMembership(cleanupCtx, ds.writer(ctx), pol.ID, ds.logger))
+			assertPolicyMembership(t, ds, polsByName, map[string][]uint{pol.Name: {host.ID}})
 		})
 	}
 }
