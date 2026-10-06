@@ -18,4 +18,56 @@
     justify-content: space-between;
     gap: $pad-medium;
   }
+
+  // Wraps the app-metadata header + the accordion list so they visually
+  // fuse (shared card border, no gap between them). Standalone so the
+  // section's own `gap` still applies between this and the description row.
+  &__library-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  // App metadata header. Grey background distinguishes the title-level
+  // banner from the per-version rows below. Top corners rounded; bottom
+  // border lets the accordion list's top border sit flush against it.
+  &__app-versions-header {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    padding: $pad-medium;
+    background: $ui-off-white;
+    border: 1px solid $ui-fleet-black-10;
+    // No bottom border: the accordion list below has its own top border and
+    // doubling them up renders at 2px.
+    border-bottom: none;
+    border-top-left-radius: $border-radius-large;
+    border-top-right-radius: $border-radius-large;
+    width: 100%;
+  }
+
+  // When the header sits above the accordion list, flatten the list's top
+  // corners so the two visually fuse as one bordered container.
+  &__app-versions-header + .library-item-accordion-list {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  // Groups the name + version so they align on the text baseline (the
+  // outer header keeps the icon vertically centered). Also supplies the gap
+  // between name and version.
+  &__app-versions-header-text {
+    display: flex;
+    align-items: baseline;
+    gap: $pad-small;
+  }
+
+  &__app-versions-header-name {
+    font-weight: $bold;
+    color: $core-fleet-black;
+  }
+
+  &__app-versions-header-version {
+    font-size: $xx-small;
+  }
 }

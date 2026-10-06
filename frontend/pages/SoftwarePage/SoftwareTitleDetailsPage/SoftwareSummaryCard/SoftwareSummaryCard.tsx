@@ -45,6 +45,12 @@ interface ISoftwareSummaryCard {
    * (Library accordion rows show per-package icons instead) and collapses
    * the Actions dropdown into a single pencil-icon Edit-appearance button. */
   canActivateMultiplePackages?: boolean;
+  /** Parallel of `canActivateMultiplePackages` for multi-version iOS/iPadOS/
+   * Android App Store app titles. When true: hides title-level chips whose
+   * state is now per-version (Self service, Auto update), swaps the Versions
+   * data value to the admin-added version count, and collapses the Actions
+   * dropdown into a single pencil-icon Edit (appearance) button. */
+  canActivateMultipleVersions?: boolean;
 }
 
 const baseClass = "software-summary-card";
@@ -71,6 +77,7 @@ const SoftwareSummaryCard = ({
   refetchSoftwareTitle,
   onClickVersions,
   canActivateMultiplePackages = false,
+  canActivateMultipleVersions = false,
 }: ISoftwareSummaryCard) => {
   const { isPremiumTier } = useContext(AppContext);
   const installerResult = useSoftwareInstaller(softwareTitle);
@@ -189,15 +196,20 @@ const SoftwareSummaryCard = ({
   // On "All fleets" the backend returns state from an arbitrary team, so hide
   // the chips rather than mislabel it as an all-fleets fact.
   const showSelfServiceChip =
-    hasValidTeamId && isSelfService && !canActivateMultiplePackages;
+    hasValidTeamId &&
+    isSelfService &&
+    !canActivateMultiplePackages &&
+    !canActivateMultipleVersions;
   const showAutoInstallChip =
     hasValidTeamId && hasLinkedPolicies && !canActivateMultiplePackages;
   // Gates on `app_store_app` directly since `isAppleVpp` flips false when
-  // a co-existing custom package hides the VPP installer.
+  // a co-existing custom package hides the VPP installer. Suppressed on
+  // multi-version titles because auto-update is a per-version setting there.
   const showAutoUpdateChip =
     hasValidTeamId &&
     !!softwareTitle.app_store_app &&
     isIosOrIpadosApp &&
+    !canActivateMultipleVersions &&
     !!softwareTitle.auto_update_enabled &&
     !!softwareTitle.auto_update_window_start &&
     !!softwareTitle.auto_update_window_end;
@@ -309,7 +321,12 @@ const SoftwareSummaryCard = ({
           <SoftwareDetailsSummary
             displayName={softwareDisplayName}
             type={formatSoftwareType(softwareTitle)}
-            versions={softwareTitle.versions?.length ?? 0}
+            versions={
+              canActivateMultipleVersions
+                ? softwareTitle.app_store_apps?.length ??
+                  (softwareTitle.app_store_app ? 1 : 0)
+                : softwareTitle.versions?.length ?? 0
+            }
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
             queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
@@ -347,13 +364,30 @@ const SoftwareSummaryCard = ({
   const onClickEditAutoUpdateConfig = () =>
     setShowEditAutoUpdateConfigModal(true);
 
+  // Multi-version App Store titles show the admin-added version count
+  // (the number of versions on the title's `app_store_apps` array) rather
+  // than the inventory version count. The back-compat `app_store_app` only
+  // fallback keeps the count accurate on titles that pre-date the array in
+  // the response.
+  const versionsCount = canActivateMultipleVersions
+    ? softwareTitle.app_store_apps?.length ??
+      (softwareTitle.app_store_app ? 1 : 0)
+    : softwareTitle.versions?.length ?? 0;
+
+  // Collapse the Actions dropdown into a single pencil-icon Edit (appearance)
+  // button when per-X controls move to the Library accordion rows: custom
+  // multi-package titles have per-package controls, multi-version App Store
+  // titles (iOS/iPadOS/Android) have per-version controls.
+  const useSingleEditAppearanceButton =
+    canActivateMultiplePackages || canActivateMultipleVersions;
+
   return (
     <>
       <Card className={baseClass}>
         <SoftwareDetailsSummary
           displayName={softwareDisplayName}
           type={formatSoftwareType(softwareTitle)}
-          versions={softwareTitle.versions?.length ?? 0}
+          versions={versionsCount}
           hostCount={softwareTitle.hosts_count}
           countsUpdatedAt={softwareTitle.counts_updated_at}
           queryParams={{
@@ -369,16 +403,17 @@ const SoftwareSummaryCard = ({
             canEditAppearance ? onClickEditAppearance : undefined
           }
           onClickEditSoftware={
-            // Multi-package titles move per-installer editing to the Library
-            // accordion row; the page-level Edit button collapses to a single
-            // pencil-icon Edit-appearance button below. Single-package types
-            // (FMA, VPP, Google Play, iOS in-house .ipa) keep the Actions
-            // dropdown.
-            canEditSoftware && !canActivateMultiplePackages
+            // Multi-package AND multi-version titles move per-installer /
+            // per-version editing to the Library accordion row; the page-
+            // level Edit button collapses to a single pencil-icon Edit
+            // (appearance) button below. Single-slot types (FMA, macOS VPP,
+            // iOS in-house .ipa) keep the Actions dropdown.
+            canEditSoftware && !useSingleEditAppearanceButton
               ? onClickEditSoftware
               : undefined
           }
-          useSingleEditAppearanceButton={canActivateMultiplePackages}
+          useSingleEditAppearanceButton={useSingleEditAppearanceButton}
+          singleEditButtonVariant="secondary"
           onClickDeploy={canDeploySoftware ? onClickDeploy : undefined}
           onClickVersions={canManageVersions ? onClickVersions : undefined}
           onClickEditConfiguration={

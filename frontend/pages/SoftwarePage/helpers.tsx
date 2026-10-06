@@ -226,8 +226,8 @@ export const getSelfServiceTooltip = (
   if (isAndroidPlayStoreApp) {
     return (
       <>
-        End users can install from the <strong>Play Store</strong>
-        in their work profile.
+        End users can install from the <strong>Play Store</strong> in their work
+        profile.
       </>
     );
   }

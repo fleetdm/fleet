@@ -228,6 +228,7 @@ const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   software_package: null,
   packages: null,
   app_store_app: null,
+  app_store_apps: null,
   source: "apps",
   hosts_count: 1,
   versions: [createMockSoftwareTitleVersion()],
@@ -343,6 +344,7 @@ const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   software_package: createMockSoftwarePackage(),
   packages: null,
   app_store_app: null,
+  app_store_apps: null,
 };
 
 export const createMockSoftwareTitle = (

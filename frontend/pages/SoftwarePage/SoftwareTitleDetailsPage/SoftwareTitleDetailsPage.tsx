@@ -7,7 +7,9 @@ import { useQuery, useQueryClient } from "react-query";
 import { RouteComponentProps } from "react-router";
 
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import MainContent from "components/MainContent";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 import PageDescription from "components/PageDescription";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
@@ -23,10 +25,13 @@ import { ILabelSoftwareTitle } from "interfaces/label";
 import {
   aggregateInstallStatusCounts,
   IAppStoreApp,
+  IAppStoreAppVersion,
+  isAndroidSoftwareSource,
   isIpadOrIphoneSoftwareSource,
   ISoftwareInstallPolicyUI,
   ISoftwarePackage,
   ISoftwareTitleDetails,
+  MAX_APP_STORE_APP_VERSIONS_PER_TITLE,
   MAX_PACKAGES_PER_TITLE,
   NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
@@ -47,11 +52,15 @@ import {
 import { getPathWithQueryParams } from "utilities/url";
 
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
+import AndroidPlayStore from "../components/icons/AndroidPlayStore";
+import AppleAppStore from "../components/icons/AppleAppStore";
 import { getDisplayedSoftwareName, mergePolicies } from "../helpers";
 
 import AddPackageModal from "./AddPackageModal";
+import AddVersionModal from "./AddVersionModal";
 import DeleteSoftwareModal from "./DeleteSoftwareModal";
 import EditSoftwareModal from "./EditSoftwareModal";
+import EditVersionModal from "./EditVersionModal";
 import {
   buildInstallerDownloadUrl,
   buildLibraryVersionRows,
@@ -69,8 +78,37 @@ import VersionsModal from "./VersionsModal";
 
 const baseClass = "software-title-details-page";
 
+// Shim a 1-element version array from the back-compat `app_store_app`
+// envelope when the API hasn't populated `app_store_apps` yet (pre-#53320).
+// Once BE ships the array, callers fall through to the real data. Pulls
+// auto-update fields from the title because they're title-level in the
+// back-compat shape.
+const shimVersionFromAppStore = (
+  title: ISoftwareTitleDetails,
+  app: IAppStoreApp
+): IAppStoreAppVersion => ({
+  id: 0,
+  name: app.name,
+  app_store_id: app.app_store_id,
+  platform: app.platform,
+  version: app.latest_version,
+  status: app.status,
+  self_service: app.self_service,
+  automatic_install_policies: app.automatic_install_policies,
+  labels_include_any: app.labels_include_any,
+  labels_include_all: app.labels_include_all,
+  labels_exclude_any: app.labels_exclude_any,
+  auto_update_enabled: title.auto_update_enabled,
+  auto_update_window_start: title.auto_update_window_start,
+  auto_update_window_end: title.auto_update_window_end,
+  created_at: app.created_at,
+  categories: app.categories,
+  display_name: app.display_name,
+  configuration: app.configuration,
+});
+
 const pickLabels = (
-  source: ISoftwarePackage | IAppStoreApp
+  source: ISoftwarePackage | IAppStoreApp | IAppStoreAppVersion
 ): { labels: ILabelSoftwareTitle[] | null; kind: LibraryItemLabelKind } => {
   if (source.labels_include_all?.length) {
     return { labels: source.labels_include_all, kind: "includeAll" };
@@ -125,6 +163,7 @@ const SoftwareTitleDetailsPage = ({
   const [showLibraryEditModal, setShowLibraryEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddPackageModal, setShowAddPackageModal] = useState(false);
+  const [showAddVersionModal, setShowAddVersionModal] = useState(false);
   // When set, opens a PoliciesModal scoped to a single package's policies
   // (the auto-install icon on a custom-package row). Distinct from the
   // SoftwareSummaryCard's title-aggregate PoliciesModal — that one stays
@@ -139,6 +178,13 @@ const SoftwareTitleDetailsPage = ({
   const [selectedInstallerId, setSelectedInstallerId] = useState<number | null>(
     null
   );
+  // Per-version target for the currently-open Edit or Delete modal on a
+  // multi-version App Store app title (iOS/iPadOS/Android). `null` keeps the
+  // back-compat behavior (single `app_store_app` target). Parallel to
+  // `selectedInstallerId` for custom packages.
+  const [selectedVersionId, setSelectedVersionId] = useState<number | null>(
+    null
+  );
   // Page-owned so both the Actions menu and the Library accordion badge open
   // the same Versions modal.
   const [showVersionsModal, setShowVersionsModal] = useState(false);
@@ -150,9 +196,11 @@ const SoftwareTitleDetailsPage = ({
     setShowLibraryEditModal(false);
     setShowDeleteModal(false);
     setShowAddPackageModal(false);
+    setShowAddVersionModal(false);
     setShowVersionsModal(false);
     setSelectedPackagePolicies(null);
     setSelectedInstallerId(null);
+    setSelectedVersionId(null);
   }, [teamIdForApi]);
 
   const {
@@ -200,6 +248,15 @@ const SoftwareTitleDetailsPage = ({
     !!isPremiumTier &&
     !!installerResult?.meta.isCustomPackage &&
     !installerResult.meta.isIosOrIpadosApp;
+
+  // Canonical "this title can hold multiple App Store app versions" flag.
+  // True for iOS/iPadOS App Store (VPP) and Android (Google Play) titles.
+  // macOS VPP and in-house `.ipa` stay single-version. Premium-only.
+  const canActivateMultipleVersions =
+    !!isPremiumTier &&
+    !!softwareTitle?.app_store_app &&
+    (isIpadOrIphoneSoftwareSource(softwareTitle.source) ||
+      isAndroidSoftwareSource(softwareTitle.source));
 
   const onDeleteInstaller = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: [{ scope: "software-titles" }] });
@@ -270,6 +327,7 @@ const SoftwareTitleDetailsPage = ({
         refetchSoftwareTitle={refetchSoftwareTitle}
         onClickVersions={() => setShowVersionsModal(true)}
         canActivateMultiplePackages={canActivateMultiplePackages}
+        canActivateMultipleVersions={canActivateMultipleVersions}
       />
     );
   };
@@ -315,6 +373,18 @@ const SoftwareTitleDetailsPage = ({
       setShowDeleteModal(true);
     };
 
+    // Per-version openers for multi-version App Store app titles. Parallel to
+    // the installer-id openers above. The modals' version-aware behavior is
+    // wired in the Edit version / Delete version modal tasks.
+    const openEditModalForVersion = (versionId: number) => {
+      setSelectedVersionId(versionId);
+      setShowLibraryEditModal(true);
+    };
+    const openDeleteModalForVersion = (versionId: number) => {
+      setSelectedVersionId(versionId);
+      setShowDeleteModal(true);
+    };
+
     const statusPath = (software_status: "installed" | "pending" | "failed") =>
       getPathWithQueryParams(paths.MANAGE_HOSTS, {
         software_title_id: softwareId,
@@ -354,6 +424,103 @@ const SoftwareTitleDetailsPage = ({
           onTrashClick={() => openDeleteModal()}
         />
       );
+    };
+
+    // One row per App Store app version on multi-version iOS/iPadOS/Android
+    // titles. Store version is title-level and shared across versions, so the
+    // row shows the admin-provided version name (e.g. "Production") as its
+    // headline; the store version is surfaced on the app header row above.
+    const renderAppStoreVersionRow = (version: IAppStoreAppVersion) => {
+      const { labels, kind } = pickLabels(version);
+      const isAndroidPlayStoreApp = version.platform === "android";
+      const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+      return (
+        <LibraryItemAccordion
+          key={version.id}
+          filename={version.name}
+          version={version.version}
+          addedAt={version.created_at}
+          installerType="app-store"
+          androidPlayStoreId={
+            isAndroidPlayStoreApp ? version.app_store_id : undefined
+          }
+          isIosOrIpadosApp={isIosOrIpadosApp}
+          graphicOverride="file-configuration-profile"
+          hideVersion
+          isActive
+          labels={labels}
+          labelKind={kind}
+          canEditSoftware={canEditSoftware}
+          installed={version.status?.installed ?? 0}
+          pending={version.status?.pending ?? 0}
+          failed={version.status?.failed ?? 0}
+          installedPath={statusPath("installed")}
+          pendingPath={statusPath("pending")}
+          failedPath={statusPath("failed")}
+          canActivateMultipleVersions
+          isSelfService={version.self_service}
+          isAutoUpdateEnabled={version.auto_update_enabled}
+          autoUpdateWindowStart={version.auto_update_window_start}
+          autoUpdateWindowEnd={version.auto_update_window_end}
+          isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+          onLabelCountClick={() => openEditModalForVersion(version.id)}
+          onLabelsClick={() => openEditModalForVersion(version.id)}
+          onEditClick={() => openEditModalForVersion(version.id)}
+          onTrashClick={() => openDeleteModalForVersion(version.id)}
+          onSelfServiceClick={() => openEditModalForVersion(version.id)}
+          onAutoUpdateClick={() => openEditModalForVersion(version.id)}
+        />
+      );
+    };
+
+    // Non-interactive "app metadata" banner above the version accordion list
+    // on multi-version iOS/iPadOS/Android titles. Shows the app's store icon,
+    // store name, and store version so the version rows below can lead with
+    // the admin's version name without losing the app identity.
+    const renderAppStoreVersionsHeader = () => {
+      if (!appStore) return null;
+      const isAndroidPlayStoreApp = appStore.platform === "android";
+      const StoreIcon = isAndroidPlayStoreApp
+        ? AndroidPlayStore
+        : AppleAppStore;
+      return (
+        <div className={`${baseClass}__app-versions-header`}>
+          <StoreIcon width={24} height={24} />
+          <div className={`${baseClass}__app-versions-header-text`}>
+            <span className={`${baseClass}__app-versions-header-name`}>
+              {appStore.name}
+            </span>
+            <span className={`${baseClass}__app-versions-header-version`}>
+              {isAndroidPlayStoreApp ? (
+                <AndroidLatestVersionWithTooltip
+                  androidPlayStoreId={appStore.app_store_id}
+                />
+              ) : (
+                <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
+                  {appStore.latest_version}
+                </TooltipWrapper>
+              )}
+            </span>
+          </div>
+        </div>
+      );
+    };
+
+    // iOS/iPadOS/Android App Store titles always use the versions-oriented
+    // layout (app metadata header + per-version rows), even with a single
+    // version. macOS VPP and in-house `.ipa` keep the back-compat single-row
+    // rendering.
+    const useVersionsLayout = !!appStore && canActivateMultipleVersions;
+
+    const getAppStoreVersionsToRender = (): IAppStoreAppVersion[] => {
+      if (title.app_store_apps?.length) return title.app_store_apps;
+      if (appStore) return [shimVersionFromAppStore(title, appStore)];
+      return [];
+    };
+
+    const renderAppStoreRows = () => {
+      if (!useVersionsLayout) return renderAppStoreRow();
+      return getAppStoreVersionsToRender().map(renderAppStoreVersionRow);
     };
 
     // FMAs expand a single package into one badged "active" row plus dimmed
@@ -463,24 +630,88 @@ const SoftwareTitleDetailsPage = ({
         Add package
       </Button>
     );
-    const headerAction =
-      showAddPackageAction && atPackageLimit ? (
-        <TooltipWrapper
-          tipContent={
-            <>
-              This title already has {MAX_PACKAGES_PER_TITLE} packages. Delete
-              one you no longer use before adding.
-            </>
-          }
-          showArrow
-          position="left"
-          underline={false}
-        >
-          {addPackageButton}
-        </TooltipWrapper>
-      ) : (
-        addPackageButton
-      );
+
+    // "Add version" lives on multi-version-eligible App Store app titles
+    // (iOS/iPadOS/Android). The 10-version limit mirrors the backend cap. The
+    // button also disables in GitOps mode, where mutations should flow
+    // through YAML — handled inside `GitOpsModeTooltipWrapper` which wraps
+    // the button when the current title is subject to the lock.
+    const showAddVersionAction = canActivateMultipleVersions && canEditSoftware;
+    const versionCount = title.app_store_apps?.length ?? (appStore ? 1 : 0);
+    const atVersionLimit = versionCount >= MAX_APP_STORE_APP_VERSIONS_PER_TITLE;
+    const addVersionButton = showAddVersionAction && (
+      <GitOpsModeTooltipWrapper
+        entityType="software"
+        position="left"
+        renderChildren={(disableChildren) => (
+          <Button
+            variant="secondary"
+            size="small"
+            onClick={() => setShowAddVersionModal(true)}
+            disabled={disableChildren || atVersionLimit}
+            icon="plus"
+          >
+            Add version
+          </Button>
+        )}
+      />
+    );
+
+    const getHeaderAction = (): React.ReactNode => {
+      if (showAddPackageAction) {
+        if (!atPackageLimit) return addPackageButton;
+        return (
+          <TooltipWrapper
+            tipContent={
+              <>
+                This title already has {MAX_PACKAGES_PER_TITLE} packages. Delete
+                one you no longer use before adding.
+              </>
+            }
+            showArrow
+            position="left"
+            underline={false}
+          >
+            {addPackageButton}
+          </TooltipWrapper>
+        );
+      }
+      if (showAddVersionAction) {
+        if (!atVersionLimit) return addVersionButton;
+        return (
+          <TooltipWrapper
+            tipContent={
+              <>
+                This title already has {MAX_APP_STORE_APP_VERSIONS_PER_TITLE}{" "}
+                versions. Delete one you no longer use before adding.
+              </>
+            }
+            showArrow
+            position="left"
+            underline={false}
+          >
+            {addVersionButton}
+          </TooltipWrapper>
+        );
+      }
+      return null;
+    };
+    const headerAction = getHeaderAction();
+
+    // Description copy varies by title shape. The multi-package and
+    // multi-version variants are action prompts — meaningful only to users
+    // who can edit AND are on a title that can hold multiples. Read-only
+    // users and single-slot types fall through to the legacy wording.
+    const getDescriptionContent = (): string => {
+      if (canActivateMultiplePackages && canEditSoftware) {
+        return "Add packages for a staged rollout or to support multiple architectures.";
+      }
+      if (canActivateMultipleVersions && canEditSoftware) {
+        return "Add versions to scope different configurations to hosts.";
+      }
+      return "Software available to be installed";
+    };
+    const descriptionContent = getDescriptionContent();
 
     // App-store and custom-package paths are mutually exclusive at the data
     // layer (the backend rejects custom uploads against an FMA/VPP title), so
@@ -492,27 +723,21 @@ const SoftwareTitleDetailsPage = ({
       <section className={`${baseClass}__section`}>
         <SectionHeader title="Library" />
         <div className={`${baseClass}__library-description-row`}>
-          {/* The multi-package copy is an action prompt — only meaningful to
-              a user who can both edit software AND is on a multi-package-
-              eligible title. Read-only users and single-package types (FMA,
-              VPP, Google Play, iOS in-house .ipa) get the legacy
-              "available to be installed" wording. */}
-          <PageDescription
-            content={
-              canActivateMultiplePackages && canEditSoftware
-                ? "Add packages for a staged rollout or to support multiple architectures."
-                : "Software available to be installed"
-            }
-          />
+          <PageDescription content={descriptionContent} />
           {headerAction}
         </div>
-        <LibraryItemAccordionList>
-          {/* Row order = API response order. The API returns `packages[]`
-              sorted by `installer_id` ascending, so the top row is the
-              first-added package (smallest id = collision fallback). The
-              UI does not re-sort. */}
-          {appStore ? renderAppStoreRow() : packages.map(renderPackageRows)}
-        </LibraryItemAccordionList>
+        <div className={`${baseClass}__library-list`}>
+          {useVersionsLayout && renderAppStoreVersionsHeader()}
+          <LibraryItemAccordionList>
+            {/* Row order = API response order. The API returns `packages[]`
+                sorted by `installer_id` ascending, so the top row is the
+                first-added package (smallest id = collision fallback).
+                `app_store_apps[]` is returned in `created_at` order, so the
+                top version is first-added (collision fallback). The UI does
+                not re-sort. */}
+            {appStore ? renderAppStoreRows() : packages.map(renderPackageRows)}
+          </LibraryItemAccordionList>
+        </div>
       </section>
     );
   };
@@ -562,11 +787,13 @@ const SoftwareTitleDetailsPage = ({
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
     setSelectedInstallerId(null);
+    setSelectedVersionId(null);
   };
 
   const closeLibraryEditModal = () => {
     setShowLibraryEditModal(false);
     setSelectedInstallerId(null);
+    setSelectedVersionId(null);
   };
 
   // Delete modal for the active library row's installer.
@@ -576,11 +803,17 @@ const SoftwareTitleDetailsPage = ({
     const isAndroidApp = !!meta?.isAndroidPlayStoreApp;
     const isAppStoreApp = meta?.installerType === "app-store" && !isAndroidApp;
     const selected = findSelectedPackage(title);
+    // Multi-version delete: route the request by version id and compute
+    // last-version so the modal can surface the icon/display-name side-effect.
+    const versionCount = title.app_store_apps?.length ?? 0;
+    const isVersionDelete = selectedVersionId !== null;
     return (
       <DeleteSoftwareModal
         softwareId={softwareId}
         teamId={teamIdForApi}
         installerId={selected?.installer_id}
+        versionId={isVersionDelete ? selectedVersionId ?? undefined : undefined}
+        isLastVersion={isVersionDelete && versionCount <= 1}
         gitOpsModeEnabled={gitOpsModeEnabled}
         isAppStoreApp={isAppStoreApp}
         isAndroidApp={isAndroidApp}
@@ -602,6 +835,37 @@ const SoftwareTitleDetailsPage = ({
     ) {
       return null;
     }
+
+    // Multi-version App Store titles route through a dedicated version-aware
+    // modal when a version row's edit affordance fired. `selectedVersionId`
+    // identifies the row; look it up in `app_store_apps`, or fall back to
+    // the shim built from `app_store_app` when the API hasn't populated the
+    // array yet (pre-#53320).
+    if (selectedVersionId !== null && title.app_store_app) {
+      const liveVersion = title.app_store_apps?.find(
+        (v) => v.id === selectedVersionId
+      );
+      const version =
+        liveVersion ?? shimVersionFromAppStore(title, title.app_store_app);
+      const siblingVersionNames =
+        title.app_store_apps
+          ?.filter((v) => v.id !== selectedVersionId)
+          .map((v) => v.name) ?? [];
+      return (
+        <EditVersionModal
+          softwareId={softwareId}
+          teamId={teamIdForApi}
+          version={version}
+          siblingVersionNames={siblingVersionNames}
+          onExit={closeLibraryEditModal}
+          onSuccess={() => {
+            closeLibraryEditModal();
+            refetchSoftwareTitle();
+          }}
+        />
+      );
+    }
+
     const { meta } = installerResult;
     // On a multi-package title, the row callback set `selectedInstallerId`;
     // resolve it to the actual package so the modal edits the right one.
@@ -665,6 +929,36 @@ const SoftwareTitleDetailsPage = ({
     );
   };
 
+  const renderAddVersionModal = (title: ISoftwareTitleDetails) => {
+    if (
+      !showAddVersionModal ||
+      !title.app_store_app ||
+      typeof teamIdForApi !== "number"
+    ) {
+      return null;
+    }
+    const existingVersionNames = title.app_store_apps?.map((v) => v.name) ?? [];
+    // The Add version button only renders on titles that already have at
+    // least one version (an `app_store_app`), so every Add is a 2nd+ version.
+    // Default Target to Custom so the admin's label scope wins the
+    // first-added race.
+    const defaultTargetCustom = true;
+    return (
+      <AddVersionModal
+        softwareTitleId={softwareId}
+        teamId={teamIdForApi}
+        appStore={title.app_store_app}
+        existingVersionNames={existingVersionNames}
+        defaultTargetCustom={defaultTargetCustom}
+        onExit={() => setShowAddVersionModal(false)}
+        onSuccess={() => {
+          setShowAddVersionModal(false);
+          refetchSoftwareTitle();
+        }}
+      />
+    );
+  };
+
   const renderVersionsModal = (title: ISoftwareTitleDetails) => {
     // `teamIdForApi` is undefined on "All teams" (where `currentTeamId` is the
     // -1 sentinel); guard so we never PATCH `fleet_id=-1`. Mirrors the delete modal.
@@ -716,6 +1010,7 @@ const SoftwareTitleDetailsPage = ({
           {renderLibraryEditModal(softwareTitle)}
           {renderDeleteModal(softwareTitle)}
           {renderAddPackageModal(softwareTitle)}
+          {renderAddVersionModal(softwareTitle)}
           {renderPackagePoliciesModal()}
           {renderVersionsModal(softwareTitle)}
         </>

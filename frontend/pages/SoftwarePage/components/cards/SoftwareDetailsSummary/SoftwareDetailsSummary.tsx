@@ -191,6 +191,10 @@ interface ISoftwareDetailsSummaryProps {
    * pencil-icon "Edit" button that opens the Edit Appearance modal directly.
    * Per-installer Edit lives on the Library accordion row. */
   useSingleEditAppearanceButton?: boolean;
+  /** Variant for the single Edit (appearance) button. Defaults to "subdued"
+   * (matches the original custom multi-package call site). Multi-version
+   * App Store titles (iOS/iPadOS/Android) use "secondary". */
+  singleEditButtonVariant?: "subdued" | "secondary";
 }
 
 const SoftwareDetailsSummary = ({
@@ -216,6 +220,7 @@ const SoftwareDetailsSummary = ({
   headerPills,
   isAppleVpp = false,
   useSingleEditAppearanceButton = false,
+  singleEditButtonVariant = "subdued",
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -327,7 +332,8 @@ const SoftwareDetailsSummary = ({
                   position="top"
                   renderChildren={(disableChildren) => (
                     <Button
-                      variant="subdued"
+                      variant={singleEditButtonVariant}
+                      size="small"
                       onClick={onClickEditAppearance}
                       disabled={disableChildren || !onClickEditAppearance}
                       icon="pencil"

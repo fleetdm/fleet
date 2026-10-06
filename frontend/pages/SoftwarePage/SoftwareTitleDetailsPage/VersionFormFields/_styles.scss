@@ -1,0 +1,42 @@
+.version-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-large;
+
+  &__auto-update-window {
+    display: flex;
+    gap: $pad-medium;
+
+    > * {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  &__category,
+  &__auto-updates,
+  &__target {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__category-label,
+  &__auto-updates-label,
+  &__target-label {
+    font-weight: $bold;
+    font-size: $x-small;
+  }
+
+  &__auto-updates-help {
+    margin: 0;
+    color: $core-fleet-black;
+  }
+
+}
