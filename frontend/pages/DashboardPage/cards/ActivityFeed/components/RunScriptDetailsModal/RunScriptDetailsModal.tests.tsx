@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 
+import { createMockScriptResult } from "__mocks__/scriptMock";
 import scriptsAPI from "services/entities/scripts";
 
 import RunScriptDetailsModal from "./RunScriptDetailsModal";
@@ -50,5 +51,27 @@ describe("RunScriptDetailsModal", () => {
     await waitFor(() =>
       expect(mockScriptsAPI.getScriptResult).toHaveBeenCalledTimes(4)
     );
+  });
+
+  it("uses the configured timeout instead of a duration in script output", async () => {
+    mockScriptsAPI.getScriptResult.mockResolvedValue(
+      createMockScriptResult({
+        exit_code: -1,
+        message:
+          "Timeout. Fleet stopped the script after 60 seconds to protect host performance.",
+        output: "sleeping 180 seconds",
+      })
+    );
+
+    const { container } = renderModal();
+
+    const statusMessage = await screen.findByText(/Timeout\./);
+    expect(statusMessage.parentElement?.textContent).toContain(
+      "after 60 seconds"
+    );
+    expect(statusMessage.parentElement?.textContent).not.toContain(
+      "after 180 seconds"
+    );
+    expect(container.textContent).toContain("sleeping 180 seconds");
   });
 });

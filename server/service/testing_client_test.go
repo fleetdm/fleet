@@ -477,9 +477,10 @@ func (ts *withServer) LoginSSOUser(username, password string) string {
 	return string(body)
 }
 
-// LoginMDMSSOUser initiates the MDM SSO flow, as Apple DEP enrollment would.
-func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response {
-	body, err := json.Marshal(initiateMDMSSORequest{Initiator: fleet.SSOInitiatorAppleMDMSSO})
+// LoginMDMSSOUser initiates the MDM SSO flow, as Apple DEP enrollment would,
+// for the device that presented deviceInfo (a base64 x-apple-aspen-deviceinfo).
+func (ts *withServer) LoginMDMSSOUser(username, password, deviceInfo string) *http.Response {
+	body, err := json.Marshal(initiateMDMSSORequest{Initiator: fleet.SSOInitiatorAppleMDMSSO, DeviceInfo: deviceInfo})
 	require.NoError(ts.s.T(), err)
 	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
 	return res

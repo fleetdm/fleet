@@ -916,7 +916,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	return nil
 }
 
-func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string, deviceInfo *fleet.MDMAppleMachineInfo) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate MDM SSO.
 	svc.authz.SkipAuthorization(ctx)
@@ -935,6 +935,20 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 		if err := svc.checkOrbitSetupExperienceSSO(ctx, hostUUID); err != nil {
 			return "", 0, "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
 		}
+	}
+
+	requestData := sso.SSORequestData{
+		HostUUID:  hostUUID,
+		Initiator: initiator,
+	}
+	if initiator == fleet.SSOInitiatorAppleMDMSSO {
+		// The callback binds the one-time enrollment token to this device.
+		if deviceInfo == nil || deviceInfo.Serial == "" || deviceInfo.UDID == "" {
+			err := &fleet.BadRequestError{Message: "deviceinfo with the device serial number and UDID is required"}
+			return "", 0, "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
+		}
+		requestData.DeviceSerial = deviceInfo.Serial
+		requestData.DeviceUDID = deviceInfo.UDID
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -1002,10 +1016,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 		samlProvider, svc.ssoSessionStore, originalURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
 		fleet.SSORelayStateNone,
-		sso.SSORequestData{
-			HostUUID:  hostUUID,
-			Initiator: initiator,
-		},
+		requestData,
 	)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateMDMSSO creating authorization")
@@ -1052,7 +1063,7 @@ func (svc *Service) bindHostToIdPAccountFromSSO(ctx context.Context, hostUUID st
 		return nil
 	}
 
-	previousEmail := svc.idPAccountEmailForActivity(ctx, previousAcctUUID)
+	previousEmail := shared_mdm.IdPAccountEmailForActivity(ctx, svc.ds, svc.logger, previousAcctUUID)
 
 	var act fleet.ActivityDetails
 	if !replaceExisting && previousAcctUUID != "" {
@@ -1076,23 +1087,6 @@ func (svc *Service) bindHostToIdPAccountFromSSO(ctx context.Context, hostUUID st
 			"err", err, "host_uuid", hostUUID, "activity", act.ActivityName())
 	}
 	return nil
-}
-
-// idPAccountEmailForActivity resolves an account UUID for a binding activity,
-// returning an empty string when there is none or it cannot be read.
-func (svc *Service) idPAccountEmailForActivity(ctx context.Context, acctUUID string) string {
-	if acctUUID == "" {
-		return ""
-	}
-	acct, err := svc.ds.GetMDMIdPAccountByUUID(ctx, acctUUID)
-	switch {
-	case err == nil && acct != nil:
-		return acct.Email
-	case err != nil && !fleet.IsNotFound(err):
-		svc.logger.ErrorContext(ctx, "get idp account for binding activity",
-			"err", err, "account_uuid", acctUUID)
-	}
-	return ""
 }
 
 // deviceSSOErrorURL sends the end user back to the device page they came from,
@@ -1138,9 +1132,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		}
 	}
 
-	q := url.Values{
-		"enrollment_reference": {enrollmentRef},
-	}
+	q := url.Values{}
 	if eulaToken != "" {
 		q.Add("eula_token", eulaToken)
 	}
@@ -1341,6 +1333,11 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, fleet.NewAuthFailedError(reason))
 	}
 
+	isAppleMDMSSO := ssoRequestData.Initiator == fleet.SSOInitiatorAppleMDMSSO
+	if isAppleMDMSSO && (ssoRequestData.DeviceSerial == "" || ssoRequestData.DeviceUDID == "") {
+		return "", "", "", "", sso.SSORequestData{}, ctxerr.New(ctx, "mdm sso session has no device identity")
+	}
+
 	// Store information for automatic account population/creation, see
 	// https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
 	username := fleet.EmailLocalPart(auth.UserID())
@@ -1384,17 +1381,15 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		eulaToken = eula.Token
 	}
 
-	// For automatic enrollments, get the automatic profile to access the authentication token.
+	// For automatic enrollments, hand out a one-time token that only the device
+	// that started this flow can redeem, as the account that just signed in.
 	var depProfToken string
-	if ssoRequestData.Initiator == fleet.SSOInitiatorAppleMDMSSO {
-		depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
+	if isAppleMDMSSO {
+		depProfToken, err = svc.ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpAcc.UUID,
+			ssoRequestData.DeviceSerial, ssoRequestData.DeviceUDID, fleet.MDMAppleDEPEnrollmentChallengeExpiration)
 		if err != nil {
-			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "listing profiles")
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "creating automatic enrollment challenge")
 		}
-		if depProf == nil {
-			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, errors.New("missing profile"), "missing profile")
-		}
-		depProfToken = depProf.Token
 	}
 
 	// using the idp token as a reference just because that's the
@@ -1407,15 +1402,6 @@ func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update all profiles job")
 	}
 	return nil
-}
-
-// returns the default automatic enrollment profile, or nil (without error) if none exists.
-func (svc *Service) getAutomaticEnrollmentProfile(ctx context.Context) (*fleet.MDMAppleEnrollmentProfile, error) {
-	prof, err := svc.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
-	if err != nil && !fleet.IsNotFound(err) {
-		return nil, ctxerr.Wrap(ctx, err, "get automatic profile")
-	}
-	return prof, nil
 }
 
 func (svc *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {

@@ -3125,6 +3125,12 @@ func newCleanupExpiredADUEChallengesSchedule(
 			}
 			return nil
 		}),
+		schedule.WithJob("cleanup_expired_dep_enrollment_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupExpiredMDMAppleDEPEnrollmentChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up expired automatic enrollment challenges")
+			}
+			return nil
+		}),
 	)
 
 	return s, nil

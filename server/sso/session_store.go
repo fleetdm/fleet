@@ -63,6 +63,11 @@ func (e *sessionNotFoundError) Unwrap() []error {
 type SSORequestData struct {
 	HostUUID  string `json:"host_uuid,omitempty"`
 	Initiator string `json:"initiator,omitempty"`
+	// DeviceSerial and DeviceUDID identify the device that started an mdm_sso
+	// flow, from the deviceinfo it presented. Unlike HostUUID, they come from
+	// the deviceinfo Fleet parsed and verified at initiation.
+	DeviceSerial string `json:"device_serial,omitempty"`
+	DeviceUDID   string `json:"device_udid,omitempty"`
 }
 
 // Session stores state for the lifetime of a single sign on session.
