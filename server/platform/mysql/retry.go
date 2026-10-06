@@ -142,6 +142,10 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger
 func WithRetry(ctx context.Context, fn func() error) error {
 	operation := func() error {
 		err := fn()
+		if err != nil && IsReadOnlyError(err) {
+			TriggerFatalError(ctx, err)
+			return backoff.Permanent(err)
+		}
 		if err != nil && !retryableError(err) {
 			return backoff.Permanent(err)
 		}
