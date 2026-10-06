@@ -290,6 +290,7 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 			SELECT qr.id, qr.query_id, qr.host_id, qr.last_fetched, qr.data,
 				h.hostname, h.computer_name, h.hardware_model, h.hardware_serial
 			FROM query_results qr
+			JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
 			LEFT JOIN hosts h ON (qr.host_id=h.id)
 			WHERE qr.id IN (?)
 		`, batch)
@@ -306,7 +307,8 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 	}
 	results := make([]*fleet.ScheduledQueryResultRow, 0, len(ids))
 	for _, id := range ids {
-		// A row can be replaced by a host check-in between the two queries.
+		// A row can be replaced by a host check-in, or hidden by a results-clearing edit, between
+		// the two queries.
 		if row, ok := rowsByID[id]; ok {
 			results = append(results, row)
 		}
