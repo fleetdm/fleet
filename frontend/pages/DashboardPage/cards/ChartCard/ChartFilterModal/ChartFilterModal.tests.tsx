@@ -349,13 +349,19 @@ describe("ChartFilterModal severity", () => {
       expect(tab(/Exclude hosts/i)).toHaveAttribute("aria-selected", "true");
     });
 
-    it("returns to Specific hosts on Clear all", async () => {
-      const { user } = renderModal({ initialTab: "hosts" });
+    it.each([
+      [/Specific hosts/i, "include"],
+      [/Exclude hosts/i, "exclude"],
+    ])("applies the mode of the selected tab (%s)", async (tabName, mode) => {
+      const onApply = jest.fn();
+      const { user } = renderModal({ initialTab: "hosts", onApply });
 
-      await user.click(tab(/Exclude hosts/i));
-      await user.click(screen.getByRole("button", { name: /Clear all/i }));
+      await user.click(tab(tabName));
+      await user.click(screen.getByRole("button", { name: /^Apply$/i }));
 
-      expect(tab(/Specific hosts/i)).toHaveAttribute("aria-selected", "true");
+      expect(onApply).toHaveBeenCalledWith(
+        expect.objectContaining({ hostFilterMode: mode })
+      );
     });
   });
 });
@@ -422,7 +428,7 @@ describe("ChartFilterModal Clear all scope", () => {
     );
   });
 
-  it("keeps hosts excluded after Clear all", async () => {
+  it("keeps hosts included after Clear all", async () => {
     const host = createMockHost({ id: 7, display_name: "web-01" });
     mockServer.use(
       http.get(baseUrl("/hosts"), () =>
@@ -443,7 +449,7 @@ describe("ChartFilterModal Clear all scope", () => {
     // The chart only filters on selected hosts in include or exclude mode.
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
-        hostFilterMode: "exclude",
+        hostFilterMode: "include",
         selectedHosts: [expect.objectContaining({ id: 7 })],
       })
     );
