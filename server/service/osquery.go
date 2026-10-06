@@ -1695,10 +1695,8 @@ func (svc *Service) discardOutOfScopePolicyResults(ctx context.Context, host *fl
 //
 // The deletion is skipped for hosts in setup experience: they are sent a
 // filtered subset of policy queries (see policyQueriesForHost), so their stale
-// set is not meaningful. Under async policy processing this is a no-op, since
-// the task layer buffers results in Redis and always reports no stale policies.
-// Errors are logged and swallowed: this cleanup is best-effort and self-heals
-// on the host's next policy reporting cycle.
+// set is not meaningful. Errors are logged and swallowed: this cleanup is
+// best-effort and self-heals on the host's next policy reporting cycle.
 func (svc *Service) cleanupOutOfScopePolicyMembership(ctx context.Context, host *fleet.Host, stalePolicyIDs []uint) {
 	if len(stalePolicyIDs) == 0 {
 		return
