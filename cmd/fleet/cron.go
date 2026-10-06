@@ -1961,6 +1961,9 @@ func newQueryResultsCleanupSchedule(
 			}
 			return nil
 		}),
+		schedule.WithJob("update_query_results_last_fetched", func(ctx context.Context) error {
+			return service.UpdateQueryResultsLastFetched(ctx, ds, liveQueryStore)
+		}),
 	)
 
 	return s, nil

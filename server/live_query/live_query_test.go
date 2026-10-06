@@ -23,6 +23,8 @@ var testFunctions = [...]func(*testing.T, fleet.LiveQueryStore){
 	testLiveQueryResultsCounts,
 	testLiveQueryReportsHostCount,
 	testLiveQueryReportClipped,
+	testLiveQueryQueryResultsLastFetched,
+	testLiveQueryQueryReportWriteSlots,
 }
 
 func testLiveQuery(t *testing.T, store fleet.LiveQueryStore) {
@@ -416,4 +418,105 @@ func testLiveQueryReportClipped(t *testing.T, store fleet.LiveQueryStore) {
 		clipped, err := store.QueryReportsClipped([]uint{2})
 		return err == nil && !clipped[2]
 	}, 5*time.Second, 100*time.Millisecond)
+}
+
+func testLiveQueryQueryResultsLastFetched(t *testing.T, store fleet.LiveQueryStore) {
+	drain := func() {
+		_, err := store.LoadQueryResultsLastFetched()
+		require.NoError(t, err)
+		require.NoError(t, store.ClearProcessedQueryResultsLastFetched())
+	}
+	drain()
+	t.Cleanup(drain)
+
+	t1 := time.Unix(1_700_000_000, 0).UTC()
+	t2 := t1.Add(time.Minute)
+
+	got, err := store.LoadQueryResultsLastFetched()
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	require.NoError(t, store.RecordQueryResultsLastFetched(nil, t1))
+	require.NoError(t, store.RecordQueryResultsLastFetched([]uint{1, 2}, t1))
+	// A later fetch of the same row keeps the latest time.
+	require.NoError(t, store.RecordQueryResultsLastFetched([]uint{2, 3}, t2))
+
+	got, err = store.LoadQueryResultsLastFetched()
+	require.NoError(t, err)
+	require.Equal(t, map[uint]time.Time{1: t1, 2: t2, 3: t2}, got)
+
+	// Without a clear (a failed run), the processing set is merged with newly recorded rows,
+	// keeping the latest time of each.
+	require.NoError(t, store.RecordQueryResultsLastFetched([]uint{1}, t2))
+	require.NoError(t, store.RecordQueryResultsLastFetched([]uint{3}, t1))
+	require.NoError(t, store.RecordQueryResultsLastFetched([]uint{4}, t1))
+	got, err = store.LoadQueryResultsLastFetched()
+	require.NoError(t, err)
+	require.Equal(t, map[uint]time.Time{1: t2, 2: t2, 3: t2, 4: t1}, got)
+
+	require.NoError(t, store.ClearProcessedQueryResultsLastFetched())
+	got, err = store.LoadQueryResultsLastFetched()
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// Rows past the cap are rejected.
+	oldMax := queryResultsLastFetchedMaxPending
+	queryResultsLastFetchedMaxPending = 2
+	t.Cleanup(func() { queryResultsLastFetchedMaxPending = oldMax })
+	require.NoError(t, store.RecordQueryResultsLastFetched([]uint{5, 6}, t1))
+	require.ErrorIs(t, store.RecordQueryResultsLastFetched([]uint{7}, t1), fleet.ErrQueryResultsLastFetchedFull)
+	got, err = store.LoadQueryResultsLastFetched()
+	require.NoError(t, err)
+	require.Equal(t, map[uint]time.Time{5: t1, 6: t1}, got)
+}
+
+func testLiveQueryQueryReportWriteSlots(t *testing.T, store fleet.LiveQueryStore) {
+	release := func(tokens ...string) {
+		for _, token := range tokens {
+			require.NoError(t, store.ReleaseQueryReportWriteSlot(token))
+		}
+	}
+	t.Cleanup(func() { release("a", "b", "c", "d") })
+
+	ok, err := store.AcquireQueryReportWriteSlot("a", 2, time.Minute)
+	require.NoError(t, err)
+	require.True(t, ok)
+	ok, err = store.AcquireQueryReportWriteSlot("b", 2, time.Minute)
+	require.NoError(t, err)
+	require.True(t, ok)
+	ok, err = store.AcquireQueryReportWriteSlot("c", 2, time.Minute)
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	release("a")
+	ok, err = store.AcquireQueryReportWriteSlot("c", 2, time.Minute)
+	require.NoError(t, err)
+	require.True(t, ok)
+	release("b", "c")
+
+	// A shorter lease doesn't expire slots with longer ones.
+	ok, err = store.AcquireQueryReportWriteSlot("a", 2, time.Minute)
+	require.NoError(t, err)
+	require.True(t, ok)
+	ok, err = store.AcquireQueryReportWriteSlot("b", 2, 10*time.Millisecond)
+	require.NoError(t, err)
+	require.True(t, ok)
+	time.Sleep(50 * time.Millisecond)
+	ok, err = store.AcquireQueryReportWriteSlot("c", 1, time.Minute)
+	require.NoError(t, err)
+	require.False(t, ok, "slot a must still be held")
+	release("a", "b")
+
+	// A slot that is never released frees itself once its lease expires.
+	ok, err = store.AcquireQueryReportWriteSlot("a", 1, 100*time.Millisecond)
+	require.NoError(t, err)
+	require.True(t, ok)
+	ok, err = store.AcquireQueryReportWriteSlot("d", 1, time.Minute)
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.Eventually(t, func() bool {
+		ok, err := store.AcquireQueryReportWriteSlot("d", 1, time.Minute)
+		require.NoError(t, err)
+		return ok
+	}, 5*time.Second, 50*time.Millisecond)
 }

@@ -8,6 +8,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -373,6 +374,48 @@ func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID
 	}
 
 	return results, nil
+}
+
+// QueryResultRowsForHostByQuery returns a host's stored rows for each of the given queries,
+// including rows with null data. Rows are returned in insert order.
+func (ds *Datastore) QueryResultRowsForHostByQuery(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+	if len(queryIDs) == 0 {
+		return nil, nil
+	}
+	stmt, args, err := sqlx.In(`
+		SELECT id, query_id, host_id, last_fetched, data FROM query_results
+		WHERE host_id = ? AND query_id IN (?)
+		ORDER BY id`, hostID, queryIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building select query result rows for host")
+	}
+	var rows []*fleet.StoredQueryResultRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows for host")
+	}
+	byQuery := make(map[uint][]*fleet.StoredQueryResultRow)
+	for _, row := range rows {
+		byQuery[row.QueryID] = append(byQuery[row.QueryID], row)
+	}
+	return byQuery, nil
+}
+
+// UpdateQueryResultsLastFetched updates rows by primary key: an update by (query_id, host_id)
+// takes next-key locks on the secondary index, which block other hosts inserting results for
+// the same query. Both secondary indexes include last_fetched, so their entries for the updated
+// rows are still rewritten.
+func (ds *Datastore) UpdateQueryResultsLastFetched(ctx context.Context, ids []uint, lastFetched time.Time) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(`UPDATE query_results SET last_fetched = GREATEST(last_fetched, ?) WHERE id IN (?)`, lastFetched, ids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building update query results last fetched")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating query results last fetched")
+	}
+	return nil
 }
 
 func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {

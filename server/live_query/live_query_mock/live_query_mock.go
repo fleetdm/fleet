@@ -25,6 +25,13 @@ type MockLiveQuery struct {
 	MarkQueryReportsClippedOverride          func(ttlByQueryID map[uint]time.Duration) error
 	QueryReportsClippedOverride              func(queryIDs []uint) (map[uint]bool, error)
 	ClearQueryReportsClippedOverride         func(queryIDs []uint) error
+
+	RecordQueryResultsLastFetchedOverride         func(rowIDs []uint, fetchedAt time.Time) error
+	LoadQueryResultsLastFetchedOverride           func() (map[uint]time.Time, error)
+	ClearProcessedQueryResultsLastFetchedOverride func() error
+
+	AcquireQueryReportWriteSlotOverride func(token string, limit int, lease time.Duration) (bool, error)
+	ReleaseQueryReportWriteSlotOverride func(token string) error
 }
 
 var _ fleet.LiveQueryStore = (*MockLiveQuery)(nil)
@@ -168,6 +175,46 @@ func (m *MockLiveQuery) QueryReportsClipped(queryIDs []uint) (map[uint]bool, err
 func (m *MockLiveQuery) ClearQueryReportsClipped(queryIDs []uint) error {
 	if m.ClearQueryReportsClippedOverride != nil {
 		return m.ClearQueryReportsClippedOverride(queryIDs)
+	}
+	return nil
+}
+
+// RecordQueryResultsLastFetched mocks the live query store RecordQueryResultsLastFetched method.
+func (m *MockLiveQuery) RecordQueryResultsLastFetched(rowIDs []uint, fetchedAt time.Time) error {
+	if m.RecordQueryResultsLastFetchedOverride != nil {
+		return m.RecordQueryResultsLastFetchedOverride(rowIDs, fetchedAt)
+	}
+	return nil
+}
+
+// LoadQueryResultsLastFetched mocks the live query store LoadQueryResultsLastFetched method.
+func (m *MockLiveQuery) LoadQueryResultsLastFetched() (map[uint]time.Time, error) {
+	if m.LoadQueryResultsLastFetchedOverride != nil {
+		return m.LoadQueryResultsLastFetchedOverride()
+	}
+	return map[uint]time.Time{}, nil
+}
+
+// ClearProcessedQueryResultsLastFetched mocks the live query store ClearProcessedQueryResultsLastFetched method.
+func (m *MockLiveQuery) ClearProcessedQueryResultsLastFetched() error {
+	if m.ClearProcessedQueryResultsLastFetchedOverride != nil {
+		return m.ClearProcessedQueryResultsLastFetchedOverride()
+	}
+	return nil
+}
+
+// AcquireQueryReportWriteSlot mocks the live query store AcquireQueryReportWriteSlot method.
+func (m *MockLiveQuery) AcquireQueryReportWriteSlot(token string, limit int, lease time.Duration) (bool, error) {
+	if m.AcquireQueryReportWriteSlotOverride != nil {
+		return m.AcquireQueryReportWriteSlotOverride(token, limit, lease)
+	}
+	return true, nil
+}
+
+// ReleaseQueryReportWriteSlot mocks the live query store ReleaseQueryReportWriteSlot method.
+func (m *MockLiveQuery) ReleaseQueryReportWriteSlot(token string) error {
+	if m.ReleaseQueryReportWriteSlotOverride != nil {
+		return m.ReleaseQueryReportWriteSlotOverride(token)
 	}
 	return nil
 }

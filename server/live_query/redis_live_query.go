@@ -1164,3 +1164,163 @@ func (r *redisLiveQuery) ClearQueryReportsClipped(queryIDs []uint) error {
 
 	return nil
 }
+
+const (
+	// The hash tag keeps both sets in the same cluster slot for the script that moves rows between them.
+	queryResultsLastFetchedKey           = "{query_results_last_fetched}"
+	queryResultsLastFetchedProcessingKey = "{query_results_last_fetched}:processing"
+	// queryResultsLastFetchedTTL keeps the sets from lingering if the cron stops running.
+	queryResultsLastFetchedTTL       = 24 * time.Hour
+	queryResultsLastFetchedScanCount = 1000
+)
+
+// queryResultsLastFetchedMaxPending bounds the recorded set if the cron falls behind. A var so
+// tests can lower it.
+var queryResultsLastFetchedMaxPending = 500_000
+
+// RecordQueryResultsLastFetched adds the row IDs to a sorted set scored by fetch time.
+func (r *redisLiveQuery) RecordQueryResultsLastFetched(rowIDs []uint, fetchedAt time.Time) error {
+	if len(rowIDs) == 0 {
+		return nil
+	}
+
+	// KEYS[1]: recorded set
+	// ARGV[1]: ttl for the key
+	// ARGV[2]: maximum number of pending members
+	// ARGV[3:]: score/member pairs
+	//
+	// Members are added one at a time because unpack() is limited to a few thousand values.
+	script := redigo.NewScript(1, `
+    if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[2]) then
+      return 0
+    end
+    for i = 3, #ARGV, 2 do
+      redis.call('ZADD', KEYS[1], ARGV[i], ARGV[i+1])
+    end
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+    return 1
+  `)
+
+	args := redigo.Args{queryResultsLastFetchedKey, int(queryResultsLastFetchedTTL.Seconds()), queryResultsLastFetchedMaxPending}
+	ts := fetchedAt.Unix()
+	for _, id := range rowIDs {
+		args = args.Add(ts, id)
+	}
+
+	conn := r.pool.Get()
+	defer conn.Close()
+	if err := redis.BindConn(r.pool, conn, queryResultsLastFetchedKey); err != nil {
+		return fmt.Errorf("bind redis connection: %w", err)
+	}
+	added, err := redigo.Int(script.Do(conn, args...))
+	if err != nil {
+		return fmt.Errorf("record query results last fetched: %w", err)
+	}
+	if added == 0 {
+		return fleet.ErrQueryResultsLastFetchedFull
+	}
+	return nil
+}
+
+// LoadQueryResultsLastFetched keeps the latest fetch time of a row that is both recorded and
+// left in the processing set by a failed run.
+func (r *redisLiveQuery) LoadQueryResultsLastFetched() (map[uint]time.Time, error) {
+	// KEYS[1]: recorded set
+	// KEYS[2]: processing set
+	// ARGV[1]: ttl for the processing key
+	script := redigo.NewScript(2, `
+    redis.call('ZUNIONSTORE', KEYS[2], 2, KEYS[1], KEYS[2], 'AGGREGATE', 'MAX')
+    redis.call('DEL', KEYS[1])
+    return redis.call('EXPIRE', KEYS[2], ARGV[1])
+  `)
+
+	conn := r.pool.Get()
+	defer conn.Close()
+	if err := redis.BindConn(r.pool, conn, queryResultsLastFetchedKey, queryResultsLastFetchedProcessingKey); err != nil {
+		return nil, fmt.Errorf("bind redis connection: %w", err)
+	}
+	if _, err := script.Do(conn, queryResultsLastFetchedKey, queryResultsLastFetchedProcessingKey, int(queryResultsLastFetchedTTL.Seconds())); err != nil {
+		return nil, fmt.Errorf("move query results last fetched to processing: %w", err)
+	}
+
+	// ZSCAN can return a member more than once.
+	fetched := make(map[uint]time.Time)
+	cursor := 0
+	for {
+		res, err := redigo.Values(conn.Do("ZSCAN", queryResultsLastFetchedProcessingKey, cursor, "COUNT", queryResultsLastFetchedScanCount))
+		if err != nil {
+			return nil, fmt.Errorf("scan query results last fetched: %w", err)
+		}
+		var vals []uint
+		if _, err := redigo.Scan(res, &cursor, &vals); err != nil {
+			return nil, fmt.Errorf("convert scan results: %w", err)
+		}
+		for i := 0; i+1 < len(vals); i += 2 {
+			fetched[vals[i]] = time.Unix(int64(vals[i+1]), 0).UTC() //nolint:gosec // dismiss G115
+		}
+		if cursor == 0 {
+			return fetched, nil
+		}
+	}
+}
+
+// ClearProcessedQueryResultsLastFetched deletes the processing set.
+func (r *redisLiveQuery) ClearProcessedQueryResultsLastFetched() error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("DEL", queryResultsLastFetchedProcessingKey); err != nil {
+		return fmt.Errorf("delete query results last fetched processing set: %w", err)
+	}
+	return nil
+}
+
+// queryReportWriteSlotsKey is a sorted set of write slot holder tokens scored by lease expiry, in
+// unix milliseconds.
+const queryReportWriteSlotsKey = "query_report_write_slots"
+
+// AcquireQueryReportWriteSlot uses leases rather than a counter so slots held by a server that
+// dies are freed. Expiry is based on the Fleet servers' clocks, so clock skew between them only
+// shortens or extends leases by that much.
+func (r *redisLiveQuery) AcquireQueryReportWriteSlot(token string, limit int, lease time.Duration) (bool, error) {
+	// KEYS[1]: slots set
+	// ARGV[1]: now (unix ms)
+	// ARGV[2]: limit
+	// ARGV[3]: lease (ms)
+	// ARGV[4]: token
+	script := redigo.NewScript(1, `
+    local now = tonumber(ARGV[1])
+    redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
+    if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[2]) then
+      return 0
+    end
+    redis.call('ZADD', KEYS[1], now + tonumber(ARGV[3]), ARGV[4])
+    -- Only extend the key's expiry, so it never drops slots with a longer lease.
+    if redis.call('PTTL', KEYS[1]) < tonumber(ARGV[3]) then
+      redis.call('PEXPIRE', KEYS[1], ARGV[3])
+    end
+    return 1
+  `)
+
+	conn := r.pool.Get()
+	defer conn.Close()
+	if err := redis.BindConn(r.pool, conn, queryReportWriteSlotsKey); err != nil {
+		return false, fmt.Errorf("bind redis connection: %w", err)
+	}
+	acquired, err := redigo.Int(script.Do(conn, queryReportWriteSlotsKey, time.Now().UnixMilli(), limit, lease.Milliseconds(), token))
+	if err != nil {
+		return false, fmt.Errorf("acquire query report write slot: %w", err)
+	}
+	return acquired == 1, nil
+}
+
+// ReleaseQueryReportWriteSlot removes token from the slots set.
+func (r *redisLiveQuery) ReleaseQueryReportWriteSlot(token string) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("ZREM", queryReportWriteSlotsKey, token); err != nil {
+		return fmt.Errorf("release query report write slot: %w", err)
+	}
+	return nil
+}
