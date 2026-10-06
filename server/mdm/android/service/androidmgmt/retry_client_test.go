@@ -79,6 +79,48 @@ func TestRetryClientIssueCommand(t *testing.T) {
 	}
 }
 
+func TestRetryClientBudget(t *testing.T) {
+	tests := []struct {
+		name      string
+		delays    []time.Duration
+		budget    time.Duration
+		errs      []error
+		wantCalls int
+		wantErr   bool
+	}{
+		{name: "retry within budget", delays: []time.Duration{time.Millisecond}, budget: time.Minute, errs: []error{errTooManyRequests, nil}, wantCalls: 2},
+		{name: "retry past budget is not started", delays: []time.Duration{time.Hour}, budget: time.Minute, errs: []error{errTooManyRequests}, wantCalls: 1, wantErr: true},
+		{name: "later retry past budget is not started", delays: []time.Duration{time.Millisecond, time.Hour}, budget: time.Minute, errs: []error{errTooManyRequests, errTooManyRequests}, wantCalls: 2, wantErr: true},
+		{name: "first attempt counts against budget", delays: []time.Duration{time.Millisecond}, budget: 0, errs: []error{errTooManyRequests}, wantCalls: 1, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls int
+			inner := &mock.Client{}
+			inner.EnterprisesDevicesIssueCommandFunc = func(context.Context, string, *androidmanagement.Command) (*androidmanagement.Operation, error) {
+				require.Less(t, calls, len(tt.errs), "unexpected extra call")
+				err := tt.errs[calls]
+				calls++
+				if err != nil {
+					return nil, err
+				}
+				return &androidmanagement.Operation{}, nil
+			}
+			client := androidmgmt.NewRetryClientWithBudget(inner, tt.delays, tt.budget)
+
+			start := time.Now()
+			_, err := client.EnterprisesDevicesIssueCommand(t.Context(), "enterprises/e/devices/d", &androidmanagement.Command{Type: "LOCK"})
+			assert.Less(t, time.Since(start), time.Minute)
+			assert.Equal(t, tt.wantCalls, calls)
+			if tt.wantErr {
+				assert.True(t, androidmgmt.IsTooManyRequestsError(err))
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestRetryClientStopsWhenContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()

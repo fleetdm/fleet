@@ -1,0 +1,1 @@
+- Fixed Android actions such as lock showing an error even though they succeeded, or being dropped, when the Android Management API rate limit was hit more than once in a row. Fleet now retries a rate-limited call once, only when the retry can finish before the response is sent, and otherwise reports the failure right away.
