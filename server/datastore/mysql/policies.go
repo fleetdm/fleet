@@ -1938,6 +1938,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			teamIDToPoliciesByName[teamID][p.Name] = p
 		}
 
+		// Load each policy's current label scoping, so we can later tell whether the spec changed it.
 		if teamID == nil {
 			query, args, err = sqlx.In(`SELECT p.name AS policy_name, l.name AS label_name, pl.exclude, pl.require_all
 				FROM policy_labels pl JOIN policies p ON p.id = pl.policy_id JOIN labels l ON l.id = pl.label_id
@@ -2243,8 +2244,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					return ctxerr.Wrap(ctx, err, "exec policies update labels")
 				}
 
-				// Only clean up membership when the policy or its labels changed. GitOps sends every policy on every run,
-				// and cleaning up all of them hammers policy_membership, deadlocking with policy result ingestion at scale.
+				// Only clean up membership when the policy or its labels changed.
 				_, prevFound := teamIDToPoliciesByName[teamID][spec.Name]
 				labelsChanged := !maps.Equal(teamIDToPolicyLabelsByName[teamID][spec.Name], policySpecLabelScopes(spec))
 				needsCleanup := !prevFound || policyRowChanged || shouldRemoveAllPolicyMemberships || labelsChanged
