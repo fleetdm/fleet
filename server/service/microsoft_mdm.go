@@ -3325,6 +3325,20 @@ func (svc *Service) checkWindowsMDMEnrollmentOwner(ctx context.Context, existing
 		return "", ctxerr.New(ctx, idName+" is enrolled to another host")
 	}
 
+	if existing.HostUUID == "" {
+		// No host links this enrollment, for example because the device was reset before its first management session, so
+		// there is no host to delete. The hourly stale enrollment cleanup removes it.
+		svc.logger.WarnContext(ctx,
+			"refusing windows MDM enrollment with a "+idName+" enrolled to another Entra device that is not linked to a host; Fleet "+
+				"removes that enrollment after mdm.windows_enrollment_retention without activity",
+			idKey, id,
+			"enrolling_host_uuid", hostUUID,
+			"enrolling_entra_device_id", entraDeviceID,
+			"existing_entra_device_id", boundEntraDeviceID,
+		)
+		return "", ctxerr.New(ctx, idName+" is enrolled to another host")
+	}
+
 	// A plain Entra join after a reset creates a new Entra device, so this is also how a reset device that Fleet did not wipe
 	// comes back; deleting its host releases the hardware ID.
 	svc.logger.WarnContext(ctx,

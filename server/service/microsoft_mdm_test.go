@@ -3916,7 +3916,16 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 				}, attrs)
 				return
 			}
-			if tc.enrollingHost == "" || matched.HostUUID == "" {
+			if matched.HostUUID == "" {
+				require.Equal(t, map[string]string{
+					idKey:                       id,
+					"enrolling_host_uuid":       tc.enrollingHost,
+					"enrolling_entra_device_id": tc.enrollingEntraDeviceID,
+					"existing_entra_device_id":  existingEntraDeviceID,
+				}, attrs)
+				return
+			}
+			if tc.enrollingHost == "" {
 				require.Equal(t, map[string]string{
 					idKey:                       id,
 					"enrolling_host_uuid":       tc.enrollingHost,
