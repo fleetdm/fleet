@@ -835,27 +835,21 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	// lifecycle and update the lifecycle to support Android, so that TurnOnMDM
 	// inserts the host_mdm, and TurnOffMDM deletes it.
 
-	var enrollmentTokenRequest enrollmentTokenRequest
-	err = json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "unmarshalling enrollment token data")
-	}
-
 	if host != nil {
 		svc.logger.DebugContext(ctx, "The enrolling Android host is already present in Fleet. Updating team if needed",
 			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
-		enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(ctx, device.EnrollmentTokenData)
 		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "verifying enroll secret")
+			return 0, err
 		}
-		host.TeamID = enrollSecret.GetTeamID()
+		host.TeamID = teamID
 
-		if enrollmentTokenRequest.IdpUUID != "" {
-			previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, enrollmentTokenRequest.IdpUUID)
+		if idpUUID != "" {
+			previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, idpUUID)
 			if err != nil {
 				return 0, ctxerr.Wrap(ctx, err, "updating IdP account on re-enrollment")
 			}
-			shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.newActivity, svc.logger, host.Host.UUID, previousAcctUUID, enrollmentTokenRequest.IdpUUID)
+			shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.newActivity, svc.logger, host.Host.UUID, previousAcctUUID, idpUUID)
 		}
 
 		if err := svc.updateHost(ctx, device, host, true); err != nil {
