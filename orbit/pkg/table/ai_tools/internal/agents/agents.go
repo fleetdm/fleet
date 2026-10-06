@@ -25,7 +25,7 @@ type Agent struct {
 	Name          string
 	Binary        string
 	Path          string
-	BinaryPath    string // resolved path of the executable file (hashed)
+	BinaryPath    string // path where the executable was found (a link, for linked installs)
 	Version       string
 	Runtime       string // node | bun | python | rust | go | native
 	InstallMethod string // npm-global | pipx | homebrew | cargo | native | evidence
@@ -53,22 +53,27 @@ type known struct {
 	// is running in an unattended auto-approve / sandbox-disabled mode — the
 	// single highest-risk agentic posture on a host.
 	autoFlags []string
+	// versionsDir, relative to the home, is where the tool's native installer
+	// keeps one entry per version and links the bin-dir binary into it
+	// (~/.local/bin/claude -> ~/.local/share/claude/versions/<v>), so the
+	// version is the first path element under it.
+	versionsDir string
 }
 
 func knownAgents() []known {
 	return []known{
-		{"claude-code", []string{"claude"}, "@anthropic-ai/claude-code", "", "node", []string{"--dangerously-skip-permissions", "skip-permissions"}},
-		{"gemini-cli", []string{"gemini"}, "@google/gemini-cli", "", "node", []string{"--yolo", "--approval-mode yolo"}},
-		{"codex", []string{"codex"}, "@openai/codex", "", "rust", []string{"--dangerously-bypass-approvals-and-sandbox", "--yolo", "--full-auto", "danger-full-access"}},
-		{"aider", []string{"aider"}, "", "aider-chat", "python", []string{"--yes-always", "--yes"}},
-		{"goose", []string{"goose"}, "", "", "rust", nil},
-		{"opencode", []string{"opencode"}, "opencode-ai", "", "go", nil},
-		{"cline", []string{"cline"}, "cline", "", "node", nil},
-		{"continue-cli", []string{"cn"}, "@continuedev/cli", "", "node", nil},
-		{"cursor-agent", []string{"cursor-agent"}, "", "", "native", nil},
-		{"amazon-q", []string{"q", "kiro"}, "", "", "native", nil},
+		{"claude-code", []string{"claude"}, "@anthropic-ai/claude-code", "", "node", []string{"--dangerously-skip-permissions", "skip-permissions"}, ".local/share/claude/versions"},
+		{"gemini-cli", []string{"gemini"}, "@google/gemini-cli", "", "node", []string{"--yolo", "--approval-mode yolo"}, ""},
+		{"codex", []string{"codex"}, "@openai/codex", "", "rust", []string{"--dangerously-bypass-approvals-and-sandbox", "--yolo", "--full-auto", "danger-full-access"}, ""},
+		{"aider", []string{"aider"}, "", "aider-chat", "python", []string{"--yes-always", "--yes"}, ""},
+		{"goose", []string{"goose"}, "", "", "rust", nil, ""},
+		{"opencode", []string{"opencode"}, "opencode-ai", "", "go", nil, ""},
+		{"cline", []string{"cline"}, "cline", "", "node", nil, ""},
+		{"continue-cli", []string{"cn"}, "@continuedev/cli", "", "node", nil, ""},
+		{"cursor-agent", []string{"cursor-agent"}, "", "", "native", nil, ".local/share/cursor-agent/versions"},
+		{"amazon-q", []string{"q", "kiro"}, "", "", "native", nil, ""},
 		// Catalog sugar for common CLIs; multi-signal evidence still covers unknowns.
-		{"grok", []string{"grok"}, "", "", "native", nil},
+		{"grok", []string{"grok"}, "", "", "native", nil, ""},
 	}
 }
 
@@ -84,7 +89,7 @@ func Scan(h homes.Home, snap *proc.Snapshot, b *evidence.Bundle) []Agent {
 		filepath.Join(h.Dir, ".hermes", "bin"),
 		filepath.Join(h.Dir, ".openclaw", "bin"),
 	)
-	nmDirs := nodeModulesDirs(h.Dir, r)
+	nmDirs := paths.NodeModulesDirs(h.Dir)
 	out := make([]Agent, 0, len(knownAgents()))
 	seen := map[string]int{} // name -> index in out
 
@@ -127,7 +132,9 @@ func Scan(h homes.Home, snap *proc.Snapshot, b *evidence.Bundle) []Agent {
 					out[idx].BinaryPath = c.BinaryPath
 					out[idx].SHA256 = fsutil.SHA256(resolveSystemBinary(c.BinaryPath))
 				}
-				if c.Category == "agent-harness" {
+				// A tool home's own shape (Claude Code's ~/.claude/skills) labels
+				// a tool known only by its home, not a catalog runtime.
+				if c.Category == "agent-harness" && !c.Signals.Has("tool_home") {
 					out[idx].Category = "agent-harness"
 				}
 				continue
@@ -227,7 +234,7 @@ func detect(k known, home string, binDirs, nmDirs []string) (Agent, bool) {
 	// 2. pipx venv.
 	if a.Path == "" && k.pipxName != "" {
 		venv := filepath.Join(home, ".local", "pipx", "venvs", k.pipxName)
-		if isDir(venv) {
+		if fsutil.IsDir(venv) {
 			a.Path, a.InstallMethod, a.Runtime = venv, "pipx", "python"
 			a.Version = pipxVersion(venv, k.pipxName)
 		}
@@ -240,6 +247,13 @@ func detect(k known, home string, binDirs, nmDirs []string) (Agent, bool) {
 		if a.Path == "" {
 			a.Path = path
 			a.InstallMethod = methodFromPath(path)
+			// Report the installed binary rather than the bin-dir link, so the
+			// path matches the package manager's install directory and carries
+			// the native installer's version.
+			if target := installedPath(home, path); target != path {
+				a.Path = target
+				a.Version = versionFromPath(home, k.versionsDir, target)
+			}
 		}
 	} else if a.Path == "" {
 		return Agent{}, false
@@ -276,6 +290,41 @@ func resolveSystemBinary(p string) string {
 	return p
 }
 
+// installedPath returns what the agent binary found at p links to. A link under
+// a trusted system prefix is resolved fully, as for hashing. A link under the
+// user's home is read one level and used only when it points at a file in the
+// same home (fsutil.LinkTargetWithin): the scanner reports that path and parses
+// a version from it, but never opens anything through a user-controlled link.
+func installedPath(home, p string) string {
+	if resolved := resolveSystemBinary(p); resolved != p {
+		return resolved
+	}
+	if home == "" {
+		return p
+	}
+	if target, ok := fsutil.LinkTargetWithin(home, p); ok {
+		return target
+	}
+	return p
+}
+
+// versionFromPath returns the version directory or file name under a native
+// installer's versionsDir, or "" when target isn't under it.
+func versionFromPath(home, versionsDir, target string) string {
+	if versionsDir == "" {
+		return ""
+	}
+	rel, err := filepath.Rel(filepath.Join(home, filepath.FromSlash(versionsDir)), target)
+	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+		return ""
+	}
+	v, _, _ := strings.Cut(rel, string(filepath.Separator))
+	if v == "" || v[0] < '0' || v[0] > '9' {
+		return ""
+	}
+	return v
+}
+
 func agentBinDirs(home string, _ paths.Roots) []string {
 	dirs := []string{
 		filepath.Join(home, ".local", "bin"),
@@ -291,23 +340,6 @@ func agentBinDirs(home string, _ paths.Roots) []string {
 		dirs = append(dirs, filepath.Join(home, "AppData", "Roaming", "npm"))
 	} else {
 		dirs = append(dirs, "/usr/local/bin", "/opt/homebrew/bin", "/usr/bin")
-	}
-	return dirs
-}
-
-func nodeModulesDirs(home string, _ paths.Roots) []string {
-	dirs := []string{
-		filepath.Join(home, ".npm-global", "lib", "node_modules"),
-		filepath.Join(home, ".bun", "install", "global", "node_modules"),
-	}
-	if runtime.GOOS == "windows" {
-		dirs = append(dirs, filepath.Join(home, "AppData", "Roaming", "npm", "node_modules"))
-	} else {
-		dirs = append(dirs, "/usr/local/lib/node_modules", "/opt/homebrew/lib/node_modules")
-	}
-	// nvm-managed node versions
-	if matches, _ := filepath.Glob(filepath.Join(home, ".nvm", "versions", "node", "*", "lib", "node_modules")); matches != nil {
-		dirs = append(dirs, matches...)
 	}
 	return dirs
 }
@@ -386,7 +418,7 @@ func markRunning(a *Agent, k known, snap *proc.Snapshot) string {
 	}
 	for pid, p := range snap.Procs {
 		for _, bin := range k.binaries {
-			if procMatchesBin(p.Name, p.Exe, p.Cmdline, bin) {
+			if p.MatchesBin(bin) {
 				a.Running, a.PID = 1, pid
 				return p.Cmdline
 			}
@@ -403,39 +435,4 @@ func markRunning(a *Agent, k known, snap *proc.Snapshot) string {
 		}
 	}
 	return ""
-}
-
-// procMatchesBin reports whether a live process is the given binary.
-// Matches exact process name, exe basename, or a path-token in the command
-// line — never name suffix (short bins like "q" would false-positive).
-func procMatchesBin(name, exe, cmdline, bin string) bool {
-	bin = strings.ToLower(bin)
-	if bin == "" {
-		return false
-	}
-	name = strings.ToLower(name)
-	if name == bin || name == bin+".exe" {
-		return true
-	}
-	base := strings.ToLower(filepath.Base(exe))
-	if base == bin || base == bin+".exe" {
-		return true
-	}
-	cmd := strings.ToLower(cmdline)
-	for _, sep := range []string{"/", "\\"} {
-		tok := sep + bin
-		if strings.HasSuffix(cmd, tok) || strings.Contains(cmd, tok+" ") ||
-			strings.HasSuffix(cmd, tok+".exe") || strings.Contains(cmd, tok+".exe ") {
-			return true
-		}
-	}
-	return false
-}
-
-func isDir(p string) bool {
-	fi, err := os.Stat(p)
-	if err != nil {
-		return false
-	}
-	return fi.IsDir()
 }

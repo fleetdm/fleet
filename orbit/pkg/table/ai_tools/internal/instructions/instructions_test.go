@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 )
 
@@ -34,7 +35,7 @@ func TestScanFindsInstructionFiles(t *testing.T) {
 	write(t, filepath.Join(home, "projects", "app", ".cursor", "rules", "main.mdc"), "use tabs", 0o600)
 
 	by := map[string]Instruction{}
-	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}) {
+	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}, fsutil.WalkHome(home, WalkProbes())) {
 		by[in.Path] = in
 	}
 
@@ -73,7 +74,7 @@ func TestHiddenUnicode(t *testing.T) {
 	write(t, filepath.Join(home, "CLAUDE.md"), content, 0o600)
 
 	var found *Instruction
-	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}) {
+	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}, fsutil.WalkHome(home, WalkProbes())) {
 		if in.Name == "CLAUDE.md" {
 			cp := in
 			found = &cp
@@ -100,7 +101,7 @@ func TestWorldWritableFlag(t *testing.T) {
 	if err := os.Chmod(p, 0o666); err != nil { //nolint:gosec // test fixture: intentionally world-writable to exercise world_writable detection
 		t.Fatal(err)
 	}
-	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}) {
+	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}, fsutil.WalkHome(home, WalkProbes())) {
 		if in.Name == "CLAUDE.md" {
 			if !strings.Contains(in.RiskFlags, "world_writable") {
 				t.Errorf("0666 instruction file should flag world_writable: %q", in.RiskFlags)

@@ -11,11 +11,17 @@
 // It is optimized for a lightweight footprint:
 //   - constraint pushdown: a query with `WHERE type = '...'` (or `type IN (...)`)
 //     only runs the collectors it needs;
-//   - one process/connection snapshot per query (shared across mcp/agents/apps/
-//     sockets), taken only when one of those types is requested;
+//   - one process snapshot per query (shared across mcp/agents/apps/sockets),
+//     taken only when one of those types is requested; network connections are
+//     enumerated only when a socket or a process-derived MCP server needs them;
 //   - one home-directory enumeration, shared by every collector except sockets
-//     and skipped for a sockets-only query; and one MCP-config scan, used only
-//     by the mcp_server collector.
+//     and skipped for a sockets-only query;
+//   - one bounded directory walk per home, shared by the MCP-config,
+//     instruction-file and agent-evidence collectors;
+//   - the home enumeration, process snapshot and home walks are kept for a few
+//     seconds after a query, because osquery generates the table once per
+//     value of a `type IN (...)` list and each of those calls would otherwise
+//     repeat them.
 package ai_tools
 
 import (
@@ -23,9 +29,12 @@ import (
 	"encoding/json"
 	"maps"
 	"net"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/osquery/osquery-go/plugin/table"
 
@@ -33,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/apps"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/browserext"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/evidence"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/ide"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/instructions"
@@ -98,25 +108,22 @@ func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, 
 	}
 	has := func(t string) bool { _, ok := types[t]; return ok }
 
-	// homes.All() feeds every collector except sockets (which works purely off
-	// the process/connection snapshot), so skip the home enumeration entirely for
-	// a sockets-only query.
-	var hs []homes.Home
-	if has("mcp_server") || has("ide_plugins") || has("agents") ||
-		has("apps") || has("agent_instruction") || has("browser_extension") {
-		hs = homes.All()
-	}
-
+	// The home enumeration feeds every collector except sockets (which works
+	// purely off the process/connection snapshot), so a sockets-only query skips
+	// it entirely.
+	needHomes := has("mcp_server") || has("ide_plugins") || has("agents") ||
+		has("apps") || has("agent_instruction") || has("browser_extension")
 	needProc := has("mcp_server") || has("agents") || has("apps") || has("sockets")
-	var snap *proc.Snapshot
-	if needProc {
-		snap = proc.Take(ctx)
+	needWalks := has("mcp_server") || has("agents") || has("agent_instruction")
+	hs, snap, walks, err := shared.get(ctx, needHomes, needProc, needWalks)
+	if err != nil {
+		return nil, err
 	}
 
 	// Shared multi-signal evidence (tool homes, workspace shapes, frameworks).
 	var bundle *evidence.Bundle
 	if has("agents") {
-		bundle = evidence.Gather(ctx, hs, snap, types)
+		bundle = evidence.Gather(ctx, hs, snap, types, walks)
 	}
 
 	// MCP config scan feeds only the mcp_server rows (the sockets collector no
@@ -127,7 +134,7 @@ func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, 
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
-			servers = append(servers, mcp.ScanConfigs(h)...)
+			servers = append(servers, mcp.ScanConfigs(h, walks[h.Dir])...)
 		}
 	}
 
@@ -175,7 +182,7 @@ func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, 
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
-			for _, in := range instructions.Scan(h) {
+			for _, in := range instructions.Scan(h, walks[h.Dir]) {
 				rows = append(rows, instructionRow(in))
 			}
 		}
@@ -193,9 +200,10 @@ func generate(ctx context.Context, qc table.QueryContext) ([]map[string]string, 
 	return rows, nil
 }
 
-// requestedTypes reads `type` equality/IN constraints so we only run the
-// collectors the query asks for. Any non-equality predicate (!=, LIKE) falls
-// back to all types (safe superset).
+// requestedTypes reads `type` equality constraints so we only run the
+// collectors the query asks for; an `IN` list arrives as one call per value.
+// Any other predicate (!=, LIKE, GLOB) falls back to all types, a safe
+// superset that SQLite filters.
 func requestedTypes(qc table.QueryContext) map[string]struct{} {
 	cl, ok := qc.Constraints["type"]
 	if !ok {
@@ -219,6 +227,83 @@ func requestedTypes(qc table.QueryContext) map[string]struct{} {
 		}
 	}
 	return out
+}
+
+// sharedInputs are the inputs every collector reads: the home enumeration,
+// the process snapshot and the walk of each home. osquery generates a table
+// once per value of a `type IN (...)` list, so they are kept for
+// sharedInputsTTL after the call that computed them and reused by the calls
+// that follow; after that the next query starts over.
+type sharedInputs struct {
+	mu        sync.Mutex
+	expiry    time.Time
+	haveHomes bool
+	homes     []homes.Home
+	snap      *proc.Snapshot
+	walks     map[string][]fsutil.WalkedDir
+}
+
+const sharedInputsTTL = 10 * time.Second
+
+var shared sharedInputs
+
+// walkProbes are the paths every walk-fed collector checks in a directory;
+// the walk keeps only directories holding one of them.
+var walkProbes = slices.Concat(mcp.WalkProbes(), instructions.WalkProbes(), evidence.WalkProbes())
+
+// The producers behind sharedInputs, replaced by tests.
+var (
+	enumerateHomes = homes.All
+	takeSnapshot   = proc.Take
+	walkHome       = fsutil.WalkHome
+)
+
+// get returns the inputs the query needs, computing those not already held.
+func (s *sharedInputs) get(ctx context.Context, needHomes, needProc, needWalks bool) ([]homes.Home, *proc.Snapshot, map[string][]fsutil.WalkedDir, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if time.Now().After(s.expiry) {
+		s.clear()
+	}
+	if (needHomes || needWalks) && !s.haveHomes {
+		s.homes, s.haveHomes = enumerateHomes(), true
+	}
+	if needProc && s.snap == nil {
+		s.snap = takeSnapshot(ctx)
+	}
+	if needWalks && s.walks == nil {
+		walks := make(map[string][]fsutil.WalkedDir, len(s.homes))
+		for _, h := range s.homes {
+			if err := ctx.Err(); err != nil {
+				return nil, nil, nil, err
+			}
+			walks[h.Dir] = walkHome(h.Dir, walkProbes)
+		}
+		s.walks = walks
+	}
+	// The window starts when the first call of a query has its inputs and isn't
+	// extended by the calls that reuse them, so queries arriving back to back
+	// can't keep stale inputs alive.
+	if s.expiry.IsZero() {
+		s.expiry = time.Now().Add(sharedInputsTTL)
+		time.AfterFunc(sharedInputsTTL+time.Second, s.release)
+	}
+	return s.homes, s.snap, s.walks, nil
+}
+
+// release drops the inputs once they have expired, so a snapshot of every
+// process and walk of every home isn't held until the next query.
+func (s *sharedInputs) release() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if time.Now().After(s.expiry) {
+		s.clear()
+	}
+}
+
+func (s *sharedInputs) clear() {
+	s.homes, s.haveHomes, s.snap, s.walks = nil, false, nil, nil
+	s.expiry = time.Time{}
 }
 
 func allSet() map[string]struct{} {

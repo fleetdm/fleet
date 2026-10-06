@@ -3,10 +3,14 @@ package agents
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/evidence"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/proc"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDetectClaudeCode(t *testing.T) {
@@ -95,15 +99,6 @@ func TestShortBinaryExactRunning(t *testing.T) {
 	t.Fatal("amazon-q not detected")
 }
 
-func TestProcMatchesBinRejectsSuffix(t *testing.T) {
-	if procMatchesBin("myclaude", "/usr/bin/myclaude", "myclaude", "claude") {
-		t.Fatal("name suffix must not match")
-	}
-	if !procMatchesBin("claude", "/usr/local/bin/claude", "/usr/local/bin/claude --help", "claude") {
-		t.Fatal("exact match should work")
-	}
-}
-
 func write(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -122,4 +117,84 @@ func writeExec(t *testing.T, path string) {
 	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil { //nolint:gosec // test fixture: simulates an executable agent binary
 		t.Fatal(err)
 	}
+}
+
+func scanWithEvidence(t *testing.T, h homes.Home) []Agent {
+	t.Helper()
+	b := evidence.Gather(t.Context(), []homes.Home{h}, nil, map[string]struct{}{"agents": {}},
+		map[string][]fsutil.WalkedDir{h.Dir: fsutil.WalkHome(h.Dir, evidence.WalkProbes())})
+	return Scan(h, &proc.Snapshot{Procs: map[int]proc.Process{}}, b)
+}
+
+func byName(agents []Agent, name string) []Agent {
+	var out []Agent
+	for _, a := range agents {
+		if a.Name == name {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+func TestClaudeHomeWithSkillsIsOneRow(t *testing.T) {
+	home := t.TempDir()
+	writeExec(t, filepath.Join(home, ".local", "bin", "claude"))
+	write(t, filepath.Join(home, ".claude", "CLAUDE.md"), "# rules")
+	write(t, filepath.Join(home, ".claude", "skills", "qa", "SKILL.md"), "# qa")
+
+	got := byName(scanWithEvidence(t, homes.Home{Dir: home, Username: "u"}), "claude-code")
+	require.Len(t, got, 1, "%+v", got)
+	require.Equal(t, 100, got[0].Confidence)
+	require.Contains(t, got[0].Evidence, "catalog")
+	require.Contains(t, got[0].Evidence, "workspace_shape")
+	require.Equal(t, "agent-runtime", got[0].Category)
+}
+
+func symlink(t *testing.T, target, link string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(filepath.Dir(link), 0o755))
+	require.NoError(t, os.Symlink(target, link))
+}
+
+func TestNativeInstallVersionAndResolvedPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("native installers link only on macOS and Linux")
+	}
+	for _, tc := range []struct {
+		name, target, version string // target relative to home
+	}{
+		{"binary named by version", ".local/share/claude/versions/2.0.14", "2.0.14"},
+		{"binary in version dir", ".local/share/claude/versions/2.0.14/claude", "2.0.14"},
+		{"outside the installer's versions", "opt/claude", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := t.TempDir()
+			target := filepath.Join(home, filepath.FromSlash(tc.target))
+			writeExec(t, target)
+			link := filepath.Join(home, ".local", "bin", "claude")
+			symlink(t, target, link)
+
+			got := byName(Scan(homes.Home{Dir: home, Username: "u"}, nil, nil), "claude-code")
+			require.Len(t, got, 1)
+			require.Equal(t, tc.version, got[0].Version)
+			require.Equal(t, target, got[0].Path)
+			require.Equal(t, link, got[0].BinaryPath)
+		})
+	}
+}
+
+// A link the scanner won't resolve (fsutil.LinkTargetWithin covers which) stays
+// the reported path, and no version is read from where it points.
+func TestNativeInstallUnresolvedLinkKeepsLinkPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("native installers link only on macOS and Linux")
+	}
+	home := t.TempDir()
+	link := filepath.Join(home, ".local", "bin", "claude")
+	symlink(t, filepath.Join(home, ".local", "share", "claude", "versions", "2.0.14"), link)
+
+	got := byName(Scan(homes.Home{Dir: home, Username: "u"}, nil, nil), "claude-code")
+	require.Len(t, got, 1)
+	require.Empty(t, got[0].Version)
+	require.Equal(t, link, got[0].Path)
 }

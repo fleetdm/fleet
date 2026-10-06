@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/paths"
 )
 
 // harnessFrameworks are libraries/products that imply agent-harness category.
@@ -38,13 +41,7 @@ var allFrameworkMarkers = map[string]string{
 	"opencode-ai":               "opencode",
 }
 
-// inSet reports whether a key is present in a string set.
-func inSet(s map[string]struct{}, k string) bool {
-	_, ok := s[k]
-	return ok
-}
-
-func scanFrameworks(h homes.Home) []Framework {
+func scanFrameworks(h homes.Home, dirs []fsutil.WalkedDir) []Framework {
 	var out []Framework
 	seen := map[string]struct{}{}
 
@@ -54,18 +51,19 @@ func scanFrameworks(h homes.Home) []Framework {
 			return
 		}
 		seen[key] = struct{}{}
+		_, harness := harnessFrameworks[name]
 		out = append(out, Framework{
 			UID:      h.UID,
 			Username: h.Username,
 			Name:     name,
 			Path:     path,
 			Source:   source,
-			Harness:  inSet(harnessFrameworks, name),
+			Harness:  harness,
 		})
 	}
 
 	// Global node_modules package dirs (names only).
-	for _, nm := range nodeModuleRoots(h.Dir) {
+	for _, nm := range paths.NodeModulesDirs(h.Dir) {
 		ents, err := os.ReadDir(nm)
 		if err != nil {
 			continue
@@ -107,40 +105,27 @@ func scanFrameworks(h homes.Home) []Framework {
 		}
 	}
 
-	// Project package.json / pyproject under known project roots (depth-capped).
-	for _, root := range projectRoots(h.Dir) {
-		fsutil.WalkBounded(root, 3, func(dir string) {
-			pj := filepath.Join(dir, "package.json")
-			if fsutil.Exists(pj) {
-				for _, label := range parsePackageJSONDeps(pj) {
-					add(label, pj, "package.json")
-				}
-			}
-			py := filepath.Join(dir, "pyproject.toml")
-			if fsutil.Exists(py) {
-				for _, label := range parsePyprojectNames(py) {
-					add(label, py, "pyproject")
-				}
-			}
-		})
-	}
-	return out
-}
-
-func nodeModuleRoots(home string) []string {
-	dirs := []string{
-		filepath.Join(home, ".npm-global", "lib", "node_modules"),
-		filepath.Join(home, ".bun", "install", "global", "node_modules"),
-		"/usr/local/lib/node_modules",
-		"/opt/homebrew/lib/node_modules",
-	}
-	if matches, _ := filepath.Glob(filepath.Join(home, ".nvm", "versions", "node", "*", "lib", "node_modules")); matches != nil {
-		dirs = append(dirs, matches...)
-	}
-	var out []string
+	// Project manifests in project directories.
 	for _, d := range dirs {
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
-			out = append(out, d)
+		if !d.Project {
+			continue
+		}
+		pj := filepath.Join(d.Path, "package.json")
+		if d.Exists("package.json") {
+			for _, label := range parsePackageJSONDeps(pj) {
+				add(label, pj, "package.json")
+			}
+		}
+		for _, f := range []struct{ name, source string }{
+			{"pyproject.toml", "pyproject"},
+			{"requirements.txt", "requirements"},
+		} {
+			p := filepath.Join(d.Path, f.name)
+			if d.Exists(f.name) {
+				for _, label := range parsePythonDependencyNames(p) {
+					add(label, p, f.source)
+				}
+			}
 		}
 	}
 	return out
@@ -151,9 +136,7 @@ func parsePackageJSONDeps(path string) []string {
 	if err != nil {
 		return nil
 	}
-	if len(b) > 256<<10 {
-		b = b[:256<<10]
-	}
+	b = b[:min(len(b), 256<<10)]
 	var m struct {
 		Deps    map[string]string `json:"dependencies"`
 		DevDeps map[string]string `json:"devDependencies"`
@@ -163,10 +146,8 @@ func parsePackageJSONDeps(path string) []string {
 		return nil
 	}
 	var labels []string
-	seen := map[string]struct{}{}
 	consider := func(pkg string) {
-		if label, ok := allFrameworkMarkers[pkg]; ok && !inSet(seen, label) {
-			seen[label] = struct{}{}
+		if label, ok := allFrameworkMarkers[pkg]; ok {
 			labels = append(labels, label)
 		}
 	}
@@ -176,35 +157,88 @@ func parsePackageJSONDeps(path string) []string {
 	for pkg := range m.DevDeps {
 		consider(pkg)
 	}
-	if label, ok := allFrameworkMarkers[m.Name]; ok && !inSet(seen, label) {
-		labels = append(labels, label)
-	}
-	return labels
+	consider(m.Name)
+	return uniqueSorted(labels)
 }
 
-func parsePyprojectNames(path string) []string {
+// parsePythonDependencyNames returns the framework labels for the Python
+// packages a pyproject.toml or requirements.txt names. Every quoted string and
+// every line is read as a PEP 508 requirement, whose name is the leading run of
+// letters, digits, ".", "_" and "-" before any extras, version specifier or
+// environment marker; a TOML key (Poetry's `crewai = "^0.80"`) is read the
+// same way. This is a scan, not a TOML parser, so a quoted string that happens
+// to be exactly a framework's name counts too.
+func parsePythonDependencyNames(path string) []string {
 	b, err := fsutil.ReadFileBounded(path)
 	if err != nil {
 		return nil
 	}
-	if len(b) > 128<<10 {
-		b = b[:128<<10]
-	}
-	s := strings.ToLower(string(b))
+	b = b[:min(len(b), 128<<10)]
 	var labels []string
-	seen := map[string]struct{}{}
-	for pkg, label := range allFrameworkMarkers {
-		if strings.Contains(pkg, "/") {
-			continue // npm scoped
-		}
-		// rough: dependency name appears in file
-		if strings.Contains(s, `"`+pkg+`"`) || strings.Contains(s, `'`+pkg+`'`) ||
-			strings.Contains(s, pkg+" ") || strings.Contains(s, pkg+"\n") {
-			if _, dup := seen[label]; !dup {
-				seen[label] = struct{}{}
-				labels = append(labels, label)
-			}
+	consider := func(s string) {
+		if label, ok := allFrameworkMarkers[normalizePythonName(requirementName(s))]; ok {
+			labels = append(labels, label)
 		}
 	}
-	return labels
+	for line := range strings.SplitSeq(string(b), "\n") {
+		line, _, _ = strings.Cut(line, "#")
+		consider(line)
+		for _, q := range quotedStrings(line) {
+			consider(q)
+		}
+	}
+	return uniqueSorted(labels)
+}
+
+// uniqueSorted returns labels sorted and without repeats, so the result
+// doesn't depend on map iteration order.
+func uniqueSorted(labels []string) []string {
+	slices.Sort(labels)
+	return slices.Compact(labels)
+}
+
+// requirementName returns the distribution name at the start of a PEP 508
+// requirement, or "" when s doesn't start with one.
+func requirementName(s string) string {
+	s = strings.TrimSpace(s)
+	end := strings.IndexFunc(s, func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-')
+	})
+	if end < 0 {
+		return s
+	}
+	switch rest := strings.TrimSpace(s[end:]); {
+	case rest == "", strings.ContainsRune("[;<>=~!,@", rune(rest[0])):
+		return s[:end]
+	default:
+		// Followed by more words: prose, not a requirement.
+		return ""
+	}
+}
+
+// pythonNameSeparators is PEP 503's run of separators that normalizes to "-".
+var pythonNameSeparators = regexp.MustCompile(`[-_.]+`)
+
+// normalizePythonName applies the PEP 503 normalization, so "Semantic__Kernel"
+// and "semantic-kernel" are the same package.
+func normalizePythonName(s string) string {
+	return pythonNameSeparators.ReplaceAllString(strings.ToLower(s), "-")
+}
+
+// quotedStrings returns the contents of each complete '...' or "..." string in
+// line.
+func quotedStrings(line string) []string {
+	var out []string
+	for {
+		i := strings.IndexAny(line, `"'`)
+		if i < 0 {
+			return out
+		}
+		s, rest, ok := strings.Cut(line[i+1:], line[i:i+1])
+		if !ok {
+			return out
+		}
+		out = append(out, s)
+		line = rest
+	}
 }
