@@ -65,6 +65,7 @@
           </div>
         </div>
         <p v-if="!syncing"><a @click="clickDownloadResult()">Download</a> this profile and deploy it using Fleet, Jamf, Intune or Airwatch.</p>
+        <p v-if="!syncing && additionalProfiles.length">Also download <span v-for="(additionalProfile, index) in additionalProfiles"><a @click="clickDownloadAdditionalProfile(additionalProfile)">{{additionalProfile.filename}}</a><span v-if="index < additionalProfiles.length - 1">, </span></span>. These install the ADMX templates this profile needs.</p>
       </div>
     </div>
   </div>
