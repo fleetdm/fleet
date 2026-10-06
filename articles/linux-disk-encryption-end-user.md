@@ -113,6 +113,10 @@ The script uses `curl`, or `wget` if `curl` isn't installed (Ubuntu Desktop does
 
 > The escrow prompt will pop up on the host without warning. Let end users know ahead of time so it isn't unexpected. Someone has to be logged in to the desktop to enter the passphrase.
 
+> The prompt closes after 60 seconds if the end user doesn't respond. On GNOME desktops (Ubuntu, Fedora) it can open behind other windows. If it times out, run the script again.
+>
+> After the end user enters their passphrase, it can take a few minutes for the key to show up in Fleet, especially on VMs. Don't run the script again while escrow is in progress.
+
 ## Trigger the prompt on all hosts in a fleet
 
 To roll escrow out to every Linux host in a fleet, pair a policy that finds hosts without an escrowed key with a [policy automation](https://fleetdm.com/guides/policy-automation-run-script) that runs the script above.
