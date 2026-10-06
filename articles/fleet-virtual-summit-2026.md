@@ -40,7 +40,7 @@ Engineering teams version-control production infrastructure, review changes in p
 </table>
 
 
-<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-infrastructure-as-code">Book your slot for this session here</a>
+<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-infrastructure-as-code">Reserve a spot spot in this session</a>
 
 
 ### Open source in enterprise device management
@@ -68,7 +68,7 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
   </tbody>
 </table>
 
-<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-open-source-in-device-management">Book your slot for this session here</a>
+<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-open-source-in-device-management">Reserve a spot spot in this session</a>
 
 
 ### AI agents as a device management problem
@@ -94,7 +94,7 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
 
 *More panelists to be announced*
 
-<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem">Book your slot for this session here</a>
+<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem">Reserve a spot spot in this session</a>
 
 
 ### Device management 2030
@@ -120,7 +120,7 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 
 *More panelists to be announced*
 
-<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030">Book your slot for this session here</a>
+<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030">Reserve a spot spot in this session</a>
 
 
 ## How to watch
