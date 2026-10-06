@@ -96,7 +96,7 @@ Fleet connects federated identity to device management across macOS, iOS, iPadOS
 
 Fleet ships native conditional access integrations with Microsoft Entra ID and Okta. Both integrations support macOS, and the Entra integration adds Windows. Each shares device compliance state with the IdP, so federated app access is blocked when a device falls out of policy.
 
-Fleet Premium also closes the loop on conditional access. When a device fails a compliance check, Fleet's policy automations can install software, run remediation scripts, fire webhooks, or open tickets in Jira, Zendesk, or ServiceNow. Each policy retries up to three times before access stays blocked.
+Fleet Premium also closes the loop on conditional access. When a device fails a compliance check, Fleet's policy automations can install software, run remediation scripts, fire webhooks, or open tickets in Jira or Zendesk. ServiceNow can be reached via webhooks and the REST API. Each policy retries up to three times before access stays blocked.
 
 Fleet's vulnerability detection automatically identifies CVEs on managed devices by matching installed software against NVD, KEV, and EPSS data, giving access policies a current posture signal to act on. Because every Fleet product is open source, security teams can audit how compliance is evaluated and reported to the IdP, which matters when access decisions hinge on that signal.
 

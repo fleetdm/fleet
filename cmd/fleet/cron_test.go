@@ -44,7 +44,7 @@ func TestNewWindowsMDMProfileManagerWithoutConfig(t *testing.T) {
 	ds := new(mock.Store)
 	logger := slog.New(slog.DiscardHandler)
 
-	sch, err := newWindowsMDMProfileManagerSchedule(ctx, "foo", ds, logger)
+	sch, err := newWindowsMDMProfileManagerSchedule(ctx, "foo", ds, logger, false)
 	require.NotNil(t, sch)
 	require.NoError(t, err)
 }
@@ -364,6 +364,74 @@ func TestCleanupWindowsMDMCommandHistoryCronJob(t *testing.T) {
 			return fleet.MDMWindowsCommandHistoryCleanupCounts{Responses: 1}, errors.New("boom")
 		}
 		err := cleanupWindowsMDMCommandHistoryCronJob(t.Context(), ds, logger, time.Hour)
+		require.ErrorContains(t, err, "boom")
+	})
+}
+
+func TestCleanupHostSoftwareInstallsCronJob(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("non-positive retention disables the job", func(t *testing.T) {
+		for _, retention := range []time.Duration{0, -time.Hour} {
+			ds := new(mock.Store)
+			require.NoError(t, cleanupHostSoftwareInstallsCronJob(t.Context(), ds, logger, retention))
+			require.False(t, ds.CleanupHostSoftwareInstallsFuncInvoked)
+		}
+	})
+
+	t.Run("passes the cutoff derived from the retention", func(t *testing.T) {
+		ds := new(mock.Store)
+		var cutoff time.Time
+		ds.CleanupHostSoftwareInstallsFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
+			cutoff = olderThan
+			return 7, nil
+		}
+		before := time.Now()
+		require.NoError(t, cleanupHostSoftwareInstallsCronJob(t.Context(), ds, logger, 30*24*time.Hour))
+		require.True(t, ds.CleanupHostSoftwareInstallsFuncInvoked)
+		require.WithinDuration(t, before.Add(-30*24*time.Hour), cutoff, time.Minute)
+	})
+
+	t.Run("propagates datastore errors", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.CleanupHostSoftwareInstallsFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
+			return 1, errors.New("boom")
+		}
+		err := cleanupHostSoftwareInstallsCronJob(t.Context(), ds, logger, time.Hour)
+		require.ErrorContains(t, err, "boom")
+	})
+}
+
+func TestCleanupHostScriptResultsCronJob(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("non-positive retention disables the job", func(t *testing.T) {
+		for _, retention := range []time.Duration{0, -time.Hour} {
+			ds := new(mock.Store)
+			require.NoError(t, cleanupHostScriptResultsCronJob(t.Context(), ds, logger, retention))
+			require.False(t, ds.CleanupHostScriptResultsFuncInvoked)
+		}
+	})
+
+	t.Run("passes the cutoff derived from the retention", func(t *testing.T) {
+		ds := new(mock.Store)
+		var cutoff time.Time
+		ds.CleanupHostScriptResultsFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
+			cutoff = olderThan
+			return 3, nil
+		}
+		before := time.Now()
+		require.NoError(t, cleanupHostScriptResultsCronJob(t.Context(), ds, logger, 30*24*time.Hour))
+		require.True(t, ds.CleanupHostScriptResultsFuncInvoked)
+		require.WithinDuration(t, before.Add(-30*24*time.Hour), cutoff, time.Minute)
+	})
+
+	t.Run("propagates datastore errors", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.CleanupHostScriptResultsFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
+			return 1, errors.New("boom")
+		}
+		err := cleanupHostScriptResultsCronJob(t.Context(), ds, logger, time.Hour)
 		require.ErrorContains(t, err, "boom")
 	})
 }

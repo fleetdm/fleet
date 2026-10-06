@@ -11,8 +11,7 @@ interface IGetAndroidEnterpriseResponse {
 }
 
 export interface IGetZeroTouchConfigurationResponse {
-  dpc_extras: string;
-  expires_at: string;
+  [key: string]: unknown;
 }
 
 export default {

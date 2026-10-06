@@ -578,8 +578,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
-- [Upload VPP content token](#upload-vpp-content-token)
-- [Disable VPP](#disable-vpp)
 - [Get host's DEP assignment](#get-hosts-dep-assignment)
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
@@ -1361,54 +1359,6 @@ This endpoint uses the profiles stored by the [Preassign profiles to devices](#p
   "external_host_identifier": "id-01234"
 }
 ```
-
-##### Default response
-
-`Status: 204`
-
-### Upload VPP content token
-
-`POST /api/v1/fleet/mdm/apple/vpp_token`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business |
-
-#### Example
-
-`POST /api/v1/fleet/mdm/apple/vpp_token`
-
-##### Request header
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
-##### Request body
-
-```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
-Content-Type: application/octet-stream
-<TOKEN_DATA>
---------------------------f02md47480und42y
-```
-
-##### Default response
-
-`Status: 200`
-
-
-### Disable VPP
-
-`DELETE /api/v1/fleet/mdm/apple/vpp_token`
-
-#### Example
-
-`DELETE /api/v1/fleet/mdm/apple/vpp_token`
 
 ##### Default response
 
@@ -3268,7 +3218,6 @@ Get the results of a Fleet-maintained app or custom package install if it was pe
    "software_title_id": 8353,
    "software_package": "FalconSensor-6.44.pkg",
    "host_id": 123,
-   "host_display_name": "Marko's MacBook Pro",
    "status": "failed_install",
    "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
@@ -4460,23 +4409,6 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 }
 ```
 ## Software
-
-### Confirm installer hashes exist
-
-`GET /api/v1/fleet/software/package_hashes`
-
-| Name              | Type    | In   | Description                                        |
-|-------------------|---------|------|----------------------------------------------------|
-| team_name | string | query | The name of the fleet to filter the check to. If not supplied, the user must have global access, and hashes are checked across the entire instance. |
-| sha256              | string  | query | **Required**. A comma-separated list of SHA256 hashes, (64 hex characters apiece) to check. Endpoint returns 200 if all specified hashes exist, 404 otherwise. |
-
-#### Example
-
-`GET /api/v1/fleet/software/package_hashes?sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef`
-
-##### Default response
-
-`200 OK`
 
 ### Update software title name
 

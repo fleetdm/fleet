@@ -144,11 +144,17 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, gotEnrolledDevice.AwaitingConfiguration)
 	require.Nil(t, gotEnrolledDevice.AwaitingConfigurationAt)
 
+	byHardwareID, err := ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, enrolledDevice.MDMHardwareID)
+	require.NoError(t, err)
+	require.Equal(t, gotEnrolledDevice, byHardwareID)
+
 	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
 	require.NoError(t, err)
 
 	var nfe fleet.NotFoundError
 	_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
+	require.ErrorAs(t, err, &nfe)
+	_, err = ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, enrolledDevice.MDMHardwareID)
 	require.ErrorAs(t, err, &nfe)
 
 	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
@@ -2841,7 +2847,7 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	})
 	beforeRename, err := ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
 	require.NoError(t, err)
-	// identical content, so only the rename can move uploaded_at
+	// identical content, and a rename alone isn't resent, so uploaded_at stays
 	renamed, err := ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		ProfileUUID: initial.ProfileUUID,
 		Name:        "A Different Name",
@@ -2850,7 +2856,7 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, initial.ProfileUUID, renamed.ProfileUUID)
 	require.Equal(t, "A Different Name", renamed.Name)
-	require.True(t, renamed.UploadedAt.After(beforeRename.UploadedAt))
+	require.True(t, renamed.UploadedAt.Equal(beforeRename.UploadedAt))
 
 	stored, err = ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
 	require.NoError(t, err)
@@ -3350,6 +3356,40 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 	require.Greater(t, contentChangedProf.UploadedAt.Year(), 2020, "a content change must bump uploaded_at")
+
+	// the description isn't part of the checksum, so changing it alone must
+	// not bump uploaded_at, while it is still written with a content change
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_windows_configuration_profiles SET uploaded_at = '2020-01-01 00:00:00' WHERE profile_uuid = ?`, uploadedAtProfile.ProfileUUID)
+		return err
+	})
+	// the repeat covers the skipped write when the description is unchanged
+	for _, desc := range []string{"new description", "new description"} {
+		_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+			ProfileUUID: uploadedAtProfile.ProfileUUID,
+			Name:        uploadedAtProfile.Name,
+			Description: desc,
+		}, nil)
+		require.NoError(t, err)
+		stored, err = ds.GetMDMWindowsConfigProfile(ctx, uploadedAtProfile.ProfileUUID)
+		require.NoError(t, err)
+		require.Equal(t, desc, stored.Description)
+		require.Equal(t, 2020, stored.UploadedAt.Year(), "a description-only edit must not bump uploaded_at")
+	}
+
+	describedSyncML := []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/Described</LocURI></Target></Item></Replace>")
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: uploadedAtProfile.ProfileUUID,
+		Name:        uploadedAtProfile.Name,
+		Description: "description with content",
+		SyncML:      describedSyncML,
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMWindowsConfigProfile(ctx, uploadedAtProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "description with content", stored.Description)
+	require.Equal(t, describedSyncML, stored.SyncML)
+	require.Greater(t, stored.UploadedAt.Year(), 2020, "a content change must bump uploaded_at")
 }
 
 // identified by its (unique) name.
@@ -6518,7 +6558,7 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Drive the cron: it classifies profA's surviving rows as removes and generates the protected <Delete> commands.
-		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 		// Verify the delete command on BOTH hosts.
 		for _, h := range []*fleet.Host{h1, h2} {
@@ -6587,7 +6627,7 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, profA2UUID))
 
 		// Drive the cron: it computes per-host applicability, so profB protects Y only on h1 (in the label), not h2.
-		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 		// h1: profB applies (label-scoped, h1 is in the label).
 		// Y is protected, only X should be deleted.
@@ -6642,7 +6682,7 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h2.ID})))
 		// Run cron to simulate time passing and reconciler doing the work.
-		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 		// Restore h2 to no-team at the end so the next subtest starts clean.
 		t.Cleanup(func() {
 			_ = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{h2.ID}))
@@ -6667,7 +6707,7 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Drive the cron: it generates the <Delete> for the no-team profile across both hosts.
-		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 		// Both hosts should now have a queued <Delete>: h1 as the direct
 		// consequence of the deletion, h2 because phase 2 upgrades the
@@ -6720,7 +6760,7 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 			return err
 		})
 		require.NoError(t, err)
-		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 		h1Cmd := string(rawWindowsDeleteCommandForHostProfile(t, ds, h1.UUID, profUUID))
 		require.NotEmpty(t, h1Cmd, "h1 should have a queued <Delete>")
@@ -6792,7 +6832,7 @@ func testEditProfileDeletesRemovedLocURIs(t *testing.T, ds *Datastore) {
 		require.Equal(t, oldSyncML, retained[0])
 
 		// Run the cron: it re-installs the edited profile AND enqueues the <Delete> for ./Device/Remove.
-		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 		foundDelete := false
 		for _, s := range rawWindowsCommandsForHost(t, ds, h1.UUID) {
@@ -6829,7 +6869,7 @@ func testEditProfileDeletesRemovedLocURIs(t *testing.T, ds *Datastore) {
 		}))
 
 		// Run the cron and confirm no <Delete> was generated for Q (protected by B, still desired) nor for P (still in edited A).
-		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 		for _, s := range rawWindowsCommandsForHost(t, ds, h1.UUID) {
 			if strings.Contains(s, "<Delete") {
@@ -6858,7 +6898,7 @@ func testEditProfileDeletesRemovedLocURIs(t *testing.T, ds *Datastore) {
 			return err
 		}))
 
-		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 		foundReinstall := false
 		for _, s := range rawWindowsCommandsForHost(t, ds, h1.UUID) {
@@ -6893,7 +6933,7 @@ func testEditProfileDeletesRemovedLocURIs(t *testing.T, ds *Datastore) {
 			return err
 		}))
 
-		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 		foundDelete := false
 		for _, s := range rawWindowsCommandsForHost(t, ds, h1.UUID) {
@@ -6931,7 +6971,7 @@ func testEditProfileDeletesRemovedLocURIs(t *testing.T, ds *Datastore) {
 		setProfile(t, syncMLv2)
 		setProfile(t, syncMLv3)
 
-		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 		foundDelete := false
 		for _, s := range rawWindowsCommandsForHost(t, ds, h1.UUID) {
@@ -7057,7 +7097,7 @@ func testBatchDeleteMultipleWindowsProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Drive the cron: it classifies each deleted profile's verified rows as removes and enqueues a distinct <Delete> per profile.
-	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 	// 2 hosts × 3 profiles = 6 rows, each flipped to remove+pending with a
 	// non-empty command_uuid and empty detail.
@@ -7142,7 +7182,7 @@ func testDeleteWindowsProfileByTeamAndNameRetainsContent(t *testing.T, ds *Datas
 	require.Contains(t, string(retained), "./Device/TN", "deleted profile content should be retained for the reconciler")
 
 	// Drive the cron: it flips the surviving row to remove+pending and enqueues a <Delete> built from the retained content.
-	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
+	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
 
 	raw := rawWindowsDeleteCommandForHostProfile(t, ds, h.UUID, profUUID)
 	require.NotEmpty(t, raw, "host should have a queued <Delete> after the team+name delete")

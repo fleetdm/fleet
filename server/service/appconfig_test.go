@@ -4217,33 +4217,61 @@ func TestWindowsEnableManagedLocalAccountKeyIsNotAliased(t *testing.T) {
 }
 
 func TestAuthSettings(t *testing.T) {
-	newSvc := func(t *testing.T, useOneTimeEnrollSecrets bool) (fleet.Service, context.Context) {
+	newSvc := func(t *testing.T, useOneTimeEnrollSecrets, windowsOneTimeEnrollSecrets bool) (fleet.Service, context.Context) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
-		cfg.Auth.UseOneTimeEnrollSecrets = useOneTimeEnrollSecrets
+		cfg.MDM.AppleOneTimeEnrollSecrets = useOneTimeEnrollSecrets
+		cfg.MDM.WindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
 		return newTestServiceWithConfig(t, ds, cfg, nil, nil)
 	}
 
 	t.Run("omitted when the flag is off", func(t *testing.T) {
-		svc, ctx := newSvc(t, false)
+		svc, ctx := newSvc(t, false, false)
 		settings, err := svc.AuthSettings(test.UserContext(ctx, test.UserAdmin))
 		require.NoError(t, err)
 		require.Nil(t, settings)
 	})
 
 	t.Run("reported when the flag is on, to any user who can read the config", func(t *testing.T) {
-		svc, ctx := newSvc(t, true)
+		svc, ctx := newSvc(t, true, false)
 		for _, user := range []*fleet.User{test.UserAdmin, test.UserObserver} {
 			settings, err := svc.AuthSettings(test.UserContext(ctx, user))
 			require.NoError(t, err)
 			require.NotNil(t, settings)
-			require.True(t, settings.UseOneTimeEnrollSecrets)
+			require.True(t, settings.MDMAppleOneTimeEnrollSecrets)
 		}
 	})
 
+	t.Run("reported when only the Windows flag is on", func(t *testing.T) {
+		svc, ctx := newSvc(t, false, true)
+		settings, err := svc.AuthSettings(test.UserContext(ctx, test.UserAdmin))
+		require.NoError(t, err)
+		require.Equal(t, &fleet.AuthSettings{MDMWindowsOneTimeEnrollSecrets: true}, settings)
+	})
+
 	t.Run("requires an authenticated user", func(t *testing.T) {
-		svc, ctx := newSvc(t, true)
+		svc, ctx := newSvc(t, true, false)
 		_, err := svc.AuthSettings(ctx)
 		require.Error(t, err)
 	})
+}
+
+func TestStagedUploadAvailable(t *testing.T) {
+	for _, c := range []struct {
+		signedURL bool
+		bucket    string
+		tier      string
+		want      bool
+	}{
+		{true, "installers", fleet.TierPremium, true},
+		{false, "installers", fleet.TierPremium, false},
+		{true, "", fleet.TierPremium, false},
+		{true, "installers", fleet.TierFree, false},
+	} {
+		cfg := config.TestConfig()
+		cfg.S3.SoftwareInstallersSignedURL = c.signedURL
+		cfg.S3.SoftwareInstallersBucket = c.bucket
+		svc, ctx := newTestServiceWithConfig(t, new(mock.Store), cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: c.tier}})
+		require.Equal(t, c.want, svc.StagedUploadAvailable(ctx), "%+v", c)
+	}
 }

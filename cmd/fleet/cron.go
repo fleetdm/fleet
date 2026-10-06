@@ -27,6 +27,7 @@ import (
 	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
@@ -1371,6 +1372,7 @@ func newCleanupsAndAggregationSchedule(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
+	stagedUploadStore fleet.StagedUploadStore,
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
 	notificationsSvc notifications_api.Service,
@@ -1605,6 +1607,17 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
 			return cleanupUnusedBootstrapPackagesCronJob(ctx, ds, bootstrapPackageStore, installerCleanupMaxRunTime)
 		}),
+		schedule.WithJob("cleanup_staged_uploads", func(ctx context.Context) error {
+			if stagedUploadStore == nil {
+				return nil
+			}
+			// A staging object only exists once its PUT completes, so the cutoff only
+			// has to outlast the gap between upload and finalize.
+			workCtx, cancel := context.WithTimeout(ctx, installerCleanupMaxRunTime)
+			defer cancel()
+			_, err := stagedUploadStore.Cleanup(workCtx, nil, time.Now().Add(-24*time.Hour))
+			return err
+		}),
 		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
 			return ds.CleanupHostMDMCommands(ctx)
 		}),
@@ -1618,6 +1631,14 @@ func newCleanupsAndAggregationSchedule(
 		// go in the same tick.
 		schedule.WithJob("cleanup_windows_mdm_command_history", func(ctx context.Context) error {
 			return cleanupWindowsMDMCommandHistoryCronJob(ctx, ds, logger, config.MDM.WindowsCommandRetention)
+		}),
+		// Before the script results sweep, so a script result this one orphans is
+		// collected in the same tick rather than an hour later.
+		schedule.WithJob("cleanup_host_software_installs", func(ctx context.Context) error {
+			return cleanupHostSoftwareInstallsCronJob(ctx, ds, logger, config.Server.SoftwareInstallResultsRetention)
+		}),
+		schedule.WithJob("cleanup_host_script_results", func(ctx context.Context) error {
+			return cleanupHostScriptResultsCronJob(ctx, ds, logger, config.Server.ScriptResultsRetention)
 		}),
 		schedule.WithJob("cleanup_windows_mdm_profile_prior_content", func(ctx context.Context) error {
 			// Retained prior content for deleted and edited Windows profiles is GC'd (reference-counted) once no host still has that
@@ -1660,7 +1681,8 @@ func newCleanupsAndAggregationSchedule(
 			return nil
 		}),
 		schedule.WithJob("cleanup_android_enterprise", func(ctx context.Context) error {
-			return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
+			// Don't hold up the other cleanup jobs waiting out an AMAPI quota error; the next run retries.
+			return androidSvc.VerifyExistingEnterpriseIfAny(androidmgmt.WithoutRetry(ctx))
 		}),
 		schedule.WithJob("revert_stale_android_certificate_templates", func(ctx context.Context) error {
 			// Revert certificate templates stuck in 'delivering' status for too long
@@ -1753,6 +1775,44 @@ func cleanupWindowsMDMCommandHistoryCronJob(ctx context.Context, ds fleet.Datast
 	if counts.Total() > 0 {
 		logger.InfoContext(ctx, "cleaned up windows mdm command history",
 			"responses", counts.Responses, "results", counts.Results, "commands", counts.Commands)
+	}
+	return nil
+}
+
+// cleanupHostSoftwareInstallsCronJob is disabled by a non-positive retention,
+// the documented off switch for server.software_install_results_retention.
+func cleanupHostSoftwareInstallsCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupHostSoftwareInstalls(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup host software installs failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up host software installs", "deleted", deleted)
+	}
+	return nil
+}
+
+// cleanupHostScriptResultsCronJob is disabled by a non-positive retention, the
+// documented off switch for server.script_results_retention.
+func cleanupHostScriptResultsCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupHostScriptResults(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup host script results failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up host script results", "deleted", deleted)
 	}
 	return nil
 }
@@ -2173,6 +2233,7 @@ func newWindowsMDMProfileManagerSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger *slog.Logger,
+	useOneTimeEnrollSecrets bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMWindowsProfileManager)
@@ -2187,7 +2248,7 @@ func newWindowsMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-			return service.ReconcileWindowsProfiles(ctx, ds, logger)
+			return service.ReconcileWindowsProfiles(ctx, ds, logger, useOneTimeEnrollSecrets)
 		}),
 	)
 
@@ -3061,6 +3122,12 @@ func newCleanupExpiredADUEChallengesSchedule(
 		schedule.WithJob("cleanup_expired_adue_challenges", func(ctx context.Context) error {
 			if err := ds.CleanupExpiredADUEEnrollmentChallenges(ctx); err != nil {
 				return ctxerr.Wrap(ctx, err, "cleaning up expired ADUE challenges")
+			}
+			return nil
+		}),
+		schedule.WithJob("cleanup_expired_dep_enrollment_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupExpiredMDMAppleDEPEnrollmentChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up expired automatic enrollment challenges")
 			}
 			return nil
 		}),
