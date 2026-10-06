@@ -269,8 +269,10 @@ type Service interface {
 	// configuration and only supports a subset of the features (eg: we
 	// don't want to allow IdP initiated authentications)
 	// When initiated from Orbit, the hostUUID is used to link the SSO
-	// session to a specific host.
-	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+	// session to a specific host. deviceInfo is the parsed deviceinfo of the
+	// device that started automatic enrollment, and is required for the
+	// mdm_sso initiator.
+	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string, deviceInfo *MDMAppleMachineInfo) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 	// InitSSOCallback handles the IdP SAMLResponse and ensures the credentials are valid.
 	// The sessionID is used to identify the SSO session and samlResponse is the raw SAMLResponse.
@@ -1061,11 +1063,15 @@ type Service interface {
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// AuthenticateMDMAppleDEPEnrollment validates an automatic (DEP) enrollment
-	// request: the token must match the automatic enrollment profile and the
-	// device's serial must currently be DEP-assigned to Fleet.
-	AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *MDMAppleMachineInfo) error
+	// request: the token must be either the automatic enrollment profile's token,
+	// or an unused one-time challenge issued to this device after end user
+	// authentication, which it consumes. The device's serial must currently be
+	// DEP-assigned to Fleet. It returns the MDM IdP account the challenge was
+	// issued for, or an empty string for the automatic enrollment profile's token.
+	AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *MDMAppleMachineInfo) (idpAccountUUID string, err error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
+	// The request must have been authenticated with AuthenticateMDMAppleDEPEnrollment first.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *MDMAppleMachineInfo) (profile []byte, err error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple account-driven user enrollment profile for a given enrollment reference.

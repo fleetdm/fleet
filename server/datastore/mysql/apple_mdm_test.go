@@ -13,6 +13,8 @@ import (
 	"maps"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -51,6 +53,7 @@ func TestMDMApple(t *testing.T) {
 		{"InsertADUEEnrollmentChallenge", testInsertADUEEnrollmentChallenge},
 		{"ConsumeADUEEnrollmentChallenge", testConsumeADUEEnrollmentChallenge},
 		{"CleanupExpiredADUEEnrollmentChallenges", testCleanupExpiredADUEEnrollmentChallenges},
+		{"MDMAppleDEPEnrollmentChallenges", testMDMAppleDEPEnrollmentChallenges},
 		{"GetABMOrganizationNamesAssociatedByDefaultTeams", testGetABMOrganizationNamesAssociatedByDefaultTeams},
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
 		{"GetHostMDMAppleProfilesOrphanedRows", testGetHostMDMAppleProfilesOrphanedRows},
@@ -14135,4 +14138,146 @@ func testQueueHostMDMAppleProfileInstallAndRemoval(t *testing.T, ds *Datastore) 
 	r = getRow()
 	require.NotNil(t, r)
 	require.Equal(t, fleet.MDMOperationTypeRemove, r.OperationType)
+}
+
+func testMDMAppleDEPEnrollmentChallenges(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	idpUUID := uuid.NewString()
+	require.NoError(t, ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+		UUID:     idpUUID,
+		Username: "dep-user",
+		Email:    "dep-user@example.com",
+	}))
+	const serial, udid = "DEPSERIAL1", "dep-udid-1"
+
+	setExpiresAt := func(challenge string, expiresAt time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE mdm_apple_dep_enrollment_challenges SET expires_at = ? WHERE challenge = ?`, expiresAt, challenge)
+			return err
+		})
+	}
+
+	t.Run("insert validates its input", func(t *testing.T) {
+		_, err := ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpUUID, serial, udid, 0)
+		require.Error(t, err)
+		_, err = ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, "", serial, udid, time.Hour)
+		require.Error(t, err)
+		_, err = ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpUUID, "", udid, time.Hour)
+		require.Error(t, err)
+		_, err = ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpUUID, serial, "", time.Hour)
+		require.Error(t, err)
+		_, err = ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, "no-such-account", serial, udid, time.Hour)
+		require.Error(t, err)
+	})
+
+	t.Run("insert and get", func(t *testing.T) {
+		challenge, err := ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpUUID, serial, udid, time.Hour)
+		require.NoError(t, err)
+		require.NotEmpty(t, challenge)
+
+		other, err := ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpUUID, serial, udid, time.Hour)
+		require.NoError(t, err)
+		require.NotEqual(t, challenge, other)
+
+		got, err := ds.GetMDMAppleDEPEnrollmentChallenge(ctx, challenge)
+		require.NoError(t, err)
+		require.Equal(t, idpUUID, got.IdPAccountUUID)
+		require.Equal(t, serial, got.HardwareSerial)
+		require.Equal(t, udid, got.HostUUID)
+		require.Nil(t, got.UsedAt)
+		require.WithinDuration(t, time.Now().Add(time.Hour), got.ExpiresAt, time.Minute)
+
+		_, err = ds.GetMDMAppleDEPEnrollmentChallenge(ctx, strings.ToUpper(challenge))
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("consume once", func(t *testing.T) {
+		challenge, err := ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpUUID, serial, udid, time.Hour)
+		require.NoError(t, err)
+
+		got, err := ds.ConsumeMDMAppleDEPEnrollmentChallenge(ctx, challenge)
+		require.NoError(t, err)
+		require.Equal(t, idpUUID, got.IdPAccountUUID)
+		require.Equal(t, serial, got.HardwareSerial)
+		require.Equal(t, udid, got.HostUUID)
+		require.NotNil(t, got.UsedAt)
+
+		_, err = ds.ConsumeMDMAppleDEPEnrollmentChallenge(ctx, challenge)
+		require.True(t, fleet.IsNotFound(err))
+		require.ErrorContains(t, err, "already used")
+	})
+
+	t.Run("concurrent consumes succeed exactly once", func(t *testing.T) {
+		challenge, err := ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpUUID, serial, udid, time.Hour)
+		require.NoError(t, err)
+
+		const attempts = 10
+		var wg sync.WaitGroup
+		var succeeded atomic.Int32
+		for range attempts {
+			wg.Go(func() {
+				if _, err := ds.ConsumeMDMAppleDEPEnrollmentChallenge(ctx, challenge); err == nil {
+					succeeded.Add(1)
+				} else {
+					assert.True(t, fleet.IsNotFound(err), err)
+				}
+			})
+		}
+		wg.Wait()
+		require.EqualValues(t, 1, succeeded.Load())
+	})
+
+	t.Run("consume expired", func(t *testing.T) {
+		challenge, err := ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpUUID, serial, udid, time.Hour)
+		require.NoError(t, err)
+		setExpiresAt(challenge, time.Now().Add(-time.Second))
+
+		_, err = ds.ConsumeMDMAppleDEPEnrollmentChallenge(ctx, challenge)
+		require.True(t, fleet.IsNotFound(err))
+		require.ErrorContains(t, err, "expired")
+	})
+
+	t.Run("consume unknown", func(t *testing.T) {
+		_, err := ds.ConsumeMDMAppleDEPEnrollmentChallenge(ctx, "no-such-challenge")
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("cleanup deletes challenges expired more than a day ago", func(t *testing.T) {
+		old, err := ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpUUID, serial, udid, time.Hour)
+		require.NoError(t, err)
+		setExpiresAt(old, time.Now().Add(-25*time.Hour))
+		recent, err := ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpUUID, serial, udid, time.Hour)
+		require.NoError(t, err)
+		setExpiresAt(recent, time.Now().Add(-23*time.Hour))
+		live, err := ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpUUID, serial, udid, time.Hour)
+		require.NoError(t, err)
+
+		require.NoError(t, ds.CleanupExpiredMDMAppleDEPEnrollmentChallenges(ctx))
+
+		_, err = ds.GetMDMAppleDEPEnrollmentChallenge(ctx, old)
+		require.True(t, fleet.IsNotFound(err))
+		_, err = ds.GetMDMAppleDEPEnrollmentChallenge(ctx, recent)
+		require.NoError(t, err)
+		_, err = ds.GetMDMAppleDEPEnrollmentChallenge(ctx, live)
+		require.NoError(t, err)
+	})
+
+	t.Run("deleting the IdP account deletes its challenges", func(t *testing.T) {
+		otherIdP := uuid.NewString()
+		require.NoError(t, ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+			UUID:     otherIdP,
+			Username: "dep-user-2",
+			Email:    "dep-user-2@example.com",
+		}))
+		challenge, err := ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, otherIdP, serial, udid, time.Hour)
+		require.NoError(t, err)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM mdm_idp_accounts WHERE uuid = ?`, otherIdP)
+			return err
+		})
+		_, err = ds.GetMDMAppleDEPEnrollmentChallenge(ctx, challenge)
+		require.True(t, fleet.IsNotFound(err))
+	})
 }
