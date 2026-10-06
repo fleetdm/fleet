@@ -1883,6 +1883,7 @@ None.
       "macos_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": false,
       "manual_agent_install": false,
+      "macos_bootstrap_package_manual_enrollment": false,
       "enable_managed_local_account": false,
       "end_user_local_account_type": "admin"
     },
@@ -1892,6 +1893,7 @@ None.
       "apple_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": false,
       "manual_agent_install": false,
+      "macos_bootstrap_package_manual_enrollment": false,
       "enable_managed_local_account": false,
       "end_user_local_account_type": "admin"
     },
@@ -9408,6 +9410,7 @@ _Available in Fleet Premium_
 | require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
+| macos_bootstrap_package_manual_enrollment | boolean | body | If set to `true`, Fleet also installs the bootstrap package on macOS hosts that enroll manually. Fleet sends the package every time a host enrolls manually, including when a host enrolls again or migrates from another MDM solution. If `manual_agent_install` is also `true`, Fleet won't install its agent (fleetd) on these hosts. (Default: `false`) |
 | enable_managed_local_account     | boolean | body | _Available in Fleet Premium._ During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
 | end_user_local_account_type     | string | body | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
@@ -16373,7 +16376,8 @@ _Available in Fleet Premium_
         "enable_end_user_authentication": false,
         "macos_setup_assistant": "path/to/config.json",
         "enable_release_device_manually": false,
-        "manual_agent_install": false
+        "manual_agent_install": false,
+        "macos_bootstrap_package_manual_enrollment": false
       },
       "setup_experience": {
         "bootstrap_package": "",
@@ -16382,7 +16386,8 @@ _Available in Fleet Premium_
         "end_user_local_account_type": "admin",
         "apple_setup_assistant": "path/to/config.json",
         "enable_release_device_manually": false,
-        "manual_agent_install": false
+        "manual_agent_install": false,
+        "macos_bootstrap_package_manual_enrollment": false
       }
     }
   }
