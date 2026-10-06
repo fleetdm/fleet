@@ -7970,6 +7970,18 @@ func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
 	wantHostsByPol[policy3.Name] = []uint{hostLabelBoth.ID}
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
 
+	// Re-applying the same label scope skips the cleanup, so re-recorded membership is kept.
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		_, err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy3.ID: new(true)}, time.Now(), false, nil)
+		require.NoError(t, err)
+	}
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{Name: policy3.Name, Query: policy3.Query, LabelsIncludeAll: []string{label1.Name, label2.Name}, Type: fleet.PolicyTypeDynamic},
+	})
+	require.NoError(t, err)
+	wantHostsByPol[policy3.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
 	freshName := "cleanup test policy 4 include_all create"
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
@@ -10242,85 +10254,35 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), policies[0].FailingHostCount, "policy stats should not have been reset")
 }
 
-// testApplyPolicySpecsMembershipCleanupOnlyOnChange verifies that ApplyPolicySpecs only cleans up policy_membership for
-// policies whose platforms, labels or query changed, so that re-applying an unchanged GitOps config doesn't take locks
-// on the membership of every policy, and that the orphan cleanup still removes rows of deleted hosts.
+// testApplyPolicySpecsMembershipCleanupOnlyOnChange verifies that ApplyPolicySpecs skips the membership cleanup for
+// unchanged policies, and that the cleanup removes the membership of deleted hosts.
 func testApplyPolicySpecsMembershipCleanupOnlyOnChange(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-
-	// Force several batches in the cleanup loops.
-	origBatchSize := policyMembershipDeleteBatchSize
-	policyMembershipDeleteBatchSize = 1
-	t.Cleanup(func() { policyMembershipDeleteBatchSize = origBatchSize })
-
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "cleanup-label", Query: "SELECT 1"})
-	require.NoError(t, err)
-
 	spec := &fleet.PolicySpec{Name: "cleanup-policy", Query: "SELECT 1;", Platform: "darwin", Type: fleet.PolicyTypeDynamic}
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
 	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	pol := policies[0]
+	polsByName := map[string]*fleet.Policy{pol.Name: pol}
 
-	labeledHost := newTestHostWithPlatform(t, ds, "labeled-host", "darwin", nil)
-	unlabeledHost := newTestHostWithPlatform(t, ds, "unlabeled-host", "darwin", nil)
-	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, labeledHost, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
-	for _, h := range []*fleet.Host{labeledHost, unlabeledHost} {
-		_, err := ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
-		require.NoError(t, err)
-	}
-	const orphanHostID, otherOrphanHostID = 999998, 999999
-	insertOrphans := func() {
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO policy_membership (policy_id, host_id, passes) VALUES (?, ?, 0), (?, ?, 0)`,
-				pol.ID, orphanHostID, pol.ID, otherOrphanHostID)
-			return err
-		})
-	}
-	insertOrphans()
-
-	membershipHostIDs := func() []uint {
-		var hostIDs []uint
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &hostIDs, `SELECT host_id FROM policy_membership WHERE policy_id = ? ORDER BY host_id`, pol.ID)
-		})
-		return hostIDs
-	}
-
-	t.Run("unchanged policy is not cleaned up", func(t *testing.T) {
-		require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
-		assert.Equal(t, []uint{labeledHost.ID, unlabeledHost.ID, orphanHostID, otherOrphanHostID}, membershipHostIDs())
+	host := newTestHostWithPlatform(t, ds, "cleanup-host", "darwin", nil)
+	_, err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
+	require.NoError(t, err)
+	// Deleting a host deletes its membership, so an orphaned row can only be inserted directly.
+	const orphanHostID = 999999
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO policy_membership (policy_id, host_id, passes) VALUES (?, ?, 0)`, pol.ID, orphanHostID)
+		return err
 	})
 
-	t.Run("platform change removes orphaned membership", func(t *testing.T) {
-		spec.Platform = "darwin,linux"
-		require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
-		assert.Equal(t, []uint{labeledHost.ID, unlabeledHost.ID}, membershipHostIDs())
-	})
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
+	assertPolicyMembership(t, ds, polsByName, map[string][]uint{pol.Name: {host.ID, orphanHostID}})
 
-	t.Run("label change removes hosts outside the labels", func(t *testing.T) {
-		spec.LabelsIncludeAny = []string{label.Name}
-		require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
-		assert.Equal(t, []uint{labeledHost.ID}, membershipHostIDs())
-	})
-
-	t.Run("unchanged labels are not cleaned up", func(t *testing.T) {
-		insertOrphans()
-		require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
-		assert.Equal(t, []uint{labeledHost.ID, orphanHostID, otherOrphanHostID}, membershipHostIDs())
-	})
-
-	t.Run("cron cleanup removes orphaned membership", func(t *testing.T) {
-		// The cron only revisits policies updated in the last 24h, ignoring newly created ones.
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE policies SET updated_at = DATE_ADD(created_at, INTERVAL 1 SECOND) WHERE id = ?`, pol.ID)
-			return err
-		})
-		require.NoError(t, ds.CleanupPolicyMembership(ctx, time.Now()))
-		assert.Equal(t, []uint{labeledHost.ID}, membershipHostIDs())
-	})
+	spec.Platform = "darwin,linux"
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
+	assertPolicyMembership(t, ds, polsByName, map[string][]uint{pol.Name: {host.ID}})
 }
 
 // TestDeletePolicyMembershipBatchRetriesRecompute verifies that a deadlock while recomputing host issues retries the
@@ -10351,6 +10313,11 @@ func TestDeletePolicyMembershipBatchRetriesRecompute(t *testing.T) {
 // every membership row of the policy.
 func testCleanupOrphanedPolicyMembershipLocks(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	// Force several batches in the cleanup loop.
+	origBatchSize := policyMembershipDeleteBatchSize
+	policyMembershipDeleteBatchSize = 1
+	t.Cleanup(func() { policyMembershipDeleteBatchSize = origBatchSize })
+
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	pol := newTestPolicy(t, ds, user, "orphan-lock-policy", "darwin", nil)
 	for i := range 3 {
