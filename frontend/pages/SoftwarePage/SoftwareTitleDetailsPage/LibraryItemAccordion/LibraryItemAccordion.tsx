@@ -13,9 +13,11 @@ import TooltipWrapper from "components/TooltipWrapper";
 import TruncatedTextList from "components/TruncatedTextList";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import { InstallerType, SoftwareSource } from "interfaces/software";
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import {
+  getAutoUpdateTooltip,
+  getSelfServiceTooltip,
+} from "pages/SoftwarePage/helpers";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
-import { internationalTimeOnlyFormat } from "utilities/helpers";
 
 const baseClass = "library-item-accordion";
 
@@ -317,6 +319,7 @@ const LibraryItemAccordion = ({
       {onClick && canClick ? (
         <Button
           variant="subdued"
+          size="small"
           onClick={handleBadgeClick(onClick)}
           className={`${baseClass}__icon-button`}
           ariaLabel={ariaLabel}
@@ -348,17 +351,10 @@ const LibraryItemAccordion = ({
   // modal (same target as the labels-count badge). Tooltip surfaces the
   // maintenance window when both ends are set.
   const renderAutoUpdateIcon = () => {
-    const hasWindow = !!autoUpdateWindowStart && !!autoUpdateWindowEnd;
-    const tooltipContent = hasWindow ? (
-      <>
-        Auto updates between{" "}
-        {internationalTimeOnlyFormat(autoUpdateWindowStart ?? "")} and{" "}
-        {internationalTimeOnlyFormat(autoUpdateWindowEnd ?? "")} (host local
-        time).
-      </>
-    ) : (
-      <>Auto updates on.</>
-    );
+    const tooltipContent =
+      autoUpdateWindowStart && autoUpdateWindowEnd
+        ? getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)
+        : "Auto updates on.";
     return renderRowActionIcon({
       iconName: "refresh",
       tooltipContent,

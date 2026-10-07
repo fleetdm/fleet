@@ -193,10 +193,8 @@ const AddVersionModal = ({
             platform={appStore.platform}
             appDisplayName={appStore.display_name || appStore.name}
             labels={labels ?? []}
-            onClickPreviewEndUserExperience={
-              appStore.platform !== "android"
-                ? () => setShowPreviewEndUserExperience(true)
-                : undefined
+            onClickPreviewEndUserExperience={() =>
+              setShowPreviewEndUserExperience(true)
             }
           />
 
@@ -222,7 +220,8 @@ const AddVersionModal = ({
         <CategoriesEndUserExperienceModal
           onCancel={() => setShowPreviewEndUserExperience(false)}
           teamId={teamId}
-          isIosOrIpadosApp={appStore.platform !== "android"}
+          // Button that opens this is iOS/iPadOS-only (gated in VersionFormFields).
+          isIosOrIpadosApp
         />
       )}
     </>

@@ -151,9 +151,6 @@ const EditVersionModal = ({
       notify.success(
         <>
           Successfully edited <strong>{data.name}</strong>.
-          {data.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
         </>
       );
       queryClient.invalidateQueries({
@@ -195,10 +192,8 @@ const EditVersionModal = ({
             platform={version.platform}
             appDisplayName={version.display_name || version.name}
             labels={labels ?? []}
-            onClickPreviewEndUserExperience={
-              version.platform !== "android"
-                ? () => setShowPreviewEndUserExperience(true)
-                : undefined
+            onClickPreviewEndUserExperience={() =>
+              setShowPreviewEndUserExperience(true)
             }
           />
 
@@ -224,7 +219,8 @@ const EditVersionModal = ({
         <CategoriesEndUserExperienceModal
           onCancel={() => setShowPreviewEndUserExperience(false)}
           teamId={teamId}
-          isIosOrIpadosApp={version.platform !== "android"}
+          // Button that opens this is iOS/iPadOS-only (gated in VersionFormFields).
+          isIosOrIpadosApp
         />
       )}
     </>

@@ -15,12 +15,12 @@ import {
 } from "interfaces/software";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
 import {
+  getAutoUpdateTooltip,
   getDisplayedSoftwareName,
   getSelfServiceTooltip,
   mergePolicies,
 } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
-import { internationalTimeOnlyFormat } from "utilities/helpers";
 import { pluralize } from "utilities/strings/stringUtils";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -273,19 +273,10 @@ const SoftwareSummaryCard = ({
                 ? () => setShowEditAutoUpdateConfigModal(true)
                 : undefined
             }
-            tooltip={
-              <>
-                Between{" "}
-                {internationalTimeOnlyFormat(
-                  softwareTitle.auto_update_window_start ?? ""
-                )}{" "}
-                and{" "}
-                {internationalTimeOnlyFormat(
-                  softwareTitle.auto_update_window_end ?? ""
-                )}{" "}
-                (host local time).
-              </>
-            }
+            tooltip={getAutoUpdateTooltip(
+              softwareTitle.auto_update_window_start ?? "",
+              softwareTitle.auto_update_window_end ?? ""
+            )}
           />
         )}
       </>

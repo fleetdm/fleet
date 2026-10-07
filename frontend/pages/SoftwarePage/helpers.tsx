@@ -219,6 +219,13 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   },
 ];
 
+/** Tooltip copy for the auto-update row icon. Shared so every surface
+ * rendering an auto-update affordance reads the same. */
+export const getAutoUpdateTooltip = (start: string, end: string): string =>
+  `Auto updates between ${internationalTimeOnlyFormat(
+    start
+  )} and ${internationalTimeOnlyFormat(end)} (host local time).`;
+
 export const getSelfServiceTooltip = (
   isIosOrIpadosApp: boolean,
   isAndroidPlayStoreApp: boolean

@@ -63,12 +63,6 @@
     gap: $pad-small;
   }
 
-  // Row-level action icons (self-service, auto-update) render as square
-  // 28x28 subdued icon buttons — the default 36x36 overpowers the row.
-  &__icon-button.button--icon-only {
-    width: 28px;
-    height: 28px;
-  }
 
   &__badge-button {
     display: inline-flex;

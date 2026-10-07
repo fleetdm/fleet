@@ -79,7 +79,7 @@ import VersionsModal from "./VersionsModal";
 const baseClass = "software-title-details-page";
 
 // Shim a 1-element version array from the back-compat `app_store_app`
-// envelope when the API hasn't populated `app_store_apps` yet (pre-#53320).
+// envelope when the API hasn't populated `app_store_apps` yet (before BE ships the array).
 // Once BE ships the array, callers fall through to the real data. Pulls
 // auto-update fields from the title because they're title-level in the
 // back-compat shape.
@@ -840,7 +840,7 @@ const SoftwareTitleDetailsPage = ({
     // modal when a version row's edit affordance fired. `selectedVersionId`
     // identifies the row; look it up in `app_store_apps`, or fall back to
     // the shim built from `app_store_app` when the API hasn't populated the
-    // array yet (pre-#53320).
+    // array yet (before BE ships the array).
     if (selectedVersionId !== null && title.app_store_app) {
       const liveVersion = title.app_store_apps?.find(
         (v) => v.id === selectedVersionId
