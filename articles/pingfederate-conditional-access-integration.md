@@ -19,6 +19,11 @@ How it works:
 
 Create an [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with the **Observer** role. PingFederate uses its API token to look up hosts.
 
+Select **Specific API endpoints** and add only the endpoints PingFederate calls:
+
+- [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier)
+- [Get host's device health report](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-health-report)
+
 ## Step 2: Mark critical policies
 
 In Fleet, head to **Policies**. For each policy that should block sign-in, open the policy, select **Critical**, and select **Save**.

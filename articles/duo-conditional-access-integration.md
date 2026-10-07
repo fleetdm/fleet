@@ -21,6 +21,8 @@ Unlike [PingFederate](https://fleetdm.com/guides/pingfederate-conditional-access
 
 Create an [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with the **Observer** role. The export script uses its API token.
 
+Select **Specific API endpoints** and add only the endpoint the script calls: [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts).
+
 ## Step 2: Install Duo Desktop
 
 1. In Fleet, head to **Software** and select **Add software**. For macOS and Windows, add **Duo Desktop** from **Fleet-maintained**. For Linux, add Duo's [Duo Desktop package](https://duo.com/docs/duo-desktop) as a **Custom package**.
