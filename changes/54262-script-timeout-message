@@ -1,0 +1,1 @@
+- Fixed the script details modal showing a duration from script output instead of the configured timeout when a script times out.

@@ -450,6 +450,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 		"install_uuid": "%s",
 		"self_service": false,
 		"software_title": "%s",
+		"software_display_name": null,
 		"software_package": "%s",
 		"source": "apps",
 		"host_display_name": "%s"
@@ -5442,7 +5443,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 		if h.UUID == mdmDevice.EnrollmentID() {
 			enrolledHostID = h.ID
 			require.NotNil(t, h.MDM.EnrollmentStatus)
-			require.Equal(t, "On (manual - personal)", *h.MDM.EnrollmentStatus)
+			require.Equal(t, fleet.MDMEnrollmentStatusPersonal, *h.MDM.EnrollmentStatus)
 			break
 		}
 	}

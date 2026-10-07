@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -37,6 +38,9 @@ func (ds *AndroidDatastore) CreateZeroTouchEnrollmentToken(ctx context.Context, 
 	stmt := `INSERT INTO android_zero_touch_tokens (team_id, global_or_team_id, token_name, token_value, expires_at)
 		VALUES (?, ?, ?, ?, ?)`
 	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, token.TeamID, globalOrTeamID(token.TeamID), token.TokenName, token.TokenValue, token.ExpiresAt)
+	if IsDuplicate(err) {
+		return ds.GetZeroTouchEnrollmentToken(ctxdb.RequirePrimary(ctx, true), token.TeamID)
+	}
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating zero-touch enrollment token")
 	}

@@ -1,0 +1,1 @@
+- Added a message when iOS/iPadOS VPP installs fail with error code 1407 to guide users on how to update apps in Single App Mode.

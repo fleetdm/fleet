@@ -47,6 +47,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/stretchr/testify/assert"
+	testify_mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -79,6 +80,9 @@ func setUpBatchResultLogsTest(t *testing.T) (*Service, context.Context, *mock.St
 		return &fleet.AppConfig{}, nil
 	}
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		return nil, nil
+	}
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
 		return nil, nil
 	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
@@ -167,6 +171,9 @@ func TestSubmitResultLogsCappedNamesDoNotBypassScheduleCheck(t *testing.T) {
 			return out, nil
 		}
 		ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) { return nil, nil }
+		ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+			return nil, nil
+		}
 		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, m, currentCount int) (fleet.QueryReportWriteResult, error) {
 			return fleet.QueryReportWriteResult{RowsAdded: len(rows)}, nil
 		}
@@ -1206,6 +1213,9 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		}, nil
 	}
 	teamQueryResultsStored := false
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		if len(rows) == 0 {
 			return fleet.QueryReportWriteResult{}, nil
@@ -1404,6 +1414,9 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		return fleet.QueryReportWriteResult{}, nil
 	}
@@ -1442,6 +1455,9 @@ func TestSaveResultLogsToQueryReportsWithTableOverLimit(t *testing.T) {
 	}
 	// The datastore decides whether the host's rows fit under the cap, so it must
 	// receive the cap and the current count even when the report is full.
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		require.Equal(t, fleet.DefaultMaxQueryReportRows, maxQueryReportRows)
 		require.Equal(t, 1101, currentCount)
@@ -1492,6 +1508,9 @@ func TestSaveResultLogsToQueryReportsMarksClipped(t *testing.T) {
 	}
 
 	// The report is full for every query but 3, which admits the host for the first time.
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		if rows[0].QueryID == 3 {
 			return fleet.QueryReportWriteResult{RowsAdded: len(rows), NewHost: true}, nil
@@ -1553,6 +1572,9 @@ func TestSaveResultLogsToQueryReportsSnapshotTooLarge(t *testing.T) {
 	}
 
 	var savedRows []*fleet.ScheduledQueryResultRow
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		savedRows = rows
 		dataRows := 0
@@ -1626,6 +1648,9 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		return []uint{1}, nil
 	}
 
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
@@ -1678,6 +1703,9 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		return []uint{1}, nil
 	}
 
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
@@ -1729,6 +1757,9 @@ func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
 				return nil, nil
 			}
 			return []uint{reportQueryID}, nil
+		}
+		ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+			return nil, nil
 		}
 		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 			return fleet.QueryReportWriteResult{RowsAdded: len(rows)}, nil
@@ -1868,6 +1899,9 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return []uint{1}, nil
+	}
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
 	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		return fleet.QueryReportWriteResult{}, nil
@@ -2622,8 +2656,8 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+		return fleet.DeviceNameNotRetried, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Features: fleet.Features{
@@ -2827,8 +2861,8 @@ func TestDetailQueries(t *testing.T) {
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+		return fleet.DeviceNameNotRetried, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Features: fleet.Features{
@@ -2843,13 +2877,13 @@ func TestDetailQueries(t *testing.T) {
 		return map[string]string{}, nil
 	}
 	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string,
-		fleetEnrollmentRef string, isPersonalEnrollment bool,
+		fleetEnrollmentRef string, personalType fleet.PersonalEnrollmentType,
 	) error {
 		require.True(t, enrolled)
 		require.False(t, installedFromDep)
 		require.Equal(t, "hi.com", serverURL)
 		require.Empty(t, fleetEnrollmentRef)
-		require.False(t, isPersonalEnrollment)
+		require.Equal(t, fleet.PersonalEnrollmentTypeNone, personalType)
 		return nil
 	}
 	ds.SetOrUpdateMunkiInfoFunc = func(ctx context.Context, hostID uint, version string, errs, warns []string) error {
@@ -3433,7 +3467,7 @@ func TestDistributedQueryResults(t *testing.T) {
 		},
 		nil,
 	)
-	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(true, nil)
 
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
@@ -3557,9 +3591,38 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading orphaned campaign")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
+}
+
+// A failed stop means Redis or MySQL is down, so no restore is attempted.
+func TestIngestDistributedQueryOrphanedCampaignLoadStopError(t *testing.T) {
+	ds := new(mock.Store)
+	rs := pubsub.NewInmemQueryResults()
+	lq := live_query_mock.New(t)
+	svc := &Service{
+		ds:             ds,
+		resultStore:    rs,
+		liveQueryStore: lq,
+		logger:         slog.New(slog.DiscardHandler),
+		clock:          clock.NewMockClock(),
+	}
+
+	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
+		return nil, errors.New("missing campaign")
+	}
+	lq.On("StopQuery", "42").Return(errors.New("redis down"))
+
+	host := fleet.Host{ID: 1}
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
+
+	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stop orphaned campaign after load failure")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 }
 
 func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
@@ -3590,9 +3653,12 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
+	lq.On("RestoreQueryTargetForHost", "42", host.ID).Return(nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaignID=42 waiting for listener")
+	lq.AssertExpectations(t)
 }
 
 func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
@@ -3626,9 +3692,11 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "closing orphaned campaign")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 }
 
 func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
@@ -3663,9 +3731,11 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stopping orphaned campaign")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 }
 
 func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
@@ -3700,9 +3770,11 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaignID=42 stopped")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 	lq.AssertExpectations(t)
 }
 
@@ -3722,18 +3794,12 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(errors.New("fail"))
-
-	go func() {
-		ch, err := rs.ReadChannel(context.Background(), *campaign)
-		require.NoError(t, err)
-		<-ch
-	}()
-	time.Sleep(10 * time.Millisecond)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(false, errors.New("fail"))
 
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "record query completion")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 	lq.AssertExpectations(t)
 }
 
@@ -3753,7 +3819,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(true, nil)
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)
@@ -3764,6 +3830,60 @@ func TestIngestDistributedQuery(t *testing.T) {
 
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.NoError(t, err)
+	lq.AssertExpectations(t)
+}
+
+func TestIngestDistributedQueryNotTargetingHost(t *testing.T) {
+	ds := new(mock.Store)
+	rs := pubsub.NewInmemQueryResults()
+	lq := live_query_mock.New(t)
+	svc := &Service{
+		ds:             ds,
+		resultStore:    rs,
+		liveQueryStore: lq,
+		logger:         slog.New(slog.DiscardHandler),
+		clock:          clock.NewMockClock(),
+	}
+
+	host := fleet.Host{ID: 1}
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(false, nil)
+
+	// No subscriber and no DistributedQueryCampaignFunc: reaching WriteResult
+	// would take the orphaned-campaign path and crash on the nil datastore func.
+	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{{"col": "forged"}}, "", nil)
+	require.NoError(t, err)
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
+	lq.AssertExpectations(t)
+}
+
+type failingResultStore struct {
+	fleet.QueryResultStore
+}
+
+func (failingResultStore) WriteResult(fleet.DistributedQueryResult) error {
+	return errors.New("publish failed")
+}
+
+// A publish failure other than "no subscriber" must re-target the host: it was
+// already marked complete, so without the restore it would never retry.
+func TestIngestDistributedQueryWriteErrorRestoresTarget(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc := &Service{
+		ds:             ds,
+		resultStore:    failingResultStore{},
+		liveQueryStore: lq,
+		logger:         slog.New(slog.DiscardHandler),
+		clock:          clock.NewMockClock(),
+	}
+
+	host := fleet.Host{ID: 1}
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
+	lq.On("RestoreQueryTargetForHost", "42", host.ID).Return(nil)
+
+	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "writing results")
 	lq.AssertExpectations(t)
 }
 
@@ -7269,6 +7389,9 @@ func TestSaveResultLogsToQueryReportsReadsMissingCountsFromDB(t *testing.T) {
 		return map[uint]int{2: 20}, nil
 	}
 	currentCounts := map[uint]int{}
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		currentCounts[rows[0].QueryID] = currentCount
 		return fleet.QueryReportWriteResult{RowsAdded: len(rows)}, nil
@@ -7308,4 +7431,89 @@ func TestQueryReportCapReadsMissingHostCountFromDB(t *testing.T) {
 	// Database failure falls back to the configured cap.
 	ds.CountAllHostsFunc = func(ctx context.Context) (int, error) { return 0, errors.New("db down") }
 	require.Equal(t, 3, serv.queryReportCap(ctx, settings))
+}
+
+func TestSubmitDistributedQueryResultsReportsDeviceNameAfterSave(t *testing.T) {
+	cases := []struct {
+		name       string
+		deferred   bool
+		saveErr    error
+		wantReport bool
+	}{
+		{"deferred save succeeds", true, nil, true},
+		{"deferred save fails", true, errors.New("boom"), false},
+		{"synchronous save fails", false, errors.New("boom"), false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			lq := live_query_mock.New(t)
+			svc, ctx := newTestServiceWithClock(t, ds, nil, lq, clock.NewMockClock())
+
+			host := &fleet.Host{ID: 1, UUID: "mac-uuid", Platform: "darwin", OsqueryHostID: new("mac")}
+			ctx = hostctx.NewContext(ctx, host)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				ac := &fleet.AppConfig{}
+				ac.ServerSettings.DeferredSaveHost = c.deferred
+				ac.MDM.EnabledAndConfigured = true
+				return ac, nil
+			}
+			saved := make(chan struct{})
+			save := func(h *fleet.Host) error {
+				assert.Equal(t, "Renamed by user", h.ComputerName)
+				close(saved)
+				return c.saveErr
+			}
+			ds.SerialUpdateHostFunc = func(ctx context.Context, h *fleet.Host) error { return save(h) }
+			ds.UpdateHostFunc = func(ctx context.Context, h *fleet.Host) error { return save(h) }
+			reported := make(chan string, 1)
+			ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+				select {
+				case <-saved:
+				default:
+					t.Error("device name reported before the host save landed")
+				}
+				assert.Equal(t, "mac-uuid", hostUUID)
+				reported <- reportedName
+				return fleet.DeviceNameRetried, nil
+			}
+
+			results := map[string][]map[string]string{
+				"fleet_detail_query_system_info": {{
+					"computer_name":      "Renamed by user",
+					"hostname":           "Renamed by user",
+					"uuid":               "mac-uuid",
+					"hardware_serial":    "SERIAL1",
+					"hardware_model":     "MacBookPro16,1",
+					"physical_memory":    "16000000000",
+					"cpu_physical_cores": "8",
+					"cpu_logical_cores":  "8",
+				}},
+			}
+			require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results,
+				map[string]fleet.OsqueryStatus{"fleet_detail_query_system_info": 0}, map[string]string{}, map[string]*fleet.Stats{}))
+
+			select {
+			case <-saved:
+			case <-time.After(5 * time.Second):
+				t.Fatal("host was never saved")
+			}
+			if !c.wantReport {
+				// Give a deferred report (if any) time to run before asserting it didn't.
+				select {
+				case name := <-reported:
+					t.Fatalf("device name %q reported after a failed host save", name)
+				case <-time.After(200 * time.Millisecond):
+				}
+				return
+			}
+			select {
+			case name := <-reported:
+				require.Equal(t, "Renamed by user", name)
+			case <-time.After(5 * time.Second):
+				t.Fatal("device name was never reported after the host save")
+			}
+		})
+	}
 }

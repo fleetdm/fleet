@@ -88,6 +88,7 @@ const ActivityFeedFilters = ({
           onSelect={onChangeActivityType}
         />
         <DropdownWrapper
+          ariaLabel="Filter by date"
           className={`${baseClass}__date-filter-dropdown`}
           iconName="calendar"
           name="date-filter"
@@ -100,6 +101,7 @@ const ActivityFeedFilters = ({
           }}
         />
         <DropdownWrapper
+          ariaLabel="Filter by activity age"
           className={`${baseClass}__sort-created-at-dropdown`}
           name="created-at-filter"
           iconName="filter"

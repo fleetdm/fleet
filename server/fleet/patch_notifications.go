@@ -45,6 +45,7 @@ type PatchNotificationAppDetail struct {
 	DisplayName         string `db:"display_name"`
 	HasIcon             bool   `db:"has_icon"`
 	InstallQueued       bool   `db:"install_queued"`
+	UpdatedInInventory  bool   `db:"updated_in_inventory"`
 	// CreatedAt is when the app was added to the notification
 	CreatedAt time.Time `db:"created_at"`
 }

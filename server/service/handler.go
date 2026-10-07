@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/multi"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/nanomdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/challenge"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -170,7 +171,8 @@ func MakeHandler(
 					// Use the guideline for span names: {method} {target}
 					// See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
 					return r.Method + " " + route
-				})))
+				}),
+			))
 		} else {
 			// Elastic APM instrumentation is gorilla-specific and names spans from the matched mux route, so the fast path
 			// cannot be installed alongside it.
@@ -455,6 +457,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		getSoftwareInstallerRequest{})
 	// Software package endpoints are already limited to max installer size in serve.go
 	ue.SkipRequestBodySizeLimit().POST("/api/_version_/fleet/software/package", uploadSoftwareInstallerEndpoint, uploadSoftwareInstallerRequest{})
+	ue.POST("/api/_version_/fleet/staged_upload", createStagedUploadEndpoint, createStagedUploadRequest{})
 	ue.PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/name", updateSoftwareNameEndpoint, updateSoftwareNameRequest{})
 	// Software package endpoints are already limited to max installer size in serve.go
 	ue.SkipRequestBodySizeLimit().PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/package", updateSoftwareInstallerEndpoint, updateSoftwareInstallerRequest{})
@@ -815,6 +818,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/apns_ping", apnsPingRequestEndpoint, sendAPNSPingRequest{})
 
+	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles/{profile_uuid}/install", installSelfServiceConfigurationProfileEndpoint, installSelfServiceConfigurationProfileRequest{})
+	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles/{profile_uuid}/uninstall", uninstallSelfServiceConfigurationProfileEndpoint, uninstallSelfServiceConfigurationProfileRequest{})
+
 	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
 
 	mdmAnyMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
@@ -848,6 +854,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// GET /hosts/:id/encryption_key.
 	ue.GET("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/encryption_key/rotate", rotateDiskEncryptionKeyEndpoint, rotateDiskEncryptionKeyRequest{})
 
 	// Deprecated: GET /mdm/profiles/summary is now deprecated, replaced by the
 	// GET /configuration_profiles/summary endpoint.
@@ -958,7 +965,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAndroidMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAndroidMDM())
 	mdmAndroidMW.POST("/api/_version_/fleet/software/web_apps", createAndroidWebAppEndpoint, createAndroidWebAppRequest{})
 
-	ipBanner := redis.NewIPBanner(redisPool, "ipbanner::",
+	ipBanner := redis.NewIPBanner(
+		redisPool, "ipbanner::",
 		DeviceIPAllowedConsecutiveFailingRequestsCount,
 		DeviceIPAllowedConsecutiveFailingRequestsTimeWindow,
 		DeviceIPBanTime,
@@ -1037,8 +1045,13 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint, getDeviceMDMCommandResultsRequest{})
-	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
-	demdm.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/apns_ping", deviceSendAPNSPing, deviceSendAPNSPingRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/apns_ping", deviceSendAPNSPing, deviceSendAPNSPingRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/install", deviceInstallSelfServiceConfigurationProfileEndpoint, deviceInstallSelfServiceConfigurationProfileRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/uninstall", deviceUninstallSelfServiceConfigurationProfileEndpoint, deviceUninstallSelfServiceConfigurationProfileRequest{})
+
+	// Device authenticated, any MDM: the resend serves Windows profiles too.
+	deAnyMDM := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
+	deAnyMDM.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
 
 	// host-authenticated endpoints
 	//
@@ -1426,7 +1439,7 @@ func RegisterAppleMDMProtocolServices(
 	svc fleet.Service,
 	ds fleet.Datastore,
 ) error {
-	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig, ds); err != nil {
+	if err := registerAppleMDMSCEP(mux, scepConfig, scepStorage, ds, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
 	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, getTokenService, logger, fleetConfig, ds); err != nil {
@@ -1500,33 +1513,23 @@ func registerPSSO(
 	return nil
 }
 
-// registerSCEP registers the HTTP handler for SCEP service needed for enrollment to MDM.
+// registerAppleMDMSCEP registers the HTTP handler for SCEP service needed for enrollment to Apple MDM.
 // Returns the SCEP CA certificate that can be used by verifiers.
-func registerSCEP(
+func registerAppleMDMSCEP(
 	mux *http.ServeMux,
 	scepConfig config.MDMConfig,
 	scepStorage scep_depot.Depot,
-	mdmStorage fleet.MDMAppleStore,
+	mdmStorage challenge.AppleMDMSCEPStore,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
 	appCfgGetter fleet.GetsAppConfig,
 ) error {
-	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
+	depotSigner := scep_depot.NewSigner(
 		scepStorage,
 		scep_depot.WithValidityDays(scepConfig.AppleSCEPSignerValidityDays),
-		// This value was allowed to be configured via --mdm_apple_scep_signer_allow_renewal_days but there was no real use case for
-		// customizing it and it was confusing for customers, so it has been removed and replaced with the default of 14. For discussion,
-		// see https://github.com/fleetdm/fleet/issues/38611 and https://github.com/fleetdm/fleet/issues/37880#issuecomment-3805983198
-		// Fleet has a 180-day renewal cron that is completely unrelated to this or its value
-		scep_depot.WithAllowRenewalDays(14),
-	))
-	assets, err := mdmStorage.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge}, nil)
-	if err != nil {
-		return fmt.Errorf("retrieving SCEP challenge: %w", err)
-	}
+	)
 
-	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
-	signer = scepserver.StaticChallengeMiddleware(scepChallenge, signer)
+	signer := challenge.AppleMDMChallengeMiddleware(logger.With("component", "mdm-apple-scep"), mdmStorage, scepConfig.AppleSCEPStaticChallengeEnabled, depotSigner)
 	scepService := NewSCEPService(
 		mdmStorage,
 		signer,

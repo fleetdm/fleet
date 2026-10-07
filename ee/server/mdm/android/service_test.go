@@ -2,6 +2,7 @@ package android
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -98,7 +99,11 @@ func TestGetZeroTouchConfiguration_ReturnsExistingToken(t *testing.T) {
 
 	resp, err := svc.GetZeroTouchConfiguration(premiumAdminCtx(t), nil)
 	require.NoError(t, err)
-	assert.Contains(t, resp.DPCExtras, "existing-token-value")
+
+	var extras dpcExtras
+	require.NoError(t, json.Unmarshal(resp.DPCExtras, &extras))
+	assert.Equal(t, "existing-token-value", extras.AdminExtrasBundle.EnrollmentToken)
+
 	assert.True(t, mockDS.GetZeroTouchEnrollmentTokenFuncInvoked)
 	assert.False(t, mockDS.CreateZeroTouchEnrollmentTokenFuncInvoked)
 }
@@ -136,8 +141,11 @@ func TestGetZeroTouchConfiguration_CreatesTokenWhenNoneExists(t *testing.T) {
 
 	resp, err := svc.GetZeroTouchConfiguration(premiumAdminCtx(t), nil)
 	require.NoError(t, err)
-	assert.Contains(t, resp.DPCExtras, "new-token-value")
-	assert.Contains(t, resp.DPCExtras, "EXTRA_ENROLLMENT_TOKEN")
+
+	var extras dpcExtras
+	require.NoError(t, json.Unmarshal(resp.DPCExtras, &extras))
+	assert.Equal(t, "new-token-value", extras.AdminExtrasBundle.EnrollmentToken)
+
 	assert.True(t, mockDS.CreateZeroTouchEnrollmentTokenFuncInvoked)
 	assert.True(t, apiClient.EnterprisesEnrollmentTokensCreateFuncInvoked)
 }
