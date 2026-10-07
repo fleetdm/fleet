@@ -193,9 +193,9 @@ export interface IAppStoreApp {
   labels_include_all: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
-  /** Typed as string but Android configs arrive as a parsed object at runtime
-   * (backend sends json.RawMessage which Axios auto-parses). */
-  configuration?: string;
+  /** iOS/iPadOS: XML plist string. Android: parsed JSON object (BE sends
+   * json.RawMessage which Axios auto-parses). */
+  configuration?: string | Record<string, unknown>;
 }
 
 /** One App Store app version on a software title. iOS/iPadOS/Android titles
@@ -228,9 +228,9 @@ export interface IAppStoreAppVersion {
   created_at: string;
   categories?: SoftwareCategory[] | null;
   display_name?: string;
-  /** Typed as string but Android configs arrive as a parsed object at runtime
-   * (backend sends json.RawMessage which Axios auto-parses). */
-  configuration?: string;
+  /** iOS/iPadOS: XML plist string. Android: parsed JSON object (BE sends
+   * json.RawMessage which Axios auto-parses). */
+  configuration?: string | Record<string, unknown>;
 }
 
 /**

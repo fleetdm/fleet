@@ -16,6 +16,7 @@ import { ISoftwareInstallPolicy } from "interfaces/software";
 import {
   getSelfServiceTooltip,
   getAutomaticInstallPoliciesCount,
+  getAutoUpdateWindowDurationMinutes,
   getDisplayedSoftwareName,
 } from "./helpers";
 
@@ -225,5 +226,38 @@ describe("getDisplayedSoftwareName", () => {
     expect(
       getDisplayedSoftwareName("\u200e", "My App", "com.apple.MediaRemoteUI")
     ).toBe("My App");
+  });
+});
+
+describe("getAutoUpdateWindowDurationMinutes", () => {
+  it("returns same-day duration when end > start", () => {
+    expect(getAutoUpdateWindowDurationMinutes("09:00", "10:30")).toBe(90);
+  });
+
+  it("returns zero when start equals end", () => {
+    expect(getAutoUpdateWindowDurationMinutes("12:00", "12:00")).toBe(0);
+  });
+
+  it("wraps overnight when end < start", () => {
+    // 23:00 to 00:00 = 60 minutes (the minimum valid overnight window).
+    expect(getAutoUpdateWindowDurationMinutes("23:00", "00:00")).toBe(60);
+  });
+
+  // The pre-fix regression: 23:30 to 00:15 is 45 minutes overnight but the
+  // naive `end >= start && end - start < 60` check skipped the branch, letting
+  // the sub-hour window through client-side validation.
+  it("catches short overnight windows (23:30 to 00:15 = 45 minutes)", () => {
+    expect(getAutoUpdateWindowDurationMinutes("23:30", "00:15")).toBe(45);
+  });
+
+  it("handles a full-length overnight window", () => {
+    // 22:00 to 02:00 = 240 minutes.
+    expect(getAutoUpdateWindowDurationMinutes("22:00", "02:00")).toBe(240);
+  });
+
+  it("returns null for malformed inputs", () => {
+    expect(getAutoUpdateWindowDurationMinutes("bad", "02:00")).toBeNull();
+    expect(getAutoUpdateWindowDurationMinutes("09:00", "25:00")).toBeNull();
+    expect(getAutoUpdateWindowDurationMinutes("", "")).toBeNull();
   });
 });

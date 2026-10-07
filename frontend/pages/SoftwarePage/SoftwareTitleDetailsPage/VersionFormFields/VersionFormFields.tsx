@@ -14,6 +14,7 @@ import { CategoriesSelector } from "pages/SoftwarePage/components/forms/Software
 import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
+  getAutoUpdateWindowDurationMinutes,
 } from "pages/SoftwarePage/helpers";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -62,10 +63,6 @@ export const DEFAULT_VERSION_FORM_DATA: IVersionFormData = {
 };
 
 const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const toMinutes = (hhmm: string) => {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-};
 
 /** Shared validator for Add and Edit version modals. Mirrors the shape used
  * by `EditAutoUpdateConfigModal/helpers.tsx`: at least one label when Target
@@ -119,10 +116,11 @@ export const validateVersionForm = (
         : "Enter an end time";
     }
     if (startValid && endValid) {
-      const start = toMinutes(data.autoUpdateWindowStart);
-      const end = toMinutes(data.autoUpdateWindowEnd);
-      // Wraps to next day when end < start; otherwise require >=60 min.
-      if (end >= start && end - start < 60) {
+      const durationMinutes = getAutoUpdateWindowDurationMinutes(
+        data.autoUpdateWindowStart,
+        data.autoUpdateWindowEnd
+      );
+      if (durationMinutes !== null && durationMinutes < 60) {
         errors.autoUpdateWindowEnd = "Window must be at least 60 minutes";
       }
     }
@@ -175,6 +173,16 @@ const resolveTargetFromVersion = (
 };
 
 /** Translate a persisted version into the form shape (edit pre-fill). */
+// Android configuration arrives as a parsed object (axios); iOS/iPadOS as an
+// XML plist string. The Editor needs a string either way.
+const configurationToEditorString = (
+  configuration: IAppStoreAppVersion["configuration"]
+): string => {
+  if (!configuration) return "";
+  if (typeof configuration === "string") return configuration;
+  return JSON.stringify(configuration, null, "\t");
+};
+
 export const versionToFormData = (
   version: IAppStoreAppVersion
 ): IVersionFormData => {
@@ -183,7 +191,7 @@ export const versionToFormData = (
   );
   return {
     name: version.name,
-    configuration: version.configuration ?? "",
+    configuration: configurationToEditorString(version.configuration),
     selfService: version.self_service,
     categories: version.categories ?? [],
     targetType,

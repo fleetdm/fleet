@@ -399,3 +399,23 @@ export const mergePolicies = ({
 
   return Array.from(byId.values());
 };
+
+const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const MINUTES_IN_DAY = 24 * 60;
+
+/** Wrap-aware duration between two HH:MM times. `end < start` wraps to the
+ * next day (overnight window), so 23:30 to 00:15 returns 45. Returns `null`
+ * if either input isn't valid HH:MM; same-time inputs return 0. */
+export const getAutoUpdateWindowDurationMinutes = (
+  start: string,
+  end: string
+): number | null => {
+  if (!HHMM_RE.test(start) || !HHMM_RE.test(end)) return null;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  const startTotal = sh * 60 + sm;
+  const endTotal = eh * 60 + em;
+  return endTotal >= startTotal
+    ? endTotal - startTotal
+    : endTotal - startTotal + MINUTES_IN_DAY;
+};

@@ -125,15 +125,19 @@ const EditVersionModal = ({
         ? activeLabels
         : [];
 
-    // Android configuration is a JSON object on the wire; parse the editor
-    // string before sending. iOS/iPadOS send the XML plist as a string.
-    // Omitting the field (undefined) means "no change" per Add parity —
-    // we don't silently clear a stored config when the editor is at the
-    // empty scaffold.
-    const hasConfig =
-      !!data.configuration && data.configuration !== emptyScaffold;
-    let configurationPayload: string | Record<string, unknown> | undefined;
-    if (hasConfig) {
+    // Three-way: unchanged scaffold = no change (undefined), empty editor =
+    // deliberate clear (null for iOS/iPadOS, {} for Android, matching the
+    // backend's clear values), content = set/update.
+    let configurationPayload:
+      | string
+      | Record<string, unknown>
+      | null
+      | undefined;
+    if (data.configuration === emptyScaffold) {
+      configurationPayload = undefined;
+    } else if (!data.configuration) {
+      configurationPayload = version.platform === "android" ? {} : null;
+    } else {
       configurationPayload =
         version.platform === "android"
           ? (JSON.parse(data.configuration) as Record<string, unknown>)
