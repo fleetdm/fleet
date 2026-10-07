@@ -1219,6 +1219,91 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.Zero(t, displayNameCount)
 	_, err = s.ds.GetSoftwareTitleIcon(ctx, team.ID, titleID)
 	require.True(t, fleet.IsNotFound(err))
+
+	// Auto-update coverage for the add endpoint. The batch path already has
+	// coverage in TestBatchAppStoreAppVersions; the single-add endpoint added
+	// the same contract and needs regression coverage so a refactor can't
+	// silently drop validation, persist state the scheduler won't use, or
+	// omit the schedule from the activity payload.
+	addTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "add-endpoint-auto-update"})
+	require.NoError(t, err)
+
+	// Valid 60+ min iOS window persists, and the activity carries the schedule.
+	var addAutoResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:              &addTeam.ID,
+		AppStoreID:          iosAdamID,
+		Platform:            fleet.IOSPlatform,
+		Name:                "Valid Window",
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new("01:00"),
+		AutoUpdateEndTime:   new("03:00"),
+	}, http.StatusOK, &addAutoResp)
+	addedVersions, err := s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, addTeam.ID, addAutoResp.TitleID)
+	require.NoError(t, err)
+	require.Len(t, addedVersions, 1)
+	require.NotNil(t, addedVersions[0].AutoUpdateEnabled)
+	require.True(t, *addedVersions[0].AutoUpdateEnabled)
+	require.Equal(t, "01:00", *addedVersions[0].AutoUpdateStartTime)
+	require.Equal(t, "03:00", *addedVersions[0].AutoUpdateEndTime)
+	// Activity carries the window.
+	var addActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &addActivities,
+		"order_key", "id", "order_direction", "desc", "per_page", "1")
+	require.Len(t, addActivities.Activities, 1)
+	require.Equal(t, fleet.ActivityAddedAppStoreApp{}.ActivityName(), addActivities.Activities[0].Type)
+	var addDetails struct {
+		AutoUpdateEnabled   *bool   `json:"auto_update_enabled"`
+		AutoUpdateStartTime *string `json:"auto_update_window_start"`
+		AutoUpdateEndTime   *string `json:"auto_update_window_end"`
+	}
+	require.NoError(t, json.Unmarshal(*addActivities.Activities[0].Details, &addDetails))
+	require.NotNil(t, addDetails.AutoUpdateEnabled)
+	require.True(t, *addDetails.AutoUpdateEnabled)
+	require.Equal(t, "01:00", *addDetails.AutoUpdateStartTime)
+	require.Equal(t, "03:00", *addDetails.AutoUpdateEndTime)
+
+	// Sub-hour window rejected at the service boundary.
+	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:              &addTeam.ID,
+		AppStoreID:          ipadOSAdamID,
+		Platform:            fleet.IPadOSPlatform,
+		Name:                "Short Window",
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new("23:30"),
+		AutoUpdateEndTime:   new("00:15"),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "60 minutes")
+
+	// Malformed times (not HH:MM) rejected at the service boundary.
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:              &addTeam.ID,
+		AppStoreID:          ipadOSAdamID,
+		Platform:            fleet.IPadOSPlatform,
+		Name:                "Malformed Window",
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new("not-a-time"),
+		AutoUpdateEndTime:   new("03:00"),
+	}, http.StatusUnprocessableEntity)
+
+	// macOS silently drops the auto-update fields (unsupported platform) so a
+	// direct API caller can't persist state the scheduler will never use.
+	var addMacAutoResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:              &addTeam.ID,
+		AppStoreID:          macOSAdamID,
+		Platform:            fleet.MacOSPlatform,
+		Name:                "macOS With Window",
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new("01:00"),
+		AutoUpdateEndTime:   new("03:00"),
+	}, http.StatusOK, &addMacAutoResp)
+	macVersions, err := s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, addTeam.ID, addMacAutoResp.TitleID)
+	require.NoError(t, err)
+	require.Len(t, macVersions, 1)
+	require.Nil(t, macVersions[0].AutoUpdateEnabled, "macOS should not persist auto-update fields")
+	require.Nil(t, macVersions[0].AutoUpdateStartTime)
+	require.Nil(t, macVersions[0].AutoUpdateEndTime)
 }
 
 func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {

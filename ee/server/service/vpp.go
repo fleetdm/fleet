@@ -835,18 +835,27 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	// Reject malformed or sub-hour auto-update windows at the service boundary
 	// instead of trusting the frontend's validator; the datastore writes
-	// whatever strings it receives.
-	if appID.AutoUpdateEnabled != nil && *appID.AutoUpdateEnabled {
-		schedule := fleet.SoftwareAutoUpdateSchedule{
-			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
-				AutoUpdateEnabled:   appID.AutoUpdateEnabled,
-				AutoUpdateStartTime: appID.AutoUpdateStartTime,
-				AutoUpdateEndTime:   appID.AutoUpdateEndTime,
-			},
+	// whatever strings it receives. Auto-update is iOS/iPadOS only — mirror
+	// the batch path (ee/server/service/vpp.go:414-433) and clear the fields
+	// on other platforms so direct API callers can't persist state the
+	// scheduler won't use.
+	if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
+		if appID.AutoUpdateEnabled != nil && *appID.AutoUpdateEnabled {
+			schedule := fleet.SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   appID.AutoUpdateEnabled,
+					AutoUpdateStartTime: appID.AutoUpdateStartTime,
+					AutoUpdateEndTime:   appID.AutoUpdateEndTime,
+				},
+			}
+			if err := schedule.WindowIsValid(); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "validating auto-update schedule")
+			}
 		}
-		if err := schedule.WindowIsValid(); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "validating auto-update schedule")
-		}
+	} else {
+		appID.AutoUpdateEnabled = nil
+		appID.AutoUpdateStartTime = nil
+		appID.AutoUpdateEndTime = nil
 	}
 
 	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, appID.LabelsIncludeAny, appID.LabelsExcludeAny, appID.LabelsIncludeAll)
@@ -1110,22 +1119,30 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
 
+	// Only include the window when auto-update is enabled, matching the edit
+	// activity's behavior at line 1572-1579. insertVPPAppTeams clears the
+	// window on `enabled: false`, so copying the raw request here would log
+	// values the datastore didn't actually store.
 	act := fleet.ActivityAddedAppStoreApp{
-		AppStoreID:          app.AdamID,
-		Platform:            app.Platform,
-		TeamName:            &teamName,
-		SoftwareTitle:       app.Name,
-		SoftwareTitleId:     addedApp.TitleID,
-		TeamID:              teamID,
-		SelfService:         app.SelfService,
-		LabelsIncludeAny:    actLabelsInclAny,
-		LabelsExcludeAny:    actLabelsExclAny,
-		LabelsIncludeAll:    actLabelsInclAll,
-		Configuration:       json.RawMessage(appID.Configuration),
-		AutoUpdateEnabled:   appID.AutoUpdateEnabled,
-		AutoUpdateStartTime: appID.AutoUpdateStartTime,
-		AutoUpdateEndTime:   appID.AutoUpdateEndTime,
-		VersionName:         addedApp.VersionName,
+		AppStoreID:       app.AdamID,
+		Platform:         app.Platform,
+		TeamName:         &teamName,
+		SoftwareTitle:    app.Name,
+		SoftwareTitleId:  addedApp.TitleID,
+		TeamID:           teamID,
+		SelfService:      app.SelfService,
+		LabelsIncludeAny: actLabelsInclAny,
+		LabelsExcludeAny: actLabelsExclAny,
+		LabelsIncludeAll: actLabelsInclAll,
+		Configuration:    json.RawMessage(appID.Configuration),
+		VersionName:      addedApp.VersionName,
+	}
+	if appID.AutoUpdateEnabled != nil {
+		act.AutoUpdateEnabled = appID.AutoUpdateEnabled
+		if *appID.AutoUpdateEnabled {
+			act.AutoUpdateStartTime = appID.AutoUpdateStartTime
+			act.AutoUpdateEndTime = appID.AutoUpdateEndTime
+		}
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {

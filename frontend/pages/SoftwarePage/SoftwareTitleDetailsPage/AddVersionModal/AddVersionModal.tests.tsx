@@ -1,7 +1,8 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 import { createMockAppStoreAppIos } from "__mocks__/softwareMock";
+import softwareAPI from "services/entities/software";
 import { createCustomRenderer } from "test/test-utils";
 
 import AddVersionModal from "./AddVersionModal";
@@ -97,5 +98,43 @@ describe("AddVersionModal", () => {
     });
     renderModal({ appStore: androidApp });
     expect(screen.queryByText(/Enable auto updates/i)).not.toBeInTheDocument();
+  });
+
+  // defaultAutoUpdate prefills the Auto updates section when the caller passes
+  // an existing version's schedule (set by the parent when exactly one version
+  // already exists). Covers the checkbox, both time inputs, and the POST
+  // payload the Add submits so a later refactor can't silently drop the prefill.
+  it("pre-fills auto-update from defaultAutoUpdate and submits those values", async () => {
+    const addSpy = jest
+      .spyOn(softwareAPI, "addAppStoreAppVersion")
+      .mockResolvedValue({} as never);
+
+    const { user } = renderModal({
+      defaultAutoUpdate: {
+        enabled: true,
+        windowStart: "22:00",
+        windowEnd: "02:00",
+      },
+    });
+
+    expect(screen.getByLabelText(/Enable auto updates/i)).toBeChecked();
+    expect(
+      screen.getByLabelText(/Window start \(host local time\)/i)
+    ).toHaveValue("22:00");
+    expect(
+      screen.getByLabelText(/Window end \(host local time\)/i)
+    ).toHaveValue("02:00");
+
+    await user.type(screen.getByLabelText(/Name/i), "Production");
+    await user.click(screen.getByRole("button", { name: /^Add$/i }));
+
+    await waitFor(() => expect(addSpy).toHaveBeenCalled());
+    const [, body] = addSpy.mock.calls[0];
+    expect(body).toMatchObject({
+      name: "Production",
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
   });
 });
