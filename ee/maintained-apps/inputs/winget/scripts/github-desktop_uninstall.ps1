@@ -73,14 +73,12 @@ function Wait-BoundedProcess {
     return $Process.ExitCode
 }
 
-# The folder is user-writable, so delete it with Directory.Delete, which removes
-# junctions rather than following them (Remove-Item -Recurse can follow them).
 # Retry because a virus scanner or an exiting process can hold a file briefly.
 function Remove-AppDir {
     param([string]$Path)
 
     for ($attempt = 0; $attempt -lt 30; $attempt++) {
-        try { [System.IO.Directory]::Delete($Path, $true) } catch {}
+        Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
         if (-not (Test-Path -LiteralPath $Path)) { return $true }
         Start-Sleep -Seconds 2
     }
