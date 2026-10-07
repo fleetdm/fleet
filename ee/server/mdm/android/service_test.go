@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -271,4 +272,20 @@ func TestGetZeroTouchConfiguration_FleetCheckedAfterLicense(t *testing.T) {
 	_, err := svc.GetZeroTouchConfiguration(ctx, new(uint(1)))
 	require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	assert.False(t, mockDS.TeamExistsFuncInvoked)
+}
+
+func TestGetZeroTouchConfiguration_NonAdminRejectedBeforeFleetLookup(t *testing.T) {
+	for _, role := range []string{fleet.RoleMaintainer, fleet.RoleObserver} {
+		t.Run(role, func(t *testing.T) {
+			svc, mockDS, _ := setupEEService(t)
+
+			ctx := licensectx.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(role)}})
+
+			_, err := svc.GetZeroTouchConfiguration(ctx, new(uint(999)))
+			var authzErr *authz.Forbidden
+			require.ErrorAs(t, err, &authzErr)
+			assert.False(t, mockDS.TeamExistsFuncInvoked, "fleet existence must not leak to non-admins")
+		})
+	}
 }
