@@ -1,1 +1,2 @@
 - Added `source` and `extension_for` query parameters to the list software titles, list software versions, get host's software, and get device's software endpoints, to filter software by type.
+- Renamed software type labels for better clarity.
