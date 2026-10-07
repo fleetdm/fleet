@@ -860,6 +860,7 @@ SELECT
 	sesr.software_installer_id,
 	sesr.host_software_installs_execution_id,
 	sesr.vpp_app_team_id,
+	vat.name AS vpp_app_version_name,
 	sesr.nano_command_uuid,
 	sesr.in_house_app_id,
 	sesr.setup_experience_script_id,

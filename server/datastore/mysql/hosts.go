@@ -1460,6 +1460,22 @@ func (ds *Datastore) applyHostFilters(
 		}
 	}
 
+	// Per-package status counts in the Software Library click through to a
+	// host list filtered to one specific installer id on a multi-package
+	// title. ANDs into any existing softwareFilter above.
+	if opt.SoftwareInstallerIDFilter != nil {
+		softwareFilter = fmt.Sprintf("(%s) AND EXISTS (SELECT 1 FROM host_software_installs hsi WHERE hsi.host_id = h.id AND hsi.software_installer_id = ?)", softwareFilter)
+		whereParams = append(whereParams, *opt.SoftwareInstallerIDFilter)
+	}
+
+	// Per-version status counts for multi-version App Store app titles click
+	// through to a host list filtered to one admin-created version id
+	// (`vpp_apps_teams.id`).
+	if opt.AppStoreAppVersionIDFilter != nil {
+		softwareFilter = fmt.Sprintf("(%s) AND EXISTS (SELECT 1 FROM host_vpp_software_installs hvsi WHERE hvsi.host_id = h.id AND hvsi.vpp_app_team_id = ?)", softwareFilter)
+		whereParams = append(whereParams, *opt.AppStoreAppVersionIDFilter)
+	}
+
 	failingPoliciesJoin := ""
 	if !opt.DisableIssues {
 		failingPoliciesJoin = `LEFT JOIN host_issues ON h.id = host_issues.host_id`

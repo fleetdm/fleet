@@ -214,6 +214,7 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
 			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
 			LabelsIncludeAll: activityDetailsForSoftwareTitleIcon.LabelsIncludeAll,
+			VersionName:      activityDetailsForSoftwareTitleIcon.VersionName,
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating activity for software title icon")
 		}
