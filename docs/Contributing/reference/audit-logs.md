@@ -659,19 +659,26 @@ This activity contains the following fields:
 
 ## host_enrollment_rejected
 
-Generated when Fleet refuses an Orbit or osquery enrollment under the one-time enroll secret rules (see the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration for macOS, and [`mdm.windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) for Windows). Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
+Generated when Fleet refuses an enrollment in either of these cases:
+- An Orbit or osquery enrollment is refused under the one-time enroll secret rules. See the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration for macOS, and [`auth_mdm_windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-mdm-windows-one-time-enroll-secrets) for Windows.
+- An automatic enrollment (ADE) is refused because the host is in a fleet that requires end user authentication and the device didn't complete it.
+
+Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
 
 This activity contains the following fields:
 - "host_id": ID of the host the attempt targeted, or null if the host is unknown.
 - "host_display_name": Display name of the host, if known.
 - "host_serial": Serial number the enrolling device presented.
-- "host_uuid": Hardware UUID the enrolling device presented.
-- "platform": Platform the enrolling device presented.
-- "enrollment_plane": Which fleetd component attempted to enroll, "orbit" or "osquery".
+- "host_uuid": Hardware UUID the enrolling device presented. For "apple_mdm", this is the device's UDID.
+- "platform": Platform of the enrolling device.
+- "enrollment_plane": What attempted to enroll. One of:
+  - "orbit" or "osquery": a fleetd component.
+  - "apple_mdm": an Apple device during automatic enrollment (ADE).
 - "reason": Why the attempt was refused. One of:
   - "one_time_secret_spent": the host's one-time enroll secret was already used. Resend the "Fleetd configuration" profile (macOS) or the "Fleetd enroll secret" profile (Windows) to issue a new one.
   - "one_time_secret_identifier_mismatch": a one-time enroll secret was presented with a different serial number or hardware UUID than it was issued for.
   - "shared_secret_for_mdm_managed_host": a global or fleet-level enroll secret was used for a host that is enrolled in Fleet MDM, assigned to Fleet in Apple Business, or registered in Windows Autopilot. On Windows, this also covers a deleted host whose device checked in with Fleet MDM after it was deleted.
+  - "end_user_authentication_required": the host is in a fleet that requires end user authentication, but the device tried to enroll without completing it. This happens when the device got its automatic enrollment configuration before its fleet required end user authentication, or before it moved to that fleet. Erase and reactivate the device so it goes through end user authentication. Fleet only records this reason when every other enrollment check passed.
 
 #### Example
 
@@ -684,6 +691,20 @@ This activity contains the following fields:
 	"platform": "darwin",
 	"enrollment_plane": "orbit",
 	"reason": "one_time_secret_spent"
+}
+```
+
+#### Example: automatic enrollment
+
+```json
+{
+	"host_id": 456,
+	"host_display_name": "Anna's iPad",
+	"host_serial": "DMPXK2ABCDEF",
+	"host_uuid": "00008103-001A2B3C4D5E6F70",
+	"platform": "ipados",
+	"enrollment_plane": "apple_mdm",
+	"reason": "end_user_authentication_required"
 }
 ```
 

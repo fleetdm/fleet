@@ -574,6 +574,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Download package using a token](#download-package-using-a-token)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
+- [Rotate automatic enrollment token](#rotate-automatic-enrollment-token)
 - [Over the air enrollment](#over-the-air-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
@@ -1225,6 +1226,56 @@ following query parameters:
   showing a generic error. This happens when the user takes longer than
   `auth.sso_session_validity_period` to authenticate with the IdP, when the session cookie expires,
   or when the callback is replayed (the session is single use).
+
+### Rotate automatic enrollment token
+
+_Available in Fleet Premium_
+
+Replaces the automatic enrollment token. Fleet puts this token in the `url` of the automatic enrollment profile for fleets without end user authentication. The previous token keeps working for a grace period. Only global admins can rotate the token.
+
+`POST /api/v1/fleet/enrollment_profiles/automatic/rotate_token`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| grace_period_hours | integer | body | How long the previous token keeps working, in hours. Default: `24`. Must be between `0` and `720`. `0` stops accepting the previous token immediately. |
+
+#### Example
+
+`POST /api/v1/fleet/enrollment_profiles/automatic/rotate_token`
+
+##### Request body
+
+```json
+{
+  "grace_period_hours": 24
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "previous_token_expires_at": "2026-10-01T15:04:05Z"
+}
+```
+
+`previous_token_expires_at` is `null` when `grace_period_hours` is `0`. Token values are never returned.
+
+After rotating, Fleet updates every fleet's automatic enrollment profile in Apple Business (AB) with the new `url`, and reassigns the fleet's devices to it. Rotating again during a grace period ends the earlier grace period.
+
+Devices keep the automatic enrollment configuration they got when they were activated. A device that was activated before the rotation, but hasn't enrolled yet, can't enroll with the old token once the grace period ends. To fix it, erase and reactivate it.
+
+##### Error responses
+
+- `400` when Apple MDM isn't turned on.
+- `402` on Fleet Free.
+- `403` for any role other than global admin.
+- `404` when there's no automatic enrollment profile yet (no AB token has synced).
+- `422` when `grace_period_hours` is out of range.
 
 ### Over the air enrollment
 
