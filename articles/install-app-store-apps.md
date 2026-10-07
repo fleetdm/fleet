@@ -60,6 +60,8 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 ## Configure automatic updates for an app (iOS / iPadOS only)
 
+> Currently, Fleet doesn't patch Android apps. Google Play updates them automatically, or the end user can update them from the Play Store in their work profile.
+
 1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
 2. Search for the app you want to configure and select the app to head to its **Software details** page.
