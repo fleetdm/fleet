@@ -22,9 +22,9 @@ import { IHostSoftware } from "interfaces/software";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import {
-  buildSoftwareVulnFiltersQueryParams,
+  buildSoftwareFiltersQueryParams,
   getVulnFilterRenderDetails,
-  ISoftwareVulnFiltersParams,
+  ISoftwareFilters,
 } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 import { IGetHostSoftwareResponse } from "services/entities/hosts";
@@ -71,7 +71,7 @@ interface IHostSoftwareTableProps {
   searchQuery: string;
   page: number;
   pagePath: string;
-  vulnFilters: ISoftwareVulnFiltersParams;
+  filters: ISoftwareFilters;
   teamId?: number;
   /** Current value of the macOS /Applications filter. Only defined for macOS hosts. */
   macosApplicationsFilter?: boolean;
@@ -91,7 +91,7 @@ const HostSoftwareTable = ({
   searchQuery,
   page,
   pagePath,
-  vulnFilters,
+  filters,
   teamId,
   macosApplicationsFilter,
   onAddFiltersClick,
@@ -130,11 +130,11 @@ const HostSoftwareTable = ({
         ...(macosApplicationsFilter !== undefined && {
           macos_applications: macosApplicationsFilter,
         }),
-        ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+        ...buildSoftwareFiltersQueryParams(filters),
       };
       return newQueryParam;
     },
-    [vulnFilters, teamId, macosApplicationsFilter]
+    [filters, teamId, macosApplicationsFilter]
   );
 
   // TODO: Look into useDebounceCallback with dependencies
@@ -167,7 +167,7 @@ const HostSoftwareTable = ({
   // Determines if a user should be able to filter or search in the table
   const hasData = data && data.software.length > 0;
   const hasQuery = searchQuery !== "";
-  const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
+  const vulnFilterDetails = getVulnFilterRenderDetails(filters);
   const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
   // Truly empty: no software at all, no active search/filters
@@ -234,7 +234,7 @@ const HostSoftwareTable = ({
           page: 0, // resets page index
           fleet_id: teamId,
           macos_applications: newValue.value,
-          ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+          ...buildSoftwareFiltersQueryParams(filters),
         },
       })
     );
