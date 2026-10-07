@@ -104,6 +104,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   fleet_id?: string;
   macos_applications?: string;
   types?: string;
+  ai_tool?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -145,6 +146,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     fleet_id: teamId,
     macos_applications: macosApplications,
     types: softwareFilters.types,
+    ai_tool: softwareFilters.aiTool,
   };
 };
 
@@ -171,12 +173,17 @@ const HostSoftware = ({
     : isPremiumTierFromContext;
 
   const availableTypes = useMemo(
-    () => getSoftwareTypesForPlatform(platform, { hostPage: true }),
-    [platform]
+    () =>
+      getSoftwareTypesForPlatform(platform, {
+        hostPage: true,
+        premium: isPremiumTier,
+      }),
+    [platform, isPremiumTier]
   );
 
-  // Keys for another platform (a URL copied between hosts) are dropped. They
-  // would otherwise filter the list with no chip in the picker to clear them.
+  // Keys for another platform (a URL copied between hosts) or, on Free, for a
+  // Premium-only type are dropped. They would otherwise filter the list with no
+  // chip in the picker to clear them.
   const selectedTypes = (queryParams.types ?? []).filter((key) =>
     availableTypes.some((t) => t.key === key)
   );
@@ -205,6 +212,8 @@ const HostSoftware = ({
     minCvssScore: queryParams.min_cvss_score,
     maxCvssScore: queryParams.max_cvss_score,
     types: selectedTypes,
+    // Free rejects ai_tool, which a URL copied from a Premium server can carry.
+    aiTool: (isPremiumTier && queryParams.ai_tool) || undefined,
   };
 
   const apiQueryParams = {
@@ -212,6 +221,7 @@ const HostSoftware = ({
     ...softwareTypesToApiParams(selectedTypes),
     // Show helpers on means no pruning, so the param is omitted.
     macos_applications: macosApplicationsFilter || undefined,
+    ai_tool: filters.aiTool,
   };
 
   // no Android software and no vulnerable software for iOS
@@ -396,6 +406,7 @@ const HostSoftware = ({
             filters={filters}
             isPremiumTier={isPremiumTier || false}
             availableTypes={availableTypes}
+            showAiToolFilter
           />
         )}
       </>

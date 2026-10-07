@@ -18,17 +18,24 @@ const renderHostSoftware = ({
   platform,
   query = {},
   isMyDevicePage = false,
+  isPremiumTier = false,
 }: {
   platform: HostPlatform;
   query?: Parameters<typeof parseHostSoftwareQueryParams>[0];
   isMyDevicePage?: boolean;
+  isPremiumTier?: boolean;
 }) => {
   const replace = jest.fn();
   const router = createMockRouter({ replace });
   const render = createCustomRenderer({
     withBackendMock: true,
     context: {
-      app: { isGlobalAdmin: true, currentUser: createMockUser() },
+      app: {
+        isGlobalAdmin: true,
+        currentUser: createMockUser(),
+        // The My device page has no app context; it gets the tier as a prop.
+        isPremiumTier: !isMyDevicePage && isPremiumTier,
+      },
     },
   });
   const props = {
@@ -40,6 +47,7 @@ const renderHostSoftware = ({
     onShowInventoryVersions: noop,
     isSoftwareEnabled: true,
     isMyDevicePage,
+    isPremiumTier: isMyDevicePage ? isPremiumTier : undefined,
   };
   const result = render(
     <HostSoftware
@@ -59,6 +67,15 @@ const renderHostSoftware = ({
 
 const lastCallParams = (spy: jest.SpyInstance) =>
   spy.mock.calls[spy.mock.calls.length - 1][0];
+
+describe("parseHostSoftwareQueryParams", () => {
+  it("parses ai_tool", () => {
+    expect(parseHostSoftwareQueryParams({ ai_tool: "true" }).ai_tool).toBe(
+      true
+    );
+    expect(parseHostSoftwareQueryParams({}).ai_tool).toBeFalsy();
+  });
+});
 
 describe("HostSoftware", () => {
   let getHostSoftware: jest.SpyInstance;
@@ -300,5 +317,191 @@ describe("HostSoftware", () => {
     );
     expect(params).not.toHaveProperty("types");
     expect(getHostSoftware).not.toHaveBeenCalled();
+  });
+
+  describe("AI tools filter", () => {
+    it("narrows the macOS app default to AI tools", async () => {
+      renderHostSoftware({
+        platform: "darwin",
+        query: { types: "macos_app", ai_tool: "true" },
+        isPremiumTier: true,
+      });
+
+      await waitFor(() => expect(getHostSoftware).toHaveBeenCalled());
+      expect(lastCallParams(getHostSoftware)).toEqual(
+        expect.objectContaining({
+          source: "apps",
+          macos_applications: true,
+          ai_tool: true,
+        })
+      );
+    });
+
+    it("requests every AI tool on the host when no type is selected", async () => {
+      renderHostSoftware({
+        platform: "darwin",
+        query: { types: "none", ai_tool: "true" },
+        isPremiumTier: true,
+      });
+
+      await waitFor(() => expect(getHostSoftware).toHaveBeenCalled());
+      const params = lastCallParams(getHostSoftware);
+      expect(params.ai_tool).toBe(true);
+      expect(params.source).toBeUndefined();
+    });
+
+    it("works on a Windows host with no default type", async () => {
+      const { replace } = renderHostSoftware({
+        platform: "windows",
+        query: { ai_tool: "true" },
+        isPremiumTier: true,
+      });
+
+      await waitFor(() => expect(getHostSoftware).toHaveBeenCalled());
+      const params = lastCallParams(getHostSoftware);
+      expect(params.ai_tool).toBe(true);
+      expect(params.source).toBeUndefined();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("omits ai_tool from the request while the toggle is off", async () => {
+      renderHostSoftware({
+        platform: "windows",
+        isPremiumTier: true,
+      });
+
+      await waitFor(() => expect(getHostSoftware).toHaveBeenCalled());
+      expect(lastCallParams(getHostSoftware).ai_tool).toBeUndefined();
+    });
+
+    it("writes ai_tool=true to the URL from the filters modal and resets the page", async () => {
+      const { replace, user } = renderHostSoftware({
+        platform: "darwin",
+        query: { types: "macos_app", page: "2", query: "claude" },
+        isPremiumTier: true,
+      });
+
+      await user.click(await screen.findByRole("button", { name: "Filtered" }));
+      await user.click(screen.getByRole("switch", { name: "AI tools" }));
+      await user.click(screen.getByRole("button", { name: "Apply" }));
+
+      const url = new URL(replace.mock.calls[0][0], "http://fleet");
+      expect(url.searchParams.get("ai_tool")).toBe("true");
+      expect(url.searchParams.get("types")).toBe("macos_app");
+      expect(url.searchParams.get("query")).toBe("claude");
+      expect(url.searchParams.get("page")).toBe("0");
+    });
+
+    it("offers the AI types on a Premium host", async () => {
+      const { user } = renderHostSoftware({
+        platform: "linux",
+        isPremiumTier: true,
+      });
+
+      await user.click(
+        await screen.findByRole("button", { name: "Add filters" })
+      );
+      ["AI CLI tool", "AI skill", "MCP server"].forEach((name) =>
+        expect(screen.getByRole("checkbox", { name })).toBeInTheDocument()
+      );
+    });
+
+    it("hides the toggle and the AI types on Free", async () => {
+      const { user } = renderHostSoftware({ platform: "windows" });
+
+      await user.click(
+        await screen.findByRole("button", { name: "Add filters" })
+      );
+      expect(
+        screen.queryByRole("switch", { name: "AI tools" })
+      ).not.toBeInTheDocument();
+      ["AI CLI tool", "AI skill", "MCP server"].forEach((name) =>
+        expect(screen.queryByRole("checkbox", { name })).not.toBeInTheDocument()
+      );
+    });
+
+    it("omits ai_tool from the request on Free when the URL carries it", async () => {
+      renderHostSoftware({
+        platform: "windows",
+        query: { types: "windows_app", ai_tool: "true" },
+      });
+
+      await waitFor(() => expect(getHostSoftware).toHaveBeenCalled());
+      const params = lastCallParams(getHostSoftware);
+      expect(params.ai_tool).toBeUndefined();
+      expect(params.source).toBe("programs");
+    });
+
+    it("drops the AI types and ai_tool from the URL on Free", async () => {
+      const { replace } = renderHostSoftware({
+        platform: "windows",
+        query: { types: "windows_app,ai_skill", ai_tool: "true" },
+      });
+
+      await waitFor(() => expect(replace).toHaveBeenCalledTimes(1));
+      const url = new URL(replace.mock.calls[0][0], "http://fleet");
+      expect(url.searchParams.get("types")).toBe("windows_app");
+      expect(url.searchParams.has("ai_tool")).toBe(false);
+      expect(getHostSoftware).not.toHaveBeenCalled();
+    });
+
+    it("sends ai_tool to the My device endpoint on Premium", async () => {
+      const getDeviceSoftware = jest
+        .spyOn(deviceAPI, "getDeviceSoftware")
+        .mockResolvedValue(createMockDeviceSoftwareResponse());
+
+      renderHostSoftware({
+        platform: "darwin",
+        query: { types: "macos_app", ai_tool: "true" },
+        isMyDevicePage: true,
+        isPremiumTier: true,
+      });
+
+      await waitFor(() => expect(getDeviceSoftware).toHaveBeenCalled());
+      expect(lastCallParams(getDeviceSoftware)).toEqual(
+        expect.objectContaining({ source: "apps", ai_tool: true })
+      );
+    });
+
+    it("shows the toggle on My device on Premium", async () => {
+      jest
+        .spyOn(deviceAPI, "getDeviceSoftware")
+        .mockResolvedValue(createMockDeviceSoftwareResponse());
+
+      const { user } = renderHostSoftware({
+        platform: "windows",
+        isMyDevicePage: true,
+        isPremiumTier: true,
+      });
+
+      await user.click(
+        await screen.findByRole("button", { name: "Add filters" })
+      );
+      expect(
+        screen.getByRole("switch", { name: "AI tools" })
+      ).toBeInTheDocument();
+    });
+
+    it("hides the toggle and drops ai_tool on My device on Free", async () => {
+      const getDeviceSoftware = jest
+        .spyOn(deviceAPI, "getDeviceSoftware")
+        .mockResolvedValue(createMockDeviceSoftwareResponse());
+
+      const { user } = renderHostSoftware({
+        platform: "windows",
+        query: { ai_tool: "true" },
+        isMyDevicePage: true,
+      });
+
+      await waitFor(() => expect(getDeviceSoftware).toHaveBeenCalled());
+      expect(lastCallParams(getDeviceSoftware).ai_tool).toBeUndefined();
+
+      await user.click(
+        await screen.findByRole("button", { name: "Add filters" })
+      );
+      expect(
+        screen.queryByRole("switch", { name: "AI tools" })
+      ).not.toBeInTheDocument();
+    });
   });
 });

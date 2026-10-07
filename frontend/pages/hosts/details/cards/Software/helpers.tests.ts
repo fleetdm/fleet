@@ -725,6 +725,36 @@ describe("getHostSoftwareLocationPath", () => {
       )
     ).toBe("chrome_extension,macos_app");
   });
+
+  it("keeps ai_tool=true across a page change", () => {
+    const params = new URL(
+      getHostSoftwareLocationPath({
+        ...base,
+        platform: "darwin",
+        page: 2,
+        filters: { types: ["macos_app"], aiTool: true },
+      }),
+      "http://fleet"
+    ).searchParams;
+
+    expect(params.get("ai_tool")).toBe("true");
+    expect(params.get("page")).toBe("2");
+  });
+
+  it("keeps ai_tool=true when Show helpers changes", () => {
+    const params = new URL(
+      getHostSoftwareLocationPath({
+        ...base,
+        platform: "darwin",
+        macosApplications: false,
+        filters: { types: ["macos_app"], aiTool: true },
+      }),
+      "http://fleet"
+    ).searchParams;
+
+    expect(params.get("ai_tool")).toBe("true");
+    expect(params.get("macos_applications")).toBe("false");
+  });
 });
 
 describe("isDefaultTypeSelection", () => {
@@ -748,6 +778,12 @@ describe("isDefaultTypeSelection", () => {
         types: ["macos_app"],
         vulnerable: true,
       })
+    ).toBe(false);
+  });
+
+  it("is false when the AI tools filter is on", () => {
+    expect(
+      isDefaultTypeSelection("darwin", { types: ["macos_app"], aiTool: true })
     ).toBe(false);
   });
 

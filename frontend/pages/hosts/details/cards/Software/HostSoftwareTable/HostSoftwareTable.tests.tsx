@@ -249,6 +249,19 @@ describe("HostSoftwareTable", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the filtered empty state when AI tools joins the macOS default", () => {
+    renderWithContext({
+      platform: "darwin",
+      macosApplicationsFilter: true,
+      filters: { types: ["macos_app"], aiTool: true },
+      data: createMockGetHostSoftwareResponse({ count: 0, software: [] }),
+    });
+
+    expect(
+      screen.getByText(/no items match the current search criteria/i)
+    ).toBeInTheDocument();
+  });
+
   it("appends macos_applications to the URL on pagination when the filter is set", async () => {
     const router = createMockRouter();
     const { user } = renderWithContext({

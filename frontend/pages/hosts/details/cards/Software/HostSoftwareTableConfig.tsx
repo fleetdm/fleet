@@ -13,7 +13,9 @@ import {
   formatSoftwareType,
   IHostSoftware,
   isIpadOrIphoneSoftwareSource,
+  NO_VULNERABILITIES_TOOLTIP_BY_SOURCE,
 } from "interfaces/software";
+import EmptyCellWithTooltip from "pages/SoftwarePage/components/tables/EmptyCellWithTooltip";
 import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
 import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
 import { VersionsColumnCell } from "pages/SoftwarePage/components/tables/VersionCell";
@@ -200,6 +202,11 @@ export const generateSoftwareTableHeaders = ({
       accessor: (originalRow) => originalRow.installed_versions,
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        const noVulnerabilitiesTip =
+          NO_VULNERABILITIES_TOOLTIP_BY_SOURCE[cellProps.row.original.source];
+        if (noVulnerabilitiesTip) {
+          return <EmptyCellWithTooltip tipContent={noVulnerabilitiesTip} />;
+        }
         if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
           return <TextCell value="Not supported" grey />;
         }
