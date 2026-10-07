@@ -1,7 +1,6 @@
 package msgraph
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -90,14 +89,14 @@ func TestCloudEndpoints(t *testing.T) {
 				return http.DefaultTransport.RoundTrip(localRequest)
 			})
 
-			require.NoError(t, c.VerifyCredential(context.Background()))
-			devices, err := c.ListWindowsAutopilotDevices(context.Background())
+			require.NoError(t, c.VerifyCredential(t.Context()))
+			devices, err := c.ListWindowsAutopilotDevices(t.Context())
 			require.NoError(t, err)
 			require.Len(t, devices, 2)
 			assert.Equal(t, "2", devices[1].ID)
 
 			rejectNext = true
-			devices, err = c.ListWindowsAutopilotDevices(context.Background())
+			devices, err = c.ListWindowsAutopilotDevices(t.Context())
 			require.ErrorContains(t, err, "unexpected origin")
 			assert.Nil(t, devices)
 		})
