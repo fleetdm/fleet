@@ -1,1 +1,0 @@
-- Fixed the disk encryption and bootstrap package status filter dropdowns on the Hosts page rendering larger text than the other filters, which also wrapped long options onto two lines.
