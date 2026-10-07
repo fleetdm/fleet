@@ -43,6 +43,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestDeleteMDMWindowsConfigProfileWithPolicyAutomation", testDeleteMDMWindowsConfigProfileWithPolicyAutomation},
 		{"TestMDMWindowsEnrolledDevices", testMDMWindowsEnrolledDevice},
 		{"TestMDMWindowsEnrollmentZTDRegistrationID", testMDMWindowsEnrollmentZTDRegistrationID},
+		{"TestMDMWindowsDeletedHostRelink", testMDMWindowsDeletedHostRelink},
 		{"TestMDMWindowsInsertCommandForHosts", testMDMWindowsInsertCommandForHosts},
 		{"TestMDMWindowsBulkInsertCommands", testMDMWindowsBulkInsertCommands},
 		{"TestMDMWindowsInsertCommandAndUpsertHostProfilesForHosts", testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts},
@@ -9377,6 +9378,47 @@ func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore)
 	got, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-3")
 	require.NoError(t, err)
 	require.Equal(t, firstTwin.MDMDeviceID, got.MDMDeviceID)
+}
+
+func testMDMWindowsDeletedHostRelink(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		hostUUID    = "44444444-4444-4444-4444-444444444444"
+		mdmDeviceID = "relink-device"
+	)
+	// mdm_device_id is not unique, so the device has two enrollments.
+	for _, hardwareID := range []string{"relink-hw-old", "relink-hw-new"} {
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:    mdmDeviceID,
+			MDMHardwareID:  hardwareID,
+			MDMDeviceState: microsoft_mdm.MDMDeviceStateEnrolled,
+			HostUUID:       hostUUID,
+		}))
+	}
+
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID)
+	require.NoError(t, err)
+	require.False(t, updated, "already linked to the same host")
+
+	// The host is deleted and comes back with the same UUID. Only the older enrollment is marked, as can happen when the newer
+	// one was linked to another host at deletion time.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET deleted_host_team_id = 0 WHERE mdm_hardware_id = 'relink-hw-old'`)
+		return err
+	})
+	updated, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID)
+	require.NoError(t, err)
+	require.True(t, updated, "a returning host is a new link")
+
+	require.NoError(t, ds.MDMWindowsClearDeletedHostTeam(ctx, mdmDeviceID))
+	var marked int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &marked,
+		`SELECT COUNT(*) FROM mdm_windows_enrollments WHERE mdm_device_id = ? AND deleted_host_team_id IS NOT NULL`, mdmDeviceID))
+	require.Zero(t, marked)
+
+	updated, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID)
+	require.NoError(t, err)
+	require.False(t, updated, "the return was already linked")
 }
 
 func testWindowsEnrollmentDefaultFleet(t *testing.T, ds *Datastore) {

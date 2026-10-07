@@ -1982,9 +1982,12 @@ func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, ho
 	return aff > 0, nil
 }
 
-func (ds *Datastore) MDMWindowsClearDeletedHostTeam(ctx context.Context, enrollmentID uint) error {
-	if _, err := ds.writer(ctx).ExecContext(ctx,
-		`UPDATE mdm_windows_enrollments SET deleted_host_team_id = NULL WHERE id = ?`, enrollmentID); err != nil {
+func (ds *Datastore) MDMWindowsClearDeletedHostTeam(ctx context.Context, mdmDeviceID string) error {
+	// Keyed like UpdateMDMWindowsEnrollmentsHostUUID: mdm_device_id is not unique, and a marker left on any of its rows would
+	// keep reporting a new link.
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE mdm_windows_enrollments SET deleted_host_team_id = NULL
+		WHERE mdm_device_id = ? AND deleted_host_team_id IS NOT NULL`, mdmDeviceID); err != nil {
 		return ctxerr.Wrap(ctx, err, "clear deleted host team of windows enrollment")
 	}
 	return nil

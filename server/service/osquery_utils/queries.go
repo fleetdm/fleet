@@ -3571,18 +3571,21 @@ func LinkWindowsHostMDMEnrollment(
 	if !updated {
 		return false, nil
 	}
-	device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, mdmDeviceID)
+	// The primary, because the deleted host marker read here decides the host's fleet.
+	device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctxdb.RequirePrimary(ctx, true), mdmDeviceID)
 	if err != nil {
 		return updated, ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
 	}
-	if device != nil && device.DeletedHostTeamID != nil {
-		// Like a changed host_uuid, the cleared marker makes this bookkeeping run once.
-		if err := ds.MDMWindowsClearDeletedHostTeam(ctx, device.ID); err != nil {
-			return updated, ctxerr.Wrap(ctx, err, "clearing deleted host team of windows mdm device")
+	// Like a changed host_uuid, clearing the deleted host marker makes this bookkeeping run once. It is cleared only after the
+	// bookkeeping succeeds, so a failure is retried on the next link attempt.
+	clearDeletedHostMarker := func() error {
+		if err := ds.MDMWindowsClearDeletedHostTeam(ctx, mdmDeviceID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing deleted host team of windows mdm device")
 		}
+		return nil
 	}
 	if device == nil || !microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
-		return updated, nil
+		return updated, clearDeletedHostMarker()
 	}
 	device.HostUUID = hostUUID // in case the read was stale due to replication lag
 	// fleetd reporting this enrollment from the device means it enrolled without the secret minted for Fleet's fleetd install, which
@@ -3639,7 +3642,7 @@ func LinkWindowsHostMDMEnrollment(
 			logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
 		}
 	}
-	return updated, nil
+	return updated, clearDeletedHostMarker()
 }
 
 // maybeAssignWindowsEnrollmentDefaultFleet moves a host to the configured Windows enrollment default fleet iff all of: the linked

@@ -3171,6 +3171,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	host := &fleet.Host{ID: 1, UUID: "mdm-windows-hw-uuid"}
 
 	returnEnrollmentsUpdated := true
+	ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
 	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) (bool, error) {
 		require.NotEmpty(t, deviceID)
 		require.Equal(t, host.UUID, hostUUID)
@@ -5430,6 +5431,7 @@ func (e *notFoundErrorForTest) IsNotFound() bool { return true }
 // newLinkWindowsHostMDMEnrollmentStore mocks the first link of an enrollment to a host.
 func newLinkWindowsHostMDMEnrollmentStore(device *fleet.MDMWindowsEnrolledDevice) *mock.Store {
 	ds := new(mock.Store)
+	ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
 	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
 		return true, nil
 	}
@@ -5495,10 +5497,6 @@ func TestLinkWindowsHostMDMEnrollmentDeletedHostReturns(t *testing.T) {
 	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 		return new(uint(3)), "Default", nil
 	}
-	ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, enrollmentID uint) error {
-		assert.EqualValues(t, 7, enrollmentID)
-		return nil
-	}
 
 	updated, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
 	require.NoError(t, err)
@@ -5507,6 +5505,19 @@ func TestLinkWindowsHostMDMEnrollmentDeletedHostReturns(t *testing.T) {
 	require.True(t, ds.ReplaceHostDeviceMappingFuncInvoked)
 	// The returning host keeps the fleet it enrolled into, so the default fleet is not even looked up.
 	require.False(t, ds.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+
+	t.Run("failed bookkeeping keeps the marker for a retry", func(t *testing.T) {
+		ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{
+			ID: 7, MDMEnrollUserID: "user@example.com", DeletedHostTeamID: new(uint(0)),
+		})
+		ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
+			return errors.New("replace failed")
+		}
+
+		_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
+		require.ErrorContains(t, err, "replace failed")
+		require.False(t, ds.MDMWindowsClearDeletedHostTeamFuncInvoked)
+	})
 }
 
 func TestLinkWindowsHostMDMEnrollmentReleasesUnusedInstallSecret(t *testing.T) {
