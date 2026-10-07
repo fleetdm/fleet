@@ -400,6 +400,14 @@ export interface IActivityDetails {
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  /** Admin-provided version label (e.g. "Production") on added, edited,
+   * deleted, and installed App Store app activities. Set for iOS, iPadOS,
+   * and Android App Store app activities only. */
+  version_name?: string;
+  /** Managed app configuration on added / edited / deleted App Store app
+   * activities. XML string for iOS/iPadOS, JSON object for Android. Omitted
+   * when no configuration is set. */
+  configuration?: string | Record<string, unknown>;
   /** Titles covered by a single notify-before-patching notification. */
   software_titles?: string[];
   software_titles_count?: number;

@@ -17,6 +17,13 @@ const generateHelpText = (platform: SetupExperiencePlatform) => {
       return "Policies are checked before install. Currently, custom targets (labels) don't apply during setup experience.";
     case "linux":
       return "Policies are checked before software is installed on compatible platforms. Currently, custom targets (labels) don't apply during setup experience.";
+    case "ios":
+    case "ipados":
+    case "android":
+      // App Store app platforms support multiple admin versions; add the
+      // first-added disclaimer so admins know label targets are bypassed at
+      // setup time.
+      return "Software will be installed on all hosts. Currently, custom targets (labels) don't apply during setup experience, so first added version will be always installed.";
     default:
       return "Software will be installed on all hosts. Currently, custom targets (labels) don't apply during setup experience.";
   }

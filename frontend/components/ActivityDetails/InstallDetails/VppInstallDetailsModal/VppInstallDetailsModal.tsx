@@ -652,6 +652,14 @@ export const VppInstallDetailsModal = ({
       // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
       // display some minimal pending UI. This should be updated once the API response is fixed.
     }
+    // iOS and iPadOS App Store apps re-install whenever the admin edits the
+    // managed app configuration, so a successful install details view notes
+    // this so admins don't read a later re-install as a fresh install.
+    const showConfigUpdateNote =
+      isAppleDevice(platform) &&
+      !isMacOS(platform || "") &&
+      (displayStatus === "installed" || isPendingInstall);
+
     return (
       <div className={`${baseClass}__modal-content`}>
         <IconStatusMessage
@@ -659,6 +667,12 @@ export const VppInstallDetailsModal = ({
           iconName={iconName}
           message={<span>{statusMessage}</span>}
         />
+        {showConfigUpdateNote && (
+          <p>
+            When the app&apos;s configuration is updated Fleet also updates the
+            app.
+          </p>
+        )}
         {isUserAlreadyPromptedError && (
           <div>
             For hosts in Single App Mode, temporarily disable that mode to

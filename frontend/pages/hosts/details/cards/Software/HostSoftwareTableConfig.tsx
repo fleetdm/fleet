@@ -81,6 +81,16 @@ export const generateSoftwareTableHeaders = ({
         );
         const isAndroidPlayStoreApp =
           !!app_store_app && source === "android_apps";
+        const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
+
+        // See HostSoftwareLibraryTableConfig for the same derivation. The
+        // Inventory tab reuses the icon so configured Android titles and
+        // multi-version iOS titles are marked here too.
+        const deliveredVersionName =
+          (isIosOrIpadosApp || isAndroidPlayStoreApp) &&
+          app_store_app?.version_name
+            ? app_store_app.version_name
+            : undefined;
 
         return (
           <SoftwareNameCell
@@ -95,12 +105,13 @@ export const generateSoftwareTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"
-            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
+            isIosOrIpadosApp={isIosOrIpadosApp}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
             isAppStoreApp={!!app_store_app}
             autoUpdateEnabled={auto_update_enabled}
             autoUpdateWindowStart={auto_update_window_start}
             autoUpdateWindowEnd={auto_update_window_end}
+            deliveredVersionName={deliveredVersionName}
           />
         );
       },

@@ -4,6 +4,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
+import Editor from "components/Editor";
 import Modal from "components/Modal";
 import { IActivityDetails } from "interfaces/activity";
 import { isAndroid } from "interfaces/platform";
@@ -16,6 +17,20 @@ import {
 
 const baseClass = "app-store-details-modal";
 
+// Android configuration arrives as a parsed JSON object (axios); iOS/iPadOS
+// arrives as an XML plist string. Normalize to a display string.
+const stringifyConfiguration = (
+  configuration: IActivityDetails["configuration"]
+): string | null => {
+  if (!configuration) return null;
+  if (typeof configuration === "string") return configuration;
+  try {
+    return JSON.stringify(configuration, null, 2);
+  } catch {
+    return null;
+  }
+};
+
 interface IAppStoreDetailsModalProps {
   details: IActivityDetails;
   onCancel: () => void;
@@ -26,6 +41,8 @@ const AppStoreDetailsModal = ({
   onCancel,
 }: IAppStoreDetailsModalProps) => {
   const { labels_include_any, labels_exclude_any } = details;
+  const isAndroidApp = isAndroid(details.platform || "");
+  const configurationDisplay = stringifyConfiguration(details.configuration);
 
   return (
     <Modal
@@ -43,12 +60,11 @@ const AppStoreDetailsModal = ({
             details.software_display_name
           )}
         />
+        {details.version_name && (
+          <DataSet title="Version" value={details.version_name} />
+        )}
         <DataSet
-          title={
-            isAndroid(details.platform || "")
-              ? "Google Play ID"
-              : "App Store ID"
-          }
+          title={isAndroidApp ? "Google Play ID" : "App Store ID"}
           value={details.app_store_id}
         />
         <DataSet
@@ -69,6 +85,15 @@ const AppStoreDetailsModal = ({
             />
           }
         />
+        {configurationDisplay && (
+          <Editor
+            label="Configuration"
+            mode={isAndroidApp ? "json" : "xml"}
+            value={configurationDisplay}
+            readOnly
+            onChange={() => undefined}
+          />
+        )}
       </div>
       <div className="modal-cta-wrap">
         <Button onClick={onCancel}>Close</Button>

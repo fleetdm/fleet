@@ -248,6 +248,34 @@ export const InstallIconWithTooltip = ({
   );
 };
 
+interface IConfigurationIconWithTooltipProps {
+  versionName: string;
+}
+
+// Signals that this host received a managed configuration via a specific
+// admin-defined version (e.g. "Production"). Rendered next to the install
+// icon on host-detail library/inventory views for versioned App Store apps.
+const ConfigurationIconWithTooltip = ({
+  versionName,
+}: IConfigurationIconWithTooltipProps) => (
+  <div className={`${baseClass}__configuration-icon-with-tooltip`}>
+    <TooltipWrapper
+      tipContent={versionName}
+      showArrow
+      underline={false}
+      position="top"
+      tipOffset={12}
+      fixedPositionStrategy
+    >
+      <Icon
+        name="settings"
+        className={`${baseClass}__configuration-icon`}
+        color="ui-fleet-black-50"
+      />
+    </TooltipWrapper>
+  </div>
+);
+
 interface ISoftwareNameCellProps {
   /** Used to key default software icon and name displayed if no display_name */
   name: string;
@@ -271,6 +299,11 @@ interface ISoftwareNameCellProps {
   autoUpdateEnabled?: boolean;
   autoUpdateWindowStart?: string;
   autoUpdateWindowEnd?: string;
+  /** Admin-provided App Store app version name delivered to this host.
+   * When set, renders a configuration icon with the version name as tooltip
+   * next to the install icon. Scoped to host-detail library/inventory views
+   * on multi-version iOS/iPadOS titles and configured Android titles. */
+  deliveredVersionName?: string | null;
   /** Only used on Edit icon modal to render a preview of the chosen unsaved icon */
   previewIcon?: JSX.Element;
 }
@@ -293,6 +326,7 @@ const SoftwareNameCell = ({
   autoUpdateEnabled = false,
   autoUpdateWindowStart,
   autoUpdateWindowEnd,
+  deliveredVersionName,
   previewIcon,
 }: ISoftwareNameCellProps) => {
   const softwareDisplayName = getDisplayedSoftwareName(
@@ -338,18 +372,27 @@ const SoftwareNameCell = ({
       prefix={icon}
       value={softwareDisplayName}
       suffix={
-        hasInstaller ? (
-          <InstallIconWithTooltip
-            isSelfService={isSelfService}
-            automaticInstallPoliciesCount={automaticInstallPoliciesCount}
-            pageContext={pageContext}
-            isIosOrIpadosApp={isIosOrIpadosApp}
-            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
-            isAppStoreApp={isAppStoreApp}
-            autoUpdateEnabled={autoUpdateEnabled}
-            autoUpdateWindowStart={autoUpdateWindowStart}
-            autoUpdateWindowEnd={autoUpdateWindowEnd}
-          />
+        hasInstaller || deliveredVersionName ? (
+          <>
+            {hasInstaller && (
+              <InstallIconWithTooltip
+                isSelfService={isSelfService}
+                automaticInstallPoliciesCount={automaticInstallPoliciesCount}
+                pageContext={pageContext}
+                isIosOrIpadosApp={isIosOrIpadosApp}
+                isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+                isAppStoreApp={isAppStoreApp}
+                autoUpdateEnabled={autoUpdateEnabled}
+                autoUpdateWindowStart={autoUpdateWindowStart}
+                autoUpdateWindowEnd={autoUpdateWindowEnd}
+              />
+            )}
+            {deliveredVersionName && (
+              <ConfigurationIconWithTooltip
+                versionName={deliveredVersionName}
+              />
+            )}
+          </>
         ) : undefined
       }
     />

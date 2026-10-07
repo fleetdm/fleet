@@ -1606,6 +1606,7 @@ const TAGGED_TEMPLATES = {
       self_service,
       from_setup_experience,
       skipped_install,
+      version_name: versionName,
     } = details;
 
     const showSoftwarePackage =
@@ -1613,11 +1614,20 @@ const TAGGED_TEMPLATES = {
       activity.type === ActivityType.InstalledSoftware;
     const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
 
+    // App Store app versions: parenthesize the admin version label after the
+    // title ("Zoom Workplace (Production)"). Only present on installed /
+    // added / edited / deleted app store app activities.
+    const versionSuffix =
+      activity.type === ActivityType.InstalledAppStoreApp && versionName
+        ? ` (${versionName})`
+        : "";
+
     if (skipped_install) {
       return (
         <>
           {" "}
-          skipped install of <b>{title}</b> on <b>{hostName}</b>.
+          skipped install of <b>{title}</b>
+          {versionSuffix} on <b>{hostName}</b>.
         </>
       );
     }
@@ -1630,7 +1640,8 @@ const TAGGED_TEMPLATES = {
         <>
           {" "}
           <b>{title}</b>
-          {showSoftwarePackage && ` (${details.software_package})`}{" "}
+          {showSoftwarePackage && ` (${details.software_package})`}
+          {versionSuffix}{" "}
           {getInstallUninstallStatusPredicatePassive(
             status,
             isScriptPackageSource
@@ -1647,8 +1658,8 @@ const TAGGED_TEMPLATES = {
         {" "}
         {getInstallUninstallStatusPredicate(status, isScriptPackageSource)}{" "}
         <b>{title}</b>
-        {showSoftwarePackage && ` (${details.software_package})`} on{" "}
-        <b>{hostName}</b>
+        {showSoftwarePackage && ` (${details.software_package})`}
+        {versionSuffix} on <b>{hostName}</b>
         {from_setup_experience ? " during setup experience" : ""}.
       </>
     );
@@ -1745,12 +1756,16 @@ const TAGGED_TEMPLATES = {
     );
   },
   addedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
-      activity.details || {};
+    const {
+      software_title: swTitle,
+      platform: swPlatform,
+      version_name: versionName,
+    } = activity.details || {};
     return (
       <>
         {" "}
-        added <b>{swTitle}</b>{" "}
+        added <b>{swTitle}</b>
+        {versionName ? ` (${versionName})` : ""}{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         to{" "}
         {activity.details?.team_name ? (
@@ -1765,12 +1780,16 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
-      activity.details || {};
+    const {
+      software_title: swTitle,
+      platform: swPlatform,
+      version_name: versionName,
+    } = activity.details || {};
     return (
       <>
         {" "}
-        edited <b>{swTitle}</b>{" "}
+        edited <b>{swTitle}</b>
+        {versionName ? ` (${versionName})` : ""}{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         on{" "}
         {activity.details?.team_name ? (
@@ -1785,12 +1804,16 @@ const TAGGED_TEMPLATES = {
     );
   },
   deletedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
-      activity.details || {};
+    const {
+      software_title: swTitle,
+      platform: swPlatform,
+      version_name: versionName,
+    } = activity.details || {};
     return (
       <>
         {" "}
-        deleted <b>{swTitle}</b>{" "}
+        deleted <b>{swTitle}</b>
+        {versionName ? ` (${versionName})` : ""}{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         from{" "}
         {activity.details?.team_name ? (

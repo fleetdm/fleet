@@ -727,6 +727,14 @@ export interface IHostAppStoreApp {
   last_install: IAppLastInstall | null;
   categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  /** Id of the admin-created App Store app version this host received.
+   * Null when the title has no App Store app or the host hasn't received
+   * any version yet. */
+  app_store_app_version_id?: number | null;
+  /** Admin-provided version label (e.g. "Production"). Rendered in the
+   * host details configuration-icon tooltip on iOS/iPadOS multi-version
+   * titles and configured Android titles. */
+  version_name?: string | null;
 }
 
 export interface IHostSoftware {

@@ -124,6 +124,17 @@ export const generateHostSWLibraryTableHeaders = ({
 
         const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
 
+        // Figma spec: configuration icon + version-name tooltip on
+        // multi-version iOS/iPadOS titles and on configured Android titles.
+        // The BE flags both via `version_name` on the host's app_store_app,
+        // so the FE just checks presence rather than re-deriving from
+        // platform + config.
+        const deliveredVersionName =
+          (isIosOrIpadosApp || isAndroidPlayStoreApp) &&
+          app_store_app?.version_name
+            ? app_store_app.version_name
+            : undefined;
+
         return (
           <SoftwareNameCell
             name={name}
@@ -142,6 +153,7 @@ export const generateHostSWLibraryTableHeaders = ({
             autoUpdateEnabled={auto_update_enabled}
             autoUpdateWindowStart={auto_update_window_start}
             autoUpdateWindowEnd={auto_update_window_end}
+            deliveredVersionName={deliveredVersionName}
           />
         );
       },

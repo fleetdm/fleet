@@ -101,4 +101,55 @@ describe("InstallSoftware", () => {
       screen.getByText(/Install software on hosts that enroll to Fleet/)
     ).toBeVisible();
   });
+
+  describe("versioned App Store app helper suffix", () => {
+    it.each(["ios", "ipados", "android"] as const)(
+      "appends the first-added disclaimer on the %s tab when MDM is configured",
+      async (platform) => {
+        mockServer.use(createSetupExperienceSoftwareHandler());
+        // The default Android MDM flag is false; flip it on so the Android
+        // form actually mounts. Keep Apple MDM / ABM on so iOS and iPadOS
+        // don't fall into the "Turn on MDM" empty state.
+        mockServer.use(
+          createGetConfigHandler({
+            mdm: createMockMdmConfig({ android_enabled_and_configured: true }),
+          })
+        );
+        mockServer.use(createGetTeamHandler({}));
+        const render = createCustomRenderer({ withBackendMock: true });
+
+        render(
+          <InstallSoftware
+            router={createMockRouter()}
+            currentTeamId={1}
+            urlPlatformParam={platform}
+          />
+        );
+
+        expect(
+          await screen.findByText(
+            /so first added version will be always installed/i
+          )
+        ).toBeVisible();
+      }
+    );
+
+    it("omits the suffix on macOS, Windows, and Linux tabs", async () => {
+      setupMdmConfigured();
+      const render = createCustomRenderer({ withBackendMock: true });
+
+      render(
+        <InstallSoftware
+          router={createMockRouter()}
+          currentTeamId={1}
+          urlPlatformParam="macos"
+        />
+      );
+
+      expect(await screen.findByRole("button", { name: "Save" })).toBeVisible();
+      expect(
+        screen.queryByText(/so first added version will be always installed/i)
+      ).toBeNull();
+    });
+  });
 });
