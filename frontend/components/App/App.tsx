@@ -222,6 +222,9 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
       if (
         // reseting a user's password requires the current token
         location?.pathname.includes("/login/reset") ||
+        // a no-access user who also needs a password reset gets a 401 from
+        // /me; don't redirect them away from the access denied page
+        location?.pathname.includes("/login/denied") ||
         // these errors can occur when user refreshes their page at certain intervals,
         // in which case we don't want to log them out
         (typeof error === "string" &&
