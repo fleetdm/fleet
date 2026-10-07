@@ -3555,6 +3555,8 @@ the `software` table.
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| software_installer_id | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer. |
+| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only. |
 | software_status       | string | query | The status of the software install to filter hosts by. One of: `pending_install`, `failed_install`, `installed`, `pending_uninstall`, `failed_uninstall`, `pending`, or `failed`. Mutually exclusive with `software_version_id`, and must be supplied if `software_title_id` is set.   |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`. See note below for filtering Windows hosts.                                                                                                                                                                                                                                     |
@@ -3866,6 +3868,8 @@ Response payload with the `munki_issue_id` filter provided:
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
+| software_installer_id   | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer. |
+| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only. |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -6577,6 +6581,8 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
 
 `software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
 
+On iOS, iPadOS, and Android App Store apps, `app_store_app.app_store_app_version_id` and `app_store_app.version_name` identify which admin-created version of the title was delivered to the host. Both are `null` when the title has a single version or the host hasn't received any version yet.
+
 #### Example
 
 `GET /api/v1/fleet/hosts/123/software`
@@ -6632,6 +6638,55 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
         ]
       },
       "app_store_app": null
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+##### Response with App Store app (iOS, iPadOS, or Android)
+
+`Status: 200`
+
+```json
+{
+  "count": 1,
+  "software": [
+    {
+      "id": 1428,
+      "name": "Slack",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/...",
+      "source": "ios_apps",
+      "extension_for": "",
+      "status": "installed",
+      "installed_versions": [
+        {
+          "version": "25.03.10.0",
+          "bundle_identifier": "com.tinyspeck.chatlyio",
+          "vulnerabilities": null,
+          "installed_paths": [],
+          "signature_information": [],
+          "last_opened_at": null
+        }
+      ],
+      "display_name": "Slack",
+      "software_package": null,
+      "app_store_app": {
+        "app_store_id": "618783545",
+        "version": "25.03.10.0",
+        "platform": "ios",
+        "self_service": false,
+        "automatic_install_policies": null,
+        "last_install": null,
+        "last_uninstall": null,
+        "package_url": null,
+        "categories": [],
+        "app_store_app_version_id": 7,
+        "version_name": "Production"
+      }
     }
   ],
   "meta": {
@@ -6758,6 +6813,8 @@ Some cell values are escaped so that spreadsheet applications treat them as text
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'. **Note: If `policy_id` is specified _without_ including `policy_response`, this will also return hosts where the policy is not configured to run or failed to run.** |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
+| software_installer_id   | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer. |
+| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only. |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
