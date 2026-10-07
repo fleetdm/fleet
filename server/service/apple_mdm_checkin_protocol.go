@@ -198,8 +198,15 @@ func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *m
 	// normalizing like certauth since r.ID is missing at this point.
 	cloned.EnrollID = &mdm.EnrollID{
 		ID:   resolved.DeviceChannelID,
-		Type: r.Type,
+		Type: resolved.Type,
 	}
+
+	if r.Certificate == nil {
+		s.logger.DebugContext(r.Context, "no client certificate provided")
+		// let downstream handle missing cert
+		return s.CheckinAndCommandService.Authenticate(r, m)
+	}
+
 	associated, err := s.nanoStorage.IsCertHashAssociated(cloned, certauth.HashCert(r.Certificate))
 	if err != nil {
 		s.logger.ErrorContext(r.Context, "failed to check if cert hash is associated", "err", err)
@@ -208,12 +215,6 @@ func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *m
 
 	if associated {
 		// If the certificate hash is already associated, we can proceed, since it has a valid connection.
-		return s.CheckinAndCommandService.Authenticate(r, m)
-	}
-
-	if r.Certificate == nil {
-		s.logger.DebugContext(r.Context, "no client certificate provided")
-		// let downstream handle missing cert
 		return s.CheckinAndCommandService.Authenticate(r, m)
 	}
 
@@ -253,7 +254,7 @@ func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *m
 	switch data.Purpose {
 	case fleet.AppleMDMCertPurposeADE:
 		// check the incoming type matches the purpose of ADE
-		if r.Type != mdm.Device || m.Enrollment.EnrollmentID != "" {
+		if cloned.Type != mdm.Device || m.Enrollment.EnrollmentID != "" {
 			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.Device, "actual", r.Type)
 			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension purpose does not match enrollment type"))
 		}
