@@ -1,0 +1,91 @@
+name: amcache_driver_packages
+description: Driver packages recorded in the Windows Amcache hive by the Microsoft Compatibility
+  Appraiser, one row per INF in the driver store.
+platforms:
+  - windows
+evented: false
+notes: |-
+  Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.
+
+  A value that is absent from the record or that cannot be decoded leaves the column empty. On a
+  text column that is the empty string. On an integer or bigint column osquery renders an empty
+  value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
+  an empty string.
+
+  This table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is
+  not a core osquery table and is only available on hosts where that extension is loaded, for
+  example through fleetd's extensions agent option or osquery's extensions.load file.
+
+  This table holds only tens of rows, so filtering does not reduce its cost. The size problem here
+  is row width rather than row count. One observed row carries thousands of comma-separated hardware
+  ids in hwids and is roughly half a megabyte on its own, so two such rows exceed Fleet's 1 MB per
+  log line by themselves. Select the columns you need rather than SELECT *, and leave hwids out
+  unless you are searching it.
+examples: |-
+  List third-party driver packages that were never submitted to the Windows Hardware Quality Labs,
+  selecting named columns so the half-megabyte hwids value stays out of the result.
+
+  ```
+  SELECT inf, class, provider, version, driver_ver_time
+  FROM amcache_driver_packages
+  WHERE inbox = 0 AND submission_id = '';
+  ```
+columns:
+  - name: inf
+    type: text
+    description: Name of the INF that defines the driver package. Joins amcache_driver_binaries.inf
+      and amcache_device_pnp.inf.
+    required: false
+  - name: directory
+    type: text
+    description: Driver store directory holding the package. Its last component is the package
+      strong name.
+    required: false
+  - name: sys_file
+    type: text
+    description: Driver file the package installs.
+    required: false
+  - name: class
+    type: text
+    description: Device setup class of the package, for example Net or Display.
+    required: false
+  - name: class_guid
+    type: text
+    description: GUID of the device setup class.
+    required: false
+  - name: provider
+    type: text
+    description: Provider named in the INF.
+    required: false
+  - name: version
+    type: text
+    description: Driver version declared in the INF.
+    required: false
+  - name: driver_ver_time
+    type: bigint
+    description: Driver date declared in the INF DriverVer directive, as a unix epoch. Interpreted
+      as UTC. The appraiser stores this one year first with an unpadded month and day, which is a
+      different layout from every other date in the hive.
+    required: false
+  - name: inbox
+    type: integer
+    description: Value is 1 if the appraiser assessed the package as shipping with Windows.
+    required: false
+  - name: submission_id
+    type: text
+    description: Windows Hardware Quality Labs submission identifier. An empty value means the
+      package carries no submission id.
+    required: false
+  - name: hwids
+    type: text
+    description: Hardware ids the package matches, as a comma-separated list. Individual ids can
+      themselves contain commas, so match this column with LIKE rather than by equality. A single
+      row can hold thousands of ids and be hundreds of kilobytes on its own, so leave this column
+      out of a scheduled query unless you are searching it.
+    required: false
+  - name: last_write_time
+    type: bigint
+    description: Time the record was last written by the Microsoft Compatibility Appraiser, as a
+      unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the
+      device was connected.
+    required: false

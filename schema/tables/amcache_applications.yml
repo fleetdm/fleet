@@ -1,0 +1,139 @@
+name: amcache_applications
+description: Applications recorded in the Windows Amcache hive by the Microsoft Compatibility
+  Appraiser, one row per program id.
+platforms:
+  - windows
+evented: false
+notes: |-
+  Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.
+
+  A value that is absent from the record or that cannot be decoded leaves the column empty. On a
+  text column that is the empty string. On an integer or bigint column osquery renders an empty
+  value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
+  an empty string.
+
+  This table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is
+  not a core osquery table and is only available on hosts where that extension is loaded, for
+  example through fleetd's extensions agent option or osquery's extensions.load file.
+
+  An application that is uninstalled disappears from this key while its files usually remain in
+  amcache_application_files. That is what makes a search for files whose program_id has no row here
+  a useful way to find executables that were installed and then removed.
+examples: |-
+  List applications that did not arrive through Windows Installer or the Microsoft Store and that
+  name no publisher.
+
+  ```
+  SELECT program_id, name, version, source, install_time
+  FROM amcache_applications
+  WHERE publisher = '' AND source NOT IN ('Msi', 'AppxPackage');
+  ```
+columns:
+  - name: program_id
+    type: text
+    description: Identifier of the application, taken from the Amcache subkey name. Joins
+      amcache_application_files.program_id and amcache_application_shortcuts.program_id.
+    required: false
+  - name: name
+    type: text
+    description: Display name of the application.
+    required: false
+  - name: version
+    type: text
+    description: Version of the application as the installer reported it.
+    required: false
+  - name: publisher
+    type: text
+    description: Publisher of the application as the installer reported it.
+    required: false
+  - name: type
+    type: text
+    description: Windows 10 only. Kind of entry the appraiser recorded, for example Application or
+      Hotfix. Absent from every Windows 11 and Windows Server 2022 record observed.
+    required: false
+  - name: source
+    type: text
+    description: Where the appraiser learned about the application, for example AddRemoveProgram,
+      Msi or AppxPackage.
+    required: false
+  - name: store_app_type
+    type: text
+    description: Store package type when the application came from the Microsoft Store.
+    required: false
+  - name: install_time
+    type: bigint
+    description: Time the appraiser recorded as the install time, as a unix epoch. Interpreted as
+      UTC. The appraiser derives this heuristically, most often from folder dates, so treat it as an
+      approximation rather than an installer-reported fact.
+    required: false
+  - name: msi_install_time
+    type: bigint
+    description: Install time reported by Windows Installer, as a unix epoch. Interpreted as UTC.
+      Read from the record's MsiInstallDate value, which is absent from every Windows 10 record
+      observed.
+    required: false
+  - name: root_dir_path
+    type: text
+    description: Installation directory of the application.
+    required: false
+  - name: uninstall_string
+    type: text
+    description: Command the Add or Remove Programs entry runs to uninstall the application.
+    required: false
+  - name: registry_key_path
+    type: text
+    description: Registry path of the application's Add or Remove Programs entry.
+    required: false
+  - name: msi_product_code
+    type: text
+    description: Windows Installer product code GUID. The programs table stores the same GUID
+      uppercased, so join it as UPPER(msi_product_code) = programs.identifying_number.
+    required: false
+  - name: msi_package_code
+    type: text
+    description: Windows Installer package code GUID.
+    required: false
+  - name: package_full_name
+    type: text
+    description: Full package name when the application is an APPX or MSIX package.
+    required: false
+  - name: manifest_path
+    type: text
+    description: Path of the application's package manifest.
+    required: false
+  - name: hidden_arp
+    type: integer
+    description: Value is 1 if the application is hidden from Add or Remove Programs.
+    required: false
+  - name: inbox_modern_app
+    type: integer
+    description: Value is 1 if the application is a modern app that ships with Windows.
+    required: false
+  - name: language
+    type: integer
+    description: Language identifier, an LCID, recorded for the application.
+    required: false
+  - name: os_version_at_install
+    type: text
+    description: Windows 10 only. Windows version quad recorded when the application was installed.
+      Every value observed is a version quad and none is a date, which is why this column is text
+      and is not named with a time suffix even though the registry value it reads is
+      OSVersionAtInstallTime. Absent from every Windows 11 and Windows Server 2022 record observed.
+    required: false
+  - name: program_instance_id
+    type: text
+    description: Identifier the appraiser derives from the file identifiers of the application's
+      files.
+    required: false
+  - name: user_sid
+    type: text
+    description: Security identifier of the user the application was installed for. Recorded on
+      Windows 10 records but empty on almost all of them, and recorded on only a small minority of
+      Windows 11 records.
+    required: false
+  - name: last_write_time
+    type: bigint
+    description: Time the record was last written by the Microsoft Compatibility Appraiser, as a
+      unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the
+      device was connected.
+    required: false

@@ -1,0 +1,183 @@
+name: amcache_device_pnp
+description: Plug and Play devices recorded in the Windows Amcache hive by the Microsoft
+  Compatibility Appraiser, including devices that are no longer attached.
+platforms:
+  - windows
+evented: false
+notes: |-
+  Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.
+
+  A value that is absent from the record or that cannot be decoded leaves the column empty. On a
+  text column that is the empty string. On an integer or bigint column osquery renders an empty
+  value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
+  an empty string.
+
+  This table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is
+  not a core osquery table and is only available on hosts where that extension is loaded, for
+  example through fleetd's extensions agent option or osquery's extensions.load file.
+
+  Devices stay in this key long after they are removed, which is what makes removable-media history
+  queryable here. A row is therefore not evidence that the device is attached now.
+
+  A small number of rows on every host observed carry a container_id with no matching row in
+  amcache_device_containers, so join the two tables with a LEFT JOIN or those rows disappear from
+  the result.
+examples: |-
+  List every USB mass storage device this host has seen, with the container that names it.
+
+  ```
+  SELECT p.device_instance_id, p.first_install_time, p.install_time,
+         c.friendly_name, c.primary_category
+  FROM amcache_device_pnp p
+  LEFT JOIN amcache_device_containers c ON c.container_id = p.container_id
+  WHERE UPPER(p.enumerator) = 'USBSTOR'
+  ORDER BY p.first_install_time DESC;
+  ```
+columns:
+  - name: device_instance_id
+    type: text
+    description: Plug and Play device instance id, taken from the Amcache subkey name with forward
+      slashes rewritten to backslashes. Joins LOWER(drivers.device_id), and it is what parent_id
+      points at.
+    required: false
+  - name: description
+    type: text
+    description: Device description as Windows reports it.
+    required: false
+  - name: bus_reported_description
+    type: text
+    description: Device description as the bus driver reported it. This comes from the device rather
+      than from the INF, so it is the more useful of the two descriptions for identifying an
+      unexpected peripheral.
+    required: false
+  - name: class
+    type: text
+    description: Device setup class, stored lowercase, for example usb or diskdrive. Compare
+      through UPPER() or LOWER() rather than matching the casing Windows shows elsewhere.
+    required: false
+  - name: class_guid
+    type: text
+    description: GUID of the device setup class.
+    required: false
+  - name: enumerator
+    type: text
+    description: Bus the device was enumerated on, stored lowercase, for example usb, usbstor, pci,
+      bth or swd. Compare through UPPER() or LOWER() rather than matching the casing Windows shows
+      elsewhere.
+    required: false
+  - name: manufacturer
+    type: text
+    description: Manufacturer as the INF or the device reported it.
+    required: false
+  - name: model
+    type: text
+    description: Model as the INF or the device reported it.
+    required: false
+  - name: provider
+    type: text
+    description: Provider named in the INF that installed the device.
+    required: false
+  - name: service
+    type: text
+    description: Name of the service driving the device. Joins services.name.
+    required: false
+  - name: driver_name
+    type: text
+    description: File name of the driver serving the device.
+    required: false
+  - name: sha1
+    type: text
+    description: SHA-1 of the driver serving the device, as lowercase hexadecimal, taken from the
+      record's DriverId value. Joins amcache_driver_binaries.sha1.
+    required: false
+  - name: driver_ver_version
+    type: text
+    description: Driver version declared in the INF DriverVer directive.
+    required: false
+  - name: driver_ver_time
+    type: bigint
+    description: Driver date declared in the INF DriverVer directive, as a unix epoch. Interpreted
+      as UTC. The appraiser stores this one month first and dash separated, which is a different
+      layout from the same field on amcache_driver_packages.
+    required: false
+  - name: driver_package_strong_name
+    type: text
+    description: Strong name of the driver package serving the device.
+    required: false
+  - name: inf
+    type: text
+    description: Name of the INF that installed the device. Joins amcache_driver_packages.inf.
+    required: false
+  - name: hwids
+    type: text
+    description: Hardware ids reported for the device, as a comma-separated list. Individual ids can
+      themselves contain commas, so match this column with LIKE rather than by equality.
+    required: false
+  - name: compids
+    type: text
+    description: Compatible ids reported for the device, as a comma-separated list. Individual ids
+      can themselves contain commas, so match this column with LIKE rather than by equality.
+    required: false
+  - name: matching_id
+    type: text
+    description: Hardware or compatible id that the installed INF matched.
+    required: false
+  - name: parent_id
+    type: text
+    description: Device instance id of this device's parent in the Plug and Play tree. Windows
+      already stores this one with backslashes, so it is passed through unchanged. Self joins
+      device_instance_id on this table.
+    required: false
+  - name: container_id
+    type: text
+    description: Container the device belongs to. Joins amcache_device_containers.container_id, but
+      a small number of rows on every host observed name a container that has no record, so make
+      that a LEFT JOIN or those rows disappear from the result.
+    required: false
+  - name: install_state
+    type: integer
+    description: Device install state, stored by Windows as decimal text. Windows documents 0 as
+      installed, 1 as needs reinstall, 2 as failed install and 3 as finish install. Only 0 occurs on
+      the reference hives.
+    required: false
+  - name: device_state
+    type: bigint
+    description: Devnode status flags word for the device. This is a flags word rather than a small
+      integer, which is why the column is bigint. The documented DN_ flags reach 0x80000000, which
+      would render as a negative number in an integer column. Only 0x20 and 0x40 are set on any
+      record observed, so treat any other bit as unverified rather than as unset.
+    required: false
+  - name: problem_code
+    type: integer
+    description: Configuration Manager problem code for the device, stored by Windows as decimal
+      text. Value 0 means no problem, and only 0 occurs on the reference hives.
+    required: false
+  - name: install_time
+    type: bigint
+    description: Time the device was installed as the appraiser recorded it, as a unix epoch.
+      Interpreted as UTC.
+    required: false
+  - name: first_install_time
+    type: bigint
+    description: Time the device was first installed as the appraiser recorded it, as a unix epoch.
+      Interpreted as UTC. A value earlier than install_time means the device was attached, removed
+      and attached again.
+    required: false
+  - name: lower_filters
+    type: text
+    description: Lower filter drivers in the device stack, as a comma-separated list. Device stack
+      filters load with the device and are a known persistence location, which is why this column
+      exists.
+    required: false
+  - name: upper_filters
+    type: text
+    description: Upper filter drivers in the device stack, as a comma-separated list. Device stack
+      filters load with the device and are a known persistence location, which is why this column
+      exists.
+    required: false
+  - name: last_write_time
+    type: bigint
+    description: Time the record was last written by the Microsoft Compatibility Appraiser, as a
+      unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the
+      device was connected.
+    required: false
