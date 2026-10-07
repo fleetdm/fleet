@@ -453,6 +453,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           enrolled_automated_hosts_count,
           enrolled_manual_hosts_count,
           enrolled_personal_hosts_count,
+          enrolled_manual_personal_hosts_count,
           unenrolled_hosts_count,
           pending_hosts_count,
           hosts_count,
@@ -475,12 +476,16 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             hosts: enrolled_manual_hosts_count,
           },
           {
+            status: "On (personal)",
+            hosts: enrolled_personal_hosts_count,
+          },
+          {
             status: "On (automatic)",
             hosts: enrolled_automated_hosts_count,
           },
           {
             status: "On (manual - personal)",
-            hosts: enrolled_personal_hosts_count,
+            hosts: enrolled_manual_personal_hosts_count,
           },
           { status: "Off", hosts: unenrolled_hosts_count },
         ];
@@ -941,6 +946,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         <div className={`${baseClass}__platforms`}>
           <span>Platform:&nbsp;</span>
           <DropdownWrapper
+            ariaLabel="Filter by platform"
             name="platform-filter"
             value={selectedPlatform || ""}
             className={`${baseClass}__platform-filter`}

@@ -55,7 +55,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (manual - personal)",
+        enrollment_status: "On (personal)",
       }),
     });
 
@@ -142,7 +142,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (manual - personal)",
+        enrollment_status: "On (personal)",
       }),
     });
 
@@ -165,7 +165,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (manual - personal)",
+        enrollment_status: "On (personal)",
       }),
     });
 
@@ -611,17 +611,20 @@ describe("View all vitals button", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not render the button for a personal (BYOD) iOS host even when toggleVitalsModal is provided", () => {
-    renderVitalsCard({
-      platform: "ios",
-      withToggle: true,
-      enrollmentStatus: "On (manual - personal)",
-    });
+  it.each(["On (personal)", "On (manual - personal)"] as const)(
+    "does not render the button for a personal (BYOD) iOS host (%s) even when toggleVitalsModal is provided",
+    (enrollmentStatus) => {
+      renderVitalsCard({
+        platform: "ios",
+        withToggle: true,
+        enrollmentStatus,
+      });
 
-    expect(
-      screen.queryByRole("button", { name: "View all" })
-    ).not.toBeInTheDocument();
-  });
+      expect(
+        screen.queryByRole("button", { name: "View all" })
+      ).not.toBeInTheDocument();
+    }
+  );
 });
 
 describe("Card vitals cap", () => {
@@ -748,17 +751,20 @@ describe("Card vitals cap", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not cap a personal (BYOD) iOS host, since there's nothing extra behind 'View all'", () => {
-    const { container } = renderCard("ios", {
-      customHostVitals: makeCustomVitals(10),
-      enrollmentStatus: "On (manual - personal)",
-    });
+  it.each(["On (personal)", "On (manual - personal)"] as const)(
+    "does not cap a personal (BYOD) iOS host (%s), since there's nothing extra behind 'View all'",
+    (enrollmentStatus) => {
+      const { container } = renderCard("ios", {
+        customHostVitals: makeCustomVitals(10),
+        enrollmentStatus,
+      });
 
-    expect(getRenderedVitals(container).length).toBeGreaterThan(CAP);
-    expect(
-      screen.queryByRole("button", { name: "View all" })
-    ).not.toBeInTheDocument();
-  });
+      expect(getRenderedVitals(container).length).toBeGreaterThan(CAP);
+      expect(
+        screen.queryByRole("button", { name: "View all" })
+      ).not.toBeInTheDocument();
+    }
+  );
 
   it("leaves other platforms uncapped, rendering vitals outside the iOS subset", () => {
     const { container } = renderCard("darwin", {
@@ -781,7 +787,7 @@ describe("Card vitals cap", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (manual - personal)",
+        enrollment_status: "On (personal)",
       }),
     });
 
@@ -1434,7 +1440,7 @@ describe("Android vitals", () => {
       createMockAndroidHost({
         meid: "A00000292788E1",
         mdm: createMockHostMdmData({
-          enrollment_status: "On (manual - personal)",
+          enrollment_status: "On (personal)",
         }),
       })
     );

@@ -367,6 +367,16 @@ type OsqueryConfig struct {
 	// FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE=true and restarting opts a
 	// deployment in. Independent of the config ETag options above.
 	ConfigInMemoryCache bool `yaml:"config_in_memory_cache"`
+
+	// MaxConcurrentQueryReportReads bounds, per Fleet server, how many
+	// /api/osquery/log requests read a host's stored report results from the
+	// replica at once. MaxConcurrentQueryReportWrites bounds, across all Fleet
+	// servers, how many write changed ones to the primary at once. Requests over
+	// a limit skip storing their report results (the host sends fresh ones on the
+	// report's next run) instead of queueing on the database. A value <= 0
+	// disables the limit.
+	MaxConcurrentQueryReportReads  int `yaml:"max_concurrent_query_report_reads"`
+	MaxConcurrentQueryReportWrites int `yaml:"max_concurrent_query_report_writes"`
 }
 
 // Validate checks that osquery_host_identifier is one of the supported values.
@@ -573,12 +583,12 @@ type S3Config struct {
 	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
 	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
 	SoftwareInstallersCloudFrontSigner                crypto.Signer `yaml:"-"`
-	// SoftwareInstallersSignedURL, when true, makes Fleet hand out a presigned
-	// GET URL (instead of proxying the bytes) for software installer, in-house
-	// app and bootstrap package downloads, so clients fetch directly from the
-	// object store. Only supported against a GCS (storage.googleapis.com)
+	// SoftwareInstallersSignedURL, when true, makes Fleet hand out presigned
+	// URLs (instead of proxying the bytes) for software installer, in-house
+	// app and bootstrap package uploads and downloads, so clients talk directly
+	// to the object store. Only supported against a GCS (storage.googleapis.com)
 	// endpoint. This is the GCS counterpart to the CloudFront signing config.
-	SoftwareInstallersSignedURL bool `yaml:"software_installers_signed_url"`
+	SoftwareInstallersSignedURL bool `yaml:"software_installers_gcs_signed_url"`
 }
 
 func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
@@ -627,13 +637,13 @@ func (s S3Config) ValidateSoftwareInstallersSignedURL(initFatal func(err error, 
 		return
 	}
 	if u.Scheme != "https" {
-		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to be an https URL (e.g. https://storage.googleapis.com)."),
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_gcs_signed_url` requires `s3_software_installers_endpoint_url` to be an https URL (e.g. https://storage.googleapis.com)."),
 			"S3 software installers signed URL")
 		return
 	}
 	host := strings.ToLower(u.Hostname())
 	if host != "storage.googleapis.com" && !strings.HasSuffix(host, ".storage.googleapis.com") {
-		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to point at a GCS endpoint (storage.googleapis.com)."),
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_gcs_signed_url` requires `s3_software_installers_endpoint_url` to point at a GCS endpoint (storage.googleapis.com)."),
 			"S3 software installers signed URL")
 		return
 	}
@@ -642,7 +652,7 @@ func (s S3Config) ValidateSoftwareInstallersSignedURL(initFatal func(err error, 
 	// IAM auth doesn't use HMAC creds and is rejected at store init, so skip it then.
 	if !s.SoftwareInstallersGCSIAMAuth &&
 		(s.SoftwareInstallersAccessKeyID == "" || s.SoftwareInstallersSecretAccessKey == "") {
-		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key` for presigning."),
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_gcs_signed_url` requires `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key` for presigning."),
 			"S3 software installers signed URL")
 		return
 	}
@@ -1143,6 +1153,9 @@ type MDMConfig struct {
 	// to macOS MDM hosts in the fleetd configuration profile and rejects shared
 	// enroll secrets for hosts enrolled in Fleet MDM or assigned in ABM.
 	AppleOneTimeEnrollSecrets bool `yaml:"apple_one_time_enroll_secrets"`
+	// WindowsOneTimeEnrollSecrets is the Windows counterpart of AppleOneTimeEnrollSecrets. The two are separate switches
+	// because the platforms deliver the secret by different mechanisms and can be rolled out independently.
+	WindowsOneTimeEnrollSecrets bool `yaml:"windows_one_time_enroll_secrets"`
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
@@ -1150,6 +1163,20 @@ type MDMConfig struct {
 
 // IsCustomDiskEncryptionEnabled reports whether custom disk encryption configuration profiles are allowed. Any of the equivalent
 // (and deprecated) options enables the behavior.
+// OneTimeEnrollSecretsEnabled reports whether either platform mints one-time enroll secrets. An enrolling agent presents a
+// secret without saying which platform minted it, so the lookup has to run whenever either switch is on.
+func (m MDMConfig) OneTimeEnrollSecretsEnabled() bool {
+	return m.AppleOneTimeEnrollSecrets || m.WindowsOneTimeEnrollSecrets
+}
+
+// OneTimeEnrollSecretsEnabledForPlatform reports whether one-time enroll secrets minted for the given platform are honored.
+func (m MDMConfig) OneTimeEnrollSecretsEnabledForPlatform(platform string) bool {
+	if platform == "windows" {
+		return m.WindowsOneTimeEnrollSecrets
+	}
+	return m.AppleOneTimeEnrollSecrets
+}
+
 func (m MDMConfig) IsCustomDiskEncryptionEnabled() bool {
 	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault || m.EnableCustomDiskEncryption
 }
@@ -1685,7 +1712,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 	man.addConfigDuration("server.vpp_install_reap_timeout", 24*time.Hour,
-		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it")
+		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it. Android setup experience app installs the device hasn't reported for this long are also failed; for those, zero or less keeps them pending and the vpp_verify_timeout floor doesn't apply")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
 	man.addConfigDuration("server.script_results_retention", 30*24*time.Hour, "Minimum time since a script run recorded its result before the hourly cleanup deletes it. Runs still waiting on a host, and those a host lock, wipe, unlock, setup experience, software uninstall or batch run depends on, are kept regardless (0 disables the cleanup)")
 	man.addConfigDuration("server.software_install_results_retention", 30*24*time.Hour, "Minimum time since a software install or uninstall finished before the hourly cleanup deletes its record. Records a host is still working on, those setup experience depends on, and the most recent install and uninstall per host and package, are kept regardless (0 disables the cleanup)")
@@ -1788,6 +1815,10 @@ func (man Manager) addConfigs() {
 		"Answer osquery config requests whose etag matches with the minimal 'unchanged' body straight from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. Off by default; requires Redis (no effect without it) and requires osquery.config_etags to be enabled as well. While off, every config request takes the always-full-build path.")
 	man.addConfigBool("osquery.config_in_memory_cache", false,
 		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for hosts with 2017 packs and for fleets with label-scoped reports, whose config differs per host.")
+	man.addConfigInt("osquery.max_concurrent_query_report_reads", 40,
+		"Maximum number of osquery log requests per Fleet server that read a host's stored report results from the database at once, to skip writing results that haven't changed. Requests over the limit skip storing report results (log destinations are unaffected). 0 disables the limit.")
+	man.addConfigInt("osquery.max_concurrent_query_report_writes", 20,
+		"Maximum number of osquery log requests across all Fleet servers that write changed report results to the database at once. Requests over the limit skip storing their changed report results (log destinations are unaffected). 0 disables the limit.")
 	man.addConfigBool("osquery.allow_body_auth_fallback", true,
 		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
@@ -1940,7 +1971,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
-	man.addConfigBool("s3.software_installers_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
+	man.addConfigBool("s3.software_installers_gcs_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap uploads and downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
+	man.addConfigBool("s3.software_installers_signed_url", false, "Deprecated: use s3.software_installers_gcs_signed_url")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -2114,6 +2146,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.allow_custom_activations", false, "Allows custom activations to be uploaded for Apple declaration (DDM) profiles")
 	man.addConfigBool("mdm.apple_one_time_enroll_secrets", false,
 		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets")
+	man.addConfigBool("mdm.windows_one_time_enroll_secrets", false,
+		"Deliver one-time, device-scoped enroll secrets to Windows MDM hosts instead of shared enroll secrets")
 	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -2317,6 +2351,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConfigETags:                      man.getConfigBool("osquery.config_etags"),
 			RedisConfigETags:                 man.getConfigBool("osquery.redis_config_etags"),
 			ConfigInMemoryCache:              man.getConfigBool("osquery.config_in_memory_cache"),
+			MaxConcurrentQueryReportReads:    man.getConfigInt("osquery.max_concurrent_query_report_reads"),
+			MaxConcurrentQueryReportWrites:   man.getConfigInt("osquery.max_concurrent_query_report_writes"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog:                 man.getConfigBool("activity.enable_audit_log"),
@@ -2504,6 +2540,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AllowCustomActivations:            man.getConfigBool("mdm.allow_custom_activations"),
 			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
 			AppleOneTimeEnrollSecrets:         man.getConfigBool("mdm.apple_one_time_enroll_secrets"),
+			WindowsOneTimeEnrollSecrets:       man.getConfigBool("mdm.windows_one_time_enroll_secrets"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
@@ -2593,7 +2630,7 @@ func (man Manager) loadS3Config() S3Config {
 		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
 		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
 		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),
-		SoftwareInstallersSignedURL:                       man.getConfigBool("s3.software_installers_signed_url"),
+		SoftwareInstallersSignedURL:                       man.getConfigBool("s3.software_installers_gcs_signed_url") || man.getConfigBool("s3.software_installers_signed_url"),
 	}
 }
 

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.124.0.336",
+      "version": "1.125.0.458",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Arc' AND publisher = 'The Browser Company of New York';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Arc' AND publisher = 'The Browser Company of New York' AND version_compare(version, '1.124.0.336') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Arc' AND publisher = 'The Browser Company of New York' AND version_compare(version, '1.125.0.458') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'arc.exe');"
       },
-      "installer_url": "https://releases.arc.net/windows/prod/1.124.0.336/Arc.x64.msix",
+      "installer_url": "https://releases.arc.net/windows/prod/1.125.0.458/Arc.x64.msix",
       "install_script_ref": "d2d5c7dc",
       "uninstall_script_ref": "ebcac670",
-      "sha256": "9f2ea4d42e254069e3236ef247130e76b29f2a355e9e954b3caa343d2eefb0d2",
+      "sha256": "bd6fd496f00674e8fc8293120c9f43b868acec9ef09776fe9df074350bb6e040",
       "default_categories": [
         "Browsers"
       ]

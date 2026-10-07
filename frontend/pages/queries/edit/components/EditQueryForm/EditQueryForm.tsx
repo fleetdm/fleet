@@ -674,8 +674,8 @@ const EditQueryForm = ({
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
                 helpText={
                   <>
-                    Hosts report at fixed times (e.g., on the hour for a 1-hour
-                    interval).{" "}
+                    Counts time the host is awake. Hosts that sleep will report
+                    after longer intervals of calendar time.{" "}
                     <CustomLink
                       url="https://fleetdm.com/guides/reports#schedule-a-report"
                       text="Learn more"

@@ -168,6 +168,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		softwareInstallStore   fleet.SoftwareInstallerStore
 		bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 		softwareTitleIconStore fleet.SoftwareTitleIconStore
+		stagedUploadStore      fleet.StagedUploadStore
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
 		androidService         android.Service
@@ -236,6 +237,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].SoftwareTitleIconStore != nil {
 			softwareTitleIconStore = opts[0].SoftwareTitleIconStore
 		}
+		stagedUploadStore = opts[0].StagedUploadStore
 
 		// allow to explicitly set MDM storage to nil
 		mdmStorage = opts[0].MDMStorage
@@ -363,6 +365,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,
+			stagedUploadStore,
 			distributedLock,
 			keyValueStore,
 			installAttemptCounter,
@@ -987,6 +990,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"DELETE", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
+		{"POST", "/api/latest/fleet/device/%s/configuration_profiles/wfoo/resend", true, false},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
 		{"POST", "/api/latest/fleet/mdm/commands/run", false, false},

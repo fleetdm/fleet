@@ -7576,6 +7576,13 @@
       "description": "Rocketman Choices Packager is a utility for customising installer package choices."
     },
     {
+      "name": "Rowel",
+      "slug": "rowel/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.rowel.desktop",
+      "description": "Rowel is an offline-first password manager, formerly known as Swifty."
+    },
+    {
       "name": "Royal TSX",
       "slug": "royal-tsx/darwin",
       "platform": "darwin",
@@ -8470,13 +8477,6 @@
       "platform": "darwin",
       "unique_identifier": "au.csiro.dialog",
       "description": "swiftDialog is a modern macOS dialog utility for administrators that displays beautiful, customizable dialogs from the command line."
-    },
-    {
-      "name": "Swifty",
-      "slug": "swifty/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.electron.swifty",
-      "description": "Swifty is an offline password manager tool."
     },
     {
       "name": "Swish",
@@ -9926,6 +9926,13 @@
       "platform": "windows",
       "unique_identifier": "Zoom Workplace (X64)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom for Government",
+      "slug": "zoom@government/darwin",
+      "platform": "darwin",
+      "unique_identifier": "us.zoom.xos",
+      "description": "Zoom for Government is the ZoomGov release of the Zoom video communication platform for meetings, webinars, and collaboration."
     },
     {
       "name": "Zotero",
