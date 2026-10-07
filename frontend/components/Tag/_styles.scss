@@ -87,12 +87,14 @@
     border-radius: 50%;
     cursor: pointer;
 
-    &:hover {
-      background-color: $ui-off-white;
-    }
+    &:not(:disabled) {
+      &:hover {
+        background-color: $ui-off-white;
+      }
 
-    &:active {
-      background-color: $ui-fleet-black-5;
+      &:active {
+        background-color: $ui-fleet-black-5;
+      }
     }
 
     &:focus-visible {
