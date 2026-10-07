@@ -14,6 +14,51 @@ import (
 func registerInventoryTools(s *server.MCPServer, fleetClient *FleetClient) {
 	registerGetSoftware(s, fleetClient)
 	registerGetHostUsers(s, fleetClient)
+	registerGetOSVersions(s, fleetClient)
+}
+
+func registerGetOSVersions(s *server.MCPServer, fleetClient *FleetClient) {
+	tool := mcp.NewTool("get_os_versions",
+		mcp.WithDescription("List operating system versions in use and how many hosts run each one — the same data as Fleet's OS updates page. Comes from Fleet's stored inventory, so it covers offline hosts too and returns instantly. Use this for 'what macOS versions are we on?', 'how many hosts are on Windows 11 24H2?', or OS adoption breakdowns. Prefer this over run_live_query for any OS version question.\n\nHost counts are aggregated periodically (see counts_updated_at), so very recent upgrades may not be reflected yet. Results are sorted by hosts_count descending.\n\nhosts_with_os_version sums the per-version counts, so it only includes hosts that have reported an OS version and is omitted when the list is truncated. Use get_endpoints for a fleet's total host count."),
+		mcp.WithString("fleet", mcp.Description("Fleet name (e.g. 'Workstations'). Resolved via get_fleets. Omit for all hosts.")),
+		mcp.WithString("platform", mcp.Description("One of: macos, windows, linux, chrome, ios, ipados, android. Omit for all platforms.")),
+		mcp.WithReadOnlyHintAnnotation(true),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithIdempotentHintAnnotation(true),
+	)
+	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		logrus.Info("Tool invoked: get_os_versions")
+
+		fleet := getOptionalString(request, "fleet")
+		platform := getOptionalString(request, "platform")
+
+		res, err := fleetClient.ListOSVersions(ctx, fleet, platform)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get OS versions: %v", err)), nil
+		}
+
+		// A truncated list would understate the sum, so omit it rather than mislead.
+		var hostsWithOSVersion *int
+		if !res.Truncated {
+			sum := 0
+			for _, v := range res.OSVersions {
+				sum += v.HostsCount
+			}
+			hostsWithOSVersion = &sum
+		}
+
+		return jsonResult(struct {
+			Fleet              string `json:"fleet,omitempty"`
+			Platform           string `json:"platform,omitempty"`
+			HostsWithOSVersion *int   `json:"hosts_with_os_version,omitempty"`
+			*OSVersionsResult
+		}{
+			Fleet:              fleet,
+			Platform:           platform,
+			HostsWithOSVersion: hostsWithOSVersion,
+			OSVersionsResult:   res,
+		})
+	})
 }
 
 func validateGetSoftwareArgs(perHost bool, fleet, platform, vulnerable string) error {
