@@ -310,6 +310,9 @@ const DiskEncryption = ({
     ),
   };
 
+  const ESCROW_HELP_TEXT =
+    "Store the recovery key so you can unlock the device if the end user forgets their password.";
+
   const renderEnforceCheckbox = (
     platform: "macos" | "windows",
     key: "macOSEnabled" | "windowsEnabled",
@@ -322,9 +325,10 @@ const DiskEncryption = ({
       className={`${baseClass}__checkbox`}
       labelTooltipContent={ENFORCE_CHECKBOX_TOOLTIP_CONTENT[platform]}
       labelTooltipClickable
+      helpText={platform === "windows" ? ESCROW_HELP_TEXT : undefined}
     >
       {platform === "windows"
-        ? "Enable disk encryption and escrow recovery key"
+        ? "Enable disk encryption and escrow recovery key with Fleet"
         : "Enable disk encryption"}
     </Checkbox>
   );
@@ -342,8 +346,7 @@ const DiskEncryption = ({
       className={`${baseClass}__checkbox`}
       helpText={
         <>
-          Store the recovery key so your fleet can recover the device if the end
-          user forgets their password.
+          {ESCROW_HELP_TEXT}
           {learnMoreLink && (
             <>
               {" "}
