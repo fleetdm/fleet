@@ -56,8 +56,7 @@ const AddVersionModal = ({
 
   const isIosOrIpados =
     appStore.platform === "ios" || appStore.platform === "ipados";
-  // Empty-config scaffold shown in the editor. A submit equal to this value
-  // is treated as "no configuration".
+  // Submitting an unmodified scaffold is treated as "no configuration".
   const EMPTY_XML_SCAFFOLD = "<dict>\n  \n</dict>";
   const EMPTY_JSON_SCAFFOLD = "{}";
   const emptyScaffold = isIosOrIpados
@@ -97,8 +96,7 @@ const AddVersionModal = ({
   } = useFormValidation<IVersionFormData>({
     initialFormData: {
       ...DEFAULT_VERSION_FORM_DATA,
-      // Android has no self-service UI control; the API requires `self_service`,
-      // so default to true to mirror the single-add Android flow.
+      // Android: no UI control, API requires `self_service` → default true.
       selfService: appStore.platform === "android",
       configuration: emptyScaffold,
       targetType: defaultTargetCustom ? "Custom" : "All hosts",
@@ -162,8 +160,6 @@ const AddVersionModal = ({
     } catch (e) {
       const reason = getErrorReason(e);
       if (reason?.toLowerCase().includes("name")) {
-        // Hook renders this inline AND fires a toast — long forms can scroll
-        // the errored field off-screen.
         setServerErrors({ name: reason });
       } else {
         notify.error("Couldn't add. Please try again.", { response: e });

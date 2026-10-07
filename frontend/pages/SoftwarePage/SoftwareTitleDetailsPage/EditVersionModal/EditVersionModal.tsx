@@ -46,8 +46,7 @@ const EditVersionModal = ({
 }: IEditVersionModalProps) => {
   const queryClient = useQueryClient();
 
-  // Empty-config scaffold shown in the editor. A submit equal to this value
-  // is treated as "no configuration".
+  // Submitting an unmodified scaffold is treated as "no configuration".
   const isIosOrIpados =
     version.platform === "ios" || version.platform === "ipados";
   const EMPTY_XML_SCAFFOLD = "<dict>\n  \n</dict>";
@@ -106,10 +105,9 @@ const EditVersionModal = ({
   );
 
   const onValidSubmit = async (data: IVersionFormData) => {
-    // Target → always send the three label arrays so the backend can
-    // normalize. "All hosts" sends empty arrays to clear any existing
-    // label scope. "Custom" sends the active list on the active key and
-    // empty arrays on the other two.
+    // Always send all three label arrays so the backend can normalize.
+    // "All hosts" clears every scope with empty arrays; "Custom" fills the
+    // active key and empties the other two.
     const activeLabels =
       data.targetType === "Custom" ? buildLabelArray(data.labelTargets) : [];
     const labelsIncludeAny =
