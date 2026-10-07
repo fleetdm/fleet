@@ -2530,14 +2530,52 @@ func validateAppStoreApp(item fleet.TeamSpecAppStoreApp, resolveDir string) (fle
 		return item, errors.New("software app store id required")
 	}
 
-	var count int
-	for _, set := range [][]string{item.LabelsExcludeAny, item.LabelsIncludeAny, item.LabelsIncludeAll} {
-		if len(set) > 0 {
-			count++
+	if len(item.Versions) > 0 {
+		if item.SelfService || len(item.LabelsIncludeAny) > 0 || len(item.LabelsExcludeAny) > 0 || len(item.LabelsIncludeAll) > 0 ||
+			item.Categories != nil || item.Configuration.Path != "" ||
+			item.AutoUpdateEnabled != nil || item.AutoUpdateStartTime != nil || item.AutoUpdateEndTime != nil {
+			return item, fmt.Errorf("Couldn't add software (%q). self_service, labels, categories, configuration, and auto-update settings can be specified only in each version when the app has versions.", item.AppStoreID)
+		}
+		if len(item.Versions) > fleet.MaxAppStoreAppVersions {
+			return item, fmt.Errorf("Couldn't add software (%q). An app can have at most %d versions.", item.AppStoreID, fleet.MaxAppStoreAppVersions)
+		}
+		if item.Platform == string(fleet.MacOSPlatform) && len(item.Versions) > 1 {
+			return item, fmt.Errorf("Couldn't add software (%q). macOS App Store apps can have only one version.", item.AppStoreID)
 		}
 	}
-	if count > 1 {
-		return item, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app %q`, item.AppStoreID)
+
+	// Validate the version names of the app
+	var versionNames []string
+	for i, version := range item.Versions {
+		name := strings.TrimSpace(version.Name)
+		if name == "" {
+			return item, fmt.Errorf("Couldn't add software (%q). Version %d is missing a name.", item.AppStoreID, i+1)
+		}
+		if utf8.RuneCountInString(name) > fleet.MaxAppStoreAppVersionNameLength {
+			return item, fmt.Errorf("Couldn't add software (%q). The version name %q can't be longer than %d characters.", item.AppStoreID, name, fleet.MaxAppStoreAppVersionNameLength)
+		}
+		if slices.ContainsFunc(versionNames, func(versionName string) bool {
+			return strings.EqualFold(versionName, name)
+		}) {
+			return item, fmt.Errorf("Couldn't add software (%q). More than one version is named %q.", item.AppStoreID, name)
+		}
+		versionNames = append(versionNames, name)
+	}
+
+	for _, version := range item.ListVersions() {
+		var count int
+		for _, set := range [][]string{version.LabelsExcludeAny, version.LabelsIncludeAny, version.LabelsIncludeAll} {
+			if len(set) > 0 {
+				count++
+			}
+		}
+		if count > 1 {
+			var versionSuffix string
+			if version.Name != "" {
+				versionSuffix = fmt.Sprintf(" version %q", version.Name)
+			}
+			return item, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app %q%s`, item.AppStoreID, versionSuffix)
+		}
 	}
 
 	// Validate display_name length (matches database VARCHAR(255))

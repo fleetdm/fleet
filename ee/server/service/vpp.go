@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -226,6 +227,37 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	// https://github.com/fleetdm/fleet/issues/19447#issuecomment-2256598681
 	// The code is already here to support individual platforms, so we can easily enable it later.
 
+	// Validate the version names of each app, an entry without versions sends one version with no name
+	versionNamesByApp := make(map[fleet.VPPAppID][]string)
+	appsWithUnnamedVersion := make(map[fleet.VPPAppID]struct{})
+	for _, payload := range payloads {
+		appID := fleet.VPPAppID{AdamID: payload.AppStoreID, Platform: payload.Platform}
+		versionName := strings.TrimSpace(payload.VersionName)
+		if versionName == "" {
+			appsWithUnnamedVersion[appID] = struct{}{}
+			continue
+		}
+
+		if utf8.RuneCountInString(versionName) > fleet.MaxAppStoreAppVersionNameLength {
+			return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.name",
+				fmt.Sprintf("Couldn't edit app store app (%s). The version name can't be longer than %d characters.", payload.AppStoreID, fleet.MaxAppStoreAppVersionNameLength))
+		}
+
+		versionNamesByApp[appID] = append(versionNamesByApp[appID], versionName)
+		if len(versionNamesByApp[appID]) > fleet.MaxAppStoreAppVersions {
+			return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.versions",
+				fmt.Sprintf("Couldn't edit app store app (%s). An app can have at most %d versions per fleet.", payload.AppStoreID, fleet.MaxAppStoreAppVersions))
+		}
+	}
+
+	// Reject an app that has an entry without versions and an entry with versions, the entry without versions would add a Default version next to the named versions
+	for appID := range appsWithUnnamedVersion {
+		if len(versionNamesByApp[appID]) > 0 {
+			return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.versions",
+				fmt.Sprintf("Couldn't edit app store app (%s). The app has an entry without versions and an entry with versions. Use one entry with versions.", appID.AdamID))
+		}
+	}
+
 	var categoryNames []string
 	payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
 	for _, payload := range payloads {
@@ -234,11 +266,14 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 		categoryNames = append(categoryNames, payload.Categories...)
 
+		payload.VersionName = strings.TrimSpace(payload.VersionName)
+
 		if payload.Platform == "" && isAdamID.MatchString(payload.AppStoreID) {
 			// add all possible Apple platforms, we'll remove the ones that this app doesn't support later
 			payloadsWithPlatform = append(payloadsWithPlatform,
 				fleet.VPPBatchPayloadWithPlatform{
 					AppStoreID:          payload.AppStoreID,
+					VersionName:         payload.VersionName,
 					SelfService:         payload.SelfService,
 					InstallDuringSetup:  payload.InstallDuringSetup,
 					Platform:            fleet.MacOSPlatform,
@@ -253,6 +288,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				},
 				fleet.VPPBatchPayloadWithPlatform{
 					AppStoreID:          payload.AppStoreID,
+					VersionName:         payload.VersionName,
 					SelfService:         payload.SelfService,
 					InstallDuringSetup:  payload.InstallDuringSetup,
 					Platform:            fleet.IOSPlatform,
@@ -268,6 +304,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				},
 				fleet.VPPBatchPayloadWithPlatform{
 					AppStoreID:          payload.AppStoreID,
+					VersionName:         payload.VersionName,
 					SelfService:         payload.SelfService,
 					InstallDuringSetup:  payload.InstallDuringSetup,
 					Platform:            fleet.IPadOSPlatform,
@@ -282,10 +319,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					AutoUpdateEndTime:   payload.AutoUpdateEndTime,
 				},
 			)
+			continue
 		}
 
 		payloadsWithPlatform = append(payloadsWithPlatform, fleet.VPPBatchPayloadWithPlatform{
 			AppStoreID:          payload.AppStoreID,
+			VersionName:         payload.VersionName,
 			SelfService:         payload.SelfService,
 			InstallDuringSetup:  payload.InstallDuringSetup,
 			Platform:            payload.Platform,
@@ -313,7 +352,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	var teamTokenInfo vppTokenInfo
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
-		// TODO(JK): reject more than fleet.MaxAppStoreAppVersions versions per app and a second macOS version once GitOps sends versions
 		for _, payload := range payloadsWithPlatform {
 			if payload.Platform == "" {
 				payload.Platform = fleet.MacOSPlatform
@@ -363,6 +401,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					AdamID:   payload.AppStoreID,
 					Platform: payload.Platform,
 				},
+				VersionName:         payload.VersionName,
 				SelfService:         payload.SelfService,
 				InstallDuringSetup:  payload.InstallDuringSetup,
 				ValidatedLabels:     validatedLabels,
@@ -371,6 +410,27 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				AutoUpdateEnabled:   payload.AutoUpdateEnabled,
 				AutoUpdateStartTime: payload.AutoUpdateStartTime,
 				AutoUpdateEndTime:   payload.AutoUpdateEndTime,
+			}
+			if payload.Platform == fleet.IOSPlatform || payload.Platform == fleet.IPadOSPlatform {
+				if appStoreApp.AutoUpdateEnabled == nil {
+					appStoreApp.AutoUpdateEnabled = new(false)
+				}
+				if *appStoreApp.AutoUpdateEnabled || appStoreApp.AutoUpdateStartTime != nil || appStoreApp.AutoUpdateEndTime != nil {
+					schedule := fleet.SoftwareAutoUpdateSchedule{
+						AutoUpdateEnabled:   appStoreApp.AutoUpdateEnabled,
+						AutoUpdateStartTime: appStoreApp.AutoUpdateStartTime,
+						AutoUpdateEndTime:   appStoreApp.AutoUpdateEndTime,
+					}
+					err = schedule.WindowIsValid()
+					if err != nil {
+						return nil, nil, ctxerr.Wrap(ctx, err, "invalid auto-update window for vpp app")
+					}
+				}
+			} else {
+				// Clear auto-update settings on other platforms, only iOS and iPadOS support them
+				appStoreApp.AutoUpdateEnabled = nil
+				appStoreApp.AutoUpdateStartTime = nil
+				appStoreApp.AutoUpdateEndTime = nil
 			}
 			switch payload.Platform {
 			case fleet.AndroidPlatform:
@@ -406,6 +466,31 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				incomingAppleApps = append(incomingAppleApps, appStoreApp)
 			}
 
+		}
+
+		// Compare the version names in the batch in MySQL, its collation also ignores accents, and fail on two equal names for one app
+		incomingVersions := slices.Concat(incomingAppleApps, incomingAndroidApps)
+		versionNames := make([]string, 0, len(incomingVersions))
+		for _, incomingVersion := range incomingVersions {
+			versionNames = append(versionNames, cmp.Or(incomingVersion.VersionName, fleet.DefaultAppStoreAppVersionName))
+		}
+
+		var equalNameGroups []fleet.DuplicateStringGroup
+		equalNameGroups, err = svc.ds.GetDuplicateStringGroupsUnderCollation(ctx, versionNames)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "comparing app store app version names")
+		}
+
+		// If there are any duplicates, return detailed error message.
+		for _, group := range equalNameGroups {
+			appsInGroup := make(map[fleet.VPPAppID]struct{}, len(group.Indices))
+			for _, nameIndex := range group.Indices {
+				if _, ok := appsInGroup[incomingVersions[nameIndex].VPPAppID]; ok {
+					return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.name",
+						fmt.Sprintf("Couldn't edit app store app (%s). More than one version is named %q.", incomingVersions[nameIndex].AdamID, versionNames[nameIndex]))
+				}
+				appsInGroup[incomingVersions[nameIndex].VPPAppID] = struct{}{}
+			}
 		}
 
 		if len(incomingAppleApps) > 0 {
@@ -503,7 +588,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 
 		seenWebAppNames := make(map[string]bool)
+		addedAndroidAdamIDs := make(map[string]struct{})
 		for _, a := range incomingAndroidApps {
+			if _, ok := addedAndroidAdamIDs[a.AdamID]; ok {
+				continue
+			}
+			addedAndroidAdamIDs[a.AdamID] = struct{}{}
+
 			androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), a.AdamID)
 			if err != nil {
 				if fleet.IsNotFound(err) {
@@ -532,6 +623,31 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
+	// Filter out the apps with invalid platforms
+	validAppIDs := make(map[fleet.VPPAppID]struct{}, len(appStoreApps))
+	for _, app := range appStoreApps {
+		validAppIDs[app.VPPAppID] = struct{}{}
+	}
+	validPlatformApps := make([]fleet.VPPAppTeam, 0, len(allPlatformApps))
+	macOSVersionCountByAdamID := make(map[string]int)
+	for _, app := range allPlatformApps {
+		if _, ok := validAppIDs[app.VPPAppID]; !ok {
+			continue
+		}
+		validPlatformApps = append(validPlatformApps, app)
+
+		// Count macOS versions after the metadata lookup, an entry without a platform adds macOS only when the app supports it
+		if app.Platform != fleet.MacOSPlatform {
+			continue
+		}
+		macOSVersionCountByAdamID[app.AdamID]++
+		if macOSVersionCountByAdamID[app.AdamID] > 1 {
+			return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.versions",
+				fmt.Sprintf("Couldn't edit app store app (%s). macOS App Store apps can only have one version. Set \"platform\" to add versions for iOS or iPadOS only.", app.AdamID))
+		}
+	}
+	allPlatformApps = validPlatformApps
+
 	if len(appStoreApps) > 0 {
 		if err := svc.ds.BatchInsertVPPApps(ctx, appStoreApps); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
@@ -552,14 +668,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		appStoreIDToTitleID[a.VPPAppID.String()] = a.TitleID
 	}
 
-	// Filter out the apps with invalid platforms
-	if len(appStoreApps) != len(allPlatformApps) {
-		allPlatformApps = make([]fleet.VPPAppTeam, 0, len(appStoreApps))
-		for _, app := range appStoreApps {
-			allPlatformApps = append(allPlatformApps, app.VPPAppTeam)
-		}
-	}
-
 	setupExperienceChanged, err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps, appStoreIDToTitleID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -572,65 +680,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	var tmID uint
 	if teamID != nil {
 		tmID = *teamID
-	}
-
-	// Apply auto-update config for iOS/iPadOS VPP apps
-	// First, get existing auto-update schedules to know which apps already have configs
-	// TODO(JK): apply each version's auto-update settings to its own instance, this applies them per title
-	existingIosAppSchedules, err := svc.ds.ListSoftwareAutoUpdateSchedules(ctx, tmID, "ios_apps")
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "listing existing auto-update schedules for ios apps")
-	}
-	existingIPadOsSchedules, err := svc.ds.ListSoftwareAutoUpdateSchedules(ctx, tmID, "ipados_apps")
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "listing existing auto-update schedules for ipados apps")
-	}
-	// Combine schedules from both sources
-	existingSchedules := slices.Concat(existingIosAppSchedules, existingIPadOsSchedules)
-	existingSchedulesByTitleID := make(map[uint]bool, len(existingSchedules))
-	for _, schedule := range existingSchedules {
-		existingSchedulesByTitleID[schedule.TitleID] = true
-	}
-
-	for _, app := range allPlatformApps {
-		if app.Platform != fleet.IOSPlatform && app.Platform != fleet.IPadOSPlatform {
-			continue
-		}
-		titleID, ok := appStoreIDToTitleID[app.VPPAppID.String()]
-		if !ok {
-			svc.logger.ErrorContext(ctx, "software title missing for vpp app", "vpp_app_id", app.VPPAppID.String())
-			continue
-		}
-
-		hasAutoUpdateSettings := app.AutoUpdateEnabled != nil || app.AutoUpdateStartTime != nil || app.AutoUpdateEndTime != nil
-		hasExistingSchedule := existingSchedulesByTitleID[titleID]
-
-		// Only update if: app has auto update settings OR app has an existing schedule to disable
-		if !hasAutoUpdateSettings && !hasExistingSchedule {
-			continue
-		}
-
-		cfg := fleet.SoftwareAutoUpdateConfig{
-			AutoUpdateEnabled:   app.AutoUpdateEnabled,
-			AutoUpdateStartTime: app.AutoUpdateStartTime,
-			AutoUpdateEndTime:   app.AutoUpdateEndTime,
-		}
-
-		if app.AutoUpdateEnabled == nil {
-			cfg.AutoUpdateEnabled = ptr.Bool(false)
-		}
-
-		// Validate auto-update window if enabled or if times are provided
-		hasTimesSet := app.AutoUpdateStartTime != nil || app.AutoUpdateEndTime != nil
-		if (app.AutoUpdateEnabled != nil && *app.AutoUpdateEnabled) || hasTimesSet {
-			schedule := fleet.SoftwareAutoUpdateSchedule{SoftwareAutoUpdateConfig: cfg}
-			if err := schedule.WindowIsValid(); err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "invalid auto-update window for vpp app")
-			}
-		}
-		if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, tmID, cfg); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "updating auto-update config for vpp app")
-		}
 	}
 
 	if err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, tmID); err != nil {
@@ -651,7 +700,9 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 
 			maps.Copy(androidHostPoliciesToUpdate, hostsInScope)
-			appIDs = append(appIDs, app.AppStoreID)
+			if !slices.Contains(appIDs, app.AppStoreID) {
+				appIDs = append(appIDs, app.AppStoreID)
+			}
 		}
 	}
 

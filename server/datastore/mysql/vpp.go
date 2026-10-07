@@ -454,9 +454,77 @@ func (ds *Datastore) getVPPAppTeamCategoryIDs(ctx context.Context, vppAppTeamID 
 }
 
 func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) (bool, error) {
-	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
+	stmt := `
+SELECT
+	adam_id, platform, self_service, install_during_setup, id, created_at added_at, name version_name,
+	update_schedule_enabled auto_update_enabled, start_time auto_update_window_start, end_time auto_update_window_end
+FROM
+	vpp_apps_teams
+WHERE
+	global_or_team_id = ?
+ORDER BY id
+`
+	var existingVersions []fleet.VPPAppTeam
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingVersions, stmt, ptr.ValOrZero(teamID))
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
+		return false, ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing app versions")
+	}
+
+	existingVersionsByID := make(map[uint]fleet.VPPAppTeam, len(existingVersions))
+	for _, existingVersion := range existingVersions {
+		existingVersionsByID[existingVersion.AppTeamID] = existingVersion
+	}
+
+	incomingVersions := make([]fleet.VPPAppTeam, 0, len(incomingApps))
+	for _, incomingApp := range incomingApps {
+		if incomingApp.VersionName == "" {
+			incomingApp.VersionName = fleet.DefaultAppStoreAppVersionName
+		}
+		incomingVersions = append(incomingVersions, incomingApp)
+	}
+
+	// Get the existing IDs in the database for each incoming version
+
+	versionNames := make([]string, 0, len(existingVersions)+len(incomingVersions))
+	for _, existingVersion := range existingVersions {
+		versionNames = append(versionNames, existingVersion.VersionName)
+	}
+	for _, incomingVersion := range incomingVersions {
+		versionNames = append(versionNames, incomingVersion.VersionName)
+	}
+
+	// Compare the names in MySQL since its collation also ignores accents, so "tëst" updates the existing "Test" version
+	equalNameGroups, err := ds.GetDuplicateStringGroupsUnderCollation(ctx, versionNames)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "SetTeamVPPApps comparing app version names")
+	}
+
+	// Match each incoming version to the existing version
+	incomingIndexByVersionID := make(map[uint]int, len(incomingVersions))
+	for _, group := range equalNameGroups {
+		// Collect the existing version of each app in the group, names only match within one app
+		existingVersionIDsByApp := make(map[fleet.VPPAppID]uint)
+		for _, nameIndex := range group.Indices {
+			if nameIndex < len(existingVersions) {
+				existingVersionIDsByApp[existingVersions[nameIndex].VPPAppID] = existingVersions[nameIndex].AppTeamID
+			}
+		}
+
+		// Give each incoming version in the group the id of the existing version of its app
+		for _, nameIndex := range group.Indices {
+			if nameIndex < len(existingVersions) {
+				continue
+			}
+
+			incomingIndex := nameIndex - len(existingVersions)
+			versionID, ok := existingVersionIDsByApp[incomingVersions[incomingIndex].VPPAppID]
+			if !ok {
+				continue
+			}
+
+			incomingVersions[incomingIndex].AppTeamID = versionID
+			incomingIndexByVersionID[versionID] = incomingIndex
+		}
 	}
 
 	// if we're batch-setting apps and replacing the ones installed during setup
@@ -469,38 +537,38 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 	}
 
 	var toAddApps []fleet.VPPAppTeam
-	var toRemoveApps []fleet.VPPAppID
+	var toRemoveVersionIDs []uint
 
-	for existingApp, appTeamInfo := range existingApps {
-		var found bool
-		for _, appFleet := range incomingApps {
-			// Self service value doesn't matter for removing app from team
-			if existingApp == appFleet.VPPAppID {
-				found = true
+	// Install only the first-added version of each app during setup, the first existing version in the list or else the first new version
+	setupIncomingIndexByApp := make(map[fleet.VPPAppID]int)
+	for _, existingVersion := range existingVersions {
+		if incomingIndex, ok := incomingIndexByVersionID[existingVersion.AppTeamID]; ok {
+			if _, ok := setupIncomingIndexByApp[existingVersion.VPPAppID]; !ok {
+				setupIncomingIndexByApp[existingVersion.VPPAppID] = incomingIndex
 			}
+			continue
 		}
-		if !found {
-			// if app is marked as install during setup, prevent deletion unless we're replacing those.
-			if !replacingInstallDuringSetup && appTeamInfo.InstallDuringSetup != nil && *appTeamInfo.InstallDuringSetup {
-				return false, errDeleteInstallerInstalledDuringSetup
-			}
-			toRemoveApps = append(toRemoveApps, existingApp)
+		// if app is marked as install during setup, prevent deletion unless we're replacing those.
+		if !replacingInstallDuringSetup && ptr.ValOrZero(existingVersion.InstallDuringSetup) {
+			return false, errDeleteInstallerInstalledDuringSetup
 		}
+		toRemoveVersionIDs = append(toRemoveVersionIDs, existingVersion.AppTeamID)
 	}
 
 	appsWithChangedLabels := make(map[uint]map[uint]struct{})
 	var vppTokenRequired, setupExperienceChanged bool
-	for _, incomingApp := range incomingApps {
+	for i, incomingApp := range incomingVersions {
 		if incomingApp.Platform.IsApplePlatform() {
 			vppTokenRequired = true
 		}
-		// upsert the app if anything changed
-		existingApp, isExistingApp := existingApps[incomingApp.VPPAppID]
-		incomingApp.AppTeamID = existingApp.AppTeamID
-		// Write to the existing version under its current name so a version renamed in the UI isn't added again
-		if incomingApp.VersionName == "" {
-			incomingApp.VersionName = existingApp.VersionName
+		if _, ok := setupIncomingIndexByApp[incomingApp.VPPAppID]; !ok {
+			setupIncomingIndexByApp[incomingApp.VPPAppID] = i
 		}
+		if ptr.ValOrZero(incomingApp.InstallDuringSetup) && setupIncomingIndexByApp[incomingApp.VPPAppID] != i {
+			incomingApp.InstallDuringSetup = new(false)
+		}
+		// upsert the app if anything changed
+		existingApp, isExistingApp := existingVersionsByID[incomingApp.AppTeamID]
 
 		changed, err := ds.hasAppStoreAppChanged(ctx, teamID, incomingApp, existingApp, isExistingApp)
 		if err != nil {
@@ -620,9 +688,9 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 
 		}
 
-		for _, toRemove := range toRemoveApps {
-			if err := removeVPPAppTeams(ctx, tx, toRemove, teamID); err != nil {
-				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps removing vpp app from team")
+		for _, toRemoveVersionID := range toRemoveVersionIDs {
+			if err := removeVPPAppTeams(ctx, tx, toRemoveVersionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps removing vpp app version from team")
 			}
 		}
 
@@ -866,9 +934,9 @@ func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPA
 	// Pass the existing id to update that version on the primary key so its name can change, a NULL id inserts a new version or updates the one with the same name
 	stmt := `
 INSERT INTO vpp_apps_teams
-	(id, adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id, install_during_setup, name)
+	(id, adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id, install_during_setup, name, update_schedule_enabled, start_time, end_time)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, COALESCE(?, false), ?)
+	(?, ?, ?, ?, ?, ?, ?, COALESCE(?, false), ?, COALESCE(?, false), ?, ?)
 ON DUPLICATE KEY UPDATE
 	self_service = VALUES(self_service),
 	install_during_setup = COALESCE(?, install_during_setup),
@@ -901,6 +969,7 @@ ON DUPLICATE KEY UPDATE
 
 	res, err := tx.ExecContext(ctx, stmt,
 		existingVPPAppTeamID, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID, appID.InstallDuringSetup, versionName,
+		appID.AutoUpdateEnabled, startTime, endTime,
 		appID.InstallDuringSetup, appID.AutoUpdateEnabled, startTime, startTime, endTime, endTime)
 	if err != nil {
 		if IsDuplicate(err) && existingVPPAppTeamID != nil {
@@ -938,16 +1007,13 @@ ON DUPLICATE KEY UPDATE
 	return vatID, ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
 }
 
-func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, teamID *uint) error {
-	_, err := tx.ExecContext(ctx, `UPDATE policies p
-		JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id AND vat.adam_id = ? AND vat.team_id = ? AND vat.platform = ?
-		SET vpp_apps_teams_id = NULL`, appID.AdamID, teamID, appID.Platform)
+func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint) error {
+	_, err := tx.ExecContext(ctx, `UPDATE policies SET vpp_apps_teams_id = NULL WHERE vpp_apps_teams_id = ?`, vppAppTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unsetting vpp app policy associations from team")
 	}
 
-	tmID := ptr.ValOrZero(teamID)
-	_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = ?`, appID.AdamID, tmID, appID.Platform)
+	_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE id = ?`, vppAppTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting vpp app from team")
 	}
@@ -3036,7 +3102,7 @@ type appStoreAppChanges struct {
 }
 
 func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, incomingApp fleet.VPPAppTeam, existingApp fleet.VPPAppTeam, isExistingApp bool) (appStoreAppChanges, error) {
-	var categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged bool
+	var categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged, autoUpdateChanged bool
 
 	if isExistingApp {
 		existingLabels, err := ds.getExistingLabels(ctx, incomingApp.AppTeamID)
@@ -3068,10 +3134,20 @@ func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, in
 				incomingApp.Configuration = json.RawMessage("{}")
 			}
 		case fleet.IOSPlatform, fleet.IPadOSPlatform:
-			configurationChanged, err = ds.HasVPPAppConfigurationChanged(ctx, incomingApp.Platform, existingApp.AdamID, ptr.ValOrZero(teamID), incomingApp.Configuration)
+			configurationChanged, err = ds.HasVPPAppConfigurationChanged(ctx, incomingApp.Platform, existingApp.AdamID, ptr.ValOrZero(teamID), &existingApp.AppTeamID, incomingApp.Configuration)
 			if err != nil {
 				return appStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing configuration for vpp app")
 			}
+		}
+
+		// Compare the maintenance window only when automatic updates are on, the upsert writes it only then
+		if incomingApp.AutoUpdateEnabled != nil && *incomingApp.AutoUpdateEnabled != ptr.ValOrZero(existingApp.AutoUpdateEnabled) {
+			autoUpdateChanged = true
+		}
+		if ptr.ValOrZero(incomingApp.AutoUpdateEnabled) &&
+			(ptr.ValOrZero(incomingApp.AutoUpdateStartTime) != ptr.ValOrZero(existingApp.AutoUpdateStartTime) ||
+				ptr.ValOrZero(incomingApp.AutoUpdateEndTime) != ptr.ValOrZero(existingApp.AutoUpdateEndTime)) {
+			autoUpdateChanged = true
 		}
 
 		installDuringSetupChanged = incomingApp.InstallDuringSetup != nil &&
@@ -3084,8 +3160,8 @@ func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, in
 		installDuringSetupChanged = true
 	}
 
-	if !isExistingApp || existingApp.SelfService != incomingApp.SelfService || labelsChanged ||
-		categoriesChanged || displayNameChanged || configurationChanged || installDuringSetupChanged {
+	if !isExistingApp || existingApp.VersionName != incomingApp.VersionName || existingApp.SelfService != incomingApp.SelfService || labelsChanged ||
+		categoriesChanged || displayNameChanged || configurationChanged || installDuringSetupChanged || autoUpdateChanged {
 		return appStoreAppChanges{true, categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged}, nil
 	}
 
@@ -3410,8 +3486,8 @@ SELECT EXISTS(
 	return exists, nil
 }
 
-func (ds *Datastore) HasVPPAppConfigurationChanged(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error) {
-	const stmt = `
+func (ds *Datastore) HasVPPAppConfigurationChanged(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error) {
+	stmt := `
 SELECT
 	COALESCE(BINARY COALESCE(?, '') != configuration, ?) AS has_changed
 FROM
@@ -3420,12 +3496,17 @@ WHERE
 	adam_id = ? AND
 	global_or_team_id = ? AND
 	platform = ?
-ORDER BY id
-LIMIT 1
 `
 
+	args := []any{newConfig, len(newConfig) > 0, adamID, teamID, platform}
+	if vppAppTeamID != nil {
+		stmt += ` AND id = ?`
+		args = append(args, *vppAppTeamID)
+	}
+	stmt += ` ORDER BY id LIMIT 1`
+
 	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, len(newConfig) > 0, adamID, teamID, platform)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, args...)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return len(newConfig) > 0, nil
@@ -3544,4 +3625,42 @@ func (ds *Datastore) GetVPPAppVersionCount(ctx context.Context, teamID *uint, ap
 		return 0, false, ctxerr.Wrap(ctx, err, "get vpp app version count")
 	}
 	return versionCount, versionNameExists, nil
+}
+
+// GetDuplicateStringGroupsUnderCollation returns groups of strings from values that are duplicates under the utf8mb4_unicode_ci collation,
+// as the indices of the strings in values, one group per set of duplicates.
+func (ds *Datastore) GetDuplicateStringGroupsUnderCollation(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
+	valuesJSON, err := json.Marshal(values)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshal values")
+	}
+
+	// Turn the JSON array into one row per string: '$[*]' reads each array element, PATH '$' reads the element itself,
+	// and FOR ORDINALITY numbers the rows from 1, so subtract 1 to get the index in values
+	var groupsJSON []string
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &groupsJSON, `
+SELECT JSON_ARRAYAGG(jt.value_index - 1)
+FROM JSON_TABLE(?, '$[*]' COLUMNS (
+	value_index FOR ORDINALITY,
+	value VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
+)) jt
+GROUP BY jt.value
+HAVING COUNT(*) > 1
+ORDER BY MIN(jt.value_index)`, valuesJSON)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get duplicate string groups")
+	}
+
+	groups := make([]fleet.DuplicateStringGroup, 0, len(groupsJSON))
+	for _, groupJSON := range groupsJSON {
+		var group fleet.DuplicateStringGroup
+		err = json.Unmarshal([]byte(groupJSON), &group.Indices)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshal duplicate string group")
+		}
+		// Sort the indices, JSON_ARRAYAGG doesn't keep the input order
+		slices.Sort(group.Indices)
+		groups = append(groups, group)
+	}
+	return groups, nil
 }

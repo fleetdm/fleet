@@ -65,9 +65,9 @@ type VPPAppTeam struct {
 	// Configuration is the managed app configuration payload.
 	// JSON for Android, XML for iOS / iPadOS.
 	Configuration       []byte  `json:"configuration,omitempty"`
-	AutoUpdateEnabled   *bool   `json:"-"`
-	AutoUpdateStartTime *string `json:"-"`
-	AutoUpdateEndTime   *string `json:"-"`
+	AutoUpdateEnabled   *bool   `db:"auto_update_enabled" json:"-"`
+	AutoUpdateStartTime *string `db:"auto_update_window_start" json:"-"`
+	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"-"`
 }
 
 func (v VPPAppTeam) GetPlatform() string {
@@ -397,4 +397,9 @@ type VPPInstallReleaseInfo struct {
 	AdamID                string
 	AssociatedEventID     string
 	HasOtherActiveInstall bool
+}
+
+type DuplicateStringGroup struct {
+	// Indices in the provided input slice
+	Indices []int
 }

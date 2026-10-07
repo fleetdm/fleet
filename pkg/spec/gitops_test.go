@@ -6485,3 +6485,155 @@ const emptyMCProfile = `<?xml version="1.0" encoding="UTF-8"?>
 	<string>Configuration</string>
 </dict>
 </plist>`
+
+func TestAppStoreAppVersions(t *testing.T) {
+	t.Parallel()
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+
+	t.Run("app_with_two_versions_parses_both_versions_in_order", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		config += `name: Test Team
+software:
+  app_store_apps:
+    - app_store_id: "12345"
+      platform: ios
+      setup_experience: true
+      display_name: VPN
+      versions:
+        - name: Production
+          self_service: true
+          categories:
+            - Security
+          labels_exclude_any:
+            - IT team
+          auto_update_enabled: true
+          auto_update_window_start: "00:00"
+          auto_update_window_end: "04:00"
+          configuration:
+            path: ./production.xml
+        - name: Test
+          labels_include_any:
+            - IT team
+          configuration:
+            path: ./test.xml
+`
+		path, basePath := createTempFile(t, "", config)
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.AppStoreApps, 1)
+		app := result.Software.AppStoreApps[0]
+		assert.Equal(t, "VPN", app.DisplayName)
+		assert.True(t, app.InstallDuringSetup.Value)
+
+		// list the versions of the app, the app's own fields should not add a third
+		versions := app.ListVersions()
+		require.Len(t, versions, 2)
+		assert.Equal(t, "Production", versions[0].Name)
+		assert.True(t, versions[0].SelfService)
+		assert.Equal(t, []string{"Security"}, versions[0].Categories)
+		assert.Equal(t, []string{"IT team"}, versions[0].LabelsExcludeAny)
+		assert.True(t, *versions[0].AutoUpdateEnabled)
+		assert.Equal(t, "00:00", *versions[0].AutoUpdateStartTime)
+		assert.Equal(t, "04:00", *versions[0].AutoUpdateEndTime)
+		assert.Equal(t, filepath.Join(basePath, "production.xml"), versions[0].Configuration.Path)
+		assert.Equal(t, "Test", versions[1].Name)
+		assert.False(t, versions[1].SelfService)
+		assert.Equal(t, []string{"IT team"}, versions[1].LabelsIncludeAny)
+		assert.Equal(t, filepath.Join(basePath, "test.xml"), versions[1].Configuration.Path)
+	})
+
+	t.Run("app_without_versions_parses_as_one_version_with_no_name", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		config += `name: Test Team
+software:
+  app_store_apps:
+    - app_store_id: "12345"
+      platform: ios
+      self_service: true
+      labels_include_any:
+        - IT team
+      configuration:
+        path: ./config.xml
+`
+		path, basePath := createTempFile(t, "", config)
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.AppStoreApps, 1)
+
+		versions := result.Software.AppStoreApps[0].ListVersions()
+		require.Len(t, versions, 1)
+		assert.Empty(t, versions[0].Name)
+		assert.True(t, versions[0].SelfService)
+		assert.Equal(t, []string{"IT team"}, versions[0].LabelsIncludeAny)
+		assert.Equal(t, filepath.Join(basePath, "config.xml"), versions[0].Configuration.Path)
+	})
+
+	var elevenVersions string
+	for i := range 11 {
+		elevenVersions += fmt.Sprintf("        - name: Version %d\n", i)
+	}
+
+	invalidCases := []struct {
+		name          string
+		versionsYAML  string
+		expectedError string
+	}{
+		{
+			name: "version_without_name_fails",
+			versionsYAML: `      versions:
+        - name: Production
+        - self_service: true
+`,
+			expectedError: `Couldn't add software ("12345"). Version 2 is missing a name.`,
+		},
+		{
+			name: "two_versions_with_the_same_name_in_different_case_fail",
+			versionsYAML: `      versions:
+        - name: Production
+        - name: production
+`,
+			expectedError: `Couldn't add software ("12345"). More than one version is named "production".`,
+		},
+		{
+			name: "version_fields_set_on_the_app_next_to_versions_fail",
+			versionsYAML: `      self_service: true
+      versions:
+        - name: Production
+`,
+			expectedError: `Couldn't add software ("12345"). self_service, labels, categories, configuration, and auto-update settings can be specified only in each version when the app has versions.`,
+		},
+		{
+			name:          "eleven_versions_fail",
+			versionsYAML:  "      versions:\n" + elevenVersions,
+			expectedError: `Couldn't add software ("12345"). An app can have at most 10 versions.`,
+		},
+		{
+			name: "version_with_two_label_sets_fails",
+			versionsYAML: `      versions:
+        - name: Production
+          labels_include_any:
+            - IT team
+          labels_exclude_any:
+            - Sales
+`,
+			expectedError: `only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app "12345" version "Production"`,
+		},
+	}
+	for _, c := range invalidCases {
+		t.Run(c.name, func(t *testing.T) {
+			config := getTeamConfig([]string{"name", "software"})
+			config += `name: Test Team
+software:
+  app_store_apps:
+    - app_store_id: "12345"
+      platform: ios
+` + c.versionsYAML
+			path, basePath := createTempFile(t, "", config)
+			_, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+			require.ErrorContains(t, err, c.expectedError)
+		})
+	}
+}

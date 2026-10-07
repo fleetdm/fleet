@@ -1946,6 +1946,8 @@ type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamI
 
 type GetVPPAppVersionCountFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID, versionName string) (versionCount uint, versionNameExists bool, err error)
 
+type GetDuplicateStringGroupsUnderCollationFunc func(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error)
+
 type GetVPPAppsToInstallDuringSetupExperienceFunc func(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error)
 
 type GetAllVPPAppsFunc func(ctx context.Context) ([]*fleet.VPPApp, error)
@@ -2244,7 +2246,7 @@ type ListMDMAndroidUUIDsToHostIDsFunc func(ctx context.Context, hostIDs []uint) 
 
 type GetVPPAppConfigurationFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error)
 
-type HasVPPAppConfigurationChangedFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error)
+type HasVPPAppConfigurationChangedFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error)
 
 type BulkGetVPPAppConfigurationsFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error)
 
@@ -5387,6 +5389,9 @@ type DataStore struct {
 
 	GetVPPAppVersionCountFunc        GetVPPAppVersionCountFunc
 	GetVPPAppVersionCountFuncInvoked bool
+
+	GetDuplicateStringGroupsUnderCollationFunc        GetDuplicateStringGroupsUnderCollationFunc
+	GetDuplicateStringGroupsUnderCollationFuncInvoked bool
 
 	GetVPPAppsToInstallDuringSetupExperienceFunc        GetVPPAppsToInstallDuringSetupExperienceFunc
 	GetVPPAppsToInstallDuringSetupExperienceFuncInvoked bool
@@ -12955,6 +12960,13 @@ func (s *DataStore) GetVPPAppVersionCount(ctx context.Context, teamID *uint, app
 	return s.GetVPPAppVersionCountFunc(ctx, teamID, appID, versionName)
 }
 
+func (s *DataStore) GetDuplicateStringGroupsUnderCollation(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
+	s.mu.Lock()
+	s.GetDuplicateStringGroupsUnderCollationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDuplicateStringGroupsUnderCollationFunc(ctx, values)
+}
+
 func (s *DataStore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error) {
 	s.mu.Lock()
 	s.GetVPPAppsToInstallDuringSetupExperienceFuncInvoked = true
@@ -13998,11 +14010,11 @@ func (s *DataStore) GetVPPAppConfiguration(ctx context.Context, platform fleet.I
 	return s.GetVPPAppConfigurationFunc(ctx, platform, adamID, teamID)
 }
 
-func (s *DataStore) HasVPPAppConfigurationChanged(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error) {
+func (s *DataStore) HasVPPAppConfigurationChanged(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error) {
 	s.mu.Lock()
 	s.HasVPPAppConfigurationChangedFuncInvoked = true
 	s.mu.Unlock()
-	return s.HasVPPAppConfigurationChangedFunc(ctx, platform, adamID, teamID, newConfig)
+	return s.HasVPPAppConfigurationChangedFunc(ctx, platform, adamID, teamID, vppAppTeamID, newConfig)
 }
 
 func (s *DataStore) BulkGetVPPAppConfigurations(ctx context.Context, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {

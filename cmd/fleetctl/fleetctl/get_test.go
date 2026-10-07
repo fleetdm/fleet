@@ -394,7 +394,33 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 		return []fleet.SoftwareTitleListResult{
 			{ID: 10, Name: "VPPApp", AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "123", Platform: "darwin"}},
 			{ID: 20, Name: "Pkg", SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "pkg.pkg", PackageURL: new("https://example.com/pkg.pkg")}},
-		}, 2, &fleet.PaginationMetadata{}, nil
+			{ID: 30, Name: "VersionsApp", AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "456", Platform: "ios"}},
+		}, 3, &fleet.PaginationMetadata{}, nil
+	}
+
+	// The iOS app has two versions with their own labels.
+	ds.GetVPPAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
+		require.EqualValues(t, 30, titleID)
+		return []*fleet.VPPAppStoreApp{
+			{
+				AdamID:           "456",
+				Platform:         fleet.IOSPlatform,
+				VPPAppsTeamsID:   1,
+				VersionName:      "Production",
+				SelfService:      true,
+				LabelsExcludeAny: []fleet.SoftwareScopeLabel{{LabelName: "IT team"}},
+			},
+			{
+				AdamID:           "456",
+				Platform:         fleet.IOSPlatform,
+				VPPAppsTeamsID:   2,
+				VersionName:      "Test",
+				LabelsIncludeAny: []fleet.SoftwareScopeLabel{{LabelName: "IT team"}},
+			},
+		}, nil
+	}
+	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error) {
+		return &fleet.VPPAppStatusSummary{}, nil
 	}
 
 	// The VPP app is part of the setup experience; this is the source of truth
@@ -425,6 +451,12 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 					StorageID: "abc123",
 				},
 			}, nil
+		case 30:
+			return &fleet.SoftwareTitle{
+				ID:           30,
+				Name:         "VersionsApp",
+				VPPAppsCount: 1,
+			}, nil
 		}
 		return nil, fmt.Errorf("unexpected software title id %d", id)
 	}
@@ -438,6 +470,11 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 	// The package URL comes from the software title, not the config.
 	require.Contains(t, out, "url: https://example.com/pkg.pkg")
 	require.Contains(t, out, "hash_sha256: abc123")
+	// The iOS app with two versions is written with versions, each with its own labels.
+	require.Contains(t, out, "name: Production")
+	require.Contains(t, out, "name: Test")
+	require.Contains(t, out, "labels_exclude_any:\n          - IT team")
+	require.Contains(t, out, "labels_include_any:\n          - IT team")
 
 	require.True(t, ds.ListSoftwareTitlesFuncInvoked)
 	require.True(t, ds.ListSetupExperienceSoftwareTitlesFuncInvoked)
