@@ -765,6 +765,11 @@ func (svc *Service) handleInstallSelfServiceConfigurationProfile(ctx context.Con
 			Message: "Self-service configuration profiles are only supported on macOS",
 		}
 	}
+	if connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet MDM")
+	} else if !connected {
+		return "", &fleet.BadRequestError{Message: "Host does not have MDM turned on."}
+	}
 
 	if optedIn, err := svc.ds.HasHostMDMProfileOptIn(ctx, host.UUID, profileUUID); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "checking host MDM profile opt-in")

@@ -1068,12 +1068,14 @@ func TestHandleSelfServiceConfigurationProfile(t *testing.T) {
 		uninstall bool
 		host      *fleet.Host
 		optedIn   bool
+		mdmOff    bool
 		profile   *fleet.AppleProfileForReconcile
 		members   []uint
 		queueErr  error
 		wantErr   error
 	}{
 		{name: "install non-macOS", host: &fleet.Host{UUID: "h", Platform: "windows"}, wantErr: &fleet.BadRequestError{}},
+		{name: "install MDM off", host: macHost, mdmOff: true, profile: selfService(), wantErr: &fleet.BadRequestError{}},
 		{name: "install already opted in", host: macHost, optedIn: true, profile: selfService(), wantErr: &fleet.ConflictError{}},
 		{name: "install profile not found", host: macHost, wantErr: &fleet.BadRequestError{}},
 		{name: "install not self-service", host: macHost, profile: &fleet.AppleProfileForReconcile{ProfileUUID: "prof-uuid"}, wantErr: &fleet.BadRequestError{}},
@@ -1138,6 +1140,9 @@ func TestHandleSelfServiceConfigurationProfile(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			ds := new(mock.Store)
 			svc := newTestService(t, ds)
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+				return !c.mdmOff, nil
+			}
 			ds.HasHostMDMProfileOptInFunc = func(ctx context.Context, hostUUID, profileUUID string) (bool, error) {
 				return c.optedIn, nil
 			}

@@ -11288,6 +11288,20 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 	linuxHost := createOrbitEnrolledHost(t, "linux", "self_service_linux", s.ds)
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/install", linuxHost.ID, ssUUID), nil, http.StatusBadRequest)
 
+	// A macOS host with MDM off neither lists nor accepts the self-service profile.
+	noMDMHost := createOrbitEnrolledHost(t, "darwin", "self_service_no_mdm", s.ds)
+	var noMDMResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", noMDMHost.ID), nil, http.StatusOK, &noMDMResp)
+	if noMDMResp.Host.MDM.Profiles != nil {
+		for _, p := range *noMDMResp.Host.MDM.Profiles {
+			require.NotEqual(t, ssUUID, p.ProfileUUID)
+		}
+	}
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/install", noMDMHost.ID, ssUUID), nil, http.StatusBadRequest)
+	optedIn, err := s.ds.HasHostMDMProfileOptIn(ctx, noMDMHost.UUID, ssUUID)
+	require.NoError(t, err)
+	require.False(t, optedIn)
+
 	// Admin opts the host in; the reconciler then installs the profile.
 	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusAccepted)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledOptInConfigurationProfile{}.ActivityName(), activity(false), 0)
