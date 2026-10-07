@@ -723,6 +723,60 @@ func TestListSoftwareTitles_PassesExtensionForToServer(t *testing.T) {
 	}
 }
 
+func TestListSoftwareTitles_ReturnsFleetValidationReason(t *testing.T) {
+	const reason = `"cursor" is a "vscode_extensions" value, but source doesn't include "vscode_extensions".`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"message": "Validation Failed",
+			"errors":  []map[string]string{{"name": "extension_for", "reason": reason}},
+		})
+	}))
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	_, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "apps", "cursor", 0)
+	if err == nil {
+		t.Fatal("expected an error for a 422 response")
+	}
+	if !strings.Contains(err.Error(), "422") || !strings.Contains(err.Error(), reason) {
+		t.Fatalf("error %q should include the status and Fleet's reason %q", err, reason)
+	}
+}
+
+// Fleet servers without the source and extension_for params ignore them and return every title.
+func TestListSoftwareTitles_FiltersWhenServerIgnoresSource(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		titles := []SoftwareTitle{
+			{ID: 1, Name: "Copilot", Source: "vscode_extensions", ExtensionFor: "cursor"},
+			{ID: 2, Name: "Copilot", Source: "vscode_extensions", ExtensionFor: "vscode"},
+			{ID: 3, Name: "Slack.app", Source: "apps"},
+			{ID: 4, Name: "Go", Source: "vscode_extensions", ExtensionFor: "cursor"},
+		}
+		_ = json.NewEncoder(w).Encode(struct {
+			SoftwareTitles []SoftwareTitle `json:"software_titles"`
+		}{SoftwareTitles: titles})
+	}))
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	out, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "vscode_extensions", "", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(out) != 3 {
+		t.Fatalf("source only: got %+v, want rows 1, 2 and 4", out)
+	}
+
+	out, _, err = fc.ListSoftwareTitles(t.Context(), "", "", "", "", "vscode_extensions", "cursor", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(out) != 2 || out[0].ID != 1 || out[1].ID != 4 {
+		t.Fatalf("source + extension_for: got %+v, want rows 1 and 4", out)
+	}
+}
+
 func TestGetHostSoftware_ExtensionForFilter(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rows := []HostSoftware{

@@ -187,14 +187,24 @@ func (fc *FleetClient) WhoAmI(ctx context.Context) (*FleetIdentity, error) {
 }
 
 // fleetErrMsg renders a Fleet API error.
-// It prefers Fleet's structured "message" field and, for non-JSON bodies,
-// falls back to a bounded <120 char snippet rather than dumping the full response body
+// It prefers Fleet's structured "message" field, followed by any errors[].reason (where validation
+// errors explain what was wrong), and, for non-JSON bodies, falls back to a bounded <120 char
+// snippet rather than dumping the full response body
 func fleetErrMsg(status int, body []byte) string {
 	var parsed struct {
 		Message string `json:"message"`
+		Errors  []struct {
+			Reason string `json:"reason"`
+		} `json:"errors"`
 	}
 	if err := json.Unmarshal(body, &parsed); err == nil && parsed.Message != "" {
-		return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, parsed.Message)
+		msg := parsed.Message
+		for _, e := range parsed.Errors {
+			if e.Reason != "" && e.Reason != parsed.Message {
+				msg += ": " + e.Reason
+			}
+		}
+		return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, msg)
 	}
 	snippet := strings.TrimSpace(string(body))
 	if snippet == "" {
@@ -720,9 +730,9 @@ func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platfor
 			return nil, false, fmt.Errorf("failed to fetch software titles: %w", err)
 		}
 		if resp.StatusCode != http.StatusOK {
-			status := resp.StatusCode
+			errBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 			resp.Body.Close()
-			return nil, false, fmt.Errorf("failed to fetch software titles: status code %d", status)
+			return nil, false, fmt.Errorf("failed to fetch software titles: %s", fleetErrMsg(resp.StatusCode, errBody))
 		}
 
 		var result struct {
@@ -736,6 +746,10 @@ func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platfor
 
 		shortPage := len(result.SoftwareTitles) < apiPerPage
 		for _, row := range result.SoftwareTitles {
+			// Fleet servers that predate the source and extension_for params ignore them.
+			if !matchesSoftwareSource(row.Source, source) || !matchesSoftwareSource(row.ExtensionFor, extensionFor) {
+				continue
+			}
 			out = append(out, row)
 			if perPage > 0 && len(out) >= perPage {
 				return out, false, nil
