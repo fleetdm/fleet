@@ -4419,6 +4419,13 @@ type Datastore interface {
 	// QueueHostMDMAppleProfileRemoval marks the host's profile row as a pending removal (NULL status), or deletes it
 	// if the install was never sent. It is a no-op if the host has no row for the profile.
 	QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUID, profileUUID string) error
+	// ConsumeAppleSCEPChallenge marks the given SCEP challenge as consumed and returns its associated info if found.
+	ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*AppleSCEPChallengeInfo, error)
+	// SetAppleSCEPChallengeIssuedCert records the issued certificate serial number for the given SCEP challenge.
+	// It will only have an effect on rows without a cert serial and for challenges that is already consumed.
+	SetAppleSCEPChallengeIssuedCert(ctx context.Context, challenge string, certSerial int64) error
+	// CleanupAppleSCEPChallenges deletes SCEP challenges consumed more than 7 days ago, and unconsumed ones expired more than 7 days ago.
+	CleanupAppleSCEPChallenges(ctx context.Context) error
 }
 
 type AndroidDatastore interface {
