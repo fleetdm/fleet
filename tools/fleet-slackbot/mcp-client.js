@@ -6,14 +6,17 @@ const { ErrorCode } = require("@modelcontextprotocol/sdk/types.js");
 // Keeps tool results from blowing up the Claude context window.
 const MAX_TOOL_RESULT_CHARS = 20000;
 
-// Errors the MCP SDK raises when the SSE session is gone. A failed POST means
-// the server never accepted the request (e.g. it restarted and dropped the
-// session), so retrying it on a fresh connection is safe.
-function isConnectionLoss(err) {
-  if (err.code === ErrorCode.ConnectionClosed && err.message.includes("Connection closed")) {
-    return true;
-  }
-  return /^Not connected$|^Error POSTing to endpoint/.test(err.message || "");
+// Errors that prove fleet-mcp never started the tool call, so retrying on a
+// fresh connection can't run it twice: the client had no transport, or the
+// server rejected the POST because its session is gone (e.g. after a restart).
+// A connection that drops mid-call is not retried, since the tool may still be
+// running server-side.
+function wasNeverAccepted(err) {
+  const message = err.message || "";
+  return (
+    message === "Not connected" ||
+    /^Error POSTing to endpoint \(HTTP 400\):.*Invalid session ID/.test(message)
+  );
 }
 
 class McpClient {
@@ -107,13 +110,16 @@ class McpClient {
     try {
       result = await this.client.callTool({ name, arguments: args }, undefined, options);
     } catch (err) {
-      // Retrying anything else (e.g. a timeout) could re-run work that may
-      // still be in flight, such as a second live query against the same hosts.
-      if (!isConnectionLoss(err)) {
+      // Anything else (e.g. a timeout) could re-run work that may still be in
+      // flight, such as a second live query against the same hosts.
+      if (!wasNeverAccepted(err)) {
+        if (err.code === ErrorCode.ConnectionClosed) {
+          this._connected = false;
+        }
         throw err;
       }
       console.warn(
-        `[mcp] Tool call failed (${err.message}), reconnecting and retrying...`
+        `[mcp] Tool call was not accepted (${err.message}), reconnecting and retrying...`
       );
       this._connected = false;
       await this.connect();

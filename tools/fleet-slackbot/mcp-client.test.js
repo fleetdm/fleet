@@ -51,18 +51,42 @@ test("retries when the server rejects the POST (stale session)", async () => {
   let calls = 0;
   const { mcp, reconnects } = clientWithStub(async () => {
     calls++;
-    if (calls === 1) throw new Error("Error POSTing to endpoint (HTTP 404): session not found");
+    if (calls === 1) throw new Error('Error POSTing to endpoint (HTTP 400): {"jsonrpc":"2.0","id":null,"error":{"code":-32602,"message":"Invalid session ID"}}');
     return { content: [{ type: "text", text: "ok" }] };
   });
   assert.equal(await mcp.callTool("get_fleets", {}), "ok");
   assert.equal(reconnects(), 1);
 });
 
-test("reconnects and retries once when the connection drops", async () => {
+test("does not retry an ambiguous POST failure", async () => {
+  let calls = 0;
+  const { mcp, reconnects } = clientWithStub(async () => {
+    calls++;
+    throw new Error("Error POSTing to endpoint (HTTP 502): Bad Gateway");
+  });
+  await assert.rejects(mcp.callTool("run_live_query", { sql: "SELECT 1" }), /502/);
+  assert.equal(calls, 1);
+  assert.equal(reconnects(), 0);
+});
+
+test("does not retry when the connection drops mid-call, but reconnects next time", async () => {
   let calls = 0;
   const { mcp, reconnects } = clientWithStub(async () => {
     calls++;
     if (calls === 1) throw new McpError(ErrorCode.ConnectionClosed, "Connection closed");
+    return { content: [{ type: "text", text: "ok" }] };
+  });
+  await assert.rejects(mcp.callTool("run_live_query", { sql: "SELECT 1" }), /Connection closed/);
+  assert.equal(calls, 1);
+  assert.equal(await mcp.callTool("get_fleets", {}), "ok");
+  assert.equal(reconnects(), 1);
+});
+
+test("retries when the client had no transport", async () => {
+  let calls = 0;
+  const { mcp, reconnects } = clientWithStub(async () => {
+    calls++;
+    if (calls === 1) throw new Error("Not connected");
     return { content: [{ type: "text", text: "ok" }] };
   });
   assert.equal(await mcp.callTool("get_fleets", {}), "ok");
