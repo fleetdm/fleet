@@ -2728,6 +2728,8 @@ func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface
 			LabelsIncludeAll: p.LabelsIncludeAll,
 			LabelsIncludeAny: p.LabelsIncludeAny,
 			LabelsExcludeAny: p.LabelsExcludeAny,
+			SelfService:      p.SelfService,
+			Hidden:           p.Hidden,
 		}
 	}
 	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, profiles, req.DryRun, false, nil, false); err != nil {
