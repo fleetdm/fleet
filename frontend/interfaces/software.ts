@@ -729,7 +729,7 @@ export interface IHostAppStoreApp {
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   /** Id of the admin version this host received; null when none delivered. */
   app_store_app_version_id?: number | null;
-  /** Admin version label (e.g. "Production") shown in the host details configuration-icon tooltip. */
+  /** Admin version label (e.g. "Production"). */
   version_name?: string | null;
 }
 

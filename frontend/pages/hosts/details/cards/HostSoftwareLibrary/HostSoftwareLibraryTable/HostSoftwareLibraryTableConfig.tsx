@@ -124,7 +124,7 @@ export const generateHostSWLibraryTableHeaders = ({
 
         const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
 
-        // BE populates version_name only on icon-worthy rows; FE checks presence.
+        // BE gates presence of version_name.
         const deliveredVersionName =
           (isIosOrIpadosApp || isAndroidPlayStoreApp) &&
           app_store_app?.version_name
