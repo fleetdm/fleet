@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.0.237",
+      "version": "1.0.238",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.tabby';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.tabby' AND version_compare(bundle_short_version, '1.0.237') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.tabby' AND version_compare(bundle_short_version, '1.0.238') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.tabby' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/Eugeny/tabby/releases/download/v1.0.237/tabby-1.0.237-macos-arm64.zip",
+      "installer_url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-macos-arm64.zip",
       "install_script_ref": "4aeb220e",
       "uninstall_script_ref": "60d71fa6",
-      "sha256": "af86b421f39a5f881e8dbac72744528b612ceb3bf9f9811f108969ecfeff4bc6",
+      "sha256": "c877d8962f63a67baf40f3400b2d57a195f97d7b3547d7e804adae0e7df6754c",
       "default_categories": [
         "Developer tools"
       ]
