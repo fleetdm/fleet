@@ -10293,6 +10293,7 @@ None.
     {
       "tenant_id": "fec37e96-3615-4e37-8fac-445d5328af3c",
       "client_id": "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa",
+      "cloud": "global",
       "credential_invalid": false,
       "last_synced_at": "2026-08-11T15:02:16Z",
       "last_sync_error": null
@@ -10324,7 +10325,8 @@ Fleet currently supports one Microsoft Graph credential.
 | microsoft_graph_credentials | array   | body | **Required.** The complete list of credentials. Credentials that are stored but absent from this list are deleted.                                                                      |
 | microsoft_graph_credentials.tenant_id | string | body | **Required.** The Microsoft Entra tenant ID. Find your **Tenant ID** on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | microsoft_graph_credentials.client_id | string | body | **Required.** The Microsoft Entra application (client) ID. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
-| microsoft_graph_credentials.client_secret | string | body | The client secret for the app registration. Required when adding a credential, and when changing an existing credential's `tenant_id` or `client_id`. Omit it to keep the stored secret. Find your **Client secret** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Certificates & secrets**. |
+| microsoft_graph_credentials.cloud | string | body | Optional. `global` (including GCC), `gcc_high`, `dod`, or `china`. Defaults to `global` when omitted. The app registration must belong to this cloud. |
+| microsoft_graph_credentials.client_secret | string | body | The client secret for the app registration. Required when adding a credential, and when changing an existing credential's `tenant_id`, `client_id`, or `cloud`. Omit it to keep the stored secret. Find your **Client secret** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Certificates & secrets**. |
 | dry_run                     | boolean | body | Validate and verify the credentials against Microsoft Graph without saving them (default: `false`).                                                                                    |
 
 #### Example
@@ -10339,6 +10341,7 @@ Fleet currently supports one Microsoft Graph credential.
     {
       "tenant_id": "fec37e96-3615-4e37-8fac-445d5328af3c",
       "client_id": "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa",
+      "cloud": "global",
       "client_secret": "iL78Q~yourClientSecretValue"
     }
   ]
@@ -10349,7 +10352,7 @@ Fleet currently supports one Microsoft Graph credential.
 
 `Status: 200`
 
-This endpoint returns a `422` when a tenant or client ID isn't a valid GUID, when `client_secret` is missing for a new credential, when more than one credential is supplied, or when Microsoft Graph rejects the credential.
+This endpoint returns a `422` when a tenant or client ID isn't a valid GUID, when `cloud` is unsupported, when `client_secret` is missing for a new credential, when more than one credential is supplied, or when Microsoft Graph rejects the credential.
 
 ---
 

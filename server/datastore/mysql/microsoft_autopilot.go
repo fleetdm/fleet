@@ -20,29 +20,34 @@ import (
 // microsoftGraphCredentialRow mirrors the mdm_microsoft_graph_credentials table. The secret is read as the raw encrypted
 // blob and decrypted into fleet.MicrosoftGraphCredential.ClientSecret, so the encrypted form never escapes this file.
 type microsoftGraphCredentialRow struct {
-	TenantID          string     `db:"tenant_id"`
-	ClientID          string     `db:"client_id"`
-	ClientSecret      []byte     `db:"client_secret"`
-	CredentialInvalid bool       `db:"credential_invalid"`
-	LastSyncedAt      *time.Time `db:"last_synced_at"`
-	LastSyncError     *string    `db:"last_sync_error"`
+	TenantID          string                    `db:"tenant_id"`
+	ClientID          string                    `db:"client_id"`
+	Cloud             fleet.MicrosoftGraphCloud `db:"cloud"`
+	ClientSecret      []byte                    `db:"client_secret"`
+	CredentialInvalid bool                      `db:"credential_invalid"`
+	LastSyncedAt      *time.Time                `db:"last_synced_at"`
+	LastSyncError     *string                   `db:"last_sync_error"`
 }
 
+// toCredential combines stored metadata with the decrypted client secret.
 func (r microsoftGraphCredentialRow) toCredential(secret string) *fleet.MicrosoftGraphCredential {
 	return &fleet.MicrosoftGraphCredential{
-		TenantID:          r.TenantID,
-		ClientID:          r.ClientID,
-		ClientSecret:      secret,
-		CredentialInvalid: r.CredentialInvalid,
-		LastSyncedAt:      r.LastSyncedAt,
-		LastSyncError:     r.LastSyncError,
+		MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{
+			TenantID:          r.TenantID,
+			ClientID:          r.ClientID,
+			Cloud:             r.Cloud,
+			CredentialInvalid: r.CredentialInvalid,
+			LastSyncedAt:      r.LastSyncedAt,
+			LastSyncError:     r.LastSyncError,
+		},
+		ClientSecret: secret,
 	}
 }
 
 // ListMicrosoftGraphCredentials returns every stored Graph credential with its client secret decrypted.
 func (ds *Datastore) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
 	const stmt = `
-SELECT tenant_id, client_id, client_secret, credential_invalid, last_synced_at, last_sync_error
+SELECT tenant_id, client_id, cloud, client_secret, credential_invalid, last_synced_at, last_sync_error
 FROM mdm_microsoft_graph_credentials
 ORDER BY tenant_id`
 
@@ -65,7 +70,7 @@ ORDER BY tenant_id`
 // ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets.
 func (ds *Datastore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 	const stmt = `
-SELECT tenant_id, client_id, credential_invalid, last_synced_at, last_sync_error
+SELECT tenant_id, client_id, cloud, credential_invalid, last_synced_at, last_sync_error
 FROM mdm_microsoft_graph_credentials
 ORDER BY tenant_id`
 
@@ -101,17 +106,18 @@ func (ds *Datastore) ReplaceMicrosoftGraphCredentials(
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		// Storing a credential resets all of its sync state.
 		const upsertStmt = `
-INSERT INTO mdm_microsoft_graph_credentials (tenant_id, client_id, client_secret)
-VALUES (?, ?, ?)
+INSERT INTO mdm_microsoft_graph_credentials (tenant_id, client_id, cloud, client_secret)
+VALUES (?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
 	client_id = VALUES(client_id),
+	cloud = VALUES(cloud),
 	client_secret = VALUES(client_secret),
 	last_synced_at = NULL,
 	credential_invalid = 0,
 	last_sync_error = NULL`
 
 		for i, cred := range upsert {
-			if _, err := tx.ExecContext(ctx, upsertStmt, cred.TenantID, cred.ClientID, encryptedSecrets[i]); err != nil {
+			if _, err := tx.ExecContext(ctx, upsertStmt, cred.TenantID, cred.ClientID, cred.Cloud.Default(), encryptedSecrets[i]); err != nil {
 				return ctxerr.Wrap(ctx, err, "upsert microsoft graph credential")
 			}
 		}

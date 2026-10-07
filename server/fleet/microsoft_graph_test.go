@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestMicrosoftGraphCredentialConfigured checks that tenant, client, and secret are required.
 func TestMicrosoftGraphCredentialConfigured(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -25,6 +26,7 @@ func TestMicrosoftGraphCredentialConfigured(t *testing.T) {
 	}
 }
 
+// TestMicrosoftGraphCredentialEqual checks case-insensitive IDs and case-sensitive secrets.
 func TestMicrosoftGraphCredentialEqual(t *testing.T) {
 	base := MicrosoftGraphCredential{TenantID: "tenant-a", ClientID: "client-a", ClientSecret: "secret"}
 
@@ -47,8 +49,7 @@ func TestMicrosoftGraphCredentialEqual(t *testing.T) {
 	}
 }
 
-// GitOps hands the credentials over as an untyped value decoded from YAML, and an absent key has to mean "clear them"
-// rather than "leave them alone" -- GitOps is declarative, so the nil case is the one that matters most here.
+// TestParseMicrosoftGraphCredentials checks declarative GitOps decoding, including clearing absent credentials and rejecting malformed values.
 func TestParseMicrosoftGraphCredentials(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
@@ -81,9 +82,7 @@ func TestParseMicrosoftGraphCredentials(t *testing.T) {
 			}},
 			// It decodes onto the struct, but nothing downstream reads it: the datastore writes only the three input
 			// columns. Round-tripping a generated file must not fail.
-			want: []MicrosoftGraphCredential{{
-				TenantID: "tenant-a", ClientID: "client-a", ClientSecret: "secret-a", CredentialInvalid: true,
-			}},
+			want: []MicrosoftGraphCredential{{TenantID: "tenant-a", ClientID: "client-a", CredentialInvalid: true, ClientSecret: "secret-a"}},
 		},
 		{
 			name:    "wrong shape is rejected rather than silently dropped",
@@ -102,4 +101,34 @@ func TestParseMicrosoftGraphCredentials(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+// TestMicrosoftGraphCredentialCloudEqual checks cloud identity and omitted-global equivalence.
+func TestMicrosoftGraphCredentialCloudEqual(t *testing.T) {
+	base := MicrosoftGraphCredential{
+		TenantID: "tenant", ClientID: "client",
+		ClientSecret: "secret",
+	}
+	explicitGlobal := base
+	explicitGlobal.Cloud = MicrosoftGraphCloudGlobal
+	assert.True(t, base.Equal(explicitGlobal))
+	assert.True(t, explicitGlobal.Equal(base))
+	for _, cloud := range []MicrosoftGraphCloud{MicrosoftGraphCloudGCCHigh, MicrosoftGraphCloudDoD, MicrosoftGraphCloudChina} {
+		other := base
+		other.Cloud = cloud
+		assert.False(t, base.Equal(other))
+		assert.False(t, other.Equal(base))
+		clone := other
+		assert.True(t, other.Equal(clone))
+	}
+}
+
+// TestParseMicrosoftGraphCredentialsCloud checks that GitOps parsing preserves the selected cloud.
+func TestParseMicrosoftGraphCredentialsCloud(t *testing.T) {
+	creds, err := ParseMicrosoftGraphCredentials([]any{map[string]any{
+		"tenant_id": "tenant", "client_id": "client", "client_secret": "secret", "cloud": "gcc_high",
+	}})
+	require.NoError(t, err)
+	require.Len(t, creds, 1)
+	assert.Equal(t, MicrosoftGraphCloudGCCHigh, creds[0].Cloud)
 }

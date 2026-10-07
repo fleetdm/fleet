@@ -24,6 +24,7 @@ func deleteCred(ctx context.Context, ds *Datastore, tenantID string) error {
 	return ds.ReplaceMicrosoftGraphCredentials(ctx, nil, []string{tenantID})
 }
 
+// TestMicrosoftAutopilot runs credential and Autopilot-host datastore cases with isolated tables.
 func TestMicrosoftAutopilot(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
@@ -32,6 +33,7 @@ func TestMicrosoftAutopilot(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"GraphCredentialCRUD", testGraphCredentialCRUD},
+		{"GraphCredentialCloud", testGraphCredentialCloud},
 		{"GraphCredentialSecretEncryptedAtRest", testGraphCredentialSecretEncryptedAtRest},
 		{"GraphCredentialMetadataOmitsSecret", testGraphCredentialMetadataOmitsSecret},
 		{"GraphCredentialSyncState", testGraphCredentialSyncState},
@@ -69,9 +71,7 @@ const (
 // seedGraphCredential stores a credential for a tenant with values derived from the tenant
 func seedGraphCredential(t *testing.T, ds *Datastore, tenantID string) {
 	t.Helper()
-	require.NoError(t, upsertCred(t.Context(), ds, &fleet.MicrosoftGraphCredential{
-		TenantID: tenantID, ClientID: "client-" + tenantID, ClientSecret: "secret-" + tenantID,
-	}))
+	require.NoError(t, upsertCred(t.Context(), ds, &fleet.MicrosoftGraphCredential{TenantID: tenantID, ClientID: "client-" + tenantID, ClientSecret: "secret-" + tenantID}))
 }
 
 // newAutopilotHosts creates n hosts with distinct identities, returning them in creation order (so their IDs ascend).
@@ -156,6 +156,7 @@ func requireAutopilotDeviceNotFound(t *testing.T, ds *Datastore, hostID uint) {
 	require.True(t, fleet.IsNotFound(err), "expected a not-found error, got %v", err)
 }
 
+// testGraphCredentialCRUD checks credential creation, replacement, listing, and idempotent deletion.
 func testGraphCredentialCRUD(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -164,9 +165,7 @@ func testGraphCredentialCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, creds)
 
-	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{
-		TenantID: testTenantA, ClientID: "client-a", ClientSecret: "secret-a",
-	}))
+	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{TenantID: testTenantA, ClientID: "client-a", ClientSecret: "secret-a"}))
 
 	creds, err = ds.ListMicrosoftGraphCredentials(ctx)
 	require.NoError(t, err)
@@ -174,6 +173,7 @@ func testGraphCredentialCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, testTenantA, creds[0].TenantID)
 	assert.Equal(t, "client-a", creds[0].ClientID)
 	assert.Equal(t, "secret-a", creds[0].ClientSecret)
+	assert.Equal(t, fleet.MicrosoftGraphCloudGlobal, creds[0].Cloud)
 	// A fresh credential starts with clean sync state, which is what testGraphCredentialSyncState then moves off.
 	assert.False(t, creds[0].CredentialInvalid)
 	assert.Nil(t, creds[0].LastSyncedAt)
@@ -181,9 +181,7 @@ func testGraphCredentialCRUD(t *testing.T, ds *Datastore) {
 
 	// Upserting the same tenant updates in place rather than creating a second row: tenant_id is the credential's
 	// identity because the Autopilot registry is per-tenant.
-	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{
-		TenantID: testTenantA, ClientID: "client-a-rotated", ClientSecret: "secret-a-rotated",
-	}))
+	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{TenantID: testTenantA, ClientID: "client-a-rotated", ClientSecret: "secret-a-rotated"}))
 
 	creds, err = ds.ListMicrosoftGraphCredentials(ctx)
 	require.NoError(t, err)
@@ -214,12 +212,11 @@ func testGraphCredentialCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, deleteCred(ctx, ds, "no-such-tenant"))
 }
 
+// testGraphCredentialSecretEncryptedAtRest checks stored secrets are encrypted and decrypt correctly on read.
 func testGraphCredentialSecretEncryptedAtRest(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{
-		TenantID: testTenantA, ClientID: "client-a", ClientSecret: "plaintext-secret",
-	}))
+	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{TenantID: testTenantA, ClientID: "client-a", ClientSecret: "plaintext-secret"}))
 
 	var stored []byte
 	err := ds.writer(ctx).GetContext(ctx, &stored,
@@ -231,6 +228,28 @@ func testGraphCredentialSecretEncryptedAtRest(t *testing.T, ds *Datastore) {
 	// And it decrypts back to the original on read.
 	got := storedGraphCredential(t, ds, testTenantA)
 	assert.Equal(t, "plaintext-secret", got.ClientSecret)
+}
+
+// testGraphCredentialCloud checks cloud persistence, metadata reads, and omitted-global defaults.
+func testGraphCredentialCloud(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	for _, cloud := range []fleet.MicrosoftGraphCloud{
+		fleet.MicrosoftGraphCloudGCCHigh, fleet.MicrosoftGraphCloudDoD,
+		fleet.MicrosoftGraphCloudChina, "",
+	} {
+		cred := &fleet.MicrosoftGraphCredential{
+			TenantID: testTenantA, ClientID: "client-a", Cloud: cloud,
+			ClientSecret: "secret-a",
+		}
+		require.NoError(t, upsertCred(ctx, ds, cred))
+		stored := storedGraphCredential(t, ds, testTenantA)
+		assert.Equal(t, cloud.Default(), stored.Cloud)
+		assert.Equal(t, cred.ClientSecret, stored.ClientSecret)
+		metadata, err := ds.ListMicrosoftGraphCredentialMetadata(ctx)
+		require.NoError(t, err)
+		require.Len(t, metadata, 1)
+		assert.Equal(t, cloud.Default(), metadata[0].Cloud)
+	}
 }
 
 // The config API reads metadata rather than the full credential, so a missing or rotated server private key cannot fail.
@@ -254,8 +273,7 @@ func testGraphCredentialMetadataOmitsSecret(t *testing.T, ds *Datastore) {
 	assert.True(t, meta[0].CredentialInvalid)
 }
 
-// The sync writes three pieces of state back onto the credential row: the invalid flag that drives the banner, and the
-// last-synced timestamp and error that are displayed beside it.
+// testGraphCredentialSyncState checks invalid flags, banner aggregation, successful-sync timestamps, errors, and rotation resets.
 func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedGraphCredential(t, ds, testTenantA)
@@ -314,9 +332,7 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, &syncErr))
 	require.NoError(t, ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true))
 
-	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{
-		TenantID: testTenantA, ClientID: "client-a", ClientSecret: "rotated-secret",
-	}))
+	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{TenantID: testTenantA, ClientID: "client-a", ClientSecret: "rotated-secret"}))
 
 	got = storedGraphCredential(t, ds, testTenantA)
 	assert.False(t, got.CredentialInvalid, "rotating a verified credential must clear the banner flag")

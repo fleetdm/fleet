@@ -123,6 +123,12 @@ func (svc *Service) resolveMicrosoftGraphCredentials(
 		cred.TenantID = strings.ToLower(strings.TrimSpace(cred.TenantID))
 		cred.ClientID = strings.ToLower(strings.TrimSpace(cred.ClientID))
 		cred.ClientSecret = strings.TrimSpace(cred.ClientSecret)
+		cred.Cloud = cred.Cloud.Default()
+
+		if !cred.Cloud.Valid() {
+			invalid.Append("microsoft_graph_credentials.cloud", "cloud must be global, gcc_high, dod, or china")
+			continue
+		}
 
 		if !fleet.IsValidEntraGUID(cred.TenantID) {
 			invalid.Append("microsoft_graph_credentials.tenant_id", fmt.Sprintf("Invalid Entra tenant ID: %s", cred.TenantID))
@@ -143,11 +149,11 @@ func (svc *Service) resolveMicrosoftGraphCredentials(
 
 		if cred.ClientSecret == "" || cred.ClientSecret == fleet.MaskedPassword {
 			// The mask means "keep the secret for this credential", and a credential's identity is the app registration:
-			// tenant plus client.
+			// tenant plus client plus cloud.
 			existing, ok := storedByTenant[cred.TenantID]
-			if !ok || existing.ClientSecret == "" || !strings.EqualFold(existing.ClientID, cred.ClientID) {
+			if !ok || existing.ClientSecret == "" || !strings.EqualFold(existing.ClientID, cred.ClientID) || existing.Cloud.Default() != cred.Cloud {
 				invalid.Append("microsoft_graph_credentials.client_secret",
-					"client_secret must be provided when adding a Microsoft Graph credential or changing its tenant or client ID")
+					"client_secret must be provided when adding a Microsoft Graph credential or changing its tenant ID, client ID, or cloud")
 				continue
 			}
 			cred.ClientSecret = existing.ClientSecret

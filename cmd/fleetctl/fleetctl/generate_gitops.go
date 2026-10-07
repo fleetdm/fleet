@@ -846,6 +846,7 @@ func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileCont
 	return fileName
 }
 
+// generateOrgSettings exports organization settings with placeholders for credential secrets.
 func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
 
@@ -895,6 +896,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 			creds = append(creds, map[string]any{
 				jsonFieldName(credT, "TenantID"):     cred.TenantID,
 				jsonFieldName(credT, "ClientID"):     cred.ClientID,
+				jsonFieldName(credT, "Cloud"):        cred.Cloud.Default(),
 				jsonFieldName(credT, "ClientSecret"): cmd.AddComment("default.yml", "TODO: Add your Microsoft Graph client secret here"),
 			})
 			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{

@@ -1,7 +1,11 @@
+export type MicrosoftGraphCloud = "global" | "gcc_high" | "dod" | "china";
+
 /**
  * A Microsoft Entra app registration Fleet uses to read a tenant's Windows Autopilot registry over Microsoft Graph.
  */
 export interface IMicrosoftGraphCredential {
+  /** Omitted by older servers; defaults to the global cloud. */
+  cloud?: MicrosoftGraphCloud;
   tenant_id: string;
   client_id: string;
   /**
@@ -20,6 +24,6 @@ export interface IMicrosoftGraphCredential {
  * Omitting `client_secret`, or sending the masked placeholder, means "keep the stored secret".
  */
 export interface IMicrosoftGraphCredentialFormData
-  extends Pick<IMicrosoftGraphCredential, "tenant_id" | "client_id"> {
+  extends Pick<IMicrosoftGraphCredential, "tenant_id" | "client_id" | "cloud"> {
   client_secret?: string;
 }

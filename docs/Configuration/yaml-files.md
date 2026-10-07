@@ -1325,12 +1325,14 @@ org_settings:
   microsoft_graph_credentials:
     - tenant_id: 4e342a0d-ec1a-4353-bdeb-785542e0a8fb
       client_id: 122349c0-9b2c-4d3e-8f10-aabbccddeeff
+      cloud: gcc_high
       client_secret: $MICROSOFT_GRAPH_CLIENT_SECRET
 ```
 
 - `tenant_id` is the Microsoft Entra tenant ID. Find your **Tenant ID** on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home).
 - `client_id` is the Microsoft Entra application (client) ID. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**.
-- `client_secret` is the client secret for the app registration. Required when you add a credential, and when you change an existing credential's `tenant_id` or `client_id`. Omit it to keep the secret Fleet already stores. Find your **Client secret** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Certificates & secrets**.
+- `cloud` selects `global` (including GCC), `gcc_high`, `dod`, or `china`. Optional; defaults to `global` when omitted. Register and consent the application in the selected cloud.
+- `client_secret` is the client secret for the app registration. Required when you add a credential, and when you change an existing credential's `tenant_id`, `client_id`, or `cloud`. Omit it to keep the secret Fleet already stores. Find your **Client secret** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Certificates & secrets**.
 
 Fleet verifies each credential against Microsoft Graph before saving it, so GitOps fails with an error if the credential is wrong. Re-applying an unchanged credential makes no request to Microsoft and changes nothing in Fleet.
 

@@ -19,11 +19,40 @@ func IsValidEntraGUID(s string) bool {
 	return entraGUIDRegex.MatchString(s)
 }
 
+// MicrosoftGraphCloud identifies the cloud containing an Entra app registration.
+type MicrosoftGraphCloud string
+
+const (
+	MicrosoftGraphCloudGlobal  MicrosoftGraphCloud = "global"
+	MicrosoftGraphCloudGCCHigh MicrosoftGraphCloud = "gcc_high"
+	MicrosoftGraphCloudDoD     MicrosoftGraphCloud = "dod"
+	MicrosoftGraphCloudChina   MicrosoftGraphCloud = "china"
+)
+
+// Default preserves global-cloud behavior for credentials that omit cloud.
+func (c MicrosoftGraphCloud) Default() MicrosoftGraphCloud {
+	if c == "" {
+		return MicrosoftGraphCloudGlobal
+	}
+	return c
+}
+
+// Valid reports whether the cloud is supported, treating an omitted cloud as Global.
+func (c MicrosoftGraphCloud) Valid() bool {
+	switch c.Default() {
+	case MicrosoftGraphCloudGlobal, MicrosoftGraphCloudGCCHigh, MicrosoftGraphCloudDoD, MicrosoftGraphCloudChina:
+		return true
+	default:
+		return false
+	}
+}
+
 // MicrosoftGraphCredentialMetadata is a stored credential without its client secret. This is what the read endpoint
 // serializes, so it must never gain a secret field.
 type MicrosoftGraphCredentialMetadata struct {
-	TenantID string `json:"tenant_id" db:"tenant_id"`
-	ClientID string `json:"client_id" db:"client_id"`
+	TenantID string              `json:"tenant_id" db:"tenant_id"`
+	ClientID string              `json:"client_id" db:"client_id"`
+	Cloud    MicrosoftGraphCloud `json:"cloud" db:"cloud"`
 
 	// CredentialInvalid is set by the sync when the credential fails to authenticate or is denied, and cleared on the
 	// next successful sync.
@@ -55,6 +84,7 @@ func (c MicrosoftGraphCredential) Configured() bool {
 func (c MicrosoftGraphCredential) Equal(other MicrosoftGraphCredential) bool {
 	return strings.EqualFold(c.TenantID, other.TenantID) &&
 		strings.EqualFold(c.ClientID, other.ClientID) &&
+		c.Cloud.Default() == other.Cloud.Default() &&
 		c.ClientSecret == other.ClientSecret
 }
 
