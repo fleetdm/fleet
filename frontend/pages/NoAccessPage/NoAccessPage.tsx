@@ -4,7 +4,6 @@ import React, { useEffect } from "react";
 import { InjectedRouter } from "react-router";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import AuthenticationNav from "components/AuthenticationNav";
 import Button from "components/buttons/Button/Button";
 import CustomLink from "components/CustomLink/CustomLink";
 import PATHS from "router/paths";
@@ -39,13 +38,7 @@ const NoAccessPage = ({ router, orgContactUrl }: INoAccessPageProps) => {
   }, [onBackToLogin]);
 
   return (
-    <AuthenticationFormWrapper
-      header="Access denied"
-      headerCta={
-        <AuthenticationNav router={router} previousLocation={PATHS.LOGIN} />
-      }
-      className={baseClass}
-    >
+    <AuthenticationFormWrapper header="Access denied" className={baseClass}>
       <div className={`${baseClass}__description`}>
         <p>
           This account does not currently have access to Fleet.
