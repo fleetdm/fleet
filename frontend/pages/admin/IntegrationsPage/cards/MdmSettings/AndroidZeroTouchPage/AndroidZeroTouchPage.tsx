@@ -1,15 +1,21 @@
 import { AxiosError } from "axios";
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
 import BackButton from "components/BackButton";
 import CopyButton from "components/buttons/CopyButton";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
+import FleetsDropdown from "components/FleetsDropdown";
+import InputField from "components/forms/fields/InputField";
 import MainContent from "components/MainContent";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import { AppContext } from "context/app";
+import {
+  APP_CONTEXT_NO_TEAM_ID,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
+} from "interfaces/team";
 import PATHS from "router/paths";
 import mdmAndroidAPI, {
   IGetZeroTouchConfigurationResponse,
@@ -21,23 +27,31 @@ const baseClass = "android-zero-touch-page";
 const AndroidZeroTouchPage = () => {
   const {
     currentUser,
+    availableTeams,
     isPremiumTier,
     isAndroidMdmEnabledAndConfigured,
   } = useContext(AppContext);
+
+  const [selectedFleetId, setSelectedFleetId] = useState(
+    APP_CONTEXT_NO_TEAM_ID
+  );
+  const selectedFleetName =
+    availableTeams?.find((fleet) => fleet.id === selectedFleetId)?.name ??
+    APP_CONTEXT_NO_TEAM_SUMMARY.name;
 
   // `isPremiumTier` is undefined until the config request resolves, and the
   // route renders as soon as `currentUser` is set. Without this the paywall
   // flashes on Premium and the premium-only request fires on Free.
   const isTierKnown = isPremiumTier !== undefined;
 
-  const { data: zeroTouchConfig, isLoading, isError } = useQuery<
+  const { data: zeroTouchConfig, isLoading, isFetching, isError } = useQuery<
     IGetZeroTouchConfigurationResponse,
     AxiosError
   >(
     // Scoped to the user: the query client is module-scoped and survives SPA
     // logout, and the DPC extras embed a reusable enrollment token.
-    ["android-zero-touch-configuration", currentUser?.id],
-    () => mdmAndroidAPI.getZeroTouchConfiguration(),
+    ["android-zero-touch-configuration", currentUser?.id, selectedFleetId],
+    () => mdmAndroidAPI.getZeroTouchConfiguration(selectedFleetId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled:
@@ -46,6 +60,9 @@ const AndroidZeroTouchPage = () => {
   );
 
   const hasConfig = !isError && !!zeroTouchConfig;
+  const dpcExtrasText = hasConfig
+    ? JSON.stringify(zeroTouchConfig, null, 2)
+    : "";
 
   const renderCodeBlock = () => {
     if (isLoading) {
@@ -64,7 +81,7 @@ const AndroidZeroTouchPage = () => {
 
     return (
       <pre className={`${baseClass}__dpc-extras-code`}>
-        <code>{JSON.stringify(zeroTouchConfig, null, 2)}</code>
+        <code>{dpcExtrasText}</code>
       </pre>
     );
   };
@@ -97,28 +114,55 @@ const AndroidZeroTouchPage = () => {
             newTab
           />
         </div>
-        <p className={`${baseClass}__enrollment-info`}>
-          Android hosts will automatically enroll to the <b>Unassigned</b>{" "}
-          fleet. Changing fleets is coming soon.
-        </p>
-        <div className={`${baseClass}__dpc-extras`}>
-          <div className={`${baseClass}__dpc-extras-header`}>
-            <span className={`${baseClass}__dpc-extras-label`}>DPC extras</span>
-            {hasConfig && (
-              <CopyButton
-                copyText={JSON.stringify(zeroTouchConfig, null, 2)}
-                variant="secondary"
-              />
-            )}
+        <div className={`${baseClass}__fleet-picker`}>
+          <span>
+            Pick the fleet that Android hosts will automatically enroll into:
+          </span>
+          <FleetsDropdown
+            asFormField
+            currentUserFleets={availableTeams || []}
+            selectedFleetId={selectedFleetId}
+            includeAllFleets={false}
+            includeUnassigned
+            isDisabled={isFetching}
+            onChange={setSelectedFleetId}
+          />
+        </div>
+        <div className={`${baseClass}__field`}>
+          <div className={`${baseClass}__field-header`}>
+            <span className={`${baseClass}__field-label`}>Name</span>
+            <CopyButton
+              copyText={selectedFleetName}
+              variant="secondary"
+              ariaLabel="Copy name"
+              disabled={isFetching}
+            />
+          </div>
+          <InputField
+            name="android-zero-touch-name"
+            value={selectedFleetName}
+            readOnly
+            inputOptions={{ "aria-label": "Name" }}
+            helpText={
+              <>
+                For your configuration, use this name and pick{" "}
+                <b>Android Device Policy</b> as your <b>EMM DPC</b>.
+              </>
+            }
+          />
+        </div>
+        <div className={`${baseClass}__field`}>
+          <div className={`${baseClass}__field-header`}>
+            <span className={`${baseClass}__field-label`}>DPC extras</span>
+            <CopyButton
+              copyText={dpcExtrasText}
+              variant="secondary"
+              ariaLabel="Copy DPC extras"
+              disabled={isFetching || !hasConfig}
+            />
           </div>
           {renderCodeBlock()}
         </div>
-        {hasConfig && (
-          <p className={`${baseClass}__instructions`}>
-            Select <b>Add configuration</b>, pick <b>Android Device Policy</b>{" "}
-            as your <b>EMM DPC</b>, and paste this JSON into <b>DPC extras</b>.
-          </p>
-        )}
       </>
     );
   };
