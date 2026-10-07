@@ -14,7 +14,7 @@ describe("formatSoftwareType", () => {
     expect(
       formatSoftwareType({
         source: "jetbrains_plugins",
-        extension_for: "IntelliJIdea",
+        extension_for: "intellij_idea",
       })
     ).toBe("IntelliJ IDEA extension");
   });

@@ -357,7 +357,7 @@ const SOFTWARE_TYPE_VARIANTS = [
     key: "clion_extension",
     displayName: "CLion extension",
     source: "jetbrains_plugins",
-    extensionFor: "CLion",
+    extensionFor: "clion",
     platforms: DESKTOP,
   },
   {
@@ -371,7 +371,7 @@ const SOFTWARE_TYPE_VARIANTS = [
     key: "datagrip_extension",
     displayName: "DataGrip extension",
     source: "jetbrains_plugins",
-    extensionFor: "DataGrip",
+    extensionFor: "datagrip",
     platforms: DESKTOP,
   },
   {
@@ -411,7 +411,7 @@ const SOFTWARE_TYPE_VARIANTS = [
     key: "goland_extension",
     displayName: "GoLand extension",
     source: "jetbrains_plugins",
-    extensionFor: "GoLand",
+    extensionFor: "goland",
     platforms: DESKTOP,
   },
   {
@@ -424,14 +424,14 @@ const SOFTWARE_TYPE_VARIANTS = [
     key: "intellij_idea_community_edition_extension",
     displayName: "IntelliJ IDEA Community Edition extension",
     source: "jetbrains_plugins",
-    extensionFor: "IntelliJIdeaCommunityEdition",
+    extensionFor: "intellij_idea_community_edition",
     platforms: DESKTOP,
   },
   {
     key: "intellij_idea_extension",
     displayName: "IntelliJ IDEA extension",
     source: "jetbrains_plugins",
-    extensionFor: "IntelliJIdea",
+    extensionFor: "intellij_idea",
     platforms: DESKTOP,
   },
   {
@@ -494,7 +494,7 @@ const SOFTWARE_TYPE_VARIANTS = [
     key: "phpstorm_extension",
     displayName: "PhpStorm extension",
     source: "jetbrains_plugins",
-    extensionFor: "PhpStorm",
+    extensionFor: "phpstorm",
     platforms: DESKTOP,
   },
   {
@@ -507,14 +507,14 @@ const SOFTWARE_TYPE_VARIANTS = [
     key: "pycharm_extension",
     displayName: "PyCharm extension",
     source: "jetbrains_plugins",
-    extensionFor: "PyCharm",
+    extensionFor: "pycharm",
     platforms: DESKTOP,
   },
   {
     key: "pycharm_community_edition_extension",
     displayName: "PyCharm Community Edition extension",
     source: "jetbrains_plugins",
-    extensionFor: "PyCharmCommunityEdition",
+    extensionFor: "pycharm_community_edition",
     platforms: DESKTOP,
   },
   {
@@ -527,14 +527,14 @@ const SOFTWARE_TYPE_VARIANTS = [
     key: "resharper_extension",
     displayName: "ReSharper extension",
     source: "jetbrains_plugins",
-    extensionFor: "ReSharper",
+    extensionFor: "resharper",
     platforms: DESKTOP,
   },
   {
     key: "rider_extension",
     displayName: "Rider extension",
     source: "jetbrains_plugins",
-    extensionFor: "Rider",
+    extensionFor: "rider",
     platforms: DESKTOP,
   },
   {
@@ -547,14 +547,14 @@ const SOFTWARE_TYPE_VARIANTS = [
     key: "rubymine_extension",
     displayName: "RubyMine extension",
     source: "jetbrains_plugins",
-    extensionFor: "RubyMine",
+    extensionFor: "rubymine",
     platforms: DESKTOP,
   },
   {
     key: "rustrover_extension",
     displayName: "RustRover extension",
     source: "jetbrains_plugins",
-    extensionFor: "RustRover",
+    extensionFor: "rust_rov",
     platforms: DESKTOP,
   },
   {
@@ -630,7 +630,7 @@ const SOFTWARE_TYPE_VARIANTS = [
     key: "webstorm_extension",
     displayName: "WebStorm extension",
     source: "jetbrains_plugins",
-    extensionFor: "WebStorm",
+    extensionFor: "webstorm",
     platforms: DESKTOP,
   },
   {

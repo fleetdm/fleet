@@ -1293,12 +1293,12 @@ func TestParseSoftwareTypeFilter(t *testing.T) {
 		{
 			name:         "groups extension_for by source",
 			source:       "apps,chrome_extensions,vscode_extensions,jetbrains_plugins",
-			extensionFor: "brave,cursor,edge,brave,IntelliJIdea",
+			extensionFor: "brave,cursor,edge,brave,intellij_idea",
 			want: SoftwareTypeFilter{
 				"apps":              nil,
 				"chrome_extensions": {"brave", "edge"},
 				"vscode_extensions": {"cursor"},
-				"jetbrains_plugins": {"IntelliJIdea"},
+				"jetbrains_plugins": {"intellij_idea"},
 			},
 		},
 		{
@@ -1330,11 +1330,13 @@ func TestParseSoftwareTypeFilter(t *testing.T) {
 			wantReason:   `Invalid extension_for: "brav" isn't a valid browser or IDE. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
 		},
 		{
+			// osquery's jetbrains_plugins.product_type is snake_case (kProductTypeToString), not the
+			// CamelCase its table doc string claims.
 			name:         "extension_for is case sensitive",
 			source:       "jetbrains_plugins",
-			extensionFor: "intellijidea",
+			extensionFor: "IntelliJIdea",
 			wantArg:      "extension_for",
-			wantReason:   `Invalid extension_for: "intellijidea" isn't a valid browser or IDE. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+			wantReason:   `Invalid extension_for: "IntelliJIdea" isn't a valid browser or IDE. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
 		},
 		{
 			name:         "empty values in extension_for are ignored",

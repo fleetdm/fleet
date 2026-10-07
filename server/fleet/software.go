@@ -646,8 +646,8 @@ var softwareTypeFilterSources = map[string][]string{
 	"firefox_addons":      {"firefox"},
 	"vscode_extensions":   {"vscode", "vscode_insiders", "vscodium", "vscodium_insiders", "cursor", "windsurf", "trae"},
 	"jetbrains_plugins": {
-		"CLion", "DataGrip", "GoLand", "IntelliJIdea", "IntelliJIdeaCommunityEdition", "PhpStorm", "PyCharm",
-		"PyCharmCommunityEdition", "ReSharper", "Rider", "RubyMine", "RustRover", "WebStorm",
+		"clion", "datagrip", "goland", "intellij_idea", "intellij_idea_community_edition", "phpstorm", "pycharm",
+		"pycharm_community_edition", "resharper", "rider", "rubymine", "rust_rov", "webstorm",
 	},
 }
 
