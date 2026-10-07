@@ -164,7 +164,12 @@ func Scan(h homes.Home, snap *proc.Snapshot, b *evidence.Bundle) []Agent {
 			if a.BinaryPath != "" {
 				a.SHA256 = fsutil.SHA256(resolveSystemBinary(a.BinaryPath))
 			}
-			seen[a.Name] = len(out)
+			// The first row with a name keeps it: a candidate that didn't merge into a
+			// catalog row (a project folder called "codex") must not take the name
+			// over, or that row would absorb the tool home's evidence instead.
+			if _, taken := seen[a.Name]; !taken {
+				seen[a.Name] = len(out)
+			}
 			out = append(out, a)
 		}
 	}

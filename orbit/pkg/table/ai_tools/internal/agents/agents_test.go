@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/evidence"
@@ -197,4 +198,34 @@ func TestNativeInstallUnresolvedLinkKeepsLinkPath(t *testing.T) {
 	require.Len(t, got, 1)
 	require.Empty(t, got[0].Version)
 	require.Equal(t, link, got[0].Path)
+}
+
+// A candidate named like a catalog agent that doesn't merge into it (a project
+// folder called "codex") must not take over the catalog row, so the tool
+// home's evidence lands on the catalog row whatever order candidates come in.
+func TestToolHomeEvidenceAlwaysMergesIntoCatalogRow(t *testing.T) {
+	home := t.TempDir()
+	writeExec(t, filepath.Join(home, ".local", "bin", "codex"))
+	write(t, filepath.Join(home, ".codex", "config.toml"), `model = "x"`)
+	write(t, filepath.Join(home, "src", "codex", "package.json"), `{"dependencies":{"crewai":"^1"}}`)
+
+	h := homes.Home{Dir: home, Username: "u"}
+	// Candidates come from a map, so repeat to cover both orders.
+	for range 40 {
+		var catalog, project *Agent
+		for _, a := range scanWithEvidence(t, h) {
+			if a.Name != "codex" {
+				continue
+			}
+			if strings.Contains(a.Evidence, "catalog") {
+				catalog = &a
+			} else {
+				project = &a
+			}
+		}
+		require.NotNil(t, catalog)
+		require.NotNil(t, project)
+		require.Contains(t, catalog.Evidence, "tool_home")
+		require.NotContains(t, project.Evidence, "tool_home")
+	}
 }

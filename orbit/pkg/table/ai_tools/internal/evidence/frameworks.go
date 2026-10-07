@@ -20,20 +20,27 @@ var harnessFrameworks = map[string]struct{}{
 	"@langchain/langgraph": {}, "langchain": {},
 }
 
-// allFrameworkMarkers maps package name → short label.
-var allFrameworkMarkers = map[string]string{
-	"crewai":                    "crewai",
-	"langgraph":                 "langgraph",
-	"@langchain/langgraph":      "langgraph",
-	"langchain":                 "langchain",
-	"langchain-core":            "langchain",
-	"pyautogen":                 "autogen",
-	"autogen":                   "autogen",
-	"autogen-agentchat":         "autogen",
-	"openai-agents":             "openai-agents",
-	"semantic-kernel":           "semantic-kernel",
-	"hermes":                    "hermes",
-	"openclaw":                  "openclaw",
+// frameworkMarkers maps a framework's package name to its short label.
+var frameworkMarkers = map[string]string{
+	"crewai":               "crewai",
+	"langgraph":            "langgraph",
+	"@langchain/langgraph": "langgraph",
+	"langchain":            "langchain",
+	"langchain-core":       "langchain",
+	"pyautogen":            "autogen",
+	"autogen":              "autogen",
+	"autogen-agentchat":    "autogen",
+	"openai-agents":        "openai-agents",
+	"semantic-kernel":      "semantic-kernel",
+	"hermes":               "hermes",
+	"openclaw":             "openclaw",
+}
+
+// agentToolMarkers maps a catalog agent CLI's package name to its label. A
+// project depending on one is agent-shaped, but a global npm or pipx install
+// of one is that CLI itself, which the agents catalog already reports with its
+// version, so global installs aren't checked against these.
+var agentToolMarkers = map[string]string{
 	"@anthropic-ai/claude-code": "claude-code",
 	"@google/gemini-cli":        "gemini-cli",
 	"@openai/codex":             "codex",
@@ -80,13 +87,13 @@ func scanFrameworks(h homes.Home, dirs []fsutil.WalkedDir) []Framework {
 				}
 				for _, s := range sub {
 					pkg := e.Name() + "/" + s.Name()
-					if label, ok := allFrameworkMarkers[pkg]; ok {
+					if label, ok := frameworkMarkers[pkg]; ok {
 						add(label, filepath.Join(nm, e.Name(), s.Name()), "global-node")
 					}
 				}
 				continue
 			}
-			if label, ok := allFrameworkMarkers[e.Name()]; ok {
+			if label, ok := frameworkMarkers[e.Name()]; ok {
 				add(label, filepath.Join(nm, e.Name()), "global-node")
 			}
 		}
@@ -99,7 +106,7 @@ func scanFrameworks(h homes.Home, dirs []fsutil.WalkedDir) []Framework {
 			if !e.IsDir() {
 				continue
 			}
-			if label, ok := allFrameworkMarkers[e.Name()]; ok {
+			if label, ok := frameworkMarkers[e.Name()]; ok {
 				add(label, filepath.Join(pipx, e.Name()), "pipx")
 			}
 		}
@@ -147,7 +154,7 @@ func parsePackageJSONDeps(path string) []string {
 	}
 	var labels []string
 	consider := func(pkg string) {
-		if label, ok := allFrameworkMarkers[pkg]; ok {
+		if label, ok := projectMarker(pkg); ok {
 			labels = append(labels, label)
 		}
 	}
@@ -176,7 +183,7 @@ func parsePythonDependencyNames(path string) []string {
 	b = b[:min(len(b), 128<<10)]
 	var labels []string
 	consider := func(s string) {
-		if label, ok := allFrameworkMarkers[normalizePythonName(requirementName(s))]; ok {
+		if label, ok := projectMarker(normalizePythonName(requirementName(s))); ok {
 			labels = append(labels, label)
 		}
 	}
@@ -188,6 +195,16 @@ func parsePythonDependencyNames(path string) []string {
 		}
 	}
 	return uniqueSorted(labels)
+}
+
+// projectMarker returns the label for a package a project manifest depends on:
+// a framework or a catalog agent CLI.
+func projectMarker(pkg string) (string, bool) {
+	if label, ok := frameworkMarkers[pkg]; ok {
+		return label, true
+	}
+	label, ok := agentToolMarkers[pkg]
+	return label, ok
 }
 
 // uniqueSorted returns labels sorted and without repeats, so the result

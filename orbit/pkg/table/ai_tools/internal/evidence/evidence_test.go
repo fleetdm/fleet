@@ -331,3 +331,26 @@ func TestToolHomeWorkspaceShapeJoinsToolHomeCandidate(t *testing.T) {
 		})
 	}
 }
+
+// A global npm or pipx install of a catalog agent is that agent, which the
+// catalog already reports with its version; only a project depending on one,
+// or a globally installed framework, is framework evidence.
+func TestGlobalInstallOfCatalogAgentIsNotAFramework(t *testing.T) {
+	home := t.TempDir()
+	nm := filepath.Join(home, ".npm-global", "lib", "node_modules")
+	write(t, filepath.Join(nm, "@anthropic-ai", "claude-code", "package.json"), `{"name":"@anthropic-ai/claude-code","version":"2.1.0"}`)
+	write(t, filepath.Join(nm, "crewai", "package.json"), `{"name":"crewai"}`)
+	write(t, filepath.Join(home, ".local", "pipx", "venvs", "aider-chat", "pyvenv.cfg"), "home = /usr")
+	write(t, filepath.Join(home, "src", "sdkbot", "package.json"), `{"dependencies":{"@anthropic-ai/claude-code":"^2"}}`)
+
+	h := homes.Home{Dir: home, Username: "u"}
+	b := Gather(t.Context(), []homes.Home{h}, nil, map[string]struct{}{"agents": {}}, walks(h))
+	got := map[string]string{}
+	for _, fw := range b.Frameworks {
+		got[fw.Name+"@"+fw.Source] = fw.Path
+	}
+	require.Contains(t, got, "crewai@global-node")
+	require.Contains(t, got, "claude-code@package.json", "a project depending on a catalog agent is still evidence")
+	require.NotContains(t, got, "claude-code@global-node")
+	require.NotContains(t, got, "aider@pipx")
+}
