@@ -10709,7 +10709,9 @@ Only Apple (macOS, iOS, iPadOS) `DeviceLock`, `EraseDevice`, `ClearPasscode`, an
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
+- [Add Volume Purchasing Program (VPP) token](#add-volume-purchasing-program-vpp-token)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
+- [Update Volume Purchasing Program (VPP) token's fleets](#update-volume-purchasing-program-vpp-tokens-fleets)
 - [Get Android Enterprise](#get-android-enterprise)
 - [Delete Android Enterprise](#delete-android-enterprise)
 - [Get Android zero-touch enrollment configuration](#get-android-zero-touch-enrollment-configuration)
@@ -10834,6 +10836,61 @@ None.
 }
 ```
 
+### Add Volume Purchasing Program (VPP) token
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/vpp_tokens`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token | file | form | **Required**. The content token (.vpptoken) file downloaded from Apple Business. |
+
+A new VPP token isn't assigned to any fleet. To assign it, use [Update VPP token's fleets](#update-vpp-tokens-fleets).
+
+#### Example
+
+`POST /api/v1/fleet/vpp_tokens`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
+Content-Type: application/octet-stream
+
+<TOKEN_DATA>
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 202`
+
+```json
+{
+  "token": {
+    "id": 1,
+    "org_name": "Fleet Device Management Inc.",
+    "location": "Fleet Device Management Inc.",
+    "country_code": "us",
+    "renew_date": "2027-10-20T00:00:00Z",
+    "created_at": "2026-10-20T14:02:11Z",
+    "teams": null,
+    "fleets": null
+  }
+}
+```
+
 ### List Volume Purchasing Program (VPP) tokens
 
 _Available in Fleet Premium_
@@ -10861,6 +10918,7 @@ None.
       "location": "https://example.com/mdm/apple/mdm",
       "country_code": "us",
       "renew_date": "2023-11-29T00:00:00Z",
+      "created_at": "2022-11-29T14:02:11Z",
       "teams": [
         {
           "name": "💻 Workstations",
@@ -10899,6 +10957,74 @@ None.
       ]
     }
   ]
+}
+```
+
+### Update Volume Purchasing Program (VPP) token's fleets
+
+_Available in Fleet Premium_
+
+Update the fleets that have access to a Volume Purchasing Program (VPP) token's App Store apps.
+
+`PATCH /api/v1/fleet/vpp_tokens/:id/fleets`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | **Required**. The VPP token's ID. |
+| fleets | array | body | The IDs of the fleets that have access to this VPP token's App Store apps. Use `0` for "Unassigned" hosts. To assign the VPP token to all fleets, use an empty array (`[]`). If `null` or not specified, the VPP token isn't assigned to any fleet. |
+
+A fleet can have more than one VPP token. A VPP token assigned to all fleets is available in every fleet, including fleets created later, in addition to any other VPP tokens assigned to those fleets. A VPP token can't be assigned to all fleets and specific fleets at the same time.
+
+When a VPP token is removed from a fleet, App Store apps that were added to that fleet from that VPP token are deleted from the fleet.
+
+#### Example
+
+`PATCH /api/v1/fleet/vpp_tokens/1/fleets`
+
+##### Request body
+
+```json
+{
+  "fleets": [1, 2]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "token": {
+    "id": 1,
+    "org_name": "Fleet Device Management Inc.",
+    "location": "Fleet Device Management Inc.",
+    "country_code": "us",
+    "renew_date": "2027-10-20T00:00:00Z",
+    "created_at": "2026-10-20T14:02:11Z",
+    "teams": [
+      {
+        "name": "💻 Workstations",
+        "team_id": 1
+      },
+      {
+        "name": "📱🏢 Company-owned iPhones",
+        "team_id": 2
+      }
+    ],
+    "fleets": [
+      {
+        "name": "💻 Workstations",
+        "fleet_id": 1
+      },
+      {
+        "name": "📱🏢 Company-owned iPhones",
+        "fleet_id": 2
+      }
+    ]
+  }
 }
 ```
 
@@ -15573,6 +15699,8 @@ For example:
 }
 ```
 
+For Apple App Store apps, `vpp_token` is the VPP token the app was added from in the specified fleet. Fleet uses this VPP token for all requests to Apple related to the app in that fleet. For Google Play apps, or if `fleet_id` isn't specified, `vpp_token` is `null`.
+
 ### Get software version
 
 Returns information about the specified software version.
@@ -16090,7 +16218,7 @@ Delete a custom icon added via [Update software icon](#update-software-icon). Th
 
 ### List Apple App Store apps
 
-Returns the list of Apple App Store (VPP) apps that can be added to the specified fleet. If an app is already added to the fleet, it's excluded from the list.
+Returns the list of Apple App Store (VPP) apps that can be added to the specified fleet from the specified VPP token. If an app is already added to the fleet for a platform, from any VPP token, it's excluded from the list for that platform.
 
 `GET /api/v1/fleet/software/app_store_apps`
 
@@ -16099,6 +16227,7 @@ Returns the list of Apple App Store (VPP) apps that can be added to the specifie
 | Name    | Type | In | Description |
 | ------- | ---- | -- | ----------- |
 | fleet_id | integer | query | **Required**. The fleet ID. |
+| vpp_token_id | integer | query | **Required if the fleet has more than one VPP token**. The ID of the VPP token to list apps from. The VPP token must be assigned to the fleet. Not needed if the fleet has only one VPP token. |
 
 #### Example
 
@@ -16157,6 +16286,7 @@ You can add more than one version of the same app to a fleet. Fleet always insta
 | fleet_id       | integer | body | **Required**. The fleet ID. Adds app from the store to the specified fleet.  |
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
 | platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
+| vpp_token_id | integer | body | **Required if the fleet has more than one VPP token**. The ID of the VPP token to add the Apple App Store app from. The VPP token must be assigned to the fleet. Fleet uses this VPP token for all requests to Apple related to the app in this fleet, like assigning licenses. Not needed if the fleet has only one VPP token. Not supported for Android apps. |
 | name | string | body | Admin-provided version name, unique per title per fleet. Defaults to `Default version` when omitted. Required if the title already has a version with the default name. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
 | automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Only supported for `darwin`. |
@@ -16170,6 +16300,8 @@ You can add more than one version of the same app to a fleet. Fleet always insta
 | auto_update_window_end | string | body | Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+An Apple App Store app can be added to a fleet from only one VPP token per platform. Fleet uses that VPP token for all requests to Apple related to the app in that fleet, like assigning licenses. To add the app from a different VPP token, delete the app from the fleet and add it again.
 
 
 #### Example
