@@ -30,6 +30,7 @@ interface ICopyButtonProps {
   tooltipOffset?: number;
   /** Table buttons show on row hover and tab focus only */
   rowHover?: boolean;
+  disabled?: boolean;
 }
 
 const baseClass = "copy-button";
@@ -46,6 +47,7 @@ const CopyButton = ({
   ariaLabel = "Copy to clipboard",
   tooltipOffset = 4,
   rowHover = false,
+  disabled = false,
 }: ICopyButtonProps) => {
   const [message, setMessage] = useState<string | null>(null);
   const tipIdRef = useRef(uniqueId("copy-button-tooltip-"));
@@ -99,6 +101,7 @@ const CopyButton = ({
         variant={isCompact ? "subdued" : variant}
         size={size}
         onClick={onClick}
+        disabled={disabled}
         className={classnames(
           `${baseClass}__button`,
           {
