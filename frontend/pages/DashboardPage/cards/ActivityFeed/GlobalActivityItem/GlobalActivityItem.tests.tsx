@@ -2316,6 +2316,50 @@ describe("Activity Feed", () => {
     expect(screen.queryByText(/\(Default version\)/)).toBeNull();
   });
 
+  // Parallel suffix logic for add / edit / delete routes through the same
+  // helper; one iOS positive + one macOS negative per activity type covers it.
+  it.each([
+    [ActivityType.AddedAppStoreApp, /added/i],
+    [ActivityType.EditedAppStoreApp, /edited/i],
+    [ActivityType.DeletedAppStoreApp, /deleted/i],
+  ])(
+    "appends the version name on an iOS %s activity",
+    (activityType, verbRe) => {
+      const activity = createMockActivity({
+        type: activityType,
+        actor_full_name: "Test Admin",
+        details: {
+          software_title: "Zoom Workplace",
+          platform: "ios",
+          version_name: "Production",
+        },
+      });
+
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+      expect(screen.getByText(verbRe)).toBeInTheDocument();
+      expect(screen.getByText(/\(Production\)/)).toBeInTheDocument();
+    }
+  );
+
+  it.each([
+    ActivityType.AddedAppStoreApp,
+    ActivityType.EditedAppStoreApp,
+    ActivityType.DeletedAppStoreApp,
+  ])("omits the version name on a macOS %s activity", (activityType) => {
+    const activity = createMockActivity({
+      type: activityType,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        platform: "darwin",
+        version_name: "Default version",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.queryByText(/\(Default version\)/)).toBeNull();
+  });
+
   it("renders script package ran status in InstalledSoftware activity", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,

@@ -656,8 +656,7 @@ export const VppInstallDetailsModal = ({
     // managed app configuration, so a successful install details view notes
     // this so admins don't read a later re-install as a fresh install.
     const showConfigUpdateNote =
-      isAppleDevice(platform) &&
-      !isMacOS(platform || "") &&
+      isIPadOrIPhone(platform || "") &&
       (displayStatus === "installed" || isPendingInstall);
 
     return (

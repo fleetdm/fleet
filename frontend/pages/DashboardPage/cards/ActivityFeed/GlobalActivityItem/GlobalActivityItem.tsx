@@ -174,6 +174,14 @@ const getMacOSSetupAssistantMessage = (
 const isPassiveRoleActivity = (activity: IActivity): boolean =>
   !!activity.details?.jit || activity.actor_id === activity.details?.user_id;
 
+// macOS activities carry version_name ("Default version") too; scope the
+// suffix to mobile so macOS copy stays unchanged.
+const makeVersionSuffix = (
+  platform: string | undefined,
+  versionName: string | undefined
+): string =>
+  versionName && isMobilePlatform(platform || "") ? ` (${versionName})` : "";
+
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
     const { targets_count: count, query_name: queryName, stats } =
@@ -1616,14 +1624,12 @@ const TAGGED_TEMPLATES = {
       activity.type === ActivityType.InstalledSoftware;
     const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
 
-    // BE sends version_name on macOS activities too ("Default version"), but
-    // #53641 scopes versioned-app UI to iOS/iPadOS/Android. Gate on the host's
-    // platform so macOS install copy stays unchanged.
+    // Install activities use host_platform (per-host); make/edit/delete use
+    // platform (per-title). Both route through makeVersionSuffix for the same
+    // "mobile only, else empty" rule.
     const versionSuffix =
-      activity.type === ActivityType.InstalledAppStoreApp &&
-      versionName &&
-      isMobilePlatform(hostPlatform || "")
-        ? ` (${versionName})`
+      activity.type === ActivityType.InstalledAppStoreApp
+        ? makeVersionSuffix(hostPlatform, versionName)
         : "";
 
     if (skipped_install) {
@@ -1765,16 +1771,11 @@ const TAGGED_TEMPLATES = {
       platform: swPlatform,
       version_name: versionName,
     } = activity.details || {};
-    // macOS activities carry version_name too; scope the suffix to mobile.
-    const versionSuffix =
-      versionName && isMobilePlatform(swPlatform || "")
-        ? ` (${versionName})`
-        : "";
     return (
       <>
         {" "}
         added <b>{swTitle}</b>
-        {versionSuffix}{" "}
+        {makeVersionSuffix(swPlatform, versionName)}{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         to{" "}
         {activity.details?.team_name ? (
@@ -1794,15 +1795,11 @@ const TAGGED_TEMPLATES = {
       platform: swPlatform,
       version_name: versionName,
     } = activity.details || {};
-    const versionSuffix =
-      versionName && isMobilePlatform(swPlatform || "")
-        ? ` (${versionName})`
-        : "";
     return (
       <>
         {" "}
         edited <b>{swTitle}</b>
-        {versionSuffix}{" "}
+        {makeVersionSuffix(swPlatform, versionName)}{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         on{" "}
         {activity.details?.team_name ? (
@@ -1822,15 +1819,11 @@ const TAGGED_TEMPLATES = {
       platform: swPlatform,
       version_name: versionName,
     } = activity.details || {};
-    const versionSuffix =
-      versionName && isMobilePlatform(swPlatform || "")
-        ? ` (${versionName})`
-        : "";
     return (
       <>
         {" "}
         deleted <b>{swTitle}</b>
-        {versionSuffix}{" "}
+        {makeVersionSuffix(swPlatform, versionName)}{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         from{" "}
         {activity.details?.team_name ? (

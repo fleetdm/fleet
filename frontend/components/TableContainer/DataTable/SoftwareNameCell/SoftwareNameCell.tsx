@@ -272,11 +272,14 @@ const ConfigurationIconWithTooltip = ({
       tipOffset={12}
       fixedPositionStrategy
     >
-      <Icon
-        name="settings"
-        className={`${baseClass}__configuration-icon`}
-        color="ui-fleet-black-50"
-      />
+      {/* aria-hidden: outer role=img already names this. */}
+      <span aria-hidden="true">
+        <Icon
+          name="settings"
+          className={`${baseClass}__configuration-icon`}
+          color="ui-fleet-black-50"
+        />
+      </span>
     </TooltipWrapper>
   </div>
 );

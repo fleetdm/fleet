@@ -94,7 +94,6 @@ const AppStoreDetailsModal = ({
             mode={isAndroidApp ? "json" : "xml"}
             value={configurationDisplay}
             readOnly
-            onChange={() => undefined}
           />
         )}
       </div>
