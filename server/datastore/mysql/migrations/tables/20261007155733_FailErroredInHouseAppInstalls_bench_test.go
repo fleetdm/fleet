@@ -13,7 +13,7 @@ import (
 const benchFailErroredHosts = 50000
 
 // Run with FLEET_BENCH_FAIL_ERRORED_IN_HOUSE=1, seeds 50k hosts, 200k in-house installs and 1M nano command results
-func TestUp_20261006162500_BenchJoinOrder(t *testing.T) {
+func TestUp_20261007155733_BenchJoinOrder(t *testing.T) {
 	if os.Getenv("FLEET_BENCH_FAIL_ERRORED_IN_HOUSE") == "" {
 		t.Skip("set FLEET_BENCH_FAIL_ERRORED_IN_HOUSE=1 to run")
 	}

@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261006162500, Down_20261006162500)
+	MigrationClient.AddMigration(Up_20261007155733, Down_20261007155733)
 }
 
-func Up_20261006162500(tx *sql.Tx) error {
+func Up_20261007155733(tx *sql.Tx) error {
 	const batchSize = 1000
 
 	var maxInstallID sql.NullInt64
@@ -37,6 +37,6 @@ WHERE hihsi.verification_at IS NULL
 	return nil
 }
 
-func Down_20261006162500(tx *sql.Tx) error {
+func Down_20261007155733(tx *sql.Tx) error {
 	return nil
 }
