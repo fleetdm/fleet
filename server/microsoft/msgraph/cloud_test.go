@@ -15,8 +15,10 @@ import (
 
 type cloudTransport func(*http.Request) (*http.Response, error)
 
+// RoundTrip delegates requests to the configured test transport.
 func (f cloudTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
+// TestCloudEndpoints checks cloud authentication, device listing, and cross-cloud pagination rejection.
 func TestCloudEndpoints(t *testing.T) {
 	for _, tc := range []struct {
 		cloud fleet.MicrosoftGraphCloud
@@ -103,6 +105,7 @@ func TestCloudEndpoints(t *testing.T) {
 	}
 }
 
+// TestRejectUnknownCloud checks that unsupported clouds cannot create a client.
 func TestRejectUnknownCloud(t *testing.T) {
 	c, err := NewClient(&fleet.MicrosoftGraphCredential{
 		MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{

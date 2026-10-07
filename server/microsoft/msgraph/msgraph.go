@@ -97,6 +97,7 @@ func NewClient(cred *fleet.MicrosoftGraphCredential) (Client, error) {
 	return newClientWithHosts(cred, loginHost, graphHost), nil
 }
 
+// newClientWithHosts builds a token-refreshing client for the supplied login and Graph hosts.
 // ponytail: callers validate credentials before building the client.
 func newClientWithHosts(cred *fleet.MicrosoftGraphCredential, loginHost, graphHost string) Client {
 	cfg := &clientcredentials.Config{

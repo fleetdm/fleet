@@ -994,6 +994,7 @@ type graphCredClient struct {
 	cloud fleet.MicrosoftGraphCloud
 }
 
+// GetMicrosoftGraphCredentials returns fixture credential metadata with the selected cloud and no secret.
 func (c graphCredClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 	return []*fleet.MicrosoftGraphCredentialMetadata{{
 		TenantID: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
@@ -1430,8 +1431,7 @@ func TestGenerateOrgSettings(t *testing.T) {
 	require.Nil(t, we, "unset windows_automatic_enrollment must serialize as null so applying it is a no-op")
 }
 
-// generate-gitops must round-trip the Microsoft Graph credential's identifiers so a generated file can be applied
-// back, while never emitting the secret: the API only ever returns the mask.
+// TestGenerateOrgSettingsMicrosoftGraphCredentials checks generated credential identifiers and clouds while emitting a secret placeholder and warning.
 func TestGenerateOrgSettingsMicrosoftGraphCredentials(t *testing.T) {
 	for _, cloud := range []fleet.MicrosoftGraphCloud{"", fleet.MicrosoftGraphCloudGlobal, fleet.MicrosoftGraphCloudGCCHigh, fleet.MicrosoftGraphCloudDoD, fleet.MicrosoftGraphCloudChina} {
 		t.Run(string(cloud), func(t *testing.T) {

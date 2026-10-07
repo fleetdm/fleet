@@ -37,6 +37,7 @@ func (c MicrosoftGraphCloud) Default() MicrosoftGraphCloud {
 	return c
 }
 
+// Valid reports whether the cloud is supported, treating an omitted cloud as Global.
 func (c MicrosoftGraphCloud) Valid() bool {
 	switch c.Default() {
 	case MicrosoftGraphCloudGlobal, MicrosoftGraphCloudGCCHigh, MicrosoftGraphCloudDoD, MicrosoftGraphCloudChina:

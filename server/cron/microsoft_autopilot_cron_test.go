@@ -157,6 +157,7 @@ func device(id, serial, tag string) msgraph.WindowsAutopilotDevice {
 	return msgraph.WindowsAutopilotDevice{ID: id, SerialNumber: serial, GroupTag: tag, EntraDeviceID: "aad-" + id}
 }
 
+// testCred creates fixture credentials for the supplied tenant.
 func testCred(tenant string) *fleet.MicrosoftGraphCredential {
 	return &fleet.MicrosoftGraphCredential{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: tenant, ClientID: "client-" + tenant}, ClientSecret: "secret"}
 }

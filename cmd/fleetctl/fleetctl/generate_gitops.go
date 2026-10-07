@@ -846,6 +846,7 @@ func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileCont
 	return fileName
 }
 
+// generateOrgSettings exports organization settings with placeholders for credential secrets.
 func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
 

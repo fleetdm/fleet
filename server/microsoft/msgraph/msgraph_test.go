@@ -34,6 +34,7 @@ type graphServer struct {
 	graphRequests atomic.Int32
 }
 
+// newGraphServer serves validated OAuth requests and delegates authenticated Graph requests.
 func newGraphServer(t *testing.T, handler http.HandlerFunc) *graphServer {
 	t.Helper()
 	gs := &graphServer{}
@@ -61,6 +62,7 @@ func newGraphServer(t *testing.T, handler http.HandlerFunc) *graphServer {
 	return gs
 }
 
+// client creates a Graph client using this test server and fixture credentials.
 func (gs *graphServer) client(t *testing.T) Client {
 	t.Helper()
 	return newClientWithHosts(&fleet.MicrosoftGraphCredential{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: testTenantID, ClientID: testClientID}, ClientSecret: testSecret}, gs.URL, gs.URL)
@@ -115,6 +117,7 @@ func device(id, serial, tag string) WindowsAutopilotDevice {
 	return WindowsAutopilotDevice{ID: id, SerialNumber: serial, GroupTag: tag, EntraDeviceID: "aad-" + id}
 }
 
+// TestNewClientRequiresFullCredential checks that nil and incomplete credentials cannot create clients.
 func TestNewClientRequiresFullCredential(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

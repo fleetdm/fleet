@@ -32,6 +32,7 @@ func (f *fakeGraphClient) ListWindowsAutopilotDevices(context.Context) ([]msgrap
 	return nil, nil
 }
 
+// recordingGraphFactory records client clouds and returns clients with the configured verification result.
 // ponytail: recorded clouds also count client creations.
 func recordingGraphFactory(verifyErr error) (msgraph.ClientFactory, *[]fleet.MicrosoftGraphCloud) {
 	var clouds []fleet.MicrosoftGraphCloud
@@ -75,6 +76,7 @@ func (e *graphCredsTestEnv) credentialInvalid(t *testing.T) bool {
 	return ac.MDM.MicrosoftGraphCredentialInvalid
 }
 
+// setupGraphCredsTest creates an admin service with mocked credential persistence and Graph verification.
 func setupGraphCredsTest(t *testing.T, tier string, privateKey string, verifyErr error) *graphCredsTestEnv {
 	t.Helper()
 
@@ -154,6 +156,7 @@ func setupGraphCredsTest(t *testing.T, tier string, privateKey string, verifyErr
 	return env
 }
 
+// TestApplyMicrosoftGraphCredentials checks credential validation, persistence, verification, and secret reuse.
 func TestApplyMicrosoftGraphCredentials(t *testing.T) {
 	t.Parallel()
 	validCred := []fleet.MicrosoftGraphCredential{
@@ -298,6 +301,7 @@ func TestApplyMicrosoftGraphCredentials(t *testing.T) {
 	})
 }
 
+// TestMicrosoftGraphCredentialCloud checks cloud defaults, validation, secret reuse, and re-verification.
 func TestMicrosoftGraphCredentialCloud(t *testing.T) {
 	t.Parallel()
 	credential := func(cloud fleet.MicrosoftGraphCloud, secret string) fleet.MicrosoftGraphCredential {
@@ -359,6 +363,7 @@ func TestMicrosoftGraphCredentialCloud(t *testing.T) {
 	})
 }
 
+// TestMicrosoftGraphCredentialInvalidFlag checks credential-health updates and protects the server-computed flag.
 func TestMicrosoftGraphCredentialInvalidFlag(t *testing.T) {
 	t.Parallel()
 	t.Run("clears when a credential is replaced with a working one", func(t *testing.T) {
@@ -444,6 +449,7 @@ func TestListMicrosoftGraphCredentials(t *testing.T) {
 		"the read must not decrypt secrets it has no way to return")
 }
 
+// TestMicrosoftGraphCredentialsAuth checks read and write authorization for global and team roles.
 func TestMicrosoftGraphCredentialsAuth(t *testing.T) {
 	t.Parallel()
 	env := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)

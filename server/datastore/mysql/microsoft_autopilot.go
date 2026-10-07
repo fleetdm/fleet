@@ -29,6 +29,7 @@ type microsoftGraphCredentialRow struct {
 	LastSyncError     *string                   `db:"last_sync_error"`
 }
 
+// toCredential combines stored metadata with the decrypted client secret.
 func (r microsoftGraphCredentialRow) toCredential(secret string) *fleet.MicrosoftGraphCredential {
 	return &fleet.MicrosoftGraphCredential{
 		MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{

@@ -24,6 +24,7 @@ func deleteCred(ctx context.Context, ds *Datastore, tenantID string) error {
 	return ds.ReplaceMicrosoftGraphCredentials(ctx, nil, []string{tenantID})
 }
 
+// TestMicrosoftAutopilot runs credential and Autopilot-host datastore cases with isolated tables.
 func TestMicrosoftAutopilot(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
@@ -155,6 +156,7 @@ func requireAutopilotDeviceNotFound(t *testing.T, ds *Datastore, hostID uint) {
 	require.True(t, fleet.IsNotFound(err), "expected a not-found error, got %v", err)
 }
 
+// testGraphCredentialCRUD checks credential creation, replacement, listing, and idempotent deletion.
 func testGraphCredentialCRUD(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -210,6 +212,7 @@ func testGraphCredentialCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, deleteCred(ctx, ds, "no-such-tenant"))
 }
 
+// testGraphCredentialSecretEncryptedAtRest checks stored secrets are encrypted and decrypt correctly on read.
 func testGraphCredentialSecretEncryptedAtRest(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -227,6 +230,7 @@ func testGraphCredentialSecretEncryptedAtRest(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "plaintext-secret", got.ClientSecret)
 }
 
+// testGraphCredentialCloud checks cloud persistence, metadata reads, and omitted-global defaults.
 func testGraphCredentialCloud(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	for _, cloud := range []fleet.MicrosoftGraphCloud{
@@ -271,8 +275,7 @@ func testGraphCredentialMetadataOmitsSecret(t *testing.T, ds *Datastore) {
 	assert.True(t, meta[0].CredentialInvalid)
 }
 
-// The sync writes three pieces of state back onto the credential row: the invalid flag that drives the banner, and the
-// last-synced timestamp and error that are displayed beside it.
+// testGraphCredentialSyncState checks invalid flags, banner aggregation, successful-sync timestamps, errors, and rotation resets.
 func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedGraphCredential(t, ds, testTenantA)

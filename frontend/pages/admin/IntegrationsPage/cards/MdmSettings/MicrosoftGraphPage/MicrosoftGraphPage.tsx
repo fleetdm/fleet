@@ -69,7 +69,7 @@ const CREDENTIAL_FIELDS: ICredentialField[] = [
   "clientSecret",
 ];
 
-// The API lower-cases both IDs before comparing, so the UI must too.
+/** Compares cloud and app IDs, ignoring ID case and whitespace to match API normalization. */
 const identityMatchesStored = (
   ids: Pick<IFormData, "tenantId" | "clientId" | "cloud">,
   stored: IMicrosoftGraphCredential
@@ -99,6 +99,7 @@ const getServerFieldErrors = (err: unknown): IFormErrors => {
   return errs;
 };
 
+/** Manages the premium Microsoft Graph credential and its Autopilot sync status. */
 const MicrosoftGraphPage = () => {
   const { config, isPremiumTier, setConfig } = useContext(AppContext);
 
@@ -156,6 +157,7 @@ const MicrosoftGraphPage = () => {
   const markDirty = (field: ICredentialField) =>
     setDirtyFields((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
 
+  /** Updates a credential field and clears or restores the secret mask when its identity changes. */
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const field = name as ICredentialField | "cloud";
     const nextValue = String(value);
@@ -258,6 +260,7 @@ const MicrosoftGraphPage = () => {
     });
   };
 
+  /** Validates and saves the selected cloud credential, retaining an unchanged stored secret. */
   const onSave = async (evt: React.FormEvent) => {
     evt.preventDefault();
 
@@ -394,6 +397,7 @@ const MicrosoftGraphPage = () => {
     />
   );
 
+  /** Renders cloud and credential controls with GitOps and in-flight save locks. */
   const renderForm = () => (
     <form onSubmit={onSave}>
       <GitOpsModeTooltipWrapper

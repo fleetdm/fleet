@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestMicrosoftGraphCredentialConfigured checks that tenant, client, and secret are required.
 func TestMicrosoftGraphCredentialConfigured(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -25,6 +26,7 @@ func TestMicrosoftGraphCredentialConfigured(t *testing.T) {
 	}
 }
 
+// TestMicrosoftGraphCredentialEqual checks case-insensitive IDs and case-sensitive secrets.
 func TestMicrosoftGraphCredentialEqual(t *testing.T) {
 	base := MicrosoftGraphCredential{MicrosoftGraphCredentialMetadata: MicrosoftGraphCredentialMetadata{TenantID: "tenant-a", ClientID: "client-a"}, ClientSecret: "secret"}
 
@@ -47,8 +49,7 @@ func TestMicrosoftGraphCredentialEqual(t *testing.T) {
 	}
 }
 
-// GitOps hands the credentials over as an untyped value decoded from YAML, and an absent key has to mean "clear them"
-// rather than "leave them alone" -- GitOps is declarative, so the nil case is the one that matters most here.
+// TestParseMicrosoftGraphCredentials checks declarative GitOps decoding, including clearing absent credentials and rejecting malformed values.
 func TestParseMicrosoftGraphCredentials(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
@@ -102,6 +103,7 @@ func TestParseMicrosoftGraphCredentials(t *testing.T) {
 	}
 }
 
+// TestMicrosoftGraphCredentialCloudEqual checks cloud identity and omitted-global equivalence.
 func TestMicrosoftGraphCredentialCloudEqual(t *testing.T) {
 	base := MicrosoftGraphCredential{
 		MicrosoftGraphCredentialMetadata: MicrosoftGraphCredentialMetadata{TenantID: "tenant", ClientID: "client"},
@@ -120,6 +122,7 @@ func TestMicrosoftGraphCredentialCloudEqual(t *testing.T) {
 	}
 }
 
+// TestParseMicrosoftGraphCredentialsCloud checks that GitOps parsing preserves the selected cloud.
 func TestParseMicrosoftGraphCredentialsCloud(t *testing.T) {
 	creds, err := ParseMicrosoftGraphCredentials([]any{map[string]any{
 		"tenant_id": "tenant", "client_id": "client", "client_secret": "secret", "cloud": "gcc_high",

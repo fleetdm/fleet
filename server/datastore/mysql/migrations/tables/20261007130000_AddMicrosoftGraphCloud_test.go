@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestUp_20261007130000 checks global backfill, timestamp preservation, and idempotent cloud migration.
 func TestUp_20261007130000(t *testing.T) {
 	db := applyUpToPrev(t)
 	_, err := db.Exec(`INSERT INTO mdm_microsoft_graph_credentials
