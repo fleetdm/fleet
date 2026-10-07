@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 	"uuid"
 
@@ -269,6 +270,38 @@ func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *m
 		if data.EnrollmentID == nil || *data.EnrollmentID == "" || *data.EnrollmentID != resolved.DeviceChannelID {
 			s.logger.DebugContext(r.Context, "certificate binding extension enrollment ID does not match device", "expectedEnrollmentID", resolved.DeviceChannelID, "actualEnrollmentID", data.EnrollmentID)
 			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension enrollment ID does not match device"))
+		}
+	case fleet.AppleMDMCertPurposeADUE:
+		if resolved.Type != mdm.UserEnrollmentDevice {
+			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.UserEnrollmentDevice, "actual", resolved.Type)
+			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension purpose does not match enrollment type"))
+		}
+
+		// first we check if the enrollmentID already exists
+		nanoEnrollment, err := s.ds.GetNanoMDMEnrollment(r.Context, resolved.DeviceChannelID)
+		if err != nil {
+			s.logger.DebugContext(r.Context, "failed to get nano MDM enrollment", "deviceChannelID", resolved.DeviceChannelID, "error", err)
+			return nano_service.NewHTTPStatusError(http.StatusInternalServerError, errors.New("failed to get nano MDM enrollment"))
+		}
+		if nanoEnrollment != nil {
+			s.logger.DebugContext(r.Context, "found nano MDM enrollment", "deviceChannelID", resolved.DeviceChannelID)
+			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("nano MDM enrollment already exists"))
+		}
+
+		challenge, err := s.ds.GetADUEEnrollmentChallenge(r.Context, strings.SplitN(r.Authorization, " ", 2)[1])
+		if err != nil {
+			if _, ok := errors.AsType[fleet.NotFoundError](err); ok {
+				s.logger.DebugContext(r.Context, "ADUE enrollment challenge not found", "error", err)
+				return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("ADUE enrollment challenge not found"))
+			}
+			s.logger.DebugContext(r.Context, "failed to get ADUE enrollment challenge", "error", err)
+			return nano_service.NewHTTPStatusError(http.StatusInternalServerError, errors.New("failed to get ADUE enrollment challenge"))
+		}
+
+		// then we verify the authorization matches the idpAccountUUID
+		if data.IDPAccountUUID == nil || *data.IDPAccountUUID == "" || *data.IDPAccountUUID != challenge.IdPAccountUUID {
+			s.logger.DebugContext(r.Context, "certificate binding extension IDP account UUID does not match device", "expectedIDPAccountUUID", data.IDPAccountUUID, "actualIDPAccountUUID", challenge.IdPAccountUUID)
+			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension IDP account UUID does not match device"))
 		}
 	default:
 		s.logger.DebugContext(r.Context, "unsupported certificate binding extension purpose", "purpose", data.Purpose)
