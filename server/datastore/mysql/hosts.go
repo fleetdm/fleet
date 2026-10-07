@@ -510,8 +510,12 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		GROUP BY q.id
 	`
 
+	// Results only exist for saved global/host-team queries (see QueriesPerHost); without saying so,
+	// MySQL probes query_results for every row in queries, which also includes live queries.
 	filter2 := `
-		WHERE EXISTS (
+		WHERE q.saved = 1
+			AND (q.team_id IS NULL OR q.team_id = ?)
+			AND EXISTS (
 				SELECT 1 FROM query_results
 				WHERE query_results.query_id = q.id
 				AND query_results.host_id = ?
@@ -537,6 +541,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		common_mysql.DefaultNonZeroTime,
 		hid,
 		hid,
+		teamID_,
 		hid,
 	}
 
