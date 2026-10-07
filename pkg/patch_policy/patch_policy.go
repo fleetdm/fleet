@@ -222,6 +222,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"CLion":                             "IN ('clion.exe','clion64.exe')",
 	"Clockify Desktop":                  "= 'clockifywindows.exe'",
 	"Connect Fonts":                     "= 'monotype connect.exe'",
+	"Crestron AirMedia":                 "= 'airmedia.exe'",
 	"DataGrip":                          "IN ('datagrip.exe','datagrip64.exe')",
 	"DataSpell":                         "IN ('dataspell.exe','dataspell64.exe')",
 	"DAX Studio":                        "= 'daxstudio.exe'",
