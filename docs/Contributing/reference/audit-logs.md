@@ -1981,6 +1981,10 @@ This activity contains the following fields:
 - "software_title_id": ID of the added software title.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "fleet_id": ID of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
@@ -1996,6 +2000,11 @@ This activity contains the following fields:
   "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
+  "vpp_token": {
+    "id": 2,
+    "location": "Acme Japan",
+    "country_code": "jp"
+  },
   "self_service": false,
   "team_name": "Workstations",
   "team_id": 1,
@@ -2062,6 +2071,10 @@ This activity contains the following fields:
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
@@ -2078,6 +2091,11 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
+  "vpp_token": {
+    "id": 2,
+    "location": "Acme Japan",
+    "country_code": "jp"
+  },
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro",
@@ -2131,6 +2149,10 @@ This activity contains the following fields:
 - "software_title_id": ID of the updated app's software title.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
 - "fleet_id": ID of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
@@ -2151,6 +2173,11 @@ This activity contains the following fields:
   "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
+  "vpp_token": {
+    "id": 2,
+    "location": "Acme Japan",
+    "country_code": "jp"
+  },
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
