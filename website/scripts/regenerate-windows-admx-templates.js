@@ -121,6 +121,13 @@ every LocURI under them.`,
         repo: 'mozilla/policy-templates',
         admxPathInPackage: 'windows/firefox.admx',
       },
+      {
+        displayName: 'Zoom',
+        keywords: ['zoom'],
+        downloadType: 'url',
+        packageUrl: 'https://assets.zoom.us/docs/msi-templates/Zoom_7.2.0.zip',
+        admxPathInPackage: 'Zoom_7.2.0/ZoomMeetings_HKLM.admx',
+      },
     ];
 
     // Ingested policies may not write under these keys, apart from the exceptions Microsoft lists.  Windows rejects such a policy when the template is ingested, so it is dropped here rather than offered to the generator.
@@ -475,7 +482,7 @@ every LocURI under them.`,
             format: 'chr',
             accessType: 'Add, Delete, Get, Replace',
             admxElements,
-            deprecated: _.contains(categoryPath, 'DeprecatedPolicies') || undefined,
+            deprecated: _.any(categoryPath, (categoryName)=>{ return /^DeprecatedPolicies(?:_recommended)?$/.test(categoryName); }) || undefined,
           });
         }
 
