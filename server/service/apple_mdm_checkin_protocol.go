@@ -233,8 +233,9 @@ func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *m
 	}
 
 	switch data.Purpose {
-	case fleet.AppleMDMCertPurposeADE:
-		// check the incoming type matches the purpose of ADE
+	case fleet.AppleMDMCertPurposeADE, fleet.AppleMDMCertPurposeOTAPhaseTwo:
+		// check the incoming type matches the purpose of ADE and phase 2
+		// We don't support phase one here, as it should never reach the authenticate it should always be exchanged for a phase2 certificate.
 		if cloned.Type != mdm.Device || m.Enrollment.EnrollmentID != "" {
 			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.Device, "actual", r.Type)
 			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension purpose does not match enrollment type"))
