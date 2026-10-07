@@ -2020,6 +2020,7 @@ This activity contains the following fields:
 - "fleet_id": ID of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "version_name": Name of the admin-created App Store app version. Defaults to "Default version" when the admin didn't set one.
 - "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 #### Example
@@ -2045,6 +2046,7 @@ This activity contains the following fields:
       "id": 17
     }
   ],
+  "version_name": "Production",
   "configuration": "<dict><key>com.slack.workspace</key><string>example.slack.com</string></dict>"
 }
 ```
@@ -2061,6 +2063,7 @@ This activity contains the following fields:
 - "fleet_id": ID of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "version_name": Name of the admin-created App Store app version that was deleted. Defaults to "Default version" when the admin didn't set one.
 
 #### Example
 
@@ -2083,7 +2086,8 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
+  ],
+  "version_name": "Production"
 }
 ```
 
@@ -2199,6 +2203,7 @@ This activity contains the following fields:
 - "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
 - "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
 - "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "version_name": Name of the admin-created App Store app version that was edited. Defaults to "Default version" when the admin didn't set one.
 - "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 
@@ -2230,6 +2235,7 @@ This activity contains the following fields:
   "auto_update_enabled": true,
   "auto_update_window_start": "22:00",
   "auto_update_window_end": "02:00",
+  "version_name": "Production",
   "configuration": "<dict><key>com.slack.workspace</key><string>example.slack.com</string></dict>"
 }
 ```
