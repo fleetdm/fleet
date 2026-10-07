@@ -78,6 +78,7 @@ describe("MicrosoftGraphPage", () => {
     expect(await screen.findByLabelText("Tenant ID")).toHaveValue("");
     expect(screen.getByLabelText("Client ID")).toHaveValue("");
     expect(screen.getByLabelText("Client secret")).toHaveValue("");
+    expect(screen.getByText("Global (including GCC)")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Delete" })
     ).not.toBeInTheDocument();
@@ -94,6 +95,7 @@ describe("MicrosoftGraphPage", () => {
     expect(screen.getByLabelText("Client ID")).toHaveValue(
       "7f6b1665-51f5-48de-a9b6-ac17539583fb"
     );
+    expect(screen.getByText("Global (including GCC)")).toBeInTheDocument();
     // The API never returns the secret; the mask signals that one is stored.
     const secretField = screen.getByLabelText("Client secret");
     expect(secretField).toHaveValue("********");
@@ -171,6 +173,7 @@ describe("MicrosoftGraphPage", () => {
     await waitFor(() => {
       expect(mockedAPI.applyCredentials).toHaveBeenCalledWith([
         {
+          cloud: "global",
           tenant_id: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
           client_id: "7f6b1665-51f5-48de-a9b6-ac17539583fb",
         },
@@ -189,12 +192,77 @@ describe("MicrosoftGraphPage", () => {
     await waitFor(() => {
       expect(mockedAPI.applyCredentials).toHaveBeenCalledWith([
         {
+          cloud: "global",
           tenant_id: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
           client_id: "7f6b1665-51f5-48de-a9b6-ac17539583fb",
           client_secret: "new-secret",
         },
       ]);
     });
+  });
+
+  it("saves a new credential in the selected government cloud", async () => {
+    const { user } = renderPage([]);
+
+    await user.type(
+      await screen.findByLabelText("Tenant ID"),
+      "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+    );
+    await user.type(
+      screen.getByLabelText("Client ID"),
+      "7f6b1665-51f5-48de-a9b6-ac17539583fb"
+    );
+    await user.type(screen.getByLabelText("Client secret"), "a-secret");
+    await user.click(screen.getByRole("combobox", { name: "Cloud" }));
+    await user.click(screen.getByText("GCC High"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(mockedAPI.applyCredentials).toHaveBeenCalledWith([
+        {
+          cloud: "gcc_high",
+          tenant_id: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+          client_id: "7f6b1665-51f5-48de-a9b6-ac17539583fb",
+          client_secret: "a-secret",
+        },
+      ])
+    );
+  });
+
+  it("preserves a stored government cloud without re-entering its secret", async () => {
+    const { user } = renderPage([createMockCredential({ cloud: "dod" })]);
+
+    expect(await screen.findByText("DoD")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(mockedAPI.applyCredentials).toHaveBeenCalledWith([
+        {
+          cloud: "dod",
+          tenant_id: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+          client_id: "7f6b1665-51f5-48de-a9b6-ac17539583fb",
+        },
+      ])
+    );
+  });
+
+  it("requires a fresh secret when the cloud changes and restores it on revert", async () => {
+    const { user } = renderPage([createMockCredential()]);
+
+    const secretField = await screen.findByLabelText("Client secret");
+    await user.click(screen.getByRole("combobox", { name: "Cloud" }));
+    await user.click(screen.getByText("China"));
+    expect(secretField).toHaveValue("");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      await screen.findByText("Enter a client secret")
+    ).toBeInTheDocument();
+    expect(mockedAPI.applyCredentials).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("combobox", { name: "Cloud" }));
+    await user.click(screen.getByText("Global (including GCC)"));
+    await waitFor(() => expect(secretField).toHaveValue("********"));
+    expect(screen.queryByText("Enter a client secret")).not.toBeInTheDocument();
   });
 
   it("requires a fresh secret when the client ID changes", async () => {
@@ -248,6 +316,7 @@ describe("MicrosoftGraphPage", () => {
     await waitFor(() => {
       expect(mockedAPI.applyCredentials).toHaveBeenCalledWith([
         {
+          cloud: "global",
           tenant_id: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
           client_id: "7F6B1665-51F5-48DE-A9B6-AC17539583FB",
         },
@@ -489,6 +558,7 @@ describe("MicrosoftGraphPage", () => {
     await waitFor(() => expect(tenantField).toBeDisabled());
     expect(screen.getByLabelText("Client ID")).toBeDisabled();
     expect(screen.getByLabelText("Client secret")).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Cloud" })).toBeDisabled();
     expect(deleteButton).toBeDisabled();
 
     finishSave();
@@ -501,6 +571,7 @@ describe("MicrosoftGraphPage", () => {
     expect(await screen.findByLabelText("Tenant ID")).toBeDisabled();
     expect(screen.getByLabelText("Client ID")).toBeDisabled();
     expect(screen.getByLabelText("Client secret")).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Cloud" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
   });

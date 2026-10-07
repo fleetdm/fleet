@@ -26,12 +26,6 @@ const (
 	// defaultGraphHost is the Microsoft Graph host. Overridable in tests.
 	defaultGraphHost = "https://graph.microsoft.com"
 
-	// graphScope is the only scope value Entra accepts for the client-credentials flow. This is not a broad grant.
-	// App-only permissions are assigned to the app registration and admin-consented up front, so there is no incremental
-	// consent to negotiate at token time; .default means "the permissions this app has already been granted for this
-	// resource", and the token carries nothing more.
-	graphScope = "https://graph.microsoft.com/.default"
-
 	// autopilotDevicesPath uses v1.0, which is the current GA endpoint as of 2026/08/07
 	autopilotDevicesPath = "/v1.0/deviceManagement/windowsAutopilotDeviceIdentities"
 
@@ -85,19 +79,32 @@ type client struct {
 
 // NewClient builds a Graph client for the given credential. The returned client refreshes its own access token.
 func NewClient(cred *fleet.MicrosoftGraphCredential) (Client, error) {
-	return newClientWithHosts(cred, defaultLoginHost, defaultGraphHost)
-}
-
-func newClientWithHosts(cred *fleet.MicrosoftGraphCredential, loginHost, graphHost string) (Client, error) {
 	if cred == nil || !cred.Configured() {
 		return nil, errors.New("microsoft graph credential is not fully configured")
 	}
+	loginHost, graphHost := defaultLoginHost, defaultGraphHost
+	switch cred.Cloud.Default() {
+	case fleet.MicrosoftGraphCloudGlobal:
+	case fleet.MicrosoftGraphCloudGCCHigh:
+		loginHost, graphHost = "https://login.microsoftonline.us", "https://graph.microsoft.us"
+	case fleet.MicrosoftGraphCloudDoD:
+		loginHost, graphHost = "https://login.microsoftonline.us", "https://dod-graph.microsoft.us"
+	case fleet.MicrosoftGraphCloudChina:
+		loginHost, graphHost = "https://login.chinacloudapi.cn", "https://microsoftgraph.chinacloudapi.cn"
+	default:
+		return nil, fmt.Errorf("unsupported microsoft graph cloud %q", cred.Cloud)
+	}
+	return newClientWithHosts(cred, loginHost, graphHost), nil
+}
 
+// ponytail: callers validate credentials before building the client.
+func newClientWithHosts(cred *fleet.MicrosoftGraphCredential, loginHost, graphHost string) Client {
 	cfg := &clientcredentials.Config{
 		ClientID:     cred.ClientID,
 		ClientSecret: cred.ClientSecret,
 		TokenURL:     fmt.Sprintf("%s/%s/oauth2/v2.0/token", strings.TrimSuffix(loginHost, "/"), url.PathEscape(cred.TenantID)),
-		Scopes:       []string{graphScope},
+		// .default requests the app permissions already consented for this cloud's Graph resource.
+		Scopes: []string{strings.TrimSuffix(graphHost, "/") + "/.default"},
 		// Send the credential as form parameters, which is the shape Microsoft documents for this flow.
 		AuthStyle: oauth2.AuthStyleInParams,
 	}
@@ -106,7 +113,7 @@ func newClientWithHosts(cred *fleet.MicrosoftGraphCredential, loginHost, graphHo
 		cfg:        cfg,
 		baseClient: fleethttp.NewClient(fleethttp.WithTimeout(requestTimeout)),
 		graphHost:  strings.TrimSuffix(graphHost, "/"),
-	}, nil
+	}
 }
 
 // httpClientFor builds an HTTP client whose token acquisition inherits ctx.

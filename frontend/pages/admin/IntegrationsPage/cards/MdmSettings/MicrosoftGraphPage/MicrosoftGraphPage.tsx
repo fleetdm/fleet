@@ -6,6 +6,7 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import DataSet from "components/DataSet";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import InputField from "components/forms/fields/InputField";
 import isUUID from "components/forms/validators/valid_uuid";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -23,6 +24,7 @@ import { IInputFieldParseTarget } from "interfaces/form_field";
 import {
   IMicrosoftGraphCredential,
   IMicrosoftGraphCredentialFormData,
+  MicrosoftGraphCloud,
 } from "interfaces/microsoft_graph_credential";
 import PATHS from "router/paths";
 import microsoftGraphCredentialsAPI, {
@@ -46,7 +48,16 @@ const STORED_SECRET_PLACEHOLDER = UNCHANGED_PASSWORD_API_RESPONSE;
 
 type ICredentialField = "tenantId" | "clientId" | "clientSecret";
 
-type IFormData = Record<ICredentialField, string>;
+type IFormData = Record<ICredentialField, string> & {
+  cloud: MicrosoftGraphCloud;
+};
+
+const CLOUD_OPTIONS = [
+  { label: "Global (including GCC)", value: "global" },
+  { label: "GCC High", value: "gcc_high" },
+  { label: "DoD", value: "dod" },
+  { label: "China", value: "china" },
+];
 
 type IFormErrors = Partial<Record<ICredentialField, string>>;
 
@@ -60,11 +71,12 @@ const CREDENTIAL_FIELDS: ICredentialField[] = [
 
 // The API lower-cases both IDs before comparing, so the UI must too.
 const identityMatchesStored = (
-  ids: Pick<IFormData, "tenantId" | "clientId">,
+  ids: Pick<IFormData, "tenantId" | "clientId" | "cloud">,
   stored: IMicrosoftGraphCredential
 ) =>
   equalsIgnoreCase(ids.tenantId.trim(), stored.tenant_id) &&
-  equalsIgnoreCase(ids.clientId.trim(), stored.client_id);
+  equalsIgnoreCase(ids.clientId.trim(), stored.client_id) &&
+  ids.cloud === (stored.cloud ?? "global");
 
 // The API reports per-field problems under these names. Anything it reports under the bare `microsoft_graph_credentials`
 // key is a whole-credential failure (verification, licensing, missing private key) with no field to attach it to.
@@ -91,6 +103,7 @@ const MicrosoftGraphPage = () => {
   const { config, isPremiumTier, setConfig } = useContext(AppContext);
 
   const [formData, setFormData] = useState<IFormData>({
+    cloud: "global",
     tenantId: "",
     clientId: "",
     clientSecret: "",
@@ -104,7 +117,7 @@ const MicrosoftGraphPage = () => {
     Partial<Record<ICredentialField, boolean>>
   >({});
 
-  const { tenantId, clientId, clientSecret } = formData;
+  const { cloud, tenantId, clientId, clientSecret } = formData;
 
   const { data: credentialsResponse, isLoading, isError, refetch } = useQuery<
     IGetMicrosoftGraphCredentialsResponse,
@@ -126,6 +139,7 @@ const MicrosoftGraphPage = () => {
   // Seed the form from the stored credential. Leaving the secret field untouched keeps the stored secret.
   useEffect(() => {
     setFormData({
+      cloud: storedCredential?.cloud ?? "global",
       tenantId: storedCredential?.tenant_id ?? "",
       clientId: storedCredential?.client_id ?? "",
       clientSecret: storedCredential ? STORED_SECRET_PLACEHOLDER : "",
@@ -133,20 +147,26 @@ const MicrosoftGraphPage = () => {
     setFormErrors({});
     setDirtyFields({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storedCredential?.tenant_id, storedCredential?.client_id]);
+  }, [
+    storedCredential?.tenant_id,
+    storedCredential?.client_id,
+    storedCredential?.cloud,
+  ]);
 
   const markDirty = (field: ICredentialField) =>
     setDirtyFields((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-    const field = name as ICredentialField;
+    const field = name as ICredentialField | "cloud";
     const nextValue = String(value);
-    markDirty(field);
+    if (field !== "cloud") {
+      markDirty(field);
+    }
 
     setFormData((prev) => {
       const updated = { ...prev, [field]: nextValue };
-      // The stored secret belongs to a specific app registration, so changing either ID invalidates it. Reverting to
-      // the stored IDs makes it apply again, so the mask comes back. The dirty check keeps the restore from
+      // The stored secret belongs to an app registration in a specific cloud. Changing its identity invalidates it.
+      // Reverting to the stored identity makes it apply again, so the mask comes back. The dirty check keeps the restore from
       // overwriting a secret field the admin cleared themselves.
       if (storedCredential && field !== "clientSecret") {
         const identityUnchanged = identityMatchesStored(
@@ -254,6 +274,7 @@ const MicrosoftGraphPage = () => {
     }
 
     const credential: IMicrosoftGraphCredentialFormData = {
+      cloud,
       tenant_id: tenantId.trim(),
       client_id: clientId.trim(),
     };
@@ -375,6 +396,24 @@ const MicrosoftGraphPage = () => {
 
   const renderForm = () => (
     <form onSubmit={onSave}>
+      <GitOpsModeTooltipWrapper
+        isInputField
+        renderChildren={(disableChildren) => (
+          <DropdownWrapper
+            name="cloud"
+            label="Cloud"
+            ariaLabel="Cloud"
+            options={CLOUD_OPTIONS}
+            value={cloud}
+            onChange={(option) => {
+              if (option) {
+                onInputChange({ name: "cloud", value: option.value });
+              }
+            }}
+            isDisabled={disableChildren || isSaving}
+          />
+        )}
+      />
       {renderField("tenantId", "Tenant ID")}
       {renderField("clientId", "Client ID")}
       {renderField("clientSecret", "Client secret", {

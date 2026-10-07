@@ -158,7 +158,7 @@ func device(id, serial, tag string) msgraph.WindowsAutopilotDevice {
 }
 
 func testCred(tenant string) *fleet.MicrosoftGraphCredential {
-	return &fleet.MicrosoftGraphCredential{TenantID: tenant, ClientID: "client-" + tenant, ClientSecret: "secret"}
+	return &fleet.MicrosoftGraphCredential{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: tenant, ClientID: "client-" + tenant}, ClientSecret: "secret"}
 }
 
 func discardLogger() *slog.Logger { return slog.New(slog.DiscardHandler) }
