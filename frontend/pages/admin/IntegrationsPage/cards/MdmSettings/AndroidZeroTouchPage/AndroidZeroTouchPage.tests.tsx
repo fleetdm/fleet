@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
 
 import createMockAxiosError from "__mocks__/axiosError";
 import createMockUser from "__mocks__/userMock";
@@ -186,14 +187,22 @@ describe("AndroidZeroTouchPage", () => {
           })
       );
 
+    // The shared renderer's client uses cacheTime: 0, which drops the
+    // previously viewed fleet's data and hides the case under test.
+    const cachingClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     const render = createCustomRenderer({
-      withBackendMock: true,
       context: {
         app: CONFIGURED_APP_CONTEXT,
       },
     });
 
-    render(<AndroidZeroTouchPage />);
+    render(
+      <QueryClientProvider client={cachingClient}>
+        <AndroidZeroTouchPage />
+      </QueryClientProvider>
+    );
 
     await screen.findByText(/unassigned-1/);
     await userEvent.click(getFleetPicker(/Unassigned/));
