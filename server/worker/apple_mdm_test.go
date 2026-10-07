@@ -1100,6 +1100,45 @@ func TestAppleMDM(t *testing.T) {
 		})
 	}
 
+	t.Run("installs fleetd for manual enrollments when the bootstrap package fails", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, false, "darwin")
+		require.NoError(t, ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+			Name:   "manual-bootstrap",
+			TeamID: 0,
+			Bytes:  []byte("test"),
+			Sha256: []byte("test"),
+			Token:  "token",
+		}, nil))
+		enableBootstrapManualEnrollment(t, nil, false)
+
+		// an unparseable server URL makes the bootstrap package fail before its command is queued
+		ac, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.MDM.AppleServerURL = "http://%zz"
+		require.NoError(t, ds.SaveAppConfig(ctx, ac))
+		t.Cleanup(func() {
+			ac, err := ds.AppConfig(ctx)
+			require.NoError(t, err)
+			ac.MDM.AppleServerURL = ""
+			require.NoError(t, ds.SaveAppConfig(ctx, ac))
+		})
+
+		runManualEnrollmentJob(t, h, "darwin", nil)
+
+		// fleetd was still sent, and the job is queued to retry the bootstrap package
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+		_, err = ds.GetHostMDMMacOSSetup(ctx, h.ID)
+		require.True(t, fleet.IsNotFound(err))
+		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Len(t, jobs, 1)
+		require.Contains(t, jobs[0].Error, "installing bootstrap package")
+		require.Equal(t, 1, jobs[0].Retries)
+	})
+
 	for _, platform := range []string{"ios", "ipados"} {
 		t.Run("does not install bootstrap package for manual enrollments of "+platform, func(t *testing.T) {
 			mysqltest.SetTestABMAssets(t, ds, testOrgName)

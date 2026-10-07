@@ -159,6 +159,13 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 			manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
 		}
 
+		// fleetd goes first so a bootstrap package failure can't block it.
+		if !manualAgentInstall {
+			if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+			}
+		}
+
 		var bootstrapCmdUUID string
 		if installBootstrap {
 			var err error
@@ -167,9 +174,9 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 			}
 		}
 
-		// Fleet skips fleetd only if a bootstrap package (expected to contain fleetd) was actually
-		// sent, so a missing package doesn't leave the host without an agent.
-		if !manualAgentInstall || bootstrapCmdUUID == "" {
+		// With manual agent install, the bootstrap package is expected to contain fleetd, so Fleet
+		// only skips fleetd if a package was actually sent.
+		if manualAgentInstall && bootstrapCmdUUID == "" {
 			if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
 			}
