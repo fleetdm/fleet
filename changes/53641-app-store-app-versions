@@ -1,1 +1,0 @@
-- Added support for multiple App Store app versions per software title on iOS, iPadOS, and Android. Each version carries its own name, managed app configuration, label scope, self-service, and (iOS/iPadOS) auto-update window, so you can give different groups of hosts different app settings without creating a separate fleet.
