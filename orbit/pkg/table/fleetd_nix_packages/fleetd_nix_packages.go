@@ -25,13 +25,6 @@ import (
 
 const TableName = "fleetd_nix_packages"
 
-// IsNixOS reports whether the host runs NixOS, using the marker file nixos-rebuild
-// itself checks.
-func IsNixOS() bool {
-	_, err := os.Stat("/etc/NIXOS")
-	return err == nil
-}
-
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
