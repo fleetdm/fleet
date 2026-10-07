@@ -63,6 +63,9 @@ type appConfigResponseFields struct {
 	Auth *fleet.AuthSettings `json:"auth,omitempty"`
 	// Maximum software package size is loaded from the service.
 	MaxSoftwarePackageSize int64 `json:"max_software_package_size"`
+	// StagedUploadAvailable reports whether clients can upload package bytes
+	// straight to object storage instead of through Fleet.
+	StagedUploadAvailable bool `json:"staged_upload_available"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -251,6 +254,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Partnerships:           partnerships,
 			Auth:                   authSettings,
 			MaxSoftwarePackageSize: svc.MaxInstallerSizeBytes(),
+			StagedUploadAvailable:  svc.StagedUploadAvailable(ctx),
 		},
 	}
 	return response, nil
@@ -365,6 +369,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 			License:                lic,
 			Logging:                loggingConfig,
 			MaxSoftwarePackageSize: svc.MaxInstallerSizeBytes(),
+			StagedUploadAvailable:  svc.StagedUploadAvailable(ctx),
 		},
 	}
 
@@ -1048,7 +1053,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if appConfig.HostExpirySettings.HostExpiryEnabled && appConfig.HostExpirySettings.HostExpiryWindow < 1 {
-		invalid.Append("host_expiry_settings.host_expiry_window", "must be greater than 0")
+		invalid.Append("host_expiry_settings.host_expiry_window", "When enabling host expiry, host expiry window must be a positive number.")
 	}
 
 	if appConfig.OrgInfo.ContactURL == "" {
@@ -3323,4 +3328,8 @@ func isValidHostname(h string) bool {
 
 func (svc *Service) MaxInstallerSizeBytes() int64 {
 	return svc.config.Server.MaxInstallerSizeBytes
+}
+
+func (svc *Service) StagedUploadAvailable(ctx context.Context) bool {
+	return svc.config.S3.SoftwareInstallersSignedURL && svc.config.S3.SoftwareInstallersBucket != "" && license.IsPremium(ctx)
 }

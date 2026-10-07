@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.5.23",
+      "version": "2026.6.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.dominiklevitsky.fontbase';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dominiklevitsky.fontbase' AND version_compare(bundle_short_version, '2026.5.23') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dominiklevitsky.fontbase' AND version_compare(bundle_short_version, '2026.6.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.dominiklevitsky.fontbase' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://releases.fontba.se/mac/FontBase-2026.5.23.dmg",
+      "installer_url": "https://releases.fontba.se/mac/FontBase-2026.6.0.dmg",
       "install_script_ref": "640e5416",
       "uninstall_script_ref": "0ba275cf",
-      "sha256": "a83df8f6babc9243618dce027865590c11f108d236e29a636f1d310cb8c05e8a",
+      "sha256": "c4fa45b9471a64924f4305e333260db82c25afb1061460744c8f7097f5ecdafd",
       "default_categories": [
         "Productivity"
       ]

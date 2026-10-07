@@ -24,6 +24,8 @@ func simulateLatencyAndErrors(latencyMean time.Duration, errorRate float64, next
 		// Occasionally return errors
 		if errorRate > 0 && rand.Float64() < errorRate { //nolint:gosec // load testing
 			w.Header().Set("Content-Type", "application/json")
+			// Fleet retries a 429 after 60s or more on user-initiated calls, so these add long waits to those
+			// paths; background jobs fail fast and retry on their next run.
 			if rand.Float64() < 0.5 { //nolint:gosec // load testing
 				w.WriteHeader(http.StatusTooManyRequests)
 				_ = json.NewEncoder(w).Encode(map[string]any{

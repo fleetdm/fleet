@@ -174,13 +174,28 @@ WHERE
 		{"utf8mb4_bin", "in_house_app_install_tokens", "token", "utf8mb4"},
 		{"utf8mb4_bin", "invites", "token", "utf8mb4"},
 		{"utf8mb4_bin", "mdm_apple_bootstrap_packages", "token", "utf8mb4"},
+		{"utf8mb4_bin", "mdm_apple_dep_enrollment_challenges", "challenge", "utf8mb4"},
+		{"utf8mb4_bin", "mdm_apple_enrollment_profiles", "previous_token", "utf8mb4"},
 		{"utf8mb4_bin", "mdm_apple_enrollment_profiles", "token", "utf8mb4"},
 		{"utf8mb4_bin", "mdm_apple_installers", "url_token", "utf8mb4"},
 		{"utf8mb4_bin", "password_reset_requests", "token", "utf8mb4"},
 		{"utf8mb4_bin", "sessions", "key", "utf8mb4"},
 		{"utf8mb4_bin", "teams", "name_bin", "utf8mb4"},
 		{"utf8mb4_bin", "verification_tokens", "token", "utf8mb4"},
+		{"utf8mb4_bin", "mdm_apple_scep_challenges", "challenge", "utf8mb4"},
 	}
 
 	require.ElementsMatch(t, exceptions, nonStandardCollations)
+}
+
+// indexColumns returns the columns of index on table, in key order.
+func indexColumns(t *testing.T, db *sqlx.DB, table, index string) []string {
+	var cols []string
+	err := db.Select(&cols, `
+SELECT column_name
+FROM information_schema.statistics
+WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?
+ORDER BY seq_in_index`, table, index)
+	require.NoError(t, err)
+	return cols
 }

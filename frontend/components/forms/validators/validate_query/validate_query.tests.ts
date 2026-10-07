@@ -18,7 +18,7 @@ const validQueries = [
     "(p2.key = 'CFBundleShortVersionString' OR coalesce(p2.key, '') = '')",
 ];
 
-// osquery only executes SELECT statements, so anything else is invalid even
+// Only SELECT statements pass validation, so anything else is invalid even
 // when it is well-formed SQLite. Comment-only input belongs here too: it
 // contains no statement at all, and would save and then silently do nothing.
 const nonSelectQueries = [
@@ -29,6 +29,7 @@ const nonSelectQueries = [
   "DROP TABLE users",
   "ALTER TABLE users ADD COLUMN age int",
   "ATTACH DATABASE '/tmp/other.db' AS other",
+  "PRAGMA table_info(users)",
   'SELECT 1; INSERT INTO users (name) values ("Mike")',
   "-- just a comment",
   "/* just a comment */",
@@ -61,6 +62,14 @@ describe("validateQuery", () => {
       expect(valid).toEqual(true);
       expect(error).toBeFalsy();
     });
+  });
+
+  // osquery does run some non-SELECT statements (e.g. PRAGMA table_info), so
+  // the message must not claim it only supports SELECT.
+  it("words the non-SELECT error without claiming osquery only runs SELECT", () => {
+    expect(validateQuery("PRAGMA table_info(users)").error).toEqual(
+      "Expected a SELECT statement on line 1."
+    );
   });
 
   it("rejects non-SELECT statements, pointing at the offending line", () => {

@@ -495,15 +495,9 @@ mock: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock github.com/fleetdm/fleet/v4/server/mdm/android/mock
 generate-mock: mock
 
-.help-short--fleet-mcp-generate:
-	@echo "Run go generate for the fleet-mcp module"
-generate-fleet-mcp: .prefix
-	cd cmd/fleet-mcp && go generate ./...
-
-
 .help-short--doc:
 	@echo "Generate updated API documentation for activities, osquery flags"
-doc: .prefix generate-fleet-mcp
+doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet
 	go generate github.com/fleetdm/fleet/v4/server/service/osquery_utils
 
@@ -823,11 +817,13 @@ else
 endif
 
 # Download the osqueryd Linux executable from a pull request in osquery/osquery
-# and extract it into out-path.
+# and extract it into out-path. It is extracted from the deb (default) or rpm
+# package artifact. Supported on macOS and Linux (rpm requires bsdtar, or
+# rpm2cpio and cpio).
 #
 # Usage:
 # make osqueryd-linux pr=8844 arch=amd64 out-path=.
-# make osqueryd-linux pr=8844 arch=arm64 out-path=.
+# make osqueryd-linux pr=8844 arch=arm64 pkg=rpm out-path=.
 osqueryd-linux:
 ifndef pr
 	@echo "Error: pr argument is required (e.g. make osqueryd-linux pr=8844 arch=amd64 out-path=.)"
@@ -837,10 +833,15 @@ ifndef out-path
 	@echo "Error: out-path argument is required (e.g. make osqueryd-linux pr=8844 arch=amd64 out-path=.)"
 	@exit 1
 endif
+	$(eval PKG := $(or $(pkg),deb))
+ifeq ($(filter $(or $(pkg),deb),deb rpm),)
+	@echo "Error: pkg must be 'deb' or 'rpm' (got '$(pkg)')"
+	@exit 1
+endif
 ifeq ($(arch),amd64)
-	$(eval ARTIFACT_NAME := linux_unsigned_release_tgz)
+	$(eval ARTIFACT_NAME := linux_unsigned_release_$(PKG))
 else ifeq ($(arch),arm64)
-	$(eval ARTIFACT_NAME := linux_unsigned_release_tgz_aarch64)
+	$(eval ARTIFACT_NAME := linux_unsigned_release_$(PKG)_aarch64)
 else
 	@echo "Error: arch must be 'amd64' or 'arm64' (got '$(arch)')"
 	@exit 1
@@ -869,17 +870,25 @@ endif
 			rm -rf $(TMP_DIR); \
 			exit 1; \
 		fi
-	@INNER_TGZ=$$(find $(TMP_DIR)/artifact -name '*.tar.gz' -o -name '*.tgz' | head -1) && \
-		if [ -z "$$INNER_TGZ" ]; then \
-			echo "Error: no tarball found inside downloaded artifact"; \
+	@PKG_FILE=$$(find $(TMP_DIR)/artifact -name '*.$(PKG)' | head -1) && \
+		if [ -z "$$PKG_FILE" ]; then \
+			echo "Error: no .$(PKG) package found inside downloaded artifact"; \
 			rm -rf $(TMP_DIR); \
 			exit 1; \
 		fi && \
 		mkdir -p $(TMP_DIR)/extracted && \
-		tar xf "$$INNER_TGZ" -C $(TMP_DIR)/extracted
-	@OSQUERYD=$$(find $(TMP_DIR)/extracted -type f -name 'osqueryd' | head -1) && \
-		if [ -z "$$OSQUERYD" ]; then \
-			echo "Error: osqueryd not found in extracted artifact. Contents:"; \
+		if [ "$(PKG)" = "deb" ]; then \
+			mkdir -p $(TMP_DIR)/deb && \
+			(cd $(TMP_DIR)/deb && ar x "$$PKG_FILE") && \
+			tar xf $(TMP_DIR)/deb/data.tar.* -C $(TMP_DIR)/extracted; \
+		elif command -v bsdtar >/dev/null 2>&1; then \
+			bsdtar xf "$$PKG_FILE" -C $(TMP_DIR)/extracted; \
+		else \
+			(cd $(TMP_DIR)/extracted && rpm2cpio "$$PKG_FILE" | cpio -idm --quiet); \
+		fi || { rm -rf $(TMP_DIR); exit 1; }
+	@OSQUERYD=$(TMP_DIR)/extracted/opt/osquery/bin/osqueryd && \
+		if [ ! -f "$$OSQUERYD" ]; then \
+			echo "Error: opt/osquery/bin/osqueryd not found in extracted package. Contents:"; \
 			find $(TMP_DIR)/extracted -type f; \
 			rm -rf $(TMP_DIR); \
 			exit 1; \

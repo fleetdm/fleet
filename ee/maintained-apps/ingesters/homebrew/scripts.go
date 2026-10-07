@@ -398,6 +398,14 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 
 	process(u.Quit, func(appName string) {
 		sb.AddFunction("quit_application", quitApplicationFunc)
+		// osascript can't resolve a wildcard application id, so the pattern is
+		// expanded against the running applications first. As in Homebrew, only
+		// '*' is a wildcard.
+		if strings.Contains(appName, "*") {
+			sb.AddFunction("quit_matching_applications", quitMatchingApplicationsFunc)
+			sb.Writef("quit_matching_applications %s", shellSingleQuote(appName))
+			return
+		}
 		sb.Writef("quit_application %s", shellSingleQuote(appName))
 		if appName == "com.docker.docker" {
 			sb.Writef("quit_application 'com.electron.dockerdesktop'")
@@ -736,6 +744,74 @@ const quitApplicationFunc = `quit_application() {
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
   fi
+}
+`
+
+// quitMatchingApplicationsFunc quits every running application whose bundle ID
+// matches a '*' wildcard, using quitApplicationFunc for each match. It's a port
+// of the homebrew implementation: anchored and case-insensitive.
+// https://github.com/Homebrew/brew/blob/cc9ff034b1d98cdd4061f68cf715bb967c483a8f/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L371
+const quitMatchingApplicationsFunc = `quit_matching_applications() {
+  local pattern="$1"
+
+  local console_user
+  console_user=$(stat -f "%Su" /dev/console)
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
+    echo "Not logged into a non-root GUI; skipping quitting applications matching '$pattern'."
+    return
+  fi
+
+  # List the bundle IDs of the running applications from inside the console
+  # user's GUI session, the same way relaunch_application opens apps.
+  local list_script='ObjC.import("AppKit")
+var apps = $.NSWorkspace.sharedWorkspace.runningApplications
+var ids = []
+for (var i = 0; i < apps.count; i++) {
+  var id = apps.objectAtIndex(i).bundleIdentifier
+  if (!id.isNil()) { ids.push(ObjC.unwrap(id)) }
+}
+ids.join("\n")'
+  local running_ids
+  local list_status
+  if [[ $EUID -eq 0 ]]; then
+    local console_uid
+    console_uid=$(id -u "$console_user")
+    running_ids=$(/bin/launchctl asuser "$console_uid" sudo -u "$console_user" osascript -l JavaScript -e "$list_script" 2>/dev/null)
+    list_status=$?
+  else
+    running_ids=$(osascript -l JavaScript -e "$list_script" 2>/dev/null)
+    list_status=$?
+  fi
+  if [[ $list_status -ne 0 ]]; then
+    echo "Failed to list running applications; skipping quitting applications matching '$pattern'."
+    return
+  fi
+
+  local regex
+  regex=$(printf '%s' "$pattern" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')
+  regex="^${regex}$"
+
+  # Running apps report their own bundle IDs, and quit_application puts the ID
+  # inside an AppleScript string, so only bundle ID characters are allowed.
+  local valid_id='^[A-Za-z0-9._-]+$'
+  local matches=()
+  local id
+  local restore_nocasematch
+  restore_nocasematch=$(shopt -p nocasematch)
+  shopt -s nocasematch
+  while IFS= read -r id; do
+    [[ "$id" =~ $valid_id && "$id" =~ $regex ]] && matches+=("$id")
+  done < <(printf '%s\n' "$running_ids" | sort -u)
+  $restore_nocasematch
+
+  if [[ ${#matches[@]} -eq 0 ]]; then
+    echo "No running application matches '$pattern'."
+    return
+  fi
+
+  for id in "${matches[@]}"; do
+    quit_application "$id"
+  done
 }
 `
 

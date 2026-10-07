@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.2.1",
+      "version": "2026.2.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'GoLand %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'GoLand %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.10315.160') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'GoLand %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.10968.67') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('goland.exe','goland64.exe'));"
       },
-      "installer_url": "https://download.jetbrains.com/go/goland-2026.2.2.1.exe",
+      "installer_url": "https://download.jetbrains.com/go/goland-2026.2.3.exe",
       "install_script_ref": "6d754683",
       "uninstall_script_ref": "f2b296c7",
-      "sha256": "2760e4c6ebbdc16123d4d4f9bbafd780b4d99624be8813171526618b935cc1d2",
+      "sha256": "78d0f7fb368c7233470c057e12712fec7df315f5cecdbe1796cc9474541673e0",
       "default_categories": [
         "Developer tools"
       ]

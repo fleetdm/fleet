@@ -330,6 +330,18 @@
   quoteAuthorJobTitle: IT Manager and CPE, Reed College 
   quoteLinkUrl: https://www.linkedin.com/in/mason-peressini
   productCategories: [Device management, Software management]
+- quote: Fleet truly can support macOS, Windows, and Linux. No one else does that well enough to consider using one platform for all three, in my opinion.
+  quoteAuthorName: Shayna Waldman
+  quoteAuthorProfileImageFilename: testimonial-author-shayna-waldman-100x100@2x.png
+  quoteAuthorJobTitle: Sr IT Engineer
+  quoteLinkUrl: https://www.linkedin.com/in/smwaldman
+  productCategories: [Device management, Software management]
+- quote: Having Fleet on site was phenomenal! Their professionalism and commitment to ensuring our use cases were managed was some of the best customer partnership we've ever seen.
+  quoteAuthorName: Jonathan Keyes
+  quoteAuthorJobTitle: Director of Project Management at Hawx
+  quoteAuthorProfileImageFilename: testimonial-author-jonathan-keyes-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/jonathan-keyes-7350212aa
+  productCategories: [Device management, Software management, Observability]
 
 
 # -

@@ -74,8 +74,14 @@ interface IDataTableProps {
   /** Set to `true` to not display the footer section of the table */
   hideFooter?: boolean;
   onSelectSingleRow?: (value: Row) => void;
+  canClickRow?: (row: any) => boolean;
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
+  /** When set and the table has zero rows (and is not loading), the empty tbody is replaced with
+   * faded ghost skeleton rows and this content is centered over them. Used when the real headers
+   * must stay interactive (e.g. per-column filter inputs) so a traditional empty state can't
+   * replace the whole table. */
+  renderNoResultsInBody?: () => React.ReactNode;
   /** Optional help text to render on bottom-left of the table. Hidden when table is loading and no
    * rows of data are present. */
   renderTableHelpText?: () => JSX.Element | null;
@@ -128,8 +134,10 @@ const DataTable = ({
   persistSelectedRows = false,
   hideFooter = false,
   onSelectSingleRow,
+  canClickRow,
   onClickRow,
   onResultsCountChange,
+  renderNoResultsInBody,
   renderTableHelpText,
   renderPagination,
   setExportRows,
@@ -531,11 +539,21 @@ const DataTable = ({
 
   const pageOrRows = isClientSidePagination ? page : rows;
 
+  const showGhostNoResults =
+    !!renderNoResultsInBody && !isLoading && !rows.length;
+
   const tableStyles = classnames({
     "data-table__table": true,
     "data-table__no-rows": !rows.length,
     "is-observer": isOnlyObserver,
   });
+
+  const GHOST_ROW_COUNT = 6;
+  const ghostColumnCount = headerGroups[0]?.headers?.length ?? 1;
+  // Deterministic jitter so skeletons don't align into vertical stripes.
+  const ghostWidthOffsets = [0, 14, -8, 22, -4, 18, -12, 26, 6, -10];
+  const varyGhostWidth = (base: number, index: number) =>
+    base + ghostWidthOffsets[index % ghostWidthOffsets.length];
 
   const renderHeaderWithActions = () => (
     <thead className="active-selection">
@@ -595,7 +613,7 @@ const DataTable = ({
       )}
       <div
         className={classnames("data-table", "data-table__wrapper", {
-          "data-table__wrapper--no-rows": !rows.length,
+          "data-table__wrapper--no-rows": !rows.length && !showGhostNoResults,
         })}
       >
         <table className={tableStyles}>
@@ -633,70 +651,118 @@ const DataTable = ({
               </tr>
             ))}
           </thead>
-          <tbody>
-            {pageOrRows.map((row: Row) => {
-              prepareRow(row);
-
-              const rowStyles = classnames({
-                "single-row": disableMultiRowSelect,
-                "disable-highlight": disableHighlightOnHover,
-                "clickable-row": !!onClickRow,
-              });
-              return (
-                <tr
-                  className={rowStyles}
-                  {...row.getRowProps({
-                    // @ts-ignore // TS complains about prop not existing
-                    onClick: () => {
-                      (onSelectRowClick &&
-                        disableMultiRowSelect &&
-                        onSelectRowClick(row)) ||
-                        (disableMultiRowSelect &&
-                          onClickRow &&
-                          onClickRow(row));
-                    },
-                    // For accessibility when tabable
-                    onKeyDown: (e: KeyboardEvent) => {
-                      if (e.key === "Enter") {
-                        e.stopPropagation();
-                        (onSelectRowClick &&
-                          disableMultiRowSelect &&
-                          onSelectRowClick(row)) ||
-                          (disableMultiRowSelect &&
-                            onClickRow &&
-                            onClickRow(row));
-                      }
-                    },
-                  })}
-                  // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
-                  tabIndex={keyboardSelectableRows ? 0 : -1}
-                >
-                  {row.cells.map((cell: any, index: number) => {
-                    // Only allow row click behavior on first cell
-                    // if the first cell is not a checkbox
-                    const cellProps = cell.getCellProps();
-                    const multiRowSelectEnabled = !disableMultiRowSelect;
-
-                    return (
-                      <td
-                        key={cell.column.id}
-                        className={
-                          cell.column.id ? `${cell.column.id}__cell` : ""
-                        }
-                        style={
-                          multiRowSelectEnabled ? { cursor: "initial" } : {}
-                        }
-                        {...cellProps}
-                      >
-                        {cell.render("Cell")}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
+          <tbody
+            className={classnames({
+              "data-table__ghost-tbody": showGhostNoResults,
             })}
+          >
+            {showGhostNoResults &&
+              Array.from({ length: GHOST_ROW_COUNT }).map((_, rowIdx) => (
+                <tr
+                  // eslint-disable-next-line react/no-array-index-key
+                  key={`ghost-${rowIdx}`}
+                  className="data-table__ghost-row"
+                  style={{
+                    // Match EmptyState's mask fade: top row at 0.5, bottom at ~0.
+                    opacity: 0.5 * (1 - rowIdx / (GHOST_ROW_COUNT - 1)),
+                  }}
+                  aria-hidden
+                >
+                  {Array.from({ length: ghostColumnCount }).map(
+                    (__, colIdx) => (
+                      <td
+                        // eslint-disable-next-line react/no-array-index-key
+                        key={`ghost-${rowIdx}-${colIdx}`}
+                      >
+                        <div
+                          className="data-table__ghost-skeleton"
+                          style={{
+                            width: varyGhostWidth(
+                              80,
+                              rowIdx * ghostColumnCount + colIdx
+                            ),
+                          }}
+                        />
+                      </td>
+                    )
+                  )}
+                </tr>
+              ))}
+            {!showGhostNoResults &&
+              pageOrRows.map((row: Row) => {
+                prepareRow(row);
+
+                const rowStyles = classnames({
+                  "single-row": disableMultiRowSelect,
+                  "disable-highlight": disableHighlightOnHover,
+                  "clickable-row":
+                    !!onClickRow && (!canClickRow || canClickRow(row)),
+                });
+                return (
+                  <tr
+                    className={rowStyles}
+                    {...row.getRowProps({
+                      // @ts-ignore // TS complains about prop not existing
+                      onClick: () => {
+                        if (!canClickRow || canClickRow(row)) {
+                          (onSelectRowClick &&
+                            disableMultiRowSelect &&
+                            onSelectRowClick(row)) ||
+                            (disableMultiRowSelect &&
+                              onClickRow &&
+                              onClickRow(row));
+                        }
+                      },
+                      // For accessibility when tabable
+                      onKeyDown: (e: KeyboardEvent) => {
+                        if (e.key === "Enter") {
+                          e.stopPropagation();
+                          (onSelectRowClick &&
+                            disableMultiRowSelect &&
+                            onSelectRowClick(row)) ||
+                            (disableMultiRowSelect &&
+                              (!canClickRow || canClickRow(row)) &&
+                              onClickRow &&
+                              onClickRow(row));
+                        }
+                      },
+                    })}
+                    // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
+                    tabIndex={keyboardSelectableRows ? 0 : -1}
+                  >
+                    {row.cells.map((cell: any, index: number) => {
+                      // Only allow row click behavior on first cell
+                      // if the first cell is not a checkbox
+                      const cellProps = cell.getCellProps();
+                      const multiRowSelectEnabled = !disableMultiRowSelect;
+
+                      return (
+                        <td
+                          key={cell.column.id}
+                          className={
+                            cell.column.id ? `${cell.column.id}__cell` : ""
+                          }
+                          style={
+                            multiRowSelectEnabled ? { cursor: "initial" } : {}
+                          }
+                          {...cellProps}
+                        >
+                          {cell.render("Cell")}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
           </tbody>
         </table>
+      </div>
+      <div className="data-table__no-match-overlay" role="status">
+        {showGhostNoResults && (
+          <div className="data-table__no-match-content">
+            {renderNoResultsInBody?.()}
+          </div>
+        )}
       </div>
       {shouldShowFooter && (
         <div className={`${baseClass}__footer`}>

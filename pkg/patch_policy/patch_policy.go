@@ -73,7 +73,7 @@ func versionCompareSuffix(platform, existsQuery, version string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(" AND version_compare(%s, '%s') < 0);", column, version), nil
+	return fmt.Sprintf(" AND version_compare(%s, '%s') < 0);", column, escapeSQLLiteral(version)), nil
 }
 
 func versionCompareColumn(platform, existsQuery string) (string, error) {
@@ -142,12 +142,12 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 
 func defaultMacOSQuery(bundleIdentifier string, version string) string {
 	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);"
-	return fmt.Sprintf(patchTemplate, bundleIdentifier, version)
+	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), escapeSQLLiteral(version))
 }
 
 func defaultWindowsQuery(softwareTitle string, version string) string {
 	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(version, '%s') < 0);"
-	return fmt.Sprintf(patchTemplate, softwareTitle, version)
+	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(softwareTitle), escapeSQLLiteral(version))
 }
 
 // GenerateOpenQuery returns a pre-install query that returns a row only when the app is closed.
@@ -220,6 +220,9 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Audacity":                          "IN ('audacity.exe','audacity4.exe')",
 	"Beyond Compare":                    "= 'bcompare.exe'",
 	"CLion":                             "IN ('clion.exe','clion64.exe')",
+	"Clockify Desktop":                  "= 'clockifywindows.exe'",
+	"Connect Fonts":                     "= 'monotype connect.exe'",
+	"Crestron AirMedia":                 "= 'airmedia.exe'",
 	"DataGrip":                          "IN ('datagrip.exe','datagrip64.exe')",
 	"DataSpell":                         "IN ('dataspell.exe','dataspell64.exe')",
 	"DAX Studio":                        "= 'daxstudio.exe'",

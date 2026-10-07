@@ -19,14 +19,18 @@ import CreatedDiskEncryptionPINActivityItem from "./ActivityItems/CreatedDiskEnc
 import CreatedManagedLocalAccountActivityItem from "./ActivityItems/CreatedManagedLocalAccountActivityItem/CreatedManagedLocalAccountActivityItem";
 import EditedCustomHostVitalValueActivityItem from "./ActivityItems/EditedCustomHostVitalValueActivityItem";
 import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
+import FailedToRotateDiskEncryptionKeyActivityItem from "./ActivityItems/FailedToRotateDiskEncryptionKey";
 import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityItems/FailedToRotateManagedLocalAccountPassword";
 import FailedWipeActivityItem from "./ActivityItems/FailedWipeActivityItem";
+import HostEnrollmentRejectedActivityItem from "./ActivityItems/HostEnrollmentRejectedActivityItem";
 import InstalledAllSelfServiceSoftwareActivityItem from "./ActivityItems/InstalledAllSelfServiceSoftwareActivityItem";
 import InstalledCertificateActivityItem from "./ActivityItems/InstalledCertificateActivityItem";
 import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
 import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
 import MdmEnrolledActivityItem from "./ActivityItems/MdmEnrolledActivityItem";
 import MdmUnenrolledActivityItem from "./ActivityItems/MdmUnenrolledActivityItem";
+import NotifiedEndUserBeforePatchingActivityItem from "./ActivityItems/NotifiedEndUserBeforePatchingActivityItem";
+import OptInConfigurationProfileActivityItem from "./ActivityItems/OptInConfigurationProfileActivityItem/OptInConfigurationProfileActivityItem";
 import PolicyAutomationActivityItem from "./ActivityItems/PolicyAutomationActivityItem";
 import RanCustomMdmCommandActivityItem from "./ActivityItems/RanCustomMdmCommandActivityItem";
 import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
@@ -36,6 +40,7 @@ import ResentCertificateActivityItem from "./ActivityItems/ResentCertificateActi
 import ResentConfigurationProfileActivityItem from "./ActivityItems/ResentConfigurationProfileActivityItem/ResentConfigurationProfileActivityItem";
 import ResetPolicyActivityItem from "./ActivityItems/ResetPolicyActivityItem";
 import RetrievedHostMyDeviceURLActivityItem from "./ActivityItems/RetrievedHostMyDeviceURLActivityItem";
+import RotatedDiskEncryptionKeyActivityItem from "./ActivityItems/RotatedDiskEncryptionKey";
 import RotatedHostRecoveryLockPasswordActivityItem from "./ActivityItems/RotatedHostRecoveryLockPassword";
 import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/RotatedManagedLocalAccountPassword";
 import SetHostRecoveryLockPasswordActivityItem from "./ActivityItems/SetHostRecoveryLockPassword";
@@ -63,6 +68,8 @@ export interface IHostActivityItemComponentPropsWithShowDetails
   extends IHostActivityItemComponentProps {
   onShowDetails: ShowActivityDetailsHandler;
   onCancel?: () => void;
+  /** @default false */
+  hideShowDetails?: boolean;
 }
 
 export const pastActivityComponentMap: Record<
@@ -79,6 +86,8 @@ export const pastActivityComponentMap: Record<
   [ActivityType.ViewedHostRecoveryLockPassword]: ViewedHostRecoveryLockPasswordActivityItem,
   [ActivityType.SetHostRecoveryLockPassword]: SetHostRecoveryLockPasswordActivityItem,
   [ActivityType.RotatedHostRecoveryLockPassword]: RotatedHostRecoveryLockPasswordActivityItem,
+  [ActivityType.RotatedDiskEncryptionKey]: RotatedDiskEncryptionKeyActivityItem,
+  [ActivityType.FailedToRotateDiskEncryptionKey]: FailedToRotateDiskEncryptionKeyActivityItem,
   [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.InstalledAllSelfServiceSoftware]: InstalledAllSelfServiceSoftwareActivityItem,
@@ -112,8 +121,12 @@ export const pastActivityComponentMap: Record<
   [ActivityType.FailedAutomationCalendarEvent]: PolicyAutomationActivityItem,
   [ActivityType.FailedAutomationConditionalAccess]: PolicyAutomationActivityItem,
   [ActivityType.ReleasedDeviceFromAB]: ReleasedFromABActivityItem,
+  [ActivityType.NotifiedEndUserBeforePatching]: NotifiedEndUserBeforePatchingActivityItem,
   [ActivityType.ResentConfigurationProfile]: ResentConfigurationProfileActivityItem,
+  [ActivityType.InstalledOptInConfigurationProfile]: OptInConfigurationProfileActivityItem,
+  [ActivityType.UninstalledOptInConfigurationProfile]: OptInConfigurationProfileActivityItem,
   [ActivityType.ResetPolicy]: ResetPolicyActivityItem,
+  [ActivityType.HostEnrollmentRejected]: HostEnrollmentRejectedActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "20.1.4",
+      "version": "20.3.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.epicgames.EpicGamesLauncher';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.epicgames.EpicGamesLauncher' AND version_compare(bundle_short_version, '20.1.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.epicgames.EpicGamesLauncher' AND version_compare(bundle_short_version, '20.3.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.epicgames.EpicGamesLauncher' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://epicgames-download1.akamaized.net/Builds/UnrealEngineLauncher/Installers/Mac/EpicInstaller-20.1.4.dmg",
+      "installer_url": "https://epicgames-download1.akamaized.net/Builds/UnrealEngineLauncher/Installers/Mac/EpicInstaller-20.3.3.dmg",
       "install_script_ref": "6e81209f",
       "uninstall_script_ref": "4515270b",
-      "sha256": "5c4f204ed623b01890f26cc99d4af657c3fbd6be1d04be7fed176ddbc94b1259",
+      "sha256": "d25d7344f3759ef820c3b3f27eab10e86bfaba22788f88d5b917f4937a429076",
       "default_categories": [
         "Productivity"
       ]

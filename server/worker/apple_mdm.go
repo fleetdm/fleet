@@ -278,8 +278,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 	const fleetAdminFullName = "Fleet Admin"
 
-	// Only send AccountConfiguration for macOS devices.
-	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) {
+	// Only send AccountConfiguration for macOS devices, that did not come from AB migration
+	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) && !args.FromMDMMigration {
 		var password string
 		cmdUUID := uuid.New().String()
 		if managedAdminAccountEnabled {
@@ -423,7 +423,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		args.ReleaseDeviceStartedAt = &now
 	}
 
-	a.Log.DebugContext(ctx,
+	a.Log.DebugContext(
+		ctx,
 		fmt.Sprintf("awaiting commands %v and profiles to settle for host %s", args.EnrollmentCommands, args.HostUUID),
 		"task", "runPostDEPReleaseDevice",
 		"attempt", args.ReleaseDeviceAttempt,
@@ -489,7 +490,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			}
 			return nil
 		}
-		a.Log.DebugContext(ctx,
+		a.Log.DebugContext(
+			ctx,
 			fmt.Sprintf("command %s has completed", cmdUUID),
 			"task", "runPostDEPReleaseDevice",
 		)
@@ -524,7 +526,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			}
 			return nil
 		}
-		a.Log.DebugContext(ctx,
+		a.Log.DebugContext(
+			ctx,
 			fmt.Sprintf("profile %s has been deployed", prof.Identifier),
 			"task", "runPostDEPReleaseDevice",
 		)
@@ -686,12 +689,21 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 		}
 		// A *fleet.PreflightInstallFailedError means the service layer already
 		// recorded the failed install and its activity.
+		var softwareDisplayName *string
+		if app.SoftwareTitleID != nil {
+			dn, dnErr := a.Datastore.GetSoftwareTitleDisplayName(ctx, host.TeamID, *app.SoftwareTitleID)
+			if dnErr != nil {
+				a.Log.WarnContext(ctx, "failed to look up software display name for setup experience install failure activity", "err", dnErr)
+			}
+			softwareDisplayName = dn
+		}
 		var failActivity fleet.ActivityDetails
 		if isVPPApp {
 			failActivity = fleet.ActivityInstalledAppStoreApp{
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       app.Name,
+				SoftwareDisplayName: softwareDisplayName,
 				AppStoreID:          ptr.ValOrZero(app.VPPAppAdamID),
 				Status:              string(fleet.SoftwareInstallFailed),
 				HostPlatform:        host.Platform,
@@ -705,6 +717,7 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       app.Name,
+				SoftwareDisplayName: softwareDisplayName,
 				Source:              app.Source,
 				Status:              string(fleet.SoftwareInstallFailed),
 				FromSetupExperience: true,

@@ -3,6 +3,7 @@ package update
 import (
 	"math/rand"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -233,5 +234,73 @@ func TestGetAndCompareVersion(t *testing.T) {
 				assert.Equal(t, tc.expected, result)
 			},
 		)
+	}
+}
+
+func TestCompareOrbitSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping test on Windows, symlink creation requires elevated privileges")
+	}
+	t.Parallel()
+
+	dir := t.TempDir()
+	stablePath := filepath.Join(dir, "stable", "orbit")
+	oldPath := filepath.Join(dir, "1.52.1", "orbit")
+	for _, p := range []string{stablePath, oldPath} {
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		require.NoError(t, os.WriteFile(p, []byte("bin"), 0o644))
+	}
+
+	// Symlink doesn't exist.
+	linkPath := filepath.Join(dir, "orbit")
+	status, err := compareOrbitSymlink(linkPath, stablePath)
+	require.NoError(t, err)
+	require.Equal(t, orbitSymlinkMissing, status)
+
+	// Symlink points to the expected binary.
+	require.NoError(t, os.Symlink(stablePath, linkPath))
+	status, err = compareOrbitSymlink(linkPath, stablePath)
+	require.NoError(t, err)
+	require.Equal(t, orbitSymlinkOK, status)
+
+	// Symlink points to a different binary (e.g. channel changed).
+	status, err = compareOrbitSymlink(linkPath, oldPath)
+	require.NoError(t, err)
+	require.Equal(t, orbitSymlinkWrongTarget, status)
+
+	// Regular file instead of a symlink.
+	require.NoError(t, os.Remove(linkPath))
+	require.NoError(t, os.WriteFile(linkPath, []byte("bin"), 0o644))
+	_, err = compareOrbitSymlink(linkPath, stablePath)
+	// On Windows this would be orbitSymlinkNotSymlink, on Unix Readlink returns EINVAL.
+	require.Error(t, err)
+}
+
+func TestTargetNeedsUpdate(t *testing.T) {
+	t.Parallel()
+	for _, goos := range []string{"windows", "darwin", "linux"} {
+		isWindows := goos == "windows"
+		testCases := []struct {
+			name                string
+			localBinaryOutdated bool
+			symlinkStatus       orbitSymlinkState
+			expected            bool
+		}{
+			{"binary outdated, symlink ok", true, orbitSymlinkOK, true},
+			{"binary outdated, symlink missing", true, orbitSymlinkMissing, true},
+			{"binary outdated, not a symlink", true, orbitSymlinkNotSymlink, true},
+			{"binary outdated, wrong target", true, orbitSymlinkWrongTarget, true},
+			{"binary current, symlink ok", false, orbitSymlinkOK, false},
+			// Channel switched back to an already-downloaded version: must relink on all platforms.
+			{"binary current, wrong target", false, orbitSymlinkWrongTarget, true},
+			// Fresh MSI install on Windows: don't relink/restart if the binary is current.
+			{"binary current, not a symlink", false, orbitSymlinkNotSymlink, !isWindows},
+			{"binary current, symlink missing", false, orbitSymlinkMissing, !isWindows},
+		}
+		for _, tc := range testCases {
+			t.Run(goos+"/"+tc.name, func(t *testing.T) {
+				assert.Equal(t, tc.expected, targetNeedsUpdate(tc.localBinaryOutdated, tc.symlinkStatus, goos))
+			})
+		}
 	}
 }

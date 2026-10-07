@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.4.4",
+      "version": "1.5.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.colliderli.iina';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.colliderli.iina' AND version_compare(bundle_short_version, '1.4.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.colliderli.iina' AND version_compare(bundle_short_version, '1.5.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.colliderli.iina' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.iina.io/IINA.v1.4.4.dmg",
+      "installer_url": "https://dl.iina.io/IINA.v1.5.0.dmg",
       "install_script_ref": "1e4f1721",
       "uninstall_script_ref": "4fbcd88d",
-      "sha256": "dd0fc0bd4b37fb57a1c8d30d6e3201b3a64bafd29959fe56953964613237beb1",
+      "sha256": "8fad50479b10e09645053457cec46bd53d054ced2242cfe68f74586735a20dc7",
       "default_categories": [
         "Utilities"
       ]

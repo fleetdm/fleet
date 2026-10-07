@@ -1,0 +1,2 @@
+- Added the "On (personal)" MDM status for hosts enrolled with a Managed Apple Account or an Android work profile, separate from "On (manual - personal)" for hosts enrolled with a personal enrollment profile, with a matching `mdm_enrollment_status=manual-personal` filter and dashboard count.
+- Fixed the re-enrollment instructions and software description shown for iPhones and iPads enrolled with a personal enrollment profile.

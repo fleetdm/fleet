@@ -47,6 +47,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/stretchr/testify/assert"
+	testify_mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -81,8 +82,11 @@ func setUpBatchResultLogsTest(t *testing.T) (*Service, context.Context, *mock.St
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return nil, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
-		return len(rows), nil
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+		return fleet.QueryReportWriteResult{RowsAdded: len(rows)}, nil
 	}
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
 	serv.osqueryLogWriter = &OsqueryLogger{Result: &testJSONLogger{}}
@@ -167,8 +171,11 @@ func TestSubmitResultLogsCappedNamesDoNotBypassScheduleCheck(t *testing.T) {
 			return out, nil
 		}
 		ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) { return nil, nil }
-		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, m int) (int, error) {
-			return len(rows), nil
+		ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+			return nil, nil
+		}
+		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, m, currentCount int) (fleet.QueryReportWriteResult, error) {
+			return fleet.QueryReportWriteResult{RowsAdded: len(rows)}, nil
 		}
 		logDest := &testJSONLogger{}
 		serv := ((svc.(validationMiddleware)).Service).(*Service)
@@ -587,12 +594,15 @@ func TestEnrollOsquery(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 	}
+	newHost := true
 	ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
 		enrollConfig := &fleet.DatastoreEnrollOsqueryConfig{}
 		for _, opt := range opts {
 			opt(enrollConfig)
 		}
 		assert.Equal(t, ptr.Uint(3), enrollConfig.TeamID)
+		require.NotNil(t, enrollConfig.Created)
+		*enrollConfig.Created = newHost
 		return &fleet.Host{
 			OsqueryHostID: &enrollConfig.OsqueryHostID, NodeKey: &enrollConfig.NodeKey,
 		}, nil
@@ -604,11 +614,26 @@ func TestEnrollOsquery(t *testing.T) {
 		return nil, newNotFoundError()
 	}
 
-	svc, ctx := newTestService(t, ds, nil, nil)
+	lq := live_query_mock.New(t)
+	var hostCountIncrs []int
+	lq.IncrQueryReportsHostCountOverride = func(delta int) error {
+		hostCountIncrs = append(hostCountIncrs, delta)
+		return nil
+	}
+	svc, ctx := newTestService(t, ds, nil, lq)
 
+	// A new host raises the cached host count behind the report cap.
 	nodeKey, err := svc.EnrollOsquery(ctx, "valid_secret", "host123", nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, nodeKey)
+	require.Equal(t, []int{1}, hostCountIncrs)
+
+	// A re-enrollment doesn't.
+	newHost = false
+	nodeKey, err = svc.EnrollOsquery(ctx, "valid_secret", "host123", nil)
+	require.NoError(t, err)
+	assert.NotEmpty(t, nodeKey)
+	require.Equal(t, []int{1}, hostCountIncrs)
 }
 
 func TestEnrollOsqueryCertLoadError(t *testing.T) {
@@ -1187,13 +1212,13 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			123, 444, 555, 777, 1234,
 		}, nil
 	}
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return 0, nil
-	}
 	teamQueryResultsStored := false
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		if len(rows) == 0 {
-			return 0, nil
+			return fleet.QueryReportWriteResult{}, nil
 		}
 		if rows[0].QueryID == 777 {
 			require.Len(t, rows, 3)
@@ -1234,7 +1259,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			require.NotZero(t, rows[1].LastFetched)
 			require.JSONEq(t, `{"hour":"21","minutes":"9"}`, string(*rows[1].Data))
 		}
-		return 0, nil
+		return fleet.QueryReportWriteResult{}, nil
 	}
 
 	// Hack to get at the service internals and modify the writer
@@ -1389,8 +1414,11 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
-		return 0, nil
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+		return fleet.QueryReportWriteResult{}, nil
 	}
 	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
@@ -1398,8 +1426,6 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 
 func TestSaveResultLogsToQueryReportsWithTableOverLimit(t *testing.T) {
 	ds := new(mock.Store)
-	// We allow 10% overage on the limit so that the cleanup job helps to rotate the rows.
-	// So we want to do 1000 + 10% + 1 here.
 	liveQueryStore := makeLiveQueryStore(t, 1101)
 	svc, ctx := newTestService(t, ds, nil, liveQueryStore)
 
@@ -1427,14 +1453,160 @@ func TestSaveResultLogsToQueryReportsWithTableOverLimit(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
-		return 0, nil
+	// The datastore decides whether the host's rows fit under the cap, so it must
+	// receive the cap and the current count even when the report is full.
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
 	}
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return 0, nil
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+		require.Equal(t, fleet.DefaultMaxQueryReportRows, maxQueryReportRows)
+		require.Equal(t, 1101, currentCount)
+		return fleet.QueryReportWriteResult{}, nil
 	}
 	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
-	require.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
+	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+func TestSaveResultLogsToQueryReportsMarksClipped(t *testing.T) {
+	ds := new(mock.Store)
+	liveQueryStore := makeLiveQueryStore(t, 0)
+	svc, ctx := newTestService(t, ds, nil, liveQueryStore)
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+	ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 42})
+
+	results := []*fleet.ScheduledQueryResult{
+		{
+			QueryName:     "pack/Global/Hourly",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot:      []*json.RawMessage{new(json.RawMessage(`{"v":"a"}`))},
+			UnixTime:      1484078931,
+		},
+		{
+			QueryName:     "pack/Global/Weekly",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot:      []*json.RawMessage{new(json.RawMessage(`{"v":"b"}`))},
+			UnixTime:      1484078931,
+		},
+		{
+			QueryName:     "pack/Global/Fits",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot:      []*json.RawMessage{new(json.RawMessage(`{"v":"c"}`))},
+			UnixTime:      1484078931,
+		},
+		{
+			QueryName:     "pack/Global/Fast",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot:      []*json.RawMessage{new(json.RawMessage(`{"v":"d"}`))},
+			UnixTime:      1484078931,
+		},
+	}
+	queries := map[string]*fleet.Query{
+		"pack/Global/Hourly": {ID: 1, Interval: 3600, Logging: fleet.LoggingSnapshot},
+		"pack/Global/Fast":   {ID: 4, Interval: 60, Logging: fleet.LoggingSnapshot},
+		"pack/Global/Weekly": {ID: 2, Interval: 7 * 24 * 3600, Logging: fleet.LoggingSnapshot},
+		"pack/Global/Fits":   {ID: 3, Interval: 3600, Logging: fleet.LoggingSnapshot},
+	}
+
+	// The report is full for every query but 3, which admits the host for the first time.
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+		if rows[0].QueryID == 3 {
+			return fleet.QueryReportWriteResult{RowsAdded: len(rows), NewHost: true}, nil
+		}
+		return fleet.QueryReportWriteResult{Rejected: true}, nil
+	}
+	var marked map[uint]time.Duration
+	markCalls := 0
+	liveQueryStore.MarkQueryReportsClippedOverride = func(ttlByQueryID map[uint]time.Duration) error {
+		markCalls++
+		marked = ttlByQueryID
+		return nil
+	}
+	var cleared []uint
+	liveQueryStore.ClearQueryReportsClippedOverride = func(queryIDs []uint) error {
+		cleared = queryIDs
+		return nil
+	}
+
+	serv.saveResultLogsToQueryReports(ctx, results, queries, fleet.DefaultMaxQueryReportRows)
+	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+
+	// Rejected queries are marked in one call; the marker outlives two runs of each report.
+	require.Equal(t, 1, markCalls)
+	require.Equal(t, map[uint]time.Duration{
+		1: 2 * time.Hour,
+		2: 14 * 24 * time.Hour,
+		4: time.Hour,
+	}, marked)
+
+	// Admitting a host the report didn't cover yet clears its marker.
+	require.Equal(t, []uint{3}, cleared)
+}
+
+func TestSaveResultLogsToQueryReportsSnapshotTooLarge(t *testing.T) {
+	ds := new(mock.Store)
+	liveQueryStore := makeLiveQueryStore(t, 0)
+	svc, ctx := newTestService(t, ds, nil, liveQueryStore)
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+
+	host := fleet.Host{ID: 42}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	// Two rows whose combined size is just above the per-host byte limit.
+	bigValue := strings.Repeat("a", maxQueryReportSnapshotBytes/2)
+	results := []*fleet.ScheduledQueryResult{
+		{
+			QueryName:     "pack/Global/Big",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot: []*json.RawMessage{
+				new(json.RawMessage(`{"v":"` + bigValue + `"}`)),
+				new(json.RawMessage(`{"v":"` + bigValue + `"}`)),
+			},
+			UnixTime: 1484078931,
+		},
+	}
+	queries := map[string]*fleet.Query{
+		"pack/Global/Big": {ID: 1, DiscardData: false, Logging: fleet.LoggingSnapshot},
+	}
+
+	var savedRows []*fleet.ScheduledQueryResultRow
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+		savedRows = rows
+		dataRows := 0
+		for _, row := range rows {
+			if row.Data != nil {
+				dataRows++
+			}
+		}
+		return fleet.QueryReportWriteResult{RowsAdded: dataRows}, nil
+	}
+	var incremented map[uint]int
+	liveQueryStore.IncrQueryResultsCountsOverride = func(queryIDsToAmounts map[uint]int) error {
+		incremented = queryIDsToAmounts
+		return nil
+	}
+
+	serv.saveResultLogsToQueryReports(ctx, results, queries, fleet.DefaultMaxQueryReportRows)
+	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+
+	// Only the null placeholder row is stored, and it doesn't count against the cap.
+	require.Len(t, savedRows, 1)
+	require.Nil(t, savedRows[0].Data)
+	require.Equal(t, uint(1), savedRows[0].QueryID)
+	require.Equal(t, uint(42), savedRows[0].HostID)
+	require.Equal(t, map[uint]int{1: 0}, incremented)
+
+	// Just under the limit is stored as-is.
+	results[0].Snapshot = results[0].Snapshot[:1]
+	serv.saveResultLogsToQueryReports(ctx, results, queries, fleet.DefaultMaxQueryReportRows)
+	require.Len(t, savedRows, 1)
+	require.NotNil(t, savedRows[0].Data)
+	require.Equal(t, map[uint]int{1: 1}, incremented)
 }
 
 func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
@@ -1476,16 +1648,15 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		return []uint{1}, nil
 	}
 
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return 0, nil
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
 	}
-
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
 		require.Nil(t, rows[0].Data)
-		return 0, nil
+		return fleet.QueryReportWriteResult{}, nil
 	}
 
 	err = svc.SubmitResultLogs(ctx, results)
@@ -1532,16 +1703,15 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		return []uint{1}, nil
 	}
 
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return 0, nil
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
 	}
-
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
 		require.Nil(t, rows[0].Data)
-		return 0, nil
+		return fleet.QueryReportWriteResult{}, nil
 	}
 
 	err = svc.SubmitResultLogs(ctx, results)
@@ -1588,8 +1758,11 @@ func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
 			}
 			return []uint{reportQueryID}, nil
 		}
-		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
-			return len(rows), nil
+		ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+			return nil, nil
+		}
+		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+			return fleet.QueryReportWriteResult{RowsAdded: len(rows)}, nil
 		}
 
 		logDestination := &testJSONLogger{}
@@ -1727,11 +1900,11 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return []uint{1}, nil
 	}
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return 0, nil
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
-		return 0, nil
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+		return fleet.QueryReportWriteResult{}, nil
 	}
 
 	// Expect an error when unable to write to logging destination.
@@ -1851,30 +2024,31 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
-		hostDetailQueryPrefix + "google_chrome_profiles":                  {},
-		hostDetailQueryPrefix + "mdm":                                     {},
-		hostDetailQueryPrefix + "munki_info":                              {},
-		hostDetailQueryPrefix + "kubequery_info":                          {},
-		hostDetailQueryPrefix + "orbit_info":                              {},
-		hostDetailQueryPrefix + "software_vscode_extensions":              {},
-		hostDetailQueryPrefix + "software_jetbrains_plugins":              {},
-		hostDetailQueryPrefix + "software_adobe_plugins":                  {},
-		hostDetailQueryPrefix + "software_linux_fleetd_pacman":            {},
-		hostDetailQueryPrefix + "software_go_binaries":                    {},
-		hostDetailQueryPrefix + "software_python_packages":                {},
-		hostDetailQueryPrefix + "software_python_packages_with_users_dir": {},
-		hostDetailQueryPrefix + "software_macos_firefox":                  {},
-		hostDetailQueryPrefix + "battery":                                 {},
-		hostDetailQueryPrefix + "software_macos_codesign":                 {},
-		hostDetailQueryPrefix + "software_macos_executable_sha256":        {},
-		hostDetailQueryPrefix + "software_rpm_last_opened_at":             {},
-		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
-		hostDetailQueryPrefix + "disk_space_darwin":                       {},
-		hostDetailQueryPrefix + "disk_space_darwin_legacy":                {},
-		hostDetailQueryPrefix + "certificates_windows":                    {},
-		hostDetailQueryPrefix + "tpm_pin_config_verify":                   {},
-		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":          {},
-		hostDetailQueryPrefix + "bitlocker_key_protectors_verify":         {},
+		hostDetailQueryPrefix + "google_chrome_profiles":                    {},
+		hostDetailQueryPrefix + "mdm":                                       {},
+		hostDetailQueryPrefix + "munki_info":                                {},
+		hostDetailQueryPrefix + "kubequery_info":                            {},
+		hostDetailQueryPrefix + "orbit_info":                                {},
+		hostDetailQueryPrefix + "software_vscode_extensions":                {},
+		hostDetailQueryPrefix + "software_jetbrains_plugins":                {},
+		hostDetailQueryPrefix + "software_adobe_plugins":                    {},
+		hostDetailQueryPrefix + "software_linux_fleetd_pacman":              {},
+		hostDetailQueryPrefix + "software_go_binaries":                      {},
+		hostDetailQueryPrefix + "software_python_packages":                  {},
+		hostDetailQueryPrefix + "software_python_packages_with_users_dir":   {},
+		hostDetailQueryPrefix + "software_macos_firefox":                    {},
+		hostDetailQueryPrefix + "battery":                                   {},
+		hostDetailQueryPrefix + "software_macos_codesign":                   {},
+		hostDetailQueryPrefix + "software_macos_executable_sha256":          {},
+		hostDetailQueryPrefix + "software_macos_homebrew_executable_sha256": {},
+		hostDetailQueryPrefix + "software_rpm_last_opened_at":               {},
+		hostDetailQueryPrefix + "software_deb_last_opened_at":               {},
+		hostDetailQueryPrefix + "disk_space_darwin":                         {},
+		hostDetailQueryPrefix + "disk_space_darwin_legacy":                  {},
+		hostDetailQueryPrefix + "certificates_windows":                      {},
+		hostDetailQueryPrefix + "tpm_pin_config_verify":                     {},
+		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":            {},
+		hostDetailQueryPrefix + "bitlocker_key_protectors_verify":           {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -2338,6 +2512,45 @@ func TestLabelQueries(t *testing.T) {
 
 	mockClock.AddTime(1 * time.Second)
 
+	// Results for labels that are not dynamic labels applicable to the host
+	// (manual labels, other teams' labels, unknown IDs) must be discarded, not
+	// recorded as false: a false becomes a membership DELETE, which would let a
+	// host remove itself from a manual label.
+	gotResults = map[uint]*bool{}
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "1":  {{"col1": "val1"}},
+			hostLabelQueryPrefix + "98": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "99": {},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+		map[string]*fleet.Stats{},
+	)
+	require.NoError(t, err)
+	require.Len(t, gotResults, 1)
+	assert.True(t, *gotResults[1])
+	assert.NotContains(t, gotResults, uint(98))
+	assert.NotContains(t, gotResults, uint(99))
+
+	// When every reported label is inapplicable, nothing is recorded at all.
+	ds.RecordLabelQueryExecutionsFuncInvoked = false
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "98": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "99": {},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+		map[string]*fleet.Stats{},
+	)
+	require.NoError(t, err)
+	assert.False(t, ds.RecordLabelQueryExecutionsFuncInvoked)
+
+	mockClock.AddTime(1 * time.Second)
+
 	// Record a query execution
 	err = svc.SubmitDistributedQueryResults(
 		ctx,
@@ -2443,8 +2656,8 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+		return fleet.DeviceNameNotRetried, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Features: fleet.Features{
@@ -2648,8 +2861,8 @@ func TestDetailQueries(t *testing.T) {
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+		return fleet.DeviceNameNotRetried, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Features: fleet.Features{
@@ -2664,13 +2877,13 @@ func TestDetailQueries(t *testing.T) {
 		return map[string]string{}, nil
 	}
 	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string,
-		fleetEnrollmentRef string, isPersonalEnrollment bool,
+		fleetEnrollmentRef string, personalType fleet.PersonalEnrollmentType,
 	) error {
 		require.True(t, enrolled)
 		require.False(t, installedFromDep)
 		require.Equal(t, "hi.com", serverURL)
 		require.Empty(t, fleetEnrollmentRef)
-		require.False(t, isPersonalEnrollment)
+		require.Equal(t, fleet.PersonalEnrollmentTypeNone, personalType)
 		return nil
 	}
 	ds.SetOrUpdateMunkiInfoFunc = func(ctx context.Context, hostID uint, version string, errs, warns []string) error {
@@ -2898,7 +3111,7 @@ func TestDetailQueries(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]struct{},
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]fleet.ExecutableHashes,
 		result *fleet.UpdateHostSoftwareDBResult,
 	) error {
 		return nil
@@ -3254,7 +3467,7 @@ func TestDistributedQueryResults(t *testing.T) {
 		},
 		nil,
 	)
-	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(true, nil)
 
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
@@ -3378,9 +3591,38 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading orphaned campaign")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
+}
+
+// A failed stop means Redis or MySQL is down, so no restore is attempted.
+func TestIngestDistributedQueryOrphanedCampaignLoadStopError(t *testing.T) {
+	ds := new(mock.Store)
+	rs := pubsub.NewInmemQueryResults()
+	lq := live_query_mock.New(t)
+	svc := &Service{
+		ds:             ds,
+		resultStore:    rs,
+		liveQueryStore: lq,
+		logger:         slog.New(slog.DiscardHandler),
+		clock:          clock.NewMockClock(),
+	}
+
+	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
+		return nil, errors.New("missing campaign")
+	}
+	lq.On("StopQuery", "42").Return(errors.New("redis down"))
+
+	host := fleet.Host{ID: 1}
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
+
+	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stop orphaned campaign after load failure")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 }
 
 func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
@@ -3411,9 +3653,12 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
+	lq.On("RestoreQueryTargetForHost", "42", host.ID).Return(nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaignID=42 waiting for listener")
+	lq.AssertExpectations(t)
 }
 
 func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
@@ -3447,9 +3692,11 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "closing orphaned campaign")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 }
 
 func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
@@ -3484,9 +3731,11 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stopping orphaned campaign")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 }
 
 func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
@@ -3521,9 +3770,11 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaignID=42 stopped")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 	lq.AssertExpectations(t)
 }
 
@@ -3543,18 +3794,12 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(errors.New("fail"))
-
-	go func() {
-		ch, err := rs.ReadChannel(context.Background(), *campaign)
-		require.NoError(t, err)
-		<-ch
-	}()
-	time.Sleep(10 * time.Millisecond)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(false, errors.New("fail"))
 
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "record query completion")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 	lq.AssertExpectations(t)
 }
 
@@ -3574,7 +3819,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(true, nil)
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)
@@ -3585,6 +3830,60 @@ func TestIngestDistributedQuery(t *testing.T) {
 
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.NoError(t, err)
+	lq.AssertExpectations(t)
+}
+
+func TestIngestDistributedQueryNotTargetingHost(t *testing.T) {
+	ds := new(mock.Store)
+	rs := pubsub.NewInmemQueryResults()
+	lq := live_query_mock.New(t)
+	svc := &Service{
+		ds:             ds,
+		resultStore:    rs,
+		liveQueryStore: lq,
+		logger:         slog.New(slog.DiscardHandler),
+		clock:          clock.NewMockClock(),
+	}
+
+	host := fleet.Host{ID: 1}
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(false, nil)
+
+	// No subscriber and no DistributedQueryCampaignFunc: reaching WriteResult
+	// would take the orphaned-campaign path and crash on the nil datastore func.
+	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{{"col": "forged"}}, "", nil)
+	require.NoError(t, err)
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
+	lq.AssertExpectations(t)
+}
+
+type failingResultStore struct {
+	fleet.QueryResultStore
+}
+
+func (failingResultStore) WriteResult(fleet.DistributedQueryResult) error {
+	return errors.New("publish failed")
+}
+
+// A publish failure other than "no subscriber" must re-target the host: it was
+// already marked complete, so without the restore it would never retry.
+func TestIngestDistributedQueryWriteErrorRestoresTarget(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc := &Service{
+		ds:             ds,
+		resultStore:    failingResultStore{},
+		liveQueryStore: lq,
+		logger:         slog.New(slog.DiscardHandler),
+		clock:          clock.NewMockClock(),
+	}
+
+	host := fleet.Host{ID: 1}
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
+	lq.On("RestoreQueryTargetForHost", "42", host.ID).Return(nil)
+
+	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "writing results")
 	lq.AssertExpectations(t)
 }
 
@@ -5160,6 +5459,22 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"last_opened_at":    "",
 		"installed_path":    "/Library/Application Support/Adobe/UXP/extensions/com.vendory.colorizer",
 	}
+	gitKeg := map[string]string{
+		"name":              "git",
+		"version":           "2.46.0",
+		"bundle_identifier": "",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "homebrew_packages",
+		"vendor":            "",
+		"last_opened_at":    "",
+		"installed_path":    "/opt/homebrew/Cellar/git",
+	}
+	gitKegWithExecutables := func(executables string) map[string]string {
+		row := maps.Clone(gitKeg)
+		row["executable_hashes"] = executables
+		return row
+	}
 	someRow := map[string]string{
 		"1": "1",
 	}
@@ -5758,6 +6073,45 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 						"team_identifier": "com.slack.slack",
 					},
 				},
+			},
+		},
+		{
+			name: "macos homebrew executable hashes are carried on the keg's row",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":                            fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos_homebrew_executable_sha256": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					gitKeg,
+				},
+				hostDetailQueryPrefix + "software_macos_homebrew_executable_sha256": []map[string]string{
+					{
+						"keg_path":          "/opt/homebrew/Cellar/git",
+						"version":           "2.46.0",
+						"executable_path":   "/opt/homebrew/Cellar/git/2.46.0/bin/git",
+						"executable_sha256": "aaaa",
+						"hash_state":        "hashed",
+					},
+					{
+						"keg_path":          "/opt/homebrew/Cellar/git",
+						"version":           "2.46.0",
+						"executable_path":   "/opt/homebrew/Cellar/git/2.46.0/bin/git-shell",
+						"executable_sha256": "",
+						"hash_state":        "deferred",
+					},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					gitKegWithExecutables(`{"2.46.0/bin/git":"aaaa","2.46.0/bin/git-shell":""}`),
+				},
+			},
+			overrides: map[string]osquery_utils.DetailQuery{
+				"macos_homebrew_executable_sha256": osquery_utils.SoftwareOverrideQueries["macos_homebrew_executable_sha256"],
 			},
 		},
 		{
@@ -6367,6 +6721,74 @@ func TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience(t
 	})
 }
 
+// A patch policy whose app is on a displayed patch notification queues no install, because that
+// notification's countdown is what installs the app.
+func TestProcessSoftwareForNewlyFailingPoliciesPatchNotification(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	const (
+		policyID    = uint(1)
+		installerID = uint(100)
+		hostID      = uint(42)
+	)
+	titleID := uint(7)
+
+	var canSkipWhileAppIsOpen bool
+	ds.GetPoliciesWithAssociatedInstallerFunc = func(_ context.Context, _ uint, _ []uint) ([]fleet.PolicySoftwareInstallerData, error) {
+		return []fleet.PolicySoftwareInstallerData{{
+			ID:                      policyID,
+			InstallerID:             installerID,
+			OverridePreInstallQuery: canSkipWhileAppIsOpen,
+		}}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByIDFunc = func(_ context.Context, _ uint) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{InstallerID: installerID, TitleID: &titleID, Platform: "darwin"}, nil
+	}
+	ds.IsSoftwareInstallerLabelScopedFunc = func(_ context.Context, _, _ uint) (bool, error) {
+		return true, nil
+	}
+	ds.GetHostLastInstallDataFunc = func(_ context.Context, _, _ uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+	var appHasDisplayedPatchNotification bool
+	ds.DisplayedPatchNotificationExistsForAppFunc = func(_ context.Context, _ uint, _ uint) (bool, error) {
+		return appHasDisplayedPatchNotification, nil
+	}
+	var insertCalled bool
+	ds.InsertSoftwareInstallRequestFunc = func(_ context.Context, _, _ uint, _ fleet.HostSoftwareInstallOptions) (string, error) {
+		insertCalled = true
+		return "exec-uuid", nil
+	}
+
+	orbitKey := "orbit-key"
+	failing := map[uint]*bool{policyID: new(false)}
+	newlyFailing := map[uint]struct{}{policyID: {}}
+
+	// a notification the end user has seen lists the app, so its countdown installs it
+	canSkipWhileAppIsOpen = true
+	appHasDisplayedPatchNotification = true
+	insertCalled = false
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.False(t, insertCalled, "a displayed patch notification already covers this app, so no second install should queue")
+
+	// no displayed notification lists the app, so the policy automation installs it
+	appHasDisplayedPatchNotification = false
+	insertCalled = false
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.True(t, insertCalled, "an app with no displayed patch notification should install")
+
+	// an install that cannot skip never opens a notification, so the check is not made
+	canSkipWhileAppIsOpen = false
+	appHasDisplayedPatchNotification = true
+	insertCalled = false
+	ds.DisplayedPatchNotificationExistsForAppFuncInvoked = false
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.True(t, insertCalled, "an install that cannot skip should not be held back by a notification")
+	require.False(t, ds.DisplayedPatchNotificationExistsForAppFuncInvoked)
+}
+
 // TestPolicyAutomationDeferredActivation verifies that policy-automation
 // installs are enqueued with deferred activation when the fleet-initiated
 // release budget (activity.fleet_initiated_release_per_minute) is enabled, and
@@ -6930,4 +7352,168 @@ func TestGetClientConfigRequest_DecodeRequest(t *testing.T) {
 		_, err := decoder.DecodeRequest(context.Background(), r)
 		assert.Error(t, err)
 	})
+}
+
+func TestSaveResultLogsToQueryReportsReadsMissingCountsFromDB(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc, ctx := newTestService(t, ds, nil, lq)
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+	ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 42})
+
+	results := []*fleet.ScheduledQueryResult{
+		{QueryName: "pack/Global/Cached", OsqueryHostID: "h", Snapshot: []*json.RawMessage{new(json.RawMessage(`{"v":"a"}`))}, UnixTime: 1484078931},
+		{QueryName: "pack/Global/Missing", OsqueryHostID: "h", Snapshot: []*json.RawMessage{new(json.RawMessage(`{"v":"b"}`))}, UnixTime: 1484078931},
+		{QueryName: "pack/Global/Empty", OsqueryHostID: "h", Snapshot: []*json.RawMessage{new(json.RawMessage(`{"v":"c"}`))}, UnixTime: 1484078931},
+	}
+	queries := map[string]*fleet.Query{
+		"pack/Global/Cached":  {ID: 1, Logging: fleet.LoggingSnapshot},
+		"pack/Global/Missing": {ID: 2, Logging: fleet.LoggingSnapshot},
+		"pack/Global/Empty":   {ID: 3, Logging: fleet.LoggingSnapshot},
+	}
+
+	// Redis only knows about query 1.
+	lq.GetQueryResultsCountsOverride = func(queryIDs []uint) (map[uint]int, error) {
+		return map[uint]int{1: 10}, nil
+	}
+	lq.IncrQueryResultsCountsOverride = func(map[uint]int) error { return nil }
+	var seeded map[uint]int
+	lq.SetQueryResultsCountsIfAbsentOverride = func(counts map[uint]int) error {
+		seeded = counts
+		return nil
+	}
+	// The database has rows for query 2 and none for query 3.
+	var askedDB []uint
+	ds.ResultCountsForQueriesFunc = func(ctx context.Context, queryIDs []uint) (map[uint]int, error) {
+		askedDB = queryIDs
+		return map[uint]int{2: 20}, nil
+	}
+	currentCounts := map[uint]int{}
+	ds.QueryResultRowsForHostByQueryFunc = func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+		return nil, nil
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+		currentCounts[rows[0].QueryID] = currentCount
+		return fleet.QueryReportWriteResult{RowsAdded: len(rows)}, nil
+	}
+
+	serv.saveResultLogsToQueryReports(ctx, results, queries, fleet.DefaultMaxQueryReportRows)
+
+	require.ElementsMatch(t, []uint{2, 3}, askedDB)
+	require.Equal(t, map[uint]int{2: 20, 3: 0}, seeded)
+	require.Equal(t, map[uint]int{1: 10, 2: 20, 3: 0}, currentCounts)
+}
+
+func TestQueryReportCapReadsMissingHostCountFromDB(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc, ctx := newTestService(t, ds, nil, lq)
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+	settings := fleet.ServerSettings{QueryReportCap: 3}
+
+	// Cache hit: the database isn't consulted.
+	lq.GetQueryReportsHostCountOverride = func() (int, bool, error) { return 500, true, nil }
+	require.Equal(t, 500, serv.queryReportCap(ctx, settings))
+	require.False(t, ds.CountAllHostsFuncInvoked)
+
+	// Cache miss: the count comes from the database and is seeded without clobbering.
+	lq.GetQueryReportsHostCountOverride = func() (int, bool, error) { return 0, false, nil }
+	ds.CountAllHostsFunc = func(ctx context.Context) (int, error) { return 700, nil }
+	seeded := 0
+	lq.SetQueryReportsHostCountIfAbsentOverride = func(count int) error {
+		seeded = count
+		return nil
+	}
+	require.Equal(t, 700, serv.queryReportCap(ctx, settings))
+	require.True(t, ds.CountAllHostsFuncInvoked)
+	require.Equal(t, 700, seeded)
+
+	// Database failure falls back to the configured cap.
+	ds.CountAllHostsFunc = func(ctx context.Context) (int, error) { return 0, errors.New("db down") }
+	require.Equal(t, 3, serv.queryReportCap(ctx, settings))
+}
+
+func TestSubmitDistributedQueryResultsReportsDeviceNameAfterSave(t *testing.T) {
+	cases := []struct {
+		name       string
+		deferred   bool
+		saveErr    error
+		wantReport bool
+	}{
+		{"deferred save succeeds", true, nil, true},
+		{"deferred save fails", true, errors.New("boom"), false},
+		{"synchronous save fails", false, errors.New("boom"), false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			lq := live_query_mock.New(t)
+			svc, ctx := newTestServiceWithClock(t, ds, nil, lq, clock.NewMockClock())
+
+			host := &fleet.Host{ID: 1, UUID: "mac-uuid", Platform: "darwin", OsqueryHostID: new("mac")}
+			ctx = hostctx.NewContext(ctx, host)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				ac := &fleet.AppConfig{}
+				ac.ServerSettings.DeferredSaveHost = c.deferred
+				ac.MDM.EnabledAndConfigured = true
+				return ac, nil
+			}
+			saved := make(chan struct{})
+			save := func(h *fleet.Host) error {
+				assert.Equal(t, "Renamed by user", h.ComputerName)
+				close(saved)
+				return c.saveErr
+			}
+			ds.SerialUpdateHostFunc = func(ctx context.Context, h *fleet.Host) error { return save(h) }
+			ds.UpdateHostFunc = func(ctx context.Context, h *fleet.Host) error { return save(h) }
+			reported := make(chan string, 1)
+			ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+				select {
+				case <-saved:
+				default:
+					t.Error("device name reported before the host save landed")
+				}
+				assert.Equal(t, "mac-uuid", hostUUID)
+				reported <- reportedName
+				return fleet.DeviceNameRetried, nil
+			}
+
+			results := map[string][]map[string]string{
+				"fleet_detail_query_system_info": {{
+					"computer_name":      "Renamed by user",
+					"hostname":           "Renamed by user",
+					"uuid":               "mac-uuid",
+					"hardware_serial":    "SERIAL1",
+					"hardware_model":     "MacBookPro16,1",
+					"physical_memory":    "16000000000",
+					"cpu_physical_cores": "8",
+					"cpu_logical_cores":  "8",
+				}},
+			}
+			require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results,
+				map[string]fleet.OsqueryStatus{"fleet_detail_query_system_info": 0}, map[string]string{}, map[string]*fleet.Stats{}))
+
+			select {
+			case <-saved:
+			case <-time.After(5 * time.Second):
+				t.Fatal("host was never saved")
+			}
+			if !c.wantReport {
+				// Give a deferred report (if any) time to run before asserting it didn't.
+				select {
+				case name := <-reported:
+					t.Fatalf("device name %q reported after a failed host save", name)
+				case <-time.After(200 * time.Millisecond):
+				}
+				return
+			}
+			select {
+			case name := <-reported:
+				require.Equal(t, "Renamed by user", name)
+			case <-time.After(5 * time.Second):
+				t.Fatal("device name was never reported after the host save")
+			}
+		})
+	}
 }

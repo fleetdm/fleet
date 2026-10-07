@@ -1,17 +1,24 @@
 import { screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import React from "react";
 
 import createMockHost from "__mocks__/hostMock";
 import createMockLicense from "__mocks__/licenseMock";
 import { notify } from "components/ToastNotification";
-import { IDUPDetails, IHostDevice, IOSSettings } from "interfaces/host";
+import {
+  IDeviceDiskEncryptionSetting,
+  IDUPDetails,
+  IHostDevice,
+} from "interfaces/host";
 import { HostPlatform } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
+import PATHS from "router/paths";
 import deviceUserAPI, {
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
+  createDefaultDeviceResponse,
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
   defaultDeviceHandler,
@@ -22,7 +29,11 @@ import {
   unauthorizedDeviceHandler,
 } from "test/handlers/device-handler";
 import mockServer from "test/mock-server";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import {
+  baseUrl,
+  createCustomRenderer,
+  createMockRouter,
+} from "test/test-utils";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 
@@ -415,6 +426,167 @@ describe("Device User Page", () => {
     });
   });
 
+  describe("issues count", () => {
+    it("counts only unhidden failing policies", async () => {
+      const host = createMockHost() as IHostDevice;
+      host.issues = {
+        total_issues_count: 3,
+        critical_vulnerabilities_count: 0,
+        failing_policies_count: 3,
+        failing_unhidden_policies_count: 1,
+      };
+      mockServer.use(customDeviceHandler({ host }));
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={{
+            ...mockLocation,
+            pathname: PATHS.DEVICE_USER_DETAILS("testToken"),
+          }}
+        />
+      );
+
+      // The tooltip breakdown is covered by the toEndUserIssues unit test; hovering
+      // is viewport-dependent (mobile view opens tooltips on click) and flaky here.
+      const issuesTitle = await screen.findByText("Issues");
+      expect(issuesTitle.nextElementSibling).toHaveTextContent(/^1$/);
+    });
+  });
+
+  describe("hidden policies toggle", () => {
+    it("requests hidden policies only after the toggle is switched on", async () => {
+      const requestedUrls: string[] = [];
+      // With software inventory off, the Software tab is not rendered but its
+      // path stays in the tab list, so deep-linking to Policies selects no tab.
+      const response = createDefaultDeviceResponse();
+      response.global_config.features.enable_software_inventory = true;
+      const devicePolicy = (id: number, name: string) =>
+        (({
+          id,
+          name,
+          description: "",
+          resolution: "",
+          platform: "darwin",
+          critical: false,
+          conditional_access_enabled: false,
+          response: "fail",
+        } as unknown) as IHostPolicy);
+      const visible = [devicePolicy(1, "Visible policy")];
+      const withHidden = [
+        ...visible,
+        devicePolicy(2, "Hidden policy A"),
+        devicePolicy(3, "Hidden policy B"),
+      ];
+      mockServer.use(
+        http.get(baseUrl("/device/:token"), ({ request }) => {
+          requestedUrls.push(request.url);
+          const includeHidden = request.url.includes(
+            "include_hidden_policies=true"
+          );
+          return HttpResponse.json({
+            ...response,
+            host: {
+              ...response.host,
+              issues: { ...response.host.issues, hidden_policies_count: 2 },
+              policies: includeHidden ? withHidden : visible,
+            },
+          });
+        })
+      );
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
+
+      // Tabs are route-driven, so land directly on the Policies tab.
+      const render = createCustomRenderer({ withBackendMock: true });
+      const { user } = render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={{
+            ...mockLocation,
+            pathname: PATHS.DEVICE_USER_DETAILS_POLICIES("testToken"),
+          }}
+        />
+      );
+      await screen.findByText(/Details/);
+      expect(
+        requestedUrls.some((url) => url.includes("include_hidden_policies"))
+      ).toBe(false);
+      // The tab count follows the list that is shown.
+      const policiesTab = screen.getByRole("tab", { name: /policies/i });
+      expect(policiesTab).toHaveTextContent(/Policies\s*1$/);
+
+      await user.click(
+        await screen.findByRole("switch", { name: "Show hidden policies" })
+      );
+
+      await waitFor(() => {
+        expect(
+          requestedUrls.some((url) =>
+            url.includes("include_hidden_policies=true")
+          )
+        ).toBe(true);
+      });
+      await waitFor(() => {
+        expect(policiesTab).toHaveTextContent(/Policies\s*3$/);
+      });
+      expect(screen.getAllByText("Hidden policy A").length).toBeGreaterThan(0);
+    });
+
+    it("does not render the toggle when the device has no hidden policies", async () => {
+      const response = createDefaultDeviceResponse();
+      response.global_config.features.enable_software_inventory = true;
+      const policy = ({
+        id: 1,
+        name: "Visible policy",
+        description: "",
+        resolution: "",
+        platform: "darwin",
+        critical: false,
+        conditional_access_enabled: false,
+        response: "pass",
+      } as unknown) as IHostPolicy;
+      mockServer.use(
+        http.get(baseUrl("/device/:token"), () =>
+          HttpResponse.json({
+            ...response,
+            host: {
+              ...response.host,
+              issues: { ...response.host.issues, hidden_policies_count: 0 },
+              policies: [policy],
+            },
+          })
+        )
+      );
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={{
+            ...mockLocation,
+            pathname: PATHS.DEVICE_USER_DETAILS_POLICIES("testToken"),
+          }}
+        />
+      );
+
+      expect(
+        (await screen.findAllByText("Visible policy")).length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.queryByRole("switch", { name: "Show hidden policies" })
+      ).not.toBeInTheDocument();
+    });
+  });
+
   describe("MDM enrollment", () => {
     const setupTest = async (overrides: Partial<IDUPDetails>) => {
       mockServer.use(customDeviceHandler(overrides));
@@ -631,58 +803,127 @@ describe("Device User Page", () => {
     });
   });
 
-  describe("Vitals refetch timeout", () => {
+  describe("Vitals refetch toasts", () => {
+    const OFFLINE_MESSAGE =
+      "This host is offline. Please try refetching host vitals later.";
+    const TIMEOUT_MESSAGE =
+      "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.";
+    const REPORTED = "2025-12-31T00:00:00Z";
+    const NEVER_REPORTED = "2000-01-01T00:00:00Z";
     const REAL_NOW = new Date("2026-01-01T00:00:00Z").getTime();
     let mockNow = REAL_NOW;
     let dateNowSpy: jest.SpyInstance;
+    let refetchSpy: jest.SpyInstance;
 
     beforeEach(() => {
       mockNow = REAL_NOW;
       dateNowSpy = jest.spyOn(Date, "now").mockImplementation(() => mockNow);
+      refetchSpy = jest.spyOn(deviceUserAPI, "refetch").mockResolvedValue({});
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
     });
 
     afterEach(() => {
       dateNowSpy.mockRestore();
+      refetchSpy.mockRestore();
     });
 
-    it("shows an uncertain 'taking longer than expected' message instead of claiming failure once the poll window is exceeded", async () => {
-      const host = createMockHost({
-        refetch_requested: true,
-        status: "online",
-        platform: "ubuntu",
-      }) as IHostDevice;
+    const mockHost = (overrides: Partial<IHostDevice>) =>
+      createMockHost({ platform: "windows", ...overrides }) as IHostDevice;
 
+    const renderWithHost = (host: IHostDevice) => {
       mockServer.use(customDeviceHandler({ host }));
-      mockServer.use(defaultDeviceCertificatesHandler);
-      mockServer.use(emptySetupExperienceHandler);
-
-      const render = createCustomRenderer({
-        withBackendMock: true,
-      });
-
-      render(
+      return createCustomRenderer({ withBackendMock: true })(
         <DeviceUserPage
           router={mockRouter}
           params={{ device_auth_token: "testToken" }}
           location={mockLocation}
         />
       );
+    };
 
-      // Wait for the first successful load, which starts the refetch
-      // timer and schedules the next poll via a real setTimeout.
+    it.each([
+      {
+        name: "reports a host that has reported vitals as offline",
+        detailUpdatedAt: REPORTED,
+        expectedErrors: [[OFFLINE_MESSAGE]],
+      },
+      {
+        name: "doesn't report a host that has never reported vitals as offline",
+        detailUpdatedAt: NEVER_REPORTED,
+        expectedErrors: [],
+      },
+    ])("$name", async ({ detailUpdatedAt, expectedErrors }) => {
+      renderWithHost(
+        mockHost({
+          refetch_requested: true,
+          status: "offline",
+          detail_updated_at: detailUpdatedAt,
+        })
+      );
       await screen.findByText(/Details/);
+      expect((notify.error as jest.Mock).mock.calls).toEqual(expectedErrors);
+    });
 
-      // Jump the clock past the 3-minute give-up window before that
-      // scheduled poll fires and re-evaluates elapsed time.
-      mockNow += 200000;
+    it.each([
+      {
+        name:
+          "shows an uncertain 'taking longer than expected' message instead of claiming failure once the poll window is exceeded",
+        detailUpdatedAt: REPORTED,
+        expectedErrors: [[TIMEOUT_MESSAGE]],
+      },
+      {
+        name:
+          "shows no timeout message for a host that has never reported vitals",
+        detailUpdatedAt: NEVER_REPORTED,
+        expectedErrors: [],
+      },
+    ])(
+      "$name",
+      async ({ detailUpdatedAt, expectedErrors }) => {
+        renderWithHost(
+          mockHost({
+            refetch_requested: true,
+            status: "online",
+            detail_updated_at: detailUpdatedAt,
+          })
+        );
+        // The first load starts the refetch timer and schedules the next poll via a real setTimeout.
+        await screen.findByText(/fetching fresh vitals/i);
+        // Jump past the 3-minute give-up window before that poll re-evaluates elapsed time.
+        mockNow += 200000;
+        await waitFor(
+          () =>
+            expect(
+              screen.queryByText(/fetching fresh vitals/i)
+            ).not.toBeInTheDocument(),
+          { timeout: 4000 }
+        );
+        expect((notify.error as jest.Mock).mock.calls).toEqual(expectedErrors);
+      },
+      10000
+    );
+
+    it("reports a host that has never reported vitals as offline when the user asked for the refetch", async () => {
+      const { user } = renderWithHost(
+        mockHost({ status: "online", detail_updated_at: NEVER_REPORTED })
+      );
+
+      await user.click(await screen.findByRole("button", { name: /refetch/i }));
+      await waitFor(() => expect(refetchSpy).toHaveBeenCalled());
+      mockServer.use(
+        customDeviceHandler({
+          host: mockHost({
+            refetch_requested: true,
+            status: "offline",
+            detail_updated_at: NEVER_REPORTED,
+          }),
+        })
+      );
 
       await waitFor(
-        () => {
-          expect(notify.error).toHaveBeenCalledWith(
-            "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
-          );
-        },
-        { timeout: 4000 }
+        () => expect(notify.error).toHaveBeenCalledWith(OFFLINE_MESSAGE),
+        { timeout: 5000 }
       );
     }, 10000);
   });
@@ -1023,14 +1264,14 @@ describe("BitLocker PIN deep link", () => {
   /** What the device endpoint reports for a Windows host still waiting on a PIN. */
   const needsPIN = (
     fleetdCanSetPIN: boolean
-  ): IOSSettings["disk_encryption"] => ({
+  ): IDeviceDiskEncryptionSetting => ({
     status: "action_required",
     detail: "",
     action_required: "create_pin",
     fleetd_can_set_pin: fleetdCanSetPIN,
   });
 
-  const windowsHost = (diskEncryption: IOSSettings["disk_encryption"]) => {
+  const windowsHost = (diskEncryption: IDeviceDiskEncryptionSetting) => {
     const host = createMockHost() as IHostDevice;
     host.platform = "windows";
     host.mdm.os_settings = {

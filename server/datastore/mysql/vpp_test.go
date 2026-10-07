@@ -710,6 +710,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		"host_id":%d,
 		"host_platform":"darwin",
 		"self_service":false,
+		"software_display_name":null,
 		"software_title":"foo",
 		"status":"pending_install"
 	}`, app1.AdamID, h1.DisplayName(), h1.ID), string(*acts[0].Details))
@@ -726,6 +727,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		"host_id":%d,
 		"host_platform":"darwin",
 		"self_service":true,
+		"software_display_name":null,
 		"software_title":"vpp_app_2",
 		"status":"pending_install"
 	}`, app2.AdamID, h2.DisplayName(), h2.ID), string(*acts[0].Details))
@@ -2335,6 +2337,9 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, installs, 1)
 	require.Equal(t, cmdVpp1, installs[0].CommandUUID)
+	// the service fails an install left unreported for too long, based on this age
+	require.NotNil(t, installs[0].CreatedAt)
+	require.WithinDuration(t, time.Now(), *installs[0].CreatedAt, time.Minute)
 
 	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host1.Host.UUID, 3)
 	require.NoError(t, err)
@@ -3889,7 +3894,7 @@ func testVPPInstallEnrollmentChannelRouting(t *testing.T, ds *Datastore) {
 		// Device-channel enrollment (primary row type "Device") ...
 		nanoEnroll(t, ds, host, false)
 		// ... but flagged personal in host_mdm, like a manual BYOD profile.
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeManualProfile))
 
 		commandXML := enqueueAndReadCommand(t, host, "byod-manual-cmd")
 		require.Contains(t, commandXML, "<key>ChangeManagementState</key>",
@@ -3907,7 +3912,7 @@ func testVPPInstallEnrollmentChannelRouting(t *testing.T, ds *Datastore) {
 		// Account-Driven User Enrollment: the primary enrollment row (id = host
 		// UUID) is type "User Enrollment (Device)".
 		nanoEnrollUserDevice(t, ds, host)
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeAccountDriven))
 
 		commandXML := enqueueAndReadCommand(t, host, "adue-cmd")
 		require.NotContains(t, commandXML, "<key>ChangeManagementState</key>",

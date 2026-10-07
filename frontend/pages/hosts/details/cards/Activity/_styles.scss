@@ -19,7 +19,7 @@
     top: 0;
     left: 0;
     z-index: 3;
-    border-radius: 16px;
+    border-radius: $border-radius-large;
     background-color: $loading-overlay;
   }
 

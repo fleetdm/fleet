@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.38.0",
+      "version": "1.39.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'sqlectron %' AND publisher = 'The Sqlectron Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'sqlectron %' AND publisher = 'The Sqlectron Team' AND version_compare(version, '1.38.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'sqlectron %' AND publisher = 'The Sqlectron Team' AND version_compare(version, '1.39.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'sqlectron.exe');"
       },
-      "installer_url": "https://github.com/sqlectron/sqlectron-gui/releases/download/v1.38.0/sqlectron-Setup-1.38.0.exe",
+      "installer_url": "https://github.com/sqlectron/sqlectron/releases/download/v1.39.0/sqlectron-Setup-1.39.0.exe",
       "install_script_ref": "8128d593",
       "uninstall_script_ref": "18aca80b",
-      "sha256": "86ded7390722d36825feddad43dd34129ceeeccabb5c9a0165c5f9fc1e6a58e2",
+      "sha256": "d6110ab37065482fe0736469da6f86b102d3ea602882c56b9e1131a67eaddafa",
       "default_categories": [
         "Developer tools"
       ]
