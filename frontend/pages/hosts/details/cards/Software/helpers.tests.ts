@@ -742,12 +742,12 @@ describe("isDefaultTypeSelection", () => {
     ).toBe(false);
   });
 
-  it("is false when the vulnerable filter is on", () => {
+  it.each([
+    { name: "vulnerable", filter: { vulnerable: true } },
+    { name: "AI tools", filter: { aiTool: true } },
+  ])("is false when the $name filter is on", ({ filter }) => {
     expect(
-      isDefaultTypeSelection("darwin", {
-        types: ["macos_app"],
-        vulnerable: true,
-      })
+      isDefaultTypeSelection("darwin", { types: ["macos_app"], ...filter })
     ).toBe(false);
   });
 

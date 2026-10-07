@@ -236,33 +236,44 @@ describe("HostSoftwareTable", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the filtered empty state when the vulnerable filter joins the macOS default", () => {
-    renderWithContext({
-      platform: "darwin",
-      macosApplicationsFilter: true,
-      filters: { types: ["macos_app"], vulnerable: true },
-      data: createMockGetHostSoftwareResponse({ count: 0, software: [] }),
-    });
+  it.each([
+    { name: "vulnerable", filter: { vulnerable: true } },
+    { name: "AI tools", filter: { aiTool: true } },
+  ])(
+    "shows the filtered empty state when the $name filter joins the macOS default",
+    ({ filter }) => {
+      renderWithContext({
+        platform: "darwin",
+        macosApplicationsFilter: true,
+        filters: { types: ["macos_app"], ...filter },
+        data: createMockGetHostSoftwareResponse({ count: 0, software: [] }),
+      });
 
-    expect(
-      screen.getByText(/no items match the current search criteria/i)
-    ).toBeInTheDocument();
-  });
+      expect(
+        screen.getByText(/no items match the current search criteria/i)
+      ).toBeInTheDocument();
+    }
+  );
 
-  it("appends macos_applications to the URL on pagination when the filter is set", async () => {
+  it("keeps macos_applications and the filters in the URL on pagination", async () => {
     const router = createMockRouter();
     const { user } = renderWithContext({
       router,
       platform: "darwin",
       macosApplicationsFilter: true,
+      filters: { types: ["macos_app"], aiTool: true },
       data: fullPageWithNextResults,
     });
 
     await user.click(screen.getByRole("button", { name: /next/i }));
 
-    expect(router.replace).toHaveBeenCalledWith(
-      expect.stringContaining("macos_applications=true")
+    const url = new URL(
+      (router.replace as jest.Mock).mock.calls[0][0],
+      "http://fleet"
     );
+    expect(url.searchParams.get("macos_applications")).toBe("true");
+    expect(url.searchParams.get("ai_tool")).toBe("true");
+    expect(url.searchParams.get("page")).toBe("1");
   });
 
   it("appends macos_applications to the URL on pagination on the My device page", async () => {
