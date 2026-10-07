@@ -10028,6 +10028,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 		},
 		vppApp.Name: {
 			AppStoreID:  vppApp.AdamID,
+			VersionID:   vppAppTeamID,
 			VersionName: fleet.DefaultAppStoreAppVersionName,
 			SelfService: new(true),
 			Platform:    "darwin",

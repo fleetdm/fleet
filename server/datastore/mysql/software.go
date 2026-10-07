@@ -3883,6 +3883,8 @@ type hostSoftware struct {
 	VPPAppVersion             *string    `db:"vpp_app_version"`
 	VPPAppPlatform            *string    `db:"vpp_app_platform"`
 	VPPAppIconURL             *string    `db:"vpp_app_icon_url"`
+	VPPAppTeamID              *uint      `db:"vpp_app_team_id"`
+	VPPAppTeamName            *string    `db:"vpp_app_team_name"`
 	InHouseAppID              *uint      `db:"in_house_app_id"`
 	InHouseAppName            *string    `db:"in_house_app_name"`
 	InHouseAppPlatform        *string    `db:"in_house_app_platform"`
@@ -4631,13 +4633,15 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 	}
 	vppInstallsStmt := fmt.Sprintf(`
 	(   -- upcoming_vpp_install
-			SELECT id, last_install_install_uuid, last_install_installed_at, vpp_app_adam_id, vpp_app_self_service, status FROM (
+			SELECT id, last_install_install_uuid, last_install_installed_at, vpp_app_adam_id, vpp_app_self_service, vpp_app_team_id, vpp_app_team_name, status FROM (
 				SELECT
 						vpp_apps.title_id AS id,
 						ua.execution_id AS last_install_install_uuid,
 						ua.created_at AS last_install_installed_at,
 						vaua.adam_id AS vpp_app_adam_id,
 						vat.self_service AS vpp_app_self_service,
+						vat.id AS vpp_app_team_id,
+						vat.name AS vpp_app_team_name,
 						'pending_install' AS status,
 						ROW_NUMBER() OVER (
 							PARTITION BY vaua.adam_id, vaua.platform, ua.activity_type
@@ -4672,6 +4676,8 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				hvsi.created_at AS last_install_installed_at,
 				hvsi.adam_id AS vpp_app_adam_id,
 				vat.self_service AS vpp_app_self_service,
+				vat.id AS vpp_app_team_id,
+				vat.name AS vpp_app_team_name,
 				-- vppAppHostStatusNamedQuery(hvsi, ncr, status)
 				%s
 			FROM
@@ -7278,7 +7284,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			hs.HostSoftwareWithInstaller.BundleIdentifier = hs.InstalledVersions[0].BundleIdentifier
 		}
 		if hostVersion, ok := hostVPPAppVersionByTitleID[hs.ID]; ok && hs.AppStoreApp != nil {
+			hs.AppStoreApp.VersionID = hostVersion.VPPAppTeamID
 			hs.AppStoreApp.VersionName = hostVersion.Name
+			// Use the version of the host's latest install when there is one, the host may no longer be in scope for that version
+			install, installFound := byVPPAdamID[hs.AppStoreApp.AppStoreID]
+			if installFound && install.ID == hs.ID && install.VPPAppTeamID != nil && install.VPPAppTeamName != nil {
+				hs.AppStoreApp.VersionID = *install.VPPAppTeamID
+				hs.AppStoreApp.VersionName = *install.VPPAppTeamName
+			}
 		}
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}

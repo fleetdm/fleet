@@ -1020,6 +1020,8 @@ type PatchPolicyData struct {
 type SoftwarePackageOrApp struct {
 	// AppStoreID is only present for VPP apps.
 	AppStoreID string `json:"app_store_id,omitempty"`
+	// VersionID is only present for VPP apps.
+	VersionID uint `json:"version_id,omitempty"`
 	// VersionName is only present for VPP apps.
 	VersionName string `json:"version_name,omitempty"`
 	// Name is only present for software installer packages.
