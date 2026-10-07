@@ -3,6 +3,7 @@ package android
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"testing"
 	"time"
 
@@ -154,3 +155,120 @@ type notFoundError struct{}
 
 func (e *notFoundError) Error() string    { return "not found" }
 func (e *notFoundError) IsNotFound() bool { return true }
+
+func TestGetZeroTouchConfiguration_FleetSelection(t *testing.T) {
+	const existingFleetID uint = 3
+
+	cases := []struct {
+		name               string
+		fleetID            *uint
+		hasExistingToken   bool
+		wantTeamID         *uint
+		wantAdditionalData string
+		wantNotFound       bool
+		wantTeamExistsCall bool
+		wantAMAPICall      bool
+	}{
+		{
+			name:               "no fleet creates an Unassigned token",
+			fleetID:            nil,
+			wantTeamID:         nil,
+			wantAdditionalData: `{"fleet_id":null}`,
+			wantAMAPICall:      true,
+		},
+		{
+			name:               "fleet 0 is treated as Unassigned",
+			fleetID:            new(uint(0)),
+			wantTeamID:         nil,
+			wantAdditionalData: `{"fleet_id":null}`,
+			wantAMAPICall:      true,
+		},
+		{
+			name:               "existing fleet creates a token for that fleet",
+			fleetID:            new(existingFleetID),
+			wantTeamID:         new(existingFleetID),
+			wantAdditionalData: `{"fleet_id":3}`,
+			wantTeamExistsCall: true,
+			wantAMAPICall:      true,
+		},
+		{
+			name:               "existing fleet with a token reuses it",
+			fleetID:            new(existingFleetID),
+			hasExistingToken:   true,
+			wantTeamID:         new(existingFleetID),
+			wantTeamExistsCall: true,
+		},
+		{
+			name:               "missing fleet returns not found",
+			fleetID:            new(uint(999)),
+			wantNotFound:       true,
+			wantTeamExistsCall: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			svc, mockDS, apiClient := setupEEService(t)
+
+			mockDS.TeamExistsFunc = func(_ context.Context, id uint) (bool, error) {
+				return id == existingFleetID, nil
+			}
+			mockDS.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, teamID *uint) (*android.ZeroTouchToken, error) {
+				assert.Equal(t, c.wantTeamID, teamID)
+				if c.hasExistingToken {
+					return &android.ZeroTouchToken{TeamID: teamID, TokenValue: "existing-token-value"}, nil
+				}
+				return nil, &notFoundError{}
+			}
+			mockDS.GetEnterpriseFunc = func(_ context.Context) (*android.Enterprise, error) {
+				return &android.Enterprise{EnterpriseID: "LC00test"}, nil
+			}
+			apiClient.EnterprisesEnrollmentTokensCreateFunc = func(_ context.Context, _ string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
+				assert.JSONEq(t, c.wantAdditionalData, token.AdditionalData)
+				return &androidmanagement.EnrollmentToken{
+					Name:                "enterprises/LC00test/enrollmentTokens/abc123",
+					Value:               "new-token-value",
+					ExpirationTimestamp: time.Now().Add(100 * 365 * 24 * time.Hour).Format(time.RFC3339),
+				}, nil
+			}
+			mockDS.CreateZeroTouchEnrollmentTokenFunc = func(_ context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+				assert.Equal(t, c.wantTeamID, token.TeamID)
+				token.ID = 1
+				return token, nil
+			}
+
+			resp, err := svc.GetZeroTouchConfiguration(premiumAdminCtx(t), c.fleetID)
+			assert.Equal(t, c.wantTeamExistsCall, mockDS.TeamExistsFuncInvoked)
+			assert.Equal(t, c.wantAMAPICall, apiClient.EnterprisesEnrollmentTokensCreateFuncInvoked)
+
+			if c.wantNotFound {
+				require.Error(t, err)
+				var statusErr interface{ Status() int }
+				require.ErrorAs(t, err, &statusErr)
+				assert.Equal(t, http.StatusNotFound, statusErr.Status())
+				assert.False(t, mockDS.GetZeroTouchEnrollmentTokenFuncInvoked)
+				assert.False(t, mockDS.CreateZeroTouchEnrollmentTokenFuncInvoked)
+				return
+			}
+
+			require.NoError(t, err)
+			var extras dpcExtras
+			require.NoError(t, json.Unmarshal(resp.DPCExtras, &extras))
+			wantToken := "new-token-value"
+			if c.hasExistingToken {
+				wantToken = "existing-token-value"
+			}
+			assert.Equal(t, wantToken, extras.AdminExtrasBundle.EnrollmentToken)
+			assert.Equal(t, !c.hasExistingToken, mockDS.CreateZeroTouchEnrollmentTokenFuncInvoked)
+		})
+	}
+}
+
+func TestGetZeroTouchConfiguration_FleetCheckedAfterLicense(t *testing.T) {
+	svc, mockDS, _ := setupEEService(t)
+
+	ctx := licensectx.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierFree})
+	_, err := svc.GetZeroTouchConfiguration(ctx, new(uint(1)))
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	assert.False(t, mockDS.TeamExistsFuncInvoked)
+}
