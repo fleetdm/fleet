@@ -131,6 +131,12 @@ GROUP BY
 		title.DisplayName = displayName
 	}
 
+	aiToolTitles, err := ds.aiToolTitleIDs(ctx, ds.reader(ctx), []uint{id})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ai tool software title")
+	}
+	_, title.AITool = aiToolTitles[id]
+
 	title.VersionsCount = uint(len(title.Versions))
 
 	return &title, nil
@@ -469,6 +475,21 @@ func (ds *Datastore) processSoftwareTitleResults(
 
 		titleIDs[i] = title.ID
 		titleIndex[title.ID] = i
+	}
+
+	if opt.AITool {
+		// The filter already excluded every title that isn't an AI tool.
+		for _, title := range softwareList {
+			title.AITool = true
+		}
+	} else {
+		aiToolTitles, err := ds.aiToolTitleIDs(ctx, dbReader, titleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get ai tool software titles")
+		}
+		for titleID := range aiToolTitles {
+			softwareList[titleIndex[titleID]].AITool = true
+		}
 	}
 
 	// Fetch automatic install policies, icons, and display names for team-scoped queries.
@@ -829,6 +850,9 @@ WHERE
 		{{with $typeFilter := typeFilter}}
 		  {{$additionalWhere = printf "%s AND %s" $additionalWhere $typeFilter}}
 		{{end}}
+		{{if $.AITool}}
+		  {{$additionalWhere = printf "%s AND %s" $additionalWhere aiToolFilter}}
+		{{end}}
 		{{$additionalWhere}}
 	{{end}}
 	-- If teamID is set, defaults to "a software installer, in-house app or VPP app exists", and see next condition.
@@ -924,7 +948,8 @@ GROUP BY
 	args = append(args, typeFilterArgs...)
 
 	t, err := template.New("stm").Funcs(map[string]any{
-		"typeFilter": func() string { return typeFilterSQL },
+		"typeFilter":   func() string { return typeFilterSQL },
+		"aiToolFilter": func() string { return aiToolTitleFilterSQL("st.id") },
 		"yesNo": func(b bool, yes string, no string) string {
 			if b {
 				return yes
@@ -1144,19 +1169,39 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) (s
 //	                -> Covering index scan on st using idx_sw_titles  (rows=200000)
 //	            -> Single-row index lookup on sthc using PRIMARY      (loops=19897)
 //
+// The AI tool filter is appended to both arms. MySQL drives that semi-join from the flagged rows of
+// idx_software_ai_tool_title_id and joins them to the host counts by primary key, so the list and the
+// count cost about the number of AI tools rather than the number of titles. EXPLAIN ANALYZE of the
+// all-fleets list with ai_tool=true, page 5, on 200k titles (750 AI titles):
+//
+//	-> Limit/Offset: 21/100 row(s)
+//	    -> Sort: sthc.hosts_count DESC, sthc.software_title_id DESC, limit input to 121 row(s) per chunk
+//	        -> Nested loop inner join                                                                  (rows=750)
+//	            -> Remove duplicates from input sorted on idx_software_ai_tool_title_id                 (rows=750)
+//	                -> Covering index lookup on sai using idx_software_ai_tool_title_id (ai_tool=1)    (rows=1023)
+//	            -> Single-row index lookup on sthc using PRIMARY                                        (loops=750)
+//
 // args cover the host counts arm, plus the installer-only arm when a team is set.
 func optimizedTitlesTypeFilterSQL(opts fleet.SoftwareTitleListOptions) (hostCounts, installerOnly string, args []any) {
-	filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "st")
-	if filterSQL == "" {
-		return "", "", nil
+	if filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "st"); filterSQL != "" {
+		hostCounts = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = sthc.software_title_id AND " + filterSQL + ")"
+		installerOnly = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = t.title_id AND " + filterSQL + ")"
+		args = filterArgs
+		if opts.TeamID != nil {
+			args = slices.Concat(filterArgs, filterArgs)
+		}
 	}
-	hostCounts = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = sthc.software_title_id AND " + filterSQL + ")"
-	installerOnly = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = t.title_id AND " + filterSQL + ")"
-	args = filterArgs
-	if opts.TeamID != nil {
-		args = slices.Concat(filterArgs, filterArgs)
+	if opts.AITool {
+		hostCounts += " AND " + aiToolTitleFilterSQL("sthc.software_title_id")
+		installerOnly += " AND " + aiToolTitleFilterSQL("t.title_id")
 	}
 	return hostCounts, installerOnly, args
+}
+
+// aiToolTitleFilterSQL is a predicate matching titles, identified by titleIDColumn, that have at
+// least one software row flagged as an AI tool.
+func aiToolTitleFilterSQL(titleIDColumn string) string {
+	return "EXISTS (SELECT 1 FROM software sai WHERE sai.title_id = " + titleIDColumn + " AND sai.ai_tool = 1)"
 }
 
 // countSoftwareTitlesOptimized builds a dedicated count query that avoids the expensive

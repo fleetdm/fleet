@@ -311,6 +311,7 @@ var softwareTypeFilterErrorCases = []struct {
 		[]string{"source", "apps,chrome_extensions", "extension_for", "cursor"},
 		fmt.Sprintf(fleet.SoftwareExtensionForSourceNotSelectedErrMsg, "cursor", "vscode_extensions"),
 	},
+	{[]string{"source", "ai_tool"}, fmt.Sprintf(fleet.InvalidSoftwareSourceErrMsg, "ai_tool")},
 }
 
 func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
@@ -680,6 +681,13 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		res := s.Do("GET", "/api/latest/fleet/software/versions", nil, http.StatusUnprocessableEntity, c.params...)
 		require.Contains(t, extractServerErrorText(res.Body), c.reason)
 	}
+	// The ai_tool filter is Premium. Free never ingests AI tools, so their sources aren't gated.
+	for _, path := range []string{"/api/latest/fleet/software/versions", "/api/latest/fleet/software/count"} {
+		res := s.Do("GET", path, nil, http.StatusPaymentRequired, "ai_tool", "true")
+		require.NoError(t, res.Body.Close())
+		res = s.Do("GET", path, nil, http.StatusOK, "source", "mcp_servers")
+		require.NoError(t, res.Body.Close())
+	}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp,
 		"source", "chrome_extensions", "extension_for", "chrome", "per_page", "5")
 	require.Equal(t, 10, versionsResp.Count)
@@ -693,6 +701,10 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		res := s.Do("GET", "/api/latest/fleet/software/titles", nil, http.StatusUnprocessableEntity, c.params...)
 		require.Contains(t, extractServerErrorText(res.Body), c.reason)
 	}
+	res := s.Do("GET", "/api/latest/fleet/software/titles", nil, http.StatusPaymentRequired, "ai_tool", "true")
+	require.NoError(t, res.Body.Close())
+	res = s.Do("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, "source", "mcp_servers")
+	require.NoError(t, res.Body.Close())
 	var titlesResp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &titlesResp, "source", "apps")
 	require.Equal(t, 10, titlesResp.Count)
