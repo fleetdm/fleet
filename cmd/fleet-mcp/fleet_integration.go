@@ -715,13 +715,12 @@ func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platfor
 		if v := strings.TrimSpace(vulnerable); v != "" {
 			params.Set("vulnerable", v)
 		}
-		// Fleet matches source case-sensitively and every source is lowercase, so lowercasing keeps
-		// this arg case-insensitive like the per-host filter.
+		// Fleet matches source and extension_for case-sensitively and every accepted value is lowercase,
+		// so lowercasing keeps both args case-insensitive like the per-host filter.
 		if src := strings.ToLower(strings.TrimSpace(source)); src != "" {
 			params.Set("source", src)
 		}
-		// Unlike source, extension_for values are mixed case (JetBrains IDE names), so they're sent as given.
-		if ext := strings.TrimSpace(extensionFor); ext != "" {
+		if ext := strings.ToLower(strings.TrimSpace(extensionFor)); ext != "" {
 			params.Set("extension_for", ext)
 		}
 

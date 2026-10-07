@@ -707,12 +707,12 @@ func TestListSoftwareTitles_PassesExtensionForToServer(t *testing.T) {
 	defer srv.Close()
 
 	fc := newTestClient(srv.URL)
-	// extension_for values are case-sensitive on the server (e.g. JetBrains IDE names), so they're sent as given.
-	if _, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "jetbrains_plugins", "intellij_idea", 0); err != nil {
+	// Both args are lowercased so they match case-insensitively, like the per-host filter.
+	if _, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "JetBrains_Plugins", " GoLand ", 0); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got.Get("source") != "jetbrains_plugins" || got.Get("extension_for") != "intellij_idea" {
-		t.Fatalf("server got source=%q extension_for=%q, want jetbrains_plugins/intellij_idea", got.Get("source"), got.Get("extension_for"))
+	if got.Get("source") != "jetbrains_plugins" || got.Get("extension_for") != "goland" {
+		t.Fatalf("server got source=%q extension_for=%q, want jetbrains_plugins/goland", got.Get("source"), got.Get("extension_for"))
 	}
 
 	if _, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "chrome_extensions", "", 0); err != nil {
