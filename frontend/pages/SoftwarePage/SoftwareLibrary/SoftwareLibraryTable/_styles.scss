@@ -21,6 +21,10 @@
     align-items: center;
   }
 
+  .form-field--slider {
+    white-space: nowrap;
+  }
+
   .table-container {
     &__search-input,
     &__search {

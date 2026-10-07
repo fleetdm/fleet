@@ -158,6 +158,25 @@ describe("SoftwareFiltersModal component", () => {
       expect(screen.getByLabelText(/Min score/i)).toBeInTheDocument();
     });
 
+    it("keeps the Advanced section open while a score error is being fixed", async () => {
+      const { user } = await setUpCustom();
+
+      await user.type(scoreInput("minScore"), "11");
+      await user.tab();
+      expect(screen.getByText(SEVERITY_SCORE_RANGE_ERROR)).toBeInTheDocument();
+
+      // Collapsing is ignored while an error shows, so the field stays put.
+      await user.click(screen.getByRole("button", { name: "Advanced" }));
+      expect(scoreInput("minScore")).toBeInTheDocument();
+
+      // Focusing to fix the value clears the error without unmounting the field.
+      await user.click(scoreInput("minScore"));
+      expect(
+        screen.queryByText(SEVERITY_SCORE_RANGE_ERROR)
+      ).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/Min score/i)).toBeInTheDocument();
+    });
+
     it("shows an inverted range on the maximum, the dependent field", async () => {
       const { user } = await setUpCustom();
 

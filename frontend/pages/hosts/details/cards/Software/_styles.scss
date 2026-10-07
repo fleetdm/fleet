@@ -24,6 +24,13 @@
       min-width: 305px; // Fit placeholder text
     }
 
+    // The Show helpers slider sits inline beside the filters button and search.
+    .table-container .form-field--slider {
+      width: auto; // Override .form-field 100%
+      align-self: center;
+      white-space: nowrap;
+    }
+
     .data-table-block {
       .data-table__table {
         thead {

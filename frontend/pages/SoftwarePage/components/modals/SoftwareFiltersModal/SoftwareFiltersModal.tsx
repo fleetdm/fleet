@@ -63,10 +63,12 @@ const SoftwareFiltersModal = ({
   const [showAdvanced, setShowAdvanced] = useState(
     !!filters.vulnerable && severity !== ANY_SEVERITY_VALUE
   );
-  // Keep the section open while it holds an error, or Apply would fail with
-  // nothing visible to fix.
-  const advancedVisible =
-    showAdvanced || !!(formErrors.minScore || formErrors.maxScore);
+  // An error forces the section open and pins it there: setting an error also
+  // sets showAdvanced, and the toggle ignores clicks while an error shows.
+  // Otherwise collapsing while an error is visible and then focusing the field
+  // (which clears the error) would unmount it mid-edit.
+  const hasScoreError = !!(formErrors.minScore || formErrors.maxScore);
+  const advancedVisible = showAdvanced || hasScoreError;
 
   const onChangeSeverity = ({
     severity: nextSeverity,
@@ -90,6 +92,9 @@ const SoftwareFiltersModal = ({
     }
     const { [field]: fieldError } = validateSeverityScores(formData);
     setFormErrors((prev) => ({ ...prev, [field]: fieldError }));
+    if (fieldError) {
+      setShowAdvanced(true);
+    }
   };
 
   // Focus clears immediately so the label returns while the user edits.
@@ -116,6 +121,7 @@ const SoftwareFiltersModal = ({
       const errors = validateSeverityScores(formData);
       if (Object.keys(errors).length > 0) {
         setFormErrors(errors);
+        setShowAdvanced(true);
         return;
       }
     }
@@ -185,7 +191,11 @@ const SoftwareFiltersModal = ({
               showText="Advanced"
               hideText="Advanced"
               caretPosition="after"
-              onClick={() => setShowAdvanced(!advancedVisible)}
+              onClick={() => {
+                if (!hasScoreError) {
+                  setShowAdvanced(!showAdvanced);
+                }
+              }}
             />
             {advancedVisible && (
               <SeverityFilter

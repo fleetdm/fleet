@@ -238,7 +238,6 @@ const SoftwareTable = ({
           disabled={controlsDisabled}
         />
         <Button
-          className={`${baseClass}__filters`}
           variant="secondary"
           onClick={onAddFiltersClick}
           disabled={controlsDisabled}
