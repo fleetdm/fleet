@@ -8090,12 +8090,21 @@ func renewMDMAppleEnrollmentProfile(
 		uuids = append(uuids, assoc.HostUUID)
 	}
 
-	if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID, profileName); err != nil {
-		return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", uuids)
+	if err := commander.InstallProfileWithoutNotifications(ctx, uuids, profile, cmdUUID, profileName); err != nil {
+		return ctxerr.Wrapf(ctx, err, "enqueuing InstallProfile command for hosts %s", uuids)
 	}
 
+	// Mark the renewal before pushing so the device's renewal check-in always
+	// finds it. The marker references the command, so it can't be written first.
 	if err := ds.SetCommandForPendingSCEPRenewal(ctx, assocs, cmdUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting pending command associations")
+	}
+
+	// The command is queued and marked, so devices still get it at their next
+	// check-in. Returning here would leave every later host in the run (and in
+	// future runs) without a renewal.
+	if err := commander.SendNotifications(ctx, uuids); err != nil {
+		logger.ErrorContext(ctx, "sending push notifications for SCEP renewal", "command_uuid", cmdUUID, "host_count", len(uuids), "err", err)
 	}
 
 	return nil

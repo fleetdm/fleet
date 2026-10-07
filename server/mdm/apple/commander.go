@@ -58,6 +58,25 @@ func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []st
 	return ctxerr.Wrap(ctx, err, "commander install profile")
 }
 
+// InstallProfileWithoutNotifications is like InstallProfile but only enqueues
+// the command; it does not send an APNs push. The caller must invoke
+// SendNotifications afterwards.
+func (svc *MDMAppleCommander) InstallProfileWithoutNotifications(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string, name string) error {
+	raw, err := svc.SignAndEncodeInstallProfile(ctx, profile, uuid)
+	if err != nil {
+		return err
+	}
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding InstallProfile command")
+	}
+	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs,
+		&mdm.CommandWithSubtype{Command: *cmd, Subtype: mdm.CommandSubtypeNone, Name: name}); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing InstallProfile command")
+	}
+	return nil
+}
+
 func (svc *MDMAppleCommander) SignAndEncodeInstallProfile(ctx context.Context, profile []byte, commandUUID string) (string, error) {
 	signedProfile, err := mdmcrypto.Sign(ctx, profile, svc.storage)
 	if err != nil {
