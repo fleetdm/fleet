@@ -17,7 +17,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig } from "interfaces/config";
 import { IJiraIntegration, IZendeskIntegration } from "interfaces/integration";
 import { SelectedPlatform } from "interfaces/platform";
-import { SOFTWARE_TYPES } from "interfaces/software";
+import { getSoftwareTypes } from "interfaces/software";
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import PATHS from "router/paths";
@@ -35,6 +35,7 @@ import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 import {
   buildSoftwareFiltersQueryParams,
   getSoftwareFiltersFromQueryParams,
+  removePremiumOnlyFilters,
   ISoftwareFilters,
 } from "./SoftwareInventory/SoftwareInventoryTable/helpers";
 
@@ -202,7 +203,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // Library uses a self-service toggle (boolean), not the old dropdown filter
   const selfServiceOnly = queryParams?.self_service === "true";
 
-  const softwareFilters = getSoftwareFiltersFromQueryParams(queryParams);
+  const parsedSoftwareFilters = getSoftwareFiltersFromQueryParams(queryParams);
+  const softwareFilters = isPremiumTier
+    ? parsedSoftwareFilters
+    : removePremiumOnlyFilters(parsedSoftwareFilters);
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -582,7 +586,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             onSubmit={onApplyFilters}
             filters={softwareFilters}
             isPremiumTier={isPremiumTier || false}
-            availableTypes={SOFTWARE_TYPES}
+            availableTypes={getSoftwareTypes({ premium: isPremiumTier })}
+            showAiToolFilter
           />
         )}
       </>

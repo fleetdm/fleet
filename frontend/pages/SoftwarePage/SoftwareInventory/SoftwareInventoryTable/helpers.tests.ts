@@ -1,8 +1,11 @@
+import { mapValues } from "lodash";
+
 import {
   buildSoftwareFiltersQueryParams,
   getFilterRenderDetails,
   getSoftwareFiltersFromQueryParams,
   getVulnerabilities,
+  removePremiumOnlyFilters,
 } from "./helpers";
 
 const versions = [
@@ -62,6 +65,32 @@ describe("getSoftwareFiltersFromQueryParams", () => {
       getSoftwareFiltersFromQueryParams({ types: "foo,macos_app" }).types
     ).toEqual(["macos_app"]);
   });
+
+  it("reads the AI tools filter", () => {
+    expect(getSoftwareFiltersFromQueryParams({ ai_tool: "true" }).aiTool).toBe(
+      true
+    );
+    expect(getSoftwareFiltersFromQueryParams({}).aiTool).toBe(false);
+  });
+
+  it.each([
+    { name: "alone", filters: { aiTool: true } },
+    {
+      name: "with vulnerable off",
+      filters: { aiTool: true, vulnerable: false, types: ["mcp_server"] },
+    },
+    {
+      name: "with vulnerable on",
+      filters: { aiTool: true, vulnerable: true, exploit: true },
+    },
+  ])("round trips the AI tools filter $name", ({ filters }) => {
+    const params = buildSoftwareFiltersQueryParams(filters);
+    expect(params.ai_tool).toBe(true);
+    expect(
+      // URL values arrive as strings.
+      getSoftwareFiltersFromQueryParams(mapValues(params, String))
+    ).toEqual(expect.objectContaining(filters));
+  });
 });
 
 describe("buildSoftwareFiltersQueryParams", () => {
@@ -82,6 +111,18 @@ describe("buildSoftwareFiltersQueryParams", () => {
         types: ["macos_app"],
       })
     ).toEqual({ types: "macos_app", vulnerable: true, exploit: true });
+  });
+
+  it("emits ai_tool when the vulnerable filter is off", () => {
+    expect(
+      buildSoftwareFiltersQueryParams({ vulnerable: false, aiTool: true })
+    ).toEqual({ ai_tool: true });
+  });
+
+  it("omits ai_tool when the AI tools filter is off", () => {
+    expect(
+      buildSoftwareFiltersQueryParams({ vulnerable: true, aiTool: false })
+    ).toEqual({ vulnerable: true });
   });
 
   it("omits types when none are selected", () => {
@@ -108,10 +149,31 @@ describe("getFilterRenderDetails", () => {
       filters: { vulnerable: true },
       isFiltered: true,
     },
+    {
+      name: "only AI tools",
+      filters: { vulnerable: false, aiTool: true },
+      isFiltered: true,
+    },
   ])("is filtered by $name: $isFiltered", ({ filters, isFiltered }) => {
     expect(getFilterRenderDetails(filters)).toEqual({
       isFiltered,
       buttonText: isFiltered ? "Filtered" : "Add filters",
     });
+  });
+});
+
+describe("removePremiumOnlyFilters", () => {
+  it("drops the AI tools filter and Premium-only types", () => {
+    expect(
+      removePremiumOnlyFilters({
+        vulnerable: true,
+        aiTool: true,
+        types: ["mcp_server", "macos_app", "ai_skill", "ai_cli_tool"],
+      })
+    ).toEqual({ vulnerable: true, aiTool: false, types: ["macos_app"] });
+  });
+
+  it("keeps an absent types param absent", () => {
+    expect(removePremiumOnlyFilters({ aiTool: true }).types).toBeUndefined();
   });
 });

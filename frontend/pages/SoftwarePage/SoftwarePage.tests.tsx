@@ -264,3 +264,93 @@ describe("SoftwarePage type filter", () => {
     );
   });
 });
+
+describe("SoftwarePage AI tools filter", () => {
+  const FiltersProbe = ({
+    onAddFiltersClick,
+    filters,
+  }: {
+    onAddFiltersClick?: () => void;
+    filters?: Record<string, unknown>;
+  }) => (
+    <>
+      <button type="button" onClick={onAddFiltersClick}>
+        Open filters
+      </button>
+      <output>{JSON.stringify(filters)}</output>
+    </>
+  );
+
+  const renderInventoryTab = (
+    query: Record<string, string>,
+    app: Record<string, unknown>
+  ) =>
+    renderPage({
+      pathname: PATHS.SOFTWARE_INVENTORY,
+      query,
+      app: { ...app, ...GLOBAL_ADMIN },
+      children: <FiltersProbe />,
+    });
+
+  const passedFilters = () =>
+    JSON.parse(screen.getByRole("status").textContent || "{}");
+
+  it("writes ai_tool to the URL and resets the page on Apply", async () => {
+    const { router, user } = renderInventoryTab(
+      { page: "3" },
+      { isPremiumTier: true }
+    );
+
+    await user.click(screen.getByRole("button", { name: "Open filters" }));
+    await user.click(screen.getByRole("switch", { name: "AI tools" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(router.replace).toHaveBeenLastCalledWith(
+      expect.stringMatching(/page=0.*ai_tool=true|ai_tool=true.*page=0/)
+    );
+    expect(router.replace).toHaveBeenLastCalledWith(
+      expect.not.stringContaining("vulnerable=")
+    );
+  });
+
+  it("restores the toggle from the URL", async () => {
+    const { user } = renderInventoryTab(
+      { ai_tool: "true" },
+      { isPremiumTier: true }
+    );
+
+    expect(passedFilters().aiTool).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Open filters" }));
+
+    expect(screen.getByRole("switch", { name: "AI tools" })).toHaveAttribute(
+      "aria-checked",
+      "true"
+    );
+    expect(
+      screen.getByRole("checkbox", { name: "MCP server" })
+    ).toBeInTheDocument();
+  });
+
+  it("ignores the AI tools filter and AI types on Fleet Free", async () => {
+    const { user } = renderInventoryTab(
+      { ai_tool: "true", types: "mcp_server,macos_app" },
+      { isPremiumTier: false, isFreeTier: true }
+    );
+
+    expect(passedFilters()).toEqual(
+      expect.objectContaining({ aiTool: false, types: ["macos_app"] })
+    );
+
+    await user.click(screen.getByRole("button", { name: "Open filters" }));
+
+    expect(
+      screen.queryByRole("switch", { name: "AI tools" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "MCP server" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "AI CLI tool" })
+    ).not.toBeInTheDocument();
+  });
+});

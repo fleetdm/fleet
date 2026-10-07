@@ -2401,6 +2401,9 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   jetbrains_plugins: Extension,
   adobe_plugins: AdobePlugin,
   go_binaries: GoBinary,
+  ai_clis: Package,
+  ai_skills: Package,
+  mcp_servers: Package,
 } as const;
 
 /**

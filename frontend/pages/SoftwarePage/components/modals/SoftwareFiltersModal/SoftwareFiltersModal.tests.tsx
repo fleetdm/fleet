@@ -438,6 +438,71 @@ describe("SoftwareFiltersModal component", () => {
     ).not.toBeInTheDocument();
   });
 
+  describe("AI tools", () => {
+    const aiToolsSwitch = () =>
+      screen.queryByRole("switch", { name: "AI tools" });
+
+    it("renders above Vulnerable software, off by default", () => {
+      renderModal({ showAiToolFilter: true });
+
+      const switches = screen.getAllByRole("switch");
+      expect(switches).toHaveLength(2);
+      expect(switches[0]).toBe(aiToolsSwitch());
+      expect(aiToolsSwitch()).toHaveAttribute("aria-checked", "false");
+    });
+
+    it("starts on when the filter is applied", () => {
+      renderModal({
+        showAiToolFilter: true,
+        filters: { ...filtersDefault, aiTool: true },
+      });
+
+      expect(aiToolsSwitch()).toHaveAttribute("aria-checked", "true");
+    });
+
+    it("is hidden on Fleet Free", () => {
+      renderModal({ showAiToolFilter: true, isPremiumTier: false });
+
+      expect(aiToolsSwitch()).not.toBeInTheDocument();
+      expect(screen.getByText(/Vulnerable software/i)).toBeInTheDocument();
+    });
+
+    it("is hidden unless the page asks for it", () => {
+      renderModal();
+
+      expect(aiToolsSwitch()).not.toBeInTheDocument();
+    });
+
+    it("submits the AI tools filter without Vulnerable software", async () => {
+      const onSubmitSpy = jest.fn();
+      const { user } = setUpModal({
+        showAiToolFilter: true,
+        onSubmit: onSubmitSpy,
+      });
+
+      await user.click(screen.getByRole("switch", { name: "AI tools" }));
+      await user.click(screen.getByRole("button", { name: /Apply/i }));
+
+      expect(onSubmitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ aiTool: true, vulnerable: false })
+      );
+    });
+
+    it("submits no AI tools filter when switched off", async () => {
+      const onSubmitSpy = jest.fn();
+      const { user } = setUpModal({
+        showAiToolFilter: true,
+        filters: { ...filtersDefault, aiTool: true },
+        onSubmit: onSubmitSpy,
+      });
+
+      await user.click(screen.getByRole("switch", { name: "AI tools" }));
+      await user.click(screen.getByRole("button", { name: /Apply/i }));
+
+      expect(onSubmitSpy.mock.calls[0][0].aiTool).toBeFalsy();
+    });
+  });
+
   describe("Types picker", () => {
     it("is not rendered without a list of types", () => {
       renderModal();

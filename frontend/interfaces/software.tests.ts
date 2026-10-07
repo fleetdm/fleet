@@ -1,6 +1,7 @@
 import {
   formatSoftwareType,
   formatSoftwareVersion,
+  getSoftwareTypes,
   getSoftwareTypesForPlatform,
   parseSoftwareTypesParam,
   SOFTWARE_TYPES,
@@ -60,6 +61,14 @@ describe("formatSoftwareType", () => {
     expect(
       formatSoftwareType({ source: "unknown_source" as SoftwareSource })
     ).toBe("Unknown");
+  });
+
+  it.each([
+    { source: "ai_clis", label: "AI CLI tool" },
+    { source: "ai_skills", label: "AI skill" },
+    { source: "mcp_servers", label: "MCP server" },
+  ] as const)("labels $source as $label", ({ source, label }) => {
+    expect(formatSoftwareType({ source })).toBe(label);
   });
 
   it("labels every catalog type with its display name", () => {
@@ -126,6 +135,65 @@ describe("getSoftwareTypesForPlatform", () => {
   it("returns no types for an unknown platform", () => {
     expect(keysFor("unknown")).toEqual([]);
   });
+
+  const AI_TYPE_KEYS = ["ai_cli_tool", "ai_skill", "mcp_server"];
+
+  it.each(["darwin", "windows", "ubuntu"])(
+    "lists the AI types on Premium %s hosts",
+    (platform) => {
+      expect(
+        getSoftwareTypesForPlatform(platform, {
+          hostPage: true,
+          premium: true,
+        }).map((t) => t.key)
+      ).toEqual(expect.arrayContaining(AI_TYPE_KEYS));
+    }
+  );
+
+  it("hides Premium-only types unless asked for", () => {
+    ["darwin", "windows", "ubuntu"].forEach((platform) => {
+      expect(
+        getSoftwareTypesForPlatform(platform, { premium: false }).some(
+          (t) => t.premiumOnly
+        )
+      ).toBe(false);
+      expect(
+        getSoftwareTypesForPlatform(platform).some((t) => t.premiumOnly)
+      ).toBe(false);
+    });
+  });
+
+  it("lists no AI types on mobile or ChromeOS hosts", () => {
+    ["ios", "ipados", "android", "chrome"].forEach((platform) => {
+      const keys = getSoftwareTypesForPlatform(platform, {
+        premium: true,
+      }).map((t) => t.key);
+      AI_TYPE_KEYS.forEach((key) => expect(keys).not.toContain(key));
+    });
+  });
+
+  it("sorts the AI types between Adobe plugin and Android app", () => {
+    const names = getSoftwareTypes({ premium: true }).map((t) => t.displayName);
+    const adobe = names.indexOf("Adobe plugin");
+    expect(names.slice(adobe, adobe + 4)).toEqual([
+      "Adobe plugin",
+      "AI CLI tool",
+      "AI skill",
+      "Android app",
+    ]);
+  });
+});
+
+describe("getSoftwareTypes", () => {
+  it("includes Premium-only types on Premium", () => {
+    expect(getSoftwareTypes({ premium: true })).toEqual(SOFTWARE_TYPES);
+  });
+
+  it("drops Premium-only types on Free", () => {
+    const keys = getSoftwareTypes({ premium: false }).map((t) => t.key);
+    expect(keys).not.toContain("mcp_server");
+    expect(keys).toContain("macos_app");
+  });
 });
 
 describe("softwareTypesToApiParams", () => {
@@ -152,6 +220,12 @@ describe("softwareTypesToApiParams", () => {
     expect(
       softwareTypesToApiParams(["chrome_extension", "edge_extension", "foo"])
     ).toEqual({ source: "chrome_extensions", extension_for: "chrome,edge" });
+  });
+
+  it("translates the AI types into their sources", () => {
+    expect(softwareTypesToApiParams(["mcp_server", "ai_cli_tool"])).toEqual({
+      source: "ai_clis,mcp_servers",
+    });
   });
 
   it("returns no params for an empty selection", () => {

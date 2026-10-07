@@ -14,6 +14,47 @@ describe("VersionCell", () => {
     expect(screen.getByText(DEFAULT_EMPTY_CELL_VALUE)).toBeInTheDocument();
   });
 
+  it.each([
+    {
+      source: "mcp_servers",
+      tip:
+        "MCP servers don't have versions. They update on the fly, locally or remotely.",
+    },
+    {
+      source: "ai_skills",
+      tip: "AI skills are markdown files, so they don't have versions.",
+    },
+  ] as const)(
+    "explains the empty value for $source on hover",
+    async ({ source, tip }) => {
+      const { user } = renderWithSetup(
+        <VersionCell versions={[{ version: "" }]} source={source} />
+      );
+
+      await user.hover(screen.getByText(DEFAULT_EMPTY_CELL_VALUE));
+
+      await waitFor(() => {
+        expect(screen.getByText(tip)).toBeInTheDocument();
+      });
+    }
+  );
+
+  it("renders the empty value without a tooltip for an AI CLI tool", async () => {
+    const { user } = renderWithSetup(
+      <VersionCell versions={[{ version: "" }]} source="ai_clis" />
+    );
+
+    await user.hover(screen.getByText(DEFAULT_EMPTY_CELL_VALUE));
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("renders an AI CLI tool's version", () => {
+    render(<VersionCell versions={[{ version: "2.0.14" }]} source="ai_clis" />);
+
+    expect(screen.getAllByText("2.0.14")[0]).toBeInTheDocument();
+  });
+
   it("renders a single version", () => {
     render(<VersionCell versions={[{ version: "1.2.3" }]} source="apps" />);
 

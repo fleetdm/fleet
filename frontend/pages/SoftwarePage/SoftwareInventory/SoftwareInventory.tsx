@@ -61,6 +61,7 @@ const SoftwareInventory = ({
   const filterParams = {
     ...omit(filters, "types"),
     ...softwareTypesToApiParams(filters.types ?? []),
+    aiTool: filters.aiTool || undefined,
   };
 
   // for Titles view, request to get software data
