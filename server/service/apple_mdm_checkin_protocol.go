@@ -2,9 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/x509/pkix"
-	"encoding/asn1"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -218,15 +215,13 @@ func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *m
 		return s.CheckinAndCommandService.Authenticate(r, m)
 	}
 
-	var bindingExtension *pkix.Extension
-	for _, ext := range r.Certificate.Extensions {
-		if ext.Id.Equal(apple_mdm.AppleMDMCertificateBindingExtensionOID) {
-			bindingExtension = &ext
-			break
-		}
+	data, err := apple_mdm.ParseAppleMDMCertificateBindingExtension(r.Certificate)
+	if err != nil {
+		s.logger.ErrorContext(r.Context, "failed to parse certificate binding extension", "err", err)
+		return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("invalid certificate binding extension"))
 	}
 
-	if bindingExtension == nil {
+	if data == nil {
 		// check if we allow static challenges if so, early return here.
 		s.logger.DebugContext(r.Context, "no certificate binding extension found")
 		if !s.config.AppleSCEPStaticChallengeEnabled {
@@ -235,20 +230,6 @@ func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *m
 
 		// We allow it, so early return into authenticate handler.
 		return s.CheckinAndCommandService.Authenticate(r, m)
-	}
-
-	// ASN.1 unmarshal into a temporary variable
-	var asn1Data asn1.RawValue
-	if _, err := asn1.UnmarshalWithParams(bindingExtension.Value, &asn1Data, "utf8"); err != nil {
-		s.logger.ErrorContext(r.Context, "failed to unmarshal certificate binding extension as ASN.1", "err", err)
-		return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("invalid certificate binding extension"))
-	}
-
-	// json unmarshal into the struct
-	var data apple_mdm.AppleMDMCertificateBindingExtension
-	if err := json.Unmarshal(asn1Data.Bytes, &data); err != nil {
-		s.logger.ErrorContext(r.Context, "failed to unmarshal certificate binding extension", "err", err)
-		return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("invalid certificate binding extension"))
 	}
 
 	switch data.Purpose {
