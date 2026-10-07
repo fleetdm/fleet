@@ -172,6 +172,66 @@ describe("AndroidZeroTouchPage", () => {
     expect(screen.queryByText(/token-for-fleet-0/)).toBeNull();
   });
 
+  test("shows the spinner while refetching a previously viewed fleet", async () => {
+    let resolveRefetch: (value: Record<string, unknown>) => void = () =>
+      undefined;
+    const getConfig = jest
+      .spyOn(mdmAndroidAPI, "getZeroTouchConfiguration")
+      .mockImplementationOnce(() => Promise.resolve({ token: "unassigned-1" }))
+      .mockImplementationOnce(() => Promise.resolve({ token: "workstations" }))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRefetch = resolve;
+          })
+      );
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: CONFIGURED_APP_CONTEXT,
+      },
+    });
+
+    render(<AndroidZeroTouchPage />);
+
+    await screen.findByText(/unassigned-1/);
+    await userEvent.click(getFleetPicker(/Unassigned/));
+    await userEvent.click(screen.getByText("Workstations"));
+    await screen.findByText(/workstations/);
+
+    await userEvent.click(getFleetPicker(/Workstations/));
+    await userEvent.click(screen.getByText("Unassigned"));
+
+    expect(await screen.findByTestId("spinner")).toBeVisible();
+    expect(screen.queryByText(/unassigned-1/)).toBeNull();
+    expect(getFleetPicker(/Unassigned/)).toBeDisabled();
+    expect(getConfig).toHaveBeenCalledTimes(3);
+
+    resolveRefetch({ token: "unassigned-2" });
+    await screen.findByText(/unassigned-2/);
+    expect(getFleetPicker(/Unassigned/)).toBeEnabled();
+  });
+
+  test("shows the error without retrying when the server fails", async () => {
+    const getConfig = jest
+      .spyOn(mdmAndroidAPI, "getZeroTouchConfiguration")
+      .mockRejectedValue(createMockAxiosError({ status: 500 }));
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: CONFIGURED_APP_CONTEXT,
+      },
+    });
+
+    render(<AndroidZeroTouchPage />);
+
+    expect(await screen.findByText(/gone wrong/i)).toBeVisible();
+    expect(getConfig).toHaveBeenCalledTimes(1);
+    expect(getFleetPicker(/Unassigned/)).toBeEnabled();
+  });
+
   test("disables the fleet picker and copy buttons while the request is pending", async () => {
     jest
       .spyOn(mdmAndroidAPI, "getZeroTouchConfiguration")

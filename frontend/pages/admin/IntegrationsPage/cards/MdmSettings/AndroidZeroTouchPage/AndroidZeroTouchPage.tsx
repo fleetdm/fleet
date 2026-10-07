@@ -44,7 +44,7 @@ const AndroidZeroTouchPage = () => {
   // flashes on Premium and the premium-only request fires on Free.
   const isTierKnown = isPremiumTier !== undefined;
 
-  const { data: zeroTouchConfig, isLoading, isFetching, isError } = useQuery<
+  const { data: zeroTouchConfig, isFetching, isError } = useQuery<
     IGetZeroTouchConfigurationResponse,
     AxiosError
   >(
@@ -54,6 +54,8 @@ const AndroidZeroTouchPage = () => {
     () => mdmAndroidAPI.getZeroTouchConfiguration(selectedFleetId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      // The picker is locked while fetching, so fail fast instead of retrying.
+      retry: false,
       enabled:
         !!isPremiumTier && !!isAndroidMdmEnabledAndConfigured && !!currentUser,
     }
@@ -65,7 +67,7 @@ const AndroidZeroTouchPage = () => {
     : "";
 
   const renderCodeBlock = () => {
-    if (isLoading) {
+    if (isFetching) {
       return (
         <div
           className={`${baseClass}__dpc-extras-code ${baseClass}__dpc-extras-code--loading`}
