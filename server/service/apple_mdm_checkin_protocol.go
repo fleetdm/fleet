@@ -236,24 +236,39 @@ func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *m
 	case fleet.AppleMDMCertPurposeADE, fleet.AppleMDMCertPurposeOTAPhaseTwo:
 		// check the incoming type matches the purpose of ADE and phase 2
 		// We don't support phase one here, as it should never reach the authenticate it should always be exchanged for a phase2 certificate.
-		if cloned.Type != mdm.Device || m.Enrollment.EnrollmentID != "" {
-			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.Device, "actual", r.Type)
+		if cloned.Type != mdm.Device {
+			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.Device, "actual", cloned.Type)
 			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension purpose does not match enrollment type"))
 		}
 
-		if data.Serial == nil || *data.Serial != m.SerialNumber || data.UDID == nil || *data.UDID != m.UDID {
+		if data.Serial == nil || *data.Serial == "" || *data.Serial != m.SerialNumber || data.UDID == nil || *data.UDID == "" || *data.UDID != m.UDID {
 			s.logger.DebugContext(r.Context, "certificate binding extension serial or UDID does not match device", "expectedSerial", m.SerialNumber, "actualSerial", data.Serial, "expectedUDID", m.UDID, "actualUDID", data.UDID)
 			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension serial or UDID does not match device"))
 		}
 	case fleet.AppleMDMCertPurposeACME:
-		if cloned.Type != mdm.Device || m.Enrollment.EnrollmentID != "" {
-			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.Device, "actual", r.Type)
+		if cloned.Type != mdm.Device {
+			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.Device, "actual", cloned.Type)
 			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension purpose does not match enrollment type"))
 		}
 
-		if data.Serial == nil || *data.Serial != m.SerialNumber {
+		if data.Serial == nil || *data.Serial == "" || *data.Serial != m.SerialNumber {
 			s.logger.DebugContext(r.Context, "certificate binding extension serial does not match device", "expectedSerial", m.SerialNumber, "actualSerial", data.Serial)
 			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension serial does not match device"))
+		}
+	case fleet.AppleMDMCertPurposeACMERenewal:
+		if cloned.Type != mdm.Device {
+			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.Device, "actual", cloned.Type)
+			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension purpose does not match enrollment type"))
+		}
+
+		if data.Serial == nil || *data.Serial == "" || *data.Serial != m.SerialNumber || data.EnrollmentID == nil || *data.EnrollmentID == "" || *data.EnrollmentID != resolved.DeviceChannelID {
+			s.logger.DebugContext(r.Context, "certificate binding extension serial or enrollment ID does not match device", "expectedSerial", m.SerialNumber, "actualSerial", data.Serial, "expectedEnrollmentID", resolved.DeviceChannelID, "actualEnrollmentID", data.EnrollmentID)
+			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension serial or enrollment ID does not match device"))
+		}
+	case fleet.AppleMDMCertPurposeSCEPRenewal:
+		if data.EnrollmentID == nil || *data.EnrollmentID == "" || *data.EnrollmentID != resolved.DeviceChannelID {
+			s.logger.DebugContext(r.Context, "certificate binding extension enrollment ID does not match device", "expectedEnrollmentID", resolved.DeviceChannelID, "actualEnrollmentID", data.EnrollmentID)
+			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension enrollment ID does not match device"))
 		}
 	default:
 		s.logger.DebugContext(r.Context, "unsupported certificate binding extension purpose", "purpose", data.Purpose)
