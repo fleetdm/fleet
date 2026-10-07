@@ -1071,6 +1071,56 @@ func TestAuthenticateHostContextCanceled(t *testing.T) {
 	require.False(t, errors.As(err, &osqueryErr), "context.Canceled should not be wrapped in OsqueryError")
 }
 
+func TestAuthenticateHostRejectsNonOsqueryPlatforms(t *testing.T) {
+	ds := new(mock.Store)
+	task := async.NewTask(ds, nil, clock.C, nil)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
+
+	ds.MarkHostsSeenFunc = func(ctx context.Context, hostIDs []uint, t time.Time) error {
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	for _, platform := range []string{"android", "ios", "ipados"} {
+		t.Run(platform, func(t *testing.T) {
+			ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+				return &fleet.Host{
+					ID:                  1,
+					Hostname:            "test-host",
+					Platform:            platform,
+					HasHostIdentityCert: new(false),
+				}, nil
+			}
+
+			_, _, err := svc.AuthenticateHost(ctx, "node-key-"+platform)
+			require.Error(t, err)
+			var osqueryErr *OsqueryError
+			require.ErrorAs(t, err, &osqueryErr)
+			assert.True(t, osqueryErr.NodeInvalid(), "expected invalid node error for platform %s", platform)
+		})
+	}
+
+	// Verify that osquery-supported platforms still authenticate successfully.
+	for _, platform := range []string{"darwin", "windows", "ubuntu", "linux"} {
+		t.Run(platform, func(t *testing.T) {
+			ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+				return &fleet.Host{
+					ID:                  2,
+					Hostname:            "test-host",
+					Platform:            platform,
+					HasHostIdentityCert: new(false),
+				}, nil
+			}
+
+			host, _, err := svc.AuthenticateHost(ctx, "node-key-"+platform)
+			require.NoError(t, err)
+			assert.Equal(t, uint(2), host.ID)
+		})
+	}
+}
+
 func TestSubmitDistributedQueryResultsDecodeBodyDeadlineExceeded(t *testing.T) {
 	deadlineErr := &net.OpError{
 		Op:  "read",
