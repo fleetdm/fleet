@@ -4819,6 +4819,12 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		}
 	}
 
+	typeFilter, err := fleet.ParseSoftwareTypeFilter(opts.Source, opts.ExtensionFor)
+	if err != nil {
+		return nil, nil, err
+	}
+	opts.TypeFilter = typeFilter
+
 	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "checking mdm enrollment status")
