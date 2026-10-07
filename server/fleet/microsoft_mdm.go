@@ -583,7 +583,7 @@ func (msg *RequestSecurityToken) GetContextItem(item string) (string, error) {
 		msg.MapContextItems = contextMap
 	}
 
-	itemVal, ok := (msg.MapContextItems)[item]
+	itemVal, ok := msg.MapContextItems[item]
 	if !ok {
 		return "", fmt.Errorf("ContextItem item %s is not present", item)
 	}
@@ -942,7 +942,9 @@ type MDMWindowsEnrolledDevice struct {
 	MDMEnrollClientVersion string `db:"enroll_client_version"`
 	MDMNotInOOBE           bool   `db:"not_in_oobe"`
 	// ZTDRegistrationID is the Autopilot ZTDID the device supplied at enrollment
-	ZTDRegistrationID       string                          `db:"ztd_registration_id"`
+	ZTDRegistrationID string `db:"ztd_registration_id"`
+	// EntraDeviceID is the Entra device ID signed into the access token of an Entra enrollment, empty for other enrollments.
+	EntraDeviceID           string                          `db:"entra_device_id"`
 	AwaitingConfiguration   WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
 	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
 	CredentialsHash         *[]byte                         `db:"credentials_hash"`
@@ -970,6 +972,9 @@ type MDMWindowsEnrolledDevice struct {
 	EnrolledActivityAt *time.Time `db:"enrolled_activity_at"`
 	CreatedAt          time.Time  `db:"created_at"`
 	UpdatedAt          time.Time  `db:"updated_at"`
+
+	// LinkedHostID is the host that has HostUUID
+	LinkedHostID *uint `db:"linked_host_id"`
 }
 
 // WindowsEnrollmentDefaultFleet is the cacheable shape of Datastore.GetWindowsEnrollmentDefaultFleet (see the cached_mysql
@@ -1713,6 +1718,7 @@ type HostMDMWindowsProfile struct {
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string             `db:"detail" json:"detail"`
+	Hidden        bool               `db:"hidden" json:"hidden"`
 }
 
 func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
@@ -1725,6 +1731,8 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "windows",
+		SelfService:   false,
+		Hidden:        p.Hidden,
 	}
 }
 

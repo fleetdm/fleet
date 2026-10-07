@@ -8,6 +8,9 @@ import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import Controls from "./Controls";
 import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";
 
+// The details cell renders its text again inside the (hidden) truncation tooltip.
+const DETAIL_CELL_TEXT = ".data-table__tooltip-truncated-text";
+
 const control = (
   overrides: Partial<IHostMdmProfileWithAddedStatus>
 ): IHostMdmProfileWithAddedStatus =>
@@ -28,7 +31,7 @@ const renderControls = (
       app: {
         config: createMockConfig(
           oneTimeEnrollSecrets
-            ? { auth: { use_one_time_enroll_secrets: true } }
+            ? { auth: { mdm_apple_one_time_enroll_secrets: true } }
             : {}
         ),
       },
@@ -74,24 +77,20 @@ describe("Controls card", () => {
       ).toBeInTheDocument();
     });
 
-    it("does not offer it when one-time enroll secrets are off", () => {
+    it("disables it when one-time enroll secrets are off", () => {
       renderControls({ controls: [verifyingFleetd] });
-      expect(
-        screen.queryByRole("button", { name: "Resend" })
-      ).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Resend" })).toBeDisabled();
     });
 
-    it("does not offer it to the end user", () => {
+    it("disables it to the end user", () => {
       renderControls(
         { controls: [verifyingFleetd], isDeviceUser: true },
         { oneTimeEnrollSecrets: true }
       );
-      expect(
-        screen.queryByRole("button", { name: "Resend" })
-      ).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Resend" })).toBeDisabled();
     });
 
-    it("does not offer it on other verifying profiles", () => {
+    it("disables it on other verifying profiles", () => {
       renderControls(
         {
           controls: [
@@ -100,9 +99,7 @@ describe("Controls card", () => {
         },
         { oneTimeEnrollSecrets: true }
       );
-      expect(
-        screen.queryByRole("button", { name: "Resend" })
-      ).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Resend" })).toBeDisabled();
     });
   });
 
@@ -131,7 +128,9 @@ describe("Controls card", () => {
       });
 
       expect(
-        screen.getByText("Error.ConfigurationCannotBeApplied")
+        screen.getByText("Error.ConfigurationCannotBeApplied", {
+          selector: DETAIL_CELL_TEXT,
+        })
       ).toBeInTheDocument();
     });
 
@@ -148,7 +147,12 @@ describe("Controls card", () => {
       });
 
       expect(
-        screen.getByText("Waiting for certificate to be installed on the host.")
+        screen.getByText(
+          "Waiting for certificate to be installed on the host.",
+          {
+            selector: DETAIL_CELL_TEXT,
+          }
+        )
       ).toBeInTheDocument();
     });
 
@@ -159,7 +163,9 @@ describe("Controls card", () => {
         ],
       });
 
-      expect(screen.getByText("---")).toBeInTheDocument();
+      expect(
+        screen.getByText("---", { selector: DETAIL_CELL_TEXT })
+      ).toBeInTheDocument();
     });
   });
 
@@ -359,5 +365,252 @@ describe("Controls card", () => {
     expect(screen.getByText("21 controls")).toBeInTheDocument();
     expect(rowCount()).toBe(20);
     expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
+  });
+
+  describe("self-service profiles", () => {
+    const notInstalled = control({
+      profile_uuid: "ss-1",
+      name: "Opt-in",
+      status: null,
+      self_service: true,
+    });
+    const installed = control({
+      profile_uuid: "ss-2",
+      name: "Opted in",
+      status: "verified",
+      self_service: true,
+    });
+    const selfServiceProps = {
+      isMacOSHost: true,
+      canManageSelfServiceProfiles: true,
+      installRequest: jest.fn(() => Promise.resolve()),
+      uninstallRequest: jest.fn(() => Promise.resolve()),
+    };
+
+    it("sorts not-installed profiles first with a --- status", () => {
+      renderControls({
+        ...selfServiceProps,
+        controls: [
+          control({ profile_uuid: "f", name: "Failed", status: "failed" }),
+          notInstalled,
+        ],
+      });
+      expect(rowStatuses()).toEqual(["---", "Failed"]);
+    });
+
+    it("installs without opening the details modal", async () => {
+      const installRequest = jest.fn(() => Promise.resolve());
+      const { user } = renderControls({
+        ...selfServiceProps,
+        installRequest,
+        controls: [notInstalled],
+      });
+      await user.click(screen.getByRole("button", { name: "Install" }));
+      expect(installRequest).toHaveBeenCalledWith("ss-1");
+      expect(
+        screen.queryByRole("button", { name: "Close" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("flips Install to a disabled Resend until the host reports a new status", async () => {
+      const onProfileResent = jest.fn();
+      const { user } = renderControls({
+        ...selfServiceProps,
+        onProfileResent,
+        controls: [notInstalled],
+      });
+      await user.click(screen.getByRole("button", { name: "Install" }));
+      await waitFor(() => expect(onProfileResent).toHaveBeenCalled());
+      // The refetch comes back before the reconciler has run.
+      expect(screen.getByRole("button", { name: "Resend" })).toBeDisabled();
+      expect(
+        screen.queryByRole("button", { name: "Install" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("keeps Uninstall disabled until the host reports a new status", async () => {
+      const onProfileResent = jest.fn();
+      const props = { ...selfServiceProps, onProfileResent };
+      const { user, rerender } = renderControls({
+        ...props,
+        controls: [installed],
+      });
+      await user.click(screen.getByRole("button", { name: "Uninstall" }));
+      await user.click(screen.getByRole("checkbox"));
+      await user.click(
+        screen
+          .getAllByRole("button", { name: "Uninstall" })
+          .pop() as HTMLElement
+      );
+      await waitFor(() => expect(onProfileResent).toHaveBeenCalled());
+      expect(screen.getByRole("button", { name: "Uninstall" })).toBeDisabled();
+
+      rerender(
+        <Controls
+          hostDisplayName="Anna's MacBook Pro"
+          canResendProfiles
+          resendRequest={jest.fn()}
+          router={createMockRouter()}
+          {...props}
+          controls={[{ ...installed, status: "failed" }]}
+        />
+      );
+      expect(screen.getByRole("button", { name: "Uninstall" })).toBeEnabled();
+    });
+
+    it.each([true, false])(
+      "requires the checkbox before uninstalling (isDeviceUser: %s)",
+      async (isDeviceUser) => {
+        const uninstallRequest = jest.fn(() => Promise.resolve());
+        const { user } = renderControls({
+          ...selfServiceProps,
+          uninstallRequest,
+          isDeviceUser,
+          controls: [installed],
+        });
+        await user.click(screen.getByRole("button", { name: "Uninstall" }));
+        expect(
+          screen.getByText("Uninstall configuration profile")
+        ).toBeInTheDocument();
+        // The row button stays behind the modal; the modal's is last.
+        const confirm = screen
+          .getAllByRole("button", { name: "Uninstall" })
+          .pop();
+        expect(confirm).toBeDisabled();
+        await user.click(screen.getByRole("checkbox"));
+        await user.click(confirm as HTMLElement);
+        expect(uninstallRequest).toHaveBeenCalledWith("ss-2");
+      }
+    );
+
+    it("shows Resend and Uninstall once installed", () => {
+      renderControls({ ...selfServiceProps, controls: [installed] });
+      expect(screen.getByRole("button", { name: "Resend" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Uninstall" })).toBeEnabled();
+    });
+
+    it("shows only a disabled Resend while the install is pending", () => {
+      renderControls({
+        ...selfServiceProps,
+        controls: [{ ...installed, status: "pending" }],
+      });
+      expect(screen.getByRole("button", { name: "Resend" })).toBeDisabled();
+      expect(
+        screen.queryByRole("button", { name: "Install" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Uninstall" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("disables Uninstall while removing enforcement", () => {
+      renderControls({
+        ...selfServiceProps,
+        controls: [
+          { ...installed, status: "pending", operation_type: "remove" },
+        ],
+      });
+      expect(screen.getByRole("button", { name: "Uninstall" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Resend" })).toBeDisabled();
+    });
+
+    it("has no search box on My device", () => {
+      renderControls({
+        ...selfServiceProps,
+        isDeviceUser: true,
+        controls: [installed],
+      });
+      expect(
+        screen.queryByPlaceholderText("Search by name")
+      ).not.toBeInTheDocument();
+    });
+
+    it("only flags hidden profiles with an icon on Host details", async () => {
+      const hiddenRow = { ...installed, hidden: true };
+      renderControls({ ...selfServiceProps, controls: [hiddenRow] });
+      expect(screen.getByTestId("eye-slash-icon")).toBeInTheDocument();
+    });
+
+    it("doesn't flag hidden profiles on My device", async () => {
+      const { user } = renderControls({
+        ...selfServiceProps,
+        isDeviceUser: true,
+        isPremiumTier: true,
+        controls: [{ ...installed, hidden: true }],
+      });
+      await user.click(
+        screen.getByRole("switch", { name: "Show hidden profiles" })
+      );
+      expect(screen.queryByTestId("eye-slash-icon")).not.toBeInTheDocument();
+    });
+
+    it("shows the hidden profiles tooltip on the My device toggle", async () => {
+      const { user } = renderControls({
+        ...selfServiceProps,
+        isDeviceUser: true,
+        isPremiumTier: true,
+        controls: [installed],
+      });
+      await user.hover(screen.getByText("Show hidden profiles"));
+      expect(
+        await screen.findByText(
+          /These include automatically installed profiles that don't require action from you/
+        )
+      ).toBeInTheDocument();
+    });
+
+    it("hides Install and Uninstall without permission", () => {
+      renderControls({
+        ...selfServiceProps,
+        canManageSelfServiceProfiles: false,
+        controls: [notInstalled, installed],
+      });
+      expect(
+        screen.queryByRole("button", { name: "Install" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Uninstall" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides hidden profiles on My device until toggled on", async () => {
+      const { user } = renderControls({
+        ...selfServiceProps,
+        isDeviceUser: true,
+        isPremiumTier: true,
+        controls: [{ ...installed, hidden: true }],
+      });
+      expect(screen.queryAllByText("Opted in")).toHaveLength(0);
+      await user.click(
+        screen.getByRole("switch", { name: "Show hidden profiles" })
+      );
+      expect(screen.getAllByText("Opted in").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("disables Resend with a tooltip when the user can't resend", async () => {
+    const { user } = renderControls({
+      canResendProfiles: false,
+      controls: [control({ profile_uuid: "a", status: "verified" })],
+    });
+    const resend = screen.getByRole("button", { name: "Resend" });
+    expect(resend).toBeDisabled();
+    await user.hover(resend);
+    expect(
+      await screen.findByText(
+        "You don't have permission to resend this profile."
+      )
+    ).toBeInTheDocument();
+  });
+  it("hides the hidden profile toggle on fleet free", async () => {
+    renderControls({
+      isDeviceUser: true,
+      isPremiumTier: false,
+      isMacOSHost: true,
+      controls: [control({ profile_uuid: "a", status: "verified" })],
+    });
+    expect(
+      screen.queryByRole("switch", { name: "Show hidden profiles" })
+    ).not.toBeInTheDocument();
   });
 });

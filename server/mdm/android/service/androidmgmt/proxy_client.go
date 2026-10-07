@@ -140,7 +140,11 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 	case resp.StatusCode == http.StatusNotModified:
 		return EnterprisesCreateResponse{}, fmt.Errorf("android enterprise %s was already created", req.SignupURLName)
 	case resp.StatusCode != http.StatusOK:
-		return EnterprisesCreateResponse{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		// Returned as a googleapi.Error so callers can classify it (e.g. retry on quota exceeded).
+		return EnterprisesCreateResponse{}, fmt.Errorf("creating enterprise: %w", &googleapi.Error{
+			Code:    resp.StatusCode,
+			Message: fmt.Sprintf("unexpected status code: %d", resp.StatusCode),
+		})
 	}
 
 	type proxyEnterpriseResponse struct {

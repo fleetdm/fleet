@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/csv"
@@ -11,6 +12,8 @@ import (
 	"iter"
 	"net/http"
 	"reflect"
+	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,6 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/reconcile"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -444,7 +448,7 @@ func sanitizeNonPremiumHostListOptions(isPremium bool, opt *fleet.HostListOption
 // otherwise surface as a pending wipe. The admin clicked Unenroll, not Wipe.
 func suppressAndroidBYODWipeStatus(host *fleet.Host) {
 	if host.FleetPlatform() == "android" &&
-		host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal &&
+		host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) &&
 		host.MDM.PendingAction != nil && *host.MDM.PendingAction == string(fleet.PendingActionWipe) {
 		host.MDM.DeviceStatus = new(string(fleet.DeviceStatusUnlocked))
 		host.MDM.PendingAction = new(string(fleet.PendingActionNone))
@@ -1853,7 +1857,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	// BYOD/personal enrollments never receive the device vitals fields (see
 	// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
 	// there's nothing to load.
-	isPersonalEnrollment := host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal
+	isPersonalEnrollment := host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus)
 	if fleet.IsAppleMobilePlatform(host.Platform) && !isPersonalEnrollment {
 		if err := svc.ds.LoadHostMDMAppleDeviceVitals(ctx, host); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load host mdm apple device vitals")
@@ -1933,12 +1937,15 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	// Calculate the number of failing policies for the host based on the returned policies to
 	// avoid discrepancies due to read replica delay.
-	var failingPolicies, failingUnhiddenPolicies uint64
+	var failingPolicies, failingUnhiddenPolicies, hiddenPolicies uint64
 	if policies != nil {
 		visible := make([]*fleet.HostPolicy, 0, len(*policies))
 		for _, p := range *policies {
 			if p == nil {
 				continue
+			}
+			if p.Hidden {
+				hiddenPolicies++
 			}
 			if p.Response == "fail" {
 				failingPolicies++
@@ -1955,6 +1962,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.HostIssues.FailingPoliciesCount = failingPolicies
 	if license.IsPremium(ctx) {
 		host.HostIssues.FailingUnhiddenPoliciesCount = &failingUnhiddenPolicies
+		host.HostIssues.HiddenPoliciesCount = &hiddenPolicies
 	}
 
 	// If Fleet MDM is enabled and configured, we want to include MDM profiles,
@@ -2122,9 +2130,21 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				for _, p := range profs {
 					if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
 						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+						p.OperationType = host.MDM.ProfileOperationFromDiskEncryptionState(p.OperationType)
 					}
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
 					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
+				}
+
+				// Appended after the OS settings summary above so not-yet-installed opt-in profiles don't count as pending.
+				if host.Platform == "darwin" && license.IsPremium(ctx) {
+					available, err := svc.availableSelfServiceAppleProfiles(ctx, host, profs)
+					if err != nil {
+						return nil, err
+					}
+					for _, p := range available {
+						profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
+					}
 				}
 
 				// Nano details were read above the outer MDM guard; reuse the
@@ -2199,7 +2219,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	if fleet.IsApplePlatform(host.Platform) &&
 		host.MDM.EnrollmentStatus != nil &&
 		(*host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusManual ||
-			*host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal) {
+			fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus)) {
 		perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")
@@ -3041,8 +3061,9 @@ func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, err
 	// self-service tab. Same URL as the Web Clip profile in
 	// docs/solutions/ios-ipados.
 	if host.Platform == "ios" || host.Platform == "ipados" {
+		// Hosts assigned in Apple Business but not yet enrolled have no UUID.
 		if host.UUID == "" {
-			return "", ctxerr.New(ctx, "host has no UUID to build a device URL from")
+			return "", &fleet.BadRequestError{Message: fleet.MyDeviceURLNotEnrolledMessage}
 		}
 		ac, err := svc.ds.AppConfig(ctx)
 		if err != nil {
@@ -3733,7 +3754,7 @@ func (svc *Service) OSVersions(
 		return nil, count, nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
 	}
 
-	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" {
+	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" && opts.OrderKey != "version" {
 		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
 	}
 
@@ -3778,12 +3799,59 @@ func (svc *Service) OSVersions(
 		return nil, count, nil, err
 	}
 
-	// Sort by hosts_count (default: desc to match previous behavior)
-	if opts.OrderKey == "hosts_count" && opts.OrderDirection == fleet.OrderAscending {
-		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
-			return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
+	// Sort by version or hosts_count (default: hosts_count desc, to match previous behavior)
+	switch opts.OrderKey {
+	case "version":
+		// Comparing versions across different platforms isn't meaningful
+		// (e.g. macOS "26.6" vs. Windows "22H1" don't share a version
+		// scheme), so group by platform first — the platform with the most
+		// hosts leads — and only order by version within each platform
+		// group. The direction toggle only flips the within-group version
+		// order; platform group order is always most-hosts-first.
+		//
+		// compareOSVersions ties on versions it can't parse (e.g. two Arch
+		// Linux "rolling" rows) and on genuinely equal versions, and two
+		// platforms can tie on host total too, so OSVersionID (unique per
+		// NameOnly/Version combination) is the final tiebreaker to keep
+		// results deterministic across identical requests. sort.Slice is
+		// unstable, which would otherwise let pagination return duplicate or
+		// missing rows across requests within a tied group.
+		platformHostTotals := make(map[string]int)
+		for _, v := range osVersions.OSVersions {
+			platformHostTotals[v.Platform] += v.HostsCount
+		}
+		versionAscending := opts.OrderDirection == fleet.OrderAscending
+
+		sort.SliceStable(osVersions.OSVersions, func(i, j int) bool {
+			a, b := osVersions.OSVersions[i], osVersions.OSVersions[j]
+
+			if a.Platform != b.Platform {
+				if platformHostTotals[a.Platform] != platformHostTotals[b.Platform] {
+					return platformHostTotals[a.Platform] > platformHostTotals[b.Platform]
+				}
+				return a.Platform < b.Platform
+			}
+
+			if c := compareOSVersions(a.Version, b.Version); c != 0 {
+				if versionAscending {
+					return c < 0
+				}
+				return c > 0
+			}
+			return a.OSVersionID < b.OSVersionID
 		})
-	} else {
+	case "hosts_count":
+		if opts.OrderDirection == fleet.OrderAscending {
+			sort.Slice(osVersions.OSVersions, func(i, j int) bool {
+				return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
+			})
+		} else {
+			sort.Slice(osVersions.OSVersions, func(i, j int) bool {
+				return osVersions.OSVersions[i].HostsCount > osVersions.OSVersions[j].HostsCount
+			})
+		}
+	default:
+		// No order key specified: default to hosts_count descending.
 		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
 			return osVersions.OSVersions[i].HostsCount > osVersions.OSVersions[j].HostsCount
 		})
@@ -3838,6 +3906,97 @@ func (svc *Service) OSVersions(
 		CountsUpdatedAt: osVersions.CountsUpdatedAt,
 		OSVersions:      paged,
 	}, count, meta, nil
+}
+
+var numericVersionPattern = regexp.MustCompile(`^\d+(\.\d+)*$`)
+var windowsFeatureUpdatePattern = regexp.MustCompile(`^(\d{2})H([12])$`)
+var ubuntuLTSSuffixPattern = regexp.MustCompile(`(?i)\s+LTS$`)
+
+// versionSegments returns the segments used to order a version string, and
+// whether it could be parsed. Handles dot-separated numeric versions (e.g.
+// "26.5.2", "10.0.26200.8875"), Windows feature-update codenames (e.g.
+// "21H2", "23H1", ordered as [year, half]) — fleet.OSVersion's Version field
+// documents both as valid ("e.g., '21H2', '20.4.0', or '12.5'") — and Ubuntu
+// LTS releases (e.g. "22.04.9 LTS"), which osquery's os_version table
+// reports with a literal " LTS" suffix that fleet.OSVersion.Version doesn't
+// document but stores verbatim (Fleet's os_version detail query is `SELECT *
+// FROM os_version`, with no Linux-specific cleanup). Other formats (e.g.
+// Arch Linux's "rolling") aren't comparable this way. Segments are kept as
+// digit strings rather than parsed to int, so a segment larger than int can
+// hold still compares correctly instead of silently overflowing.
+func versionSegments(version string) ([]string, bool) {
+	version = ubuntuLTSSuffixPattern.ReplaceAllString(version, "")
+	if numericVersionPattern.MatchString(version) {
+		return strings.Split(version, "."), true
+	}
+	if m := windowsFeatureUpdatePattern.FindStringSubmatch(version); m != nil {
+		return []string{m[1], m[2]}, true
+	}
+	return nil, false
+}
+
+// compareDigitStrings compares two non-negative integer strings of
+// arbitrary length (e.g. a version segment too large for strconv.Atoi, like
+// "9223372036854775808"). Strips leading zeros to get each string's
+// significant digit count; more significant digits means a larger number,
+// and equal-length digit strings sort correctly with a plain string compare.
+func compareDigitStrings(a, b string) int {
+	aSig := strings.TrimLeft(a, "0")
+	bSig := strings.TrimLeft(b, "0")
+	if len(aSig) != len(bSig) {
+		return cmp.Compare(len(aSig), len(bSig))
+	}
+	return cmp.Compare(aSig, bSig)
+}
+
+// compareOSVersions compares version strings by numeric segment (e.g.
+// "26.10" > "26.6", "10.0.26200.8875" > "10.0.9200.100"), for Windows
+// feature-update codenames, by year and half (e.g. "22H1" > "21H2"), and for
+// Ubuntu LTS releases, numerically after stripping the " LTS" suffix (see
+// versionSegments) — so versions sort correctly instead of as plain strings.
+// Versions that don't match any of these formats (e.g. Arch Linux's
+// "rolling") aren't comparable this way, so they sort before comparable ones.
+//
+// This only ever sees fleet.OSVersion.Version values, which are usually one
+// of the shapes versionSegments handles (other non-comparable formats like
+// Arch Linux's "rolling" fall through to the !aOK/!bOK case above), so the
+// whole string must match rather than a prefix. The frontend's
+// compareOSVersionStrings (frontend/pages/DashboardPage/cards/OperatingSystems/OSTableConfig.tsx)
+// implements the same comparison for the dashboard OS card's client-side
+// sort — kept deliberately separate from the shared
+// frontend/utilities/helpers.tsx compareVersions helper (used for messier,
+// arbitrarily-suffixed software versions like "2.26.7_1"), since OS versions
+// need codename support and only ever have the one specific, known suffix
+// (Ubuntu's " LTS") rather than arbitrary ones. Keep the segment/codename/
+// suffix comparison logic in sync between the Go and frontend implementations.
+func compareOSVersions(a, b string) int {
+	aSegments, aOK := versionSegments(a)
+	bSegments, bOK := versionSegments(b)
+
+	switch {
+	case !aOK && !bOK:
+		return 0
+	case !aOK:
+		return -1
+	case !bOK:
+		return 1
+	}
+
+	maxLen := max(len(aSegments), len(bSegments))
+
+	for i := range maxLen {
+		aPart, bPart := "0", "0"
+		if i < len(aSegments) {
+			aPart = aSegments[i]
+		}
+		if i < len(bSegments) {
+			bPart = bSegments[i]
+		}
+		if c := compareDigitStrings(aPart, bPart); c != 0 {
+			return c
+		}
+	}
+	return 0
 }
 
 // filterOSVersions checks the MatchQuery and filters on the platform name.
@@ -4106,6 +4265,16 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
+	// Same rule the rotate endpoint uses, so a marker it would replace isn't
+	// reported as pending.
+	var rotationPending bool
+	if key != nil && key.RotationCommandUUID != nil {
+		rotationPending, err = svc.ds.IsHostDiskEncryptionKeyRotationInProgress(ctx, host.ID, host.UUID, *key.RotationCommandUUID,
+			fleet.DiskEncryptionKeyRotationStaleAfter)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking pending disk encryption key rotation")
+		}
+	}
 	// The archived fallback exists for macOS, where re-enrollment clears the
 	// current row while the archived FileVault key is still valid. On Linux the
 	// current row is authoritative: it only goes missing once the verify query
@@ -4145,6 +4314,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			svc.logger.InfoContext(ctx, "decrypted current host disk encryption key", "host_id", host.ID)
 			key.Decryptable = ptr.Bool(true)
 			key.DecryptedValue = decrypted
+			key.RotationPending = rotationPending
 
 			return key, nil // Return the decrypted key immediately if successful.
 		}
@@ -4170,6 +4340,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 				Decryptable:         ptr.Bool(true),
 				DecryptedValue:      decrypted,
 				UpdatedAt:           archivedKey.CreatedAt,
+				RotationPending:     rotationPending,
 			}
 		}
 	}
@@ -4919,6 +5090,36 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	return fleet.ErrMissingLicense
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Rotate Host Disk Encryption Key
+////////////////////////////////////////////////////////////////////////////////
+
+type rotateDiskEncryptionKeyRequest struct {
+	HostID uint `url:"id"`
+}
+
+type rotateDiskEncryptionKeyResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r rotateDiskEncryptionKeyResponse) Error() error { return r.Err }
+
+func rotateDiskEncryptionKeyEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*rotateDiskEncryptionKeyRequest)
+	if err := svc.RotateDiskEncryptionKey(ctx, req.HostID); err != nil {
+		return rotateDiskEncryptionKeyResponse{Err: err}, nil
+	}
+	return rotateDiskEncryptionKeyResponse{}, nil
+}
+
+func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
 // //////////////////////////////////////////////////////////////////////////////
 // Get Host Managed Account Password
 // //////////////////////////////////////////////////////////////////////////////
@@ -4978,4 +5179,54 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+// availableSelfServiceAppleProfiles returns the self-service profiles that apply to the host but are not in profs,
+// with a nil status so they read as available to install.
+func (svc *Service) availableSelfServiceAppleProfiles(ctx context.Context, host *fleet.Host, profs []fleet.HostMDMAppleProfile) ([]fleet.HostMDMAppleProfile, error) {
+	teamProfiles, err := svc.ds.ListAppleProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list apple profiles for team")
+	}
+
+	listed := make(map[string]struct{}, len(profs))
+	for _, p := range profs {
+		listed[p.ProfileUUID] = struct{}{}
+	}
+	var candidates []*fleet.AppleProfileForReconcile
+	var labelIDs []uint
+	for _, p := range teamProfiles {
+		if _, ok := listed[p.ProfileUUID]; ok || !p.SelfService {
+			continue
+		}
+		candidates = append(candidates, p)
+		for _, l := range slices.Concat(p.IncludeLabels, p.ExcludeLabels) {
+			if l.LabelID != nil {
+				labelIDs = append(labelIDs, *l.LabelID)
+			}
+		}
+	}
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	memberships, err := svc.ds.BulkGetHostLabelMemberships(ctx, []uint{host.ID}, labelIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host label memberships")
+	}
+	var out []fleet.HostMDMAppleProfile
+	for _, p := range candidates {
+		if !reconcile.EntityAppliesToHost(p, host.EffectiveTeamID(), host.LabelUpdatedAt, memberships[host.ID], false) {
+			continue
+		}
+		out = append(out, fleet.HostMDMAppleProfile{
+			ProfileUUID: p.ProfileUUID,
+			Name:        p.ProfileName,
+			Identifier:  p.ProfileIdentifier,
+			Scope:       p.Scope,
+			SelfService: true,
+			Hidden:      p.Hidden,
+		})
+	}
+	return out, nil
 }

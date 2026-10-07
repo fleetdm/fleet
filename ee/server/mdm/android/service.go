@@ -153,15 +153,21 @@ func (svc *Service) getClientAuthenticationSecret(ctx context.Context) (string, 
 	return string(assets[fleet.MDMAssetAndroidFleetServerSecret].Value), nil
 }
 
-func buildDPCExtrasResponse(token *android.ZeroTouchToken) *android.ZeroTouchConfigurationResponse {
-	dpcExtras := fmt.Sprintf(`{
-  "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
-    "com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN": %q
-  }
-}`, token.TokenValue)
+type dpcExtras struct {
+	AdminExtrasBundle adminExtrasBundle `json:"android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE"`
+}
 
+type adminExtrasBundle struct {
+	EnrollmentToken string `json:"com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN"`
+}
+
+func buildDPCExtrasResponse(token *android.ZeroTouchToken) *android.ZeroTouchConfigurationResponse {
+	raw, _ := json.Marshal(dpcExtras{
+		AdminExtrasBundle: adminExtrasBundle{
+			EnrollmentToken: token.TokenValue,
+		},
+	})
 	return &android.ZeroTouchConfigurationResponse{
-		DPCExtras: dpcExtras,
-		ExpiresAt: token.ExpiresAt.Format(time.RFC3339),
+		DPCExtras: raw,
 	}
 }

@@ -1754,6 +1754,58 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	require.WithinDuration(t, time.Now(), st.SoftwareTitle.SoftwarePackage.UploadedAt, time.Hour)
 }
 
+func (s *integrationMDMTestSuite) TestInHouseAppInstallErrorThenUpdatePackage() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+	var titleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM in_house_apps WHERE filename = 'ipa_test.ipa' AND platform = 'ios'")
+	})
+
+	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iosHost.ID, titleID), nil, http.StatusAccepted, &installResp)
+
+	var installCmdUUID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installCmdUUID, "SELECT command_uuid FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID)
+	})
+	require.NotEmpty(t, installCmdUUID)
+
+	// reply Error to the InstallApplication command, the install row should be set as failed
+	s.runWorker()
+	cmd, err := iosDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		switch cmd.Command.RequestType {
+		case "InstallApplication":
+			require.Equal(t, installCmdUUID, cmd.CommandUUID)
+			cmd, err = iosDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1407, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "The app could not be installed"}})
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+		}
+	}
+
+	var verificationFailedAt *time.Time
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &verificationFailedAt, "SELECT verification_failed_at FROM host_in_house_software_installs WHERE command_uuid = ?", installCmdUUID)
+	})
+	require.NotNil(t, verificationFailedAt)
+
+	var listResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", iosHost.ID), nil, http.StatusOK, &listResp)
+	require.Empty(t, listResp.Activities)
+
+	// update the package, the request should succeed
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, Filename: "ipa_test.ipa"}, http.StatusOK, "")
+}
+
 func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
@@ -3067,7 +3119,7 @@ func (s *integrationMDMTestSuite) TestVPPInstallRefetchManagedAppsOnlyForBYODiDe
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host, device := s.createAppleMobileHostThenEnrollMDM("ipados")
-			require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, tc.installedFromDEP, "", "", false))
+			require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, tc.installedFromDEP, "", "", fleet.PersonalEnrollmentTypeNone))
 			s.awaitRunAppleMDMWorkerSchedule()
 			s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
 			s.Do("POST", "/api/latest/fleet/hosts/transfer",

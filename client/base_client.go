@@ -164,6 +164,7 @@ func NewBaseClient(
 	fleetClientCert *tls.Certificate,
 	capabilities fleet.CapabilityMap,
 	signerWrapper func(*http.Client) *http.Client,
+	httpOpts ...fleethttp.ClientOpt,
 ) (*BaseClient, error) {
 	baseURL, err := url.Parse(addr)
 	if err != nil {
@@ -210,7 +211,8 @@ func NewBaseClient(
 		tlsConfig.RootCAs = rootCAPool
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(tlsConfig))
+	httpOpts = append([]fleethttp.ClientOpt{fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(tlsConfig)}, httpOpts...)
+	httpClient := fleethttp.NewClient(httpOpts...)
 	if signerWrapper != nil {
 		httpClient = signerWrapper(httpClient)
 	}

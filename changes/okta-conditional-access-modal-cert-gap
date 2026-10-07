@@ -1,0 +1,1 @@
+- Fixed missing spacing between the IdP signature certificate label and the download button, and the button stretching full width, on the Okta conditional access modal.

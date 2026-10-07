@@ -1054,49 +1054,9 @@ func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint, excludeUsers bo
 	return group, nil
 }
 
-// ScimGroupsExist checks if all the provided SCIM group IDs exist in the datastore.
-// If the slice is empty, it returns true. This mirrors ScimUsersExist.
-func (ds *Datastore) ScimGroupsExist(ctx context.Context, ids []uint) (bool, error) {
-	if len(ids) == 0 {
-		return true, nil
-	}
-
-	// Create a set to track which IDs we've found
-	foundIDs := make(map[uint]struct{}, len(ids))
-
-	batchSize := 10000
-	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
-		query, args, err := sqlx.In(`
-			SELECT id
-			FROM scim_groups
-			WHERE id IN (?)
-		`, batchIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "prepare scim groups exist batch query")
-		}
-
-		var foundBatchIDs []uint
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &foundBatchIDs, query, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if scim groups exist in batch")
-		}
-
-		for _, id := range foundBatchIDs {
-			foundIDs[id] = struct{}{}
-		}
-		return nil
-	})
-	if err != nil {
-		return false, err
-	}
-
-	// Verify that all requested IDs were found
-	for _, id := range ids {
-		if _, ok := foundIDs[id]; !ok {
-			return false, nil
-		}
-	}
-	return true, nil
+// ExistingScimGroupIDs returns the subset of ids that reference existing SCIM groups.
+func (ds *Datastore) ExistingScimGroupIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error) {
+	return existingScimIDs(ctx, ds.reader(ctx), "scim_groups", ids)
 }
 
 // insertScimGroupChildren inserts direct parent -> child SCIM group edges
@@ -2341,50 +2301,29 @@ func emailsRequireUpdate(currentEmails, newEmails []fleet.ScimUserEmail) bool {
 	return false
 }
 
-// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
-// If the slice is empty, it returns true
-// This method processes IDs in batches to handle large numbers of IDs efficiently
-func (ds *Datastore) ScimUsersExist(ctx context.Context, ids []uint) (bool, error) {
-	if len(ids) == 0 {
-		return true, nil
-	}
+// ExistingScimUserIDs returns the subset of ids that reference existing SCIM users.
+func (ds *Datastore) ExistingScimUserIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error) {
+	return existingScimIDs(ctx, ds.reader(ctx), "scim_users", ids)
+}
 
-	// Create a map to track which IDs we've found
-	foundIDs := make(map[uint]bool, len(ids))
-
-	batchSize := 10000
-	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
-		query, args, err := sqlx.In(`
-			SELECT id
-			FROM scim_users
-			WHERE id IN (?)
-		`, batchIDs)
+func existingScimIDs(ctx context.Context, q sqlx.QueryerContext, table string, ids []uint) (map[uint]struct{}, error) {
+	found := make(map[uint]struct{}, len(ids))
+	err := common_mysql.BatchProcessSimple(ids, 10000, func(batchIDs []uint) error {
+		query, args, err := sqlx.In(fmt.Sprintf("SELECT id FROM %s WHERE id IN (?)", table), batchIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "prepare scim users exist batch query")
+			return ctxerr.Wrap(ctx, err, "prepare existing ids query for "+table)
 		}
-
-		var foundBatchIDs []uint
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &foundBatchIDs, query, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if scim users exist in batch")
+		var batchFound []uint
+		if err := sqlx.SelectContext(ctx, q, &batchFound, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select existing ids from "+table)
 		}
-
-		// Mark found IDs
-		for _, id := range foundBatchIDs {
-			foundIDs[id] = true
+		for _, id := range batchFound {
+			found[id] = struct{}{}
 		}
 		return nil
 	})
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-
-	// Check if all IDs were found
-	for _, id := range ids {
-		if !foundIDs[id] {
-			return false, nil
-		}
-	}
-
-	return true, nil
+	return found, nil
 }

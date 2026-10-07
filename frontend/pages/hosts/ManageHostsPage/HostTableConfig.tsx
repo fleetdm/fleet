@@ -22,7 +22,7 @@ import {
   INumberCellProps,
 } from "interfaces/datatable_config";
 import { IDeviceUser, IHost } from "interfaces/host";
-import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
+import { isPersonalEnrollment } from "interfaces/mdm";
 import {
   isAndroid,
   isAppleDevice,
@@ -315,7 +315,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       // "Not supported" for them. All other hosts, including managed Android
       // devices, show the reported serial number.
       if (
-        isBYODAccountDrivenUserEnrollment(
+        isPersonalEnrollment(
           cellProps.row.original.mdm?.enrollment_status ?? null
         )
       ) {
