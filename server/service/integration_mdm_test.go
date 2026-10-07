@@ -30995,11 +30995,36 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", fleetA.ID, policy.ID), nil, http.StatusOK, &getPolicyResp)
 	require.Nil(t, getPolicyResp.Policy.InstallSoftware)
 
-	// apply the app config with the token on no fleets
+	// add the app to fleet B
+	addedApp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &fleetB.ID, Platform: fleet.MacOSPlatform, AppStoreID: "1"}, http.StatusOK, &addedApp)
+
+	// set an automation on fleet B
+	policyFleetB, err := s.ds.NewTeamPolicy(ctx, fleetB.ID, nil, fleet.PolicyPayload{
+		Name:     "policyFleetB",
+		Query:    "SELECT 1;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+	modifyResp = fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", fleetB.ID, policyFleetB.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+		},
+	}, http.StatusOK, &modifyResp)
+
+	// apply the app config with the token on no fleets, the app and the automation on fleet B should be removed
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": []} ] }
 	}`, location)), http.StatusOK, &acResp)
+
+	listSw = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(fleetB.ID), "available_for_install", "true")
+	require.Empty(t, listSw.SoftwareTitles)
+	getPolicyResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", fleetB.ID, policyFleetB.ID), nil, http.StatusOK, &getPolicyResp)
+	require.Nil(t, getPolicyResp.Policy.InstallSoftware)
 
 	// apply the app config with the token on All fleets, the token should be assigned to all fleets
 	acResp = appConfigResponse{}
