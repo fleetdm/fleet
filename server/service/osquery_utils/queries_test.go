@@ -5486,6 +5486,29 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 	}
 }
 
+func TestLinkWindowsHostMDMEnrollmentDeletedHostReturns(t *testing.T) {
+	t.Parallel()
+
+	ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{
+		ID: 7, MDMEnrollUserID: "user@example.com", DeletedHostTeamID: new(uint(0)),
+	})
+	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+		return new(uint(3)), "Default", nil
+	}
+	ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, enrollmentID uint) error {
+		assert.EqualValues(t, 7, enrollmentID)
+		return nil
+	}
+
+	updated, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
+	require.NoError(t, err)
+	require.True(t, updated)
+	require.True(t, ds.MDMWindowsClearDeletedHostTeamFuncInvoked)
+	require.True(t, ds.ReplaceHostDeviceMappingFuncInvoked)
+	// The returning host keeps the fleet it enrolled into, so the default fleet is not even looked up.
+	require.False(t, ds.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+}
+
 func TestLinkWindowsHostMDMEnrollmentReleasesUnusedInstallSecret(t *testing.T) {
 	t.Parallel()
 
