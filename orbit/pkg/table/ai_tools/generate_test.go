@@ -110,3 +110,26 @@ func TestSharedInputsComputedOnDemand(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, inputCalls{homes: 1, snaps: 1}, *c)
 }
+
+// A snapshot taken while the query was being cancelled may be partial, so it
+// isn't kept for the calls that follow.
+func TestSharedInputsDropSnapshotOfCancelledQuery(t *testing.T) {
+	c := stubSharedInputs(t, nil)
+	ctx, cancel := context.WithCancel(t.Context())
+	takeSnapshot = func(context.Context) *proc.Snapshot {
+		c.snaps++
+		cancel()
+		return proc.NewSnapshot(map[int]proc.Process{}, nil)
+	}
+
+	_, err := generate(ctx, typeConstraints(eq("sockets")))
+	require.ErrorIs(t, err, context.Canceled)
+
+	takeSnapshot = func(context.Context) *proc.Snapshot {
+		c.snaps++
+		return proc.NewSnapshot(map[int]proc.Process{}, nil)
+	}
+	_, err = generate(t.Context(), typeConstraints(eq("sockets")))
+	require.NoError(t, err)
+	require.Equal(t, 2, c.snaps, "the next query takes a fresh snapshot")
+}

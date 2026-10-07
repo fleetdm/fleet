@@ -119,7 +119,7 @@ func SHA256(path string) string {
 		if v, ok := hashCache.Load(path); ok {
 			e := v.(hashCacheEntry)
 			if e.fi.Size() == ffi.Size() && e.fi.ModTime().Equal(ffi.ModTime()) &&
-				e.ctime.Equal(changeTime(ffi)) && os.SameFile(e.fi, ffi) {
+				e.ctime.Equal(changeTime(f, ffi)) && os.SameFile(e.fi, ffi) {
 				hashCacheHits.Add(1)
 				return e.hash
 			}
@@ -134,7 +134,7 @@ func SHA256(path string) string {
 	}
 	sum := hex.EncodeToString(h.Sum(nil))
 	if cacheable {
-		hashCache.Store(path, hashCacheEntry{fi: ffi, ctime: changeTime(ffi), hash: sum})
+		hashCache.Store(path, hashCacheEntry{fi: ffi, ctime: changeTime(f, ffi), hash: sum})
 	}
 	return sum
 }
@@ -155,7 +155,7 @@ func LinkTargetWithin(dir, link string) (target string, ok bool) {
 	if err != nil {
 		return "", false
 	}
-	defer root.Close()
+	defer func() { _ = root.Close() }()
 
 	fi, err := root.Lstat(linkRel)
 	if err != nil || fi.Mode()&os.ModeSymlink == 0 {

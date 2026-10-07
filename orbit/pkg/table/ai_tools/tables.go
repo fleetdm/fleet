@@ -269,7 +269,13 @@ func (s *sharedInputs) get(ctx context.Context, needHomes, needProc, needWalks b
 		s.homes, s.haveHomes = enumerateHomes(), true
 	}
 	if needProc && s.snap == nil {
-		s.snap = takeSnapshot(ctx)
+		snap := takeSnapshot(ctx)
+		// Take stops listing processes once ctx is cancelled, so the snapshot may
+		// be partial; the calls that follow must not reuse it.
+		if err := ctx.Err(); err != nil {
+			return nil, nil, nil, err
+		}
+		s.snap = snap
 	}
 	if needWalks && s.walks == nil {
 		walks := make(map[string][]fsutil.WalkedDir, len(s.homes))

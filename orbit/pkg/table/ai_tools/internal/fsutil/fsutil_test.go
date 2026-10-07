@@ -267,11 +267,8 @@ func TestSHA256CachesUnchangedFiles(t *testing.T) {
 
 // Rewriting a cached file in place and restoring its modification time must
 // not keep the old hash. Only the kernel sets the change time, so it catches
-// the rewrite; Windows doesn't expose it through os.FileInfo.
+// the rewrite.
 func TestSHA256CacheSeesInPlaceRewrite(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("change time isn't available on Windows")
-	}
 	p := filepath.Join(t.TempDir(), "agent")
 	require.NoError(t, os.WriteFile(p, bytes.Repeat([]byte("a"), minCachedHashBytes), 0o600))
 	mtime := time.Now().Add(-time.Hour).Truncate(time.Second)
