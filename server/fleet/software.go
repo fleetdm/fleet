@@ -630,6 +630,7 @@ var softwareTypeFilterSources = map[string][]string{
 	"ie_extensions":       nil,
 	"ios_apps":            nil,
 	"ipados_apps":         nil,
+	"nix_packages":        nil,
 	"npm_packages":        nil,
 	"pacman_packages":     nil,
 	"pkg_packages":        nil,

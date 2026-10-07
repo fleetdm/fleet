@@ -1285,6 +1285,11 @@ func TestParseSoftwareTypeFilter(t *testing.T) {
 			want:   SoftwareTypeFilter{"apps": nil, "programs": nil},
 		},
 		{
+			name:   "nix packages",
+			source: "nix_packages",
+			want:   SoftwareTypeFilter{"nix_packages": nil},
+		},
+		{
 			name:         "trims spaces",
 			source:       "apps, chrome_extensions ",
 			extensionFor: " brave",

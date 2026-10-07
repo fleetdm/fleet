@@ -55,7 +55,6 @@ const searchBox = () =>
 
 describe("Software inventory table", () => {
   it("distinguishes script packages with the same title name", () => {
-    const render = createCustomRenderer({ withBackendMock: true });
     const softwareTitles = [
       createMockSoftwareTitle({
         id: 1,
@@ -71,32 +70,14 @@ describe("Software inventory table", () => {
       }),
     ];
 
-    render(
-      <SoftwareInventoryTable
-        router={mockRouter}
-        isSoftwareEnabled
-        showVersions={false}
-        data={createMockSoftwareTitlesResponse({
-          count: 2,
-          software_titles: softwareTitles,
-        })}
-        installableSoftwareExists
-        query=""
-        perPage={20}
-        orderDirection="asc"
-        orderKey="name"
-        vulnFilters={{
-          vulnerable: false,
-          exploit: false,
-          minCvssScore: undefined,
-          maxCvssScore: undefined,
-        }}
-        currentPage={0}
-        teamId={1}
-        isLoading={false}
-        onAddFiltersClick={noop}
-      />
-    );
+    renderTable({
+      data: createMockSoftwareTitlesResponse({
+        count: 2,
+        software_titles: softwareTitles,
+      }),
+      installableSoftwareExists: true,
+      orderKey: "name",
+    });
 
     expect(
       screen.getByRole("row", { name: /hello \(hello\.py\)/ })
