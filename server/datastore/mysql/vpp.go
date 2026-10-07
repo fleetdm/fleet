@@ -457,13 +457,18 @@ func (ds *Datastore) getVPPAppTeamCategoryIDs(ctx context.Context, vppAppTeamID 
 func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) (bool, error) {
 	stmt := `
 SELECT
-	adam_id, platform, self_service, install_during_setup, id, created_at added_at, name version_name,
-	update_schedule_enabled auto_update_enabled, start_time auto_update_window_start, end_time auto_update_window_end
+	vat.adam_id, vat.platform, vat.self_service, vat.install_during_setup, vat.id, vat.created_at added_at, vat.name version_name,
+	vat.update_schedule_enabled auto_update_enabled, vat.start_time auto_update_window_start, vat.end_time auto_update_window_end,
+	stdn.display_name
 FROM
-	vpp_apps_teams
+	vpp_apps_teams vat
+LEFT JOIN vpp_apps va
+	ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+LEFT JOIN software_title_display_names stdn
+	ON stdn.software_title_id = va.title_id AND stdn.team_id = vat.global_or_team_id
 WHERE
-	global_or_team_id = ?
-ORDER BY id
+	vat.global_or_team_id = ?
+ORDER BY vat.id
 `
 	var existingVersions []fleet.VPPAppTeam
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingVersions, stmt, ptr.ValOrZero(teamID))
