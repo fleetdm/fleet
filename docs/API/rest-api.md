@@ -5802,7 +5802,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
 
-`GET /api/v1/fleet/device/:token`
+`GET /api/v1/fleet/desktop/:token`
 
 > If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
@@ -5828,7 +5828,7 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
 
 ##### Example
 
-`GET /api/v1/fleet/device/abcdef012456789`
+`GET /api/v1/fleet/desktop/abcdef012456789`
 
 ##### Default response
 
@@ -6112,7 +6112,7 @@ Android hosts can't be refetched on demand because they sync data automatically 
 
 Same as [Refetch host](#refetch-host) except with the Fleet Desktop token instead the host ID.
 
-`POST /api/v1/fleet/device/:token/refetch`
+`POST /api/v1/fleet/desktop/:token/refetch`
 
 #### Parameters
 
@@ -6122,7 +6122,7 @@ Same as [Refetch host](#refetch-host) except with the Fleet Desktop token instea
 
 #### Example
 
-`POST /api/v1/fleet/device/6d3e95ca-6783-4d0d-93b8-a5ffdb207867/refetch`
+`POST /api/v1/fleet/desktop/6d3e95ca-6783-4d0d-93b8-a5ffdb207867/refetch`
 
 ##### Default response
 
@@ -6522,7 +6522,7 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
 
 Retrieves the end user url for the host's **My device** page.
 
-`GET /api/v1/fleet/hosts/:id/device_url`
+`GET /api/v1/fleet/hosts/:id/desktop_url`
 
 #### Parameters
 
@@ -6532,7 +6532,7 @@ Retrieves the end user url for the host's **My device** page.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/1/device_url`
+`GET /api/v1/fleet/hosts/1/desktop_url`
 
 ##### Default response
 
@@ -6541,7 +6541,8 @@ Retrieves the end user url for the host's **My device** page.
 ```json
 {
   "host_id": 1,
-  "device_url": "example.com/device/device_id"
+  "device_url": "example.com/device/device_id",
+  "desktop_url": "example.com/device/device_id"
 }
 ```
 
@@ -7891,7 +7892,7 @@ Note that if the host is online and the query times out, this endpoint will retu
 
 Grant a blocked host access for a single login. Requires Okta conditional access configured with bypass enabled.
 
-`POST /api/v1/fleet/device/:token/bypass_conditional_access`
+`POST /api/v1/fleet/desktop/:token/bypass_conditional_access`
 
 #### Parameters
 
@@ -7902,7 +7903,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 #### Example 
 
-`POST /api/v1/fleet/device/abcdef012456789/bypass_conditional_access`
+`POST /api/v1/fleet/desktop/abcdef012456789/bypass_conditional_access`
 
 ##### Default response 
 
@@ -9278,7 +9279,7 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 
 The "Fleetd enroll secret" profile can't be resent with this endpoint when [`mdm.windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) is enabled. It returns a `403` error, because only an admin can issue a new one-time enroll secret.
 
-`POST /api/v1/fleet/device/:token/configuration_profiles/:profile_uuid/resend`
+`POST /api/v1/fleet/desktop/:token/configuration_profiles/:profile_uuid/resend`
 
 #### Parameters
 
@@ -9289,7 +9290,7 @@ The "Fleetd enroll secret" profile can't be resent with this endpoint when [`mdm
 
 #### Example
 
-`POST /api/v1/fleet/device/abcdef012456789/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
+`POST /api/v1/fleet/desktop/abcdef012456789/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
 
 ##### Default response
 
@@ -16729,7 +16730,7 @@ Uninstalls software from a host.
 
 Install self-service software on a macOS, Windows, or Linux host. The software must have a `self_service` flag `true` to be installed.
 
-`POST /api/v1/fleet/device/:token/software/:software_title_id/install`
+`POST /api/v1/fleet/desktop/:token/software/:software_title_id/install`
 
 #### Parameters
 
@@ -16740,7 +16741,7 @@ Install self-service software on a macOS, Windows, or Linux host. The software m
 
 #### Example
 
-`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/123/install`
+`POST /api/v1/fleet/desktop/22aada07-dc73-41f2-8452-c0987543fd29/software/123/install`
 
 ##### Default response
 
