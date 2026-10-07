@@ -467,7 +467,6 @@ func (ds *Datastore) MDMWindowsReleaseEnrolledActivityClaim(ctx context.Context,
 // MDMWindowsSetEnrollmentFleetdPresent records that fleetd was seen present for the enrollment, linked to hostUUID when checked. It is
 // cleared when the enrollment is relinked or its host is deleted. Otherwise the management session can skip re-checking.
 func (ds *Datastore) MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, enrollmentID uint, hostUUID string) error {
-	// Re-checking the link and the host at write time keeps a check that raced a relink or a host deletion from restoring the flag.
 	if _, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET fleetd_present_at = NOW(6)
 		 WHERE id = ? AND fleetd_present_at IS NULL AND host_uuid = ?

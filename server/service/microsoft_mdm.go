@@ -1486,7 +1486,6 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
 	// This means that fleetd might not be installed
 	if microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID) {
-		// Once present, fleetd stays present for this enrollment (see the seen_time note below), so skip the host lookups.
 		if enrolledDevice.FleetdPresentAt != nil {
 			return true, nil
 		}
