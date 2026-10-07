@@ -1094,6 +1094,13 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn
 	// returning authz check missing instead of the more relevant error. Should be addressed as part
 	// of #4406.
 	e = authzcheck.NewMiddleware().AuthzCheck()(e)
+	// net/http only removes multipart temp files for its own *http.Request, and
+	// decoders parse the form on a copy of it.
+	opts = append(slices.Clip(opts), kithttp.ServerFinalizer(func(_ context.Context, _ int, r *http.Request) {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}))
 	return kithttp.NewServer(e, decodeFn, encodeFn, opts...)
 }
 
