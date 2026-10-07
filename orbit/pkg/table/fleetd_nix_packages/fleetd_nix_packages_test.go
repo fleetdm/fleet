@@ -128,7 +128,7 @@ func (f *fakeNix) env(t *testing.T, accounts string) env {
 		etcProfilesDir:     filepath.Join(f.root, "etc/profiles/per-user"),
 		perUserProfilesDir: filepath.Join(f.root, "nix/var/nix/profiles/per-user"),
 		passwdFile:         passwdFile,
-		nixStoreBins:       []string{bin},
+		nixStoreBin:        bin,
 		query: func(_ context.Context, _ string, flag string, paths ...string) ([]string, error) {
 			f.queries = append(f.queries, flag)
 			var out []string

@@ -67,7 +67,7 @@ type env struct {
 	etcProfilesDir     string
 	perUserProfilesDir string
 	passwdFile         string
-	nixStoreBins       []string
+	nixStoreBin        string
 	// query runs nix-store --query with the given flag over the given store paths.
 	query func(ctx context.Context, bin, flag string, paths ...string) ([]string, error)
 }
@@ -79,13 +79,10 @@ func defaultEnv() env {
 		etcProfilesDir:     "/etc/profiles/per-user",
 		perUserProfilesDir: "/nix/var/nix/profiles/per-user",
 		passwdFile:         "/etc/passwd",
-		// nix-store is not in /usr/bin on NixOS, and fleetd's PATH may not include the
-		// system profile.
-		nixStoreBins: []string{
-			"/run/current-system/sw/bin/nix-store",
-			"/nix/var/nix/profiles/default/bin/nix-store",
-		},
-		query: nixStoreQuery,
+		// Only the root-owned NixOS system profile: fleetd runs nix-store as root, and
+		// single-user Nix installs on other distributions make /nix user-writable.
+		nixStoreBin: "/run/current-system/sw/bin/nix-store",
+		query:       nixStoreQuery,
 	}
 }
 
@@ -109,8 +106,8 @@ type profile struct {
 }
 
 func (e env) generate(ctx context.Context, directOnly bool) ([]map[string]string, error) {
-	bin := e.nixStoreBin()
-	if bin == "" {
+	bin := e.nixStoreBin
+	if _, err := os.Stat(bin); err != nil {
 		return nil, nil
 	}
 
@@ -152,15 +149,6 @@ func (e env) generate(ctx context.Context, directOnly bool) ([]map[string]string
 		skip[p.packagesEnv] = true
 	}
 	return buildRows(directLabels, closure, skip), nil
-}
-
-func (e env) nixStoreBin() string {
-	for _, bin := range e.nixStoreBins {
-		if _, err := os.Stat(bin); err == nil {
-			return bin
-		}
-	}
-	return ""
 }
 
 func (e env) findProfiles() []profile {

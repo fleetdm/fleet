@@ -1302,7 +1302,7 @@ FROM packages`,
 // Outputs of one package (e.g. openssl-3.0.14 and openssl-3.0.14-bin) are one software
 // with several installed paths.
 //
-// Only NixOS is inventoried: the table also works where Nix is installed alongside another
+// Only NixOS is inventoried: the table returns no rows where Nix is installed alongside another
 // distribution's package manager, whose packages the other software queries already report.
 var softwareLinuxNix = DetailQuery{
 	Query: `

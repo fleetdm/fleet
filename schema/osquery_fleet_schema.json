@@ -12272,7 +12272,7 @@
         "description": "Comma-separated list of the profiles that directly include the package (for example, `system,user:alice,home-manager:alice`). Empty for runtime dependencies."
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). It returns no rows on hosts without Nix.",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). It returns no rows on hosts other than NixOS.",
     "evented": false,
     "url": "https://fleetdm.com/tables/fleetd_nix_packages",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/fleetd_nix_packages.yml"
