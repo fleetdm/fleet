@@ -6549,8 +6549,73 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 				) {
 					return map[string]error{}, errors.New("foo")
 				}
+				t.Cleanup(func() {
+					require.False(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked)
+					require.False(t, appleStore.RetrievePushInfoFuncInvoked)
+				})
 			},
 			expectedError: true,
+		},
+		{
+			name: "push fails for one host still marks every host",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1"}, {HostUUID: "hostUUID2"}}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+					return map[string]error{}, nil
+				}
+				var markedHosts []string
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					for _, a := range assocs {
+						markedHosts = append(markedHosts, a.HostUUID)
+					}
+					return nil
+				}
+				// hostUUID2 has no push token, so its push fails.
+				appleStore.RetrievePushInfoFunc = func(ctx context.Context, targets []string) (map[string]*mdm.Push, error) {
+					return map[string]*mdm.Push{
+						"hostUUID1": {PushMagic: "magic", Token: []byte("token"), Topic: "topic"},
+					}, nil
+				}
+				t.Cleanup(func() {
+					require.True(t, appleStore.EnqueueCommandFuncInvoked)
+					require.True(t, appleStore.RetrievePushInfoFuncInvoked)
+					require.ElementsMatch(t, []string{"hostUUID1", "hostUUID2"}, markedHosts)
+				})
+			},
+			expectedError: false,
+		},
+		{
+			name: "unusable push certificate still marks hosts in every group",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{
+						{HostUUID: "hostUUID1"},
+						{HostUUID: "hostUUID2", EnrollmentType: "User Enrollment (Device)"},
+					}, nil
+				}
+				ds.GetMDMIdPAccountsByHostUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string]*fleet.MDMIdPAccount, error) {
+					return map[string]*fleet.MDMIdPAccount{"hostUUID2": {Email: "user2@example.com"}}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+					return map[string]error{}, nil
+				}
+				var markedHosts []string
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					for _, a := range assocs {
+						markedHosts = append(markedHosts, a.HostUUID)
+					}
+					return nil
+				}
+				appleStore.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+					return nil, "", errors.New("push certificate expired")
+				}
+				t.Cleanup(func() {
+					require.ElementsMatch(t, []string{"hostUUID1", "hostUUID2"}, markedHosts)
+				})
+			},
+			expectedError: false,
 		},
 		{
 			// Hosts without an enroll reference that share the same enrollment
