@@ -310,14 +310,8 @@ const DiskEncryption = ({
     ),
   };
 
-  const ESCROW_HELP_TEXT: Record<DiskEncryptionSettingsPlatform, string> = {
-    macos:
-      "The recovery key lets you unlock the host if the end user forgets their password. Fleet escrows it automatically. Some hosts require the end user to log out and back in.",
-    windows:
-      "The recovery key lets you unlock the host if the end user forgets their password. Fleet escrows it automatically.",
-    linux:
-      "The recovery key lets you unlock the host if the end user forgets their password. Fleet escrows it after the end user enters their disk password in Fleet Desktop.",
-  };
+  const ESCROW_HELP_TEXT =
+    "The recovery key lets you unlock the host if the end user forgets their password.";
 
   const renderEnforceCheckbox = (
     platform: "macos" | "windows",
@@ -331,7 +325,7 @@ const DiskEncryption = ({
       className={`${baseClass}__checkbox`}
       labelTooltipContent={ENFORCE_CHECKBOX_TOOLTIP_CONTENT[platform]}
       labelTooltipClickable
-      helpText={platform === "windows" ? ESCROW_HELP_TEXT.windows : undefined}
+      helpText={platform === "windows" ? ESCROW_HELP_TEXT : undefined}
     >
       {platform === "windows"
         ? "Enable disk encryption and escrow recovery key"
@@ -352,7 +346,7 @@ const DiskEncryption = ({
       className={`${baseClass}__checkbox`}
       helpText={
         <>
-          {ESCROW_HELP_TEXT[platform]}
+          {ESCROW_HELP_TEXT}
           {learnMoreLink && (
             <>
               {" "}
