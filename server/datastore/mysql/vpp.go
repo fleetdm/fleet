@@ -2034,7 +2034,7 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			delArgs := []any{id}
 			if len(teams) > 0 {
 				var err error
-				stmtRemovePolicyAutomations, delArgs, err = sqlx.In(stmtRemovePolicyAutomations, id, teams)
+				stmtRemovePolicyAutomations, _, err = sqlx.In(stmtRemovePolicyAutomations, id, teams)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "building IN statement for removing old vpp team apps policy automations")
 				}
