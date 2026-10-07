@@ -67,7 +67,7 @@ const AppStoreDetailsModal = ({
           <DataSet title="Version" value={details.version_name} />
         )}
         <DataSet
-          title={isAndroidApp ? "Google Play ID" : "App Store ID"}
+          title={isAndroidApp ? "Google Play ID" : "App store ID"}
           value={details.app_store_id}
         />
         <DataSet
