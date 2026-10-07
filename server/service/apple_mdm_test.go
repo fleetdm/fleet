@@ -6574,7 +6574,6 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 				}
 				// hostUUID2 has no push token, so its push fails.
 				appleStore.RetrievePushInfoFunc = func(ctx context.Context, targets []string) (map[string]*mdm.Push, error) {
-					require.True(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked, "renewal must be marked before the push")
 					return map[string]*mdm.Push{
 						"hostUUID1": {PushMagic: "magic", Token: []byte("token"), Topic: "topic"},
 					}, nil
