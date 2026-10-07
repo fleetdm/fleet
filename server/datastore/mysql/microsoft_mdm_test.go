@@ -9022,7 +9022,7 @@ func testWindowsHostLiteByUUID(t *testing.T, ds *Datastore) {
 	_, err := ds.WindowsHostLiteByUUID(ctx, "uuid-does-not-exist")
 	require.True(t, fleet.IsNotFound(err))
 
-	// A Mac created first shares the UUID (dual boot), so the lowest id overall is not the answer.
+	// A Mac created first shares the UUID, so the lowest id overall is not the answer.
 	newHost("mac-shared", "darwin", "shared-uuid")
 	_, err = ds.WindowsHostLiteByUUID(ctx, "shared-uuid")
 	require.True(t, fleet.IsNotFound(err), "a non-Windows host must not match")
