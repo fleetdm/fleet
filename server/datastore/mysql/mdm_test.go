@@ -3532,9 +3532,11 @@ func testMDMEULA(t *testing.T, ds *Datastore) {
 	err = ds.MDMInsertEULA(ctx, eula)
 	require.NoError(t, err)
 
-	t.Run("platform is required", func(t *testing.T) {
-		err := ds.MDMInsertEULA(ctx, &fleet.MDMEULA{Token: uuid.New().String(), Name: "none.pdf", Bytes: []byte("x")})
-		require.ErrorContains(t, err, "platform is required")
+	t.Run("unsupported platform", func(t *testing.T) {
+		for _, platform := range []string{"", "window", "macos"} {
+			err := ds.MDMInsertEULA(ctx, &fleet.MDMEULA{Token: uuid.New().String(), Name: "eula.pdf", Bytes: []byte("x"), Platform: platform})
+			require.ErrorContains(t, err, "unsupported platform", platform)
+		}
 	})
 
 	t.Run("one agreement per platform, isolated by platform", func(t *testing.T) {

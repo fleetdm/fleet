@@ -2228,8 +2228,10 @@ func (ds *Datastore) MDMGetEULABytes(ctx context.Context, platform, token string
 }
 
 func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) error {
-	if eula.Platform == "" {
-		return ctxerr.New(ctx, "insert EULA: platform is required")
+	switch eula.Platform {
+	case fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows:
+	default:
+		return ctxerr.Errorf(ctx, "insert EULA: unsupported platform %q", eula.Platform)
 	}
 
 	// The unique key on platform allows one EULA per platform.
