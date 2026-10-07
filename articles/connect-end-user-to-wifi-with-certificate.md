@@ -167,23 +167,11 @@ The following steps show how to deploy DigiCert certificates.
 
 ### Step 4: Add PKCS12 configuration profile to Fleet
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with a PKCS12 payload. 
-  - For `Password`, use `$FLEET_VAR_DIGICERT_PASSWORD_{CA_NAME}`. 
-  - For `Data`, use `$FLEET_VAR_DIGICERT_DATA_{CA_NAME}`.
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with a PKCS12 payload.
 
-2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`.
-
-3. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
-
-When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
-
-### Additional DigiCert details:
-- Each DigiCert device type seat (license) can have multiple certificates only if they have the same CN and seat ID. If a new certificate has a different CN, a new DigiCert license is required.
-- If the value for any variable used in step 3 above changes, Fleet will resend the profile. This means that if you use a variable like `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` for CN or seat ID, and the variable's value changes, Fleet will get a new certificate and create a new seat in DigiCert. This will add a new DigiCert license. If you want to revoke a license in DigiCert, head to [**Trust Lifecycle Manager > Account > Seats**](https://one.digicert.com/mpki/account/seats) and remove the seat.
-- DigiCert seats aren't automatically revoked when hosts are deleted in Fleet. To revoke a license, ask the team that owns DigiCert to follow the instructions above.
-
-#### Example configuration profile
-
+<details>
+<summary>Example configuration profile</summary>
+   
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -221,6 +209,22 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
     </dict>
 </plist>
 ```
+</details>
+
+  - For `Password`, use `$FLEET_VAR_DIGICERT_PASSWORD_{CA_NAME}`. 
+  - For `Data`, use `$FLEET_VAR_DIGICERT_DATA_{CA_NAME}`.
+
+2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`.
+
+3. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
+
+When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
+### Additional DigiCert details:
+- Each DigiCert device type seat (license) can have multiple certificates only if they have the same CN and seat ID. If a new certificate has a different CN, a new DigiCert license is required.
+- If the value for any variable used in step 3 above changes, Fleet will resend the profile. This means that if you use a variable like `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` for CN or seat ID, and the variable's value changes, Fleet will get a new certificate and create a new seat in DigiCert. This will add a new DigiCert license. If you want to revoke a license in DigiCert, head to [**Trust Lifecycle Manager > Account > Seats**](https://one.digicert.com/mpki/account/seats) and remove the seat.
+- DigiCert seats aren't automatically revoked when hosts are deleted in Fleet. To revoke a license, ask the team that owns DigiCert to follow the instructions above.
+
 
 ## EJBCA
 
@@ -237,22 +241,14 @@ The following steps show how to deploy certificates from [EJBCA](https://www.ejb
 2. Select **Add CA** and then choose **EJBCA** in the dropdown.
 3. Add a **Name** for your certificate authority. Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
 4. In **URL**, enter the URL of your EJBCA REST API endpoint (e.g. "https://ejbca.example.com:8443").
-5. Enter your client certificate **password**.
 10. Select **Add CA**. Your EJBCA certificate authority (CA) should appear in your list of CAs in Fleet.
 
 ### Step 3: Add PKCS12 configuration profile to Fleet
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with a PKCS12 payload.
-  - For `Password`, use `$FLEET_VAR_EJBCA_PASSWORD_{CA_NAME}`.
-  - For `Data`, use `$FLEET_VAR_EJBCA_DATA_{CA_NAME}`.
 
-2. Replace the `{CA_NAME}` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_EJBCA_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_EJBCA_DATA_WIFI_AUTHENTICATION`.
-
-3. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
-
-When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
-
-#### Example configuration profile
+<details>
+<summary>Example configuration profile</summary>
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -291,6 +287,18 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
     </dict>
 </plist>
 ```
+   
+</details>
+
+  - For `Password`, use `$FLEET_VAR_EJBCA_PASSWORD_{CA_NAME}`.
+  - For `Data`, use `$FLEET_VAR_EJBCA_DATA_{CA_NAME}`.
+
+2. Replace the `{CA_NAME}` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_EJBCA_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_EJBCA_DATA_WIFI_AUTHENTICATION`.
+
+3. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
+
+When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
 
 ## Microsoft NDES
 
