@@ -172,7 +172,7 @@ every LocURI under them.`,
         let packageSource = listedTemplate.packageUrl || listedTemplate.repo;
         if(!downloadedPackages[packageSource]) {
           let resolvedUrl;
-          // If a template's downlaod type is url, we'll set the resolvedUrl to the template's packageUrl value.
+          // If a template's download type is url, we'll set the resolvedUrl to the template's packageUrl value.
           if(listedTemplate.downloadType === 'url'){
 
             if(!listedTemplate.packageUrl){
