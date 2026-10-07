@@ -2061,7 +2061,6 @@ This activity contains the following fields:
 - "fleet_id": ID of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
-- "configuration": The app's managed configuration at the time of deletion, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 #### Example
 
@@ -2084,8 +2083,7 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ],
-  "configuration": "<dict><key>com.slack.workspace</key><string>example.slack.com</string></dict>"
+  ]
 }
 ```
 
