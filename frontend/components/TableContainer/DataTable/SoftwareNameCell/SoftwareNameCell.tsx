@@ -6,10 +6,10 @@ import { IconNames } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import {
+  getAutoUpdateTooltip,
   getSelfServiceTooltip,
   getDisplayedSoftwareName,
 } from "pages/SoftwarePage/helpers";
-import { internationalTimeOnlyFormat } from "utilities/helpers";
 
 import LinkCell from "../LinkCell";
 import TooltipTruncatedTextCell from "../TooltipTruncatedTextCell";
@@ -44,11 +44,6 @@ const getPolicyTooltip = (count = 0) =>
   count === 1
     ? "A policy triggers install."
     : `${count} policies trigger install.`;
-
-const getAutoUpdateTooltip = (start: string, end: string) =>
-  `Auto updates between ${internationalTimeOnlyFormat(
-    start
-  )} and ${internationalTimeOnlyFormat(end)} (host local time).`;
 
 // Auto-updates are iOS/iPadOS VPP only; macOS VPP or in-house .ipa
 // schedule rows must not promote the icon.

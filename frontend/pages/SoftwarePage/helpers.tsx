@@ -219,6 +219,19 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   },
 ];
 
+/** Tooltip copy for the auto-update row icon. Shared so every surface
+ * rendering an auto-update affordance reads the same. Returns null when the
+ * window is incomplete so callers can skip rendering a tooltip at all. */
+export const getAutoUpdateTooltip = (
+  start: string,
+  end: string
+): string | null => {
+  if (!start || !end) return null;
+  return `Auto updates between ${internationalTimeOnlyFormat(
+    start
+  )} and ${internationalTimeOnlyFormat(end)} (host local time).`;
+};
+
 export const getSelfServiceTooltip = (
   isIosOrIpadosApp: boolean,
   isAndroidPlayStoreApp: boolean
@@ -226,8 +239,8 @@ export const getSelfServiceTooltip = (
   if (isAndroidPlayStoreApp) {
     return (
       <>
-        End users can install from the <strong>Play Store</strong>
-        in their work profile.
+        End users can install from the <strong>Play Store</strong> in their work
+        profile.
       </>
     );
   }
@@ -385,4 +398,24 @@ export const mergePolicies = ({
   }
 
   return Array.from(byId.values());
+};
+
+const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const MINUTES_IN_DAY = 24 * 60;
+
+/** Wrap-aware duration between two HH:MM times. `end < start` wraps to the
+ * next day (overnight window), so 23:30 to 00:15 returns 45. Returns `null`
+ * if either input isn't valid HH:MM; same-time inputs return 0. */
+export const getAutoUpdateWindowDurationMinutes = (
+  start: string,
+  end: string
+): number | null => {
+  if (!HHMM_RE.test(start) || !HHMM_RE.test(end)) return null;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  const startTotal = sh * 60 + sm;
+  const endTotal = eh * 60 + em;
+  return endTotal >= startTotal
+    ? endTotal - startTotal
+    : endTotal - startTotal + MINUTES_IN_DAY;
 };

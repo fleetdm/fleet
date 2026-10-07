@@ -60,9 +60,11 @@ const EditConfigurationModal = ({
     return validateJson(curFormData);
   };
 
-  const getInitialValue = () => {
+  const getInitialValue = (): string => {
     if (isApplePlatform) {
-      return softwareInstaller.configuration || XML_EMPTY;
+      // iOS/iPadOS config is always a string on the wire; the union includes
+      // Record for Android. Cast narrows to the apple branch.
+      return (softwareInstaller.configuration as string) || XML_EMPTY;
     }
     return JSON.stringify(softwareInstaller.configuration, null, "\t") || "{}";
   };
