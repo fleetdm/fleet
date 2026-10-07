@@ -201,16 +201,7 @@ const WelcomeHost = ({
             Your device is not communicating with Fleet.
           </p>
           <p>Join the #fleet Slack channel for help troubleshooting.</p>
-          <Button
-            variant="secondary"
-            icon="external-link"
-            iconPosition="right"
-            onClick={() =>
-              window.open(SUPPORT_LINK, "_blank", "noopener,noreferrer")
-            }
-          >
-            Get help
-          </Button>
+          <CustomLink url={SUPPORT_LINK} text="Get help" newTab />
         </div>
       </div>
     );
@@ -225,16 +216,7 @@ const WelcomeHost = ({
             No policies apply to your device.
           </p>
           <p>Join the #fleet Slack channel for help troubleshooting.</p>
-          <Button
-            variant="secondary"
-            icon="external-link"
-            iconPosition="right"
-            onClick={() =>
-              window.open(SUPPORT_LINK, "_blank", "noopener,noreferrer")
-            }
-          >
-            Get help
-          </Button>
+          <CustomLink url={SUPPORT_LINK} text="Get help" newTab />
         </div>
       </div>
     );
