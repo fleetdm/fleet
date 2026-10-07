@@ -3,8 +3,8 @@ parasails.registerPage('workshops', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    slideCount: 4,// number of unique slides in the carousel
-    position: 4,// The starting position of the carousel indicator
+    slideCount: 5,// number of unique slides in the carousel
+    position: 5,// The starting position of the carousel indicator
     animate: true,// Toggled off for the silent (no-transition) snap-back.
     sliding: false,// set to prevent clicks while the carousel is mid-transition.
   },
