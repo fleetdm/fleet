@@ -634,6 +634,22 @@ func TestEnrollOsquery(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, nodeKey)
 	require.Equal(t, []int{1}, hostCountIncrs)
+
+	// The identity cert is looked up by the derived identifier, not the raw provided one.
+	uuidCfg := config.TestConfig()
+	uuidCfg.Osquery.HostIdentifier = "uuid"
+	uuidSvc, uuidCtx := newTestServiceWithConfig(t, ds, uuidCfg, nil, lq)
+	var certLookupNames []string
+	ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+		certLookupNames = append(certLookupNames, name)
+		return nil, newNotFoundError()
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
+	_, err = uuidSvc.EnrollOsquery(uuidCtx, "valid_secret", "provided-junk", map[string]map[string]string{
+		"osquery_info": {"uuid": "derived-uuid"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"derived-uuid"}, certLookupNames)
 }
 
 func TestEnrollOsqueryCertLoadError(t *testing.T) {
