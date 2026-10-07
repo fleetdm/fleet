@@ -47,15 +47,17 @@ try {
     Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
 
     $startDate = Get-Date
+    $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName).LastRunTime
     Start-ScheduledTask -TaskName $taskName
 
     # Wait for a result rather than for the "Running" state, which a fast task can
-    # enter and leave between polls.
+    # enter and leave between polls. A task that's still queued hasn't updated
+    # LastRunTime yet.
     Start-Sleep -Seconds 2
     while ($true) {
         $info = Get-ScheduledTaskInfo -TaskName $taskName
         $state = (Get-ScheduledTask -TaskName $taskName).State
-        if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+        if ($info.LastRunTime -ne $lastRun -and $state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
             $exitCode = $info.LastTaskResult
             break
         }

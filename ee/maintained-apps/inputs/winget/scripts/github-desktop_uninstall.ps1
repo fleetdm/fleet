@@ -27,8 +27,10 @@ function Get-GitHubDesktopEntries {
             $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
             if ($key.DisplayName -ne $displayName -or $key.Publisher -ne $publisher) { continue }
 
+            # S-1-5-21 is a local or AD user and S-1-12-1 an Entra ID user. Other
+            # hives belong to service accounts and users can't write to them.
             $sid = $null
-            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+)\\') { $sid = $matches[1] }
+            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)\\') { $sid = $matches[1] }
 
             $entries += [PSCustomObject]@{
                 KeyPath = $sub.PSPath
@@ -45,7 +47,7 @@ function Get-GitHubDesktopEntries {
 function Get-SignedOutInstalls {
     foreach ($profileKey in (Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -ErrorAction SilentlyContinue)) {
         $sid = $profileKey.PSChildName
-        if ($sid -notmatch '^S-1-5-21-[\d-]+$' -or (Test-Path "Registry::HKEY_USERS\$sid")) { continue }
+        if ($sid -notmatch '^S-1-(5-21|12-1)-[\d-]+$' -or (Test-Path "Registry::HKEY_USERS\$sid")) { continue }
         $profilePath = (Get-ItemProperty $profileKey.PSPath -ErrorAction SilentlyContinue).ProfileImagePath
         if (-not $profilePath) { continue }
         $appDirs = @(Get-ChildItem -LiteralPath (Join-Path $profilePath "AppData\Local\GitHubDesktop") -Directory -Filter "app-*" -ErrorAction SilentlyContinue)
@@ -71,6 +73,21 @@ function Wait-BoundedProcess {
     return $Process.ExitCode
 }
 
+# The folder is user-writable, so delete it with Directory.Delete, which removes
+# junctions rather than following them (Remove-Item -Recurse can follow them).
+# Retry because a virus scanner or an exiting process can hold a file briefly.
+function Remove-AppDir {
+    param([string]$Path)
+
+    for ($attempt = 0; $attempt -lt 30; $attempt++) {
+        try { [System.IO.Directory]::Delete($Path, $true) } catch {}
+        if (-not (Test-Path -LiteralPath $Path)) { return $true }
+        Start-Sleep -Seconds 2
+    }
+    Write-Host "  Could not remove $Path."
+    return $false
+}
+
 function Invoke-UninstallerAsUser {
     param([string]$Sid, [string]$ExePath, [string]$Arguments)
 
@@ -86,15 +103,17 @@ function Invoke-UninstallerAsUser {
         Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
 
         $startDate = Get-Date
+        $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName).LastRunTime
         Start-ScheduledTask -TaskName $taskName
 
         # Wait for a result rather than for the "Running" state, which a fast task can
-        # enter and leave between polls.
+        # enter and leave between polls. A task that's still queued hasn't updated
+        # LastRunTime yet.
         Start-Sleep -Seconds 2
         while ($true) {
             $info = Get-ScheduledTaskInfo -TaskName $taskName
             $state = (Get-ScheduledTask -TaskName $taskName).State
-            if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+            if ($info.LastRunTime -ne $lastRun -and $state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
                 return $info.LastTaskResult
             }
             if ((New-TimeSpan -Start $startDate).TotalSeconds -gt $timeoutSeconds) {
@@ -130,20 +149,24 @@ try {
         }
         if ($arguments -notmatch '(?i)(^|\s)(-s|--silent)($|\s)') { $arguments = "$arguments -s".Trim() }
 
-        if (-not $exePath -or -not (Test-Path -LiteralPath $exePath)) {
-            Write-Host "  Uninstaller is missing; removing the leftover registration."
-            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
-            continue
-        }
-
         # The uninstall string comes from a hive the user can write to, so only act
         # on a folder that really is GitHub Desktop's.
-        $installDir = Split-Path $exePath -Parent
-        $isAppDir = (Split-Path $installDir -Leaf) -eq "GitHubDesktop"
+        $installDir = if ($exePath) { Split-Path $exePath -Parent } else { "" }
+        $isAppDir = $installDir -and (Split-Path $installDir -Leaf) -eq "GitHubDesktop"
         if ($isAppDir) {
             Get-Process -ErrorAction SilentlyContinue |
                 Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) } |
                 Stop-Process -Force -ErrorAction SilentlyContinue
+        }
+
+        if (-not $exePath -or -not (Test-Path -LiteralPath $exePath)) {
+            Write-Host "  Uninstaller is missing; removing what's left of this copy."
+            if ($isAppDir -and (Test-Path -LiteralPath $installDir) -and -not (Remove-AppDir $installDir)) {
+                if ($exitCode -eq 0) { $exitCode = 1 }
+                continue
+            }
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+            continue
         }
 
         Write-Host "  Uninstall command: $exePath $arguments"
@@ -169,7 +192,10 @@ try {
                 if ($running.Count -eq 0) { break }
                 Start-Sleep -Seconds 1
             }
-            Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+            if ((Test-Path -LiteralPath $installDir) -and -not (Remove-AppDir $installDir)) {
+                if ($exitCode -eq 0) { $exitCode = 1 }
+                continue
+            }
         }
         if (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue) {
             Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
