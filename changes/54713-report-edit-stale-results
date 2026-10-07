@@ -1,0 +1,1 @@
+- Fixed reports keeping old stored results after a SQL change (or another change that clears results) when the request ended before the old results were deleted.

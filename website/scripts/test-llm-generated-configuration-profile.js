@@ -234,6 +234,12 @@ csp cases report as not-checked either way.`
             baseModel,
             expectJson: true,
           });
+          // The same step the action runs, so a case is checked against the profile an admin would download.
+          if(testCase.profileType === 'csp' && rawResult.configurationProfile) {
+            let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: rawResult.configurationProfile });
+            rawResult.configurationProfile = withAdmxInstalls.profile;
+            rawResult.deliveryNotes = _.compact([rawResult.deliveryNotes].concat(withAdmxInstalls.deliveryNotes)).join(' ');
+          }
           return { rawResult, elapsedMs: Date.now() - startedAt };
         } catch (err) {
           return { unexpectedError: err, elapsedMs: Date.now() - startedAt };
@@ -376,7 +382,8 @@ csp cases report as not-checked either way.`
               caseDetailLines.push(`  warning ${contourWarning}`);
             }
           }
-          caseDetailLines.push(`\n${generatedProfile.profile}\n`);
+          // Each embedded ADMX template is cut down to its size: they are hundreds of KB, and the model did not write them.
+          caseDetailLines.push(`\n${generatedProfile.profile.replace(/<!\[CDATA\[(\s*(?:<\?xml[^>]*\?>\s*)?<policyDefinitions[\s\S]*?)\]\]>/g, (unusedMatch, admxText)=>{ return `<![CDATA[…ADMX template, ${Math.round(Buffer.byteLength(admxText, 'utf8') / 1024)} KB…]]>`; })}\n`);
 
           if(verbose){
             caseDetailLines.push(

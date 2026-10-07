@@ -1157,7 +1157,7 @@ Content-Type: application/octet-stream
 
 ### Delete VPP token
 
-`DELETE /api/v1/fleet/vpp_token/:id`
+`DELETE /api/v1/fleet/vpp_tokens/:id`
 
 #### Parameters
 
@@ -3259,17 +3259,19 @@ Get the results of a Fleet-maintained app or custom package install if it was pe
 `Status: 200`
 
 ```json
- {
-   "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
-   "software_title": "Falcon.app",
-   "software_title_id": 8353,
-   "software_package": "FalconSensor-6.44.pkg",
-   "host_id": 123,
-   "status": "failed_install",
-   "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
-   "pre_install_query_output": "Query returned result\nSuccess",
-   "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
- }
+{
+  "results": {
+    "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
+    "software_title": "Falcon.app",
+    "software_title_id": 8353,
+    "software_package": "FalconSensor-6.44.pkg",
+    "host_id": 123,
+    "status": "failed_install",
+    "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
+    "pre_install_query_output": "Query returned result\nSuccess",
+    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
+  }
+}
 ```
 
 ### Get device's software MDM command results
@@ -4698,7 +4700,7 @@ _Available in Fleet Premium._
 `GET /api/v1/fleet/software/batch/:request_uuid`
 
 This endpoint allows querying the status of a batch-apply software request (`POST /api/v1/fleet/software/batch`).
-Returns `"status"` field that can be one of `"processing"`, `"complete"` or `"failed"`.
+Returns `"status"` field that can be one of `"processing"`, `"completed"` or `"failed"`.
 If `"status"` is `"completed"` then the `"packages"` field contains the applied packages.
 If `"status"` is `"processing"` then the operation is ongoing and the request should be retried.
 If `"status"` is `"failed"` then the `"message"` field contains the error message.
@@ -4862,12 +4864,12 @@ The returned token is a one-time use token that expires after 10 minutes.
 | Name              | Type    | In    | Description                                                      |
 |-------------------|---------|-------|------------------------------------------------------------------|
 | software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
-| team_id           | integer | query | **Required**. The fleet ID containing the software package.      |
+| fleet_id           | integer | query | **Required**. The fleet ID containing the software package.      |
 | alt               | integer | query | **Required**. Must be specified and set to "media".              |
 
 #### Example
 
-`POST /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
+`POST /api/v1/fleet/software/titles/123/package/token?alt=media&fleet_id=2`
 
 ##### Default response
 
