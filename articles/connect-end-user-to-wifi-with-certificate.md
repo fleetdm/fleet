@@ -167,7 +167,7 @@ The following steps show how to deploy DigiCert certificates.
 
 ### Step 4: Add PKCS12 configuration profile to Fleet
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with a PKCS12 payload.
+1. Copy the example configuration profile below and save it as a `.mobileconfig` file. 
 
 <details>
 <summary>Example configuration profile</summary>
@@ -211,10 +211,10 @@ The following steps show how to deploy DigiCert certificates.
 ```
 </details>
 
-  - For `Password`, use `$FLEET_VAR_DIGICERT_PASSWORD_{CA_NAME}`. 
-  - For `Data`, use `$FLEET_VAR_DIGICERT_DATA_{CA_NAME}`.
+>  - For `Password`, use `$FLEET_VAR_DIGICERT_PASSWORD_{CA_NAME}`.
+>  - For `Data`, use `$FLEET_VAR_DIGICERT_DATA_{CA_NAME}`.
 
-2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`.
+2. In the profile, replace `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`.
 
 3. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
 
@@ -245,7 +245,7 @@ The following steps show how to deploy certificates from [EJBCA](https://www.ejb
 
 ### Step 3: Add PKCS12 configuration profile to Fleet
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with a PKCS12 payload.
+1. Copy the example configuration profile below and save it as a `.mobileconfig` file.
 
 <details>
 <summary>Example configuration profile</summary>
@@ -290,10 +290,10 @@ The following steps show how to deploy certificates from [EJBCA](https://www.ejb
    
 </details>
 
-  - For `Password`, use `$FLEET_VAR_EJBCA_PASSWORD_{CA_NAME}`.
-  - For `Data`, use `$FLEET_VAR_EJBCA_DATA_{CA_NAME}`.
+>  - For `Password`, use `$FLEET_VAR_EJBCA_PASSWORD_{CA_NAME}`.
+>  - For `Data`, use `$FLEET_VAR_EJBCA_DATA_{CA_NAME}`.
 
-2. Replace the `{CA_NAME}` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_EJBCA_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_EJBCA_DATA_WIFI_AUTHENTICATION`.
+2. In the profile, replace `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_EJBCA_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_EJBCA_DATA_WIFI_AUTHENTICATION`.
 
 3. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
 
