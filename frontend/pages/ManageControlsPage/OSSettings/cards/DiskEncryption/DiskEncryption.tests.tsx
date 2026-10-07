@@ -157,7 +157,7 @@ describe("DiskEncryption", () => {
       "windows",
       "Windows",
       [
-        "Enable disk encryption and escrow recovery key with Fleet",
+        "Enable disk encryption and escrow recovery key",
         "Require BitLocker PIN",
       ],
       ["Enable disk encryption", "Escrow recovery key with Fleet"],

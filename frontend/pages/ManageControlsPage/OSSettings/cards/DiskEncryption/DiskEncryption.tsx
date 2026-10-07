@@ -310,8 +310,14 @@ const DiskEncryption = ({
     ),
   };
 
-  const ESCROW_HELP_TEXT =
-    "Store the recovery key so you can unlock the device if the end user forgets their password.";
+  const ESCROW_HELP_TEXT: Record<DiskEncryptionSettingsPlatform, string> = {
+    macos:
+      "Fleet automatically stores the recovery key so you can unlock the device if the end user forgets their password. Some hosts require the end user to log out and back in.",
+    windows:
+      "Fleet automatically stores the recovery key so you can unlock the device if the end user forgets their password.",
+    linux:
+      "Fleet stores the recovery key so you can unlock the device if the end user forgets their password. End users are prompted to enter their disk password in Fleet Desktop.",
+  };
 
   const renderEnforceCheckbox = (
     platform: "macos" | "windows",
@@ -325,10 +331,10 @@ const DiskEncryption = ({
       className={`${baseClass}__checkbox`}
       labelTooltipContent={ENFORCE_CHECKBOX_TOOLTIP_CONTENT[platform]}
       labelTooltipClickable
-      helpText={platform === "windows" ? ESCROW_HELP_TEXT : undefined}
+      helpText={platform === "windows" ? ESCROW_HELP_TEXT.windows : undefined}
     >
       {platform === "windows"
-        ? "Enable disk encryption and escrow recovery key with Fleet"
+        ? "Enable disk encryption and escrow recovery key"
         : "Enable disk encryption"}
     </Checkbox>
   );
@@ -346,7 +352,7 @@ const DiskEncryption = ({
       className={`${baseClass}__checkbox`}
       helpText={
         <>
-          {ESCROW_HELP_TEXT}
+          {ESCROW_HELP_TEXT[platform]}
           {learnMoreLink && (
             <>
               {" "}
@@ -433,7 +439,8 @@ const DiskEncryption = ({
                 {renderEscrowCheckbox(
                   "macos",
                   "macOSEscrowEnabled",
-                  formSettings.macOSEscrowEnabled
+                  formSettings.macOSEscrowEnabled,
+                  `${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`
                 )}
               </>
             )}
