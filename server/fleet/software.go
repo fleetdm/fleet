@@ -618,6 +618,7 @@ type SoftwareTitleListResult struct {
 
 // softwareTypeFilterSources maps every source accepted by the `source` filter to the `extension_for`
 // values accepted for it.
+// IMPORTANT: When updating this, also make sure to update SOFTWARE_TYPE_VARIANTS in frontend code.
 var softwareTypeFilterSources = map[string][]string{
 	"adobe_plugins":       nil,
 	"android_apps":        nil,
