@@ -6581,7 +6581,7 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
 
 `software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
 
-On iOS, iPadOS, and Android App Store apps, `app_store_app.app_store_app_version_id` and `app_store_app.version_name` identify which admin-created version of the title was delivered to the host. Both are `null` when the title has a single version or the host hasn't received any version yet.
+On iOS, iPadOS, and Android App Store apps, `app_store_app.version_id` and `app_store_app.version_name` identify which admin-created version of the title was delivered to the host. Both are `null` when the title has a single version or the host hasn't received any version yet.
 
 #### Example
 
@@ -6638,55 +6638,6 @@ On iOS, iPadOS, and Android App Store apps, `app_store_app.app_store_app_version
         ]
       },
       "app_store_app": null
-    }
-  ],
-  "meta": {
-    "has_next_results": false,
-    "has_previous_results": false
-  }
-}
-```
-
-##### Response with App Store app (iOS, iPadOS, or Android)
-
-`Status: 200`
-
-```json
-{
-  "count": 1,
-  "software": [
-    {
-      "id": 1428,
-      "name": "Slack",
-      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/...",
-      "source": "ios_apps",
-      "extension_for": "",
-      "status": "installed",
-      "installed_versions": [
-        {
-          "version": "25.03.10.0",
-          "bundle_identifier": "com.tinyspeck.chatlyio",
-          "vulnerabilities": null,
-          "installed_paths": [],
-          "signature_information": [],
-          "last_opened_at": null
-        }
-      ],
-      "display_name": "Slack",
-      "software_package": null,
-      "app_store_app": {
-        "app_store_id": "618783545",
-        "version": "25.03.10.0",
-        "platform": "ios",
-        "self_service": false,
-        "automatic_install_policies": null,
-        "last_install": null,
-        "last_uninstall": null,
-        "package_url": null,
-        "categories": [],
-        "app_store_app_version_id": 7,
-        "version_name": "Production"
-      }
     }
   ],
   "meta": {
