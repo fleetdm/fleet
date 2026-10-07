@@ -245,6 +245,16 @@ func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *m
 			s.logger.DebugContext(r.Context, "certificate binding extension serial or UDID does not match device", "expectedSerial", m.SerialNumber, "actualSerial", data.Serial, "expectedUDID", m.UDID, "actualUDID", data.UDID)
 			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension serial or UDID does not match device"))
 		}
+	case fleet.AppleMDMCertPurposeACME:
+		if cloned.Type != mdm.Device || m.Enrollment.EnrollmentID != "" {
+			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.Device, "actual", r.Type)
+			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension purpose does not match enrollment type"))
+		}
+
+		if data.Serial == nil || *data.Serial != m.SerialNumber {
+			s.logger.DebugContext(r.Context, "certificate binding extension serial does not match device", "expectedSerial", m.SerialNumber, "actualSerial", data.Serial)
+			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension serial does not match device"))
+		}
 	default:
 		s.logger.DebugContext(r.Context, "unsupported certificate binding extension purpose", "purpose", data.Purpose)
 		return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("unsupported certificate binding extension purpose"))
