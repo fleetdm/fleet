@@ -2,3 +2,4 @@
 - Renamed software type labels for better clarity.
 - Added a "Types" filter to the Software page filters modal, moved severity filters under "Advanced", and changed the filters button to read "Filtered" instead of a filter count.
 - Added the "Types" filter to the Host details and My device software tables. macOS hosts default to "macOS app", and a "Show helpers" toggle replaces the Applications / Full inventory dropdown.
+- Updated the fleet-mcp `get_software` tool to filter by `source` on the Fleet server across hosts, and added an `extension_for` argument to narrow extensions to one browser or IDE.
