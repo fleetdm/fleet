@@ -193,6 +193,7 @@ func TestMultipartTempFilesRemovedAfterRequest(t *testing.T) {
 
 	for _, decodeErr := range []error{nil, errors.New("bad form")} {
 		var spooled int
+		var flushable bool
 		r := mux.NewRouter()
 		ce := &CommonEndpointer[testHandlerFunc]{
 			EP: nopEP{},
@@ -207,6 +208,7 @@ func TestMultipartTempFilesRemovedAfterRequest(t *testing.T) {
 				}
 			},
 			EncodeFn: func(ctx context.Context, w http.ResponseWriter, i any) error {
+				_, flushable = w.(http.Flusher)
 				w.WriteHeader(http.StatusOK)
 				return nil
 			},
@@ -241,6 +243,9 @@ func TestMultipartTempFilesRemovedAfterRequest(t *testing.T) {
 		srv.Close() // waits for the finalizer
 
 		require.Equal(t, 1, spooled, "file part should be spooled to disk")
+		if decodeErr == nil {
+			assert.True(t, flushable, "encoder must still see http.Flusher")
+		}
 		files, err := filepath.Glob(filepath.Join(tmpDir, "multipart-*"))
 		require.NoError(t, err)
 		assert.Empty(t, files, "decode error: %v", decodeErr)
