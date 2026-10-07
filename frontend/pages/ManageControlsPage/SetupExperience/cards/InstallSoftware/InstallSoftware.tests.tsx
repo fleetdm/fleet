@@ -107,9 +107,7 @@ describe("InstallSoftware", () => {
       "appends the first-added disclaimer on the %s tab when MDM is configured",
       async (platform) => {
         mockServer.use(createSetupExperienceSoftwareHandler());
-        // The default Android MDM flag is false; flip it on so the Android
-        // form actually mounts. Keep Apple MDM / ABM on so iOS and iPadOS
-        // don't fall into the "Turn on MDM" empty state.
+        // Default: Apple MDM on, Android MDM off; flip Android on so all three tabs render.
         mockServer.use(
           createGetConfigHandler({
             mdm: createMockMdmConfig({ android_enabled_and_configured: true }),

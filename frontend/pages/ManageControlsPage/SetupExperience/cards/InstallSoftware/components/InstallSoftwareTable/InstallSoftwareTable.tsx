@@ -20,9 +20,7 @@ const generateHelpText = (platform: SetupExperiencePlatform) => {
     case "ios":
     case "ipados":
     case "android":
-      // App Store app platforms support multiple admin versions; add the
-      // first-added disclaimer so admins know label targets are bypassed at
-      // setup time.
+      // Versioned platforms: disclaim that labels don't apply during setup.
       return "Software will be installed on all hosts. Currently, custom targets (labels) don't apply during setup experience, so first added version will be always installed.";
     default:
       return "Software will be installed on all hosts. Currently, custom targets (labels) don't apply during setup experience.";

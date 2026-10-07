@@ -252,9 +252,7 @@ interface IConfigurationIconWithTooltipProps {
   versionName: string;
 }
 
-// Signals that this host received a managed configuration via a specific
-// admin-defined version (e.g. "Production"). Rendered next to the install
-// icon on host-detail library/inventory views for versioned App Store apps.
+// Host-side marker: which admin version this host received.
 const ConfigurationIconWithTooltip = ({
   versionName,
 }: IConfigurationIconWithTooltipProps) => (
@@ -299,10 +297,7 @@ interface ISoftwareNameCellProps {
   autoUpdateEnabled?: boolean;
   autoUpdateWindowStart?: string;
   autoUpdateWindowEnd?: string;
-  /** Admin-provided App Store app version name delivered to this host.
-   * When set, renders a configuration icon with the version name as tooltip
-   * next to the install icon. Scoped to host-detail library/inventory views
-   * on multi-version iOS/iPadOS titles and configured Android titles. */
+  /** Admin version delivered to this host; renders the configuration icon + name tooltip. */
   deliveredVersionName?: string | null;
   /** Only used on Edit icon modal to render a preview of the chosen unsaved icon */
   previewIcon?: JSX.Element;

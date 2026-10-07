@@ -1614,9 +1614,7 @@ const TAGGED_TEMPLATES = {
       activity.type === ActivityType.InstalledSoftware;
     const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
 
-    // App Store app versions: parenthesize the admin version label after the
-    // title ("Zoom Workplace (Production)"). Only present on installed /
-    // added / edited / deleted app store app activities.
+    // Parenthesize admin version after title (e.g. "Zoom Workplace (Production)").
     const versionSuffix =
       activity.type === ActivityType.InstalledAppStoreApp && versionName
         ? ` (${versionName})`

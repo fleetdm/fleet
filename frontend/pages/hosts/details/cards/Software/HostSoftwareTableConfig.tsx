@@ -83,9 +83,7 @@ export const generateSoftwareTableHeaders = ({
           !!app_store_app && source === "android_apps";
         const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
 
-        // See HostSoftwareLibraryTableConfig for the same derivation. The
-        // Inventory tab reuses the icon so configured Android titles and
-        // multi-version iOS titles are marked here too.
+        // Same gating as HostSoftwareLibraryTableConfig.
         const deliveredVersionName =
           (isIosOrIpadosApp || isAndroidPlayStoreApp) &&
           app_store_app?.version_name
