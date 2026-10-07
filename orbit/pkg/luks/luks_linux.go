@@ -137,7 +137,7 @@ func (lr *LuksRunner) run(ctx context.Context) error {
 	log.Info().Msg("host is not snapd-managed FDE; using the passphrase escrow path")
 
 	if lr.notifier == nil {
-		return lr.reportFailure(errors.New("No supported dialog tool found"))
+		return lr.reportFailure(errors.New("No supported dialog tool found: install zenity or kdialog, then select Create key again"))
 	}
 
 	devicePath, err := lvm.FindRootDisk()

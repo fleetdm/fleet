@@ -1,0 +1,1 @@
+- Updated the Linux disk encryption key escrow error shown when neither zenity nor kdialog is installed to say which tools to install.
