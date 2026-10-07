@@ -2,18 +2,26 @@ package service
 
 import (
 	"context"
+	"crypto/x509/pkix"
+	"encoding/asn1"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 	"uuid"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/golang-jwt/jwt/v4"
 
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	nanomdm_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 )
 
 // This file contains the Apple MDM Check-in protocol service implementations.
@@ -162,4 +170,102 @@ func (s *MDMAppleGetTokenService) signMAIDToken(ctx context.Context, logger *slo
 	}
 	logger.InfoContext(ctx, "issued com.apple.maid token")
 	return signedToken, nil
+}
+
+// ============ Check-in Wrappers ============
+
+type certVerifierEnrollmentCheckinService struct {
+	nano_service.CheckinAndCommandService
+	ds          fleet.Datastore
+	nanoStorage fleet.MDMAppleStore
+	config      config.MDMConfig
+	logger      *slog.Logger
+}
+
+// newCertVerifierEnrollmentCheckinService wraps next with the certificate verifier enrollment check.
+func newCertVerifierEnrollmentCheckinService(next nano_service.CheckinAndCommandService, ds fleet.Datastore, nanoStorage fleet.MDMAppleStore, config config.MDMConfig, logger *slog.Logger) nano_service.CheckinAndCommandService {
+	return &certVerifierEnrollmentCheckinService{CheckinAndCommandService: next, ds: ds, nanoStorage: nanoStorage, config: config, logger: logger}
+}
+
+func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
+	cloned := r.Clone()
+	resolved := m.Enrollment.Resolved()
+	if resolved == nil {
+		s.logger.DebugContext(r.Context, "no resolved enrollment")
+		// let downstream handle missing resolved enrollment
+		return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("no resolved enrollment"))
+	}
+	// normalizing like certauth since r.ID is missing at this point.
+	cloned.EnrollID = &mdm.EnrollID{
+		ID:   resolved.DeviceChannelID,
+		Type: r.Type,
+	}
+	associated, err := s.nanoStorage.IsCertHashAssociated(cloned, certauth.HashCert(r.Certificate))
+	if err != nil {
+		s.logger.ErrorContext(r.Context, "failed to check if cert hash is associated", "err", err)
+		return nano_service.NewHTTPStatusError(http.StatusInternalServerError, ctxerr.Wrap(r.Context, err, "checking cert hash association"))
+	}
+
+	if associated {
+		// If the certificate hash is already associated, we can proceed, since it has a valid connection.
+		return s.CheckinAndCommandService.Authenticate(r, m)
+	}
+
+	if r.Certificate == nil {
+		s.logger.DebugContext(r.Context, "no client certificate provided")
+		// let downstream handle missing cert
+		return s.CheckinAndCommandService.Authenticate(r, m)
+	}
+
+	var bindingExtension *pkix.Extension
+	for _, ext := range r.Certificate.Extensions {
+		if ext.Id.Equal(apple_mdm.AppleMDMCertificateBindingExtensionOID) {
+			bindingExtension = &ext
+			break
+		}
+	}
+
+	if bindingExtension == nil {
+		// check if we allow static challenges if so, early return here.
+		s.logger.DebugContext(r.Context, "no certificate binding extension found")
+		if !s.config.AppleSCEPStaticChallengeEnabled {
+			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension required"))
+		}
+
+		// We allow it, so early return into authenticate handler.
+		return s.CheckinAndCommandService.Authenticate(r, m)
+	}
+
+	// ASN.1 unmarshal into a temporary variable
+	var asn1Data asn1.RawValue
+	if _, err := asn1.UnmarshalWithParams(bindingExtension.Value, &asn1Data, "utf8"); err != nil {
+		s.logger.ErrorContext(r.Context, "failed to unmarshal certificate binding extension as ASN.1", "err", err)
+		return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("invalid certificate binding extension"))
+	}
+
+	// json unmarshal into the struct
+	var data apple_mdm.AppleMDMCertificateBindingExtension
+	if err := json.Unmarshal(asn1Data.Bytes, &data); err != nil {
+		s.logger.ErrorContext(r.Context, "failed to unmarshal certificate binding extension", "err", err)
+		return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("invalid certificate binding extension"))
+	}
+
+	switch data.Purpose {
+	case fleet.AppleMDMCertPurposeADE:
+		// check the incoming type matches the purpose of ADE
+		if r.Type != mdm.Device || m.Enrollment.EnrollmentID != "" {
+			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.Device, "actual", r.Type)
+			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension purpose does not match enrollment type"))
+		}
+
+		if data.Serial == nil || *data.Serial != m.SerialNumber || data.UDID == nil || *data.UDID != m.UDID {
+			s.logger.DebugContext(r.Context, "certificate binding extension serial or UDID does not match device", "expectedSerial", m.SerialNumber, "actualSerial", data.Serial, "expectedUDID", m.UDID, "actualUDID", data.UDID)
+			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension serial or UDID does not match device"))
+		}
+	default:
+		s.logger.DebugContext(r.Context, "unsupported certificate binding extension purpose", "purpose", data.Purpose)
+		return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("unsupported certificate binding extension purpose"))
+	}
+
+	return s.CheckinAndCommandService.Authenticate(r, m)
 }
