@@ -55,6 +55,8 @@ type TestWindowsMDMClient struct {
 	jwtSigningKeyID string
 	// Entra Tenant ID to include int he JWT
 	entraTenantID string
+	// entraAudience is the aud claim of the Entra JWT. Empty uses fleetServerURL.
+	entraAudience string
 
 	username string
 	password string
@@ -109,6 +111,14 @@ func TestWindowsMDMClientWithSigningKeyAndTenantID(signingKey *rsa.PrivateKey, s
 		c.jwtSigningKey = signingKey
 		c.jwtSigningKeyID = signingKeyID
 		c.entraTenantID = tenantID
+	}
+}
+
+// TestWindowsMDMClientWithEntraAudience sets the aud claim of the Entra JWT, for when the client reaches Fleet through a URL
+// other than the server URL Fleet validates the audience against.
+func TestWindowsMDMClientWithEntraAudience(audience string) TestWindowsMDMClientOption {
+	return func(c *TestWindowsMDMClient) {
+		c.entraAudience = audience
 	}
 }
 
@@ -741,13 +751,17 @@ func (c *TestWindowsMDMClient) request(path string, reqBody []byte) (*http.Respo
 func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType string, err error) {
 	switch c.enrollmentType {
 	case fleet.WindowsMDMAutomaticEnrollmentType:
+		audience := c.fleetServerURL
+		if c.entraAudience != "" {
+			audience = c.entraAudience
+		}
 		claims := &jwt.MapClaims{
 			"upn":         c.TokenIdentifier,
 			"tid":         c.entraTenantID,
 			"unique_name": "foo_bar",
 			"scp":         "mdm_delegation",
 			"iss":         "https://sts.windows.net/" + c.entraTenantID + "/",
-			"aud":         c.fleetServerURL,
+			"aud":         audience,
 		}
 		if c.EntraDeviceID != "" {
 			(*claims)["deviceid"] = c.EntraDeviceID

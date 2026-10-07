@@ -847,7 +847,7 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		windowsHosts = append(windowsHosts, windowsEnrollmentFleetHost{UUID: info.UUID, TeamID: info.TeamID, OsqueryHostID: info.OsqueryHostID})
 	}
 	if len(touchOnly) > 0 {
-		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP WHERE host_uuid IN (?)`, touchOnly)
+		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, fleetd_present_at = NULL WHERE host_uuid IN (?)`, touchOnly)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building touch statement for windows mdm enrollments")
 		}
@@ -2312,7 +2312,8 @@ func recordDeletedWindowsHostFleetsDB(ctx context.Context, tx sqlx.ExtContext, h
 	for _, teamID := range slices.Sorted(maps.Keys(uuidsByTeam)) {
 		for uuids := range slices.Chunk(uuidsByTeam[teamID], 5000) {
 			stmt, args, err := sqlx.In(`
-				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ? WHERE host_uuid IN (?)`,
+				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ?, fleetd_present_at = NULL
+				WHERE host_uuid IN (?)`,
 				teamID, uuids)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build record of deleted windows hosts' fleets")
@@ -2354,7 +2355,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		// selectIDs is embedded rather than expanding ids into placeholders,
 		// which a large backlog could push past MySQL's placeholder limit.
 		touchEnrollments := fmt.Sprintf(`
-			UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP
+			UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, fleetd_present_at = NULL
 			WHERE host_uuid IN (SELECT uuid FROM hosts WHERE uuid <> '' AND id IN (%s))`,
 			selectIDs,
 		)

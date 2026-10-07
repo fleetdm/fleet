@@ -1486,11 +1486,15 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
 	// This means that fleetd might not be installed
 	if microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID) {
+		// Once present, fleetd stays present for this enrollment (see the seen_time note below), so skip the host lookups.
+		if enrolledDevice.FleetdPresentAt != nil {
+			return true, nil
+		}
 		var isPresent bool
 		if enrolledDevice.HostUUID != "" {
-			host, err := svc.ds.HostLiteByIdentifier(ctx, enrolledDevice.HostUUID)
+			host, err := svc.ds.WindowsHostLiteByUUID(ctx, enrolledDevice.HostUUID)
 			if err != nil && !fleet.IsNotFound(err) {
-				return false, ctxerr.Wrap(ctx, err, "get host lite by identifier")
+				return false, ctxerr.Wrap(ctx, err, "get windows host lite by uuid")
 			}
 			if host != nil {
 				orbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
@@ -1514,6 +1518,13 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 				return false, ctxerr.Wrap(ctx, err, "check one-time enroll secret used by orbit")
 			}
 			isPresent = usedByOrbit
+		}
+		if isPresent {
+			// Best effort: if this fails, the next session checks again.
+			if err := svc.ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, enrolledDevice.ID); err != nil {
+				svc.logger.ErrorContext(ctx, "windows mdm: failed to record fleetd present", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+				ctxerr.Handle(ctx, err)
+			}
 		}
 		return isPresent, nil
 	}
