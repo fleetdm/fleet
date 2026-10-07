@@ -1889,7 +1889,7 @@ None.
       "enable_end_user_authentication": false,
       "apple_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": false,
-      "manual_agent_install": false,
+      "manual_agent_install": false
     },
     "client_url": "https://instance.fleet.com",
     "apple_account_provisioning": {
@@ -2970,7 +2970,7 @@ _Available in Fleet Premium._
 | enable_end_user_authentication       | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
 | lock_end_user_info                   | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 
-> `enable_managed_local_account` and `end_user_local_account_type` are deprecated as of Fleet 4.94. It is maintained for backwards compatibility. Please use the platform based `enable_managed_local_account` and `apple_settings.end_user_local_account_type` instead.
+> `enable_managed_local_account` and `end_user_local_account_type` are deprecated as of Fleet 4.95. It is maintained for backwards compatibility. Please use the platform based `enable_managed_local_account` and `apple_settings.end_user_local_account_type` instead.
 
 <br/>
 
@@ -3081,6 +3081,7 @@ _Available in Fleet Premium._
         }
       ],
       "enable_managed_local_account": true
+    },
     "windows_settings": {
       "configuration_profiles": [
         {
@@ -16831,7 +16832,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | enable_end_user_authentication        | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 | lock_end_user_info                    | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 
-> `enable_managed_local_account` and `end_user_local_account_type` are deprecated as of Fleet 4.94. It is maintained for backwards compatibility. Please use the platform based `enable_managed_local_account` and `apple_settings.end_user_local_account_type` instead.
+> `enable_managed_local_account` and `end_user_local_account_type` are deprecated as of Fleet 4.95. It is maintained for backwards compatibility. Please use the platform based `enable_managed_local_account` and `apple_settings.end_user_local_account_type` instead.
 
 ##### Example request body
 
