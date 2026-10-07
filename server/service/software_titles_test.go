@@ -284,7 +284,7 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 	ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
 		return &fleet.VPPAppStoreApp{Name: "Bar", Configuration: appConfiguration}, nil
 	}
-	ds.GetVPPAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
+	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
 		return []*fleet.VPPAppStoreApp{{Name: "Bar", Configuration: appConfiguration}}, nil
 	}
 	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error) {

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -28,6 +30,7 @@ type SoftwareWorker struct {
 	AndroidModule    android.Service
 	Log              *slog.Logger
 	AndroidBatchSize int
+	VPPInstaller     fleet.AppleMDMVPPInstaller
 }
 
 func (v *SoftwareWorker) Name() string {
@@ -42,6 +45,8 @@ const (
 	runAndroidSetupExperienceTask           SoftwareWorkerTask = "run_android_setup_experience"
 	bulkSetAndroidAppsAvailableForHostTask  SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
 	bulkSetAndroidAppsAvailableForHostsTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_hosts"
+	resendVPPAppConfigurationTask           SoftwareWorkerTask = "resend_vpp_app_configuration"
+	resendVPPAppConfigurationBatchTask      SoftwareWorkerTask = "resend_vpp_app_configuration_batch"
 )
 
 type softwareWorkerArgs struct {
@@ -72,6 +77,13 @@ type softwareWorkerArgs struct {
 	// HostUUIDToPolicyID is a map of host UUID as key to policy ID as value
 	// for which the app to make unavailable applies.
 	HostUUIDToPolicyID map[string]string `json:"host_uuid_to_policy_id,omitempty"`
+
+	FleetID                 uint                            `json:"fleet_id,omitempty"`
+	Platform                fleet.InstallableDevicePlatform `json:"platform,omitempty"`
+	ConfigChangedAppTeamIDs []uint                          `json:"config_changed_app_team_ids,omitempty"` //nolint:apiparamcheck // "team" is from the vpp_apps_teams table, not a fleet
+	VersionLabelsChanged    bool                            `json:"version_labels_changed,omitempty"`
+	// HostIDs is empty for every host of the fleet.
+	HostIDs []uint `json:"host_ids,omitempty"`
 }
 
 func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -98,7 +110,7 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 	case makeAndroidAppAvailableTask:
 		return ctxerr.Wrapf(
 			ctx,
-			v.makeAndroidAppAvailable(ctx, args.ApplicationID, args.AppTeamID, args.EnterpriseName, args.AppConfigChanged),
+			v.makeAndroidAppAvailable(ctx, args.ApplicationID, args.AppTeamID, args.EnterpriseName, args.AppConfigChanged, args.VersionLabelsChanged),
 			"running %s task",
 			makeAndroidAppAvailableTask,
 		)
@@ -144,6 +156,12 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			args.EnterpriseName,
 		), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
 
+	case resendVPPAppConfigurationTask:
+		return ctxerr.Wrapf(ctx, v.resendVPPAppConfiguration(ctx, args), "running %s task", resendVPPAppConfigurationTask)
+
+	case resendVPPAppConfigurationBatchTask:
+		return ctxerr.Wrapf(ctx, v.resendVPPAppConfigurationBatch(ctx, args), "running %s task", resendVPPAppConfigurationBatchTask)
+
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
 
@@ -153,13 +171,10 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 // this is called when a new app is added to Fleet and when an existing app is updated
 // (either its scope of affected hosts changed due to labels conditions, or its
 // configuration changed).
-func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicationID string, appTeamID uint, enterpriseName string, appConfigChanged bool) error {
-	hosts, err := v.Datastore.GetIncludedHostUUIDMapForAppStoreApp(ctx, appTeamID)
+func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicationID string, appTeamID uint, enterpriseName string, appConfigChanged bool, versionLabelsChanged bool) error {
+	versionIDs, err := v.Datastore.GetAppStoreAppVersionIDsFromSpecificVersion(ctx, appTeamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
-	}
-	if len(hosts) == 0 {
-		return nil
+		return ctxerr.Wrap(ctx, err, "add app store app: getting versions of the app")
 	}
 
 	// Queue staggered batch jobs. The phase-2 handler handles per-host
@@ -168,11 +183,39 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 	if batchSize <= 0 {
 		batchSize = defaultAndroidBatchSize
 	}
-	batches := splitHostMap(hosts, batchSize)
-	for i, batch := range batches {
-		delay := time.Duration(i) * androidSoftwareInstallStaggerInterval
-		if err := queueMakeAndroidAppAvailableBatch(ctx, v.Datastore, applicationID, appTeamID, batch, enterpriseName, appConfigChanged, delay); err != nil {
-			return ctxerr.Wrap(ctx, err, "queue batch for make android app available")
+	queuedHosts := make(map[string]struct{})
+	var batchIndex int
+	var hosts map[string]string
+	for _, versionID := range versionIDs {
+		hosts, err = v.Datastore.GetIncludedHostUUIDMapForAppStoreApp(ctx, versionID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
+		}
+
+		// Give each host the first-added version it is in scope for, versions are ordered by id
+		versionHosts := make(map[string]string, len(hosts))
+		for hostUUID, policyID := range hosts {
+			if _, ok := queuedHosts[hostUUID]; ok {
+				continue
+			}
+			queuedHosts[hostUUID] = struct{}{}
+			versionHosts[hostUUID] = policyID
+		}
+		if len(versionHosts) == 0 {
+			continue
+		}
+		// Push the hosts of every version when the edited version's labels changed, they can move hosts between versions
+		if versionID != appTeamID && !versionLabelsChanged {
+			continue
+		}
+
+		for _, batch := range splitHostMap(versionHosts, batchSize) {
+			delay := time.Duration(batchIndex) * androidSoftwareInstallStaggerInterval
+			err = queueMakeAndroidAppAvailableBatch(ctx, v.Datastore, applicationID, versionID, batch, enterpriseName, appConfigChanged, delay)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "queue batch for make android app available")
+			}
+			batchIndex++
 		}
 	}
 
@@ -361,16 +404,23 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
 	}
 
-	appIDs, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
+	appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
 	}
 
-	if len(appIDs) == 0 {
+	if len(appsInScope) == 0 {
 		return nil
 	}
 
-	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, ptr.ValOrZero(androidHost.TeamID))
+	appIDs := make([]string, 0, len(appsInScope))
+	vppAppTeamIDs := make([]uint, 0, len(appsInScope))
+	for _, app := range appsInScope {
+		appIDs = append(appIDs, app.AdamID)
+		vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
+	}
+
+	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
@@ -424,13 +474,21 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	// the enrollment team's setup experience software, do we still run those installs?
 	// my guess is yes (because we don't _uninstall_ on team transfers, so it should be
 	// expected that the original team's software gets installed despite being transferred).
-	setupApps, err := v.Datastore.GetVPPAppsToInstallDuringSetupExperience(ctx, &hostEnrollTeamID, string(fleet.AndroidPlatform))
+	flaggedVersions, err := v.Datastore.GetVPPAppsToInstallDuringSetupExperience(ctx, &hostEnrollTeamID, string(fleet.AndroidPlatform))
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting vpp apps to install during setup experience for team %d", hostEnrollTeamID)
 	}
-	appIDs := make([]string, 0, len(setupApps))
-	for _, app := range setupApps {
+	// Install the first-added flagged version of each app, versions are ordered by id
+	var setupApps []fleet.VPPAppTeam
+	appIDs := make([]string, 0, len(flaggedVersions))
+	vppAppTeamIDs := make([]uint, 0, len(flaggedVersions))
+	for _, app := range flaggedVersions {
+		if slices.Contains(appIDs, app.AdamID) {
+			continue
+		}
+		setupApps = append(setupApps, app)
 		appIDs = append(appIDs, app.AdamID)
+		vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
 	}
 
 	if len(appIDs) > 0 {
@@ -438,7 +496,7 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 		// even if they were already applied when making the apps available for self-service.
 		// However, once installed, if the app config changes it is applied automatically by the
 		// policy change (no need to re-install).
-		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, hostEnrollTeamID)
+		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 		}
@@ -496,7 +554,18 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 		return ctxerr.Wrapf(ctx, err, "getting android host lite by uuid %s", hostUUID)
 	}
 
-	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, applicationIDs, ptr.ValOrZero(host.Host.TeamID))
+	appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, host.Host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
+	}
+	var vppAppTeamIDs []uint
+	for _, app := range appsInScope {
+		if slices.Contains(applicationIDs, app.AdamID) {
+			vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
+		}
+	}
+
+	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
@@ -638,13 +707,14 @@ func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, log
 	return nil
 }
 
-func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, appTeamID uint, enterpriseName string, appConfigChanged bool) error {
+func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, appTeamID uint, enterpriseName string, appConfigChanged bool, versionLabelsChanged bool) error {
 	args := &softwareWorkerArgs{
-		Task:             makeAndroidAppAvailableTask,
-		ApplicationID:    applicationID,
-		AppTeamID:        appTeamID,
-		EnterpriseName:   enterpriseName,
-		AppConfigChanged: appConfigChanged,
+		Task:                 makeAndroidAppAvailableTask,
+		ApplicationID:        applicationID,
+		AppTeamID:            appTeamID,
+		EnterpriseName:       enterpriseName,
+		AppConfigChanged:     appConfigChanged,
+		VersionLabelsChanged: versionLabelsChanged,
 	}
 
 	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
@@ -748,12 +818,19 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 			return ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
 		}
 
-		appIDs, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
+		appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
 		if err != nil {
 			return ctxerr.WrapWithData(ctx, err, "get android apps in scope for host", map[string]any{"host_id": hostID})
 		}
 
-		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, appIDs, teamID)
+		appIDs := make([]string, 0, len(appsInScope))
+		vppAppTeamIDs := make([]uint, 0, len(appsInScope))
+		for _, app := range appsInScope {
+			appIDs = append(appIDs, app.AdamID)
+			vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
+		}
+
+		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 		}
@@ -868,4 +945,190 @@ func splitHostMap(hosts map[string]string, batchSize int) []map[string]string {
 		batches = append(batches, batch)
 	}
 	return batches
+}
+
+func QueueMakeAndroidAppAvailableForHostsJob(ctx context.Context, ds fleet.Datastore, applicationID string, appTeamID uint, hostUUIDToPolicyID map[string]string, enterpriseName string, batchSize int) error {
+	if batchSize <= 0 {
+		batchSize = defaultAndroidBatchSize
+	}
+	for batchIndex, batch := range splitHostMap(hostUUIDToPolicyID, batchSize) {
+		delay := time.Duration(batchIndex) * androidSoftwareInstallStaggerInterval
+		err := queueMakeAndroidAppAvailableBatch(ctx, ds, applicationID, appTeamID, batch, enterpriseName, true, delay)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "queue batch for make android app available for hosts")
+		}
+	}
+	return nil
+}
+
+func QueueResendVPPAppConfigurationJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, appID fleet.VPPAppID, fleetID uint, configChangedAppTeamIDs []uint, versionLabelsChanged bool, hostIDs []uint) error {
+	args := &softwareWorkerArgs{
+		Task:                    resendVPPAppConfigurationTask,
+		ApplicationID:           appID.AdamID,
+		Platform:                appID.Platform,
+		FleetID:                 fleetID,
+		ConfigChangedAppTeamIDs: configChangedAppTeamIDs,
+		VersionLabelsChanged:    versionLabelsChanged,
+		HostIDs:                 hostIDs,
+	}
+	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queueing job")
+	}
+
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	return nil
+}
+
+func (v *SoftwareWorker) resendVPPAppConfiguration(ctx context.Context, args softwareWorkerArgs) error {
+	// This task only queues installs. Leave hosts alone when every version of the app is deleted or the host is in
+	// scope for no version, a configuration re-send never removes the app from a host.
+	app, err := v.Datastore.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, args.ApplicationID, args.Platform, &args.FleetID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get vpp app for configuration resend")
+	}
+	versions, err := v.Datastore.GetAppStoreAppVersionsByTeamAndTitleID(ctx, args.FleetID, app.TitleID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get vpp app versions for configuration resend")
+	}
+	installedVersionByHostID, err := v.Datastore.ListHostAppStoreAppInstallVersions(ctx, app.VPPAppID, args.FleetID, args.HostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list hosts with app store app installs")
+	}
+
+	installedHostIDs := slices.Collect(maps.Keys(installedVersionByHostID))
+
+	// Give each host the first version that includes it, versions are ordered by id. The batches install the version picked here.
+	hostIDsByVersionID := make(map[uint][]uint, len(versions))
+	assignedHostIDs := make(map[uint]struct{}, len(installedVersionByHostID))
+	var includedHostIDs map[uint]struct{}
+	for _, version := range versions {
+		includedHostIDs, err = v.Datastore.GetIncludedHostIDMapForVPPAppHosts(ctx, version.VPPAppsTeamsID, installedHostIDs)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get hosts in scope of vpp app version %d", version.VPPAppsTeamsID)
+		}
+		for hostID, installedVersionID := range installedVersionByHostID {
+			_, assigned := assignedHostIDs[hostID]
+			if assigned {
+				continue
+			}
+			_, included := includedHostIDs[hostID]
+			if !included {
+				continue
+			}
+			assignedHostIDs[hostID] = struct{}{}
+
+			switch {
+			// Re-send to hosts whose version's configuration changed
+			case slices.Contains(args.ConfigChangedAppTeamIDs, version.VPPAppsTeamsID):
+			// Re-send to hosts whose label scoping now gives them a different version than the one installed
+			case args.VersionLabelsChanged && !ptr.Equal(installedVersionID, &version.VPPAppsTeamsID):
+			// Re-send to hosts whose installed version was deleted and whose label scoping gives them another version
+			case len(args.ConfigChangedAppTeamIDs) == 0 && installedVersionID == nil:
+			default:
+				continue
+			}
+			hostIDsByVersionID[version.VPPAppsTeamsID] = append(hostIDsByVersionID[version.VPPAppsTeamsID], hostID)
+		}
+	}
+
+	// Queue staggered batch jobs per version so each job installs one version on a bounded number of hosts
+	var batchIndex int
+	for _, version := range versions {
+		hostIDs := hostIDsByVersionID[version.VPPAppsTeamsID]
+		slices.Sort(hostIDs)
+		for batchHostIDs := range slices.Chunk(hostIDs, defaultAndroidBatchSize) {
+			batchArgs := args
+			batchArgs.Task = resendVPPAppConfigurationBatchTask
+			batchArgs.AppTeamID = version.VPPAppsTeamsID
+			batchArgs.HostIDs = batchHostIDs
+			delay := time.Duration(batchIndex) * androidSoftwareInstallStaggerInterval
+			_, err = QueueJobWithDelay(ctx, v.Datastore, softwareWorkerJobName, &batchArgs, delay)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "queue batch for resend vpp app configuration")
+			}
+			batchIndex++
+		}
+	}
+	return nil
+}
+
+func (v *SoftwareWorker) resendVPPAppConfigurationBatch(ctx context.Context, args softwareWorkerArgs) error {
+	if v.VPPInstaller == nil {
+		// should be unreachable
+		return errors.New("VPP installer not configured")
+	}
+
+	// Skip the batch when its version was deleted after it was queued, a configuration re-send never removes the app
+	app, err := v.Datastore.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, args.ApplicationID, args.Platform, &args.FleetID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get vpp app for configuration resend")
+	}
+	vppApp, err := v.Datastore.GetVPPAppByTeamAndTitleID(ctx, &args.FleetID, app.TitleID, args.AppTeamID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
+		return ctxerr.Wrapf(ctx, err, "get vpp app version %d", args.AppTeamID)
+	}
+
+	// Skip hosts with an install of this version that hasn't activated yet, it reads the configuration when it activates.
+	// A retry of this batch skips the hosts it already queued, unless their install activated in between, which only
+	// happens when activity.fleet_initiated_release_per_minute is 0.
+	hostIDsWithUnactivatedInstall, err := v.Datastore.GetHostIDsWithUnactivatedVPPAppInstall(ctx, args.AppTeamID, args.HostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get hosts with unactivated vpp app install")
+	}
+
+	var retryHostIDs []uint
+	var host *fleet.Host
+	var token string
+	for _, hostID := range args.HostIDs {
+		_, installUnactivated := hostIDsWithUnactivatedInstall[hostID]
+		if installUnactivated {
+			continue
+		}
+		host, err = v.Datastore.Host(ctx, hostID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				continue
+			}
+			return ctxerr.Wrapf(ctx, err, "get host %d", hostID)
+		}
+		// Skip hosts that left the fleet after the batch was queued
+		if ptr.ValOrZero(host.TeamID) != args.FleetID {
+			continue
+		}
+
+		token, err = v.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
+		if err == nil {
+			_, err = v.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, fleet.HostSoftwareInstallOptions{
+				ForConfigurationResend: true,
+			})
+		}
+		if err != nil {
+			// Skip hosts that can't take the install, such as hosts without MDM or a license, and retry the batch for
+			// other failures, such as an error from Apple
+			var clientErr fleet.ErrWithIsClientError
+			if errors.As(err, &clientErr) && clientErr.IsClientError() {
+				v.Log.WarnContext(ctx, "skipping vpp app configuration resend for host", "host_id", hostID, "adam_id", app.AdamID, "err", err)
+				continue
+			}
+			v.Log.ErrorContext(ctx, "resend vpp app configuration", "host_id", hostID, "adam_id", app.AdamID, "err", err)
+			retryHostIDs = append(retryHostIDs, hostID)
+		}
+	}
+	if len(retryHostIDs) > 0 {
+		return ctxerr.Errorf(ctx, "resend vpp app configuration failed for hosts %v", retryHostIDs)
+	}
+	return nil
 }

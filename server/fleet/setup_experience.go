@@ -48,6 +48,7 @@ type SetupExperienceStatusResult struct {
 	VPPAppTeamID                    *uint                             `db:"vpp_app_team_id" json:"-" `
 	VPPAppAdamID                    *string                           `db:"vpp_app_adam_id" json:"-"`
 	VPPAppPlatform                  *string                           `db:"vpp_app_platform" json:"-"`
+	VPPAppVersionName               *string                           `db:"vpp_app_version_name" json:"-"`
 	NanoCommandUUID                 *string                           `db:"nano_command_uuid" json:"-" `
 	InHouseAppID                    *uint                             `db:"in_house_app_id" json:"-"`
 	SetupExperienceScriptID         *uint                             `db:"setup_experience_script_id" json:"-" `

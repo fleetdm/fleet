@@ -61,7 +61,7 @@ type VPPAppTeam struct {
 	// automatically created when a VPP app is added to Fleet. This field should be set after VPP
 	// app creation if AddAutoInstallPolicy is true.
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
-	DisplayName                 *string `json:"display_name"`
+	DisplayName                 *string `db:"display_name" json:"display_name"`
 	// Configuration is the managed app configuration payload.
 	// JSON for Android, XML for iOS / iPadOS.
 	Configuration       []byte  `json:"configuration,omitempty"`
@@ -402,4 +402,14 @@ type VPPInstallReleaseInfo struct {
 type DuplicateStringGroup struct {
 	// Indices in the provided input slice
 	Indices []int
+}
+
+// HostAppStoreAppVersion is the App Store app version a host gets for a software title: the first-added version
+// the host is in label scope for, or the first-added version with InScope false when the host is in scope for none.
+type HostAppStoreAppVersion struct {
+	VPPAppTeamID uint   `db:"id"`
+	AdamID       string `db:"adam_id"`
+	TitleID      uint   `db:"title_id"`
+	Name         string `db:"name"`
+	InScope      bool   `db:"in_scope"`
 }

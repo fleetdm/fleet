@@ -390,6 +390,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 					Status:              string(fleet.SoftwareInstallFailed),
 					HostPlatform:        host.Platform,
 					FromSetupExperience: true,
+					VersionName:         ptr.ValOrZero(sw.VPPAppVersionName),
 				}
 				if actErr := svc.NewActivity(ctx, nil, failActivity); actErr != nil {
 					svc.logger.WarnContext(ctx, "failed to create activity for VPP app install failure during setup experience", "err", actErr)

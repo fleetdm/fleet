@@ -553,8 +553,9 @@ func resendAndroidAppConfigsForCustomHostVital(ctx context.Context, tx sqlx.ExtC
 	}
 
 	// An app scoped away from this host by labels isn't available on it, so it
-	// must not be pushed. The worker's batch task takes the hosts it is given
-	// without re-checking scope, hence the check here.
+	// must not be pushed. Skip versions that aren't the host's version too, the host
+	// gets the configuration of its own version. The worker's batch task takes the
+	// hosts it is given without re-checking scope, hence the check here.
 	policyIDByAppTeam, err := androidHostPolicyIDsForApps(ctx, tx, hostID, host.GlobalOrTeamID, appTeamIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get android policy ids for app config resend")
@@ -589,8 +590,9 @@ func resendAndroidAppConfigsForCustomHostVital(ctx context.Context, tx sqlx.ExtC
 }
 
 // androidHostPolicyIDsForApps returns the host's applied Android policy ID for
-// each of the given apps it is in scope for, keyed by vpp_apps_teams row id.
-// Apps the host is out of scope for are absent. Single-host counterpart of
+// each of the given app versions that is the host's version of its app, keyed by
+// vpp_apps_teams row id. The host's version is the first-added one it is in scope
+// for, other versions are absent. Single-host counterpart of
 // getIncludedHostUUIDMapForSoftware, which answers the same question for every
 // host in one app's fleet; here the scope filter correlates to the outer
 // vat.id so every app resolves in one query rather than one query each.
@@ -603,8 +605,15 @@ func androidHostPolicyIDsForApps(ctx context.Context, tx sqlx.ExtContext, hostID
 		FROM hosts h
 		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
 		JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.id IN (?)
-		WHERE h.id = ? AND h.platform = 'android' AND EXISTS (%s)`,
-		fmt.Sprintf(labelScopedFilter, softwareTypeVPP, "vat.id"))
+		WHERE h.id = ? AND h.platform = 'android' AND EXISTS (%s)
+			AND NOT EXISTS (
+				SELECT 1 FROM vpp_apps_teams earlier_vat
+				WHERE earlier_vat.adam_id = vat.adam_id AND earlier_vat.platform = vat.platform
+					AND earlier_vat.global_or_team_id = vat.global_or_team_id AND earlier_vat.id < vat.id
+					AND EXISTS (%s)
+			)`,
+		fmt.Sprintf(labelScopedFilter, softwareTypeVPP, "vat.id"),
+		fmt.Sprintf(labelScopedFilter, softwareTypeVPP, "earlier_vat.id"))
 
 	stmt, args, err := sqlx.In(stmt, globalOrTeamID, appTeamIDs, hostID)
 	if err != nil {

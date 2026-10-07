@@ -4419,182 +4419,30 @@ func filterSoftwareInstallersByLabel(
 }
 
 func filterVPPAppsByLabel(
-	ds *Datastore,
-	ctx context.Context,
-	host *fleet.Host,
 	byVppAppID map[string]*hostSoftware,
 	hostVPPInstalledTitles map[uint]*hostSoftware,
-) (map[string]*hostSoftware, map[string]*hostSoftware, error) {
+	hostVPPAppVersionByTitleID map[uint]*fleet.HostAppStoreAppVersion,
+) (map[string]*hostSoftware, map[string]*hostSoftware) {
 	filteredbyVppAppID := make(map[string]*hostSoftware, len(byVppAppID))
 	otherVppAppsInInventory := make(map[string]*hostSoftware, len(hostVPPInstalledTitles))
-	// This is the list of VPP apps that are installed on the host by fleet or the user
-	// that we want to check are in scope or not
-	vppAppIDsToCheck := make([]string, 0, len(byVppAppID))
 
-	for _, st := range byVppAppID {
-		vppAppIDsToCheck = append(vppAppIDsToCheck, *st.VPPAppAdamID)
-	}
-	for _, st := range hostVPPInstalledTitles {
-		if st.VPPAppAdamID != nil {
-			vppAppIDsToCheck = append(vppAppIDsToCheck, *st.VPPAppAdamID)
+	// differentiate between VPP apps that were installed by Fleet (show install details +
+	// ability to reinstall in self-service) vs. VPP apps that Fleet knows about but either
+	// weren't installed by Fleet or were installed by Fleet but are no longer in scope
+	// (treat as in inventory and not re-installable in self-service)
+	for _, validAppApp := range hostVPPAppVersionByTitleID {
+		if !validAppApp.InScope {
+			continue
+		}
+		appInScope, ok := byVppAppID[validAppApp.AdamID]
+		if ok && appInScope.ID == validAppApp.TitleID {
+			filteredbyVppAppID[validAppApp.AdamID] = appInScope
+		} else if svpp, ok := hostVPPInstalledTitles[validAppApp.TitleID]; ok {
+			otherVppAppsInInventory[validAppApp.AdamID] = svpp
 		}
 	}
 
-	if len(vppAppIDsToCheck) > 0 {
-		var globalOrTeamID uint
-		if host.TeamID != nil {
-			globalOrTeamID = *host.TeamID
-		}
-
-		labelSqlFilter := `
-			WITH no_labels AS (
-				SELECT
-					vpp_apps_teams.id AS team_id,
-					0 AS count_installer_labels,
-					0 AS count_host_labels,
-					0 as count_host_updated_after_labels
-				FROM
-					vpp_apps_teams
-				WHERE NOT EXISTS (
-					SELECT 1
-					FROM vpp_app_team_labels
-					WHERE vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
-				)
-			),
-			include_any AS (
-				SELECT
-					vpp_apps_teams.id AS team_id,
-					COUNT(vpp_app_team_labels.label_id) AS count_installer_labels,
-					COUNT(label_membership.label_id) AS count_host_labels,
-					0 as count_host_updated_after_labels
-				FROM
-					vpp_apps_teams
-				INNER JOIN vpp_app_team_labels
-					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
-						AND vpp_app_team_labels.exclude = 0
-						AND vpp_app_team_labels.require_all = 0
-				LEFT JOIN label_membership
-					ON label_membership.label_id = vpp_app_team_labels.label_id
-					AND label_membership.host_id = :host_id
-				GROUP BY
-					vpp_apps_teams.id
-				HAVING
-					count_installer_labels > 0 AND count_host_labels > 0
-			),
-			exclude_any AS (
-				SELECT
-					vpp_apps_teams.id AS team_id,
-					COUNT(vpp_app_team_labels.label_id) AS count_installer_labels,
-					COUNT(label_membership.label_id) AS count_host_labels,
-					SUM(
-						CASE
-							WHEN labels.created_at IS NOT NULL AND (labels.label_membership_type <> 0 OR :host_label_updated_at >= labels.created_at) THEN 1
-							ELSE 0
-						END
-					) AS count_host_updated_after_labels
-				FROM
-					vpp_apps_teams
-				INNER JOIN vpp_app_team_labels
-					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
-						AND vpp_app_team_labels.exclude = 1
-						AND vpp_app_team_labels.require_all = 0
-				INNER JOIN labels
-					ON labels.id = vpp_app_team_labels.label_id
-				LEFT OUTER JOIN label_membership
-					ON label_membership.label_id = vpp_app_team_labels.label_id AND label_membership.host_id = :host_id
-				GROUP BY
-					vpp_apps_teams.id
-				HAVING
-					count_installer_labels > 0
-					AND count_installer_labels = count_host_updated_after_labels
-					AND count_host_labels = 0
-			),
-			include_all AS (
-				SELECT
-					vpp_apps_teams.id AS team_id,
-					COUNT(vpp_app_team_labels.label_id) AS count_installer_labels,
-					COUNT(label_membership.label_id) AS count_host_labels,
-					0 as count_host_updated_after_labels
-				FROM
-					vpp_apps_teams
-				INNER JOIN vpp_app_team_labels
-					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
-						AND vpp_app_team_labels.exclude = 0
-						AND vpp_app_team_labels.require_all = 1
-				LEFT JOIN label_membership
-					ON label_membership.label_id = vpp_app_team_labels.label_id
-					AND label_membership.host_id = :host_id
-				GROUP BY
-					vpp_apps_teams.id
-				HAVING
-					count_installer_labels > 0 AND count_host_labels = count_installer_labels
-			)
-			SELECT
-				vpp_apps.adam_id AS adam_id,
-				vpp_apps.title_id AS title_id
-			FROM
-				vpp_apps
-			INNER JOIN
-				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id
-					AND vpp_apps.platform = vpp_apps_teams.platform
-					AND vpp_apps_teams.global_or_team_id = :global_or_team_id
-			LEFT JOIN no_labels
-				ON no_labels.team_id = vpp_apps_teams.id
-			LEFT JOIN include_any
-				ON include_any.team_id = vpp_apps_teams.id
-			LEFT JOIN exclude_any
-				ON exclude_any.team_id = vpp_apps_teams.id
-			LEFT JOIN include_all
-				ON include_all.team_id = vpp_apps_teams.id
-			WHERE
-				vpp_apps.adam_id IN (:vpp_app_adam_ids)
-				AND (
-					no_labels.team_id IS NOT NULL
-					OR include_any.team_id IS NOT NULL
-					OR exclude_any.team_id IS NOT NULL
-					OR include_all.team_id IS NOT NULL
-				)
-		`
-
-		labelSqlFilter, args, err := sqlx.Named(labelSqlFilter, map[string]any{
-			"host_id":               host.ID,
-			"host_label_updated_at": host.LabelUpdatedAt,
-			"vpp_app_adam_ids":      vppAppIDsToCheck,
-			"global_or_team_id":     globalOrTeamID,
-		})
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "filterVppAppsByLabel building named query args")
-		}
-
-		labelSqlFilter, args, err = sqlx.In(labelSqlFilter, args...)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "filterVppAppsByLabel building in query args")
-		}
-
-		var validVppApps []struct {
-			AdamId  string `db:"adam_id"`
-			TitleId uint   `db:"title_id"`
-		}
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &validVppApps, labelSqlFilter, args...)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "filterVppAppsByLabel executing query")
-		}
-
-		// differentiate between VPP apps that were installed by Fleet (show install details +
-		// ability to reinstall in self-service) vs. VPP apps that Fleet knows about but either
-		// weren't installed by Fleet or were installed by Fleet but are no longer in scope
-		// (treat as in inventory and not re-installable in self-service)
-		for _, validAppApp := range validVppApps {
-			appInScope, ok := byVppAppID[validAppApp.AdamId]
-			if ok && appInScope.ID == validAppApp.TitleId {
-				filteredbyVppAppID[validAppApp.AdamId] = appInScope
-			} else if svpp, ok := hostVPPInstalledTitles[validAppApp.TitleId]; ok {
-				otherVppAppsInInventory[validAppApp.AdamId] = svpp
-			}
-		}
-	}
-
-	return filteredbyVppAppID, otherVppAppsInInventory, nil
+	return filteredbyVppAppID, otherVppAppsInInventory
 }
 
 func filterInHouseAppsByLabel(
@@ -4800,7 +4648,13 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				INNER JOIN
 						vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
 				LEFT JOIN
-					vpp_apps_teams vat ON vaua.adam_id = vat.adam_id AND vaua.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+					-- use the install's version when it's on the host's fleet, else the first-added version there, such as for installs of a deleted version or from another fleet
+					vpp_apps_teams vat ON vat.id = (
+						SELECT vat_fleet.id FROM vpp_apps_teams vat_fleet
+						WHERE vat_fleet.adam_id = vaua.adam_id AND vat_fleet.platform = vaua.platform AND vat_fleet.global_or_team_id = :global_or_team_id
+						ORDER BY vat_fleet.id <=> vaua.vpp_app_team_id DESC, vat_fleet.id
+						LIMIT 1
+					)
 				INNER JOIN
 					vpp_apps ON vaua.adam_id = vpp_apps.adam_id AND vaua.platform = vpp_apps.platform
 				WHERE
@@ -4835,7 +4689,13 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 			LEFT JOIN
 				nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 			INNER JOIN
-				vpp_apps_teams vat ON hvsi.adam_id = vat.adam_id AND hvsi.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+				-- use the install's version when it's on the host's fleet, else the first-added version there, such as for installs of a deleted version or from another fleet
+				vpp_apps_teams vat ON vat.id = (
+					SELECT vat_fleet.id FROM vpp_apps_teams vat_fleet
+					WHERE vat_fleet.adam_id = hvsi.adam_id AND vat_fleet.platform = hvsi.platform AND vat_fleet.global_or_team_id = :global_or_team_id
+					ORDER BY vat_fleet.id <=> hvsi.vpp_app_team_id DESC, vat_fleet.id
+					LIMIT 1
+				)
 			INNER JOIN
 				vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
 			WHERE
@@ -5049,7 +4909,13 @@ func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint, globalOr
 		INNER JOIN
 			vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
 		INNER JOIN
-			vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = ?
+			-- use the install's version when it's on the host's fleet, else the first-added version there, such as for installs of a deleted version or from another fleet
+			vpp_apps_teams ON vpp_apps_teams.id = (
+				SELECT vat_fleet.id FROM vpp_apps_teams vat_fleet
+				WHERE vat_fleet.adam_id = hvsi.adam_id AND vat_fleet.platform = hvsi.platform AND vat_fleet.global_or_team_id = ?
+				ORDER BY vat_fleet.id <=> hvsi.vpp_app_team_id DESC, vat_fleet.id
+				LIMIT 1
+			)
 		WHERE
 			hvsi.host_id = ?
 	`
@@ -5837,6 +5703,21 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	installDataByTitleInstaller := make(map[uint]map[uint]*hostSoftware)
 
 	var err error
+
+	hostVPPAppVersionByTitleID := make(map[uint]*fleet.HostAppStoreAppVersion)
+	if slices.Contains(fleet.AppStoreAppsPlatforms, fleet.InstallableDevicePlatform(host.FleetPlatform())) {
+		hostVPPAppVersionByTitleID, err = ds.ListHostAppStoreAppVersions(ctx, host)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	// Join each App Store app to the one version the host gets, start the list with 0 so IN() is never empty
+	hostVPPAppTeamIDs := []uint{0}
+	for _, version := range hostVPPAppVersionByTitleID {
+		hostVPPAppTeamIDs = append(hostVPPAppTeamIDs, version.VPPAppTeamID)
+	}
+	namedArgs["host_vpp_app_team_ids"] = hostVPPAppTeamIDs
+
 	var hostSoftwareInstallsList []*hostSoftware
 	if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
 		hostSoftwareInstallsList, err = hostSoftwareInstalls(ds, ctx, host.ID)
@@ -6137,7 +6018,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				-- include VPP apps only if the host is on a supported platform
 				vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
 			LEFT OUTER JOIN
-				vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+				vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id AND vat.id IN (:host_vpp_app_team_ids)
 			LEFT OUTER JOIN
 				in_house_apps iha ON iha.title_id = st.id AND iha.platform = :host_compatible_platforms AND iha.global_or_team_id = :global_or_team_id
 			WHERE
@@ -6528,7 +6409,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				INNER JOIN
 					vpp_apps ON software.title_id = vpp_apps.title_id AND :host_platform IN (:vpp_apps_platforms)
 				INNER JOIN
-					vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
+					vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id AND vpp_apps_teams.id IN (:host_vpp_app_team_ids)
 				WHERE
 					host_software.host_id = :host_id
 				`
@@ -6732,16 +6613,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	applyResolvedInstallerStatus(filteredBySoftwareTitleID, installDataByTitleInstaller, resolvedInstallers)
 
 	// filter out VPP apps due to label scoping
-	filteredByVPPAdamID, otherVppAppsInInventory, err := filterVPPAppsByLabel(
-		ds,
-		ctx,
-		host,
+	filteredByVPPAdamID, otherVppAppsInInventory := filterVPPAppsByLabel(
 		byVPPAdamID,
 		hostVPPInstalledTitles,
+		hostVPPAppVersionByTitleID,
 	)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	// filter out in-house apps due to label scoping
 	filteredByInHouseID, otherInHouseAppsInInventory, err := filterInHouseAppsByLabel(
@@ -7030,7 +6906,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			INNER JOIN
 				vpp_apps ON software_titles.id = vpp_apps.title_id AND vpp_apps.platform = :host_platform
 			INNER JOIN
-				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
+				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id AND vpp_apps_teams.id IN (:host_vpp_app_team_ids)
 			LEFT JOIN
 				software_title_display_names stdn ON stdn.software_title_id = software_titles.id AND stdn.team_id = :global_or_team_id
 			WHERE
@@ -7041,16 +6917,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			%s
 			`
 
-			vppAdamStatement, vppAdamArgs, err := sqlx.In(vppAdamStatment, vppAdamIDs)
-			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for vpp titles")
-			}
-			vppAdamStatement, vppAdamArgsNamedArgs, err := sqlx.Named(vppAdamStatement, namedArgs)
+			vppAdamStatement, vppAdamArgsNamedArgs, err := sqlx.Named(vppAdamStatment, namedArgs)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for vpp titles")
 			}
+			vppAdamStatement, vppAdamArgs, err := sqlx.In(vppAdamStatement, append(vppAdamArgsNamedArgs, vppAdamIDs)...)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for vpp titles")
+			}
 			vppAdamStatement = strings.ReplaceAll(vppAdamStatement, "AND true", matchClause)
-			args = append(args, vppAdamArgsNamedArgs...)
 			args = append(args, vppAdamArgs...)
 			if len(matchArgs) > 0 {
 				args = append(args, matchArgs...)
@@ -7402,13 +7277,16 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		case len(hs.InstalledVersions) > 0 && hs.InstalledVersions[0].BundleIdentifier != "":
 			hs.HostSoftwareWithInstaller.BundleIdentifier = hs.InstalledVersions[0].BundleIdentifier
 		}
+		if hostVersion, ok := hostVPPAppVersionByTitleID[hs.ID]; ok && hs.AppStoreApp != nil {
+			hs.AppStoreApp.VersionName = hostVersion.Name
+		}
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 
 	// Post-pagination lookup rather than an assembly-SQL JOIN — cheaper on
 	// the paginated title-ID set. Skipped when the host has no team.
 	if host.TeamID != nil && len(software) > 0 {
-		if err := ds.hydrateHostSoftwareAutoUpdateFields(ctx, software, globalOrTeamID); err != nil {
+		if err := ds.hydrateHostSoftwareAutoUpdateFields(ctx, software, globalOrTeamID, hostVPPAppTeamIDs); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "hydrate host software auto-update fields")
 		}
 	}
@@ -7420,23 +7298,19 @@ func (ds *Datastore) hydrateHostSoftwareAutoUpdateFields(
 	ctx context.Context,
 	software []*fleet.HostSoftwareWithInstaller,
 	teamID uint,
+	hostVPPAppTeamIDs []uint,
 ) error {
 	titleIDs := make([]uint, 0, len(software))
 	for _, s := range software {
 		titleIDs = append(titleIDs, s.ID)
 	}
 
-	// TODO(JK): read the schedule of the instance the host is in scope for, this reads the first-added instance
 	stmt, args, err := sqlx.In(`
 		SELECT va.title_id, vat.update_schedule_enabled AS enabled, vat.start_time, vat.end_time
 		FROM vpp_apps_teams vat
 		JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
-		WHERE vat.global_or_team_id = ? AND va.title_id IN (?) AND (vat.update_schedule_enabled = 1 OR vat.start_time != '')
-			AND vat.id = (
-				SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
-				WHERE vat2.adam_id = vat.adam_id AND vat2.platform = vat.platform AND vat2.global_or_team_id = vat.global_or_team_id
-			)`,
-		teamID, titleIDs,
+		WHERE vat.global_or_team_id = ? AND va.title_id IN (?) AND vat.id IN (?) AND (vat.update_schedule_enabled = 1 OR vat.start_time != '')`,
+		teamID, titleIDs, hostVPPAppTeamIDs,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build auto-update schedule lookup")
@@ -7997,4 +7871,149 @@ ORDER BY sc.name`
 	}
 
 	return ret, nil
+}
+
+func (ds *Datastore) ListHostAppStoreAppVersions(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+	var globalOrTeamID uint
+	if host.TeamID != nil {
+		globalOrTeamID = *host.TeamID
+	}
+
+	labelSqlFilter := `
+			WITH no_labels AS (
+				SELECT
+					vpp_apps_teams.id AS team_id,
+					0 AS count_installer_labels,
+					0 AS count_host_labels,
+					0 as count_host_updated_after_labels
+				FROM
+					vpp_apps_teams
+				WHERE vpp_apps_teams.global_or_team_id = :global_or_team_id AND NOT EXISTS (
+					SELECT 1
+					FROM vpp_app_team_labels
+					WHERE vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+				)
+			),
+			include_any AS (
+				SELECT
+					vpp_apps_teams.id AS team_id,
+					COUNT(vpp_app_team_labels.label_id) AS count_installer_labels,
+					COUNT(label_membership.label_id) AS count_host_labels,
+					0 as count_host_updated_after_labels
+				FROM
+					vpp_apps_teams
+				INNER JOIN vpp_app_team_labels
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+						AND vpp_app_team_labels.exclude = 0
+						AND vpp_app_team_labels.require_all = 0
+				LEFT JOIN label_membership
+					ON label_membership.label_id = vpp_app_team_labels.label_id
+					AND label_membership.host_id = :host_id
+				WHERE vpp_apps_teams.global_or_team_id = :global_or_team_id
+				GROUP BY
+					vpp_apps_teams.id
+				HAVING
+					count_installer_labels > 0 AND count_host_labels > 0
+			),
+			exclude_any AS (
+				SELECT
+					vpp_apps_teams.id AS team_id,
+					COUNT(vpp_app_team_labels.label_id) AS count_installer_labels,
+					COUNT(label_membership.label_id) AS count_host_labels,
+					SUM(
+						CASE
+							WHEN labels.created_at IS NOT NULL AND (labels.label_membership_type <> 0 OR (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= labels.created_at) THEN 1
+							ELSE 0
+						END
+					) AS count_host_updated_after_labels
+				FROM
+					vpp_apps_teams
+				INNER JOIN vpp_app_team_labels
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+						AND vpp_app_team_labels.exclude = 1
+						AND vpp_app_team_labels.require_all = 0
+				INNER JOIN labels
+					ON labels.id = vpp_app_team_labels.label_id
+				LEFT OUTER JOIN label_membership
+					ON label_membership.label_id = vpp_app_team_labels.label_id AND label_membership.host_id = :host_id
+				WHERE vpp_apps_teams.global_or_team_id = :global_or_team_id
+				GROUP BY
+					vpp_apps_teams.id
+				HAVING
+					count_installer_labels > 0
+					AND count_installer_labels = count_host_updated_after_labels
+					AND count_host_labels = 0
+			),
+			include_all AS (
+				SELECT
+					vpp_apps_teams.id AS team_id,
+					COUNT(vpp_app_team_labels.label_id) AS count_installer_labels,
+					COUNT(label_membership.label_id) AS count_host_labels,
+					0 as count_host_updated_after_labels
+				FROM
+					vpp_apps_teams
+				INNER JOIN vpp_app_team_labels
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+						AND vpp_app_team_labels.exclude = 0
+						AND vpp_app_team_labels.require_all = 1
+				LEFT JOIN label_membership
+					ON label_membership.label_id = vpp_app_team_labels.label_id
+					AND label_membership.host_id = :host_id
+				WHERE vpp_apps_teams.global_or_team_id = :global_or_team_id
+				GROUP BY
+					vpp_apps_teams.id
+				HAVING
+					count_installer_labels > 0 AND count_host_labels = count_installer_labels
+			)
+			SELECT
+				vpp_apps_teams.id AS id,
+				vpp_apps.adam_id AS adam_id,
+				vpp_apps.title_id AS title_id,
+				vpp_apps_teams.name AS name,
+				(
+					no_labels.team_id IS NOT NULL
+					OR include_any.team_id IS NOT NULL
+					OR exclude_any.team_id IS NOT NULL
+					OR include_all.team_id IS NOT NULL
+				) AS in_scope
+			FROM
+				vpp_apps
+			INNER JOIN
+				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id
+					AND vpp_apps.platform = vpp_apps_teams.platform
+					AND vpp_apps_teams.global_or_team_id = :global_or_team_id
+			LEFT JOIN no_labels
+				ON no_labels.team_id = vpp_apps_teams.id
+			LEFT JOIN include_any
+				ON include_any.team_id = vpp_apps_teams.id
+			LEFT JOIN exclude_any
+				ON exclude_any.team_id = vpp_apps_teams.id
+			LEFT JOIN include_all
+				ON include_all.team_id = vpp_apps_teams.id
+			ORDER BY vpp_apps_teams.id
+		`
+
+	labelSqlFilter, args, err := sqlx.Named(labelSqlFilter, map[string]any{
+		"host_id":           host.ID,
+		"global_or_team_id": globalOrTeamID,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list host app store app versions: building named query args")
+	}
+
+	var versions []*fleet.HostAppStoreAppVersion
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &versions, labelSqlFilter, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list host app store app versions")
+	}
+
+	// Pick the first-added in-scope version per title, versions are ordered by id
+	hostVersionByTitleID := make(map[uint]*fleet.HostAppStoreAppVersion)
+	for _, version := range versions {
+		picked, ok := hostVersionByTitleID[version.TitleID]
+		if !ok || (!picked.InScope && version.InScope) {
+			hostVersionByTitleID[version.TitleID] = version
+		}
+	}
+	return hostVersionByTitleID, nil
 }
