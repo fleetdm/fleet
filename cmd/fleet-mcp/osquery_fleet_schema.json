@@ -254,7 +254,7 @@
       },
       {
         "name": "identifier",
-        "description": "Unique identifier varying by type: MCP server name, plugin ID (`publisher.name`), agent binary, bundle ID, socket service, or instruction tool. Populated for all types.",
+        "description": "Unique identifier varying by type: MCP server name, plugin ID (`publisher.name`), agent binary, Fleet's name for the app (e.g. `claude-desktop`; the bundle ID is in `detail`), socket service, instruction tool, or browser extension ID. Populated for all types.",
         "type": "text",
         "required": false
       },
@@ -12226,6 +12226,56 @@
     ],
     "url": "https://fleetdm.com/tables/fleetd_logs",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/fleetd_logs.yml"
+  },
+  {
+    "name": "fleetd_nix_packages",
+    "platforms": [
+      "linux"
+    ],
+    "description": "List the Nix store paths installed by the active NixOS system profile and the users' Nix and Home Manager profiles. Includes the packages listed in each profile and, unless filtered with `direct = 1`, their runtime dependencies.",
+    "examples": "List the packages installed directly in the NixOS system profile or a user's profile:\n\n```\nSELECT name, version, profiles FROM fleetd_nix_packages WHERE direct = 1;\n```",
+    "columns": [
+      {
+        "name": "name",
+        "type": "text",
+        "required": false,
+        "description": "Name of the package"
+      },
+      {
+        "name": "version",
+        "type": "text",
+        "required": false,
+        "description": "Version of the package"
+      },
+      {
+        "name": "output",
+        "type": "text",
+        "required": false,
+        "description": "The derivation output of the store path (for example, `bin`, `dev`, or `man`). Empty for the default output."
+      },
+      {
+        "name": "store_path",
+        "type": "text",
+        "required": false,
+        "description": "The full `/nix/store` path of the package"
+      },
+      {
+        "name": "direct",
+        "type": "integer",
+        "required": false,
+        "description": "1 if the package is listed in a profile (for example, `environment.systemPackages`), 0 if it's a runtime dependency of a listed package. Filtering with `direct = 1` skips computing the runtime closure."
+      },
+      {
+        "name": "profiles",
+        "type": "text",
+        "required": false,
+        "description": "Comma-separated list of the profiles that directly include the package (for example, `system,user:alice,home-manager:alice`). Empty for runtime dependencies."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). It returns no rows on hosts other than NixOS.",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/fleetd_nix_packages",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/fleetd_nix_packages.yml"
   },
   {
     "name": "fleetd_pacman_packages",

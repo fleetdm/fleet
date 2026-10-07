@@ -256,6 +256,13 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	}
 	ds.setTimesToNonZero(host)
 
+	// Use the device's report time so a delayed or retried Pub/Sub delivery doesn't push the
+	// missing and expiry clocks later. ENROLLMENT payloads can omit it.
+	seenTime := time.Now().UTC()
+	if !host.DetailUpdatedAt.Equal(common_mysql.GetDefaultNonZeroTime()) {
+		seenTime = host.DetailUpdatedAt.UTC() //nolint:nilaway // IsValid above rejects a nil host
+	}
+
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update Android host get app config")
@@ -276,7 +283,10 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			cpu_type = :cpu_type,
 			hardware_model = :hardware_model,
 			hardware_vendor = :hardware_vendor,
-			uuid = :uuid
+			uuid = :uuid,
+			-- a re-enrolling device keeps its row, so the enrollment time is refreshed here,
+			-- as EnrollHost does for osquery hosts. A plain status report leaves it alone.
+			last_enrolled_at = IF(:from_enroll, NOW(), last_enrolled_at)
 		WHERE id = :id
 		`
 		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
@@ -294,9 +304,23 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			"hardware_model":    host.HardwareModel,
 			"hardware_vendor":   host.HardwareVendor,
 			"uuid":              host.UUID,
+			"from_enroll":       fromEnroll,
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android host")
+		}
+
+		// An Android host never checks in through osquery, so the AMAPI status reports that
+		// drive this update are the only evidence Fleet has heard from the device. Without a
+		// host_seen_times row the host reads as last seen when its row was created.
+		// The stale-message check runs before this and is recorded after, so an older report
+		// processed concurrently can commit last; never move the seen time backwards.
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE seen_time = GREATEST(COALESCE(seen_time, VALUES(seen_time)), VALUES(seen_time))`,
+			host.Host.ID, seenTime,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "update Android host seen time")
 		}
 
 		// Keep android_devices.team_id in sync so the team survives host deletion.
@@ -611,9 +635,10 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 // BulkSetAndroidHostsUnenrolled sets all android hosts to unenrolled (for when
 // Android MDM is turned off for all Fleet).
 func (ds *Datastore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
+	// installed_from_dep is also cleared because Android has no DEP/ABM equivalent (no "Pending" state).
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_mdm
-	SET server_url = '', mdm_id = NULL, enrolled = 0
+	SET server_url = '', mdm_id = NULL, enrolled = 0, installed_from_dep = 0
 	WHERE host_id IN (
 		SELECT id FROM hosts WHERE platform = 'android'
 	)`)
@@ -1985,6 +2010,52 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context, cursor st
 	return toApplyProfiles, toRemoveProfiles, err
 }
 
+// ResetMDMAndroidHostProfilesForRedelivery marks every profile install of the host as
+// needing to be sent again (creating the rows of applicable profiles it has none for) and
+// drops its pending removals. It is used after the host's policy was replaced by one without
+// any profile settings.
+func (ds *Datastore) ResetMDMAndroidHostProfilesForRedelivery(ctx context.Context, hostUUID string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE host_mdm_android_profiles
+			SET
+				status = NULL,
+				detail = '',
+				policy_request_uuid = NULL,
+				device_request_uuid = NULL,
+				request_fail_count = 0,
+				included_in_policy_version = NULL,
+				can_reverify = 0,
+				-- always bumped, even when the row already looked reset, so that
+				-- BulkUpsertMDMAndroidHostProfilesUnlessResetSince can tell it was reset
+				updated_at = CURRENT_TIMESTAMP(6)
+			WHERE host_uuid = ? AND operation_type = ?`,
+			hostUUID, fleet.MDMOperationTypeInstall); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset android host profile installs")
+		}
+		// The replaced policy no longer holds these settings, so the removal is done.
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM host_mdm_android_profiles WHERE host_uuid = ? AND operation_type = ?`,
+			hostUUID, fleet.MDMOperationTypeRemove); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete android host profile removals")
+		}
+		// A host that was never sent its profiles (e.g. newly enrolled) has no rows to reset,
+		// so a reconciler already sending them would record them as delivered in the replaced
+		// policy. Create the rows as reset so that write is discarded too.
+		insertMissingStmt := fmt.Sprintf(`
+			INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid, profile_name, operation_type, status, detail)
+			SELECT ds.host_uuid, ds.profile_uuid, ds.name, ?, NULL, ''
+			FROM ( %s ) ds
+			ON DUPLICATE KEY UPDATE host_uuid = host_mdm_android_profiles.host_uuid`,
+			fmt.Sprintf(androidApplicableProfilesQuery, "h.uuid = ?", "h.uuid = ?", "h.uuid = ?", "h.uuid = ?", "h.uuid = ?", "h.uuid = ?"))
+		if _, err := tx.ExecContext(ctx, insertMissingStmt,
+			fleet.MDMOperationTypeInstall, hostUUID, hostUUID, hostUUID, hostUUID, hostUUID, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert missing android host profiles")
+		}
+		return nil
+	})
+}
+
 func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {
 	if len(uuids) == 0 {
 		return nil, nil
@@ -2025,22 +2096,51 @@ func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []
 }
 
 func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
-	return ds.bulkUpsertMDMAndroidHostProfiles(ctx, payload, false)
+	return ds.bulkUpsertMDMAndroidHostProfiles(ctx, payload, false, nil)
 }
 
-// bulkUpsertMDMAndroidHostProfiles upserts host/profile rows.
-func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, preserveExistingDetail bool) error {
+// GetMDMAndroidProfilesWriteTime returns the primary's current time at microsecond
+// precision, comparable to host_mdm_android_profiles.updated_at.
+func (ds *Datastore) GetMDMAndroidProfilesWriteTime(ctx context.Context) (time.Time, error) {
+	var now time.Time
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &now, `SELECT NOW(6)`); err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "get android profiles write time")
+	}
+	return now, nil
+}
+
+func (ds *Datastore) BulkUpsertMDMAndroidHostProfilesUnlessResetSince(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, since time.Time) error {
+	return ds.bulkUpsertMDMAndroidHostProfiles(ctx, payload, false, &since)
+}
+
+// bulkUpsertMDMAndroidHostProfiles upserts host/profile rows. When unlessResetSince is set,
+// existing rows that were reset for redelivery (status NULL) at or after that time are left
+// as-is, so a writer working from state read before the reset cannot undo it.
+func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, preserveExistingDetail bool, unlessResetSince *time.Time) error {
 	if len(payload) == 0 {
 		return nil
 	}
 
-	detailUpdate := "detail = VALUES(detail),"
-	if preserveExistingDetail {
-		// detail intentionally omitted from the ON DUPLICATE KEY UPDATE clause:
-		// the reconciler owns this field and may carry a forward-looking message
-		// (e.g. "Waiting for certificate ..." on withheld ONC profiles) that
-		// must survive this state reset.
-		detailUpdate = ""
+	// detail is omitted when preserving it: the reconciler owns this field and may carry a
+	// forward-looking message (e.g. "Waiting for certificate ..." on withheld ONC profiles)
+	// that must survive this state reset.
+	updatedColumns := []string{"status", "operation_type"}
+	if !preserveExistingDetail {
+		updatedColumns = append(updatedColumns, "detail")
+	}
+	updatedColumns = append(updatedColumns, "profile_name", "policy_request_uuid", "device_request_uuid",
+		"request_fail_count", "included_in_policy_version", "checksum", "can_reverify")
+
+	var updateAssignments []string
+	var updateArgs []any
+	for _, col := range updatedColumns {
+		if unlessResetSince == nil {
+			updateAssignments = append(updateAssignments, fmt.Sprintf("%s = VALUES(%s)", col, col))
+			continue
+		}
+		updateAssignments = append(updateAssignments,
+			fmt.Sprintf("%s = IF(status IS NULL AND updated_at >= ?, %s, VALUES(%s))", col, col, col))
+		updateArgs = append(updateArgs, *unlessResetSince)
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
@@ -2062,18 +2162,10 @@ func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 			)
 			VALUES %s
 			ON DUPLICATE KEY UPDATE
-				status = VALUES(status),
-				operation_type = VALUES(operation_type),
 				%s
-				profile_name = VALUES(profile_name),
-				policy_request_uuid = VALUES(policy_request_uuid),
-				device_request_uuid = VALUES(device_request_uuid),
-				request_fail_count = VALUES(request_fail_count),
-				included_in_policy_version = VALUES(included_in_policy_version),
-				checksum = VALUES(checksum),
-				can_reverify = VALUES(can_reverify)
-`, strings.TrimSuffix(valuePart, ","), detailUpdate,
+`, strings.TrimSuffix(valuePart, ","), strings.Join(updateAssignments, ",\n\t\t\t\t"),
 		)
+		args = slices.Concat(args, updateArgs)
 
 		// Taken from BulkUpsertMDMAppleHostProfiles: We need to run with retry
 		// due to deadlocks. The INSERT/ON DUPLICATE KEY UPDATE pattern is prone
@@ -2459,7 +2551,7 @@ func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 		}
 	}
 
-	if err := ds.bulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert, true); err != nil {
+	if err := ds.bulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert, true, nil); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "bulk reset android host profiles to pending")
 	}
 
