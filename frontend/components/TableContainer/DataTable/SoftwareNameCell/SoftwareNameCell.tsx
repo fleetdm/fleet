@@ -253,10 +253,17 @@ interface IConfigurationIconWithTooltipProps {
 }
 
 // Host-side marker: which admin version this host received.
+// The badge sits inside the parent LinkCell anchor; `role="img"` +
+// aria-label expose the version name to screen readers when the link is
+// focused, so keyboard users get the info without a nested focusable element.
 const ConfigurationIconWithTooltip = ({
   versionName,
 }: IConfigurationIconWithTooltipProps) => (
-  <div className={`${baseClass}__configuration-icon-with-tooltip`}>
+  <div
+    className={`${baseClass}__configuration-icon-with-tooltip`}
+    role="img"
+    aria-label={`Managed configuration delivered: ${versionName}`}
+  >
     <TooltipWrapper
       tipContent={versionName}
       showArrow

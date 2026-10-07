@@ -7,7 +7,7 @@ import DataSet from "components/DataSet";
 import Editor from "components/Editor";
 import Modal from "components/Modal";
 import { IActivityDetails } from "interfaces/activity";
-import { isAndroid } from "interfaces/platform";
+import { isAndroid, isMobilePlatform } from "interfaces/platform";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import {
@@ -42,6 +42,9 @@ const AppStoreDetailsModal = ({
 }: IAppStoreDetailsModalProps) => {
   const { labels_include_any, labels_exclude_any } = details;
   const isAndroidApp = isAndroid(details.platform || "");
+  // macOS activities carry version_name + configuration too, but #53641
+  // scopes the versioned-app UI to iOS/iPadOS/Android.
+  const isVersionedApp = isMobilePlatform(details.platform || "");
   const configurationDisplay = stringifyConfiguration(details.configuration);
 
   return (
@@ -60,7 +63,7 @@ const AppStoreDetailsModal = ({
             details.software_display_name
           )}
         />
-        {details.version_name && (
+        {isVersionedApp && details.version_name && (
           <DataSet title="Version" value={details.version_name} />
         )}
         <DataSet
@@ -85,7 +88,7 @@ const AppStoreDetailsModal = ({
             />
           }
         />
-        {configurationDisplay && (
+        {isVersionedApp && configurationDisplay && (
           <Editor
             label="Configuration"
             mode={isAndroidApp ? "json" : "xml"}

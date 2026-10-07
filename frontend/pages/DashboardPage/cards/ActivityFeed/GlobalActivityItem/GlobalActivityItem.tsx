@@ -19,6 +19,7 @@ import {
   AppleDisplayPlatform,
   isAndroid,
   isIPadOrIPhone,
+  isMobilePlatform,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
 import {
@@ -1600,6 +1601,7 @@ const TAGGED_TEMPLATES = {
 
     const {
       host_display_name: hostName,
+      host_platform: hostPlatform,
       software_title: title,
       status,
       source,
@@ -1614,9 +1616,13 @@ const TAGGED_TEMPLATES = {
       activity.type === ActivityType.InstalledSoftware;
     const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
 
-    // Parenthesize admin version after title (e.g. "Zoom Workplace (Production)").
+    // BE sends version_name on macOS activities too ("Default version"), but
+    // #53641 scopes versioned-app UI to iOS/iPadOS/Android. Gate on the host's
+    // platform so macOS install copy stays unchanged.
     const versionSuffix =
-      activity.type === ActivityType.InstalledAppStoreApp && versionName
+      activity.type === ActivityType.InstalledAppStoreApp &&
+      versionName &&
+      isMobilePlatform(hostPlatform || "")
         ? ` (${versionName})`
         : "";
 
@@ -1759,11 +1765,16 @@ const TAGGED_TEMPLATES = {
       platform: swPlatform,
       version_name: versionName,
     } = activity.details || {};
+    // macOS activities carry version_name too; scope the suffix to mobile.
+    const versionSuffix =
+      versionName && isMobilePlatform(swPlatform || "")
+        ? ` (${versionName})`
+        : "";
     return (
       <>
         {" "}
         added <b>{swTitle}</b>
-        {versionName ? ` (${versionName})` : ""}{" "}
+        {versionSuffix}{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         to{" "}
         {activity.details?.team_name ? (
@@ -1783,11 +1794,15 @@ const TAGGED_TEMPLATES = {
       platform: swPlatform,
       version_name: versionName,
     } = activity.details || {};
+    const versionSuffix =
+      versionName && isMobilePlatform(swPlatform || "")
+        ? ` (${versionName})`
+        : "";
     return (
       <>
         {" "}
         edited <b>{swTitle}</b>
-        {versionName ? ` (${versionName})` : ""}{" "}
+        {versionSuffix}{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         on{" "}
         {activity.details?.team_name ? (
@@ -1807,11 +1822,15 @@ const TAGGED_TEMPLATES = {
       platform: swPlatform,
       version_name: versionName,
     } = activity.details || {};
+    const versionSuffix =
+      versionName && isMobilePlatform(swPlatform || "")
+        ? ` (${versionName})`
+        : "";
     return (
       <>
         {" "}
         deleted <b>{swTitle}</b>
-        {versionName ? ` (${versionName})` : ""}{" "}
+        {versionSuffix}{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         from{" "}
         {activity.details?.team_name ? (

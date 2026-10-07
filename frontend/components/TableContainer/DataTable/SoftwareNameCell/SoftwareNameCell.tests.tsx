@@ -410,5 +410,27 @@ describe("SoftwareNameCell icon rendering", () => {
       expect(screen.getByTestId("user-icon")).toBeInTheDocument();
       expect(screen.getByTestId("settings-icon")).toBeInTheDocument();
     });
+
+    // Keyboard + screen-reader users can't trigger a mouse-hover tooltip, so
+    // the version name is exposed via role=img + aria-label on the badge
+    // wrapper. The parent LinkCell anchor is focusable; focusing it surfaces
+    // the aria-label through the accessible name computation.
+    it("exposes the version name as accessible text (no mouse needed)", () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <SoftwareNameCell
+          {...defaultProps}
+          hasInstaller
+          isIosOrIpadosApp
+          isAppStoreApp
+          deliveredVersionName="Production"
+        />
+      );
+      expect(
+        screen.getByRole("img", {
+          name: /Managed configuration delivered: Production/i,
+        })
+      ).toBeInTheDocument();
+    });
   });
 });

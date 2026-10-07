@@ -2279,6 +2279,43 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/failed to install/)).toBeInTheDocument();
   });
 
+  // BE sends version_name on macOS activities too ("Default version"), but
+  // #53641 keeps macOS UI unchanged. The suffix should only render for mobile
+  // host_platforms.
+  it("appends the version name on an iOS install_app_store_app activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        host_display_name: "iPhone",
+        host_platform: "ios",
+        version_name: "Production",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/\(Production\)/)).toBeInTheDocument();
+  });
+
+  it("omits the version name on a macOS install_app_store_app activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        host_display_name: "MacBook",
+        host_platform: "darwin",
+        version_name: "Default version",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.queryByText(/\(Default version\)/)).toBeNull();
+  });
+
   it("renders script package ran status in InstalledSoftware activity", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,
