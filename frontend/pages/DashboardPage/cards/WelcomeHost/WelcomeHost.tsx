@@ -11,10 +11,10 @@ import { IHost, IHostResponse } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
+import { SUPPORT_LINK } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
 
 import LaptopMac from "../../../../../assets/images/laptop-mac.png";
-import SlackButton from "../../../../../assets/images/slack-button-get-help.png";
 
 interface IWelcomeHostCardProps {
   totalsHostsCount: number;
@@ -201,17 +201,16 @@ const WelcomeHost = ({
             Your device is not communicating with Fleet.
           </p>
           <p>Join the #fleet Slack channel for help troubleshooting.</p>
-          <a
-            target="_blank"
-            rel="noreferrer"
-            href="https://osquery.slack.com/archives/C01DXJL16D8"
+          <Button
+            variant="secondary"
+            icon="external-link"
+            iconPosition="right"
+            onClick={() =>
+              window.open(SUPPORT_LINK, "_blank", "noopener,noreferrer")
+            }
           >
-            <img
-              alt="Get help on Slack"
-              className="button-slack"
-              src={SlackButton}
-            />
-          </a>
+            Get help
+          </Button>
         </div>
       </div>
     );
@@ -226,17 +225,16 @@ const WelcomeHost = ({
             No policies apply to your device.
           </p>
           <p>Join the #fleet Slack channel for help troubleshooting.</p>
-          <a
-            target="_blank"
-            rel="noreferrer"
-            href="https://osquery.slack.com/archives/C01DXJL16D8"
+          <Button
+            variant="secondary"
+            icon="external-link"
+            iconPosition="right"
+            onClick={() =>
+              window.open(SUPPORT_LINK, "_blank", "noopener,noreferrer")
+            }
           >
-            <img
-              alt="Get help on Slack"
-              className="button-slack"
-              src={SlackButton}
-            />
-          </a>
+            Get help
+          </Button>
         </div>
       </div>
     );
