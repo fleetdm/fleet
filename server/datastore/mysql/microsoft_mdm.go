@@ -77,6 +77,7 @@ const mdmWindowsEnrolledDeviceColumns = `
 		has_pending_commands,
 		hardware_serial,
 		ztd_registration_id,
+		COALESCE(BIN_TO_UUID(entra_device_id), '') AS entra_device_id,
 		last_login_status,
 		last_login_status_at,
 		enrolled_activity_at,
@@ -719,9 +720,10 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			host_uuid,
 			credentials_hash,
 			credentials_acknowledged,
-			ztd_registration_id)
+			ztd_registration_id,
+			entra_device_id)
 		VALUES
-			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UUID_TO_BIN(NULLIF(?, '')))
 		ON DUPLICATE KEY UPDATE
 			mdm_device_id         = VALUES(mdm_device_id),
 			device_state          = VALUES(device_state),
@@ -738,7 +740,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			credentials_hash      = VALUES(credentials_hash),
 			credentials_acknowledged = VALUES(credentials_acknowledged),
 			-- A re-enrollment may not have ztd id, so don't overwrite.
-			ztd_registration_id   = IF(VALUES(ztd_registration_id) = '', ztd_registration_id, VALUES(ztd_registration_id))
+			ztd_registration_id   = IF(VALUES(ztd_registration_id) = '', ztd_registration_id, VALUES(ztd_registration_id)),
+			entra_device_id       = VALUES(entra_device_id)
 	`
 	_, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -759,6 +762,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 		device.CredentialsHash,
 		device.CredentialsAcknowledged,
 		device.ZTDRegistrationID,
+		device.EntraDeviceID,
 	)
 	if err != nil {
 		if IsDuplicate(err) {
