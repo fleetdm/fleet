@@ -2031,24 +2031,27 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 
 		// Skip deleting apps when the token moves to all fleets, every fleet still has access to them
 		if teams == nil || len(teams) > 0 {
+			// Expand into local copies so a retried transaction expands the original statements again
+			removePolicyAutomationsStmt := stmtRemovePolicyAutomations
+			deleteAppsStmt := stmtDeleteApps
 			delArgs := []any{id}
 			if len(teams) > 0 {
 				var err error
-				stmtRemovePolicyAutomations, _, err = sqlx.In(stmtRemovePolicyAutomations, id, teams)
+				removePolicyAutomationsStmt, _, err = sqlx.In(stmtRemovePolicyAutomations, id, teams)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "building IN statement for removing old vpp team apps policy automations")
 				}
-				stmtDeleteApps, delArgs, err = sqlx.In(stmtDeleteApps, id, teams)
+				deleteAppsStmt, delArgs, err = sqlx.In(stmtDeleteApps, id, teams)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "building IN statement for deleting old vpp apps teams associations")
 				}
 			}
 
-			if _, err := tx.ExecContext(ctx, stmtRemovePolicyAutomations, delArgs...); err != nil {
+			if _, err := tx.ExecContext(ctx, removePolicyAutomationsStmt, delArgs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting old vpp team apps policy automations")
 			}
 
-			if _, err := tx.ExecContext(ctx, stmtDeleteApps, delArgs...); err != nil {
+			if _, err := tx.ExecContext(ctx, deleteAppsStmt, delArgs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting old vpp team apps associations")
 			}
 		}
