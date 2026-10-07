@@ -1405,3 +1405,69 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	})
 	require.NotZero(t, wiresharkSoftware.ID)
 }
+
+func (s *integrationTestSuite) TestAIToolFilterRequiresPremium() {
+	t := s.T()
+	ctx := t.Context()
+
+	host := s.createHosts(t, "darwin")[0]
+	_, err := s.ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "AIToolFree", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolfree"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	token := "ai_tool_free_token"
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+	endpoints := []struct {
+		path     string
+		itemsKey string
+		noAuth   bool
+	}{
+		{"/api/latest/fleet/software/titles", "software_titles", false},
+		{"/api/latest/fleet/software/versions", "software", false},
+		{"/api/latest/fleet/software/count", "", false},
+		{fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), "software", false},
+		{"/api/latest/fleet/device/" + token + "/software", "software", true},
+	}
+	do := func(path string, noAuth bool, status int, params ...string) *http.Response {
+		if noAuth {
+			return s.DoRawNoAuth("GET", path, nil, status, params...)
+		}
+		return s.Do("GET", path, nil, status, params...)
+	}
+
+	for _, e := range endpoints {
+		for _, params := range [][]string{
+			{"ai_tool", "true"},
+			{"source", "mcp_servers"},
+			{"source", "ai_clis"},
+			{"source", "ai_skills"},
+			{"source", "apps,mcp_servers"},
+		} {
+			res := do(e.path, e.noAuth, http.StatusPaymentRequired, params...)
+			require.NoError(t, res.Body.Close())
+		}
+		res := do(e.path, e.noAuth, http.StatusUnprocessableEntity, "source", "ai_tool")
+		require.Contains(t, extractServerErrorText(res.Body), fmt.Sprintf(fleet.InvalidSoftwareSourceErrMsg, "ai_tool"))
+		res = do(e.path, e.noAuth, http.StatusOK, "ai_tool", "false")
+		require.NoError(t, res.Body.Close())
+
+		res = do(e.path, e.noAuth, http.StatusOK)
+		if e.itemsKey == "" {
+			require.NoError(t, res.Body.Close())
+			continue
+		}
+		var body map[string]json.RawMessage
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&body))
+		require.NoError(t, res.Body.Close())
+		var items []map[string]any
+		require.NoError(t, json.Unmarshal(body[e.itemsKey], &items))
+		require.NotEmpty(t, items, e.path)
+		for _, item := range items {
+			require.Contains(t, item, "ai_tool", e.path)
+			require.Equal(t, false, item["ai_tool"], e.path)
+		}
+	}
+}

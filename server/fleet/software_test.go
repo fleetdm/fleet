@@ -1415,3 +1415,20 @@ func TestSoftwareAIToolNotPartOfIdentity(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want, got)
 }
+
+func TestSoftwareTypeFilterRequiresPremium(t *testing.T) {
+	for source, want := range map[string]bool{
+		"":                          false,
+		"apps":                      false,
+		"apps,chrome_extensions":    false,
+		"ai_clis":                   true,
+		"ai_skills":                 true,
+		"mcp_servers":               true,
+		"apps,mcp_servers":          true,
+		"deb_packages,ai_clis,apps": true,
+	} {
+		filter, err := ParseSoftwareTypeFilter(source, "")
+		require.NoError(t, err)
+		require.Equal(t, want, filter.RequiresPremium(), source)
+	}
+}

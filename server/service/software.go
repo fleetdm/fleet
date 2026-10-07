@@ -118,13 +118,16 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	if err != nil {
 		return nil, nil, err
 	}
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return nil, nil, fleet.ErrMissingLicense
 	}
 
 	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
 	if err != nil {
 		return nil, nil, err
+	}
+	if !lic.IsPremium() && opt.TypeFilter.RequiresPremium() {
+		return nil, nil, fleet.ErrMissingLicense
 	}
 
 	// default sort order to hosts_count descending
@@ -279,13 +282,16 @@ func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	}
 
 	// Vulnerability filters are only available in premium
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return 0, fleet.ErrMissingLicense
 	}
 
 	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
 	if err != nil {
 		return 0, err
+	}
+	if !lic.IsPremium() && opt.TypeFilter.RequiresPremium() {
+		return 0, fleet.ErrMissingLicense
 	}
 
 	// required for vulnerability filters

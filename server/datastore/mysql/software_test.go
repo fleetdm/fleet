@@ -98,6 +98,8 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareMacOSApplicationsFilter", testListHostSoftwareMacOSApplicationsFilter},
 		{"ListSoftwareTypeFilter", testListSoftwareTypeFilter},
 		{"ListHostSoftwareTypeFilter", testListHostSoftwareTypeFilter},
+		{"ListSoftwareAIToolFilter", testListSoftwareAIToolFilter},
+		{"ListHostSoftwareAIToolFilter", testListHostSoftwareAIToolFilter},
 		{"ListHostSoftwareHomebrewExecutableHashes", testListHostSoftwareHomebrewExecutableHashes},
 		{"ListHostSoftwarePaginationWithMultipleInstallers", testListHostSoftwarePaginationWithMultipleInstallers},
 		{"ListLinuxHostSoftware", testListLinuxHostSoftware},
@@ -15937,5 +15939,258 @@ func testSoftwareAITool(t *testing.T, ds *Datastore) {
 			got[sw.Name] = sw.AITool
 		}
 		require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true, "Codex": true}, got, orderKey)
+	}
+}
+
+func testListSoftwareAIToolFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host1.ID})))
+
+	res1, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: "Claude", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude", AITool: true},
+		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "codex", Version: "1.0", Source: "ai_clis", AITool: true},
+	})
+	require.NoError(t, err)
+	// Versions read their own row: Claude 2.0 isn't flagged even though Claude 1.0 is.
+	res2, err := ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		{Name: "Claude", Version: "2.0", Source: "apps", BundleIdentifier: "com.anthropic.claude"},
+		{Name: "Slack", Version: "2.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "github", Version: "0.1", Source: "mcp_servers", AITool: true},
+	})
+	require.NoError(t, err)
+	softwareIDs := make(map[string]uint)
+	for _, s := range append(res1.Inserted, res2.Inserted...) {
+		softwareIDs[s.Name+" "+s.Version] = s.ID
+	}
+	for _, name := range []string{"Claude 1.0", "Slack 1.0"} {
+		_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: softwareIDs[name], CVE: "CVE-2024-0001"}, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// listAll lists every page with a small page size, asserts CountSoftware matches the list and
+	// returns each version's ai_tool.
+	listAll := func(t *testing.T, opts fleet.SoftwareListOptions) map[string]bool {
+		t.Helper()
+		opts.WithHostCounts = true
+		opts.ListOptions.IncludeMetadata = true
+		opts.ListOptions.PerPage = 2
+
+		got := make(map[string]bool)
+		for page := uint(0); ; page++ {
+			opts.ListOptions.Page = page
+			software, meta, err := ds.ListSoftware(ctx, opts)
+			require.NoError(t, err)
+			for _, s := range software {
+				got[s.Name+" "+s.Version] = s.AITool
+			}
+			require.NotNil(t, meta)
+			if !meta.HasNextResults {
+				break
+			}
+			require.Len(t, software, 2)
+		}
+		count, err := ds.CountSoftware(ctx, opts)
+		require.NoError(t, err)
+		require.Equal(t, len(got), count)
+		return got
+	}
+
+	for _, orderKey := range []string{"hosts_count", "name"} {
+		t.Run("ai_tool field order="+orderKey, func(t *testing.T) {
+			require.Equal(t, map[string]bool{
+				"Claude 1.0": true, "Claude 2.0": false, "Slack 1.0": false, "Slack 2.0": false, "codex 1.0": true, "github 0.1": true,
+			}, listAll(t, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: orderKey}}))
+		})
+	}
+
+	cases := []struct {
+		name              string
+		source            string
+		vulnerable        bool
+		query             string
+		all, team, noTeam []string
+	}{
+		{name: "ai_tool", all: []string{"Claude 1.0", "codex 1.0", "github 0.1"}, team: []string{"Claude 1.0", "codex 1.0"}, noTeam: []string{"github 0.1"}},
+		{name: "with source", source: "apps", all: []string{"Claude 1.0"}, team: []string{"Claude 1.0"}},
+		{name: "with vulnerable", vulnerable: true, all: []string{"Claude 1.0"}, team: []string{"Claude 1.0"}},
+		{name: "with search", query: "c", all: []string{"Claude 1.0", "codex 1.0"}, team: []string{"Claude 1.0", "codex 1.0"}},
+	}
+	for _, c := range cases {
+		filter, err := fleet.ParseSoftwareTypeFilter(c.source, "")
+		require.NoError(t, err)
+		for _, view := range []struct {
+			name   string
+			teamID *uint
+			want   []string
+		}{
+			{"all fleets", nil, c.all},
+			{"fleet", &tm.ID, c.team},
+			{"no fleet", new(uint(0)), c.noTeam},
+		} {
+			for _, orderKey := range []string{"hosts_count", "name"} {
+				t.Run(fmt.Sprintf("%s %s order=%s", c.name, view.name, orderKey), func(t *testing.T) {
+					opts := fleet.SoftwareListOptions{
+						ListOptions:    fleet.ListOptions{OrderKey: orderKey, MatchQuery: c.query},
+						TeamID:         view.teamID,
+						VulnerableOnly: c.vulnerable,
+						TypeFilter:     filter,
+						AITool:         true,
+						WithHostCounts: true,
+					}
+					require.Equal(t, orderKey == "hosts_count", canUseOptimizedListQuery(opts))
+					got := listAll(t, opts)
+					require.ElementsMatch(t, view.want, std_slices.Collect(maps.Keys(got)))
+					for name, aiTool := range got {
+						require.True(t, aiTool, name)
+					}
+				})
+			}
+		}
+	}
+
+	t.Run("by id", func(t *testing.T) {
+		for name, want := range map[string]bool{"Claude 1.0": true, "Claude 2.0": false} {
+			sw, err := ds.SoftwareByID(ctx, softwareIDs[name], nil, false, nil)
+			require.NoError(t, err)
+			require.Equal(t, want, sw.AITool, name)
+		}
+	})
+}
+
+func testListHostSoftwareAIToolFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "macos-host", "", "macoshostkey", "macoshostuuid", time.Now(), test.WithPlatform("darwin"))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID})))
+	host.TeamID = &tm.ID
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "setup script",
+		Source:          "sh_packages",
+		InstallScript:   "echo",
+		Filename:        "setup.sh",
+		Extension:       "sh",
+		Platform:        "darwin",
+		TeamID:          &tm.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Claude", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude", AITool: true},
+		{Name: "Claude Helper", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude.helper", AITool: true},
+		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "codex", Version: "1.0", Source: "ai_clis", AITool: true},
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	pathByName := map[string]string{
+		"Claude":        "/Applications/Claude.app",
+		"Claude Helper": "/Applications/Claude.app/Contents/Helpers/Claude Helper.app",
+		"Slack":         "/Applications/Slack.app",
+	}
+	swPaths := map[string]fleet.ExecutableHashes{}
+	hostDetailsAITool := make(map[string]bool)
+	for _, hs := range host.Software {
+		hostDetailsAITool[hs.Name] = hs.AITool
+		if hs.Name == "Claude" || hs.Name == "Slack" {
+			_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: hs.ID, CVE: "CVE-2024-0001"}, fleet.NVDSource)
+			require.NoError(t, err)
+		}
+		path, ok := pathByName[hs.Name]
+		if !ok {
+			continue
+		}
+		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, hs.ToUniqueStr())
+		swPaths[key] = nil
+	}
+	require.Equal(t, map[string]bool{"Claude": true, "Claude Helper": true, "Slack": false, "codex": true}, hostDetailsAITool)
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// listAll lists every page with a small page size, asserts the total matches the list and
+	// returns each title's ai_tool.
+	listAll := func(t *testing.T, opts fleet.HostSoftwareTitleListOptions) map[string]bool {
+		t.Helper()
+		opts.IsMDMEnrolled = true
+		opts.ListOptions = fleet.ListOptions{PerPage: 2, IncludeMetadata: true, OrderKey: "name", MatchQuery: opts.ListOptions.MatchQuery}
+
+		got := make(map[string]bool)
+		var total uint
+		for page := uint(0); ; page++ {
+			opts.ListOptions.Page = page
+			sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+			require.NoError(t, err)
+			require.NotNil(t, meta)
+			for _, s := range sw {
+				require.NotContains(t, got, s.Name)
+				got[s.Name] = s.AITool
+			}
+			total = meta.TotalResults
+			if !meta.HasNextResults {
+				break
+			}
+			require.Len(t, sw, 2)
+		}
+		require.EqualValues(t, len(got), total)
+		return got
+	}
+
+	t.Run("ai_tool field", func(t *testing.T) {
+		require.Equal(t, map[string]bool{
+			"Claude": true, "Claude Helper": true, "Slack": false, "codex": true, "setup script": false,
+		}, listAll(t, fleet.HostSoftwareTitleListOptions{IncludeAvailableForInstall: true}))
+	})
+
+	cases := []struct {
+		name                string
+		source              string
+		macOSApplications   bool
+		availableForInstall bool
+		onlyAvailable       bool
+		vulnerable          bool
+		query               string
+		want                []string
+	}{
+		{name: "ai_tool", want: []string{"Claude", "Claude Helper", "codex"}},
+		{name: "with available for install", availableForInstall: true, want: []string{"Claude", "Claude Helper", "codex"}},
+		{name: "with only available for install", availableForInstall: true, onlyAvailable: true, want: nil},
+		{name: "with macos applications", macOSApplications: true, want: []string{"Claude"}},
+		{name: "with source", source: "ai_clis", want: []string{"codex"}},
+		{name: "with source and macos applications", source: "apps", macOSApplications: true, want: []string{"Claude"}},
+		{name: "with vulnerable", vulnerable: true, want: []string{"Claude"}},
+		{name: "with search", query: "helper", want: []string{"Claude Helper"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			filter, err := fleet.ParseSoftwareTypeFilter(c.source, "")
+			require.NoError(t, err)
+			got := listAll(t, fleet.HostSoftwareTitleListOptions{
+				ListOptions:                fleet.ListOptions{MatchQuery: c.query},
+				TypeFilter:                 filter,
+				AITool:                     true,
+				MacOSApplicationsOnly:      c.macOSApplications,
+				IncludeAvailableForInstall: c.availableForInstall,
+				OnlyAvailableForInstall:    c.onlyAvailable,
+				VulnerableOnly:             c.vulnerable,
+			})
+			require.ElementsMatch(t, c.want, std_slices.Collect(maps.Keys(got)))
+			for name, aiTool := range got {
+				require.True(t, aiTool, name)
+			}
+		})
 	}
 }

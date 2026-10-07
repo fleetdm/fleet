@@ -528,6 +528,8 @@ type SoftwareTitle struct {
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name" db:"display_name"`
+	// AITool is true when any software row of this title is flagged as an AI tool.
+	AITool bool `json:"ai_tool" db:"-"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -616,6 +618,8 @@ type SoftwareTitleListResult struct {
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	DisplayName string  `json:"display_name" db:"display_name"`
+	// AITool is true when any software row of this title is flagged as an AI tool.
+	AITool bool `json:"ai_tool" db:"-"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -673,10 +677,23 @@ var softwareTypeFilterSourceByExtensionFor = func() map[string]string {
 	return bySource
 }()
 
+// premiumSoftwareTypeFilterSources are the sources that only Fleet Premium ingests and filters by.
+var premiumSoftwareTypeFilterSources = []string{"ai_clis", "ai_skills", "mcp_servers"}
+
 // SoftwareTypeFilter is the validated form of the `source` and `extension_for` query parameters. It
 // maps each selected source to the extension_for values that narrow it; a source with no values
 // matches all of its rows.
 type SoftwareTypeFilter map[string][]string
+
+// RequiresPremium reports whether f selects a source that is only available in Fleet Premium.
+func (f SoftwareTypeFilter) RequiresPremium() bool {
+	for _, source := range premiumSoftwareTypeFilterSources {
+		if _, ok := f[source]; ok {
+			return true
+		}
+	}
+	return false
+}
 
 // ParseSoftwareTypeFilter validates the comma-separated `source` and `extension_for` query
 // parameters, trimming spaces and ignoring empty values. It returns nil when neither selects anything.
@@ -730,6 +747,7 @@ type SoftwareTitleListOptions struct {
 	PackageName         string  `query:"package_name,optional"`
 	Source              string  `query:"source,optional"`
 	ExtensionFor        string  `query:"extension_for,optional"`
+	AITool              bool    `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
 	TypeFilter SoftwareTypeFilter
@@ -773,6 +791,7 @@ type HostSoftwareTitleListOptions struct {
 
 	Source       string `query:"source,optional"`
 	ExtensionFor string `query:"extension_for,optional"`
+	AITool       bool   `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
 	TypeFilter SoftwareTypeFilter
@@ -883,6 +902,7 @@ type SoftwareListOptions struct {
 	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
 	Source                      string  `query:"source,optional"`
 	ExtensionFor                string  `query:"extension_for,optional"`
+	AITool                      bool    `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
 	TypeFilter SoftwareTypeFilter
