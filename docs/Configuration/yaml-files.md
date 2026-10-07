@@ -1059,7 +1059,7 @@ org_settings:
 
 ### server_settings
 
-- `ai_features_disabled` disables AI-assisted policy descriptions and resolutions. (default: `false`)
+- `ai_features_disabled` disables AI-assisted policy descriptions and resolutions, and generating configuration profiles. (default: `false`)
 - `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics). (default: `true`)
 - `live_reporting_disabled` disables the ability to run live reports (ad hoc reports executed via the UI or fleetctl). (default: `false`)
 - `discard_reports_data` disables storing results for all reports and deletes existing stored data. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. (default: `false`)
