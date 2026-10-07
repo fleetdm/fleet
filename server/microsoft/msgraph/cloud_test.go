@@ -33,9 +33,7 @@ func TestCloudEndpoints(t *testing.T) {
 	} {
 		t.Run(string(tc.cloud), func(t *testing.T) {
 			cred := &fleet.MicrosoftGraphCredential{
-				MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{
-					TenantID: testTenantID, ClientID: testClientID, Cloud: tc.cloud,
-				},
+				TenantID: testTenantID, ClientID: testClientID, Cloud: tc.cloud,
 				ClientSecret: testSecret,
 			}
 			graphClient, err := NewClient(cred)
@@ -62,11 +60,12 @@ func TestCloudEndpoints(t *testing.T) {
 				assert.Equal(t, tc.graph, r.Header.Get("X-Test-Origin"))
 				assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 				assert.Equal(t, autopilotDevicesPath, r.URL.Path)
-				if r.URL.Query().Get("$top") == "1" {
+				switch {
+				case r.URL.Query().Get("$top") == "1":
 					writeDevices(t, w, "", device("1", "serial-1", "tag"))
-				} else if r.URL.Query().Get("$skiptoken") != "" {
+				case r.URL.Query().Get("$skiptoken") != "":
 					writeDevices(t, w, "", device("2", "serial-2", "tag"))
-				} else {
+				default:
 					nextHost := tc.graph
 					if rejectNext {
 						nextHost = crossCloud
@@ -108,9 +107,7 @@ func TestCloudEndpoints(t *testing.T) {
 // TestRejectUnknownCloud checks that unsupported clouds cannot create a client.
 func TestRejectUnknownCloud(t *testing.T) {
 	c, err := NewClient(&fleet.MicrosoftGraphCredential{
-		MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{
-			TenantID: testTenantID, ClientID: testClientID, Cloud: "https://example.com",
-		},
+		TenantID: testTenantID, ClientID: testClientID, Cloud: "https://example.com",
 		ClientSecret: testSecret,
 	})
 	require.ErrorContains(t, err, "unsupported microsoft graph cloud")

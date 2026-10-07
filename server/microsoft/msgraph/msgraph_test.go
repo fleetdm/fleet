@@ -65,7 +65,7 @@ func newGraphServer(t *testing.T, handler http.HandlerFunc) *graphServer {
 // client creates a Graph client using this test server and fixture credentials.
 func (gs *graphServer) client(t *testing.T) Client {
 	t.Helper()
-	return newClientWithHosts(&fleet.MicrosoftGraphCredential{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: testTenantID, ClientID: testClientID}, ClientSecret: testSecret}, gs.URL, gs.URL)
+	return newClientWithHosts(&fleet.MicrosoftGraphCredential{TenantID: testTenantID, ClientID: testClientID, ClientSecret: testSecret}, gs.URL, gs.URL)
 }
 
 func writeDevices(t *testing.T, w http.ResponseWriter, nextLink string, devices ...WindowsAutopilotDevice) {
@@ -85,7 +85,7 @@ func newSingleHostClient(t *testing.T, handler http.HandlerFunc) Client {
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
-	return newClientWithHosts(&fleet.MicrosoftGraphCredential{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: testTenantID, ClientID: testClientID}, ClientSecret: testSecret}, srv.URL, srv.URL)
+	return newClientWithHosts(&fleet.MicrosoftGraphCredential{TenantID: testTenantID, ClientID: testClientID, ClientSecret: testSecret}, srv.URL, srv.URL)
 }
 
 // newPagedGraphServer serves the given pages in order, linking each to the next. Page N is requested with
@@ -125,9 +125,9 @@ func TestNewClientRequiresFullCredential(t *testing.T) {
 		cred *fleet.MicrosoftGraphCredential
 	}{
 		{"nil", nil},
-		{"missing secret", &fleet.MicrosoftGraphCredential{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: "t", ClientID: "c"}}},
-		{"missing client", &fleet.MicrosoftGraphCredential{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: "t"}, ClientSecret: "s"}},
-		{"missing tenant", &fleet.MicrosoftGraphCredential{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{ClientID: "c"}, ClientSecret: "s"}},
+		{"missing secret", &fleet.MicrosoftGraphCredential{TenantID: "t", ClientID: "c"}},
+		{"missing client", &fleet.MicrosoftGraphCredential{TenantID: "t", ClientSecret: "s"}},
+		{"missing tenant", &fleet.MicrosoftGraphCredential{ClientID: "c", ClientSecret: "s"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c, err := NewClient(tc.cred)

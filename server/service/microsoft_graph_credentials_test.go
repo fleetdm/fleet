@@ -55,7 +55,7 @@ type graphCredsTestEnv struct {
 // seed puts a credential in the store as though a previous apply had written it, returning it so a caller can set
 // sync state on top.
 func (e *graphCredsTestEnv) seed(tenantID, clientID, secret string) *fleet.MicrosoftGraphCredential {
-	cred := &fleet.MicrosoftGraphCredential{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: tenantID, ClientID: clientID}, ClientSecret: secret}
+	cred := &fleet.MicrosoftGraphCredential{TenantID: tenantID, ClientID: clientID, ClientSecret: secret}
 	e.stored[tenantID] = cred
 	return cred
 }
@@ -160,7 +160,7 @@ func setupGraphCredsTest(t *testing.T, tier string, privateKey string, verifyErr
 func TestApplyMicrosoftGraphCredentials(t *testing.T) {
 	t.Parallel()
 	validCred := []fleet.MicrosoftGraphCredential{
-		{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: graphTenantA, ClientID: graphClientA}, ClientSecret: "secret-a"},
+		{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "secret-a"},
 	}
 
 	t.Run("stores a credential on premium", func(t *testing.T) {
@@ -188,8 +188,8 @@ func TestApplyMicrosoftGraphCredentials(t *testing.T) {
 		env := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 
 		err := env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
-			{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: graphTenantA, ClientID: graphClientA}, ClientSecret: "a"},
-			{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: graphTenantB, ClientID: graphClientA}, ClientSecret: "b"},
+			{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "a"},
+			{TenantID: graphTenantB, ClientID: graphClientA, ClientSecret: "b"},
 		}, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Only 1 Microsoft Graph credential can be configured")
@@ -200,7 +200,7 @@ func TestApplyMicrosoftGraphCredentials(t *testing.T) {
 		env := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 
 		err := env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
-			{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: "not-a-guid", ClientID: graphClientA}, ClientSecret: "a"},
+			{TenantID: "not-a-guid", ClientID: graphClientA, ClientSecret: "a"},
 		}, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Invalid Entra tenant ID")
@@ -232,7 +232,7 @@ func TestApplyMicrosoftGraphCredentials(t *testing.T) {
 		env.seed(graphTenantA, graphClientA, "stored-secret")
 
 		require.NoError(t, env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
-			{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: graphTenantA, ClientID: graphClientA}, ClientSecret: fleet.MaskedPassword},
+			{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: fleet.MaskedPassword},
 		}, false))
 
 		assert.Equal(t, "stored-secret", env.stored[graphTenantA].ClientSecret)
@@ -258,7 +258,7 @@ func TestApplyMicrosoftGraphCredentials(t *testing.T) {
 				env.seed(graphTenantA, graphClientA, "stored-secret")
 
 				err := env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
-					{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: tc.tenantID, ClientID: tc.clientID}, ClientSecret: fleet.MaskedPassword},
+					{TenantID: tc.tenantID, ClientID: tc.clientID, ClientSecret: fleet.MaskedPassword},
 				}, false)
 
 				require.Error(t, err)
@@ -306,8 +306,8 @@ func TestMicrosoftGraphCredentialCloud(t *testing.T) {
 	t.Parallel()
 	credential := func(cloud fleet.MicrosoftGraphCloud, secret string) fleet.MicrosoftGraphCredential {
 		return fleet.MicrosoftGraphCredential{
-			MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: graphTenantA, ClientID: graphClientA, Cloud: cloud},
-			ClientSecret:                     secret,
+			TenantID: graphTenantA, ClientID: graphClientA, Cloud: cloud,
+			ClientSecret: secret,
 		}
 	}
 	for _, cloud := range []fleet.MicrosoftGraphCloud{"", fleet.MicrosoftGraphCloudGlobal, fleet.MicrosoftGraphCloudGCCHigh, fleet.MicrosoftGraphCloudDoD, fleet.MicrosoftGraphCloudChina} {
@@ -373,7 +373,7 @@ func TestMicrosoftGraphCredentialInvalidFlag(t *testing.T) {
 
 		// A rotated secret is verified before storage, and the upsert clears the per-tenant flag.
 		require.NoError(t, env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
-			{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: graphTenantA, ClientID: graphClientA}, ClientSecret: "rotated"},
+			{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "rotated"},
 		}, false))
 
 		assert.False(t, env.credentialInvalid(t), "rotating to a verified credential must clear the flag")
@@ -407,7 +407,7 @@ func TestMicrosoftGraphCredentialInvalidFlag(t *testing.T) {
 		}
 
 		require.NoError(t, env.svc.ApplyMicrosoftGraphCredentials(env.ctx, []fleet.MicrosoftGraphCredential{
-			{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: graphTenantA, ClientID: graphClientA}, ClientSecret: "stored-secret"},
+			{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "stored-secret"},
 		}, false))
 
 		assert.Zero(t, appConfigReads, "the flag must not be recomputed when nothing changed")
@@ -476,7 +476,7 @@ func TestMicrosoftGraphCredentialsAuth(t *testing.T) {
 
 			// A dry run exercises the authorization check without depending on the datastore mocks.
 			err = env.svc.ApplyMicrosoftGraphCredentials(ctx, []fleet.MicrosoftGraphCredential{
-				{MicrosoftGraphCredentialMetadata: fleet.MicrosoftGraphCredentialMetadata{TenantID: graphTenantA, ClientID: graphClientA}, ClientSecret: "secret-a"},
+				{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "secret-a"},
 			}, true)
 			checkAuthErr(t, tc.shouldFail, err)
 		})
