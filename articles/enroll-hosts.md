@@ -194,8 +194,10 @@ Deleting a host doesn't unenroll it, so most hosts come back:
 | Windows | Yes, unless Fleet's agent is uninstalled or its enroll secret is deleted | Enroll secret's fleet. Hosts that got Fleet's agent when they turned on MDM, through [manual enrollment](https://fleetdm.com/guides/windows-mdm-setup#manual-enrollment), [automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment), or [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot), go to "Unassigned." |
 | Linux | Yes, unless Fleet's agent is uninstalled or its enroll secret is deleted | Enroll secret's fleet |
 | iOS, iPadOS | Yes, at the next MDM check-in, unless you unenroll it first. AB hosts come back right away as **Pending**. | Fleet it was in when it last enrolled, even if you've since transferred it. AB hosts go to AB's default fleet. |
-| Android | Yes, at the next status report, unless you unenroll it first | Fleet it was in when you deleted it, or "Unassigned" if that fleet was deleted. Coming soon: the enroll secret's fleet ([#53076](https://github.com/fleetdm/fleet/issues/53076)). |
+| Android | Yes, at the next [status report](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices), unless you unenroll it first | Fleet it was in when you deleted it, or "Unassigned" if that fleet was deleted. Coming soon: the enroll secret's fleet ([#53076](https://github.com/fleetdm/fleet/issues/53076)). |
 | ChromeOS | Yes, unless the extension is removed or its enroll secret is deleted | Enroll secret's fleet |
+
+> Google doesn't document when Android hosts send status reports. In testing, deleted Android hosts came back anywhere from less than an hour to several hours later, always within 24 hours.
 
 Deleting a host also cancels its upcoming activities and clears its MDM command history, so Fleet can't report whether an in-progress command, like a wipe, finished. If Fleet can't reach AB, the delete fails.
 
