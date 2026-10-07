@@ -38,7 +38,7 @@ const OrgNameCell = ({
     <>
       {name}{" "}
       <Tag
-        size="xsmall"
+        size="small"
         tooltip={
           <>
             Restricting Managed Apple Account sign-in to managed hosts only

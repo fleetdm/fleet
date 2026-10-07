@@ -27,14 +27,14 @@ const baseClass = "users-table";
 
 const renderApiUserIndicator = () => {
   return (
-    <Tag tooltip="This user only has API access." size="xsmall">
+    <Tag tooltip="This user only has API access." size="small">
       API
     </Tag>
   );
 };
 
 const renderApiEndpointCount = (count: number) => (
-  <Tag size="xsmall">{`${count} API endpoint${count === 1 ? "" : "s"}`}</Tag>
+  <Tag size="small">{`${count} API endpoint${count === 1 ? "" : "s"}`}</Tag>
 );
 
 interface IHeaderProps {

@@ -73,7 +73,7 @@ export const renderApiUserIndicator = () => {
           />
         </>
       }
-      size="xsmall"
+      size="small"
     >
       API
     </Tag>
