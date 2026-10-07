@@ -314,7 +314,6 @@ const LibraryItemAccordion = ({
       underline={false}
       position="top"
       tipOffset={8}
-      textBalanced={false}
     >
       {onClick && canClick ? (
         <Button

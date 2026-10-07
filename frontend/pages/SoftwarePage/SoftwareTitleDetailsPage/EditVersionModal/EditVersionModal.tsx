@@ -204,6 +204,7 @@ const EditVersionModal = ({
             platform={version.platform}
             appDisplayName={titleDisplayName}
             labels={labels ?? []}
+            teamId={teamId}
             onClickPreviewEndUserExperience={() =>
               setShowPreviewEndUserExperience(true)
             }

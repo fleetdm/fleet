@@ -190,6 +190,7 @@ const AddVersionModal = ({
             platform={appStore.platform}
             appDisplayName={appStore.display_name || appStore.name}
             labels={labels ?? []}
+            teamId={teamId}
             onClickPreviewEndUserExperience={() =>
               setShowPreviewEndUserExperience(true)
             }

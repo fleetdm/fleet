@@ -1,6 +1,5 @@
 import React from "react";
 
-import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -11,7 +10,7 @@ import InfoBanner from "components/InfoBanner";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreAppVersion, SoftwareCategory } from "interfaces/software";
-import { CATEGORIES_ITEMS } from "pages/hosts/details/cards/Software/SelfService/helpers";
+import { CategoriesSelector } from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector/SoftwareOptionsSelector";
 import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
@@ -217,10 +216,14 @@ interface IVersionFormFieldsProps {
   /** Display name of the app, used in the auto-update help text. */
   appDisplayName: string;
   labels: ILabelSummary[];
-  /** Click handler for the Category section's "View end user experience"
-   * link (iOS/iPadOS when self-service is on). Opens the title-level
-   * self-service preview modal. Omit to hide the link. */
-  onClickPreviewEndUserExperience?: () => void;
+  /** Fleet id. Passed to the shared `CategoriesSelector` so it can load the
+   * fleet's self-service categories dynamically (undefined falls back to the
+   * hardcoded list). */
+  teamId: number;
+  /** Click handler for the Category section's "Preview end user experience"
+   * button (iOS/iPadOS when self-service is on). Opens the title-level
+   * self-service preview modal. */
+  onClickPreviewEndUserExperience: () => void;
 }
 
 const VersionFormFields = ({
@@ -233,15 +236,23 @@ const VersionFormFields = ({
   platform,
   appDisplayName,
   labels,
+  teamId,
   onClickPreviewEndUserExperience,
 }: IVersionFormFieldsProps) => {
   const isIosOrIpados = platform === "ios" || platform === "ipados";
   const editorMode = isIosOrIpados ? "xml" : "json";
 
-  const onToggleCategory = (value: SoftwareCategory) => {
-    const next = formData.categories.includes(value)
-      ? formData.categories.filter((c) => c !== value)
-      : [...formData.categories, value];
+  const onSelectCategory = ({
+    name,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    const category = name as SoftwareCategory;
+    const next = value
+      ? [...formData.categories, category]
+      : formData.categories.filter((c) => c !== category);
     commitFields({ categories: next });
   };
 
@@ -305,39 +316,14 @@ const VersionFormFields = ({
       )}
 
       {isIosOrIpados && formData.selfService && (
-        <FormField
-          name="category"
-          label={
-            <div className={`${baseClass}__category-header`}>
-              <span>Category</span>
-              {onClickPreviewEndUserExperience && (
-                <Button
-                  variant="subdued"
-                  size="small"
-                  onClick={onClickPreviewEndUserExperience}
-                >
-                  View end user experience
-                </Button>
-              )}
-            </div>
-          }
-        >
-          <div className={`${baseClass}__category-list`}>
-            {CATEGORIES_ITEMS.map((cat) => {
-              const value = cat.value as SoftwareCategory;
-              return (
-                <Checkbox
-                  key={value}
-                  value={formData.categories.includes(value)}
-                  onChange={() => onToggleCategory(value)}
-                  name={`category-${value}`}
-                >
-                  {cat.label}
-                </Checkbox>
-              );
-            })}
-          </div>
-        </FormField>
+        <CategoriesSelector
+          onSelectCategory={onSelectCategory}
+          selectedCategories={formData.categories}
+          onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
+          teamId={teamId}
+          label="Category"
+          previewButtonLabel="View end user experience"
+        />
       )}
 
       {isIosOrIpados && (
@@ -390,25 +376,24 @@ const VersionFormFields = ({
         </FormField>
       )}
 
-      <FormField name="target" label="Target" error={getError("labelTargets")}>
-        <div className={`${baseClass}__target`}>
+      <DropdownTargetLabelSelector
+        selectedTargetType={formData.targetType}
+        selectedCustomTarget={formData.customTarget}
+        selectedLabels={formData.labelTargets}
+        customTargetOptions={CUSTOM_TARGET_OPTIONS}
+        onSelectTargetType={onSelectTargetType}
+        onSelectCustomTarget={onSelectCustomTargetOption}
+        onSelectLabel={onSelectLabel}
+        labels={labels}
+        dropdownHelpText={generateHelpText(false, formData.customTarget)}
+        error={getError("labelTargets")}
+        labelInfoBanner={
           <InfoBanner icon="info-outline">
             If multiple versions target the same host, Fleet will deploy the one
             that was added first.
           </InfoBanner>
-          <DropdownTargetLabelSelector
-            selectedTargetType={formData.targetType}
-            selectedCustomTarget={formData.customTarget}
-            selectedLabels={formData.labelTargets}
-            customTargetOptions={CUSTOM_TARGET_OPTIONS}
-            onSelectTargetType={onSelectTargetType}
-            onSelectCustomTarget={onSelectCustomTargetOption}
-            onSelectLabel={onSelectLabel}
-            labels={labels}
-            dropdownHelpText={generateHelpText(false, formData.customTarget)}
-          />
-        </div>
-      </FormField>
+        }
+      />
     </div>
   );
 };

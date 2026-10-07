@@ -11,22 +11,13 @@
     }
   }
 
-  &__category-list,
   &__auto-updates,
   &__target {
     @include flex-column-8px-gap;
-  }
-
-  &__category-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
   }
 
   &__auto-updates-help {
     margin: 0;
     color: $core-fleet-black;
   }
-
 }
