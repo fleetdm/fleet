@@ -471,7 +471,7 @@ controls:
         activation: ../lib/macos/activations/activation.json
     assets:
       - path: ../lib/macos/assets/my-asset.json
-    enable_managed_local_account: true 
+    enable_managed_local_account: true
     end_user_local_account_type: "admin"
   windows_settings:
     configuration_profiles:
