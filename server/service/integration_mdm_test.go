@@ -16470,6 +16470,53 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomationKeptOnUnchangedAppCo
 	require.NotNil(t, getPolicyResp.Policy.InstallSoftware)
 	require.Equal(t, titleID, getPolicyResp.Policy.InstallSoftware.SoftwareTitleID)
 
+	// assign the token to both fleets and set the policy automation again, then apply the app config
+	// with the same fleets in a different order, the policy automation should be kept
+	patchVPPResp = patchVPPTokensTeamsResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokensResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, otherTeam.ID}}, http.StatusOK, &patchVPPResp)
+	modifyResp = fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+		},
+	}, http.StatusOK, &modifyResp)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": [ "%s", "%s" ]} ] }
+	}`, location, otherTeam.Name, team.Name)), http.StatusOK, &acResp)
+
+	getPolicyResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), nil, http.StatusOK, &getPolicyResp)
+	require.NotNil(t, getPolicyResp.Policy.InstallSoftware)
+	require.Equal(t, titleID, getPolicyResp.Policy.InstallSoftware.SoftwareTitleID)
+
+	// assign the token to all fleets, add the app back and set the policy automation again, then apply
+	// the app config with All fleets, the app and the policy automation should be kept
+	patchVPPResp = patchVPPTokensTeamsResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokensResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &patchVPPResp)
+	addedApp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, Platform: fleet.MacOSPlatform, AppStoreID: "1"}, http.StatusOK, &addedApp)
+	modifyResp = fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+		},
+	}, http.StatusOK, &modifyResp)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": [ "%s" ]} ] }
+	}`, location, fleet.DisplayNameAllTeams)), http.StatusOK, &acResp)
+
+	listSw = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
+	require.Len(t, listSw.SoftwareTitles, 1)
+	getPolicyResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), nil, http.StatusOK, &getPolicyResp)
+	require.NotNil(t, getPolicyResp.Policy.InstallSoftware)
+	require.Equal(t, titleID, getPolicyResp.Policy.InstallSoftware.SoftwareTitleID)
+
 	// apply the app config with a different fleet for the token, the policy automation should be cleared
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
@@ -16479,6 +16526,22 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomationKeptOnUnchangedAppCo
 	getPolicyResp = fleet.GetPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), nil, http.StatusOK, &getPolicyResp)
 	require.Nil(t, getPolicyResp.Policy.InstallSoftware)
+
+	// apply the app config with no fleets and then with All fleets, the token should end up on all fleets
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": []} ] }
+	}`, location)), http.StatusOK, &acResp)
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": [ "%s" ]} ] }
+	}`, location, fleet.DisplayNameAllTeams)), http.StatusOK, &acResp)
+
+	tokensResp = getVPPTokensResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokensResp)
+	require.Len(t, tokensResp.Tokens, 1)
+	require.NotNil(t, tokensResp.Tokens[0].Teams)
+	require.Empty(t, tokensResp.Tokens[0].Teams)
 }
 
 func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
