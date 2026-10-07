@@ -1873,7 +1873,7 @@ func testGetUnverifiedInHouseAppInstallsForHost(t *testing.T, ds *Datastore) {
 		Hostname:       "host1",
 		UUID:           "host1uuid",
 		HardwareSerial: "host1serial",
-		NodeKey:        ptr.String("host1key"),
+		NodeKey:        new("host1key"),
 		Platform:       string(fleet.IOSPlatform),
 	})
 	require.NoError(t, err)
