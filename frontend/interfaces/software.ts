@@ -308,6 +308,8 @@ export type SoftwareTypePlatform =
 
 const DESKTOP = ["darwin", "windows", "linux"] as const;
 
+export const MACOS_APP_SOFTWARE_TYPE = "macos_app";
+
 // Keys are used in the page URLs (`?types=`), so never rename them.
 // IMPORTANT: Keep sources and extension_for values in sync with
 // softwareTypeFilterSources in server/fleet/software.go.
@@ -451,7 +453,7 @@ const SOFTWARE_TYPE_VARIANTS = [
     platforms: ["ipados"],
   },
   {
-    key: "macos_app",
+    key: MACOS_APP_SOFTWARE_TYPE,
     displayName: "macOS app",
     source: "apps",
     platforms: ["darwin"],
