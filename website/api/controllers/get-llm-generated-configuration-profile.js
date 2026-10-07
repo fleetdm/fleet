@@ -44,6 +44,19 @@ module.exports = {
       sails.sockets.join(this.req, roomId);
     }
 
+    // Record this prompt and its response. Failing to do so must never break the user flow.
+    let recordPromptAndResponse = async (wasSuccessful, response)=>{
+      await ConfigurationGeneratorPrompt.create({
+        profileType,
+        prompt: naturalLanguageInstructions,
+        response: response || {},
+        wasSuccessful,
+      })
+      .tolerate((err)=>{
+        sails.log.warn(`Could not save a configuration generator prompt. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      });
+    };
+
     // Get the prompts for this profile, and the configuration for this profile type.
     let generatorConfiguration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({
       profileType,
@@ -161,6 +174,8 @@ Respond in JSON with this data shape:
           sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
           sails.sockets.leave(this.req, roomId);
         }
+        // Not awaited, this is inside a synchronous intercept handler.
+        recordPromptAndResponse(false, {error: 'couldNotGenerateProfile'});
         return 'couldNotGenerateProfile';
       });
       // console.timeEnd('sonnet prompt');
@@ -172,6 +187,7 @@ Respond in JSON with this data shape:
         !configurationProfileGenerationResult.configurationProfile ||
         !configurationProfileGenerationResult.profileFilename ||
         !configurationProfileGenerationResult.settingsEnforced) {
+      await recordPromptAndResponse(false, configurationProfileGenerationResult);
       if(this.req.isSocket){
         // If the sonnet result returned a reasonWhyAProfileCouldNotBeGenerated, broadcast an error event with a reason to the requesting user's socket, and leave the room.
         if(configurationProfileGenerationResult && configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated){
@@ -193,6 +209,8 @@ Respond in JSON with this data shape:
       deliveryNotes: configurationProfileGenerationResult.deliveryNotes,
       items: configurationProfileGenerationResult.settingsEnforced
     };
+
+    await recordPromptAndResponse(true, generatedProfile);
 
     // If this request was from a socket, we'll broadcast a 'profileGenerated' event with the generated profile and unsubscribe the socket.
     if(this.req.isSocket){
