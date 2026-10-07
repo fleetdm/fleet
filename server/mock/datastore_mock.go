@@ -1560,7 +1560,7 @@ type MDMWindowsConflictingEnrollmentHardwareIDFunc func(ctx context.Context, hos
 
 type MDMWindowsClaimEnrolledActivityFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
 
-type MDMWindowsSetEnrollmentFleetdPresentFunc func(ctx context.Context, enrollmentID uint) error
+type MDMWindowsSetEnrollmentFleetdPresentFunc func(ctx context.Context, enrollmentID uint, hostUUID string) error
 
 type MDMWindowsReleaseEnrolledActivityClaimFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error
 
@@ -11759,11 +11759,11 @@ func (s *DataStore) MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHard
 	return s.MDMWindowsClaimEnrolledActivityFunc(ctx, mdmHardwareID, claimedAt)
 }
 
-func (s *DataStore) MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, enrollmentID uint) error {
+func (s *DataStore) MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, enrollmentID uint, hostUUID string) error {
 	s.mu.Lock()
 	s.MDMWindowsSetEnrollmentFleetdPresentFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsSetEnrollmentFleetdPresentFunc(ctx, enrollmentID)
+	return s.MDMWindowsSetEnrollmentFleetdPresentFunc(ctx, enrollmentID, hostUUID)
 }
 
 func (s *DataStore) MDMWindowsReleaseEnrolledActivityClaim(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error {

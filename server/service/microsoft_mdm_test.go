@@ -3670,8 +3670,9 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			ds.WindowsMDMEnrollSecretUsedByOrbitFunc = func(context.Context, uint) (bool, error) {
 				return tc.usedByOrbit, nil
 			}
-			ds.MDMWindowsSetEnrollmentFleetdPresentFunc = func(ctx context.Context, enrollmentID uint) error {
+			ds.MDMWindowsSetEnrollmentFleetdPresentFunc = func(ctx context.Context, enrollmentID uint, linkedHostUUID string) error {
 				assert.EqualValues(t, 17, enrollmentID)
+				assert.Equal(t, hostUUID, linkedHostUUID)
 				return nil
 			}
 			svc := &Service{ds: ds}
@@ -3729,7 +3730,7 @@ func TestReleaseUnusedFleetdInstallSecret(t *testing.T) {
 				assert.EqualValues(t, 17, enrollmentID)
 				return nil
 			}
-			ds.MDMWindowsSetEnrollmentFleetdPresentFunc = func(context.Context, uint) error { return nil }
+			ds.MDMWindowsSetEnrollmentFleetdPresentFunc = func(context.Context, uint, string) error { return nil }
 			svc := &Service{ds: ds, config: config.FleetConfig{MDM: config.MDMConfig{WindowsOneTimeEnrollSecrets: !tc.disabled}}}
 
 			svc.releaseUnusedFleetdInstallSecret(t.Context(), &fleet.MDMWindowsEnrolledDevice{

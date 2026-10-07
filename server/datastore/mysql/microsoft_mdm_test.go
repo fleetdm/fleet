@@ -9256,11 +9256,11 @@ func testMDMWindowsSetEnrollmentFleetdPresent(t *testing.T, ds *Datastore) {
 		device := newEnrollment(t, hardwareID, "")
 		require.Nil(t, device.FleetdPresentAt, "a new enrollment starts unset")
 
-		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID))
+		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID, ""))
 		first := fleetdPresentAt(t, device.MDMDeviceID)
 		require.NotNil(t, first)
 
-		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID))
+		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID, ""))
 		require.Equal(t, first, fleetdPresentAt(t, device.MDMDeviceID), "a later set keeps the first timestamp")
 
 		_, err := ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, hardwareID)
@@ -9269,14 +9269,39 @@ func testMDMWindowsSetEnrollmentFleetdPresent(t *testing.T, ds *Datastore) {
 		require.Nil(t, reenrolled.FleetdPresentAt, "a re-enrollment must check fleetd again")
 	})
 
+	newWindowsHost := func(t *testing.T, name string) *fleet.Host {
+		return test.NewHost(t, ds, name, "", name+"-key", uuid.NewString(), time.Now(), test.WithPlatform("windows"))
+	}
+
 	t.Run("cleared when the host is deleted", func(t *testing.T) {
-		host := test.NewHost(t, ds, "win-fleetd", "10.0.0.98", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
+		host := newWindowsHost(t, "win-fleetd-deleted")
 		device := newEnrollment(t, uuid.NewString(), host.UUID)
-		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID))
+		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID, host.UUID))
 		require.NotNil(t, fleetdPresentAt(t, device.MDMDeviceID))
 
 		require.NoError(t, ds.DeleteHost(ctx, host.ID))
 		require.Nil(t, fleetdPresentAt(t, device.MDMDeviceID))
+
+		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID, host.UUID))
+		require.Nil(t, fleetdPresentAt(t, device.MDMDeviceID), "a check that raced the deletion must not restore it")
+	})
+
+	t.Run("cleared when the enrollment is relinked", func(t *testing.T) {
+		previous, next := newWindowsHost(t, "win-fleetd-previous"), newWindowsHost(t, "win-fleetd-next")
+		device := newEnrollment(t, uuid.NewString(), previous.UUID)
+		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID, previous.UUID))
+		require.NotNil(t, fleetdPresentAt(t, device.MDMDeviceID))
+
+		updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, next.UUID, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.True(t, updated)
+		require.Nil(t, fleetdPresentAt(t, device.MDMDeviceID), "presence on the previous host says nothing about the next one")
+
+		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID, previous.UUID))
+		require.Nil(t, fleetdPresentAt(t, device.MDMDeviceID), "a check of the previous host that raced the relink must not set it")
+
+		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID, next.UUID))
+		require.NotNil(t, fleetdPresentAt(t, device.MDMDeviceID))
 	})
 }
 

@@ -1521,7 +1521,7 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 		}
 		if isPresent {
 			// Best effort: if this fails, the next session checks again.
-			if err := svc.ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, enrolledDevice.ID); err != nil {
+			if err := svc.ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, enrolledDevice.ID, enrolledDevice.HostUUID); err != nil {
 				svc.logger.ErrorContext(ctx, "windows mdm: failed to record fleetd present", "err", err, "device_id", enrolledDevice.MDMDeviceID)
 				ctxerr.Handle(ctx, err)
 			}
@@ -1882,6 +1882,7 @@ scan:
 	// Always refresh in-memory HostUUID after a successful link attempt.
 	enrolledDevice.HostUUID = host.UUID
 	if updated {
+		enrolledDevice.FleetdPresentAt = nil // the relink cleared it
 		svc.releaseUnusedFleetdInstallSecret(ctx, enrolledDevice)
 	}
 	return updated
@@ -1942,6 +1943,7 @@ func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, en
 	}
 	enrolledDevice.HostUUID = host.UUID
 	if updated {
+		enrolledDevice.FleetdPresentAt = nil // the relink cleared it
 		svc.releaseUnusedFleetdInstallSecret(ctx, enrolledDevice)
 	}
 	return updated

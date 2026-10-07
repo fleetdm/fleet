@@ -2701,8 +2701,9 @@ type Datastore interface {
 	// enrollment, returning true for the first caller only.
 	MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
 
-	// MDMWindowsSetEnrollmentFleetdPresent records that fleetd was seen present for the given Windows MDM enrollment.
-	MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, enrollmentID uint) error
+	// MDMWindowsSetEnrollmentFleetdPresent records that fleetd was seen present for the given Windows MDM enrollment, if it is still
+	// linked to hostUUID and that host still exists.
+	MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, enrollmentID uint, hostUUID string) error
 
 	// MDMWindowsReleaseEnrolledActivityClaim releases a claim taken with the given timestamp, so an enrollment whose
 	// activity could not be recorded is retried on a later session rather than left silently unannounced.
