@@ -34,6 +34,7 @@ const BASE_PROPS = {
   softwareId: 42,
   teamId: 1,
   version: mockVersion(),
+  titleDisplayName: "Cloudflare One Agent",
   siblingVersionNames: ["Test"],
   onExit: jest.fn(),
   onSuccess: jest.fn(),

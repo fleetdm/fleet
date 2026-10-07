@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
@@ -15,6 +16,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import VersionFormFields, {
   IVersionFormData,
+  validateVersionForm,
   versionToFormData,
 } from "../VersionFormFields";
 
@@ -24,6 +26,10 @@ interface IEditVersionModalProps {
   softwareId: number;
   teamId: number;
   version: IAppStoreAppVersion;
+  /** Resolved title display name — `version.name` is the admin's version
+   * label (e.g. "Production"), not the app name, so we can't fall back to
+   * it for app-identity copy like the Auto updates help text. */
+  titleDisplayName: string;
   /** Other version names on this title, used for client-side uniqueness
    * validation. Excludes the version being edited. */
   siblingVersionNames: string[];
@@ -40,6 +46,7 @@ const EditVersionModal = ({
   softwareId,
   teamId,
   version,
+  titleDisplayName,
   siblingVersionNames,
   onExit,
   onSuccess,
@@ -65,16 +72,12 @@ const EditVersionModal = ({
     setShowPreviewEndUserExperience,
   ] = useState(false);
 
-  const validate = (data: IVersionFormData): IFormErrors => {
-    const errors: IFormErrors = {};
-    const trimmed = data.name.trim();
-    if (!trimmed) {
-      errors.name = "Enter a version name";
-    } else if (siblingNamesSet.has(trimmed.toLowerCase())) {
-      errors.name = "A version with this name already exists on this fleet";
-    }
-    return errors;
-  };
+  const validate = (data: IVersionFormData): IFormErrors =>
+    validateVersionForm(
+      data,
+      (trimmed) => !siblingNamesSet.has(trimmed.toLowerCase()),
+      version.platform
+    );
 
   const initialFormData = (() => {
     const base = versionToFormData(version);
@@ -123,15 +126,24 @@ const EditVersionModal = ({
         ? activeLabels
         : [];
 
+    // Android configuration is a JSON object on the wire; parse the editor
+    // string before sending. iOS/iPadOS send the XML plist as a string.
+    const hasConfig =
+      !!data.configuration && data.configuration !== emptyScaffold;
+    let configurationPayload = "";
+    if (hasConfig) {
+      configurationPayload =
+        version.platform === "android"
+          ? ((JSON.parse(data.configuration) as unknown) as string)
+          : data.configuration;
+    }
+
     try {
       await softwareAPI.editAppStoreAppVersion(softwareId, teamId, version.id, {
         name: data.name,
         self_service: data.selfService,
         categories: data.categories,
-        configuration:
-          data.configuration && data.configuration !== emptyScaffold
-            ? data.configuration
-            : "",
+        configuration: configurationPayload,
         labels_include_any: labelsIncludeAny,
         labels_include_all: labelsIncludeAll,
         labels_exclude_any: labelsExcludeAny,
@@ -188,7 +200,7 @@ const EditVersionModal = ({
             clearFieldError={clearFieldError}
             validateField={validateField}
             platform={version.platform}
-            appDisplayName={version.display_name || version.name}
+            appDisplayName={titleDisplayName}
             labels={labels ?? []}
             onClickPreviewEndUserExperience={() =>
               setShowPreviewEndUserExperience(true)
@@ -196,13 +208,20 @@ const EditVersionModal = ({
           />
 
           <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              isLoading={isSubmitting}
-              disabled={isSubmitting}
-            >
-              Save
-            </Button>
+            <GitOpsModeTooltipWrapper
+              position="top"
+              tipOffset={8}
+              entityType="software"
+              renderChildren={(gitOpsDisabled) => (
+                <Button
+                  type="submit"
+                  isLoading={isSubmitting}
+                  disabled={isSubmitting || !!gitOpsDisabled}
+                >
+                  Save
+                </Button>
+              )}
+            />
             <Button
               onClick={onExit}
               variant="secondary"

@@ -856,6 +856,10 @@ const SoftwareTitleDetailsPage = ({
           softwareId={softwareId}
           teamId={teamIdForApi}
           version={version}
+          titleDisplayName={getDisplayedSoftwareName(
+            title.name,
+            title.display_name
+          )}
           siblingVersionNames={siblingVersionNames}
           onExit={closeLibraryEditModal}
           onSuccess={() => {

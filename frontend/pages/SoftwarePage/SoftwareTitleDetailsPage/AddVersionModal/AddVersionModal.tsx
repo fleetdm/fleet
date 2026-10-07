@@ -16,6 +16,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import VersionFormFields, {
   DEFAULT_VERSION_FORM_DATA,
   IVersionFormData,
+  validateVersionForm,
 } from "../VersionFormFields";
 
 const baseClass = "add-version-modal";
@@ -73,16 +74,12 @@ const AddVersionModal = ({
     setShowPreviewEndUserExperience,
   ] = useState(false);
 
-  const validate = (data: IVersionFormData): IFormErrors => {
-    const errors: IFormErrors = {};
-    const trimmed = data.name.trim();
-    if (!trimmed) {
-      errors.name = "Enter a version name";
-    } else if (existingNamesSet.has(trimmed.toLowerCase())) {
-      errors.name = "A version with this name already exists on this fleet";
-    }
-    return errors;
-  };
+  const validate = (data: IVersionFormData): IFormErrors =>
+    validateVersionForm(
+      data,
+      (trimmed) => !existingNamesSet.has(trimmed.toLowerCase()),
+      appStore.platform
+    );
 
   const {
     formData,
@@ -117,6 +114,18 @@ const AddVersionModal = ({
         ? buildLabelArray(data.labelTargets)
         : undefined;
 
+    // Android configuration is a JSON object on the wire; parse the editor
+    // string before sending. iOS/iPadOS send the XML plist as a string.
+    const hasConfig =
+      !!data.configuration && data.configuration !== emptyScaffold;
+    let configurationPayload: string | undefined;
+    if (hasConfig) {
+      configurationPayload =
+        appStore.platform === "android"
+          ? ((JSON.parse(data.configuration) as unknown) as string)
+          : data.configuration;
+    }
+
     try {
       await softwareAPI.addAppStoreAppVersion(teamId, {
         app_store_id: appStore.app_store_id,
@@ -124,10 +133,7 @@ const AddVersionModal = ({
         name: data.name,
         self_service: data.selfService,
         categories: data.categories.length ? data.categories : undefined,
-        configuration:
-          data.configuration && data.configuration !== emptyScaffold
-            ? data.configuration
-            : undefined,
+        configuration: configurationPayload,
         labels_include_any:
           data.customTarget === "labelsIncludeAny" ? labelsArray : undefined,
         labels_include_all:
