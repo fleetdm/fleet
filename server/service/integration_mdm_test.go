@@ -30899,10 +30899,10 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	location := tokensResp.Tokens[0].Location
 
 	var fleetAResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("Fleet A")}}, http.StatusOK, &fleetAResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Fleet A")}, http.StatusOK, &fleetAResp)
 	fleetA := fleetAResp.Team
 	var fleetBResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("Fleet B")}}, http.StatusOK, &fleetBResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Fleet B")}, http.StatusOK, &fleetBResp)
 	fleetB := fleetBResp.Team
 
 	var patchVPPResp patchVPPTokensTeamsResponse
@@ -30923,9 +30923,7 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	require.NoError(t, err)
 	var modifyResp fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", fleetA.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
 	}, http.StatusOK, &modifyResp)
 
 	// apply the app config with the token on fleet A, the automation on fleet A should be kept
@@ -31008,9 +31006,7 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	require.NoError(t, err)
 	modifyResp = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", fleetB.ID, policyFleetB.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
 	}, http.StatusOK, &modifyResp)
 
 	// apply the app config with the token on no fleets, the app and the automation on fleet B should be removed

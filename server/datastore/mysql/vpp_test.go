@@ -1363,10 +1363,10 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	// add an app with an automation to no team
 	noTeamApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
+		AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform,
 	}, nil)
 	require.NoError(t, err)
-	noTeamMeta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, ptr.Uint(0), noTeamApp.TitleID)
+	noTeamMeta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, new(uint(0)), noTeamApp.TitleID)
 	require.NoError(t, err)
 	noTeamPolicy, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, nil, fleet.PolicyPayload{
 		Name:           "p2",
