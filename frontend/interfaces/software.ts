@@ -432,9 +432,7 @@ export const SCRIPT_PACKAGE_SOURCES = [
  * the backend limit changes. */
 export const MAX_PACKAGES_PER_TITLE = 10;
 
-/** Mirrors the backend cap on App Store app versions per title per fleet.
- * Used to disable "+ Add version" and surface a matching tooltip before the
- * user hits the API. */
+/** Mirrors the backend cap on App Store app versions per title per fleet. */
 export const MAX_APP_STORE_APP_VERSIONS_PER_TITLE = 10;
 
 /** Sources that don't map cleanly to versions or hosts in software inventory.

@@ -1,16 +1,5 @@
 .add-version-modal {
   &__form {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
-  }
-
-  &__first-added-callout {
-    background-color: $ui-off-white;
-    border-left: 2px solid $ui-fleet-black-50;
-    padding: $pad-small $pad-medium;
-    margin: 0;
-    color: $core-fleet-black;
-    font-size: $x-small;
+    @include vertical-modal-layout;
   }
 }

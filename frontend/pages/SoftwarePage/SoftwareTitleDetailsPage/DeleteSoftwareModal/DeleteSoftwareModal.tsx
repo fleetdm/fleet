@@ -145,7 +145,7 @@ const DeleteSoftwareModal = ({
   // Side-effect sentence on the title's custom icon and display name shows
   // when the delete tears down the whole title: full-title delete today (no
   // version/installer id) OR deleting the last remaining version.
-  const showCustomIconSentence =
+  const isDeletingCustomMetaData =
     !canActivateMultiplePackages && (!isVersionDelete || isLastVersion);
 
   return (
@@ -162,7 +162,7 @@ const DeleteSoftwareModal = ({
         </InfoBanner>
       )}
       {getPlatformMessage(isAppStoreApp, isAndroidApp)}
-      {showCustomIconSentence && (
+      {isDeletingCustomMetaData && (
         <p>Custom icon and display name will be deleted.</p>
       )}
       <div className="modal-cta-wrap">

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "react-query";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import { getErrorReason } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreAppVersion } from "interfaces/software";
@@ -45,10 +46,8 @@ const EditVersionModal = ({
 }: IEditVersionModalProps) => {
   const queryClient = useQueryClient();
 
-  // Platform-specific empty-config scaffolds. Mirrors AddVersionModal and
-  // EditConfigurationModal: iOS/iPadOS gets an empty XML plist, Android gets
-  // `{}`. On submit, a value equal to the scaffold is treated as "no
-  // configuration".
+  // Empty-config scaffold shown in the editor. A submit equal to this value
+  // is treated as "no configuration".
   const isIosOrIpados =
     version.platform === "ios" || version.platform === "ipados";
   const EMPTY_XML_SCAFFOLD = "<dict>\n  \n</dict>";
@@ -57,23 +56,48 @@ const EditVersionModal = ({
     ? EMPTY_XML_SCAFFOLD
     : EMPTY_JSON_SCAFFOLD;
 
-  const [formData, setFormData] = useState<IVersionFormData>(() => {
-    const initial = versionToFormData(version);
-    // Pre-fill the editor with the scaffold when the stored config is empty
-    // so the user sees the right skeleton rather than a blank editor.
-    if (!initial.configuration) {
-      initial.configuration = emptyScaffold;
-    }
-    return initial;
-  });
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  // Local to the modal so the form state in VersionFormFields stays mounted
-  // (and unsaved edits preserved) while the preview overlay is open.
+  const siblingNamesSet = new Set(
+    siblingVersionNames.map((n) => n.toLowerCase())
+  );
+
+  const [serverErrors, setServerErrors] = useState<IFormErrors | null>(null);
   const [
     showPreviewEndUserExperience,
     setShowPreviewEndUserExperience,
   ] = useState(false);
+
+  const validate = (data: IVersionFormData): IFormErrors => {
+    const errors: IFormErrors = {};
+    const trimmed = data.name.trim();
+    if (!trimmed) {
+      errors.name = "Enter a version name";
+    } else if (siblingNamesSet.has(trimmed.toLowerCase())) {
+      errors.name = "A version with this name already exists on this fleet";
+    }
+    return errors;
+  };
+
+  const initialFormData = (() => {
+    const base = versionToFormData(version);
+    // Pre-fill the editor with the scaffold when the stored config is empty.
+    if (!base.configuration) base.configuration = emptyScaffold;
+    return base;
+  })();
+
+  const {
+    formData,
+    setField,
+    commitFields,
+    getError,
+    clearFieldError,
+    validateField,
+    handleSubmit,
+    isSubmitting,
+  } = useFormValidation<IVersionFormData>({
+    initialFormData,
+    validate,
+    serverErrors,
+  });
 
   const { data: labels } = useQuery<ILabelSummary[], Error>(
     ["custom_labels", teamId],
@@ -81,83 +105,53 @@ const EditVersionModal = ({
     { ...DEFAULT_USE_QUERY_OPTIONS }
   );
 
-  const siblingNamesSet = new Set(
-    siblingVersionNames.map((n) => n.toLowerCase())
-  );
+  const onValidSubmit = async (data: IVersionFormData) => {
+    // Target → always send the three label arrays so the backend can
+    // normalize. "All hosts" sends empty arrays to clear any existing
+    // label scope. "Custom" sends the active list on the active key and
+    // empty arrays on the other two.
+    const activeLabels =
+      data.targetType === "Custom" ? buildLabelArray(data.labelTargets) : [];
+    const labelsIncludeAny =
+      data.targetType === "Custom" && data.customTarget === "labelsIncludeAny"
+        ? activeLabels
+        : [];
+    const labelsIncludeAll =
+      data.targetType === "Custom" && data.customTarget === "labelsIncludeAll"
+        ? activeLabels
+        : [];
+    const labelsExcludeAny =
+      data.targetType === "Custom" && data.customTarget === "labelsExcludeAny"
+        ? activeLabels
+        : [];
 
-  const validate = (candidate: string): string | null => {
-    const trimmed = candidate.trim();
-    if (!trimmed) return "Enter a version name";
-    if (siblingNamesSet.has(trimmed.toLowerCase())) {
-      return "A version with this name already exists on this fleet";
-    }
-    return null;
-  };
-
-  const onFocusName = () => setNameError(null);
-  const onBlurName = () => {
-    if (formData.name !== version.name) setNameError(validate(formData.name));
-  };
-
-  const onSubmit = async () => {
-    const err = validate(formData.name);
-    if (err) {
-      setNameError(err);
-      return;
-    }
-
-    setIsSubmitting(true);
     try {
-      // Target → always send the three label arrays so the backend can
-      // normalize. "All hosts" sends empty arrays to clear any existing
-      // label scope. "Custom" sends the active list on the active key and
-      // empty arrays on the other two.
-      const activeLabels =
-        formData.targetType === "Custom"
-          ? buildLabelArray(formData.labelTargets)
-          : [];
-      const labelsIncludeAny =
-        formData.targetType === "Custom" &&
-        formData.customTarget === "labelsIncludeAny"
-          ? activeLabels
-          : [];
-      const labelsIncludeAll =
-        formData.targetType === "Custom" &&
-        formData.customTarget === "labelsIncludeAll"
-          ? activeLabels
-          : [];
-      const labelsExcludeAny =
-        formData.targetType === "Custom" &&
-        formData.customTarget === "labelsExcludeAny"
-          ? activeLabels
-          : [];
-
       await softwareAPI.editAppStoreAppVersion(softwareId, teamId, version.id, {
-        name: formData.name.trim(),
-        self_service: formData.selfService,
-        categories: formData.categories,
+        name: data.name,
+        self_service: data.selfService,
+        categories: data.categories,
         configuration:
-          formData.configuration && formData.configuration !== emptyScaffold
-            ? formData.configuration
+          data.configuration && data.configuration !== emptyScaffold
+            ? data.configuration
             : "",
         labels_include_any: labelsIncludeAny,
         labels_include_all: labelsIncludeAll,
         labels_exclude_any: labelsExcludeAny,
-        auto_update_enabled: formData.autoUpdateEnabled,
+        auto_update_enabled: data.autoUpdateEnabled,
         auto_update_window_start:
-          formData.autoUpdateEnabled && formData.autoUpdateWindowStart
-            ? formData.autoUpdateWindowStart
+          data.autoUpdateEnabled && data.autoUpdateWindowStart
+            ? data.autoUpdateWindowStart
             : undefined,
         auto_update_window_end:
-          formData.autoUpdateEnabled && formData.autoUpdateWindowEnd
-            ? formData.autoUpdateWindowEnd
+          data.autoUpdateEnabled && data.autoUpdateWindowEnd
+            ? data.autoUpdateWindowEnd
             : undefined,
       });
 
       notify.success(
         <>
-          Successfully edited <b>{formData.name.trim()}</b>.
-          {formData.selfService
+          Successfully edited <strong>{data.name}</strong>.
+          {data.selfService
             ? " The end user can install from Fleet Desktop."
             : ""}
         </>
@@ -172,12 +166,11 @@ const EditVersionModal = ({
     } catch (e) {
       const reason = getErrorReason(e);
       if (reason?.toLowerCase().includes("name")) {
-        setNameError(reason);
+        setServerErrors({ name: reason });
       } else {
         notify.error("Couldn't edit. Please try again.", { response: e });
       }
     }
-    setIsSubmitting(false);
   };
 
   return (
@@ -190,20 +183,18 @@ const EditVersionModal = ({
       >
         <form
           className={`${baseClass}__form`}
-          onSubmit={(e) => {
-            e.preventDefault();
-            onSubmit();
-          }}
+          onSubmit={handleSubmit(onValidSubmit)}
         >
           <VersionFormFields
             formData={formData}
-            onChange={setFormData}
+            setField={setField}
+            commitFields={commitFields}
+            getError={getError}
+            clearFieldError={clearFieldError}
+            validateField={validateField}
             platform={version.platform}
             appDisplayName={version.display_name || version.name}
             labels={labels ?? []}
-            nameError={nameError}
-            onNameFocus={onFocusName}
-            onNameBlur={onBlurName}
             onClickPreviewEndUserExperience={
               version.platform !== "android"
                 ? () => setShowPreviewEndUserExperience(true)
@@ -212,7 +203,11 @@ const EditVersionModal = ({
           />
 
           <div className="modal-cta-wrap">
-            <Button type="submit" isLoading={isSubmitting}>
+            <Button
+              type="submit"
+              isLoading={isSubmitting}
+              disabled={isSubmitting}
+            >
               Save
             </Button>
             <Button

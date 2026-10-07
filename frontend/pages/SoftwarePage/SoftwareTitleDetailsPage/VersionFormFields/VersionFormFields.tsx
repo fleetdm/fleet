@@ -6,6 +6,7 @@ import Editor from "components/Editor";
 import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
 import Slider from "components/forms/fields/Slider";
+import FormField from "components/forms/FormField";
 import InfoBanner from "components/InfoBanner";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import { ILabelSummary } from "interfaces/label";
@@ -117,7 +118,18 @@ export const versionToFormData = (
 
 interface IVersionFormFieldsProps {
   formData: IVersionFormData;
-  onChange: (next: IVersionFormData) => void;
+  /** From `useFormValidation`. Text inputs (Name, Configuration, times). */
+  setField: <K extends keyof IVersionFormData & string>(
+    name: K,
+    value: IVersionFormData[K]
+  ) => void;
+  /** From `useFormValidation`. Compound / toggle-complete controls
+   * (Checkbox, Slider, category multi-select, Target radio/dropdown, label
+   * selector merges). */
+  commitFields: (changes: Partial<IVersionFormData>) => void;
+  getError: (name: string) => string | undefined;
+  clearFieldError: (name: string) => void;
+  validateField: (name: string) => void;
   /** Platform of the title's App Store app. Drives configuration mode
    * (XML for iOS/iPadOS, JSON for Android) and gates the auto-update
    * and self-service sections (iOS/iPadOS only). */
@@ -125,9 +137,6 @@ interface IVersionFormFieldsProps {
   /** Display name of the app, used in the auto-update help text. */
   appDisplayName: string;
   labels: ILabelSummary[];
-  nameError?: string | null;
-  onNameFocus?: () => void;
-  onNameBlur?: () => void;
   /** Click handler for the Category section's "View end user experience"
    * link (iOS/iPadOS when self-service is on). Opens the title-level
    * self-service preview modal. Omit to hide the link. */
@@ -136,41 +145,34 @@ interface IVersionFormFieldsProps {
 
 const VersionFormFields = ({
   formData,
-  onChange,
+  setField,
+  commitFields,
+  getError,
+  clearFieldError,
+  validateField,
   platform,
   appDisplayName,
   labels,
-  nameError,
-  onNameFocus,
-  onNameBlur,
   onClickPreviewEndUserExperience,
 }: IVersionFormFieldsProps) => {
   const isIosOrIpados = platform === "ios" || platform === "ipados";
   const editorMode = isIosOrIpados ? "xml" : "json";
 
-  const onChangeField = <K extends keyof IVersionFormData>(
-    key: K,
-    value: IVersionFormData[K]
-  ) => {
-    onChange({ ...formData, [key]: value });
-  };
-
   const onToggleCategory = (value: SoftwareCategory) => {
     const next = formData.categories.includes(value)
       ? formData.categories.filter((c) => c !== value)
       : [...formData.categories, value];
-    onChangeField("categories", next);
+    commitFields({ categories: next });
   };
 
   const onSelectTargetType = (next: string) => {
-    onChangeField("targetType", next as VersionTargetType);
+    commitFields({ targetType: next as VersionTargetType });
   };
   const onSelectCustomTargetOption = (next: string) => {
-    onChangeField("customTarget", next as VersionCustomTarget);
+    commitFields({ customTarget: next as VersionCustomTarget });
   };
   const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
-    onChange({
-      ...formData,
+    commitFields({
       labelTargets: { ...formData.labelTargets, [name]: value },
     });
   };
@@ -196,10 +198,10 @@ const VersionFormFields = ({
         label="Name"
         name="name"
         value={formData.name}
-        onChange={(next: string) => onChangeField("name", next)}
-        onFocus={onNameFocus}
-        onBlur={onNameBlur}
-        error={nameError ?? undefined}
+        onChange={(next: string) => setField("name", next)}
+        onFocus={() => clearFieldError("name")}
+        onBlur={() => validateField("name")}
+        error={getError("name")}
         placeholder="e.g. Production"
         autofocus
         inputOptions={{ maxLength: 255 }}
@@ -209,112 +211,118 @@ const VersionFormFields = ({
         label="Configuration"
         mode={editorMode}
         value={formData.configuration}
-        onChange={(next: string) => onChangeField("configuration", next)}
+        onChange={(next: string) => setField("configuration", next)}
         helpText={configHelpText}
       />
 
       {isIosOrIpados && (
         <Slider
           value={formData.selfService}
-          onChange={() => onChangeField("selfService", !formData.selfService)}
+          onChange={() => commitFields({ selfService: !formData.selfService })}
           activeText="Self-service"
           inactiveText="Self-service"
         />
       )}
 
       {isIosOrIpados && formData.selfService && (
-        <div className={`${baseClass}__category`}>
-          <div className={`${baseClass}__category-header`}>
-            <span className={`${baseClass}__category-label`}>Category</span>
-            {onClickPreviewEndUserExperience && (
-              <Button
-                variant="subdued"
-                size="small"
-                onClick={onClickPreviewEndUserExperience}
-              >
-                View end user experience
-              </Button>
-            )}
+        <FormField
+          name="category"
+          label={
+            <div className={`${baseClass}__category-header`}>
+              <span>Category</span>
+              {onClickPreviewEndUserExperience && (
+                <Button
+                  variant="subdued"
+                  size="small"
+                  onClick={onClickPreviewEndUserExperience}
+                >
+                  View end user experience
+                </Button>
+              )}
+            </div>
+          }
+        >
+          <div className={`${baseClass}__category-list`}>
+            {CATEGORIES_ITEMS.map((cat) => {
+              const value = cat.value as SoftwareCategory;
+              return (
+                <Checkbox
+                  key={value}
+                  value={formData.categories.includes(value)}
+                  onChange={() => onToggleCategory(value)}
+                  name={`category-${value}`}
+                >
+                  {cat.label}
+                </Checkbox>
+              );
+            })}
           </div>
-          {CATEGORIES_ITEMS.map((cat) => {
-            const value = cat.value as SoftwareCategory;
-            return (
-              <Checkbox
-                key={value}
-                value={formData.categories.includes(value)}
-                onChange={() => onToggleCategory(value)}
-                name={`category-${value}`}
-              >
-                {cat.label}
-              </Checkbox>
-            );
-          })}
-        </div>
+        </FormField>
       )}
 
       {isIosOrIpados && (
-        <div className={`${baseClass}__auto-updates`}>
-          <span className={`${baseClass}__auto-updates-label`}>
-            Auto updates
-          </span>
-          <p className={`${baseClass}__auto-updates-help`}>
-            Automatically update <b>{appDisplayName}</b> on all targeted hosts
-            when a new version is available.
-          </p>
-          <Checkbox
-            value={formData.autoUpdateEnabled}
-            onChange={(next: boolean) =>
-              onChangeField("autoUpdateEnabled", next)
-            }
-            name="auto-update-enabled"
-          >
-            Enable auto updates
-          </Checkbox>
-          {formData.autoUpdateEnabled && (
-            <div className={`${baseClass}__auto-update-window`}>
-              <InputField
-                label="Window start (host local time)"
-                name="auto-update-window-start"
-                type="time"
-                value={formData.autoUpdateWindowStart}
-                onChange={(next: string) =>
-                  onChangeField("autoUpdateWindowStart", next)
-                }
-                placeholder="00:00"
-              />
-              <InputField
-                label="Window end (host local time)"
-                name="auto-update-window-end"
-                type="time"
-                value={formData.autoUpdateWindowEnd}
-                onChange={(next: string) =>
-                  onChangeField("autoUpdateWindowEnd", next)
-                }
-                placeholder="04:00"
-              />
-            </div>
-          )}
-        </div>
+        <FormField name="auto-updates" label="Auto updates">
+          <div className={`${baseClass}__auto-updates`}>
+            <p className={`${baseClass}__auto-updates-help`}>
+              Automatically update <strong>{appDisplayName}</strong> on all
+              targeted hosts when a new version is available.
+            </p>
+            <Checkbox
+              value={formData.autoUpdateEnabled}
+              onChange={(next: boolean) =>
+                commitFields({ autoUpdateEnabled: next })
+              }
+              name="auto-update-enabled"
+            >
+              Enable auto updates
+            </Checkbox>
+            {formData.autoUpdateEnabled && (
+              <div className={`${baseClass}__auto-update-window`}>
+                <InputField
+                  label="Window start (host local time)"
+                  name="auto-update-window-start"
+                  type="time"
+                  value={formData.autoUpdateWindowStart}
+                  onChange={(next: string) =>
+                    setField("autoUpdateWindowStart", next)
+                  }
+                  placeholder="00:00"
+                />
+                <InputField
+                  label="Window end (host local time)"
+                  name="auto-update-window-end"
+                  type="time"
+                  value={formData.autoUpdateWindowEnd}
+                  onChange={(next: string) =>
+                    setField("autoUpdateWindowEnd", next)
+                  }
+                  placeholder="04:00"
+                />
+              </div>
+            )}
+          </div>
+        </FormField>
       )}
 
-      <div className={`${baseClass}__target`}>
-        <span className={`${baseClass}__target-label`}>Target</span>
-        <InfoBanner icon="info-outline">
-          If multiple versions target the same host, Fleet will deploy the one
-          that was added first.
-        </InfoBanner>
-        <DropdownTargetLabelSelector
-          selectedTargetType={formData.targetType}
-          selectedCustomTarget={formData.customTarget}
-          selectedLabels={formData.labelTargets}
-          customTargetOptions={CUSTOM_TARGET_OPTIONS}
-          onSelectTargetType={onSelectTargetType}
-          onSelectCustomTarget={onSelectCustomTargetOption}
-          onSelectLabel={onSelectLabel}
-          labels={labels}
-          dropdownHelpText={generateHelpText(false, formData.customTarget)}
-        />
-      </div>
+      <FormField name="target" label="Target">
+        <div className={`${baseClass}__target`}>
+          <InfoBanner icon="info-outline">
+            If multiple versions target the same host, Fleet will deploy the one
+            that was added first.
+          </InfoBanner>
+          <DropdownTargetLabelSelector
+            selectedTargetType={formData.targetType}
+            selectedCustomTarget={formData.customTarget}
+            selectedLabels={formData.labelTargets}
+            customTargetOptions={CUSTOM_TARGET_OPTIONS}
+            onSelectTargetType={onSelectTargetType}
+            onSelectCustomTarget={onSelectCustomTargetOption}
+            onSelectLabel={onSelectLabel}
+            labels={labels}
+            dropdownHelpText={generateHelpText(false, formData.customTarget)}
+          />
+        </div>
+      </FormField>
     </div>
   );
 };

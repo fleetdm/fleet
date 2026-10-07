@@ -945,7 +945,6 @@ const SoftwareTitleDetailsPage = ({
     const defaultTargetCustom = true;
     return (
       <AddVersionModal
-        softwareTitleId={softwareId}
         teamId={teamIdForApi}
         appStore={title.app_store_app}
         existingVersionNames={existingVersionNames}

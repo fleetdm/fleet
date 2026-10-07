@@ -413,7 +413,6 @@ const SoftwareSummaryCard = ({
               : undefined
           }
           useSingleEditAppearanceButton={useSingleEditAppearanceButton}
-          singleEditButtonVariant="secondary"
           onClickDeploy={canDeploySoftware ? onClickDeploy : undefined}
           onClickVersions={canManageVersions ? onClickVersions : undefined}
           onClickEditConfiguration={

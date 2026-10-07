@@ -1,7 +1,5 @@
 .version-form-fields {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-large;
+  @include vertical-form-layout;
 
   &__auto-update-window {
     display: flex;
@@ -13,25 +11,17 @@
     }
   }
 
-  &__category,
+  &__category-list,
   &__auto-updates,
   &__target {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-small;
+    @include flex-column-8px-gap;
   }
 
   &__category-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-  }
-
-  &__category-label,
-  &__auto-updates-label,
-  &__target-label {
-    font-weight: $bold;
-    font-size: $x-small;
+    width: 100%;
   }
 
   &__auto-updates-help {
