@@ -10317,7 +10317,7 @@ Only Apple (macOS, iOS, iPadOS) `DeviceLock`, `EraseDevice`, `ClearPasscode`, an
 - [Delete Android Enterprise](#delete-android-enterprise)
 - [List Microsoft Graph credentials](#list-microsoft-graph-credentials)
 - [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials)
-
+- [Get Android zero-touch enrollment configuration](#get-android-zero-touch-enrollment-configuration)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -10630,6 +10630,40 @@ Fleet currently supports one Microsoft Graph credential.
 `Status: 200`
 
 This endpoint returns a `422` when a tenant or client ID isn't a valid GUID, when `client_secret` is missing for a new credential, when more than one credential is supplied, or when Microsoft Graph rejects the credential.
+
+---
+
+### Get Android zero-touch enrollment configuration
+
+_Available in Fleet Premium_
+
+Get Fleet's Android zero-touch DPC extras JSON to paste into Google's zero-touch enrollment portal. Android MDM must be enabled. Specify a fleet so that hosts enrolled with this configuration are automatically added to that fleet, with its apps and settings applied.
+
+As part of this request, Fleet generates a token w/ 1,000 year expiry for the specified fleet. If a token already exists for the fleet, Fleet doesn't generate a new one.
+
+`GET /api/v1/fleet/android_enterprise/zero_touch_configuration`
+
+#### Parameters
+
+| Name      | Type    | In    | Description                                                                                                                                  |
+| --------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------|
+| fleet_id  | integer | query | _Available in Fleet Premium_. The ID of the fleet that hosts enrolled using this zero-touch configuration will be added to. If not specified, hosts will be added to "Unassigned". |
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/zero_touch_configuration?fleet_id=1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
+    "com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN": "<token from Fleet>"
+  }
+}
+```
 
 ---
 
