@@ -1,0 +1,1 @@
+- Fixed `fleetctl gitops --dry-run` reporting success for software that would fail on the real run (for example an unknown Fleet-maintained app slug or an invalid URL) when the fleet doesn't exist yet.

@@ -24,6 +24,7 @@ import (
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -2837,6 +2838,82 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 				"the short-circuit must check for installers pending deletion")
 		})
 	}
+}
+
+func TestBatchSetSoftwareInstallersDryRunNewFleet(t *testing.T) {
+	t.Parallel()
+
+	kvs := &redismock.KeyValueStore{
+		SetFunc: func(ctx context.Context, key string, value string, expireTime time.Duration) error {
+			t.Errorf("unexpected keyValueStore.Set call: key=%s", key)
+			return nil
+		},
+	}
+
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return nil, &notFoundError{}
+	}
+	// A nil team ID means Unassigned, so a fleet that doesn't exist yet must never
+	// be checked against Unassigned's installers or categories.
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+	ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+		return nil, nil
+	}
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	cases := []struct {
+		name     string
+		payloads []*fleet.SoftwareInstallerPayload
+		wantErr  string
+	}{
+		{"unknown Fleet-maintained app", []*fleet.SoftwareInstallerPayload{{Slug: new("not-a-real-app/darwin")}}, "isn't a supported Fleet-maintained app"},
+		{"invalid URL", []*fleet.SoftwareInstallerPayload{{URL: "not a url"}}, `URL ("not a url") is invalid`},
+		{"always_download with hash", []*fleet.SoftwareInstallerPayload{{URL: "https://example.com/app.pkg", SHA256: "abc", AlwaysDownload: true}}, "cannot be used with 'hash_sha256'"},
+		{"valid payload", []*fleet.SoftwareInstallerPayload{{URL: "https://example.com/app.pkg", Categories: optjson.SetSlice([]string{"Browsers"})}}, ""},
+		{"empty payload", nil, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds.GetSoftwareInstallersPendingDeletionFuncInvoked = false
+			ds.ListSoftwareCategoriesFuncInvoked = false
+
+			requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, "New fleet", c.payloads, true)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Empty(t, requestUUID)
+			require.False(t, ds.GetSoftwareInstallersPendingDeletionFuncInvoked, "must not list Unassigned's installers")
+			require.False(t, ds.ListSoftwareCategoriesFuncInvoked, "must not list Unassigned's categories")
+		})
+	}
+
+	t.Run("real run still fails", func(t *testing.T) {
+		_, err := svc.BatchSetSoftwareInstallers(ctx, "New fleet", nil, false)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("fleet-scoped user can't validate for a new fleet", func(t *testing.T) {
+		teamCtx := viewer.NewContext(t.Context(), viewer.Viewer{
+			User: &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+		})
+		_, err := svc.BatchSetSoftwareInstallers(teamCtx, "New fleet", nil, true)
+		checkAuthErr(t, true, err)
+	})
 }
 
 func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
