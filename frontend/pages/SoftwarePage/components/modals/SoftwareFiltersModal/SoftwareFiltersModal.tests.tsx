@@ -308,6 +308,57 @@ describe("SoftwareFiltersModal component", () => {
     });
   });
 
+  describe("Enter key", () => {
+    it("neither toggles Vulnerable software nor applies from the type search", async () => {
+      const onSubmitSpy = jest.fn();
+      const { user } = setUpModal({
+        availableTypes: SOFTWARE_TYPES,
+        onSubmit: onSubmitSpy,
+      });
+
+      await user.type(
+        screen.getByPlaceholderText("Search types"),
+        "chrome{Enter}"
+      );
+
+      expect(screen.getByRole("switch")).toHaveAttribute(
+        "aria-checked",
+        "false"
+      );
+      expect(onSubmitSpy).not.toHaveBeenCalled();
+    });
+
+    it("applies the filters from a score field without toggling Vulnerable software", async () => {
+      const onSubmitSpy = jest.fn();
+      const { user } = setUpModal({ onSubmit: onSubmitSpy });
+      await user.click(screen.getByRole("switch"));
+      await openAdvanced(user);
+      await selectSeverity(user, "Custom severity");
+
+      await user.type(screen.getByLabelText(/Min score/i), "3{Enter}");
+
+      expect(onSubmitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ vulnerable: true, minCvssScore: 3 })
+      );
+    });
+
+    it("keeps validating when a score field submits", async () => {
+      const onSubmitSpy = jest.fn();
+      const { user } = setUpModal({ onSubmit: onSubmitSpy });
+      await user.click(screen.getByRole("switch"));
+      await openAdvanced(user);
+      await selectSeverity(user, "Custom severity");
+
+      await user.type(screen.getByLabelText(/Min score/i), "11{Enter}");
+
+      expect(onSubmitSpy).not.toHaveBeenCalled();
+      expect(screen.getByRole("switch")).toHaveAttribute(
+        "aria-checked",
+        "true"
+      );
+    });
+  });
+
   it("shows only Types and Vulnerable software on Fleet Free", () => {
     renderModal({ isPremiumTier: false, availableTypes: SOFTWARE_TYPES });
 
