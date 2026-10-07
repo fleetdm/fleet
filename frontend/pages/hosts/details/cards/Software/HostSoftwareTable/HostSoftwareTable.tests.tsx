@@ -35,7 +35,7 @@ describe("HostSoftwareTable", () => {
     searchQuery: "",
     page: 0,
     pagePath: "/hosts/1/software",
-    vulnFilters: {},
+    filters: {},
     onAddFiltersClick: noop,
     onShowInventoryVersions: noop,
   };
@@ -97,7 +97,7 @@ describe("HostSoftwareTable", () => {
 
   it("renders custom filter button when filters are applied", () => {
     renderWithContext({
-      vulnFilters: { vulnerable: true },
+      filters: { vulnerable: true },
     });
     expect(screen.getByRole("button", { name: /filter/i })).toBeInTheDocument();
   });
@@ -105,7 +105,7 @@ describe("HostSoftwareTable", () => {
   it("renders VulnsNotSupported when vulns filter applied and platform is iPad/iPhone", () => {
     renderWithContext({
       platform: "ipados",
-      vulnFilters: { vulnerable: true },
+      filters: { vulnerable: true },
       data: createMockGetHostSoftwareResponse({
         count: 0,
         software: [],
