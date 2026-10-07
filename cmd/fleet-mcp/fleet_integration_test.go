@@ -645,49 +645,76 @@ func TestListSoftwareTitles_PaginatesUntilShortPage(t *testing.T) {
 	}
 }
 
-func TestListOSVersions_ScopesAndPaginates(t *testing.T) {
-	var calls atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func osVersionsTestServer(t *testing.T, total int, calls *atomic.Int32) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/fleet/fleets":
 			_ = json.NewEncoder(w).Encode(map[string]any{"teams": []Team{{ID: 275, Name: "💻 Workstations"}}})
 		case "/api/v1/fleet/os_versions":
 			calls.Add(1)
 			q := r.URL.Query()
-			if q.Get("team_id") != "275" || q.Get("platform") != "darwin" || q.Get("max_vulnerabilities") != "0" || q.Get("order_key") != "hosts_count" {
+			if q.Get("team_id") != "275" || q.Get("platform") != "darwin" || q.Get("max_vulnerabilities") != "0" || q.Get("page") != "0" {
 				t.Errorf("unexpected query %q", r.URL.RawQuery)
 			}
-			n := 100
-			if q.Get("page") == "1" {
-				n = 3
-			}
-			versions := make([]OSVersion, n)
+			perPage, _ := strconv.Atoi(q.Get("per_page"))
+			// Equal host counts, returned in reverse name order, to exercise the client-side tiebreaker.
+			versions := make([]OSVersion, min(total, perPage))
 			for i := range versions {
-				versions[i] = OSVersion{Name: fmt.Sprintf("macOS 27.0.%d", i), Platform: "darwin", HostsCount: 1}
+				versions[i] = OSVersion{Name: fmt.Sprintf("macOS 27.0.%03d", len(versions)-i), Platform: "darwin", HostsCount: 2}
 			}
-			_ = json.NewEncoder(w).Encode(map[string]any{"counts_updated_at": "2026-10-06T14:00:00Z", "os_versions": versions})
+			_ = json.NewEncoder(w).Encode(map[string]any{"count": total, "counts_updated_at": "2026-10-06T14:00:00Z", "os_versions": versions})
 		default:
 			t.Errorf("unexpected path %q", r.URL.Path)
 			http.NotFound(w, r)
 		}
 	}))
+}
+
+func TestListOSVersions_SinglePageAtCap(t *testing.T) {
+	orig := fetchOSVersionsHardCap
+	fetchOSVersionsHardCap = 5
+	defer func() { fetchOSVersionsHardCap = orig }()
+
+	var calls atomic.Int32
+	srv := osVersionsTestServer(t, 5, &calls)
 	defer srv.Close()
 
 	res, err := newTestClient(srv.URL).ListOSVersions(t.Context(), "💻 workstations", "macos")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got, want := len(res.OSVersions), 103; got != want {
+	if got, want := len(res.OSVersions), 5; got != want {
 		t.Errorf("len(OSVersions) = %d, want %d", got, want)
 	}
 	if res.Truncated {
-		t.Errorf("expected truncated=false")
+		t.Errorf("a complete result exactly at the cap must not be marked truncated")
+	}
+	if res.OSVersions[0].Name != "macOS 27.0.001" {
+		t.Errorf("expected ties ordered by name, got first %q", res.OSVersions[0].Name)
 	}
 	if res.CountsUpdatedAt != "2026-10-06T14:00:00Z" {
 		t.Errorf("CountsUpdatedAt = %q", res.CountsUpdatedAt)
 	}
-	if got := calls.Load(); got != 2 {
-		t.Errorf("expected 2 page calls, got %d", got)
+	if got := calls.Load(); got != 1 {
+		t.Errorf("expected 1 request, got %d", got)
+	}
+}
+
+func TestListOSVersions_TruncatedAboveCap(t *testing.T) {
+	orig := fetchOSVersionsHardCap
+	fetchOSVersionsHardCap = 5
+	defer func() { fetchOSVersionsHardCap = orig }()
+
+	var calls atomic.Int32
+	srv := osVersionsTestServer(t, 6, &calls)
+	defer srv.Close()
+
+	res, err := newTestClient(srv.URL).ListOSVersions(t.Context(), "💻 Workstations", "macos")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.OSVersions) != 5 || !res.Truncated {
+		t.Errorf("got %d rows truncated=%v, want 5 rows truncated=true", len(res.OSVersions), res.Truncated)
 	}
 }
 

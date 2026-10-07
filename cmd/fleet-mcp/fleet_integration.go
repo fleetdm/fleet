@@ -761,7 +761,7 @@ type OSVersionsResult struct {
 	Truncated       bool        `json:"truncated,omitempty"`
 }
 
-// Bounds memory for a single OS versions fetch. var (not const) so tests can lower it.
+// Max OS version rows fetched. var (not const) so tests can lower it.
 var fetchOSVersionsHardCap = 2000
 
 // ListOSVersions returns Fleet's aggregated OS version counts (the data behind
@@ -776,60 +776,58 @@ func (fc *FleetClient) ListOSVersions(ctx context.Context, teamName, platform st
 		teamIDStr = strconv.FormatUint(uint64(teamIDs[0]), 10)
 	}
 
-	const apiPerPage = 100
-	res := &OSVersionsResult{OSVersions: make([]OSVersion, 0)}
-	for page := 0; ; page++ {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-
-		params := url.Values{}
-		params.Set("per_page", strconv.Itoa(apiPerPage))
-		params.Set("page", strconv.Itoa(page))
-		params.Set("order_key", "hosts_count")
-		params.Set("order_direction", "desc")
-		// Vulnerability lists can be large; vulnerabilities_count is still returned.
-		params.Set("max_vulnerabilities", "0")
-		if teamIDStr != "" {
-			params.Set("team_id", teamIDStr)
-		}
-		if p := strings.TrimSpace(platform); p != "" {
-			params.Set("platform", normalizePlatform(p))
-		}
-
-		resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/os_versions?"+params.Encode(), nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch OS versions: %w", err)
-		}
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-			resp.Body.Close()
-			return nil, fmt.Errorf("failed to fetch OS versions: %s", fleetErrMsg(resp.StatusCode, body))
-		}
-
-		var result struct {
-			CountsUpdatedAt *string     `json:"counts_updated_at"`
-			OSVersions      []OSVersion `json:"os_versions"`
-		}
-		decErr := json.NewDecoder(resp.Body).Decode(&result)
-		resp.Body.Close()
-		if decErr != nil {
-			return nil, fmt.Errorf("failed to decode OS versions response: %w", decErr)
-		}
-		if result.CountsUpdatedAt != nil {
-			res.CountsUpdatedAt = *result.CountsUpdatedAt
-		}
-
-		res.OSVersions = append(res.OSVersions, result.OSVersions...)
-		if len(res.OSVersions) >= fetchOSVersionsHardCap {
-			res.OSVersions = res.OSVersions[:fetchOSVersionsHardCap]
-			res.Truncated = true
-			break
-		}
-		if len(result.OSVersions) < apiPerPage {
-			break
-		}
+	// Fetch everything in one page: the endpoint's hosts_count sort has no
+	// tiebreaker, so rows with equal counts can shift between page requests.
+	params := url.Values{}
+	params.Set("per_page", strconv.Itoa(fetchOSVersionsHardCap))
+	params.Set("page", "0")
+	params.Set("order_key", "hosts_count")
+	params.Set("order_direction", "desc")
+	// Vulnerability lists can be large; vulnerabilities_count is still returned.
+	params.Set("max_vulnerabilities", "0")
+	if teamIDStr != "" {
+		params.Set("team_id", teamIDStr)
 	}
+	if p := strings.TrimSpace(platform); p != "" {
+		params.Set("platform", normalizePlatform(p))
+	}
+
+	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/os_versions?"+params.Encode(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch OS versions: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("failed to fetch OS versions: %s", fleetErrMsg(resp.StatusCode, body))
+	}
+
+	var result struct {
+		Count           int         `json:"count"`
+		CountsUpdatedAt *string     `json:"counts_updated_at"`
+		OSVersions      []OSVersion `json:"os_versions"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode OS versions response: %w", err)
+	}
+
+	res := &OSVersionsResult{
+		OSVersions: result.OSVersions,
+		Truncated:  result.Count > len(result.OSVersions),
+	}
+	if res.OSVersions == nil {
+		res.OSVersions = make([]OSVersion, 0)
+	}
+	if result.CountsUpdatedAt != nil {
+		res.CountsUpdatedAt = *result.CountsUpdatedAt
+	}
+	sort.SliceStable(res.OSVersions, func(i, j int) bool {
+		a, b := res.OSVersions[i], res.OSVersions[j]
+		if a.HostsCount != b.HostsCount {
+			return a.HostsCount > b.HostsCount
+		}
+		return a.Name < b.Name
+	})
 	return res, nil
 }
 
