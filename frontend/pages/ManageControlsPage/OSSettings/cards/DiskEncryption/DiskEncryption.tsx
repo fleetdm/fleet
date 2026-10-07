@@ -323,7 +323,9 @@ const DiskEncryption = ({
       labelTooltipContent={ENFORCE_CHECKBOX_TOOLTIP_CONTENT[platform]}
       labelTooltipClickable
     >
-      Enable disk encryption
+      {platform === "windows"
+        ? "Enable disk encryption and escrow recovery key"
+        : "Enable disk encryption"}
     </Checkbox>
   );
 
