@@ -1779,10 +1779,16 @@ None.
     "activity_expiry_window": 0,
     "preserve_host_activities_on_reenrollment": false
   },
-  "features": {
+  "host_data_collection": {
     "enable_host_users": true,
     "enable_software_inventory": true,
     "additional_queries": null
+  },
+  "historical_reporting": {
+    "historical_data": {
+      "uptime": true,
+      "vulnerabilities": false
+    }
   },
   "mdm": {
     "android_enabled_and_configured": true,
@@ -2085,7 +2091,8 @@ Modifies the Fleet's configuration with the supplied information.
 | gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | conditional_access       | object  | body  | See [conditional_access](#conditional-access).    |
-| features                 | object  | body  | See [features](#features).                                                                                                           |
+| host_data_collection                 | object  | body  | See [host_data_collection](#host_data_collection).                                                                                                           |
+| historical_reporting                 | object  | body  | See [historical_reporting](#historical-reporting).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
 | yara_rules               | array   | body  | A list of YARA rule files to add.                                                                                                    |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
@@ -2170,7 +2177,7 @@ Modifies the Fleet's configuration with the supplied information.
     "activity_expiry_window": 0,
     "preserve_host_activities_on_reenrollment": false
   },
-  "features": {
+  "host_data_collection": {
     "enable_host_users": true,
     "enable_software_inventory": true,
     "additional_queries": null
@@ -3129,18 +3136,41 @@ _Available in Fleet Premium._
 }
 ```
 
-#### features
+#### host_data_collection
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
 | enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
 | additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
+
+<br/>
+
+##### Example request body
+
+```json
+{
+  "host_data_collection": {
+    "enable_host_users": true,
+    "enable_software_inventory": true,
+    "additional_queries": {
+      "time": "SELECT * FROM time",
+      "macs": "SELECT mac FROM interface_details"
+    }
+  }
+}
+```
+
+<br/>
+
+#### historical_reporting
+
+
 | historical_data                   | object | Per-dataset toggles for historical data collection used by the dashboard charts. See [Historical data](#historical-data) below.        |
 
-##### features.historical_data
+##### historical_reporting.historical_data
 
-`features.historical_data` controls whether each dashboard chart's
+`historical_reporting.historical_data` controls whether each dashboard chart's
 historical data is collected. Both sub-keys default to `true`. A dataset
 is collected for a given host only when both the global sub-key AND the
 host's fleet sub-key are `true`.
@@ -3156,20 +3186,13 @@ host's fleet sub-key are `true`.
 
 ```json
 {
-  "features": {
-    "enable_host_users": true,
-    "enable_software_inventory": true,
-    "additional_queries": {
-      "time": "SELECT * FROM time",
-      "macs": "SELECT mac FROM interface_details"
-    },
+  "historical_reporting": {
     "historical_data": {
       "uptime": true,
       "vulnerabilities": false
     }
   }
 }
-```
 
 
 
@@ -16498,7 +16521,8 @@ _Available in Fleet Premium_
 | integrations                                            | object  | body | Integrations settings for the fleet. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
 | mdm                                                     | object  | body | MDM settings for the fleet. See [mdm](#mdm2) for details.                                                                                                                                                                                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the fleet. See [host_expiry_settings](#host-expiry-settings2) for details.   |
-| features                                                | object  | body | Per-fleet feature toggles. Accepts only certain sub-fields; other `features` sub-fields are writable per-fleet only via GitOps. See [features](#features2) below. |
+| host_data_collection                                                | object  | body | Host data collection settings for the fleet. See [host_data_collection](#host-data-collection2) below. |
+| historical_reporting                                                | object  | body | Per-fleet historical reporting settings. See [historical_reporting](#historical-reporting2) below. |
 
 #### Example (transfer hosts to a fleet)
 
@@ -16938,23 +16962,43 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 }
 ```
 
-#### features
+<br/>
+
+
+#### host_data_collection
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_software_inventory         | boolean  | Whether to enable software inventory for this fleet. If this key is omitted, the previously-configured value does not change. |
-| historical_data         | object  | See [features.historical_data](#features-historical-data). |
+| historical_data         | object  | See [host_data_collection.historical_data](#host-data-collection-settings-historical-data). |
 
-##### features.historical_data
 
-`features.historical_data` is an object with the following structure:
+###### Example request body
+
+```json
+{
+  "enable_software_inventory": true
+}
+```
+
+<br/>
+
+#### historical_reporting
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| historical_data         | object  | See [historical_reporting.historical_data](#host-data-collection-settings-historical-data). |
+
+##### historical_reporting.historical_data
+
+`historical_reporting.historical_data` is an object with the following structure:
 
 | Name              | Type    | Description                                                                                                |
 | ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
 | uptime            | boolean | Whether to collect host-uptime samples for hosts in this fleet. (Default: `true`)                          |
 | vulnerabilities   | boolean | Whether to collect CVE samples for hosts in this fleet. (Default: `true`)                                  |
 
-Sub-keys mirror the global `features.historical_data` shape and default to
+Sub-keys mirror the global `historical_reporting.historical_data` shape and default to
 `true`. A dataset is collected for a host in this fleet only when both the
 global sub-key AND this fleet's sub-key are `true`. Sub-keys omitted from
 the PATCH body retain their current stored value.
@@ -16963,7 +17007,7 @@ the PATCH body retain their current stored value.
 
 ```json
 {
-  "features": {
+  "historical_reporting": {
     "historical_data": {
       "vulnerabilities": false
     }
@@ -16971,17 +17015,6 @@ the PATCH body retain their current stored value.
 }
 ```
 
-###### Example request body
-
-```json
-{
-  "features": {
-    "historical_data": {
-      "vulnerabilities": false
-    }
-  }
-}
-```
 
 ### Add users to fleet
 

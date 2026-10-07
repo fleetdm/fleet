@@ -883,12 +883,30 @@ If the fields below are omitted, they default to values specified in [the app's 
 
 Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).
 
-### features
+### host_data_collection
 
-The `features` section of the configuration YAML lets you turn on/off Fleet features.
+The `host_data_collection` section of the configuration YAML lets you control what Fleet collects from hosts.
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
 - `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
+
+Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
+
+#### Example
+
+```yaml
+org_settings:
+  host_data_collection:
+    additional_queries:
+      time: SELECT * FROM time
+      macs: SELECT mac FROM interface_details
+    enable_host_users: true
+    enable_software_inventory: true
+```
+
+### historical_reporting
+
+The `historical_reporting` section of the configuration YAML lets you control the historical data that Fleet retains and reports on, such as the data that drive the dashboard charts.
 - `historical_data` controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
   - `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
   - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart. _Available in Fleet Premium._ Fleet Free doesn't collect this data, because the chart that reads it requires Fleet Premium.
@@ -898,8 +916,8 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
   - `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
   - `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
   - `exclude_vulnerabilities` is a list of specific CVEs to exclude.
- 
-A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
+
+A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.historical_reporting.historical_data`) and the host's fleet level (`settings.historical_reporting.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
@@ -907,12 +925,7 @@ Can be configured for "All fleets" (`org_settings`) and specific fleets (`settin
 
 ```yaml
 org_settings:
-  features:
-    additional_queries:
-      time: SELECT * FROM time
-      macs: SELECT mac FROM interface_details
-    enable_host_users: true
-    enable_software_inventory: true
+  historical_reporting:
     historical_data:
       uptime: true
       vulnerabilities: false
