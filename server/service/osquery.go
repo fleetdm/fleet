@@ -2417,6 +2417,11 @@ func preProcessSoftwareResults(
 		preProcessSoftwareExtraResults(ctx, fullQueryName, host.ID, results, statuses, messages, query, logger)
 	}
 
+	// Merged last so every row it can flag is already present, including rows the overrides add
+	// or re-append.
+	aiToolsExtraQuery := hostDetailQueryPrefix + "software_ai_tools"
+	preProcessSoftwareExtraResults(ctx, aiToolsExtraQuery, host.ID, results, statuses, messages, osquery_utils.SoftwareAITools, logger)
+
 	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
 

@@ -106,6 +106,9 @@ type Software struct {
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// AITool is true when fleetd's ai_tools table reported this software. It is not part of the
+	// software's identity (ToUniqueStr, ComputeRawChecksum), so the flag can be set on an existing row.
+	AITool bool `json:"ai_tool" db:"ai_tool"`
 	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
 	Browser string `json:"browser"`
 
@@ -621,6 +624,8 @@ type SoftwareTitleListResult struct {
 // IMPORTANT: When updating this, also make sure to update SOFTWARE_TYPE_VARIANTS in frontend code.
 var softwareTypeFilterSources = map[string][]string{
 	"adobe_plugins":       nil,
+	"ai_clis":             nil,
+	"ai_skills":           nil,
 	"android_apps":        nil,
 	"apps":                nil,
 	"chocolatey_packages": nil,
@@ -630,6 +635,7 @@ var softwareTypeFilterSources = map[string][]string{
 	"ie_extensions":       nil,
 	"ios_apps":            nil,
 	"ipados_apps":         nil,
+	"mcp_servers":         nil,
 	"nix_packages":        nil,
 	"npm_packages":        nil,
 	"pacman_packages":     nil,

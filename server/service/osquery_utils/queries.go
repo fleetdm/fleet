@@ -12,6 +12,7 @@ import (
 	"maps"
 	"net"
 	"net/url"
+	"path"
 	"regexp"
 	"slices"
 	"strconv"
@@ -1353,6 +1354,52 @@ FROM go_binaries`,
 	// the results of this query are appended to the results of the other software queries.
 }
 
+// SoftwareAITools reports what fleetd's ai_tools table finds. MCP servers, catalog agent CLIs,
+// agent instruction files and skills become their own sources; AI apps, IDE plugins and browser
+// extensions are reported with the pseudo-source "ai_tools" so aiToolsProcessResults can flag the
+// software another source already reports at the same path. Pseudo-source rows are never stored.
+//
+// Tier-B agent candidates (evidence without "catalog") are named after a directory, and
+// process-derived MCP rows (source "process") have no config path, so neither makes a title.
+// Evidence tokens are re-sorted when a candidate merges into a catalog row, hence LIKE and not a
+// prefix match.
+//
+// The WHERE excludes sockets instead of listing the wanted types: the table only reads equality
+// constraints on type, and an IN list can be delivered as one table call per value, each
+// repeating the home and process scans.
+//
+// bundle_identifier and extension_for stay empty for the same reason as softwareAdobePlugins.
+var SoftwareAITools = DetailQuery{
+	Query: `
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS extension_for,
+  CASE type
+    WHEN 'agents' THEN 'ai_clis'
+    WHEN 'mcp_server' THEN 'mcp_servers'
+    WHEN 'agent_instruction' THEN 'ai_skills'
+    WHEN 'skill' THEN 'ai_skills'
+    ELSE 'ai_tools'
+  END AS source,
+  '' AS vendor,
+  '' AS last_opened_at,
+  path AS installed_path,
+  type AS ai_type,
+  source AS ai_install_method
+FROM ai_tools
+WHERE type != 'sockets'
+  AND NOT (type = 'agents' AND evidence NOT LIKE '%catalog%')
+  AND NOT (type = 'mcp_server' AND source = 'process')`,
+	Platforms:              append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery:              discoveryTable("ai_tools"),
+	SoftwareProcessResults: aiToolsProcessResults,
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are merged into the results of the other software queries.
+}
+
 var softwareLinux = DetailQuery{
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
@@ -2509,7 +2556,7 @@ var (
 )
 
 func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	var software []fleet.Software
+	var software, aiTools []fleet.Software
 	sPaths := map[string]fleet.ExecutableHashes{}
 
 	for _, row := range rows {
@@ -2552,7 +2599,11 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 			continue
 		}
 
+		s.AITool = row["ai_tool"] == "1"
 		software = append(software, *s)
+		if s.AITool {
+			aiTools = append(aiTools, *s)
+		}
 
 		installedPath := strings.TrimSpace(row["installed_path"])
 		if installedPath != "" &&
@@ -2610,6 +2661,14 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 
 	if err := ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, sPaths, result); err != nil {
 		return ctxerr.Wrap(ctx, err, "update software installed path")
+	}
+
+	// UpdateHostSoftware only writes the flag on insert, and writes nothing when the host's
+	// software set is unchanged, so rows that already exist are flagged here.
+	if len(aiTools) > 0 {
+		if err := ds.MarkSoftwareAsAITool(ctx, aiTools); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark software as ai tool")
+		}
 	}
 
 	return nil
@@ -2877,6 +2936,129 @@ var (
 		},
 	}
 )
+
+// aiCLIDisplayNames maps the ai_tools agents catalog slug to the name shown in inventory. The
+// table's own name column is left alone so existing reports keep working. Unknown slugs keep the
+// reported name.
+var aiCLIDisplayNames = map[string]string{
+	"claude-code":  "Claude Code",
+	"gemini-cli":   "Gemini CLI",
+	"codex":        "Codex",
+	"aider":        "aider",
+	"goose":        "Goose",
+	"opencode":     "OpenCode",
+	"cline":        "Cline",
+	"continue-cli": "Continue CLI",
+	"cursor-agent": "Cursor Agent",
+	"amazon-q":     "Amazon Q",
+	"grok":         "Grok CLI",
+}
+
+var windowsDrivePath = regexp.MustCompile(`^[a-zA-Z]:[\\/]`)
+
+// normalizeAIToolPath makes paths reported by ai_tools and by the other software tables
+// comparable. Windows paths (inferred from the drive letter, since the caller has no host) are
+// compared case-insensitively.
+func normalizeAIToolPath(p string) string {
+	p = strings.TrimSpace(p)
+	if windowsDrivePath.MatchString(p) {
+		p = strings.ToLower(p)
+	}
+	if trimmed := strings.TrimRight(p, `/\`); trimmed != "" {
+		p = trimmed
+	}
+	return p
+}
+
+// aiToolsProcessResults merges the software_ai_tools rows into the host's software rows. The
+// existing type wins: an ai_tools row reported at the install path of software another source
+// already reports flags that row (ai_tool = "1") instead of adding a second title. Only unmatched
+// MCP servers, agent CLIs and instruction files are added; unmatched apps, IDE plugins and
+// browser extensions have no source of their own and are dropped.
+func aiToolsProcessResults(mainRows, aiRows []map[string]string) []map[string]string {
+	byPath := make(map[string][]int, len(mainRows))
+	type keg struct {
+		idx    int
+		prefix string // the keg dir with a trailing slash, so a path inside it is a prefix match
+	}
+	var homebrewKegs []keg
+	homebrewByToken := make(map[string][]int)
+	for i, r := range mainRows {
+		p := normalizeAIToolPath(r["installed_path"])
+		if p == "" {
+			continue
+		}
+		byPath[p] = append(byPath[p], i)
+		if r["source"] == "homebrew_packages" {
+			homebrewKegs = append(homebrewKegs, keg{idx: i, prefix: p + "/"})
+			// homebrew_packages.path is the unversioned keg dir: .../Cellar/<formula> or
+			// .../Caskroom/<token>.
+			token := path.Base(p)
+			homebrewByToken[token] = append(homebrewByToken[token], i)
+		}
+	}
+
+	out := mainRows
+	for _, ai := range aiRows {
+		if ai == nil {
+			continue
+		}
+		p := normalizeAIToolPath(ai["installed_path"])
+		if ai["ai_type"] == "browser_extension" {
+			// Chromium extensions are reported by their manifest; chrome_extensions reports the
+			// directory.
+			if i := strings.LastIndexAny(p, `/\`); i >= 0 && strings.EqualFold(p[i+1:], "manifest.json") {
+				p = p[:i]
+			}
+		}
+
+		var matched []int
+		if p != "" {
+			matched = append(matched, byPath[p]...)
+		}
+		if len(matched) == 0 && ai["ai_type"] == "agents" && p != "" {
+			for _, k := range homebrewKegs {
+				if strings.HasPrefix(p, k.prefix) {
+					matched = append(matched, k.idx)
+				}
+			}
+			// The table reports the bin symlink rather than the keg it resolves into, so a
+			// Homebrew install is recognized by a package on the same host whose token is the
+			// catalog slug. Homebrew names formulae and casks after the upstream project, which
+			// is also what the catalog does.
+			matched = append(matched, homebrewByToken[ai["name"]]...)
+		}
+		for _, i := range matched {
+			mainRows[i]["ai_tool"] = "1"
+		}
+		if len(matched) > 0 || ai["source"] == "ai_tools" {
+			continue
+		}
+
+		if ai["ai_type"] == "agents" {
+			if underHomebrewBin(p, len(homebrewKegs) > 0) {
+				// Storing it would add a versionless duplicate of the Homebrew package.
+				continue
+			}
+			if display, ok := aiCLIDisplayNames[ai["name"]]; ok {
+				ai["name"] = display
+			}
+		}
+		ai["ai_tool"] = "1"
+		out = append(out, ai)
+	}
+	return out
+}
+
+// underHomebrewBin reports whether p is linked from a Homebrew bin directory. /usr/local/bin is
+// Homebrew's on Intel Macs but also holds manual installs, so it only counts when the host
+// reports Homebrew packages.
+func underHomebrewBin(p string, hostHasHomebrew bool) bool {
+	if strings.HasPrefix(p, "/opt/homebrew/bin/") || strings.HasPrefix(p, "/home/linuxbrew/.linuxbrew/bin/") {
+		return true
+	}
+	return hostHasHomebrew && strings.HasPrefix(p, "/usr/local/bin/")
+}
 
 // MutateSoftwareOnIngestion performs any tweaks required to the ingested software fields.
 //
@@ -4094,6 +4276,9 @@ func GetDetailQueries(
 		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
 		generatedMap["software_adobe_plugins"] = softwareAdobePlugins
 		generatedMap["software_go_binaries"] = softwareGoBinaries
+		if license.IsPremium(ctx) {
+			generatedMap["software_ai_tools"] = SoftwareAITools
+		}
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query

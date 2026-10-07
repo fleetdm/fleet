@@ -37970,3 +37970,139 @@ func (s *integrationEnterpriseTestSuite) TestStagedUploadUnavailable() {
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{StagedUploadID: uuid.NewString(), Filename: "ruby.deb"},
 		http.StatusBadRequest, "Direct upload isn't available")
 }
+
+func (s *integrationEnterpriseTestSuite) TestAIToolsSoftwareInventory() {
+	t := s.T()
+	ctx := t.Context()
+
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	s.applyConfig([]byte(`
+  features:
+    enable_software_inventory: true
+`))
+	t.Cleanup(func() {
+		s.applyConfig(fmt.Appendf(nil, `
+  features:
+    enable_software_inventory: %t
+`, appConfig.Features.EnableSoftwareInventory))
+	})
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(ctx, host.ID, true))
+	var dqResp getDistributedQueriesResponse
+	s.DoJSON("POST", "/api/osquery/distributed/read", getDistributedQueriesRequest{NodeKey: *host.NodeKey}, http.StatusOK, &dqResp)
+	require.Contains(t, dqResp.Queries, hostDetailQueryPrefix+"software_ai_tools")
+	require.Contains(t, dqResp.Discovery[hostDetailQueryPrefix+"software_ai_tools"], "name = 'ai_tools'")
+
+	macOSSoftware := `[
+		{"name": "Claude", "version": "1.2.4", "bundle_identifier": "com.anthropic.claudefordesktop", "source": "apps", "installed_path": "/Applications/Claude.app"},
+		{"name": "@openai/codex", "version": "0.46.0", "source": "npm_packages", "installed_path": "/usr/local/lib/node_modules/@openai/codex"}
+	]`
+	aiTools := `[
+		{"name": "Claude", "version": "1.2.4", "source": "ai_tools", "installed_path": "/Applications/Claude.app", "ai_type": "apps", "ai_install_method": "apps"},
+		{"name": "codex", "version": "0.46.0", "source": "ai_clis", "installed_path": "/usr/local/lib/node_modules/@openai/codex", "ai_type": "agents", "ai_install_method": "npm-global"},
+		{"name": "claude-code", "version": "2.0.14", "source": "ai_clis", "installed_path": "/Users/a/.local/bin/claude", "ai_type": "agents", "ai_install_method": "native"},
+		{"name": "github", "version": "", "source": "mcp_servers", "installed_path": "/Users/a/.cursor/mcp.json", "ai_type": "mcp_server", "ai_install_method": "cursor"},
+		{"name": "github", "version": "", "source": "mcp_servers", "installed_path": "/Users/a/.claude.json", "ai_type": "mcp_server", "ai_install_method": "claude"},
+		{"name": "CLAUDE.md", "version": "", "source": "ai_skills", "installed_path": "/Users/a/src/api/CLAUDE.md", "ai_type": "agent_instruction", "ai_install_method": "claude"},
+		{"name": "CLAUDE.md", "version": "", "source": "ai_skills", "installed_path": "/Users/a/src/web/CLAUDE.md", "ai_type": "agent_instruction", "ai_install_method": "claude"}
+	]`
+	submit := func(results map[string]json.RawMessage) {
+		statuses := make(map[string]any, len(results))
+		for name := range results {
+			statuses[name] = 0
+		}
+		s.DoJSON("POST", "/api/osquery/distributed/write", submitDistributedQueryResultsRequestShim{
+			NodeKey:  *host.NodeKey,
+			Results:  results,
+			Statuses: statuses,
+			Messages: map[string]string{},
+			Stats:    map[string]*fleet.Stats{},
+		}, http.StatusOK, &submitDistributedQueryResultsResponse{})
+	}
+	type hostSoftware struct {
+		source string
+		paths  []string
+	}
+	listHostSoftware := func() map[string]hostSoftware {
+		var resp getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &resp)
+		out := make(map[string]hostSoftware, len(resp.Software))
+		for _, sw := range resp.Software {
+			_, dup := out[sw.Name]
+			require.False(t, dup, "title %q listed twice", sw.Name)
+			var paths []string
+			for _, v := range sw.InstalledVersions {
+				paths = append(paths, v.InstalledPaths...)
+			}
+			sort.Strings(paths)
+			out[sw.Name] = hostSoftware{sw.Source, paths}
+		}
+		return out
+	}
+	aiToolBySource := func() map[string]bool {
+		var rows []struct {
+			Name   string `db:"name"`
+			Source string `db:"source"`
+			AITool bool   `db:"ai_tool"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `SELECT s.name, s.source, s.ai_tool FROM software s
+				JOIN host_software hs ON hs.software_id = s.id WHERE hs.host_id = ?`, host.ID)
+		})
+		out := make(map[string]bool, len(rows))
+		for _, r := range rows {
+			out[r.Name+"|"+r.Source] = r.AITool
+		}
+		return out
+	}
+
+	submit(map[string]json.RawMessage{
+		hostDetailQueryPrefix + "software_macos":    json.RawMessage(macOSSoftware),
+		hostDetailQueryPrefix + "software_ai_tools": json.RawMessage(aiTools),
+	})
+	require.Equal(t, map[string]hostSoftware{
+		"Claude":        {"apps", []string{"/Applications/Claude.app"}},
+		"@openai/codex": {"npm_packages", []string{"/usr/local/lib/node_modules/@openai/codex"}},
+		"Claude Code":   {"ai_clis", []string{"/Users/a/.local/bin/claude"}},
+		"github":        {"mcp_servers", []string{"/Users/a/.claude.json", "/Users/a/.cursor/mcp.json"}},
+		"CLAUDE.md":     {"ai_skills", []string{"/Users/a/src/api/CLAUDE.md", "/Users/a/src/web/CLAUDE.md"}},
+	}, listHostSoftware())
+	require.Equal(t, map[string]bool{
+		"Claude|apps":                true,
+		"@openai/codex|npm_packages": true,
+		"Claude Code|ai_clis":        true,
+		"github|mcp_servers":         true,
+		"CLAUDE.md|ai_skills":        true,
+	}, aiToolBySource())
+
+	var claudeCode fleet.Software
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &claudeCode, `SELECT name, version, source FROM software WHERE name = 'Claude Code'`)
+	})
+	require.Equal(t, "2.0.14", claudeCode.Version)
+
+	// The extension went away: the AI rows drop off, the existing software stays flagged.
+	submit(map[string]json.RawMessage{
+		hostDetailQueryPrefix + "software_macos": json.RawMessage(macOSSoftware),
+	})
+	require.Equal(t, map[string]hostSoftware{
+		"Claude":        {"apps", []string{"/Applications/Claude.app"}},
+		"@openai/codex": {"npm_packages", []string{"/usr/local/lib/node_modules/@openai/codex"}},
+	}, listHostSoftware())
+	require.Equal(t, map[string]bool{"Claude|apps": true, "@openai/codex|npm_packages": true}, aiToolBySource())
+}
