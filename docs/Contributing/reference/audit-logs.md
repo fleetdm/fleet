@@ -2026,10 +2026,10 @@ This activity contains the following fields:
 
 ```json
 {
-  "software_title": "Logic Pro",
+  "software_title": "Slack",
   "software_title_id": 123,
-  "app_store_id": "1234567",
-  "platform": "darwin",
+  "app_store_id": "618783545",
+  "platform": "ios",
   "self_service": false,
   "team_name": "Workstations",
   "team_id": 1,
@@ -2044,7 +2044,8 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
+  ],
+  "configuration": "<dict><key>com.slack.workspace</key><string>example.slack.com</string></dict>"
 }
 ```
 
@@ -2059,15 +2060,16 @@ This activity contains the following fields:
 - "fleet_name": Name of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "fleet_id": ID of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
-- "labels_exclude_any": Target hosts that don't have any label in the array
+- "labels_exclude_any": Target hosts that don't have any label in the array.
+- "configuration": The app's managed configuration at the time of deletion, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 #### Example
 
 ```json
 {
-  "software_title": "Logic Pro",
-  "app_store_id": "1234567",
-  "platform": "darwin",
+  "software_title": "Slack",
+  "app_store_id": "618783545",
+  "platform": "ios",
   "team_name": "Workstations",
   "team_id": 1,
   "fleet_name": "Workstations",
@@ -2082,7 +2084,8 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
+  ],
+  "configuration": "<dict><key>com.slack.workspace</key><string>example.slack.com</string></dict>"
 }
 ```
 
@@ -2205,10 +2208,10 @@ This activity contains the following fields:
 
 ```json
 {
-  "software_title": "Logic Pro",
+  "software_title": "Slack",
   "software_title_id": 123,
-  "app_store_id": "1234567",
-  "platform": "darwin",
+  "app_store_id": "618783545",
+  "platform": "ios",
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
@@ -2224,11 +2227,12 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
-  "software_display_name": "Logic Pro DAW"
-  "auto_update_enabled": true
-  "auto_update_window_start": "22:00"
-  "auto_update_window_end": "02:00"
+  ],
+  "software_display_name": "Slack",
+  "auto_update_enabled": true,
+  "auto_update_window_start": "22:00",
+  "auto_update_window_end": "02:00",
+  "configuration": "<dict><key>com.slack.workspace</key><string>example.slack.com</string></dict>"
 }
 ```
 
