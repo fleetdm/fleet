@@ -8,9 +8,9 @@ const baseClass = "tag";
 
 interface ITagBaseProps {
   children: React.ReactNode;
-  /** Default: "large" (28px). Per design, use "small" (24px) sparingly and
-   * "xsmall" (20px) only inline with table cell text. */
-  size?: "large" | "small" | "xsmall";
+  /** Default: "large" (28px). Per design, use "small" (24px) in tight
+   * contexts like table rows. */
+  size?: "large" | "small";
   className?: string;
   /** Wraps the tag in a tooltip that shows this content on hover */
   tooltip?: JSX.Element | string;
@@ -52,7 +52,6 @@ const Tag = (props: ITagProps) => {
     [`${baseClass}--clickable`]: props.type === "clickable",
     [`${baseClass}--dismissible`]: props.type === "dismissible",
     [`${baseClass}--small`]: props.size === "small",
-    [`${baseClass}--xsmall`]: props.size === "xsmall",
   });
 
   let content: JSX.Element;
