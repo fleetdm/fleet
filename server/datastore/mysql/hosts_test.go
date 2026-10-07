@@ -13978,6 +13978,7 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 		q, err := ds.NewQuery(ctx, &fleet.Query{
 			Name:    name,
 			Query:   "SELECT 1:",
+			Saved:   true,
 			TeamID:  teamID,
 			Logging: fleet.LoggingSnapshot,
 		})
