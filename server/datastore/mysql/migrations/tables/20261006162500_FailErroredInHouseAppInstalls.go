@@ -29,7 +29,7 @@ SET hihsi.verification_failed_at = ncr.updated_at
 WHERE hihsi.verification_at IS NULL
 	AND hihsi.verification_failed_at IS NULL
 	AND hihsi.canceled = 0
-	AND ncr.status = 'Error'
+	AND ncr.status IN ('Error', 'CommandFormatError')
 	AND hihsi.id > ? AND hihsi.id <= ?`, startID, startID+failErroredInHouseAppInstallsBatchSize)
 		if err != nil {
 			return fmt.Errorf("set verification_failed_at on in-house app installs that errored after id %d: %w", startID, err)

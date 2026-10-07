@@ -34,6 +34,10 @@ func TestUp_20261006162500(t *testing.T) {
 	insertInstall("errored-canceled", "Error", true, false)
 	insertInstall("errored-already-failed", "Error", false, true)
 	insertInstall("acknowledged", "Acknowledged", false, false)
+	insertInstall("format-errored", "CommandFormatError", false, false)
+	// move the next id past the first batch of 1000
+	execNoErr(t, db, `ALTER TABLE host_in_house_software_installs AUTO_INCREMENT = 1500`)
+	insertInstall("errored-second-batch", "Error", false, false)
 
 	applyNext(t, db)
 
@@ -42,7 +46,7 @@ func TestUp_20261006162500(t *testing.T) {
 		FailedAt    *string `db:"failed_at"`
 	}
 	require.NoError(t, db.Select(&failedAtByCommand, `SELECT command_uuid, CAST(verification_failed_at AS CHAR) AS failed_at FROM host_in_house_software_installs ORDER BY id`))
-	require.Len(t, failedAtByCommand, 4)
+	require.Len(t, failedAtByCommand, 6)
 
 	require.Equal(t, "errored", failedAtByCommand[0].CommandUUID)
 	require.NotNil(t, failedAtByCommand[0].FailedAt)
@@ -53,4 +57,8 @@ func TestUp_20261006162500(t *testing.T) {
 	require.Contains(t, *failedAtByCommand[2].FailedAt, "2026-01-01 00:00:00")
 	require.Equal(t, "acknowledged", failedAtByCommand[3].CommandUUID)
 	require.Nil(t, failedAtByCommand[3].FailedAt)
+	require.Equal(t, "format-errored", failedAtByCommand[4].CommandUUID)
+	require.NotNil(t, failedAtByCommand[4].FailedAt)
+	require.Equal(t, "errored-second-batch", failedAtByCommand[5].CommandUUID)
+	require.NotNil(t, failedAtByCommand[5].FailedAt)
 }
