@@ -78,39 +78,6 @@ import VersionsModal from "./VersionsModal";
 
 const baseClass = "software-title-details-page";
 
-// Negative id so a shim can never collide with a real BE-allocated id.
-// Callers must guard any version_id-targeting mutation on `id >= 0`.
-const SHIM_VERSION_ID = -1;
-
-// Shim a 1-element version array from the back-compat `app_store_app`
-// envelope when the API hasn't populated `app_store_apps` yet. Once BE
-// ships the array, callers fall through to the real data. Pulls auto-update
-// fields from the title because they're title-level in the back-compat
-// shape.
-const shimVersionFromAppStore = (
-  title: ISoftwareTitleDetails,
-  app: IAppStoreApp
-): IAppStoreAppVersion => ({
-  id: SHIM_VERSION_ID,
-  name: app.name,
-  app_store_id: app.app_store_id,
-  platform: app.platform,
-  version: app.latest_version,
-  status: app.status,
-  self_service: app.self_service,
-  automatic_install_policies: app.automatic_install_policies,
-  labels_include_any: app.labels_include_any,
-  labels_include_all: app.labels_include_all,
-  labels_exclude_any: app.labels_exclude_any,
-  auto_update_enabled: title.auto_update_enabled,
-  auto_update_window_start: title.auto_update_window_start,
-  auto_update_window_end: title.auto_update_window_end,
-  created_at: app.created_at,
-  categories: app.categories,
-  display_name: app.display_name,
-  configuration: app.configuration,
-});
-
 const pickLabels = (
   source: ISoftwarePackage | IAppStoreApp | IAppStoreAppVersion
 ): { labels: ILabelSoftwareTitle[] | null; kind: LibraryItemLabelKind } => {
@@ -262,24 +229,35 @@ const SoftwareTitleDetailsPage = ({
     (isIpadOrIphoneSoftwareSource(softwareTitle.source) ||
       isAndroidSoftwareSource(softwareTitle.source));
 
-  const onDeleteInstaller = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: [{ scope: "software-titles" }] });
-    queryClient.invalidateQueries({
-      queryKey: [{ scope: "software-library" }],
-    });
+  const onDeleteInstaller = useCallback(
+    (opts?: { siblingVersionsRemain?: boolean }) => {
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
 
-    if (softwareTitle?.versions?.length) {
-      refetchSoftwareTitle();
-      return;
-    }
+      // Keep the admin on the title when deleting one of multiple App Store
+      // app versions, or when the title still has inventory versions to show.
+      // The `versions` count is Inventory (host-installed); a freshly-added
+      // multi-version title with no installs has `versions.length === 0`, so
+      // without the explicit sibling signal a version delete would redirect.
+      if (opts?.siblingVersionsRemain || softwareTitle?.versions?.length) {
+        refetchSoftwareTitle();
+        return;
+      }
 
-    // redirect to software library page if no versions are available
-    router.push(
-      getPathWithQueryParams(paths.SOFTWARE_LIBRARY, {
-        fleet_id: teamIdForApi,
-      })
-    );
-  }, [queryClient, refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
+      // Otherwise the title has nothing left to render; send the admin back
+      // to the library.
+      router.push(
+        getPathWithQueryParams(paths.SOFTWARE_LIBRARY, {
+          fleet_id: teamIdForApi,
+        })
+      );
+    },
+    [queryClient, refetchSoftwareTitle, router, softwareTitle, teamIdForApi]
+  );
 
   // Mints a one-shot download token pinned to the clicked package and triggers
   // the browser download via a synthetic `<a download>` click. The token-based
@@ -377,9 +355,6 @@ const SoftwareTitleDetailsPage = ({
       setShowDeleteModal(true);
     };
 
-    // Per-version openers for multi-version App Store app titles. Parallel to
-    // the installer-id openers above. The modals' version-aware behavior is
-    // wired in the Edit version / Delete version modal tasks.
     const openEditModalForVersion = (versionId: number) => {
       setSelectedVersionId(versionId);
       setShowLibraryEditModal(true);
@@ -516,15 +491,9 @@ const SoftwareTitleDetailsPage = ({
     // rendering.
     const useVersionsLayout = !!appStore && canActivateMultipleVersions;
 
-    const getAppStoreVersionsToRender = (): IAppStoreAppVersion[] => {
-      if (title.app_store_apps?.length) return title.app_store_apps;
-      if (appStore) return [shimVersionFromAppStore(title, appStore)];
-      return [];
-    };
-
     const renderAppStoreRows = () => {
       if (!useVersionsLayout) return renderAppStoreRow();
-      return getAppStoreVersionsToRender().map(renderAppStoreVersionRow);
+      return (title.app_store_apps ?? []).map(renderAppStoreVersionRow);
     };
 
     // FMAs expand a single package into one badged "active" row plus dimmed
@@ -811,13 +780,14 @@ const SoftwareTitleDetailsPage = ({
     // last-version so the modal can surface the icon/display-name side-effect.
     const versionCount = title.app_store_apps?.length ?? 0;
     const isVersionDelete = selectedVersionId !== null;
+    const isLastVersion = isVersionDelete && versionCount <= 1;
     return (
       <DeleteSoftwareModal
         softwareId={softwareId}
         teamId={teamIdForApi}
         installerId={selected?.installer_id}
         versionId={isVersionDelete ? selectedVersionId ?? undefined : undefined}
-        isLastVersion={isVersionDelete && versionCount <= 1}
+        isLastVersion={isLastVersion}
         gitOpsModeEnabled={gitOpsModeEnabled}
         isAppStoreApp={isAppStoreApp}
         isAndroidApp={isAndroidApp}
@@ -825,7 +795,9 @@ const SoftwareTitleDetailsPage = ({
         onExit={closeDeleteModal}
         onSuccess={() => {
           closeDeleteModal();
-          onDeleteInstaller();
+          onDeleteInstaller({
+            siblingVersionsRemain: isVersionDelete && !isLastVersion,
+          });
         }}
       />
     );
@@ -842,15 +814,12 @@ const SoftwareTitleDetailsPage = ({
 
     // Multi-version App Store titles route through a dedicated version-aware
     // modal when a version row's edit affordance fired. `selectedVersionId`
-    // identifies the row; look it up in `app_store_apps`, or fall back to
-    // the shim built from `app_store_app` when the API hasn't populated the
-    // array yet (before BE ships the array).
-    if (selectedVersionId !== null && title.app_store_app) {
-      const liveVersion = title.app_store_apps?.find(
+    // identifies the row; look it up in `app_store_apps`.
+    if (selectedVersionId !== null) {
+      const version = title.app_store_apps?.find(
         (v) => v.id === selectedVersionId
       );
-      const version =
-        liveVersion ?? shimVersionFromAppStore(title, title.app_store_app);
+      if (!version) return null;
       const siblingVersionNames =
         title.app_store_apps
           ?.filter((v) => v.id !== selectedVersionId)
@@ -951,12 +920,27 @@ const SoftwareTitleDetailsPage = ({
     // Default Target to Custom so the admin's label scope wins the
     // first-added race.
     const defaultTargetCustom = true;
+    // When exactly one version already exists, suggest its auto-update
+    // schedule as the Add form default. Each version still writes its own
+    // schedule server-side; this is purely a form-prefill ergonomic. With 2+
+    // existing versions there's no single "right" schedule to prefer, so
+    // leave the form at its defaults and let the admin set it.
+    const singleExistingVersion =
+      title.app_store_apps?.length === 1 ? title.app_store_apps[0] : null;
+    const defaultAutoUpdate = singleExistingVersion
+      ? {
+          enabled: !!singleExistingVersion.auto_update_enabled,
+          windowStart: singleExistingVersion.auto_update_window_start ?? "",
+          windowEnd: singleExistingVersion.auto_update_window_end ?? "",
+        }
+      : undefined;
     return (
       <AddVersionModal
         teamId={teamIdForApi}
         appStore={title.app_store_app}
         existingVersionNames={existingVersionNames}
         defaultTargetCustom={defaultTargetCustom}
+        defaultAutoUpdate={defaultAutoUpdate}
         onExit={() => setShowAddVersionModal(false)}
         onSuccess={() => {
           setShowAddVersionModal(false);

@@ -9,6 +9,7 @@ import { getErrorReason } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreApp } from "interfaces/software";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
+import { buildSelectedLabelsArray } from "pages/SoftwarePage/helpers";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -33,24 +34,25 @@ interface IAddVersionModalProps {
   /** When true, the "Target" field defaults to `Custom` so the admin's label
    * scope wins the first-added race. Set when adding the 2nd+ version. */
   defaultTargetCustom?: boolean;
+  /** Auto-update schedule pre-fill. Set by the caller when exactly one
+   * version already exists on this title so the Add form suggests the same
+   * schedule; each version still stores its own schedule server-side. Admins
+   * can toggle it off or change times before saving. */
+  defaultAutoUpdate?: {
+    enabled: boolean;
+    windowStart: string;
+    windowEnd: string;
+  };
   onExit: () => void;
   onSuccess: () => void;
 }
-
-const buildLabelArray = (
-  labelTargets: Record<string, boolean>
-): string[] | undefined => {
-  const names = Object.entries(labelTargets)
-    .filter(([, selected]) => selected)
-    .map(([name]) => name);
-  return names.length ? names : undefined;
-};
 
 const AddVersionModal = ({
   teamId,
   appStore,
   existingVersionNames,
   defaultTargetCustom = false,
+  defaultAutoUpdate,
   onExit,
   onSuccess,
 }: IAddVersionModalProps) => {
@@ -92,6 +94,11 @@ const AddVersionModal = ({
       selfService: appStore.platform === "android",
       configuration: emptyScaffold,
       targetType: defaultTargetCustom ? "Custom" : "All hosts",
+      ...(defaultAutoUpdate && {
+        autoUpdateEnabled: defaultAutoUpdate.enabled,
+        autoUpdateWindowStart: defaultAutoUpdate.windowStart,
+        autoUpdateWindowEnd: defaultAutoUpdate.windowEnd,
+      }),
     },
     validate,
     serverErrors,
@@ -104,10 +111,15 @@ const AddVersionModal = ({
   );
 
   const onValidSubmit = async (data: IVersionFormData) => {
-    const labelsArray =
+    // Build the labels array only for Custom scope; omit the field entirely
+    // for All hosts so the backend's "nil means unchanged" fallback stays
+    // untouched. An empty selection in Custom would be a client-side
+    // validation failure, so arr.length is always > 0 here.
+    const customLabels =
       data.targetType === "Custom"
-        ? buildLabelArray(data.labelTargets)
+        ? buildSelectedLabelsArray(data.labelTargets)
         : undefined;
+    const labelsArray = customLabels?.length ? customLabels : undefined;
 
     // Android configuration is a JSON object on the wire; parse the editor
     // string before sending. iOS/iPadOS send the XML plist as a string.
@@ -160,7 +172,11 @@ const AddVersionModal = ({
       onSuccess();
     } catch (e) {
       const reason = getErrorReason(e);
-      if (reason?.toLowerCase().includes("name")) {
+      // Only route the backend's duplicate-version-name conflict to the Name
+      // field. Any other error containing "name" (e.g. an "Unsupported
+      // variable $FLEET_VAR_..._USERNAME" from a configuration variable) stays
+      // in the error toast so admins see the real reason.
+      if (reason?.toLowerCase().includes("a version named")) {
         setServerErrors({ name: reason });
       } else {
         notify.error("Couldn't add. Please try again.", { response: e });

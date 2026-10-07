@@ -833,6 +833,22 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
 	}
 
+	// Reject malformed or sub-hour auto-update windows at the service boundary
+	// instead of trusting the frontend's validator; the datastore writes
+	// whatever strings it receives.
+	if appID.AutoUpdateEnabled != nil && *appID.AutoUpdateEnabled {
+		schedule := fleet.SoftwareAutoUpdateSchedule{
+			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+				AutoUpdateEnabled:   appID.AutoUpdateEnabled,
+				AutoUpdateStartTime: appID.AutoUpdateStartTime,
+				AutoUpdateEndTime:   appID.AutoUpdateEndTime,
+			},
+		}
+		if err := schedule.WindowIsValid(); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validating auto-update schedule")
+		}
+	}
+
 	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, appID.LabelsIncludeAny, appID.LabelsExcludeAny, appID.LabelsIncludeAll)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating software labels for adding vpp app")
@@ -1095,18 +1111,21 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
 
 	act := fleet.ActivityAddedAppStoreApp{
-		AppStoreID:       app.AdamID,
-		Platform:         app.Platform,
-		TeamName:         &teamName,
-		SoftwareTitle:    app.Name,
-		SoftwareTitleId:  addedApp.TitleID,
-		TeamID:           teamID,
-		SelfService:      app.SelfService,
-		LabelsIncludeAny: actLabelsInclAny,
-		LabelsExcludeAny: actLabelsExclAny,
-		LabelsIncludeAll: actLabelsInclAll,
-		Configuration:    json.RawMessage(appID.Configuration),
-		VersionName:      addedApp.VersionName,
+		AppStoreID:          app.AdamID,
+		Platform:            app.Platform,
+		TeamName:            &teamName,
+		SoftwareTitle:       app.Name,
+		SoftwareTitleId:     addedApp.TitleID,
+		TeamID:              teamID,
+		SelfService:         app.SelfService,
+		LabelsIncludeAny:    actLabelsInclAny,
+		LabelsExcludeAny:    actLabelsExclAny,
+		LabelsIncludeAll:    actLabelsInclAll,
+		Configuration:       json.RawMessage(appID.Configuration),
+		AutoUpdateEnabled:   appID.AutoUpdateEnabled,
+		AutoUpdateStartTime: appID.AutoUpdateStartTime,
+		AutoUpdateEndTime:   appID.AutoUpdateEndTime,
+		VersionName:         addedApp.VersionName,
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {

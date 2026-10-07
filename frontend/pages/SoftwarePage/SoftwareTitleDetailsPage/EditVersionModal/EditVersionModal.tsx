@@ -10,6 +10,7 @@ import { getErrorReason } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreAppVersion } from "interfaces/software";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
+import { buildSelectedLabelsArray } from "pages/SoftwarePage/helpers";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -38,11 +39,6 @@ interface IEditVersionModalProps {
   onSuccess: () => void;
 }
 
-const buildLabelArray = (labelTargets: Record<string, boolean>): string[] =>
-  Object.entries(labelTargets)
-    .filter(([, selected]) => selected)
-    .map(([name]) => name);
-
 const EditVersionModal = ({
   softwareId,
   teamId,
@@ -60,10 +56,6 @@ const EditVersionModal = ({
   const siblingNamesSet = new Set(
     siblingVersionNames.map((n) => n.toLowerCase())
   );
-
-  // A negative id means the row came from the pre-BE shim; the BE has no
-  // record of this version so submitting an edit would PATCH a bogus id.
-  const isShimVersion = version.id < 0;
 
   const [serverErrors, setServerErrors] = useState<IFormErrors | null>(null);
   const [
@@ -111,7 +103,9 @@ const EditVersionModal = ({
     // "All hosts" clears every scope with empty arrays; "Custom" fills the
     // active key and empties the other two.
     const activeLabels =
-      data.targetType === "Custom" ? buildLabelArray(data.labelTargets) : [];
+      data.targetType === "Custom"
+        ? buildSelectedLabelsArray(data.labelTargets)
+        : [];
     const labelsIncludeAny =
       data.targetType === "Custom" && data.customTarget === "labelsIncludeAny"
         ? activeLabels
@@ -125,17 +119,12 @@ const EditVersionModal = ({
         ? activeLabels
         : [];
 
-    // Three-way: unchanged scaffold = no change (undefined), empty editor =
-    // deliberate clear (null for iOS/iPadOS, {} for Android, matching the
-    // backend's clear values), content = set/update.
-    let configurationPayload:
-      | string
-      | Record<string, unknown>
-      | null
-      | undefined;
-    if (data.configuration === emptyScaffold) {
-      configurationPayload = undefined;
-    } else if (!data.configuration) {
+    // Empty editor or an unmodified scaffold both clear the config (null for
+    // iOS/iPadOS, {} for Android, matching the backend's clear values). Any
+    // other content is a set/update. Typing `{}` into the Android editor is a
+    // deliberate clear even though it matches the scaffold.
+    let configurationPayload: string | Record<string, unknown> | null;
+    if (!data.configuration || data.configuration === emptyScaffold) {
       configurationPayload = version.platform === "android" ? {} : null;
     } else {
       configurationPayload =
@@ -178,7 +167,11 @@ const EditVersionModal = ({
       onSuccess();
     } catch (e) {
       const reason = getErrorReason(e);
-      if (reason?.toLowerCase().includes("name")) {
+      // Only route the backend's duplicate-version-name conflict to the Name
+      // field. Any other error containing "name" (e.g. an "Unsupported
+      // variable $FLEET_VAR_..._USERNAME" from a configuration variable) stays
+      // in the error toast so admins see the real reason.
+      if (reason?.toLowerCase().includes("a version named")) {
         setServerErrors({ name: reason });
       } else {
         notify.error("Couldn't edit. Please try again.", { response: e });
@@ -223,7 +216,7 @@ const EditVersionModal = ({
                 <Button
                   type="submit"
                   isLoading={isSubmitting}
-                  disabled={isSubmitting || !!gitOpsDisabled || isShimVersion}
+                  disabled={isSubmitting || !!gitOpsDisabled}
                 >
                   Save
                 </Button>

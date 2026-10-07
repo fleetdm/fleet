@@ -400,7 +400,7 @@ export const mergePolicies = ({
   return Array.from(byId.values());
 };
 
-const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+export const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const MINUTES_IN_DAY = 24 * 60;
 
 /** Wrap-aware duration between two HH:MM times. `end < start` wraps to the
@@ -419,3 +419,13 @@ export const getAutoUpdateWindowDurationMinutes = (
     ? endTotal - startTotal
     : endTotal - startTotal + MINUTES_IN_DAY;
 };
+
+/** Flattens a `labelTargets` map (name -> selected?) into the array shape the
+ * `labels_include_any` / `labels_include_all` / `labels_exclude_any` API
+ * fields expect. Order follows `Object.entries` insertion order. */
+export const buildSelectedLabelsArray = (
+  labelTargets: Record<string, boolean>
+): string[] =>
+  Object.entries(labelTargets)
+    .filter(([, selected]) => selected)
+    .map(([name]) => name);
