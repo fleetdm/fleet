@@ -15,6 +15,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import VersionFormFields, {
   DEFAULT_VERSION_FORM_DATA,
+  getEmptyConfigScaffold,
   IVersionFormData,
   validateVersionForm,
 } from "../VersionFormFields";
@@ -55,14 +56,8 @@ const AddVersionModal = ({
 }: IAddVersionModalProps) => {
   const queryClient = useQueryClient();
 
-  const isIosOrIpados =
-    appStore.platform === "ios" || appStore.platform === "ipados";
   // Submitting an unmodified scaffold is treated as "no configuration".
-  const EMPTY_XML_SCAFFOLD = "<dict>\n  \n</dict>";
-  const EMPTY_JSON_SCAFFOLD = "{}";
-  const emptyScaffold = isIosOrIpados
-    ? EMPTY_XML_SCAFFOLD
-    : EMPTY_JSON_SCAFFOLD;
+  const emptyScaffold = getEmptyConfigScaffold(appStore.platform);
 
   const existingNamesSet = new Set(
     existingVersionNames.map((n) => n.toLowerCase())
@@ -118,11 +113,11 @@ const AddVersionModal = ({
     // string before sending. iOS/iPadOS send the XML plist as a string.
     const hasConfig =
       !!data.configuration && data.configuration !== emptyScaffold;
-    let configurationPayload: string | undefined;
+    let configurationPayload: string | Record<string, unknown> | undefined;
     if (hasConfig) {
       configurationPayload =
         appStore.platform === "android"
-          ? ((JSON.parse(data.configuration) as unknown) as string)
+          ? (JSON.parse(data.configuration) as Record<string, unknown>)
           : data.configuration;
     }
 

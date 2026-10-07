@@ -15,6 +15,7 @@ import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import VersionFormFields, {
+  getEmptyConfigScaffold,
   IVersionFormData,
   validateVersionForm,
   versionToFormData,
@@ -54,17 +55,15 @@ const EditVersionModal = ({
   const queryClient = useQueryClient();
 
   // Submitting an unmodified scaffold is treated as "no configuration".
-  const isIosOrIpados =
-    version.platform === "ios" || version.platform === "ipados";
-  const EMPTY_XML_SCAFFOLD = "<dict>\n  \n</dict>";
-  const EMPTY_JSON_SCAFFOLD = "{}";
-  const emptyScaffold = isIosOrIpados
-    ? EMPTY_XML_SCAFFOLD
-    : EMPTY_JSON_SCAFFOLD;
+  const emptyScaffold = getEmptyConfigScaffold(version.platform);
 
   const siblingNamesSet = new Set(
     siblingVersionNames.map((n) => n.toLowerCase())
   );
+
+  // A negative id means the row came from the pre-BE shim; the BE has no
+  // record of this version so submitting an edit would PATCH a bogus id.
+  const isShimVersion = version.id < 0;
 
   const [serverErrors, setServerErrors] = useState<IFormErrors | null>(null);
   const [
@@ -128,13 +127,16 @@ const EditVersionModal = ({
 
     // Android configuration is a JSON object on the wire; parse the editor
     // string before sending. iOS/iPadOS send the XML plist as a string.
+    // Omitting the field (undefined) means "no change" per Add parity —
+    // we don't silently clear a stored config when the editor is at the
+    // empty scaffold.
     const hasConfig =
       !!data.configuration && data.configuration !== emptyScaffold;
-    let configurationPayload = "";
+    let configurationPayload: string | Record<string, unknown> | undefined;
     if (hasConfig) {
       configurationPayload =
         version.platform === "android"
-          ? ((JSON.parse(data.configuration) as unknown) as string)
+          ? (JSON.parse(data.configuration) as Record<string, unknown>)
           : data.configuration;
     }
 
@@ -216,7 +218,7 @@ const EditVersionModal = ({
                 <Button
                   type="submit"
                   isLoading={isSubmitting}
-                  disabled={isSubmitting || !!gitOpsDisabled}
+                  disabled={isSubmitting || !!gitOpsDisabled || isShimVersion}
                 >
                   Save
                 </Button>

@@ -1,39 +1,25 @@
 import { screen } from "@testing-library/react";
 import React from "react";
 
-import { IAppStoreAppVersion } from "interfaces/software";
+import { createMockAppStoreAppVersion } from "__mocks__/softwareMock";
 import { createCustomRenderer } from "test/test-utils";
 
 import EditVersionModal from "./EditVersionModal";
 
-const mockVersion = (
-  overrides: Partial<IAppStoreAppVersion> = {}
-): IAppStoreAppVersion => ({
-  id: 41,
-  name: "Production",
-  app_store_id: "6443476492",
-  platform: "ios",
-  version: "2.6.0",
-  status: { installed: 10, pending: 0, failed: 0 },
-  self_service: false,
-  automatic_install_policies: null,
-  labels_include_any: null,
-  labels_include_all: null,
-  labels_exclude_any: null,
-  auto_update_enabled: false,
-  auto_update_window_start: null,
-  auto_update_window_end: null,
-  created_at: "2026-01-28T21:49:04.145909Z",
-  categories: null,
-  display_name: "Cloudflare One Agent",
-  configuration: "<dict><key>SSO</key><true/></dict>",
-  ...overrides,
-});
+const mockVersion = createMockAppStoreAppVersion;
 
 const BASE_PROPS = {
   softwareId: 42,
   teamId: 1,
-  version: mockVersion(),
+  version: mockVersion({
+    id: 41,
+    app_store_id: "6443476492",
+    version: "2.6.0",
+    status: { installed: 10, pending: 0, failed: 0 },
+    display_name: "Cloudflare One Agent",
+    configuration: "<dict><key>SSO</key><true/></dict>",
+    created_at: "2026-01-28T21:49:04.145909Z",
+  }),
   titleDisplayName: "Cloudflare One Agent",
   siblingVersionNames: ["Test"],
   onExit: jest.fn(),
@@ -61,9 +47,9 @@ describe("EditVersionModal", () => {
   });
 
   it("renders with the 'Edit version' title", () => {
-    renderModal();
-    const matches = screen.getAllByText("Edit version");
-    expect(matches.length).toBeGreaterThanOrEqual(1);
+    const { container } = renderModal();
+    const header = container.querySelector(".modal__header");
+    expect(header).toHaveTextContent("Edit version");
   });
 
   it("pre-fills Name from the version", () => {

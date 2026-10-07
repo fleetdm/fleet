@@ -78,16 +78,20 @@ import VersionsModal from "./VersionsModal";
 
 const baseClass = "software-title-details-page";
 
+// Negative id so a shim can never collide with a real BE-allocated id.
+// Callers must guard any version_id-targeting mutation on `id >= 0`.
+const SHIM_VERSION_ID = -1;
+
 // Shim a 1-element version array from the back-compat `app_store_app`
-// envelope when the API hasn't populated `app_store_apps` yet (before BE ships the array).
-// Once BE ships the array, callers fall through to the real data. Pulls
-// auto-update fields from the title because they're title-level in the
-// back-compat shape.
+// envelope when the API hasn't populated `app_store_apps` yet. Once BE
+// ships the array, callers fall through to the real data. Pulls auto-update
+// fields from the title because they're title-level in the back-compat
+// shape.
 const shimVersionFromAppStore = (
   title: ISoftwareTitleDetails,
   app: IAppStoreApp
 ): IAppStoreAppVersion => ({
-  id: 0,
+  id: SHIM_VERSION_ID,
   name: app.name,
   app_store_id: app.app_store_id,
   platform: app.platform,
@@ -458,8 +462,8 @@ const SoftwareTitleDetailsPage = ({
           pendingPath={statusPath("pending")}
           failedPath={statusPath("failed")}
           canActivateMultipleVersions
-          isSelfService={version.self_service}
-          isAutoUpdateEnabled={version.auto_update_enabled}
+          isSelfService={!!version.self_service}
+          isAutoUpdateEnabled={!!version.auto_update_enabled}
           autoUpdateWindowStart={version.auto_update_window_start}
           autoUpdateWindowEnd={version.auto_update_window_end}
           isAndroidPlayStoreApp={isAndroidPlayStoreApp}

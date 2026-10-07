@@ -185,7 +185,10 @@ export interface IAddAppStoreAppFormData {
   labels_include_all?: string[];
   labels_exclude_any?: string[];
   categories?: SoftwareCategory[];
-  configuration?: string;
+  /** Serialized managed app configuration. iOS/iPadOS sends an XML plist
+   * string; Android sends a parsed JSON object (axios serializes it to
+   * the wire). The two shapes share this field. */
+  configuration?: string | Record<string, unknown>;
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
@@ -205,7 +208,10 @@ export interface IEditAppStoreAppFormData {
   labels_exclude_any?: string[];
   categories?: SoftwareCategory[];
   display_name?: string;
-  configuration?: string;
+  /** Serialized managed app configuration. iOS/iPadOS sends an XML plist
+   * string; Android sends a parsed JSON object (axios serializes it to
+   * the wire). The two shapes share this field. */
+  configuration?: string | Record<string, unknown>;
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
@@ -708,7 +714,7 @@ export default {
       platform: ApplePlatform | "android";
       name: string;
       self_service?: boolean;
-      configuration?: string;
+      configuration?: string | Record<string, unknown>;
       labels_include_any?: string[];
       labels_include_all?: string[];
       labels_exclude_any?: string[];
@@ -737,7 +743,7 @@ export default {
     data: {
       name?: string;
       self_service?: boolean;
-      configuration?: string;
+      configuration?: string | Record<string, unknown>;
       labels_include_any?: string[];
       labels_include_all?: string[];
       labels_exclude_any?: string[];

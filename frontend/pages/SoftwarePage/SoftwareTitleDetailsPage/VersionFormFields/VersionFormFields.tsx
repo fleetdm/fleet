@@ -39,6 +39,16 @@ export interface IVersionFormData {
   autoUpdateWindowEnd: string;
 }
 
+// Scaffolds pre-filled into the configuration Editor on a fresh form. The
+// Add/Edit modals treat an unmodified scaffold as "no configuration" so the
+// row isn't force-saved with an empty value.
+export const EMPTY_XML_SCAFFOLD = "<dict>\n  \n</dict>";
+export const EMPTY_JSON_SCAFFOLD = "{}";
+export const getEmptyConfigScaffold = (platform: string): string =>
+  platform === "ios" || platform === "ipados"
+    ? EMPTY_XML_SCAFFOLD
+    : EMPTY_JSON_SCAFFOLD;
+
 export const DEFAULT_VERSION_FORM_DATA: IVersionFormData = {
   name: "",
   configuration: "",

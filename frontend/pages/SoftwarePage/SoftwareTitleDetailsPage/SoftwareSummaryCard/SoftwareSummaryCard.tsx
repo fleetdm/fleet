@@ -305,6 +305,15 @@ const SoftwareSummaryCard = ({
     />
   );
 
+  // Multi-version App Store titles show the admin-added version count (the
+  // number of versions on the title's `app_store_apps` array) rather than
+  // the inventory version count. The `app_store_app ? 1 : 0` fallback keeps
+  // the count accurate on titles that pre-date the array in the response.
+  const versionsCount = canActivateMultipleVersions
+    ? softwareTitle.app_store_apps?.length ??
+      (softwareTitle.app_store_app ? 1 : 0)
+    : softwareTitle.versions?.length ?? 0;
+
   if (!installerResult) {
     return (
       <>
@@ -312,12 +321,7 @@ const SoftwareSummaryCard = ({
           <SoftwareDetailsSummary
             displayName={softwareDisplayName}
             type={formatSoftwareType(softwareTitle)}
-            versions={
-              canActivateMultipleVersions
-                ? softwareTitle.app_store_apps?.length ??
-                  (softwareTitle.app_store_app ? 1 : 0)
-                : softwareTitle.versions?.length ?? 0
-            }
+            versions={versionsCount}
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
             queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
@@ -354,16 +358,6 @@ const SoftwareSummaryCard = ({
   const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
   const onClickEditAutoUpdateConfig = () =>
     setShowEditAutoUpdateConfigModal(true);
-
-  // Multi-version App Store titles show the admin-added version count
-  // (the number of versions on the title's `app_store_apps` array) rather
-  // than the inventory version count. The back-compat `app_store_app` only
-  // fallback keeps the count accurate on titles that pre-date the array in
-  // the response.
-  const versionsCount = canActivateMultipleVersions
-    ? softwareTitle.app_store_apps?.length ??
-      (softwareTitle.app_store_app ? 1 : 0)
-    : softwareTitle.versions?.length ?? 0;
 
   // Collapse the Actions dropdown into a single pencil-icon Edit (appearance)
   // button when per-X controls move to the Library accordion rows: custom
