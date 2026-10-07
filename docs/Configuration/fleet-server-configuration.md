@@ -3056,18 +3056,40 @@ Private key for URL signing. If `s3_software_installers_cloudfront_url` is set, 
 
 *Available in Fleet Premium.*
 
-When `true`, Fleet uses [signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls) that embed a cryptographic key in the URL used by the Fleet agent to download the installer directly from Google Cloud Storage (GCS) to the host, and by the client uploading the installer (e.g. Fleet UI) to upload it directly to GCS. This enables download and upload of large packages (over 50MB), which is a [limitation of the HTTP 1 protocol](https://github.com/fleetdm/fleet/issues/37352).
+When `true`, Fleet uses [signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls) so package bytes move directly between Google Cloud Storage (GCS) and the client instead of through the Fleet server:
 
-This option doesn't work when `s3_carves_gcs_iam_auth` is enabled. Please configure HMAC credentials (`s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key`) instead. 
+- Hosts download software installers, in-house apps, and bootstrap packages from GCS.
+- The Fleet UI, `fleetctl`, and the [REST API](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload) upload software packages and bootstrap packages to GCS, then register them with Fleet.
 
-Use this only with `s3_carves_endpoint_url` set to `https://storage.googleapis.com`.
+This lets Fleet hosted on GCP Cloud Run handle packages larger than 32 MiB, Cloud Run's request size limit over [HTTP/1](https://github.com/fleetdm/fleet/issues/37352).
+
+This option has three requirements:
+
+- Set `s3_software_installers_endpoint_url` to `https://storage.googleapis.com`.
+- Use HMAC credentials in `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key`. This option can't be combined with `s3_software_installers_gcs_iam_auth` or `s3_software_installers_sts_assume_role_arn`.
+- For uploads from the Fleet UI, add a cross-origin resource sharing (CORS) rule to the bucket that allows `PUT` from your Fleet URL. `fleetctl` and API clients don't need it. For example, save the following as `cors.json`:
+
+  ```json
+  [
+    {
+      "origin": ["https://fleet.example.com"],
+      "method": ["PUT"],
+      "responseHeader": ["Content-Type"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+  ```
+
+  Then apply it with `gcloud storage buckets update gs://<bucket> --cors-file=cors.json`.
+
+The previous name, `s3_software_installers_signed_url` (`FLEET_S3_SOFTWARE_INSTALLERS_SIGNED_URL`), is deprecated but still works.
 
 - Default value: false
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_GCS_SIGNED_URL`
 - Config file format:
   ```yaml
   s3:
-    software_installers_gcS_signed_url: true
+    software_installers_gcs_signed_url: true
   ```
 
 ### s3_carves_bucket
@@ -3775,6 +3797,64 @@ Two things are kept regardless of age: commands still queued for a device that h
     windows_command_retention: 336h
   ```
 
+### mdm.apple_command_cleanup_short_retention
+
+How long Fleet keeps completed Apple MDM commands that it generates on a recurring schedule before deleting them from the command queue. This covers refetch commands (`REFETCH-*`), device name updates (`DEVNAME-*`), App Store (VPP) install verification commands (`VERIFY-VPP-INSTALLS-*`), and `DeclarativeManagement` sync commands. Fleet also uses this window to purge inactive commands, such as a profile install superseded by a newer one or commands cleared when a host re-enrolled.
+
+Fleet only deletes a command after the host responds with a final status (`Acknowledged`, `Error`, or `CommandFormatError`) or it has been marked inactive and would never be sent. Deleted commands no longer appear in the host's MDM commands list.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 24h
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_short_retention: 48h
+  ```
+
+### mdm.apple_command_cleanup_standard_retention
+
+How long Fleet keeps other completed Apple MDM commands before deleting them from the command queue. This covers profile installs and removals (`InstallProfile`, `RemoveProfile`), app installs (`InstallApplication`, `InstallEnterpriseApplication`), `DeviceConfigured`, `DeviceLocation`, recovery lock commands (`SetRecoveryLock`, `VerifyRecoveryLock`), `SetAutoAdminPassword`, and inventory commands run manually through the API (`DeviceInformation`, `InstalledApplicationList`, `CertificateList`, `ProfileList`, `SecurityInfo`, `UserList`).
+
+Fleet never deletes commands it needs to determine a host's state, such as `DeviceLock`, `EraseDevice`, `EnableLostMode`, `DisableLostMode`, and `AccountConfiguration`, or any command type not listed above. Fleet also keeps a command past this window while it's referenced by a host's current profiles, bootstrap package, pending app installations, recovery lock or managed local account rotation, or Enrollment Profile renewal.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_standard_retention: 2160h
+  ```
+
+### mdm.apple_command_cleanup_max_row_deletions_per_run
+
+The maximum number of Apple MDM command queue entries Fleet deletes each time the cleanup runs. The cleanup runs hourly. Each entry is one command sent to one host, along with that host's result.
+
+Raise this value to clear a large backlog faster, at the cost of more database load per run. Set to `0` to stop deleting queue entries.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_ROW_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_row_deletions_per_run: 5000
+  ```
+
+### mdm.apple_command_cleanup_max_command_deletions_per_run
+
+The maximum number of Apple MDM commands Fleet deletes each time the cleanup runs. A command is the payload shared by every host it was sent to. Fleet deletes a command only after no host's queue entry or result refers to it, and only after it's more than 24 hours old. Set to `0` to stop deleting commands.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_COMMAND_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_command_deletions_per_run: 5000
+  ```
+
 ### mdm.sso_rate_limit_per_minute
 
 The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
@@ -3898,13 +3978,13 @@ Hosts that already enrolled before end user authentication was enabled are alway
 
 ### mdm.windows_one_time_enroll_secrets
 
-When enabled, Fleet installs fleetd on Windows hosts that turn on MDM (Microsoft Entra, Windows Autopilot, or **Settings > Accounts > Access work or school**) with a one-time enroll secret for that device instead of the global or fleet-level enroll secret. This keeps the shared enroll secret off the device.
+When enabled, Fleet installs fleetd on Windows hosts that turn on MDM (Microsoft Entra, Windows Autopilot, or **Settings > Accounts > Access work or school**) with a one-time enroll secret for that device instead of the global or fleet-level enroll secret. This keeps the shared enroll secret off the device. The setting only affects Windows hosts that have MDM turned on. If fleetd was already installed when a host turned on MDM, Fleet doesn't reinstall it, so the host keeps its original enroll secret.
 
 Fleet delivers the secret on the fleetd install command and through the Fleet-managed "Fleetd enroll secret" configuration profile. Orbit and osquery can each use the secret once, and the second one has to enroll within 60 minutes of the first.
 
 - Recovery: a host that has to enroll again, for example because its node key was deleted, needs a new one-time enroll secret. To issue one, resend the "Fleetd enroll secret" profile from **Host details > OS settings**. fleetd picks it up at the host's next MDM check-in, without a reinstall or restart (requires fleetd v1.63.0). Hosts with an older fleetd need fleetd reinstalled instead. End users can't resend this profile from the **My device** page.
-- Deleted hosts: if a Windows host enrolled in Fleet MDM is deleted in Fleet, Fleet sends it a new one-time enroll secret at its next MDM check-in, so the host enrolls again without an admin.
-- Shared enroll secrets: Fleet doesn't let a global or fleet-level enroll secret enroll fleetd as a Windows host that is enrolled in Fleet MDM or registered in Windows Autopilot. This includes a deleted host whose device is still enrolled in Fleet MDM. Refused attempts are recorded as `host_enrollment_rejected` activities.
+- Deleted hosts: a deleted Windows host that has MDM turned on enrolls again on its own. [Learn more](https://fleetdm.com/guides/enroll-hosts#delete-a-host).
+- Shared enroll secrets: Fleet doesn't let a global or fleet-level enroll secret enroll fleetd as a Windows host that has MDM turned on or is registered in Windows Autopilot. This includes a deleted host whose device still has MDM turned on. Refused attempts are recorded as `host_enrollment_rejected` activities.
 - Re-imaged devices: Fleet isn't notified when MDM is turned off on a device (re-imaged, disconnected in **Settings > Accounts > Access work or school**, or unenrolled with a script), so Fleet still treats the device as enrolled, even after you delete its host. Such a device can't enroll fleetd with a package. To bring it back, enroll it in MDM again with Windows Autopilot, Microsoft Entra, or **Settings > Accounts > Access work or school**. Fleet then replaces the old enrollment and installs fleetd with a one-time enroll secret. If the device can't enroll in MDM again, delete its host in Fleet. Fleet removes the old enrollment after the `mdm.windows_enrollment_retention` period (30 days by default), and fleetd can then enroll with a package.
 - Reserved names: custom configuration profiles can't be named "Fleetd enroll secret". Custom configuration profiles and MDM commands can't use `$FLEET_HOST_SECRET_` variables.
 

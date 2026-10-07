@@ -135,12 +135,13 @@ func IsPlaceholderHardwareSerial(serial string) bool {
 type MDMEnrollStatus string
 
 const (
-	MDMEnrollStatusManual     = MDMEnrollStatus("manual")
-	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
-	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
-	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
-	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual", "automatic" and "personal"
-	MDMEnrollStatusPersonal   = MDMEnrollStatus("personal")
+	MDMEnrollStatusManual         = MDMEnrollStatus("manual")
+	MDMEnrollStatusAutomatic      = MDMEnrollStatus("automatic")
+	MDMEnrollStatusPending        = MDMEnrollStatus("pending")
+	MDMEnrollStatusUnenrolled     = MDMEnrollStatus("unenrolled")
+	MDMEnrollStatusEnrolled       = MDMEnrollStatus("enrolled") // combination of "manual", "automatic", "personal" and "manual-personal"
+	MDMEnrollStatusPersonal       = MDMEnrollStatus("personal")
+	MDMEnrollStatusManualPersonal = MDMEnrollStatus("manual-personal")
 )
 
 // OSSettingsStatus defines the possible statuses of the host's OS settings, which is derived from the
@@ -540,6 +541,13 @@ type Host struct {
 	HostMDMAndroidDeviceVitals
 }
 
+func (h *Host) EffectiveTeamID() uint {
+	if h.TeamID == nil {
+		return 0
+	}
+	return *h.TeamID
+}
+
 type HostForeignVitalGroup struct {
 	Name  string
 	Query string
@@ -901,9 +909,18 @@ type HostDeviceNameEnforcement struct {
 	// until the template is resolved and the command is enqueued.
 	ExpectedDeviceName *string   `db:"expected_device_name"`
 	Detail             string    `db:"detail"`
+	Retries            uint      `db:"retries"`
 	CreatedAt          time.Time `db:"created_at"`
 	UpdatedAt          time.Time `db:"updated_at"`
 }
+
+type DeviceNameRetryOutcome int
+
+const (
+	DeviceNameNotRetried DeviceNameRetryOutcome = iota
+	DeviceNameRetried
+	DeviceNameRetriesExhausted
+)
 
 // HostDeviceNamePending carries the host details the cron needs to resolve the
 // host-name template and enqueue a Settings/DeviceName command for a host whose
@@ -916,7 +933,11 @@ type HostDeviceNamePending struct {
 	// ComputerName is the host's current name in Fleet; the cron uses it to skip
 	// sending a command when the device already matches the resolved name.
 	ComputerName string `db:"computer_name"`
-	TeamID       *uint  `db:"team_id"`
+	// NameReportedSinceEnrollment is false when the host hasn't reported since its
+	// latest MDM enrollment, e.g. a wiped device re-enrolling into an existing host
+	// record, whose ComputerName is then stale and can't be trusted to skip the command.
+	NameReportedSinceEnrollment bool  `db:"name_reported_since_enrollment"`
+	TeamID                      *uint `db:"team_id"`
 }
 
 type DiskEncryptionStatus string
@@ -1081,6 +1102,11 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 		switch fvprof.OperationType {
 		case MDMOperationTypeInstall:
 			switch {
+			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified) && cfg.MacOSFileVaultOff():
+				// The profile cron hasn't queued the removal yet (e.g. right after a
+				// transfer, which already deleted the key), so nothing is left to verify.
+				settings.DiskEncryption = DiskEncryptionRemovingEnforcement.addrOf()
+
 			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified):
 				verification := d.keyVerification()
 				// logging out lets the deferred FileVault enablement run; rotating
@@ -1164,6 +1190,16 @@ func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMDelive
 	default:
 		return currStatus
 	}
+}
+
+// ProfileOperationFromDiskEncryptionState reports a FileVault profile still
+// recorded as installed but awaiting removal as a removal, so its row reads
+// "Removing enforcement" rather than "Enforcing".
+func (d *MDMHostData) ProfileOperationFromDiskEncryptionState(currOp MDMOperationType) MDMOperationType {
+	if d.MacOSSettings != nil && d.MacOSSettings.DiskEncryption != nil && *d.MacOSSettings.DiskEncryption == DiskEncryptionRemovingEnforcement {
+		return MDMOperationTypeRemove
+	}
+	return currOp
 }
 
 // Only exposed for Datastore tests, to be able to assert the rawDecryptable
@@ -1267,6 +1303,7 @@ func (h *HostLite) DisplayName() string {
 type HostIssues struct {
 	FailingPoliciesCount         uint64  `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
 	FailingUnhiddenPoliciesCount *uint64 `json:"failing_unhidden_policies_count,omitempty" db:"-" csv:"-"`
+	HiddenPoliciesCount          *uint64 `json:"hidden_policies_count,omitempty" db:"-" csv:"-"`
 	CriticalVulnerabilitiesCount *uint64 `json:"critical_vulnerabilities_count,omitempty" db:"critical_vulnerabilities_count" csv:"-"` // We set it to nil if the license is not premium
 	TotalIssuesCount             uint64  `json:"total_issues_count" db:"total_issues_count" csv:"issues"`                              // when exporting in CSV, we want that value as the "issues" column
 }
@@ -1921,12 +1958,13 @@ type AggregatedMunkiIssue struct {
 }
 
 type AggregatedMDMStatus struct {
-	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
-	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
-	EnrolledPersonalHostsCount  int `json:"enrolled_personal_hosts_count" db:"enrolled_personal_hosts_count"`
-	PendingHostsCount           int `json:"pending_hosts_count" db:"pending_hosts_count"`
-	UnenrolledHostsCount        int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
-	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
+	EnrolledManualHostsCount         int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
+	EnrolledAutomatedHostsCount      int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
+	EnrolledPersonalHostsCount       int `json:"enrolled_personal_hosts_count" db:"enrolled_personal_hosts_count"`
+	EnrolledManualPersonalHostsCount int `json:"enrolled_manual_personal_hosts_count" db:"enrolled_manual_personal_hosts_count"`
+	PendingHostsCount                int `json:"pending_hosts_count" db:"pending_hosts_count"`
+	UnenrolledHostsCount             int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
+	HostsCount                       int `json:"hosts_count" db:"hosts_count"`
 }
 
 // AggregatedMDMData contains aggregated data from mdm installations.
@@ -2089,7 +2127,15 @@ type HostDiskEncryptionKey struct {
 	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue      string    `json:"key" db:"-"`
 	ClientError         string    `json:"-" db:"client_error"`
+	RotationCommandUUID *string   `json:"-" db:"rotation_command_uuid"`
+	RotationPending     bool      `json:"rotation_pending" db:"-"`
 }
+
+// DiskEncryptionKeyRotationStaleAfter is how long a pending FileVault key rotation
+// whose command is no longer queued still counts as in progress. A marker is set
+// before its command is enqueued and cleared after its result is handled, so a
+// fresh one can look finished without being so.
+const DiskEncryptionKeyRotationStaleAfter = time.Minute
 
 type HostArchivedDiskEncryptionKey struct {
 	HostID              uint      `json:"-" db:"host_id"`

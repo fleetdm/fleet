@@ -28,7 +28,7 @@ interface IHostActionsDropdownProps {
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
   isRecoveryLockPasswordEnabled?: boolean;
-  diskEncryptionProfileStatus?: string;
+  diskEncryptionProfileStatus?: string | null;
   recoveryLockPasswordAvailable?: boolean;
   recoveryLockPasswordStatus?: RecoveryLockPasswordStatus;
   isManagedLocalAccountEnabled?: boolean;

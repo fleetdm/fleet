@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
@@ -74,6 +75,10 @@ type softwareWorkerArgs struct {
 }
 
 func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) error {
+	// Jobs run one at a time on a worker shared with other job types, and failed jobs are retried by the
+	// worker, so fail fast on AMAPI quota errors instead of waiting them out here.
+	ctx = androidmgmt.WithoutRetry(ctx)
+
 	var args softwareWorkerArgs
 	if err := json.Unmarshal(argsJSON, &args); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
@@ -313,6 +318,13 @@ func (v *SoftwareWorker) ensureHostSpecificPolicyIsApplied(ctx context.Context, 
 		_, err := v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
 		if err != nil {
 			return err
+		}
+
+		// That patch replaces every setting of the host policy, which a re-enrolled host
+		// reuses and the profile reconciler may already have filled for this enrollment,
+		// so have the reconciler send the host's profiles again.
+		if err := v.Datastore.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostUUID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "reset android profiles for redelivery for host %s", hostUUID)
 		}
 
 		err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)

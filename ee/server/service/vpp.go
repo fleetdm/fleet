@@ -1393,9 +1393,12 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
-	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
+	updatedAppMeta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting updated app metadata")
+	}
 
-	displayNameVal := ptr.ValOrZero(payload.DisplayName)
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
 
 	act := fleet.ActivityEditedAppStoreApp{
 		TeamName:            &teamName,
@@ -1409,13 +1412,8 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		LabelsExcludeAny:    actLabelsExclAny,
 		LabelsIncludeAll:    actLabelsInclAll,
 		SoftwareIconURL:     meta.IconURL,
-		SoftwareDisplayName: displayNameVal,
+		SoftwareDisplayName: updatedAppMeta.DisplayName,
 		Configuration:       payload.Configuration,
-	}
-
-	updatedAppMeta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting updated app metadata")
 	}
 
 	// Wrap iOS / iPadOS plist as a JSON string for the response.

@@ -152,6 +152,7 @@ export const generateTableConfig = (
                 fleet and not the default.
               </>
             }
+            fixedPositionStrategy
           >
             macOS fleet
           </TooltipWrapper>
@@ -182,6 +183,7 @@ export const generateTableConfig = (
                 and not the default.
               </>
             }
+            fixedPositionStrategy
           >
             iOS fleet
           </TooltipWrapper>
@@ -212,6 +214,7 @@ export const generateTableConfig = (
                 fleet and not the default.
               </>
             }
+            fixedPositionStrategy
           >
             iPadOS fleet
           </TooltipWrapper>
@@ -240,6 +243,7 @@ export const generateTableConfig = (
                 automatically added to this fleet.
               </>
             }
+            fixedPositionStrategy
           >
             BYOD fleet
           </TooltipWrapper>

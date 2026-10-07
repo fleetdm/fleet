@@ -42,6 +42,7 @@ interface IMyDevicePoliciesProps extends IPoliciesBaseProps {
   deviceUser: true;
   /** Hidden policies are excluded from `policies` until toggled on. */
   showHiddenPolicies: boolean;
+  hasHiddenPolicies: boolean;
   onToggleShowHiddenPolicies: () => void;
 }
 
@@ -132,7 +133,7 @@ const Policies = (props: IPoliciesProps): JSX.Element => {
   };
 
   const renderShowHiddenToggle = () => {
-    if (!props.deviceUser) {
+    if (!props.deviceUser || !props.hasHiddenPolicies) {
       return null;
     }
     return (

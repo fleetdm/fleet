@@ -152,6 +152,15 @@
   },
   {
     "software": {
+      "name": ["bash", "python3-bash"],
+      "source": ["python_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["flock"],
       "source": ["homebrew_packages"]
     },

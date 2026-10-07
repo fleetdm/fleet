@@ -6,7 +6,11 @@ import IconStatusMessage from "components/IconStatusMessage";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import { EnrollmentRejectedReason } from "interfaces/activity";
-import { FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME } from "interfaces/mdm";
+import {
+  FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME,
+  FLEET_WINDOWS_ENROLL_SECRET_PROFILE_DISPLAY_NAME,
+} from "interfaces/mdm";
+import { isWindows } from "interfaces/platform";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
 
@@ -17,20 +21,26 @@ export interface IEnrollmentAttemptDetailsModalProps {
   /** Fallback identifier when the host has no display name. */
   hostSerial?: string;
   reason?: EnrollmentRejectedReason | string;
+  platform?: string;
   createdAt?: string;
   onDone: () => void;
 }
 
 export const getEnrollmentRejectedReasonText = (
-  reason?: string
+  reason?: string,
+  platform?: string
 ): React.ReactNode => {
   switch (reason) {
     case "one_time_secret_spent":
       return (
         <>
           The host&apos;s one-time enroll secret was already used. Resend the{" "}
-          <b>{FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME}</b> profile to issue a
-          new one from <b>Host details &gt; Controls</b>.
+          <b>
+            {isWindows(platform)
+              ? FLEET_WINDOWS_ENROLL_SECRET_PROFILE_DISPLAY_NAME
+              : FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME}
+          </b>{" "}
+          profile to issue a new one from <b>Host details &gt; Controls</b>.
         </>
       );
     case "shared_secret_for_mdm_managed_host":
@@ -57,6 +67,7 @@ const EnrollmentAttemptDetailsModal = ({
   hostDisplayName,
   hostSerial,
   reason,
+  platform,
   createdAt,
   onDone,
 }: IEnrollmentAttemptDetailsModalProps) => {
@@ -128,7 +139,7 @@ const EnrollmentAttemptDetailsModal = ({
           message={message}
         />
         {!isIdentifierMismatch && (
-          <p>{getEnrollmentRejectedReasonText(reason)}</p>
+          <p>{getEnrollmentRejectedReasonText(reason, platform)}</p>
         )}
         <ModalFooter primaryButtons={<Button onClick={onDone}>Close</Button>} />
       </>

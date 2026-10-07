@@ -2060,7 +2060,8 @@ None.
     "periodicity": 3600000000000,
     "recent_vulnerability_max_age": 2592000000000000
   },
-  "max_software_package_size": 10737418240
+  "max_software_package_size": 10737418240,
+  "staged_upload_available": false
 }
 ```
 
@@ -3073,7 +3074,7 @@ _Available in Fleet Premium._
       "deadline_days": 5,
       "grace_period_days": 1
     },
-    "f": {
+    "apple_settings": {
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
@@ -3554,6 +3555,8 @@ the `software` table.
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| software_installer_id | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer. |
+| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only. |
 | software_status       | string | query | The status of the software install to filter hosts by. One of: `pending_install`, `failed_install`, `installed`, `pending_uninstall`, `failed_uninstall`, `pending`, or `failed`. Mutually exclusive with `software_version_id`, and must be supplied if `software_title_id` is set.   |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`. See note below for filtering Windows hosts.                                                                                                                                                                                                                                     |
@@ -3865,6 +3868,8 @@ Response payload with the `munki_issue_id` filter provided:
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
+| software_installer_id   | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer. |
+| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only. |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -6566,10 +6571,10 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| source | string | query | Filters to only include software from the specified sources (the **Type** column in the UI). For example, `"apps"` for macOS apps or `"programs"` for Windows apps. To filter by multiple sources, separate them with commas (e.g. `?source=apps,programs`). Options are: `"adobe_plugins"`, `"ai_clis"`, `"ai_skills"`, `"android_apps"`, `"apps"`, `"chocolatey_packages"`, `"chrome_extensions"`, `"deb_packages"`, `"firefox_addons"`, `"go_binaries"`, `"homebrew_packages"`, `"ie_extensions"`, `"ios_apps"`, `"ipados_apps"`, `"jetbrains_plugins"`, `"mcp_servers"`, `"npm_packages"`, `"pacman_packages"`, `"pkg_packages"`, `"portage_packages"`, `"programs"`, `"ps1_packages"`, `"py_packages"`, `"python_packages"`, `"rpm_packages"`, `"safari_extensions"`, `"sh_packages"`, `"tgz_packages"`, and `"vscode_extensions"`. |
+| source | string | query | Filters to only include software from the specified sources. For example, `"apps"` for macOS apps or `"programs"` for Windows apps. To filter by multiple sources, separate them with commas (e.g. `?source=apps,programs`). See `source` values in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference). |
+| extension_for | string | query | **Requires `source`**. Filters browser and IDE extensions to the specified browsers or IDEs. To filter by multiple, separate them with commas. Each value only narrows the source it belongs to. For example, `?source=apps,chrome_extensions,vscode_extensions&extension_for=brave,cursor` returns macOS apps, Brave extensions, and Cursor extensions. If no value belongs to a source, all extensions from that source are included. See `extension_for` values in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference). |
 | ai_tool | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include AI tools (the **AI tools** toggle in the UI), such as AI apps, AI CLI tools, MCP servers, and AI skills. Includes AI tools of any `source`, such as `apps` or `npm_packages`. Each software item in the response includes `ai_tool`, which is `true` for AI tools. Default is `false`. |
 | macos_applications | boolean | query | If `true`, filters to only include software at the top level of the `/Applications` folder. This parameter applies only to macOS hosts, and is ignored for hosts on other platforms. Default is `false`.  |
-| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again.
 
@@ -6578,6 +6583,8 @@ On Windows hosts, `last_opened_at` is supported for software from the `programs`
 Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
 
 `software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
+
+On iOS, iPadOS, and Android App Store apps, `app_store_app.version_id` and `app_store_app.version_name` identify which admin-created version of the title was delivered to the host. Both are `null` when the title has a single version or the host hasn't received any version yet.
 
 #### Example
 
@@ -6664,8 +6671,10 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| source | string | query | Filters to only include software from the specified sources (the **Type** column in the UI). For example, `"apps"` for macOS apps or `"programs"` for Windows apps. To filter by multiple sources, separate them with commas (e.g. `?source=apps,programs`). Options are: `"adobe_plugins"`, `"ai_clis"`, `"ai_skills"`, `"android_apps"`, `"apps"`, `"chocolatey_packages"`, `"chrome_extensions"`, `"deb_packages"`, `"firefox_addons"`, `"go_binaries"`, `"homebrew_packages"`, `"ie_extensions"`, `"ios_apps"`, `"ipados_apps"`, `"jetbrains_plugins"`, `"mcp_servers"`, `"npm_packages"`, `"pacman_packages"`, `"pkg_packages"`, `"portage_packages"`, `"programs"`, `"ps1_packages"`, `"py_packages"`, `"python_packages"`, `"rpm_packages"`, `"safari_extensions"`, `"sh_packages"`, `"tgz_packages"`, and `"vscode_extensions"`. |
+| source | string | query | Filters to only include software from the specified sources. For example, `"apps"` for macOS apps or `"programs"` for Windows apps. To filter by multiple sources, separate them with commas (e.g. `?source=apps,programs`). See `source` values in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference). |
+| extension_for | string | query | **Requires `source`**. Filters browser and IDE extensions to the specified browsers or IDEs. To filter by multiple, separate them with commas. Each value only narrows the source it belongs to. For example, `?source=apps,chrome_extensions,vscode_extensions&extension_for=brave,cursor` returns macOS apps, Brave extensions, and Cursor extensions. If no value belongs to a source, all extensions from that source are included. See `extension_for` values in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference). |
 | ai_tool | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include AI tools (the **AI tools** toggle in the UI), such as AI apps, AI CLI tools, MCP servers, and AI skills. Includes AI tools of any `source`, such as `apps` or `npm_packages`. Each software item in the response includes `ai_tool`, which is `true` for AI tools. Default is `false`. |
+| macos_applications | boolean | query | If `true`, filters to only include software at the top level of the `/Applications` folder. This parameter applies only to macOS hosts, and is ignored for hosts on other platforms. Default is `false`.  |
 
 On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again.
 
@@ -6764,6 +6773,8 @@ Some cell values are escaped so that spreadsheet applications treat them as text
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'. **Note: If `policy_id` is specified _without_ including `policy_response`, this will also return hosts where the policy is not configured to run or failed to run.** |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
+| software_installer_id   | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer. |
+| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only. |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -7075,7 +7086,7 @@ _Available in Fleet Premium_
 
 Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or retrieves the unlock PIN for a macOS host.
 
-To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). For iOS and iPadOS, this disables Lost Mode.
+For iOS and iPadOS, this disables Lost Mode.
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
@@ -9466,6 +9477,8 @@ To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-
 
 The manual enrollment profile uses Fleet's static SCEP challenge. If [`mdm.apple_scep_static_challenge_enabled`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-static-challenge-enabled) is set to `false`, this endpoint returns an error.
 
+> **Warning:** Do not change or modify this profile in any way that is not directed by Fleet's documentation. Apple requires most values in this profile to agree with the values initially set at enrollment time when Fleet later sends renewals (approximately every six months by default). Any values changed can block Fleet's ability to renew this profile and may result in Fleet losing its ability to manage a device.
+
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
 ##### Example
@@ -9500,9 +9513,10 @@ Upload a bootstrap package that will be automatically installed during DEP setup
 
 | Name    | Type   | In   | Description                                                                                                                                                                                                            |
 | ------- | ------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| package | file   | body | **Required**. The bootstrap package installer. It must be a signed `pkg` file.                                                                                                                                         |
+| package | file   | body | The bootstrap package installer. It must be a signed `pkg` file. Required unless `upload_id` is specified.                                                                                                                                         |
+| upload_id | string | body | The `upload_id` from [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload). Use instead of `package` for a package uploaded directly to GCS. |
+| filename | string | body | The package's file name, for example `bootstrap-package.pkg`. Required with `upload_id`. |
 | fleet_id | string | body | The fleet ID for the package. If specified, the package will be installed to hosts that are assigned to the specified fleet. If not specified, the package will be installed on "Unassigned" hosts. |
-| manual_agent_install | boolean | body | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
 #### Example
 
@@ -9518,6 +9532,27 @@ assigned to a fleet. Note that in this example the form data specifies `fleet_id
 fleet_id="1"
 package="bootstrap-package.pkg"
 ```
+
+##### Default response
+
+`Status: 200`
+
+
+#### Staged upload example
+
+Register a bootstrap package that was uploaded to the URL from [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload).
+
+`POST /api/v1/fleet/bootstrap`
+
+
+##### Request body
+
+```http
+fleet_id="1"
+upload_id="9c8c3146-a2ef-450b-9cc6-70b005d8554e"
+filename="bootstrap-package.pkg"
+```
+
 
 ##### Default response
 
@@ -10180,11 +10215,15 @@ Example VPP `InstallApplication` command result metadata:
 
 > Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
 
+Fleet deletes old MDM command history on a schedule. Once a command is deleted, its results are no longer returned. Learn more in the [MDM commands guide](https://fleetdm.com/guides/mdm-commands#command-history-retention).
+
 ### List MDM commands
 
 > `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below.  [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#list-custom-mdm-commands) is available for the deprecated endpoint.
 
 This endpoint returns the list of custom MDM commands that have been executed.
+
+Fleet deletes old MDM command history on a schedule, so older commands may not be listed. Learn more in the [MDM commands guide](https://fleetdm.com/guides/mdm-commands#command-history-retention).
 
 `GET /api/v1/fleet/commands`
 
@@ -10295,7 +10334,7 @@ Only Apple (macOS, iOS, iPadOS) `DeviceLock`, `EraseDevice`, `ClearPasscode`, an
 - [Delete Android Enterprise](#delete-android-enterprise)
 - [List Microsoft Graph credentials](#list-microsoft-graph-credentials)
 - [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials)
-
+- [Get Android zero-touch enrollment configuration](#get-android-zero-touch-enrollment-configuration)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -10608,6 +10647,40 @@ Fleet currently supports one Microsoft Graph credential.
 `Status: 200`
 
 This endpoint returns a `422` when a tenant or client ID isn't a valid GUID, when `client_secret` is missing for a new credential, when more than one credential is supplied, or when Microsoft Graph rejects the credential.
+
+---
+
+### Get Android zero-touch enrollment configuration
+
+_Available in Fleet Premium_
+
+Get Fleet's Android zero-touch DPC extras JSON to paste into Google's zero-touch enrollment portal. Android MDM must be enabled. Specify a fleet so that hosts enrolled with this configuration are automatically added to that fleet, with its apps and settings applied.
+
+As part of this request, Fleet generates a token w/ 1,000 year expiry for the specified fleet. If a token already exists for the fleet, Fleet doesn't generate a new one.
+
+`GET /api/v1/fleet/android_enterprise/zero_touch_configuration`
+
+#### Parameters
+
+| Name      | Type    | In    | Description                                                                                                                                  |
+| --------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------|
+| fleet_id  | integer | query | _Available in Fleet Premium_. The ID of the fleet that hosts enrolled using this zero-touch configuration will be added to. If not specified, hosts will be added to "Unassigned". |
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/zero_touch_configuration?fleet_id=1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
+    "com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN": "<token from Fleet>"
+  }
+}
+```
 
 ---
 
@@ -12013,7 +12086,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | critical          | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. Critical policies can never bypass conditional access. |
 | type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `patch_software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
 | patch_software_title_id | integer | body | _Available in Fleet Premium_. ID of the software title (Fleet-maintained only) to create a patch policy for. Required if `type` is `patch`. |
-| patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. |
+| patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. If `software_title_id` is not specified, install software policy automation won't be added. |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | hidden | boolean | body | _Available in Fleet Premium_. Whether to hide this policy from the **Policies** page in Fleet Desktop. Only one of `hidden` and `conditional_access_enabled` can be `true`. |
@@ -12265,8 +12338,8 @@ _Available in Fleet Premium_
 | software_installer_id   | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | profile_uuid            | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. Set to `null` to remove the automation. The profile must belong to the same fleet. |
-| continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. If the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying. |
-| patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`). If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. |
+| continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
+| patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`). If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. If `software_title_id` is not specified, install software policy automation won't be added. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
@@ -14448,13 +14521,12 @@ Get a list of all software.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| source | string | query | Filters to only include software from the specified sources (the **Type** column in the UI). For example, `"apps"` for macOS apps or `"programs"` for Windows apps. To filter by multiple sources, separate them with commas (e.g. `?source=apps,programs`). Options are: `"adobe_plugins"`, `"ai_clis"`, `"ai_skills"`, `"android_apps"`, `"apps"`, `"chocolatey_packages"`, `"chrome_extensions"`, `"deb_packages"`, `"firefox_addons"`, `"go_binaries"`, `"homebrew_packages"`, `"ie_extensions"`, `"ios_apps"`, `"ipados_apps"`, `"jetbrains_plugins"`, `"mcp_servers"`, `"npm_packages"`, `"pacman_packages"`, `"pkg_packages"`, `"portage_packages"`, `"programs"`, `"ps1_packages"`, `"py_packages"`, `"python_packages"`, `"rpm_packages"`, `"safari_extensions"`, `"sh_packages"`, `"tgz_packages"`, and `"vscode_extensions"`. |
+| source | string | query | Filters to only include software from the specified sources. For example, `"apps"` for macOS apps or `"programs"` for Windows apps. To filter by multiple sources, separate them with commas (e.g. `?source=apps,programs`). See `source` values in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference). |
+| extension_for | string | query | **Requires `source`**. Filters browser and IDE extensions to the specified browsers or IDEs. To filter by multiple, separate them with commas. Each value only narrows the source it belongs to. For example, `?source=apps,chrome_extensions,vscode_extensions&extension_for=brave,cursor` returns macOS apps, Brave extensions, and Cursor extensions. If no value belongs to a source, all extensions from that source are included. See `extension_for` values in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference). |
 | ai_tool | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include AI tools (the **AI tools** toggle in the UI), such as AI apps, AI CLI tools, MCP servers, and AI skills. Includes AI tools of any `source`, such as `apps` or `npm_packages`. Each software item in the response includes `ai_tool`, which is `true` for AI tools. Default is `false`. |
 | platform | string | query | Filters software titles available for install by platforms. `fleet_id` must be specified to filter by platform. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
 | hash_sha256 | string | query | Filters to only include custom software packages (uploaded installers) with the specified SHA-256 hash. `fleet_id` must be specified to filter by hash. This allows checking if a specific package already exists before uploading. |
 | package_name | string | query | Filters to only include custom software packages (uploaded installers) with the specified package filename. `fleet_id` must be specified to filter by package name. This allows checking if a specific package already exists before uploading. |
-| exclude_fleet_maintained_apps | boolean | query | If `true` or `1`, Fleet maintained apps will not be included in the list of `software_titles`. Default is `false` |
-| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 
 #### Example
@@ -14582,7 +14654,8 @@ Get a list of all software versions.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| source | string | query | Filters to only include software from the specified sources (the **Type** column in the UI). For example, `"apps"` for macOS apps or `"programs"` for Windows apps. To filter by multiple sources, separate them with commas (e.g. `?source=apps,programs`). Options are: `"adobe_plugins"`, `"ai_clis"`, `"ai_skills"`, `"android_apps"`, `"apps"`, `"chocolatey_packages"`, `"chrome_extensions"`, `"deb_packages"`, `"firefox_addons"`, `"go_binaries"`, `"homebrew_packages"`, `"ie_extensions"`, `"ios_apps"`, `"ipados_apps"`, `"jetbrains_plugins"`, `"mcp_servers"`, `"npm_packages"`, `"pacman_packages"`, `"pkg_packages"`, `"portage_packages"`, `"programs"`, `"ps1_packages"`, `"py_packages"`, `"python_packages"`, `"rpm_packages"`, `"safari_extensions"`, `"sh_packages"`, `"tgz_packages"`, and `"vscode_extensions"`. |
+| source | string | query | Filters to only include software from the specified sources. For example, `"apps"` for macOS apps or `"programs"` for Windows apps. To filter by multiple sources, separate them with commas (e.g. `?source=apps,programs`). See `source` values in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference). |
+| extension_for | string | query | **Requires `source`**. Filters browser and IDE extensions to the specified browsers or IDEs. To filter by multiple, separate them with commas. Each value only narrows the source it belongs to. For example, `?source=apps,chrome_extensions,vscode_extensions&extension_for=brave,cursor` returns macOS apps, Brave extensions, and Cursor extensions. If no value belongs to a source, all extensions from that source are included. See `extension_for` values in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference). |
 | ai_tool | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include AI tools (the **AI tools** toggle in the UI), such as AI apps, AI CLI tools, MCP servers, and AI skills. Includes AI tools of any `source`, such as `apps` or `npm_packages`. Each software item in the response includes `ai_tool`, which is `true` for AI tools. Default is `false`. |
 | without_vulnerability_details | boolean | query | _Available in Fleet Premium_. If `true` only vulnerability name is included in response. If `false` (or omitted), adds vulnerability description, CVSS score, and other details available in Fleet Premium. See note above on performance. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -14680,7 +14753,6 @@ Returns a list of all operating systems.
 | per_page                | integer | query | Results per page. Default is `20`. |
 | order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count` and `version`. Default is `hosts_count` (descending).      |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 
 ##### Default response
@@ -14890,8 +14962,9 @@ A software title can have more than one package. The `packages` array lists all 
 
 > Install, pending, and failed counts in `packages.status` are combined across policy automations, setup experience, and manual installs.
 
-For Fleet-maintained apps, software package objects include two additional fields:
+For Fleet-maintained apps, software package objects include three additional fields:
 
+- `fleet_maintained_app_slug`: The Fleet-maintained app's slug (e.g. `"google-chrome/darwin"`), used to manage the app in GitOps. Available in Fleet Premium.
 - `pinned_version`: The version the app is pinned to — a specific version (e.g. `"149.0.7827.54"`) or a caret major-version constraint (e.g. `"^147"`). Omitted when the app automatically updates to the latest version.
 - `fleet_maintained_versions`: The versions Fleet has cached and that are available to pin or roll back to. Each entry includes `id`, `version`, and `uploaded_at`. For example:
 
@@ -14902,6 +14975,7 @@ For Fleet-maintained apps, software package objects include two additional field
     "version": "149.0.7827.54",
     "platform": "darwin",
     "fleet_maintained_app_id": 12,
+    "fleet_maintained_app_slug": "google-chrome/darwin",
     "pinned_version": "149.0.7827.54",
     "fleet_maintained_versions": [
       {
@@ -15119,6 +15193,58 @@ Linux vulnerabilities are based on kernel vulnerabilities for hosts running the 
 
 Operating systems other than Windows, macOS, and Linux do not report vulnerabilities.
 
+
+### Create staged upload
+
+_Available in Fleet Premium._
+
+Get a short-lived URL for uploading a package directly to Google Cloud Storage (GCS), so the package bytes don't pass through the Fleet server. Use this for packages larger than your load balancer or ingress allows, like Cloud Run's 32 MiB limit.
+
+Available when [`s3_software_installers_gcs_signed_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-software-installers-gcs-signed-url) is on. [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) returns `staged_upload_available: true` when it is.
+
+`POST /api/v1/fleet/staged_upload`
+
+
+#### Parameters
+
+| Name     | Type    | In   | Description |
+| -------- | ------- | ---- | ----------- |
+| target   | string  | body | **Required.** What the package is for: `software_package` or `bootstrap_package`. |
+| fleet_id | integer | body | The fleet ID. If not specified, the upload is for "Unassigned". |
+| size     | integer | body | **Required.** The package size in bytes. It can't be larger than [`server_max_installer_size`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-max-installer-size). |
+
+Upload the package to `url` with a `PUT` request whose `Content-Length` matches `size`, without a Fleet `Authorization` header. Then pass `upload_id` and the package's file name as `filename` to [Add package](https://fleetdm.com/docs/rest-api/rest-api#add-package), [Update package](https://fleetdm.com/docs/rest-api/rest-api#update-package), or [Create bootstrap package](https://fleetdm.com/docs/rest-api/rest-api#create-bootstrap-package) in place of the file. The URL expires at `expires_at`. Staged uploads that aren't registered are deleted after 24 hours.
+
+
+#### Example
+
+`POST /api/v1/fleet/staged_upload`
+
+
+##### Request body
+
+```json
+{
+  "target": "software_package",
+  "fleet_id": 1,
+  "size": 524288000
+}
+```
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "upload_id": "9c8c3146-a2ef-450b-9cc6-70b005d8554e",
+  "url": "https://storage.googleapis.com/fleet-installers/uploads/9c8c3146-a2ef-450b-9cc6-70b005d8554e?X-Amz-Algorithm=AWS4-HMAC-SHA256&...",
+  "expires_at": "2026-10-02T22:00:00Z"
+}
+```
+
+
 ### Add package
 
 _Available in Fleet Premium._
@@ -15135,7 +15261,9 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | body | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`. |
+| software        | file    | body | Installer package file or custom script file. Required unless `upload_id` is specified. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`. |
+| upload_id       | string  | body | The `upload_id` from [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload). Use instead of `software` for a package uploaded directly to GCS. |
+| filename        | string  | body | The package's file name, including its extension. Required with `upload_id`. |
 | fleet_id         | integer | body | The fleet ID. Adds a software package to the specified fleet. If not specified, it will add the software for "Unassigned" hosts. |
 | install_script  | string | body | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh`, `.py`, and `.ps1`. |
 | uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
@@ -15223,6 +15351,8 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
 | software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`.   |
+| upload_id       | string  | body | The `upload_id` from [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload). Use instead of `software` to replace the package with one uploaded directly to GCS. |
+| filename        | string  | body | The package's file name, including its extension. Required with `upload_id`. |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
 | categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
@@ -15233,7 +15363,6 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
-| automatic_install | boolean | body | Enables or disables "Force install": a policy that triggers a software install only on hosts missing the software (doesn't check version). Set to `false` to remove the policy. |
 | patch | boolean | body | _Available for Fleet-maintained apps only._ Enables or disables "Patch": a policy that triggers a software install when the installed version is outdated. Set to `false` to remove the policy (and its managed `pre_install_query`, if `patch_when_closed` was enabled). |
 | patch_when_closed | boolean | body | _Available for Fleet-maintained apps only. Only applies when `patch` is `true`._ If `true` (default), Fleet adds a read-only pre-install condition that skips the automated install while the app is open. If `false` ("Force patch"), Fleet installs the update the next time the policy fails, whether or not the app is open. |
 | version | string | body | Only available for Fleet-maintained apps. Pins the app to a specific or major version. Available versions are listed in the Fleet UI under **Actions > Versions**. To pin to a major version, use a caret (`^`) constraint and specify only the major version, without the minor and patch versions. For example, `"^147"` means Fleet continuously updates to the latest version until the app reaches 148.0. Set `version` to an empty string (`""`) to switch back to automatically updating to the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). `version` can't be changed in the same request as other fields; omit it to leave the current pin unchanged. |
@@ -15470,7 +15599,6 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | fleet_id       | integer | body | **Required**. The fleet ID. Adds app from the store to the specified fleet.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
-| ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
@@ -15640,7 +15768,6 @@ List available Fleet-maintained apps.
       "name": "1Password",
       "slug": "1password/darwin",
       "platform": "darwin",
-      "version": "8.10.40",
       "software_title_id": 1
     },
     {
@@ -15648,7 +15775,6 @@ List available Fleet-maintained apps.
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
-      "version": "24.002.21005",
       "software_title_id": null
     },
     {
@@ -15656,7 +15782,6 @@ List available Fleet-maintained apps.
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
-      "version": "2.39.179",
       "software_title_id": 3
     }
   ],
@@ -15697,7 +15822,6 @@ Returns information about the specified Fleet-maintained app.
     "id": 1,
     "slug": "1password/darwin",
     "name": "1Password",
-    "filename": "1Password-8.10.50-aarch64.zip",
     "version": "8.10.50",
     "platform": "darwin",
     "url": "https://downloads.1password.com/mac/1Password-8.10.50-aarch64.zip",
@@ -15934,7 +16058,6 @@ When install attempt was skipped because a patch policy has `patch_when_closed` 
    "software_title_id": 8353,
    "software_package": "FalconSensor-6.44.pkg",
    "host_id": 123,
-   "host_display_name": "Marko's MacBook Pro",
    "status": "failed_install",
    "output": "Installing software...\nError: The operation can’t be completed because the item \"Falcon\" is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
@@ -15946,7 +16069,7 @@ When install attempt was skipped because a patch policy has `patch_when_closed` 
 
 _Available in Fleet Premium._
 
-Deletes software that's available for install. This won't uninstall the software from hosts.
+Deletes software that's available for install. For Android hosts, the software is also uninstalled. For all other hosts, the software isn't uninstalled.
 
 `DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 
@@ -15960,7 +16083,7 @@ Deletes software that's available for install. This won't uninstall the software
 
 #### Example
 
-`DELETE /api/v1/fleet/software/titles/24/available_for_install?team_id=2`
+`DELETE /api/v1/fleet/software/titles/24/available_for_install?fleet_id=2`
 
 ##### Default response
 

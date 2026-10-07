@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.75",
+      "version": "4.76",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'IrfanView%' AND publisher = 'Irfan Skiljan';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IrfanView%' AND publisher = 'Irfan Skiljan' AND version_compare(version, '4.75') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IrfanView%' AND publisher = 'Irfan Skiljan' AND version_compare(version, '4.76') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'irfanview.exe');"
       },
-      "installer_url": "https://download.fileforum.com/download/967963863-1/iview475_x64_setup.exe",
+      "installer_url": "https://download.fileforum.com/download/967963863-1/iview476_x64_setup.exe",
       "install_script_ref": "fa8b00ca",
       "uninstall_script_ref": "a73e4b46",
-      "sha256": "6b7e36c089194347be1bea5fea08dc97316f2181e40427e7e2867ad7ba3906a0",
+      "sha256": "a2fd831e3962222c6ccb9db0d0de301c976a71df49763d82b9d82282480befb1",
       "default_categories": [
         "Productivity"
       ]

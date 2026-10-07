@@ -659,19 +659,26 @@ This activity contains the following fields:
 
 ## host_enrollment_rejected
 
-Generated when Fleet refuses an Orbit or osquery enrollment under the one-time enroll secret rules (see the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration for macOS, and [`mdm.windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) for Windows). Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
+Generated when Fleet refuses an enrollment in either of these cases:
+- An Orbit or osquery enrollment is refused under the one-time enroll secret rules. See the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration for macOS, and [`auth_mdm_windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-mdm-windows-one-time-enroll-secrets) for Windows.
+- An automatic enrollment (ADE) is refused because the host is in a fleet that requires end user authentication and the device didn't complete it.
+
+Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
 
 This activity contains the following fields:
 - "host_id": ID of the host the attempt targeted, or null if the host is unknown.
 - "host_display_name": Display name of the host, if known.
 - "host_serial": Serial number the enrolling device presented.
-- "host_uuid": Hardware UUID the enrolling device presented.
-- "platform": Platform the enrolling device presented.
-- "enrollment_plane": Which fleetd component attempted to enroll, "orbit" or "osquery".
+- "host_uuid": Hardware UUID the enrolling device presented. For "apple_mdm", this is the device's UDID.
+- "platform": Platform of the enrolling device.
+- "enrollment_plane": What attempted to enroll. One of:
+  - "orbit" or "osquery": a fleetd component.
+  - "apple_mdm": an Apple device during automatic enrollment (ADE).
 - "reason": Why the attempt was refused. One of:
   - "one_time_secret_spent": the host's one-time enroll secret was already used. Resend the "Fleetd configuration" profile (macOS) or the "Fleetd enroll secret" profile (Windows) to issue a new one.
   - "one_time_secret_identifier_mismatch": a one-time enroll secret was presented with a different serial number or hardware UUID than it was issued for.
   - "shared_secret_for_mdm_managed_host": a global or fleet-level enroll secret was used for a host that is enrolled in Fleet MDM, assigned to Fleet in Apple Business, or registered in Windows Autopilot. On Windows, this also covers a deleted host whose device checked in with Fleet MDM after it was deleted.
+  - "end_user_authentication_required": the host is in a fleet that requires end user authentication, but the device tried to enroll without completing it. This happens when the device got its automatic enrollment configuration before its fleet required end user authentication, or before it moved to that fleet. Erase and reactivate the device so it goes through end user authentication. Fleet only records this reason when every other enrollment check passed.
 
 #### Example
 
@@ -684,6 +691,20 @@ This activity contains the following fields:
 	"platform": "darwin",
 	"enrollment_plane": "orbit",
 	"reason": "one_time_secret_spent"
+}
+```
+
+#### Example: automatic enrollment
+
+```json
+{
+	"host_id": 456,
+	"host_display_name": "Anna's iPad",
+	"host_serial": "DMPXK2ABCDEF",
+	"host_uuid": "00008103-001A2B3C4D5E6F70",
+	"platform": "ipados",
+	"enrollment_plane": "apple_mdm",
+	"reason": "end_user_authentication_required"
 }
 ```
 
@@ -2020,16 +2041,17 @@ This activity contains the following fields:
 - "fleet_id": ID of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "version_name": Name of the admin-created App Store app version. Defaults to "Default version" when the admin didn't set one.
 - "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 #### Example
 
 ```json
 {
-  "software_title": "Logic Pro",
+  "software_title": "Slack",
   "software_title_id": 123,
-  "app_store_id": "1234567",
-  "platform": "darwin",
+  "app_store_id": "618783545",
+  "platform": "ios",
   "self_service": false,
   "team_name": "Workstations",
   "team_id": 1,
@@ -2044,7 +2066,9 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
+  ],
+  "version_name": "Production",
+  "configuration": "<dict><key>com.slack.workspace</key><string>example.slack.com</string></dict>"
 }
 ```
 
@@ -2059,15 +2083,16 @@ This activity contains the following fields:
 - "fleet_name": Name of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "fleet_id": ID of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
-- "labels_exclude_any": Target hosts that don't have any label in the array
+- "labels_exclude_any": Target hosts that don't have any label in the array.
+- "version_name": Name of the admin-created App Store app version that was deleted. Defaults to "Default version" when the admin didn't set one.
 
 #### Example
 
 ```json
 {
-  "software_title": "Logic Pro",
-  "app_store_id": "1234567",
-  "platform": "darwin",
+  "software_title": "Slack",
+  "app_store_id": "618783545",
+  "platform": "ios",
   "team_name": "Workstations",
   "team_id": 1,
   "fleet_name": "Workstations",
@@ -2082,7 +2107,8 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
+  ],
+  "version_name": "Production"
 }
 ```
 
@@ -2198,6 +2224,7 @@ This activity contains the following fields:
 - "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
 - "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
 - "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "version_name": Name of the admin-created App Store app version that was edited. Defaults to "Default version" when the admin didn't set one.
 - "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 
@@ -2205,10 +2232,10 @@ This activity contains the following fields:
 
 ```json
 {
-  "software_title": "Logic Pro",
+  "software_title": "Slack",
   "software_title_id": 123,
-  "app_store_id": "1234567",
-  "platform": "darwin",
+  "app_store_id": "618783545",
+  "platform": "ios",
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
@@ -2224,11 +2251,13 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
-  "software_display_name": "Logic Pro DAW"
-  "auto_update_enabled": true
-  "auto_update_window_start": "22:00"
-  "auto_update_window_end": "02:00"
+  ],
+  "software_display_name": "Slack",
+  "auto_update_enabled": true,
+  "auto_update_window_start": "22:00",
+  "auto_update_window_end": "02:00",
+  "version_name": "Production",
+  "configuration": "<dict><key>com.slack.workspace</key><string>example.slack.com</string></dict>"
 }
 ```
 
@@ -2936,6 +2965,23 @@ This activity contains the following fields:
 {
 	"host_id": 123,
 	"host_display_name": "PWNED-VM-123"
+}
+```
+
+## unbound_host_from_idp_account
+
+Generated when a host's link to an identity provider (IdP) account is removed, for example when the host re-enrolls without end user authentication. Fleet records this activity, so it does not include a user.
+
+This activity contains the following fields:
+- "host_uuid": Hardware UUID of the host.
+- "idp_email": Email of the IdP account the host was linked to.
+
+#### Example
+
+```json
+{
+	"host_uuid": "C8D90CC1-0C2A-52D4-A6F4-DF55522A740F",
+	"idp_email": "anna@example.com"
 }
 ```
 

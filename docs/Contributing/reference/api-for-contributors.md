@@ -574,12 +574,11 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Download package using a token](#download-package-using-a-token)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
+- [Rotate automatic enrollment token](#rotate-automatic-enrollment-token)
 - [Over the air enrollment](#over-the-air-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
-- [Upload VPP content token](#upload-vpp-content-token)
-- [Disable VPP](#disable-vpp)
 - [Get host's DEP assignment](#get-hosts-dep-assignment)
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
@@ -1228,6 +1227,56 @@ following query parameters:
   `auth.sso_session_validity_period` to authenticate with the IdP, when the session cookie expires,
   or when the callback is replayed (the session is single use).
 
+### Rotate automatic enrollment token
+
+_Available in Fleet Premium_
+
+Replaces the automatic enrollment token. Fleet puts this token in the `url` of the automatic enrollment profile for fleets without end user authentication. The previous token keeps working for a grace period. Only global admins can rotate the token.
+
+`POST /api/v1/fleet/enrollment_profiles/automatic/rotate_token`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| grace_period_hours | integer | body | How long the previous token keeps working, in hours. Default: `24`. Must be between `0` and `720`. `0` stops accepting the previous token immediately. |
+
+#### Example
+
+`POST /api/v1/fleet/enrollment_profiles/automatic/rotate_token`
+
+##### Request body
+
+```json
+{
+  "grace_period_hours": 24
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "previous_token_expires_at": "2026-10-01T15:04:05Z"
+}
+```
+
+`previous_token_expires_at` is `null` when `grace_period_hours` is `0`. Token values are never returned.
+
+After rotating, Fleet updates every fleet's automatic enrollment profile in Apple Business (AB) with the new `url`, and reassigns the fleet's devices to it. Rotating again during a grace period ends the earlier grace period.
+
+Devices keep the automatic enrollment configuration they got when they were activated. A device that was activated before the rotation, but hasn't enrolled yet, can't enroll with the old token once the grace period ends. To fix it, erase and reactivate it.
+
+##### Error responses
+
+- `400` when Apple MDM isn't turned on.
+- `402` on Fleet Free.
+- `403` for any role other than global admin.
+- `404` when there's no automatic enrollment profile yet (no AB token has synced).
+- `422` when `grace_period_hours` is out of range.
+
 ### Over the air enrollment
 
 This endpoint handles over the air (OTA) MDM enrollments
@@ -1361,54 +1410,6 @@ This endpoint uses the profiles stored by the [Preassign profiles to devices](#p
   "external_host_identifier": "id-01234"
 }
 ```
-
-##### Default response
-
-`Status: 204`
-
-### Upload VPP content token
-
-`POST /api/v1/fleet/mdm/apple/vpp_token`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business |
-
-#### Example
-
-`POST /api/v1/fleet/mdm/apple/vpp_token`
-
-##### Request header
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
-##### Request body
-
-```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
-Content-Type: application/octet-stream
-<TOKEN_DATA>
---------------------------f02md47480und42y
-```
-
-##### Default response
-
-`Status: 200`
-
-
-### Disable VPP
-
-`DELETE /api/v1/fleet/mdm/apple/vpp_token`
-
-#### Example
-
-`DELETE /api/v1/fleet/mdm/apple/vpp_token`
 
 ##### Default response
 
@@ -3268,7 +3269,6 @@ Get the results of a Fleet-maintained app or custom package install if it was pe
    "software_title_id": 8353,
    "software_package": "FalconSensor-6.44.pkg",
    "host_id": 123,
-   "host_display_name": "Marko's MacBook Pro",
    "status": "failed_install",
    "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
@@ -4460,23 +4460,6 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 }
 ```
 ## Software
-
-### Confirm installer hashes exist
-
-`GET /api/v1/fleet/software/package_hashes`
-
-| Name              | Type    | In   | Description                                        |
-|-------------------|---------|------|----------------------------------------------------|
-| team_name | string | query | The name of the fleet to filter the check to. If not supplied, the user must have global access, and hashes are checked across the entire instance. |
-| sha256              | string  | query | **Required**. A comma-separated list of SHA256 hashes, (64 hex characters apiece) to check. Endpoint returns 200 if all specified hashes exist, 404 otherwise. |
-
-#### Example
-
-`GET /api/v1/fleet/software/package_hashes?sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef`
-
-##### Default response
-
-`200 OK`
 
 ### Update software title name
 
