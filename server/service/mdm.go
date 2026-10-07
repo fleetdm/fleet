@@ -2892,6 +2892,9 @@ func (svc *Service) BatchSetMDMProfiles(
 		labels = append(labels, profiles[i].LabelsExcludeAny...)
 
 		if err := validateProfileDeployFlags(ctx, profiles[i].SelfService, profiles[i].Hidden, isMobileconfigContents(profiles[i].Contents), "Couldn't edit configuration_profiles. "); err != nil {
+			if iaErr, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok {
+				return fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profiles[i].Name), iaErr.Invalid()[0]["reason"])
+			}
 			return ctxerr.Wrap(ctx, err, "validating profile deploy flags")
 		}
 	}
