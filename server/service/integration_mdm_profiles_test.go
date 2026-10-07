@@ -11348,20 +11348,37 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 	require.Equal(t, fleet.MDMOperationTypeInstall, p.OperationType)
 	require.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
 
-	// Remove it again, then install and uninstall before the reconciler runs: the never-sent install is dropped
-	// and nothing is sent to the device.
+	// Install and uninstall are refused until the other reaches a terminal state, so a command still in flight can't
+	// undo the newer request (e.g. a late InstallProfile ack leaving the profile on the device without an opt-in).
+	reconcileOnly := func() {
+		require.NoError(t, kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
+		require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
+	}
+	ackAll := func() {
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusAccepted)
+	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusConflict)
+	reconcileOnly()
+	s.DoRawNoAuth("POST", devicePath(ssUUID, "install"), nil, http.StatusConflict)
+	ackAll()
+	require.Nil(t, hostProfile("ISS1"))
+
+	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusAccepted)
+	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusConflict)
+	reconcileOnly()
+	s.DoRawNoAuth("POST", devicePath(ssUUID, "uninstall"), nil, http.StatusConflict)
+	ackAll()
+	p = hostProfile("ISS1")
+	require.NotNil(t, p)
+	require.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
 	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusAccepted)
 	reconcileAndAck()
 	require.Nil(t, hostProfile("ISS1"))
-	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusAccepted)
-	requireQueued(fleet.MDMOperationTypeInstall)
-	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusAccepted)
-	require.Nil(t, hostProfile("ISS1"))
 	requireAvailable()
-	require.NoError(t, kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
-	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
-	cmd, err := mdmDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-	require.Nil(t, hostProfile("ISS1"))
 }
