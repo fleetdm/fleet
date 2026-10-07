@@ -312,11 +312,11 @@ const DiskEncryption = ({
 
   const ESCROW_HELP_TEXT: Record<DiskEncryptionSettingsPlatform, string> = {
     macos:
-      "The recovery key lets you unlock the device if the end user forgets their password. Fleet escrows it automatically. Some hosts require the end user to log out and back in.",
+      "The recovery key lets you unlock the host if the end user forgets their password. Fleet escrows it automatically. Some hosts require the end user to log out and back in.",
     windows:
-      "The recovery key lets you unlock the device if the end user forgets their password. Fleet escrows it automatically.",
+      "The recovery key lets you unlock the host if the end user forgets their password. Fleet escrows it automatically.",
     linux:
-      "The recovery key lets you unlock the device if the end user forgets their password. Fleet escrows it after the end user enters their disk password in Fleet Desktop.",
+      "The recovery key lets you unlock the host if the end user forgets their password. Fleet escrows it after the end user enters their disk password in Fleet Desktop.",
   };
 
   const renderEnforceCheckbox = (
