@@ -38,7 +38,7 @@ try {
     $stageDir = Join-Path $env:ProgramData ("fleet-github-desktop-" + [guid]::NewGuid().ToString("N"))
     [void][System.IO.Directory]::CreateDirectory($stageDir, $security)
     $stagedInstaller = Join-Path $stageDir (Split-Path $exeFilePath -Leaf)
-    Copy-Item -LiteralPath $exeFilePath -Destination $stagedInstaller -Force
+    Copy-Item -LiteralPath $exeFilePath -Destination $stagedInstaller -Force -ErrorAction Stop
 
     $action = New-ScheduledTaskAction -Execute $stagedInstaller -Argument "--silent"
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
@@ -107,4 +107,6 @@ try {
     }
 }
 
+# Exit turns a code above Int32.MaxValue, such as a task's HRESULT, into 0.
+if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
 Exit $exitCode

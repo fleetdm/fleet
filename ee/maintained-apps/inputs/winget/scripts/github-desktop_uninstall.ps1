@@ -148,9 +148,14 @@ try {
         if ($arguments -notmatch '(?i)(^|\s)(-s|--silent)($|\s)') { $arguments = "$arguments -s".Trim() }
 
         # The uninstall string comes from a hive the user can write to, so only act
-        # on a folder that really is GitHub Desktop's.
-        $installDir = if ($exePath) { Split-Path $exePath -Parent } else { "" }
+        # on that user's own GitHub Desktop folder.
+        $installDir = ""
+        if ($exePath) { try { $installDir = [System.IO.Path]::GetFullPath((Split-Path $exePath -Parent)) } catch {} }
         $isAppDir = $installDir -and (Split-Path $installDir -Leaf) -eq "GitHubDesktop"
+        if ($isAppDir -and $entry.Sid) {
+            $profilePath = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$($entry.Sid)" -ErrorAction SilentlyContinue).ProfileImagePath
+            $isAppDir = $profilePath -and $installDir -eq (Join-Path $profilePath "AppData\Local\GitHubDesktop")
+        }
         if ($isAppDir) {
             Get-Process -ErrorAction SilentlyContinue |
                 Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) } |
@@ -232,4 +237,6 @@ try {
     $exitCode = 1
 }
 
+# Exit turns a code above Int32.MaxValue, such as a task's HRESULT, into 0.
+if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
 Exit $exitCode
