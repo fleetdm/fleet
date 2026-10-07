@@ -5190,14 +5190,28 @@ func (svc *MDMAppleCheckinAndCommandService) RegisterResultsHandler(commandType 
 }
 
 // certIsFromNewEnrollment reports whether the device's MDM identity certificate was issued from a
-// new-enrollment profile, identified by apple_mdm.FleetEnrollmentSubjectOU in the Subject OU. Renewal
-// profiles omit this marker, so its presence means the current checkin belongs to a fresh enrollment
-// rather than a SCEP renewal.
+// new-enrollment profile rather than a renewal. A bound certificate is decided by its binding purpose.
+// An unbound one falls back to apple_mdm.FleetEnrollmentSubjectOU in the Subject OU, which renewal
+// profiles omit.
 func certIsFromNewEnrollment(cert *x509.Certificate) bool {
 	if cert == nil {
 		return false
 	}
-	return slices.Contains(cert.Subject.OrganizationalUnit, apple_mdm.FleetEnrollmentSubjectOU)
+	binding, err := apple_mdm.ParseAppleMDMCertificateBindingExtension(cert)
+	if err != nil {
+		// unreachable for a new certificate, which the Authenticate wrapper rejects; an associated one was
+		// accepted earlier, so don't reset its host
+		return false
+	}
+	if binding == nil {
+		return slices.Contains(cert.Subject.OrganizationalUnit, apple_mdm.FleetEnrollmentSubjectOU)
+	}
+	switch binding.Purpose {
+	case fleet.AppleMDMCertPurposeADE, fleet.AppleMDMCertPurposeOTAPhaseTwo, fleet.AppleMDMCertPurposeADUE, fleet.AppleMDMCertPurposeACME:
+		return true
+	default:
+		return false
+	}
 }
 
 // Authenticate handles MDM [Authenticate][1] requests.

@@ -11,8 +11,10 @@ import (
 	"uuid"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/golang-jwt/jwt/v4"
 
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -186,127 +188,125 @@ func newCertVerifierEnrollmentCheckinService(next nano_service.CheckinAndCommand
 }
 
 func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
-	cloned := r.Clone()
 	resolved := m.Enrollment.Resolved()
 	if resolved == nil {
-		s.logger.DebugContext(r.Context, "no resolved enrollment")
-		// let downstream handle missing resolved enrollment
-		return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("no resolved enrollment"))
+		return s.reject(r, m, nil, "no resolved enrollment")
 	}
-	// normalizing like certauth since r.ID is missing at this point.
+	// r.EnrollID is only set by nanomdm's core service, which runs after this wrapper, so normalize like certauth.
+	cloned := r.Clone()
 	cloned.EnrollID = &mdm.EnrollID{
 		ID:   resolved.DeviceChannelID,
 		Type: resolved.Type,
 	}
 
 	if r.Certificate == nil {
-		s.logger.DebugContext(r.Context, "no client certificate provided")
-		// let downstream handle missing cert
+		// let certauth reject the missing certificate
 		return s.CheckinAndCommandService.Authenticate(r, m)
 	}
 
 	associated, err := s.nanoStorage.IsCertHashAssociated(cloned, certauth.HashCert(r.Certificate))
 	if err != nil {
-		s.logger.ErrorContext(r.Context, "failed to check if cert hash is associated", "err", err)
-		return nano_service.NewHTTPStatusError(http.StatusInternalServerError, ctxerr.Wrap(r.Context, err, "checking cert hash association"))
+		return ctxerr.Wrap(r.Context, err, "checking cert hash association")
 	}
-
 	if associated {
-		// If the certificate hash is already associated, we can proceed, since it has a valid connection.
+		// a resend of an Authenticate already accepted for this enrollment
 		return s.CheckinAndCommandService.Authenticate(r, m)
 	}
 
 	data, err := apple_mdm.ParseAppleMDMCertificateBindingExtension(r.Certificate)
 	if err != nil {
-		s.logger.ErrorContext(r.Context, "failed to parse certificate binding extension", "err", err)
-		return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("invalid certificate binding extension"))
+		return s.reject(r, m, nil, "invalid certificate binding extension: "+err.Error())
 	}
-
 	if data == nil {
-		// check if we allow static challenges if so, early return here.
-		s.logger.DebugContext(r.Context, "no certificate binding extension found")
 		if !s.config.AppleSCEPStaticChallengeEnabled {
-			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension required"))
+			return s.reject(r, m, nil, "certificate binding extension required")
 		}
-
-		// We allow it, so early return into authenticate handler.
 		return s.CheckinAndCommandService.Authenticate(r, m)
 	}
 
 	switch data.Purpose {
+	// ota_phase1 certificates only sign the OTA phase 2 request, so they're rejected by the default case.
 	case fleet.AppleMDMCertPurposeADE, fleet.AppleMDMCertPurposeOTAPhaseTwo:
-		// check the incoming type matches the purpose of ADE and phase 2
-		// We don't support phase one here, as it should never reach the authenticate it should always be exchanged for a phase2 certificate.
-		if cloned.Type != mdm.Device {
-			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.Device, "actual", cloned.Type)
-			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension purpose does not match enrollment type"))
+		if resolved.Type != mdm.Device {
+			return s.reject(r, m, data, "enrollment type does not match certificate purpose")
 		}
-
-		if data.Serial == nil || *data.Serial == "" || *data.Serial != m.SerialNumber || data.UDID == nil || *data.UDID == "" || *data.UDID != m.UDID {
-			s.logger.DebugContext(r.Context, "certificate binding extension serial or UDID does not match device", "expectedSerial", m.SerialNumber, "actualSerial", data.Serial, "expectedUDID", m.UDID, "actualUDID", data.UDID)
-			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension serial or UDID does not match device"))
+		if !boundMatches(data.Serial, m.SerialNumber) || !boundMatches(data.UDID, m.UDID) {
+			return s.reject(r, m, data, "serial or UDID does not match certificate binding")
 		}
 	case fleet.AppleMDMCertPurposeACME:
-		if cloned.Type != mdm.Device {
-			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.Device, "actual", cloned.Type)
-			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension purpose does not match enrollment type"))
+		if resolved.Type != mdm.Device {
+			return s.reject(r, m, data, "enrollment type does not match certificate purpose")
 		}
-
-		if data.Serial == nil || *data.Serial == "" || *data.Serial != m.SerialNumber {
-			s.logger.DebugContext(r.Context, "certificate binding extension serial does not match device", "expectedSerial", m.SerialNumber, "actualSerial", data.Serial)
-			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension serial does not match device"))
+		if !boundMatches(data.Serial, m.SerialNumber) {
+			return s.reject(r, m, data, "serial does not match certificate binding")
 		}
 	case fleet.AppleMDMCertPurposeACMERenewal:
-		if cloned.Type != mdm.Device {
-			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.Device, "actual", cloned.Type)
-			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension purpose does not match enrollment type"))
+		if resolved.Type != mdm.Device {
+			return s.reject(r, m, data, "enrollment type does not match certificate purpose")
 		}
-
-		if data.Serial == nil || *data.Serial == "" || *data.Serial != m.SerialNumber || data.EnrollmentID == nil || *data.EnrollmentID == "" || *data.EnrollmentID != resolved.DeviceChannelID {
-			s.logger.DebugContext(r.Context, "certificate binding extension serial or enrollment ID does not match device", "expectedSerial", m.SerialNumber, "actualSerial", data.Serial, "expectedEnrollmentID", resolved.DeviceChannelID, "actualEnrollmentID", data.EnrollmentID)
-			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension serial or enrollment ID does not match device"))
+		if !boundMatches(data.Serial, m.SerialNumber) || !boundMatches(data.EnrollmentID, resolved.DeviceChannelID) {
+			return s.reject(r, m, data, "serial or enrollment ID does not match certificate binding")
 		}
 	case fleet.AppleMDMCertPurposeSCEPRenewal:
-		if data.EnrollmentID == nil || *data.EnrollmentID == "" || *data.EnrollmentID != resolved.DeviceChannelID {
-			s.logger.DebugContext(r.Context, "certificate binding extension enrollment ID does not match device", "expectedEnrollmentID", resolved.DeviceChannelID, "actualEnrollmentID", data.EnrollmentID)
-			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension enrollment ID does not match device"))
+		if !boundMatches(data.EnrollmentID, resolved.DeviceChannelID) {
+			return s.reject(r, m, data, "enrollment ID does not match certificate binding")
 		}
 	case fleet.AppleMDMCertPurposeADUE:
 		if resolved.Type != mdm.UserEnrollmentDevice {
-			s.logger.DebugContext(r.Context, "certificate binding extension purpose does not match enrollment type", "expected", mdm.UserEnrollmentDevice, "actual", resolved.Type)
-			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension purpose does not match enrollment type"))
+			return s.reject(r, m, data, "enrollment type does not match certificate purpose")
 		}
 
-		// first we check if the enrollmentID already exists
 		nanoEnrollment, err := s.ds.GetNanoMDMEnrollment(r.Context, resolved.DeviceChannelID)
 		if err != nil {
-			s.logger.DebugContext(r.Context, "failed to get nano MDM enrollment", "deviceChannelID", resolved.DeviceChannelID, "error", err)
-			return nano_service.NewHTTPStatusError(http.StatusInternalServerError, errors.New("failed to get nano MDM enrollment"))
+			return ctxerr.Wrap(r.Context, err, "getting nano enrollment for ADUE authenticate")
 		}
 		if nanoEnrollment != nil {
-			s.logger.DebugContext(r.Context, "found nano MDM enrollment", "deviceChannelID", resolved.DeviceChannelID)
-			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("nano MDM enrollment already exists"))
+			return s.reject(r, m, data, "enrollment ID is already enrolled")
 		}
 
-		challenge, err := s.ds.GetADUEEnrollmentChallenge(r.Context, strings.SplitN(r.Authorization, " ", 2)[1])
+		token, ok := strings.CutPrefix(r.Authorization, "Bearer ")
+		if !ok || token == "" {
+			return s.reject(r, m, data, "missing ADUE bearer token")
+		}
+		// the challenge was just consumed on the primary when the profile was handed out
+		challenge, err := s.ds.GetADUEEnrollmentChallenge(ctxdb.RequirePrimary(r.Context, true), token)
 		if err != nil {
-			if _, ok := errors.AsType[fleet.NotFoundError](err); ok {
-				s.logger.DebugContext(r.Context, "ADUE enrollment challenge not found", "error", err)
-				return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("ADUE enrollment challenge not found"))
+			if fleet.IsNotFound(err) {
+				return s.reject(r, m, data, "ADUE bearer token not found")
 			}
-			s.logger.DebugContext(r.Context, "failed to get ADUE enrollment challenge", "error", err)
-			return nano_service.NewHTTPStatusError(http.StatusInternalServerError, errors.New("failed to get ADUE enrollment challenge"))
+			return ctxerr.Wrap(r.Context, err, "getting ADUE enrollment challenge")
 		}
-
-		// then we verify the authorization matches the idpAccountUUID
-		if data.IDPAccountUUID == nil || *data.IDPAccountUUID == "" || *data.IDPAccountUUID != challenge.IdPAccountUUID {
-			s.logger.DebugContext(r.Context, "certificate binding extension IDP account UUID does not match device", "expectedIDPAccountUUID", data.IDPAccountUUID, "actualIDPAccountUUID", challenge.IdPAccountUUID)
-			return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("certificate binding extension IDP account UUID does not match device"))
+		if !boundMatches(data.IDPAccountUUID, challenge.IdPAccountUUID) {
+			return s.reject(r, m, data, "IdP account does not match certificate binding")
 		}
 	default:
-		s.logger.DebugContext(r.Context, "unsupported certificate binding extension purpose", "purpose", data.Purpose)
-		return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New("unsupported certificate binding extension purpose"))
+		return s.reject(r, m, data, "unsupported certificate binding purpose")
 	}
 
 	return s.CheckinAndCommandService.Authenticate(r, m)
+}
+
+// boundMatches reports whether a value bound in the certificate is set and equals the claimed one.
+func boundMatches(bound *string, claimed string) bool {
+	return bound != nil && *bound != "" && *bound == claimed
+}
+
+func (s *certVerifierEnrollmentCheckinService) reject(r *mdm.Request, m *mdm.Authenticate, binding *apple_mdm.AppleMDMCertificateBindingExtension, reason string) error {
+	attrs := []any{
+		"reason", reason,
+		"claimed_udid", m.UDID,
+		"claimed_serial", m.SerialNumber,
+		"claimed_enrollment_id", m.EnrollmentID,
+	}
+	if binding != nil {
+		attrs = append(attrs,
+			"bound_purpose", binding.Purpose,
+			"bound_udid", ptr.ValOrZero(binding.UDID),
+			"bound_serial", ptr.ValOrZero(binding.Serial),
+			"bound_enrollment_id", ptr.ValOrZero(binding.EnrollmentID),
+			"bound_idp_account_uuid", ptr.ValOrZero(binding.IDPAccountUUID),
+		)
+	}
+	s.logger.InfoContext(r.Context, "rejecting MDM Authenticate", attrs...)
+	return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New(reason))
 }
