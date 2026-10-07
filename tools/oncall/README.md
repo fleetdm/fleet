@@ -8,7 +8,7 @@ gh auth login
 ./tools/oncall/oncall.sh prs -v
 ```
 
-`prs` columns: number | opened | issue | tested | author | title
+`prs` columns: number | opened | issue | author | title
 
 With `-v`: number | opened | issue | tested | author | assignee | link | title | labels
 

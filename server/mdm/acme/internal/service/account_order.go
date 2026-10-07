@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -152,6 +153,8 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 		return nil, ctxerr.Wrap(ctx, err, "getting base URL")
 	}
 
+	// Orders have a single authorization today; with more, each one's attested key would need checking.
+	var attestedPublicKey []byte
 	for _, authz := range authorizations {
 		authzURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "authorizations", fmt.Sprint(authz.ID))
 		if err != nil {
@@ -169,6 +172,7 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 		for _, chlg := range challenges {
 			if chlg.Status == types.ChallengeStatusValid {
 				hasAValidChallenge = true
+				attestedPublicKey = chlg.AttestedPublicKey
 				break
 			}
 		}
@@ -194,6 +198,19 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 	err = parsedCSR.CheckSignature()
 	if err != nil {
 		return nil, types.BadCSRError("CSR signature is invalid")
+	}
+	// Only the attested key may be certified, otherwise one attestation could certify any key.
+	// Fails closed when no key is on record (challenge validated before keys were recorded).
+	if len(attestedPublicKey) == 0 {
+		return nil, types.BadCSRError("CSR public key does not match the attested device key")
+	}
+	// Compared as keys, not DER bytes, so an encoding difference can't reject a genuine device.
+	attestedKey, err := x509.ParsePKIXPublicKey(attestedPublicKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing attested public key")
+	}
+	if k, ok := attestedKey.(interface{ Equal(crypto.PublicKey) bool }); !ok || !k.Equal(parsedCSR.PublicKey) {
+		return nil, types.BadCSRError("CSR public key does not match the attested device key")
 	}
 	// Normalize the common name and OU to match Fleet-issued SCEP certs. Preserve Fleet's
 	// new-enrollment marker OU when the device presents it: it rides the enrollment profile's ACME

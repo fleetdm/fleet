@@ -35,6 +35,11 @@
     border-color: $core-vibrant-red;
   }
 
+  &__drag-active {
+    border-color: $core-vibrant-blue;
+    background-color: $ui-vibrant-blue-10;
+  }
+
   // when the file preview is showing, we want the padding to be
   // slightly smaller on the top and bottom.
   &__file-preview {

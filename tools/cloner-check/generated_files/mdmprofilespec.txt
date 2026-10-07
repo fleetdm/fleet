@@ -3,6 +3,8 @@ github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Paths	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Description	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Activation	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	SelfService	bool
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Hidden	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Labels	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAny	[]string

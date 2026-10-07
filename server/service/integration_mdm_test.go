@@ -1,6 +1,7 @@
 package service
 
 import (
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -164,6 +165,7 @@ type integrationMDMTestSuite struct {
 	proxyCallbackURL          string
 	jwtSigningKey             *rsa.PrivateKey
 	softwareInstallerStore    fleet.SoftwareInstallerStore
+	stagedUploadStore         fleet.StagedUploadStore
 	acmeSvc                   fleet.ACMEWriteService
 	keyValueStore             fleet.AdvancedKeyValueStore
 }
@@ -352,6 +354,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		bootstrapPackageStore = s3test.SetupBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
 	s.softwareInstallerStore = softwareInstallerStore
+	if localS3Enabled {
+		s.stagedUploadStore = s3test.SetupStagedUploadStore(s.T(), "integration-tests", "")
+	}
 	scepTimeout := ptr.Duration(10 * time.Second)
 	s.scepConfig = svc_scep.NewSCEPConfigService(serverLogger, scepTimeout).(*svc_scep.SCEPConfigService)
 
@@ -379,6 +384,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		SoftwareInstallStore:   s.softwareInstallerStore,
 		SoftwareTitleIconStore: softwareTitleIconStore,
 		BootstrapPackageStore:  bootstrapPackageStore,
+		StagedUploadStore:      s.stagedUploadStore,
 		AndroidMockClient:      androidMockClient,
 		AndroidModule:          androidSvc,
 		KeyValueStore:          keyValueStore,
@@ -3024,6 +3030,77 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	require.True(t, *detailsResp.Host.MDM.EncryptionKeyArchived)
 }
 
+func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAfterTransferToFleetWithoutIt() {
+	t := s.T()
+	ctx := t.Context()
+
+	srcTeamName := "fv_src_" + t.Name()
+	s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: srcTeamName,
+		MDM:  fleet.TeamSpecMDM{EnableDiskEncryption: optjson.SetBool(true)},
+	}}}, http.StatusOK)
+	srcTeam, err := s.ds.TeamByName(ctx, srcTeamName)
+	require.NoError(t, err)
+	dstTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "fv_dst_" + t.Name()})
+	require.NoError(t, err)
+
+	token := "fv_transfer_token" //nolint:gosec // G101: test value, not a real credential
+	host := createHostAndDeviceToken(t, s.ds, token)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&srcTeam.ID, []uint{host.ID})))
+
+	// FileVault delivered and the key escrowed and decryptable
+	fileVaultProf := s.assertConfigProfilesByIdentifier(&srcTeam.ID, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+	require.NoError(t, s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+		ProfileUUID:       fileVaultProf.ProfileUUID,
+		ProfileIdentifier: fileVaultProf.Identifier,
+		HostUUID:          host.UUID,
+		CommandUUID:       uuid.New().String(),
+		OperationType:     fleet.MDMOperationTypeInstall,
+		Status:            &fleet.MDMDeliveryVerified,
+		Checksum:          []byte("csum"),
+		Scope:             fleet.PayloadScopeSystem,
+	}}))
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "key", "", nil)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now().Add(time.Minute)))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, fleet.DiskEncryptionVerified, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+
+	// The transfer deletes the key, but the profile cron hasn't queued the
+	// profile's removal yet: there is nothing for the end user to do.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &dstTeam.ID, HostIDs: []uint{host.ID}}, http.StatusOK, &addHostsToTeamResponse{})
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.False(t, getHostResp.Host.MDM.EncryptionKeyAvailable)
+	require.Equal(t, fleet.DiskEncryptionRemovingEnforcement, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+	require.Equal(t, fleet.DiskEncryptionRemovingEnforcement, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Nil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+
+	// the profile row reads "Removing enforcement" (remove + pending), not "Enforcing"
+	requireFileVaultRowRemoving := func(profiles *[]fleet.HostMDMProfile) {
+		require.NotNil(t, profiles)
+		for _, p := range *profiles {
+			if p.ProfileUUID == fileVaultProf.ProfileUUID {
+				require.Equal(t, fleet.MDMOperationTypeRemove, p.OperationType)
+				require.Equal(t, string(fleet.MDMDeliveryPending), *p.Status)
+				return
+			}
+		}
+		require.Fail(t, "FileVault profile row not found")
+	}
+	requireFileVaultRowRemoving(getHostResp.Host.MDM.Profiles)
+
+	var getDeviceResp getDeviceHostResponse
+	s.DoJSON("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK, &getDeviceResp)
+	require.Equal(t, fleet.DiskEncryptionRemovingEnforcement, *getDeviceResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Nil(t, getDeviceResp.Host.MDM.MacOSSettings.ActionRequired)
+	requireFileVaultRowRemoving(getDeviceResp.Host.MDM.Profiles)
+}
+
 func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionWithDisabledEncryptionSetting() {
 	t := s.T()
 	ctx := context.Background()
@@ -3752,6 +3829,21 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 
 	// no team tests ====
 
+	// a FileVault profile is only delivered while disk encryption is on;
+	// with it off, a delivered one reports as awaiting removal
+	ac, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	prevMacOSSettings := ac.MDM.MacOSSettings
+	ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+	ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+	require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+	t.Cleanup(func() {
+		ac, err := s.ds.AppConfig(context.Background())
+		require.NoError(t, err)
+		ac.MDM.MacOSSettings = prevMacOSSettings
+		require.NoError(t, s.ds.SaveAppConfig(context.Background(), ac))
+	})
+
 	// new filevault profile with no team
 	prof, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(0))
 	require.NoError(t, err)
@@ -3845,7 +3937,10 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	// team tests ====
 
 	// host 1,2 added to team 1
-	tm, _ := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
+	tm, _ := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1", Config: fleet.TeamConfig{MDM: fleet.TeamMDM{MacOSSettings: fleet.MacOSSettings{
+		EnableDiskEncryption:          optjson.SetBool(true),
+		EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+	}}}})
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[0].ID, hosts[1].ID}))
 	require.NoError(t, err)
 
@@ -7152,69 +7247,73 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/mdm/sso")
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
-	res := s.LoginMDMSSOUser("sso_user", "user123#")
+	res := s.LoginMDMSSOUser("sso_user", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 
 	u, err := url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q := u.Query()
-	user1EnrollRef := q.Get("enrollment_reference")
+	user1EnrollRef := s.mdmIdPAccountUUID(t, "sso_user@example.com")
 	// without an EULA uploaded
 	require.False(t, q.Has("eula_token"))
 	require.True(t, q.Has("profile_token"))
-	require.True(t, q.Has("enrollment_reference"))
+	require.False(t, q.Has("enrollment_reference"))
 	require.False(t, q.Has("error"))
 	// the url retrieves a valid profile
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath:  "/api/mdm/apple/enroll",
-		enrollRef: q.Get("enrollment_reference"),
-		token:     q.Get("profile_token"),
-		diParam:   di,
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
 	})
 
 	// IdP info stored is accurate for the account
 	s.checkStoredIdPInfo(t, user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
 
-	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	// the profile token is a one-time token, not the static automatic enrollment token
+	staticProf, err := s.ds.GetMDMAppleEnrollmentProfileByType(t.Context(), fleet.MDMAppleEnrollmentTypeAutomatic)
+	require.NoError(t, err)
+	require.NotEqual(t, staticProf.Token, q.Get("profile_token"))
+	s.checkOneTimeDEPEnrollmentToken(t, di, q.Get("profile_token"))
+
+	boundUser1 := fmt.Sprintf(`{"host_uuid": %q, "idp_email": "sso_user@example.com"}`, mdmDevice.UUID)
+	boundActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeBoundHostToIdPAccount{}.ActivityName(), boundUser1, 0)
+
+	res = s.LoginMDMSSOUser("sso_user", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 
 	u, err = url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q = u.Query()
-	user1EnrollRef = q.Get("enrollment_reference")
 	// without an EULA uploaded
 	require.False(t, q.Has("eula_token"))
 	require.True(t, q.Has("profile_token"))
-	require.True(t, q.Has("enrollment_reference"))
+	require.False(t, q.Has("enrollment_reference"))
 	require.False(t, q.Has("error"))
 	// the url retrieves a valid profile
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath:  "/api/mdm/apple/enroll",
-		enrollRef: q.Get("enrollment_reference"),
-		token:     q.Get("profile_token"),
-		diParam:   di,
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
 	})
 
 	// IdP info stored is accurate for the account
 	s.checkStoredIdPInfo(t, user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
 
-	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	// re-enrolling as the same account logs nothing new
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeBoundHostToIdPAccount{}.ActivityName(), boundUser1, boundActID)
+
+	res = s.LoginMDMSSOUser("sso_user", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
-
-	u, err = url.Parse(res.Header.Get("Location"))
-	require.NoError(t, err)
-	q = u.Query()
-	user1EnrollRef = q.Get("enrollment_reference")
 
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
 	pdfName := "eula.pdf"
 	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
 
-	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	res = s.LoginMDMSSOUser("sso_user", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 	u, err = url.Parse(res.Header.Get("Location"))
@@ -7223,16 +7322,13 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// with an EULA uploaded, all values are present
 	require.True(t, q.Has("eula_token"))
 	require.True(t, q.Has("profile_token"))
-	require.True(t, q.Has("enrollment_reference"))
+	require.False(t, q.Has("enrollment_reference"))
 	require.False(t, q.Has("error"))
-	// the enrollment reference is the same for the same user
-	require.Equal(t, user1EnrollRef, q.Get("enrollment_reference"))
 	// the url retrieves a valid profile
 	prof := s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath:  "/api/mdm/apple/enroll",
-		enrollRef: user1EnrollRef,
-		token:     q.Get("profile_token"),
-		diParam:   di,
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
 	})
 
 	// the url retrieves a valid EULA
@@ -7442,25 +7538,24 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dm[0].Source)
 
 	// enrolling a different user works without problems
-	res = s.LoginMDMSSOUser("sso_user2", "user123#")
+	res = s.LoginMDMSSOUser("sso_user2", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 	u, err = url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q = u.Query()
-	user2EnrollRef := q.Get("enrollment_reference")
+	user2EnrollRef := s.mdmIdPAccountUUID(t, "sso_user2@example.com")
 	require.True(t, q.Has("eula_token"))
 	require.True(t, q.Has("profile_token"))
-	require.True(t, q.Has("enrollment_reference"))
+	require.False(t, q.Has("enrollment_reference"))
 	require.False(t, q.Has("error"))
 	// the enrollment reference is different to the one used for the previous user
 	require.NotEqual(t, user1EnrollRef, user2EnrollRef)
 	// the url retrieves a valid profile
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath:  "/api/mdm/apple/enroll",
-		enrollRef: user2EnrollRef,
-		token:     q.Get("profile_token"),
-		diParam:   di,
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
 	})
 
 	// the url retrieves a valid EULA
@@ -7473,6 +7568,20 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	// IdP info stored is accurate for the account
 	s.checkStoredIdPInfo(t, user2EnrollRef, "sso_user2", "SSO User 2", "sso_user2@example.com")
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeBoundHostToIdPAccount{}.ActivityName(),
+		fmt.Sprintf(`{"host_uuid": %q, "idp_email": "sso_user2@example.com", "replaced_idp_email": "sso_user@example.com"}`, mdmDevice.UUID), 0)
+
+	// enrolling with the automatic enrollment token (no account) removes the link
+	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
+		basePath: "/api/mdm/apple/enroll",
+		token:    staticProf.Token,
+		diParam:  di,
+	})
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeUnboundHostFromIdPAccount{}.ActivityName(),
+		fmt.Sprintf(`{"host_uuid": %q, "idp_email": "sso_user2@example.com"}`, mdmDevice.UUID), 0)
+	unlinked, err := s.ds.GetMDMIdPAccountByHostUUID(t.Context(), mdmDevice.UUID)
+	require.NoError(t, err)
+	require.Nil(t, unlinked)
 
 	// changing the server URL also updates the remote DEP profile
 	acResp = appConfigResponse{}
@@ -7864,6 +7973,12 @@ func (s *integrationMDMTestSuite) TestMDMSSOSetupExperienceHostBinding() {
 	})
 }
 
+func (s *integrationMDMTestSuite) mdmIdPAccountUUID(t *testing.T, email string) string {
+	acc, err := s.ds.GetMDMIdPAccountByEmail(t.Context(), email)
+	require.NoError(t, err)
+	return acc.UUID
+}
+
 func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, username, fullname, email string) {
 	acc, err := s.ds.GetMDMIdPAccountByUUID(context.Background(), uuid)
 	require.NoError(t, err)
@@ -7888,20 +8003,19 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	})
 	require.NoError(t, err)
 
-	res := s.LoginMDMSSOUser("sso_user_no_displayname", "user123#")
+	res := s.LoginMDMSSOUser("sso_user_no_displayname", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 
 	u, err := url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q := u.Query()
-	user1EnrollRef := q.Get("enrollment_reference")
+	user1EnrollRef := s.mdmIdPAccountUUID(t, "sso_user_no_displayname@example.com")
 	// the url retrieves a valid profile
 	prof := s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath:  "/api/mdm/apple/enroll",
-		enrollRef: user1EnrollRef,
-		token:     q.Get("profile_token"),
-		diParam:   di,
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
 	})
 
 	// IdP info stored is accurate for the account
@@ -8210,24 +8324,23 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	checkEndUser()
 
 	// renew the mdm enrollment profile with a user that isn't in SCIM
-	res = s.LoginMDMSSOUser("sso_user2", "user123#")
+	res = s.LoginMDMSSOUser("sso_user2", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 	u, err = url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q = u.Query()
-	user2EnrollRef := q.Get("enrollment_reference")
+	user2EnrollRef := s.mdmIdPAccountUUID(t, "sso_user2@example.com")
 	require.True(t, q.Has("profile_token"))
-	require.True(t, q.Has("enrollment_reference"))
+	require.False(t, q.Has("enrollment_reference"))
 	require.False(t, q.Has("error"))
 	// the enrollment reference is not same as the one used for the previous user
 	require.NotEqual(t, user1EnrollRef, user2EnrollRef)
 	// the url retrieves a valid profile
 	prof = s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath:  "/api/mdm/apple/enroll",
-		enrollRef: user2EnrollRef,
-		token:     q.Get("profile_token"),
-		diParam:   di,
+		basePath: "/api/mdm/apple/enroll",
+		token:    q.Get("profile_token"),
+		diParam:  di,
 	})
 
 	// IdP info stored is accurate for the account
@@ -8421,12 +8534,61 @@ type enrollmentProfile struct {
 	PayloadContent    []enrollmentPayload
 }
 
+// checkOneTimeDEPEnrollmentToken checks that usedToken, a one-time token
+// already redeemed by the device that presented deviceInfo, can't be redeemed
+// again, and that fresh one-time tokens are refused for the wrong device or
+// after they expire.
+func (s *integrationMDMTestSuite) checkOneTimeDEPEnrollmentToken(t *testing.T, deviceInfo, usedToken string) {
+	requireRefused := func(token, di string) {
+		t.Helper()
+		res := s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, "token", token, "deviceinfo", di)
+		require.Contains(t, extractServerErrorText(res.Body), "Authentication failed")
+	}
+	newToken := func() string {
+		t.Helper()
+		res := s.LoginMDMSSOUser("sso_user", "user123#", deviceInfo)
+		require.Equal(t, http.StatusSeeOther, res.StatusCode)
+		u, err := url.Parse(res.Header.Get("Location"))
+		require.NoError(t, err)
+		return u.Query().Get("profile_token")
+	}
+	parsed, _, err := apple_mdm.ParseDeviceinfo(deviceInfo)
+	require.NoError(t, err)
+	otherDeviceInfo, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
+		Serial: "OTHER" + parsed.Serial,
+		UDID:   "other-" + parsed.UDID,
+	})
+	require.NoError(t, err)
+
+	// reused
+	requireRefused(usedToken, deviceInfo)
+
+	// redeemed by another device, which uses it up for the right device too
+	token := newToken()
+	requireRefused(token, otherDeviceInfo)
+	requireRefused(token, deviceInfo)
+
+	// expired
+	token = newToken()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE mdm_apple_dep_enrollment_challenges SET expires_at = NOW(6) - INTERVAL 1 SECOND WHERE challenge = ?`, token)
+		return err
+	})
+	requireRefused(token, deviceInfo)
+
+	// a fresh one-time token still works
+	token = newToken()
+	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{token: token, diParam: deviceInfo})
+
+	// initiating the flow requires the device's deviceinfo
+	s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso", []byte(`{"initiator": "mdm_sso"}`), http.StatusBadRequest)
+}
+
 type optsDownloadEnrollProf struct {
-	basePath  string
-	token     string
-	enrollRef string
-	diParam   string
-	diHeader  string
+	basePath string
+	token    string
+	diParam  string
+	diHeader string
 }
 
 func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(t *testing.T, opts optsDownloadEnrollProf) *enrollmentProfile {
@@ -8443,9 +8605,6 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(t *testing.
 	var queryParams []string
 	if opts.token != "" {
 		queryParams = append(queryParams, "token", opts.token)
-	}
-	if opts.enrollRef != "" {
-		queryParams = append(queryParams, "enrollment_reference", opts.enrollRef)
 	}
 	if opts.diParam != "" {
 		queryParams = append(queryParams, "deviceinfo", opts.diParam)
@@ -9618,7 +9777,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Delete the host from the list of MDM enrolled devices if present
-	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(context.Background(), windowsHost.UUID)
+	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(t.Context(), enrollRequestHWDevID)
 
 	// Preparing the RequestSecurityToken Request message
 	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
@@ -11039,6 +11198,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	checkNotification(false)
 
 	// enroll the host into Fleet MDM
+	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(t.Context(), enrollRequestHWDevID)
 	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
 	require.NoError(t, err)
 	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, false)
@@ -12336,6 +12496,10 @@ func (s *integrationMDMTestSuite) newGetPoliciesMsg(deviceToken bool, encodedBin
 			</s:Envelope>`), nil
 }
 
+// enrollRequestHWDevID is the hardware ID every newSecurityTokenMsg request presents. A test enrolling a new host with it
+// must first delete the enrollment a previous test left, which Fleet refuses to hand over to a different host.
+const enrollRequestHWDevID = "CF1D12AA5AE42E47D52465E9A71316CAF3AFCC1D3088F230F4D50B371FB2256F"
+
 func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, deviceToken bool, missingContextItem bool) ([]byte, error) {
 	if len(encodedBinToken) == 0 {
 		return nil, errors.New("encodedBinToken is empty")
@@ -12380,7 +12544,7 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 					<ac:Value>false</ac:Value>
 					</ac:ContextItem>
 					<ac:ContextItem Name="HWDevID">
-					<ac:Value>CF1D12AA5AE42E47D52465E9A71316CAF3AFCC1D3088F230F4D50B371FB2256F</ac:Value>
+					<ac:Value>` + enrollRequestHWDevID + `</ac:Value>
 					</ac:ContextItem>
 					<ac:ContextItem Name="Locale">
 					<ac:Value>en-US</ac:Value>
@@ -22998,6 +23162,154 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
 }
 
+// TestWindowsMDMEnrollDoesNotReplaceAnotherHostsEnrollment covers fleetd enrollments that present the hardware ID of an
+// existing enrollment they may not replace, because replacing it would delete that host's enrollment and its pending wipe.
+func (s *integrationMDMTestSuite) TestWindowsMDMEnrollDoesNotReplaceAnotherHostsEnrollment() {
+	t := s.T()
+	ctx := t.Context()
+
+	host, hostDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	var wipeResp fleet.WipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+
+	requireEnrollmentIntact := func(t *testing.T) {
+		t.Helper()
+		enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, hostDevice.HardwareID)
+		require.NoError(t, err)
+		require.Equal(t, hostDevice.DeviceID, enrollment.MDMDeviceID)
+		require.Equal(t, host.UUID, enrollment.HostUUID)
+	}
+
+	t.Run("another fleetd host presenting the hardware ID is refused", func(t *testing.T) {
+		otherHost := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
+		otherDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *otherHost.OrbitNodeKey)
+		otherDevice.HardwareID = hostDevice.HardwareID
+		require.ErrorContains(t, otherDevice.Enroll(), "SOAP fault")
+		requireEnrollmentIntact(t)
+	})
+
+	t.Run("another fleetd host presenting the device ID is refused", func(t *testing.T) {
+		// Management sessions load the newest enrollment holding the device ID, so a second one would take over the host.
+		otherHost := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
+		otherDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *otherHost.OrbitNodeKey)
+		otherDevice.DeviceID = hostDevice.DeviceID
+		require.ErrorContains(t, otherDevice.Enroll(), "SOAP fault")
+		enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, hostDevice.DeviceID)
+		require.NoError(t, err)
+		require.Equal(t, hostDevice.HardwareID, enrollment.MDMHardwareID)
+		require.Equal(t, host.UUID, enrollment.HostUUID)
+	})
+
+	t.Run("a re-enrollment that fails provisioning leaves the enrollment in place", func(t *testing.T) {
+		// fleetd only enrolls a host whose osquery reports MDM off.
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, false, s.server.URL, false, fleet.WellKnownMDMFleet, "",
+			fleet.PersonalEnrollmentTypeNone))
+		badCSRDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey,
+			mdmtest.TestWindowsMDMClientWithMalformedCSR())
+		badCSRDevice.HardwareID = hostDevice.HardwareID
+		require.ErrorContains(t, badCSRDevice.Enroll(), "SOAP fault")
+		requireEnrollmentIntact(t)
+	})
+
+	// The wipe is still pending and is delivered on the host's next management session.
+	status, err := s.ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	require.True(t, status.IsPendingWipe())
+	cmds, err := hostDevice.StartManagementSession()
+	require.NoError(t, err)
+	require.Contains(t, cmds, status.WipeMDMCommand.CommandUUID)
+}
+
+// TestWindowsMDMEntraEnrollmentBoundToEntraDevice covers Entra enrollments, which name their device only by a device-reported
+// hardware ID: the Entra device ID signed into the access token decides whether an enrollment may replace the one holding that
+// hardware ID, and a token without it cannot replace an enrollment bound to an Entra device.
+func (s *integrationMDMTestSuite) TestWindowsMDMEntraEnrollmentBoundToEntraDevice() {
+	t := s.T()
+	ctx := t.Context()
+
+	tenantID := uuid.NewString()
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &appConfigResponse{})
+	newEntraHost := func(hardwareID, entraDeviceID string) *mdmtest.TestWindowsMDMClient {
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "user@example.com", mdmtest.TestWindowsMDMClientNotInOOBE(),
+			mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		if hardwareID != "" {
+			d.HardwareID = hardwareID
+		}
+		d.EntraDeviceID = entraDeviceID
+		return d
+	}
+
+	requireEnrollment := func(t *testing.T, hardwareID, mdmDeviceID, entraDeviceID string) {
+		t.Helper()
+		enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, hardwareID)
+		require.NoError(t, err)
+		require.Equal(t, mdmDeviceID, enrollment.MDMDeviceID)
+		require.Equal(t, entraDeviceID, enrollment.EntraDeviceID)
+	}
+
+	victim := newEntraHost("", uuid.NewString())
+	require.NoError(t, victim.Enroll())
+	requireEnrollment(t, victim.HardwareID, victim.DeviceID, victim.EntraDeviceID)
+	host := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
+	_, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, victim.DeviceID)
+	require.NoError(t, err)
+
+	t.Run("another host enrolling through Entra with the hardware ID is refused", func(t *testing.T) {
+		require.ErrorContains(t, newEntraHost(victim.HardwareID, uuid.NewString()).Enroll(), "SOAP fault")
+		requireEnrollment(t, victim.HardwareID, victim.DeviceID, victim.EntraDeviceID)
+	})
+
+	t.Run("a token without a deviceid claim cannot replace a bound enrollment", func(t *testing.T) {
+		require.ErrorContains(t, newEntraHost(victim.HardwareID, "").Enroll(), "SOAP fault")
+		requireEnrollment(t, victim.HardwareID, victim.DeviceID, victim.EntraDeviceID)
+
+		// It still enrolls a hardware ID that no enrollment holds, unbound.
+		unbound := newEntraHost("", "")
+		require.NoError(t, unbound.Enroll())
+		requireEnrollment(t, unbound.HardwareID, unbound.DeviceID, "")
+	})
+
+	t.Run("a fleetd enrollment of an Autopilot host is bound to its Autopilot Entra device ID", func(t *testing.T) {
+		autopilotHost, fleetdDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+		autopilotEntraDeviceID := uuid.NewString()
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_autopilot_devices (host_id, autopilot_device_id, entra_device_id, tenant_id)
+				VALUES (?, ?, ?, ?)`, autopilotHost.ID, uuid.NewString(), autopilotEntraDeviceID, tenantID)
+			return err
+		})
+
+		require.ErrorContains(t, newEntraHost(fleetdDevice.HardwareID, uuid.NewString()).Enroll(), "SOAP fault")
+		requireEnrollment(t, fleetdDevice.HardwareID, fleetdDevice.DeviceID, "")
+
+		sameDevice := newEntraHost(fleetdDevice.HardwareID, autopilotEntraDeviceID)
+		require.NoError(t, sameDevice.Enroll())
+		requireEnrollment(t, fleetdDevice.HardwareID, sameDevice.DeviceID, autopilotEntraDeviceID)
+	})
+
+	t.Run("the same host re-enrolls through Entra", func(t *testing.T) {
+		reenrolled := newEntraHost(victim.HardwareID, victim.EntraDeviceID)
+		require.NoError(t, reenrolled.Enroll())
+		requireEnrollment(t, victim.HardwareID, reenrolled.DeviceID, victim.EntraDeviceID)
+
+		// a fleetd re-enrollment of its host keeps the Entra binding
+		_, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, reenrolled.DeviceID)
+		require.NoError(t, err)
+		// fleetd only enrolls a host whose osquery reports MDM off.
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, false, s.server.URL, false, fleet.WellKnownMDMFleet, "",
+			fleet.PersonalEnrollmentTypeNone))
+		fleetdDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey)
+		fleetdDevice.HardwareID = victim.HardwareID
+		require.NoError(t, fleetdDevice.Enroll())
+		requireEnrollment(t, victim.HardwareID, fleetdDevice.DeviceID, victim.EntraDeviceID)
+
+		require.ErrorContains(t, newEntraHost(victim.HardwareID, uuid.NewString()).Enroll(), "SOAP fault")
+		requireEnrollment(t, victim.HardwareID, fleetdDevice.DeviceID, victim.EntraDeviceID)
+	})
+}
+
 func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
 	t := s.T()
 	ctx := t.Context()
@@ -27938,32 +28250,44 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.NoError(t, err)
 	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
 
-	// --- iOS failure: the device errors the command (e.g. unsupervised) ---
+	// --- iOS failure: the device errors the command ---
 	// Each error re-queues the row until the retries are used up, then it fails.
-	failIOSCommand := func() {
+	failIOSCommand := func(errChain mdm.ErrorChain) {
 		cmd, err := iosFailDevice.Idle()
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
 		require.Equal(t, "Settings", cmd.Command.RequestType)
-		_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{
-			{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
-		})
+		_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{errChain})
 		require.NoError(t, err)
 	}
+	transientErr := mdm.ErrorChain{ErrorCode: 99, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "Something went wrong."}
 	for i := 1; i <= servermdm.MaxAppleDeviceNameRetries; i++ {
-		failIOSCommand()
+		failIOSCommand(transientErr)
 		retriedRow := requireRowStatus(iosFailHost.UUID, nil)
 		require.EqualValues(t, i, retriedRow.Retries)
 		runDeviceNameCron()
 		requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryPending)
 	}
-	failIOSCommand()
+	failIOSCommand(transientErr)
 	failedRow := requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
-	require.Contains(t, failedRow.Detail, "The device is not supervised.")
+	require.Contains(t, failedRow.Detail, "Something went wrong.")
 
 	// once retries are used up, the failed command is not re-sent by subsequent cron runs
 	runDeviceNameCron()
 	requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	cmd, err = iosFailDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// An unsupervised device can never apply the rename, so after a resend that
+	// rejection fails the row right away instead of using retries.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/name_template/resend", iosFailHost.ID), nil, http.StatusAccepted)
+	runDeviceNameCron()
+	failIOSCommand(mdm.ErrorChain{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."})
+	failedRow = requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, failedRow.Detail, "The device is not supervised.")
+	require.Zero(t, failedRow.Retries)
+	runDeviceNameCron()
 	cmd, err = iosFailDevice.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
@@ -30239,4 +30563,285 @@ func manualProfileIf(personal bool) fleet.PersonalEnrollmentType {
 		return fleet.PersonalEnrollmentTypeManualProfile
 	}
 	return fleet.PersonalEnrollmentTypeNone
+}
+
+func (s *integrationMDMTestSuite) TestStagedUpload() {
+	t := s.T()
+	if s.stagedUploadStore == nil {
+		t.Skip("set S3_STORAGE_TEST to run staged upload tests")
+	}
+
+	presign := func(target fleet.StagedUploadTarget, size int64, wantStatus int, wantErr string) *fleet.StagedUpload {
+		var resp createStagedUploadResponse
+		res := s.Do("POST", "/api/latest/fleet/staged_upload", createStagedUploadRequest{Target: target, Size: size}, wantStatus)
+		if wantStatus != http.StatusOK {
+			require.Contains(t, extractServerErrorText(res.Body), wantErr)
+			return nil
+		}
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		require.NotEmpty(t, resp.UploadID)
+		require.WithinDuration(t, time.Now().Add(fleet.StagedUploadURLExpiry), resp.ExpiresAt, time.Minute)
+		return resp.StagedUpload
+	}
+	stage := func(target fleet.StagedUploadTarget, content []byte) string {
+		up := presign(target, int64(len(content)), http.StatusOK, "")
+		req, err := http.NewRequest(http.MethodPut, up.URL, bytes.NewReader(content))
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		return up.UploadID
+	}
+	requireGone := func(uploadID string, gone bool) {
+		_, _, err := s.stagedUploadStore.Get(t.Context(), uploadID)
+		require.Equal(t, gone, fleet.IsNotFound(err), err)
+	}
+	finalizeBootstrap := func(fields map[string]string, pkg []byte, dryRun bool, wantStatus int, wantErr string) {
+		var b bytes.Buffer
+		w := multipart.NewWriter(&b)
+		for k, v := range fields {
+			require.NoError(t, w.WriteField(k, v))
+		}
+		if pkg != nil {
+			fw, err := w.CreateFormFile("package", "pkg.pkg")
+			require.NoError(t, err)
+			_, err = fw.Write(pkg)
+			require.NoError(t, err)
+		}
+		require.NoError(t, w.Close())
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/bootstrap", b.Bytes(), wantStatus, map[string]string{
+			"Content-Type":  w.FormDataContentType(),
+			"Authorization": "Bearer " + s.token,
+		}, "dry_run", strconv.FormatBool(dryRun))
+		if wantErr != "" {
+			require.Contains(t, extractServerErrorText(res.Body), wantErr)
+		}
+	}
+	readTestdata := func(elem ...string) []byte {
+		b, err := os.ReadFile(filepath.Join(append([]string{"testdata"}, elem...)...))
+		require.NoError(t, err)
+		return b
+	}
+
+	// presign errors
+	var cfgResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &cfgResp)
+	maxSize := cfgResp.MaxSoftwarePackageSize
+	presign(fleet.StagedUploadTargetSoftwarePackage, maxSize+1, http.StatusBadRequest, "The maximum file size is")
+	presign(fleet.StagedUploadTargetSoftwarePackage, 0, http.StatusBadRequest, "size is required")
+	presign("nope", 1, http.StatusBadRequest, "Unsupported upload target")
+
+	observer := &fleet.User{Name: "Staged Observer", Email: "staged-observer@example.com", GlobalRole: new(fleet.RoleObserver)}
+	require.NoError(t, observer.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(t.Context(), observer)
+	require.NoError(t, err)
+	adminToken := s.token
+	s.setTokenForTest(t, observer.Email, test.GoodPassword)
+	presign(fleet.StagedUploadTargetSoftwarePackage, 1, http.StatusForbidden, "")
+	presign(fleet.StagedUploadTargetBootstrapPackage, 1, http.StatusForbidden, "")
+	s.token = adminToken
+
+	// bootstrap package
+	signedPkg := readTestdata("bootstrap-packages", "signed.pkg")
+	finalizeBootstrap(map[string]string{"upload_id": uuid.NewString()}, signedPkg, false, http.StatusBadRequest, "only one of package or upload_id")
+	finalizeBootstrap(map[string]string{"upload_id": uuid.NewString()}, nil, false, http.StatusBadRequest, "filename multipart field is required")
+	finalizeBootstrap(map[string]string{"upload_id": uuid.NewString(), "filename": "bad:name.pkg"}, nil, false, http.StatusBadRequest, "invalid characters")
+	finalizeBootstrap(map[string]string{"upload_id": "../bootstrap-packages/x", "filename": "pkg.pkg"}, nil, false, http.StatusBadRequest, "Invalid upload_id")
+	finalizeBootstrap(map[string]string{"upload_id": uuid.NewString(), "filename": "pkg.pkg"}, nil, false, http.StatusBadRequest, "Upload not found")
+
+	unsignedID := stage(fleet.StagedUploadTargetBootstrapPackage, readTestdata("bootstrap-packages", "unsigned.pkg"))
+	finalizeBootstrap(map[string]string{"upload_id": unsignedID, "filename": "pkg.pkg"}, nil, false, http.StatusBadRequest, "file is not signed")
+	requireGone(unsignedID, false)
+
+	uploadID := stage(fleet.StagedUploadTargetBootstrapPackage, signedPkg)
+	finalizeBootstrap(map[string]string{"upload_id": uploadID, "filename": "staged.pkg"}, nil, true, http.StatusOK, "")
+	s.Do("GET", "/api/latest/fleet/bootstrap/0/metadata", nil, http.StatusNotFound)
+	requireGone(uploadID, true)
+
+	uploadID = stage(fleet.StagedUploadTargetBootstrapPackage, signedPkg)
+	finalizeBootstrap(map[string]string{"upload_id": uploadID, "filename": "staged.pkg"}, nil, false, http.StatusOK, "")
+	requireGone(uploadID, true)
+	var metaResp bootstrapPackageMetadataResponse
+	s.DoJSON("GET", "/api/latest/fleet/bootstrap/0/metadata", nil, http.StatusOK, &metaResp)
+	require.Equal(t, "staged.pkg", metaResp.MDMAppleBootstrapPackage.Name)
+	wantSha := sha256.Sum256(signedPkg)
+	require.Equal(t, wantSha[:], metaResp.MDMAppleBootstrapPackage.Sha256)
+	s.lastActivityMatches(fleet.ActivityTypeAddedBootstrapPackage{}.ActivityName(),
+		`{"bootstrap_package_name": "staged.pkg", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	s.Do("DELETE", "/api/latest/fleet/bootstrap/0", nil, http.StatusOK)
+
+	// software package add and edit
+	uploadID = stage(fleet.StagedUploadTargetSoftwarePackage, readTestdata("software-installers", "ruby.deb"))
+	rubyFile, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", "ruby.deb"))
+	require.NoError(t, err)
+	defer rubyFile.Close()
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: 1, TeamID: new(uint(0)), StagedUploadID: uploadID, Filename: "ruby.deb", InstallerFile: rubyFile,
+	}, http.StatusBadRequest, "only one of software or upload_id")
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		StagedUploadID: uploadID, Filename: "ruby.deb", InstallScript: "install", TeamID: new(uint(0)),
+	}, http.StatusOK, "")
+	requireGone(uploadID, true)
+	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "fleet_id", "0")
+	require.Equal(t, "ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
+
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "fleet_id", "0")
+
+	// edit replaces the package with the staged bytes
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "script.sh", TeamID: new(uint(0))}, http.StatusOK, "")
+	var scriptTitleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &scriptTitleID, `SELECT title_id FROM software_installers WHERE filename = 'script.sh'`)
+	})
+	newScript := []byte("#!/bin/sh\necho staged\n")
+	uploadID = stage(fleet.StagedUploadTargetSoftwarePackage, newScript)
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: scriptTitleID, TeamID: new(uint(0)), StagedUploadID: uploadID, Filename: "script.sh",
+	}, http.StatusOK, "")
+	requireGone(uploadID, true)
+	var storageID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &storageID, `SELECT storage_id FROM software_installers WHERE title_id = ?`, scriptTitleID)
+	})
+	newSha := sha256.Sum256(newScript)
+	require.Equal(t, fmt.Sprintf("%x", newSha), storageID)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", scriptTitleID), nil, http.StatusNoContent, "fleet_id", "0")
+
+	// in-house apps take the same staged add and edit paths
+	uploadID = stage(fleet.StagedUploadTargetSoftwarePackage, readTestdata("software-installers", "ipa_test.ipa"))
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		StagedUploadID: uploadID, Filename: "ipa_test.ipa", TeamID: new(uint(0)),
+	}, http.StatusOK, "")
+	requireGone(uploadID, true)
+	var ipaTitleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &ipaTitleID, `SELECT title_id FROM in_house_apps WHERE filename = 'ipa_test.ipa'`)
+	})
+	// Same app, different bytes: copy the archive and add an entry.
+	ipa := readTestdata("software-installers", "ipa_test.ipa")
+	zr, err := zip.NewReader(bytes.NewReader(ipa), int64(len(ipa)))
+	require.NoError(t, err)
+	var ipaV2 bytes.Buffer
+	zw := zip.NewWriter(&ipaV2)
+	for _, f := range zr.File {
+		require.NoError(t, zw.Copy(f))
+	}
+	_, err = zw.Create("extra.txt")
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+	uploadID = stage(fleet.StagedUploadTargetSoftwarePackage, ipaV2.Bytes())
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: ipaTitleID, TeamID: new(uint(0)), StagedUploadID: uploadID, Filename: "ipa_test_v2.ipa",
+	}, http.StatusOK, "")
+	requireGone(uploadID, true)
+	var ipaFilename, ipaStorageID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return q.QueryRowxContext(t.Context(), `SELECT filename, storage_id FROM in_house_apps WHERE title_id = ?`, ipaTitleID).Scan(&ipaFilename, &ipaStorageID)
+	})
+	ipaV2Sha := sha256.Sum256(ipaV2.Bytes())
+	require.Equal(t, "ipa_test_v2.ipa", ipaFilename)
+	require.Equal(t, fmt.Sprintf("%x", ipaV2Sha), ipaStorageID)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", ipaTitleID), nil, http.StatusNoContent, "fleet_id", "0")
+}
+
+func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	teamID := fmt.Sprint(team.ID)
+
+	create := func(fileName string, content []byte, fields map[string][]string, wantStatus int) string {
+		fields["team_id"] = []string{teamID}
+		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, fields)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
+		defer res.Body.Close()
+		var resp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp.ProfileUUID
+	}
+	update := func(profileUUID string, fields map[string][]string, wantStatus int) {
+		body, headers := generateMultipartRequest(t, "profile", "", nil, s.token, fields)
+		s.DoRawWithHeaders("PATCH", "/api/latest/fleet/configuration_profiles/"+profileUUID, body.Bytes(), wantStatus, headers).Body.Close()
+	}
+	get := func(profileUUID string) *fleet.MDMConfigProfilePayload {
+		var resp getMDMConfigProfileResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/"+profileUUID, getMDMConfigProfileRequest{}, http.StatusOK, &resp)
+		return resp.MDMConfigProfilePayload
+	}
+	installOn := func(hostUUID, profileUUID, identifier string) {
+		require.NoError(t, s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID: profileUUID, ProfileIdentifier: identifier, HostUUID: hostUUID, CommandUUID: uuid.NewString(),
+			OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified, Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem,
+		}}))
+	}
+	requireOptedIn := func(hostUUID, profileUUID string) {
+		ok, err := s.ds.HasHostMDMProfileOptIn(ctx, hostUUID, profileUUID)
+		require.NoError(t, err)
+		require.True(t, ok)
+	}
+	yes := []string{"true"}
+
+	ssUUID := create("ss.mobileconfig", mobileconfigForTest("SS", "com.test.ss"), map[string][]string{"self_service": yes}, http.StatusOK)
+	winUUID := create("hidden.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Hidden/Test"), map[string][]string{"hidden": yes}, http.StatusOK)
+	declUUID := create("hidden-decl.json", declBytesForTest("com.test.hidden.decl", "hidden"), map[string][]string{"hidden": yes}, http.StatusOK)
+	require.True(t, get(ssUUID).SelfService)
+	require.True(t, get(winUUID).Hidden)
+	require.True(t, get(declUUID).Hidden)
+
+	create("ss.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/SS/Test"), map[string][]string{"self_service": yes}, http.StatusUnprocessableEntity)
+	create("ss.json", declBytesForTest("com.test.ss.decl", "ss"), map[string][]string{"self_service": yes}, http.StatusUnprocessableEntity)
+	create("both.mobileconfig", mobileconfigForTest("Both", "com.test.both"), map[string][]string{"self_service": yes, "hidden": yes}, http.StatusUnprocessableEntity)
+	create("bad.mobileconfig", mobileconfigForTest("Bad", "com.test.bad"), map[string][]string{"hidden": {"nope"}}, http.StatusBadRequest)
+	// hidden is validated against the stored self_service
+	update(ssUUID, map[string][]string{"hidden": yes}, http.StatusUnprocessableEntity)
+	update(declUUID, map[string][]string{"self_service": yes}, http.StatusUnprocessableEntity)
+
+	// flipping to self-service opts in hosts that have it, without moving uploaded_at
+	forcedUUID := create("forced.mobileconfig", mobileconfigForTest("Forced", "com.test.forced"), map[string][]string{}, http.StatusOK)
+	installOn("host-1", forcedUUID, "com.test.forced")
+	before := get(forcedUUID)
+	update(forcedUUID, map[string][]string{"self_service": yes}, http.StatusOK)
+	after := get(forcedUUID)
+	require.True(t, after.SelfService)
+	require.Equal(t, before.UploadedAt, after.UploadedAt)
+	requireOptedIn("host-1", forcedUUID)
+	update(forcedUUID, map[string][]string{"description": {"kept"}}, http.StatusOK)
+	require.True(t, get(forcedUUID).SelfService)
+
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	for _, p := range listResp.Profiles {
+		require.Equal(t, p.ProfileUUID == ssUUID || p.ProfileUUID == forcedUUID, p.SelfService, p.Name)
+		require.Equal(t, p.ProfileUUID == winUUID || p.ProfileUUID == declUUID, p.Hidden, p.Name)
+	}
+
+	// batch: the flip seeds opt-ins too, and is declarative for the flags
+	batch := func(profiles []fleet.MDMProfileBatchPayload, wantStatus int) {
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, wantStatus, "team_id", teamID)
+	}
+	batch([]fleet.MDMProfileBatchPayload{{Name: "B", Contents: mobileconfigForTest("B", "com.test.b")}}, http.StatusNoContent)
+	var bUUID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &bUUID, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = 'com.test.b'`)
+	})
+	installOn("host-2", bUUID, "com.test.b")
+	batch([]fleet.MDMProfileBatchPayload{
+		{Name: "B", Contents: mobileconfigForTest("B", "com.test.b"), SelfService: true},
+		{Name: "W", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/W/Test"), Hidden: true},
+		{Name: "A", Contents: []byte(`{"cameraDisabled": true}`), Hidden: true},
+	}, http.StatusNoContent)
+	require.True(t, get(bUUID).SelfService)
+	requireOptedIn("host-2", bUUID)
+	listResp = listMDMConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	require.Len(t, listResp.Profiles, 3)
+	for _, p := range listResp.Profiles {
+		require.Equal(t, p.Name == "W" || p.Name == "A", p.Hidden, p.Name)
+	}
+	batch([]fleet.MDMProfileBatchPayload{{Name: "W", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/W/Test"), SelfService: true}}, http.StatusUnprocessableEntity)
 }
