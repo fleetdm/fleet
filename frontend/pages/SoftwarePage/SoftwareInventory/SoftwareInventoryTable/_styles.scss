@@ -1,17 +1,5 @@
 .software-inventory-table {
-  &__filters {
-    .children-wrapper {
-      gap: $pad-small;
-    }
-  }
-
   .table-container {
-    .form-field--slider {
-      width: auto;
-      align-self: center;
-      white-space: nowrap;
-    }
-
     &__search-input,
     &__search {
       width: 100%; // Search bar across entire table

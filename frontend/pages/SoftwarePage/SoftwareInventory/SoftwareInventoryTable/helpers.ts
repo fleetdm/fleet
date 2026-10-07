@@ -1,13 +1,4 @@
-import { isEmpty } from "lodash";
-
-import {
-  ISeverityFilterValue,
-  severityFilters,
-  severityForRange,
-  severityValueLabel,
-} from "components/SeverityFilter";
 import { parseSoftwareTypesParam } from "interfaces/software";
-import { tooltipTextWithLineBreaks } from "utilities/helpers";
 import numberUtils from "utilities/numbers";
 import stringUtils from "utilities/strings/stringUtils";
 import { QueryParams, parseQueryValueToNumberOrUndefined } from "utilities/url";
@@ -75,50 +66,10 @@ export const buildSoftwareFiltersQueryParams = (
   };
 };
 
-export const getVulnFilterRenderDetails = (filters?: ISoftwareFilters) => {
-  let filterCount = 0;
-  const tooltipText = [];
-
-  if (filters) {
-    if (filters.vulnerable) {
-      filterCount += 1;
-      tooltipText.push("Vulnerable software");
-
-      const severity: ISeverityFilterValue = {
-        severity: severityForRange(filters.minCvssScore, filters.maxCvssScore),
-        minScore: filters.minCvssScore?.toString() ?? "",
-        maxScore: filters.maxCvssScore?.toString() ?? "",
-      };
-      if (!isEmpty(severityFilters(severity))) {
-        filterCount += 1;
-        tooltipText.push(`Severity: ${severityValueLabel(severity)}`);
-      }
-
-      if (filters.exploit) {
-        filterCount += 1;
-        tooltipText.push("Has known exploit");
-      }
-    }
-  }
-
-  const buttonText =
-    filterCount > 0
-      ? `${filterCount} filter${filterCount > 1 ? "s" : ""}`
-      : "Add filters";
-
-  return {
-    filterCount,
-    buttonText,
-    tooltipText: tooltipTextWithLineBreaks(tooltipText),
-  };
-};
-
 /** Filter button label: "Add filters" until any type or vulnerability filter
  * is applied, then "Filtered" (no count). */
 export const getFilterRenderDetails = (filters?: ISoftwareFilters) => {
-  const isFiltered =
-    getVulnFilterRenderDetails(filters).filterCount > 0 ||
-    !!filters?.types?.length;
+  const isFiltered = !!filters?.vulnerable || !!filters?.types?.length;
 
   return {
     isFiltered,
