@@ -191,6 +191,23 @@ describe("Custom variables", () => {
       );
     });
 
+    it("shows the copy button but not delete when user cannot edit", async () => {
+      const renderReadOnly = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: { isGlobalAdmin: false, isGlobalMaintainer: false } },
+      });
+      renderReadOnly(<GlobalVariables {...baseProps} />);
+      await waitFor(() => {
+        expect(screen.getByText("SECRET_UNO", CELL_TEXT)).toBeInTheDocument();
+      });
+      expect(
+        screen.getByRole("button", { name: "Copy SECRET_UNO" })
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Delete SECRET_UNO" })
+      ).not.toBeInTheDocument();
+    });
+
     describe("gitops mode", () => {
       it("renders the add button disabled in GitOps mode", async () => {
         renderInGOM(<GlobalVariables {...baseProps} />);
