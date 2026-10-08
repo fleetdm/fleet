@@ -113,6 +113,11 @@ func (svc *Service) ListSoftwareTitles(
 	if err != nil {
 		return nil, 0, nil, err
 	}
+	if !lic.IsPremium() {
+		for i := range titles {
+			titles[i].AITool = nil
+		}
+	}
 
 	return titles, count, meta, nil
 }
@@ -343,6 +348,9 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	}
 
 	svc.filterInstallerDetailsForUser(ctx, teamID, software)
+	if !license.IsPremium() {
+		software.AITool = nil
+	}
 
 	return software, nil
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -138,6 +139,13 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	if err != nil {
 		return nil, nil, err
 	}
+	// ai_tool is Fleet Premium, so it's omitted on Free. That also hides software flagged before a
+	// downgrade, since the flag is never reset in the database.
+	if !lic.IsPremium() {
+		for i := range softwares {
+			softwares[i].AITool = nil
+		}
+	}
 
 	return softwares, meta, nil
 }
@@ -220,6 +228,9 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 			return stub, nil
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software version by id")
+	}
+	if !license.IsPremium(ctx) {
+		software.AITool = nil
 	}
 
 	return software, nil

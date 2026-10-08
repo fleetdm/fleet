@@ -175,14 +175,14 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
 	software1 := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
 	}
 	software2 := []fleet.Software{
-		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
-		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: ""},
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier", AITool: new(false)},
+		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: "", AITool: new(false)},
 	}
 
 	getHostSoftware := func(h *fleet.Host) []fleet.Software {
@@ -212,9 +212,9 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	test.ElementsMatchSkipIDAndHostCount(t, software2, host2Software)
 
 	software1 = []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "towel", Version: "42.0.0", Source: "apps"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "towel", Version: "42.0.0", Source: "apps", AITool: new(false)},
 	}
 	software2 = []fleet.Software{}
 
@@ -232,8 +232,8 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	test.ElementsMatchSkipIDAndHostCount(t, software2, host2Software)
 
 	software1 = []fleet.Software{
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "towel", Version: "42.0.0", Source: "apps"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "towel", Version: "42.0.0", Source: "apps", AITool: new(false)},
 	}
 
 	_, err = ds.UpdateHostSoftware(context.Background(), host1.ID, software1)
@@ -243,10 +243,10 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	test.ElementsMatchSkipIDAndHostCount(t, software1, host1Software)
 
 	software2 = []fleet.Software{
-		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
-		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: "com.zoo"}, // "empty" -> "non-empty"
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier", AITool: new(false)},
+		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: "com.zoo", AITool: new(false)}, // "empty" -> "non-empty"
 	}
 	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2)
 	require.NoError(t, err)
@@ -255,10 +255,10 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	test.ElementsMatchSkipIDAndHostCount(t, software2, host2Software)
 
 	software2 = []fleet.Software{
-		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.other"}, // "non-empty" -> "non-empty"
-		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: ""},               // non-empty -> empty
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.other", AITool: new(false)}, // "non-empty" -> "non-empty"
+		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: "", AITool: new(false)},               // non-empty -> empty
 	}
 	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2)
 	require.NoError(t, err)
@@ -744,6 +744,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		Version:     "0.0.1",
 		Source:      "chrome_extensions",
 		GenerateCPE: "somecpe",
+		AITool:      new(false),
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
 				CVE:               "CVE-2022-0001",
@@ -767,14 +768,15 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			},
 		},
 	}
-	foo002 := fleet.Software{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"}
-	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
-	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages"}
+	foo002 := fleet.Software{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", AITool: new(false)}
+	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns", AITool: new(false)}
+	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", AITool: new(false)}
 	baz001 := fleet.Software{
 		Name:        "baz",
 		Version:     "0.0.1",
 		Source:      "deb_packages",
 		GenerateCPE: "somecpe2",
+		AITool:      new(false),
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
 				CVE:               "CVE-2022-0003",
@@ -1338,17 +1340,17 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	_ = listSoftwareCheckCount(t, ds, 0, 0, globalOpts, false)
 
 	software0 := []fleet.Software{
-		{Name: "abc", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.abc"},
-		{Name: "def", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.def"},
+		{Name: "abc", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.abc", AITool: new(false)},
+		{Name: "def", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.def", AITool: new(false)},
 	}
 	software1 := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
 	}
 	software2 := []fleet.Software{
-		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", AITool: new(false)},
 	}
 	softwareTemp := make([]fleet.Software, 0, 10)
 	for i := 0; i < 10; i++ {
@@ -1388,8 +1390,8 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	// update host2, remove "bar" software
 	software2 = []fleet.Software{
-		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
@@ -1433,11 +1435,11 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 	// use some software for host3 and host4
 	software3 := []fleet.Software{
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
 	}
 	software4 := []fleet.Software{
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", AITool: new(false)},
 	}
 
 	_, err = ds.UpdateHostSoftware(ctx, host3.ID, software3)
@@ -1503,7 +1505,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	// update host4 (team2), remove "bar" software
 	software4 = []fleet.Software{
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
 	}
 
 	_, err = ds.UpdateHostSoftware(ctx, host4.ID, software4)
@@ -2777,13 +2779,13 @@ func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
 	software1 := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
 	}
 	software2 := []fleet.Software{
-		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", AITool: new(false)},
 	}
 
 	_, err := ds.UpdateHostSoftware(context.Background(), host1.ID, software1)
@@ -15877,9 +15879,9 @@ func testSoftwareAITool(t *testing.T, ds *Datastore) {
 	claude := fleet.Software{Name: "Claude", Version: "1.2.4", Source: "apps", BundleIdentifier: "com.anthropic.claudefordesktop"}
 	safari := fleet.Software{Name: "Safari", Version: "18.0", Source: "apps", BundleIdentifier: "com.apple.Safari"}
 	codex := fleet.Software{Name: "Codex", Version: "0.46.0", Source: "npm_packages"}
-	github := fleet.Software{Name: "github", Source: "mcp_servers", AITool: true}
+	github := fleet.Software{Name: "github", Source: "mcp_servers", AITool: new(true)}
 	flaggedClaude := claude
-	flaggedClaude.AITool = true
+	flaggedClaude.AITool = new(true)
 
 	// New rows are inserted with the flag.
 	_, err := ds.UpdateHostSoftware(ctx, fleetdHost.ID, []fleet.Software{flaggedClaude, safari, github})
@@ -15891,7 +15893,7 @@ func testSoftwareAITool(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	currentAITool := make(map[string]bool, len(result.WasCurrInstalled))
 	for _, sw := range result.WasCurrInstalled {
-		currentAITool[sw.Name] = sw.AITool
+		currentAITool[sw.Name] = ptr.ValOrZero(sw.AITool)
 	}
 	require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true}, currentAITool)
 
@@ -15907,7 +15909,7 @@ func testSoftwareAITool(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, aiToolByName(t)["Codex"])
 	flaggedCodex := codex
-	flaggedCodex.AITool = true
+	flaggedCodex.AITool = new(true)
 	result, err = ds.UpdateHostSoftware(ctx, osqueryHost.ID, []fleet.Software{claude, safari, flaggedCodex})
 	require.NoError(t, err)
 	require.Empty(t, result.Inserted)
@@ -15931,7 +15933,7 @@ func testSoftwareAITool(t *testing.T, ds *Datastore) {
 	require.Zero(t, updates)
 
 	// Unknown software is ignored.
-	require.NoError(t, ds.MarkSoftwareAsAITool(ctx, []fleet.Software{{Name: "never-seen", Source: "ai_clis", AITool: true}}))
+	require.NoError(t, ds.MarkSoftwareAsAITool(ctx, []fleet.Software{{Name: "never-seen", Source: "ai_clis", AITool: new(true)}}))
 
 	// The versions list reads the flag on the optimized path and the fallback path.
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -15945,7 +15947,8 @@ func testSoftwareAITool(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		got := make(map[string]bool, len(listed))
 		for _, sw := range listed {
-			got[sw.Name] = sw.AITool
+			require.NotNil(t, sw.AITool, sw.Name)
+			got[sw.Name] = *sw.AITool
 		}
 		require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true, "Codex": true}, got, orderKey)
 	}
@@ -15961,16 +15964,16 @@ func testListSoftwareAIToolFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host1.ID})))
 
 	res1, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
-		{Name: "Claude", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude", AITool: true},
+		{Name: "Claude", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude", AITool: new(true)},
 		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
-		{Name: "codex", Version: "1.0", Source: "ai_clis", AITool: true},
+		{Name: "codex", Version: "1.0", Source: "ai_clis", AITool: new(true)},
 	})
 	require.NoError(t, err)
 	// Versions read their own row: Claude 2.0 isn't flagged even though Claude 1.0 is.
 	res2, err := ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
 		{Name: "Claude", Version: "2.0", Source: "apps", BundleIdentifier: "com.anthropic.claude"},
 		{Name: "Slack", Version: "2.0", Source: "apps", BundleIdentifier: "com.slack"},
-		{Name: "github", Version: "0.1", Source: "mcp_servers", AITool: true},
+		{Name: "github", Version: "0.1", Source: "mcp_servers", AITool: new(true)},
 	})
 	require.NoError(t, err)
 	softwareIDs := make(map[string]uint)
@@ -15998,7 +16001,8 @@ func testListSoftwareAIToolFilter(t *testing.T, ds *Datastore) {
 			software, meta, err := ds.ListSoftware(ctx, opts)
 			require.NoError(t, err)
 			for _, s := range software {
-				got[s.Name+" "+s.Version] = s.AITool
+				require.NotNil(t, s.AITool, s.Name)
+				got[s.Name+" "+s.Version] = *s.AITool
 			}
 			require.NotNil(t, meta)
 			if !meta.HasNextResults {
@@ -16069,7 +16073,8 @@ func testListSoftwareAIToolFilter(t *testing.T, ds *Datastore) {
 		for name, want := range map[string]bool{"Claude 1.0": true, "Claude 2.0": false} {
 			sw, err := ds.SoftwareByID(ctx, softwareIDs[name], nil, false, nil)
 			require.NoError(t, err)
-			require.Equal(t, want, sw.AITool, name)
+			require.NotNil(t, sw.AITool, name)
+			require.Equal(t, want, *sw.AITool, name)
 		}
 	})
 }
@@ -16098,10 +16103,10 @@ func testListHostSoftwareAIToolFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
-		{Name: "Claude", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude", AITool: true},
-		{Name: "Claude Helper", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude.helper", AITool: true},
+		{Name: "Claude", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude", AITool: new(true)},
+		{Name: "Claude Helper", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude.helper", AITool: new(true)},
 		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
-		{Name: "codex", Version: "1.0", Source: "ai_clis", AITool: true},
+		{Name: "codex", Version: "1.0", Source: "ai_clis", AITool: new(true)},
 	})
 	require.NoError(t, err)
 	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
@@ -16113,7 +16118,8 @@ func testListHostSoftwareAIToolFilter(t *testing.T, ds *Datastore) {
 	swPaths := map[string]fleet.ExecutableHashes{}
 	hostDetailsAITool := make(map[string]bool)
 	for _, hs := range host.Software {
-		hostDetailsAITool[hs.Name] = hs.AITool
+		require.NotNil(t, hs.AITool, hs.Name)
+		hostDetailsAITool[hs.Name] = *hs.AITool
 		if hs.Name == "Claude" || hs.Name == "Slack" {
 			_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: hs.ID, CVE: "CVE-2024-0001"}, fleet.NVDSource)
 			require.NoError(t, err)
@@ -16146,7 +16152,8 @@ func testListHostSoftwareAIToolFilter(t *testing.T, ds *Datastore) {
 			require.NotNil(t, meta)
 			for _, s := range sw {
 				require.NotContains(t, got, s.Name)
-				got[s.Name] = s.AITool
+				require.NotNil(t, s.AITool, s.Name)
+				got[s.Name] = *s.AITool
 			}
 			total = meta.TotalResults
 			if !meta.HasNextResults {

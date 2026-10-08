@@ -135,7 +135,8 @@ GROUP BY
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get ai tool software title")
 	}
-	_, title.AITool = aiToolTitles[id]
+	_, isAITool := aiToolTitles[id]
+	title.AITool = new(isAITool)
 
 	title.VersionsCount = uint(len(title.Versions))
 
@@ -480,15 +481,16 @@ func (ds *Datastore) processSoftwareTitleResults(
 	if opt.AITool {
 		// The filter already excluded every title that isn't an AI tool.
 		for _, title := range softwareList {
-			title.AITool = true
+			title.AITool = new(true)
 		}
 	} else {
 		aiToolTitles, err := ds.aiToolTitleIDs(ctx, dbReader, titleIDs)
 		if err != nil {
 			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get ai tool software titles")
 		}
-		for titleID := range aiToolTitles {
-			softwareList[titleIndex[titleID]].AITool = true
+		for _, title := range softwareList {
+			_, ok := aiToolTitles[title.ID]
+			title.AITool = new(ok)
 		}
 	}
 
