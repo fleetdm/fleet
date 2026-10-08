@@ -1,16 +1,12 @@
 const { Client } = require("@modelcontextprotocol/sdk/client/index.js");
 const { SSEClientTransport } = require("@modelcontextprotocol/sdk/client/sse.js");
-const { ErrorCode } = require("@modelcontextprotocol/sdk/types.js");
 
 // Maximum characters to return from any single tool call.
 // Keeps tool results from blowing up the Claude context window.
 const MAX_TOOL_RESULT_CHARS = 20000;
 
-// Errors that prove fleet-mcp never started the tool call, so retrying on a
-// fresh connection can't run it twice: the client had no transport, or the
-// server rejected the POST because its session is gone (e.g. after a restart).
-// A connection that drops mid-call is not retried, since the tool may still be
-// running server-side.
+// Only these errors prove fleet-mcp never started the call, so retrying can't
+// run it twice (e.g. a second live query).
 function wasNeverAccepted(err) {
   const message = err.message || "";
   return (
@@ -110,12 +106,7 @@ class McpClient {
     try {
       result = await this.client.callTool({ name, arguments: args }, undefined, options);
     } catch (err) {
-      // Anything else (e.g. a timeout) could re-run work that may still be in
-      // flight, such as a second live query against the same hosts.
       if (!wasNeverAccepted(err)) {
-        if (err.code === ErrorCode.ConnectionClosed) {
-          this._connected = false;
-        }
         throw err;
       }
       console.warn(

@@ -73,7 +73,10 @@ test("does not retry when the connection drops mid-call, but reconnects next tim
   let calls = 0;
   const { mcp, reconnects } = clientWithStub(async () => {
     calls++;
-    if (calls === 1) throw new McpError(ErrorCode.ConnectionClosed, "Connection closed");
+    if (calls === 1) {
+      mcp._connected = false; // the SDK's onclose fires before pending calls reject
+      throw new McpError(ErrorCode.ConnectionClosed, "Connection closed");
+    }
     return { content: [{ type: "text", text: "ok" }] };
   });
   await assert.rejects(mcp.callTool("run_live_query", { sql: "SELECT 1" }), /Connection closed/);
