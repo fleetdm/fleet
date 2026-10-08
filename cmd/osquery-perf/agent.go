@@ -16,6 +16,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"log"
 	"maps"
@@ -95,6 +96,9 @@ var (
 
 	// Software library database (loaded from SQLite if --software_db_path is specified)
 	softwareDB *softwaredb.DB
+
+	// rpmEpochProb is the fraction of RPM package names reported with an epoch (see rpmEpoch).
+	rpmEpochProb float64
 
 	installerMetadataCache installer_cache.Metadata
 
@@ -252,9 +256,32 @@ func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32) []map[st
 		if s.Release != nil {
 			m["release"] = *s.Release
 		}
+		if epoch := rpmEpoch(s.Name); epoch != "" {
+			m["epoch"] = epoch
+		}
 		results = append(results, m)
 	}
 	return results
+}
+
+// rpmEpoch returns the epoch reported for an RPM package, or "" for none. It's derived from the
+// package name so that every agent reports the same epoch for the same package, as real hosts do.
+func rpmEpoch(name string) string {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(name))
+	sum := h.Sum32()
+	if float64(sum%10000)/10000 >= rpmEpochProb {
+		return ""
+	}
+	// Most epochs are 1; a few packages carry larger ones (e.g. tcpdump has 14, bind 32).
+	switch (sum / 10000) % 10 {
+	case 0:
+		return "32"
+	case 1:
+		return "2"
+	default:
+		return "1"
+	}
 }
 
 // loadRPMKernelList reads a JSON array of objects with name/version/release
@@ -4636,6 +4663,7 @@ func main() {
 		loggerTLSMaxLines = flag.Int("logger_tls_max_lines", 1024,
 			"Maximum number of buffered result log lines to send on every log request")
 		commonSoftwareNameSuffix = flag.String("common_software_name_suffix", "", "Suffix to add to generated common software names")
+		rpmEpochProbFlag         = flag.Float64("rpm_epoch_prob", 0.18, "Fraction of RPM package names that RHEL agents report with an epoch; picked by name, so all agents agree")
 		softwareDatabasePath     = flag.String("software_db_path", "software-library/software.db",
 			"Path to software.db (SQLite database with realistic software data). Auto-generates from software.sql if missing.")
 
@@ -4654,6 +4682,7 @@ func main() {
 
 	flag.Parse()
 	rand.Seed(*randSeed)
+	rpmEpochProb = *rpmEpochProbFlag
 
 	// Load software from database if path provided. macOS / Windows / Ubuntu
 	// have embedded fallback fixtures, and RHEL kernels are embedded too — the

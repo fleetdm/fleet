@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -436,7 +437,7 @@ func matchSoftwareToRHELOSV(software []fleet.Software, artifact *RHELOSVArtifact
 		}
 
 		for _, vuln := range vulns {
-			if isVulnerableRPM(sw.Version, sw.Release, vuln) {
+			if isVulnerableRPM(sw.Version, sw.Release, sw.Epoch, vuln) {
 				var resolvedIn *string
 				if vuln.Fixed != "" {
 					fixed := vuln.Fixed
@@ -455,12 +456,15 @@ func matchSoftwareToRHELOSV(software []fleet.Software, artifact *RHELOSVArtifact
 }
 
 // isVulnerableRPM checks if an RPM software version is vulnerable based on OSV data.
-// Uses Rpmvercmp for RPM epoch:version-release comparison.
-func isVulnerableRPM(softwareVersion, softwareRelease string, vuln OSVVulnerability) bool {
-	// Build current version string: "version-release"
+// Uses Rpmvercmp for RPM epoch:version-release comparison. A nil epoch is compared as epoch 0.
+func isVulnerableRPM(softwareVersion, softwareRelease string, epoch *uint32, vuln OSVVulnerability) bool {
+	// Build current version string: "[epoch:]version-release"
 	current := softwareVersion
 	if softwareRelease != "" {
 		current = softwareVersion + "-" + softwareRelease
+	}
+	if epoch != nil {
+		current = strconv.FormatUint(uint64(*epoch), 10) + ":" + current
 	}
 
 	introduced := vuln.Introduced
