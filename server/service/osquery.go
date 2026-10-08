@@ -2418,13 +2418,13 @@ func preProcessSoftwareResults(
 	}
 
 	// The flag lands on the software row shared by every host, so a host must not be able to set
-	// it directly: only the ai_tools merge below may.
-	for _, query := range []string{
-		hostDetailQueryPrefix + "software_macos",
-		hostDetailQueryPrefix + "software_windows",
-		hostDetailQueryPrefix + "software_linux",
-	} {
-		for _, row := range results[query] {
+	// it directly: only the ai_tools merge below may. Every software detail query is stripped,
+	// not just the ones the merge runs on, since any of them can reach directIngestSoftware.
+	for query, rows := range results {
+		if !strings.HasPrefix(query, hostDetailQueryPrefix+"software_") {
+			continue
+		}
+		for _, row := range rows {
 			delete(row, "ai_tool")
 		}
 	}
