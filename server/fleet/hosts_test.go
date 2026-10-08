@@ -827,6 +827,9 @@ func TestPopulateOSSettingsAndMacOSSettingsMatrix(t *testing.T) {
 					for diskName, disk := range diskSignals {
 						exp := delivered.keyBasedWant[keyName]
 						switch {
+						case combo.cfg.MacOSFileVaultOff():
+							// the fleet delivers no FileVault profile, so this one is awaiting removal
+							exp = w(DiskEncryptionRemovingEnforcement, "")
 						case !combo.keyBased:
 							exp = delivered.diskBasedWant[diskName]
 						case combo.cfg.MacOSEscrowEnabled && !combo.cfg.MacOSEnabled && diskName == "unencrypted" && exp.action == ActionRequiredRotateKey:

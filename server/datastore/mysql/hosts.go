@@ -498,7 +498,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 			SUM(stats.user_time) AS user_time,
 			SUM(stats.wall_time) AS wall_time
 		FROM scheduled_query_stats stats WHERE stats.host_id = ? GROUP BY stats.scheduled_query_id) as sqs ON (q.id = sqs.scheduled_query_id)
-		LEFT JOIN query_results qr ON (q.id = qr.query_id AND qr.host_id = ?)
+		LEFT JOIN query_results qr ON (q.id = qr.query_id AND qr.host_id = ? AND qr.id >= q.results_valid_from_id)
 	`
 
 	filter1 := `
@@ -510,11 +510,16 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		GROUP BY q.id
 	`
 
+	// Results only exist for saved global/host-team queries (see QueriesPerHost); without saying so,
+	// MySQL probes query_results for every row in queries, which also includes live queries.
 	filter2 := `
-		WHERE EXISTS (
+		WHERE q.saved = 1
+			AND (q.team_id IS NULL OR q.team_id = ?)
+			AND EXISTS (
 				SELECT 1 FROM query_results
 				WHERE query_results.query_id = q.id
 				AND query_results.host_id = ?
+				AND query_results.id >= q.results_valid_from_id
 			)
 		GROUP BY q.id
 	`
@@ -536,6 +541,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		common_mysql.DefaultNonZeroTime,
 		hid,
 		hid,
+		teamID_,
 		hid,
 	}
 
@@ -1886,7 +1892,7 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		whereStatus += ` AND h.team_id IS NULL`
 	}
 
-	whereStatus += fmt.Sprintf(` AND %s = ?`, sqlCaseMDMAppleStatus(diskEncryptionConfig.MacOSEnforceOnly()))
+	whereStatus += fmt.Sprintf(` AND %s = ?`, sqlCaseMDMAppleStatus(diskEncryptionConfig))
 
 	return sql + whereStatus, append(params, opt.MacOSSettingsFilter), nil
 }
@@ -1896,22 +1902,21 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 		return sql, params
 	}
 
-	enforceOnly := diskEncryptionConfig.MacOSEnforceOnly()
 	var subquery string
 	var subqueryParams []interface{}
 	switch opt.MacOSSettingsDiskEncryptionFilter {
 	case fleet.DiskEncryptionVerified:
-		subquery, subqueryParams = subqueryFileVaultVerified(enforceOnly)
+		subquery, subqueryParams = subqueryFileVaultVerified(diskEncryptionConfig)
 	case fleet.DiskEncryptionVerifying:
-		subquery, subqueryParams = subqueryFileVaultVerifying(enforceOnly)
+		subquery, subqueryParams = subqueryFileVaultVerifying(diskEncryptionConfig)
 	case fleet.DiskEncryptionActionRequired:
-		subquery, subqueryParams = subqueryFileVaultActionRequired(enforceOnly)
+		subquery, subqueryParams = subqueryFileVaultActionRequired(diskEncryptionConfig)
 	case fleet.DiskEncryptionEnforcing:
 		subquery, subqueryParams = subqueryFileVaultEnforcing()
 	case fleet.DiskEncryptionFailed:
 		subquery, subqueryParams = subqueryFileVaultFailed()
 	case fleet.DiskEncryptionRemovingEnforcement:
-		subquery, subqueryParams = subqueryFileVaultRemovingEnforcement()
+		subquery, subqueryParams = subqueryFileVaultRemovingEnforcement(diskEncryptionConfig)
 	}
 
 	whereStatus := fmt.Sprintf(` AND EXISTS (%s) AND ne.id IS NOT NULL AND hmdm.enrolled = 1`, subquery)
@@ -1965,7 +1970,7 @@ AND (
 )`
 
 	// construct the WHERE for macOS
-	whereMacOS = fmt.Sprintf(`(%s) = ?`, sqlCaseMDMAppleStatus(diskEncryptionConfig.MacOSEnforceOnly()))
+	whereMacOS = fmt.Sprintf(`(%s) = ?`, sqlCaseMDMAppleStatus(diskEncryptionConfig))
 	paramsMacOS := []any{opt.OSSettingsFilter}
 
 	// construct the WHERE for linux
@@ -2074,7 +2079,6 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 		OR ((h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%') AND %s) -- linux
 	)`
 
-	enforceOnly := diskEncryptionConfig.MacOSEnforceOnly()
 	var subqueryMacOS string
 	var subqueryParams []interface{}
 	whereWindows := "FALSE"
@@ -2086,19 +2090,19 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 		if diskEncryptionConfig.WindowsEnabled {
 			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired)
 		}
-		subqueryMacOS, subqueryParams = subqueryFileVaultVerified(enforceOnly)
+		subqueryMacOS, subqueryParams = subqueryFileVaultVerified(diskEncryptionConfig)
 
 	case fleet.DiskEncryptionVerifying:
 		if diskEncryptionConfig.WindowsEnabled {
 			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired)
 		}
-		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying(enforceOnly)
+		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying(diskEncryptionConfig)
 
 	case fleet.DiskEncryptionActionRequired:
 		if diskEncryptionConfig.WindowsEnabled {
 			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired)
 		}
-		subqueryMacOS, subqueryParams = subqueryFileVaultActionRequired(enforceOnly)
+		subqueryMacOS, subqueryParams = subqueryFileVaultActionRequired(diskEncryptionConfig)
 
 	case fleet.DiskEncryptionEnforcing:
 		if diskEncryptionConfig.WindowsEnabled {
@@ -2114,7 +2118,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 
 	case fleet.DiskEncryptionRemovingEnforcement:
 		// Windows hosts cannot be removing enforcement status in the current implementation.
-		subqueryMacOS, subqueryParams = subqueryFileVaultRemovingEnforcement()
+		subqueryMacOS, subqueryParams = subqueryFileVaultRemovingEnforcement(diskEncryptionConfig)
 	}
 
 	if subqueryMacOS != "" {
@@ -2681,6 +2685,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				return ctxerr.New(ctx, "orbit host identity cert host id does not match enrolled host id. "+
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", hostInfo.OsqueryIdentifier))
 			}
+			if err := checkEnrollmentHoldsHostIdentityCert(ctx, tx, enrolledHostInfo.ID, enrollConfig.IdentityCert); err != nil {
+				return err
+			}
 
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {
 				if err := rejectSharedSecretForMDMManagedAppleHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
@@ -2986,6 +2993,9 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				*enrollConfig.IdentityCert.HostID != hostID {
 				return ctxerr.New(ctx, "host identity cert host id does not match enrolled host id. "+
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", osqueryHostID))
+			}
+			if err := checkEnrollmentHoldsHostIdentityCert(ctx, tx, hostID, enrollConfig.IdentityCert); err != nil {
+				return err
 			}
 
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {

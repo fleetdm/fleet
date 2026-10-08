@@ -378,6 +378,12 @@ func (c DiskEncryptionConfig) MacOSEnforceOnly() bool {
 	return c.MacOSEnabled && !c.MacOSEscrowEnabled
 }
 
+// MacOSFileVaultOff reports whether neither macOS setting is on, so the fleet
+// delivers no FileVault profile and one a host still has is awaiting removal.
+func (c DiskEncryptionConfig) MacOSFileVaultOff() bool {
+	return !c.MacOSEnabled && !c.MacOSEscrowEnabled
+}
+
 // MacOSDiskEncryptionSettingsPayload is the macos_settings object accepted by
 // POST /disk_encryption. Nil fields mean "don't change".
 type MacOSDiskEncryptionSettingsPayload struct {

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "31.7.0",
+      "version": "32.3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jgraph.drawio.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jgraph.drawio.desktop' AND version_compare(bundle_short_version, '31.7.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jgraph.drawio.desktop' AND version_compare(bundle_short_version, '32.3.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.jgraph.drawio.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/jgraph/drawio-desktop/releases/download/v31.7.0/draw.io-arm64-31.7.0.dmg",
+      "installer_url": "https://github.com/jgraph/drawio-desktop/releases/download/v32.3.0/draw.io-arm64-32.3.0.dmg",
       "install_script_ref": "dfbabf21",
       "uninstall_script_ref": "870cb348",
-      "sha256": "bf52537fdc6454b6ff994e428d37032050e0baadbce78104b5a46405444ade81",
+      "sha256": "c29d5729198f3b0ac7b9836803459fccbfaa3b8778013d1653aa17d5b645f94d",
       "default_categories": [
         "Productivity"
       ]

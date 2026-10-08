@@ -9206,7 +9206,7 @@ Retrieves an unsigned manual enrollment profile for macOS hosts. Install this pr
 
 To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), [add the end user's email to the enrollment profile](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#using-human-device-mapping).
 
-> **Warning:** Do not change or modify this profile in any way that is not directed by Fleet's documentation. Apple requires most values in this profile to agree with the values initially set at enrollment time when Fleet later sends renewals (approximately every six months by default). Any values changed can block Fleet's ability to renew this profile and may result in Fleet losing its ability to manage a device.
+> **Warning:** Do not change or modify this profile. Apple requires values in this profile to remain unchanged. Any values changed block Fleet's ability to renew this profile and result in Fleet losing its ability to manage a device.
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
@@ -9633,8 +9633,8 @@ Set software that will be automatically installed during setup. Software that is
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | query | Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, or `"android"`. Defaults to `"macos"`. |
-| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to set the software for. If not specified, it will set the software for "Unassigned" hosts. |
+| platform | string  | body | Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, or `"android"`. Defaults to `"macos"`. |
+| fleet_id | integer | body | _Available in Fleet Premium_. The ID of the fleet to set the software for. If not specified, it will set the software for "Unassigned" hosts. |
 | software_title_ids | array | body | The ID of software titles to install during setup. |
 
 #### Example
@@ -9646,7 +9646,6 @@ Set software that will be automatically installed during setup. Software that is
 ```json
 {
   "platform": "linux",
-  "team_id": 1,
   "fleet_id": 1,
   "software_title_ids": [3000, 3001]
 }
@@ -9725,7 +9724,7 @@ Get a script that will automatically run during macOS setup.
 
 #### Example (download script)
 
-`GET /api/v1/fleet/setup_experience/script?fleet_id=3?alt=media`
+`GET /api/v1/fleet/setup_experience/script?fleet_id=3&alt=media`
 
 ##### Example response headers
 
@@ -14359,7 +14358,7 @@ Get a list of all software versions.
         "name": "Prettier",
         "version": "232.1.0",
         "source": "jetbrains_plugins",
-        "extensions_for": "goland",
+        "extension_for": "goland",
         "generated_cpe": "cpe:2.3:a:*:prettier:232.1.0:*:*:*:*:node.js:*:*",
         "hosts_count": 19,
         "vulnerabilities": null
@@ -15039,7 +15038,7 @@ Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the 
 
 #### Example
 
-`PUT /api/v1/fleet/software/titles/33/icon?team_id=2`
+`PUT /api/v1/fleet/software/titles/33/icon?fleet_id=2`
 
 ##### Request body
 
@@ -15053,7 +15052,7 @@ icon="crowdstrike-icon-512x512.png"
 
 ```json
 {
-  "icon_url": "/api/latest/fleet/software/titles/33/icon?team_id=2"
+  "icon_url": "/api/latest/fleet/software/titles/33/icon?fleet_id=2"
 }
 ```
 
@@ -15076,7 +15075,7 @@ This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon 
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/33/icon?team_id=2`
+`GET /api/v1/fleet/software/titles/33/icon?fleet_id=2`
 
 ##### Default response
 
@@ -15104,11 +15103,11 @@ Delete a custom icon added via [Update software icon](#update-software-icon). Th
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id              | integer | path | ID of the software title being updated. |
-| team_id         | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
+| fleet_id         | integer | query | **Required**. The fleet ID. Deletes the software icon in the specified fleet. |
 
 #### Example
 
-`DELETE /api/v1/fleet/software/titles/33/icon?team_id=2`
+`DELETE /api/v1/fleet/software/titles/33/icon?fleet_id=2`
 
 ##### Default response
 
@@ -15128,7 +15127,7 @@ Returns the list of Apple App Store (VPP) apps that can be added to the specifie
 
 #### Example
 
-`GET /api/v1/fleet/software/app_store_apps/?fleet_id=3`
+`GET /api/v1/fleet/software/app_store_apps?fleet_id=3`
 
 ##### Default response
 
@@ -15181,6 +15180,7 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | fleet_id       | integer | body | **Required**. The fleet ID. Adds app from the store to the specified fleet.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
+| automatic_install | boolean | body | macOS only. If `true`, creates a policy that triggers an install only on hosts missing the app ("Force install"). Default is `false`. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
@@ -15199,7 +15199,7 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 {
   "app_store_id": "497799835",
   "categories": ["Productivity"],
-  "team_id": 2,
+  "fleet_id": 2,
   "platform": "ipados",
   "self_service": true
 }
@@ -15264,7 +15264,7 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 ```json
 {
-  "team_id": 2,
+  "fleet_id": 2,
   "self_service": true,
   "categories": ["Browser"],
   "labels_include_any": [
@@ -15454,7 +15454,7 @@ To keep this app patched to the latest version ("Patch"), create a [patch policy
 ```json
 {
   "fleet_maintained_app_id": 3,
-  "team_id": 2,
+  "fleet_id": 2,
   "automatic_install": true
 }
 ```
@@ -15526,7 +15526,7 @@ _Available in Fleet Premium._
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/123/package?alt=media&team_id=2`
+`GET /api/v1/fleet/software/titles/123/package?alt=media&fleet_id=2`
 
 ##### Default response
 
@@ -15634,17 +15634,19 @@ When install attempt was skipped because a patch policy has `patch_when_closed` 
 `Status: 200`
 
 ```json
- {
-   "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
-   "software_title": "Falcon.app",
-   "software_title_id": 8353,
-   "software_package": "FalconSensor-6.44.pkg",
-   "host_id": 123,
-   "status": "failed_install",
-   "output": "Installing software...\nError: The operation can’t be completed because the item \"Falcon\" is in use.",
-   "pre_install_query_output": "Query returned result\nSuccess",
-   "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
- }
+{
+  "results": {
+    "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
+    "software_title": "Falcon.app",
+    "software_title_id": 8353,
+    "software_package": "FalconSensor-6.44.pkg",
+    "host_id": 123,
+    "status": "failed_install",
+    "output": "Installing software...\nError: The operation can’t be completed because the item \"Falcon\" is in use.",
+    "pre_install_query_output": "Query returned result\nSuccess",
+    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
+  }
+}
 ```
 
 ### Delete software
@@ -15918,34 +15920,33 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
     "epss_probability": 0.9729,// Available in Fleet Premium
     "cisa_known_exploit": false,// Available in Fleet Premium
     "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-    "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
-    "os_versions" : [
-      {
-        "os_version_id": 6,
-        "hosts_count": 200,
-        "name": "macOS 14.1.2",
-        "name_only": "macOS",
-        "version": "14.1.2",
-        "resolved_in_version": "14.2",
-        "generated_cpes": [
-          "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
-          "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
-        ]
-      }
-    ],
-    "software": [
-      {
-        "id": 2363,
-        "software_title_id": 124,
-        "name": "Docker Desktop",
-        "version": "4.9.1",
-        "source": "programs",
-        "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
-        "hosts_count": 50,
-        "resolved_in_version": "5.0.0"
-      }
-    ]
-  }
+    "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability."// Available in Fleet Premium
+  },
+  "os_versions": [
+    {
+      "os_version_id": 6,
+      "hosts_count": 200,
+      "name": "macOS 14.1.2",
+      "name_only": "macOS",
+      "version": "14.1.2",
+      "resolved_in_version": "14.2",
+      "generated_cpes": [
+        "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
+        "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
+      ]
+    }
+  ],
+  "software": [
+    {
+      "id": 2363,
+      "name": "Docker Desktop",
+      "version": "4.9.1",
+      "source": "programs",
+      "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
+      "hosts_count": 50,
+      "resolved_in_version": "5.0.0"
+    }
+  ]
 }
 ```
 
