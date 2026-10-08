@@ -38,8 +38,10 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 		switch {
 		case len(artifact.App) > 0:
 			sb.Write("# copy to the applications folder")
-			// Quit the app before installing if it's running, and track state for relaunch
-			sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
+			// Quit the app before installing if it's running, and track state for relaunch.
+			// Stop if it won't quit: fleetd deletes $TMPDIR after the install, which
+			// would take the moved-aside bundle the app is still running from.
+			sb.Writef("quit_and_track_application '%s' || exit 1", app.UniqueIdentifier)
 			for _, appItem := range artifact.App {
 				// Only process string values (skip objects with target, those are handled by custom scripts)
 				if appItem.String == "" {
@@ -68,7 +70,7 @@ fi`, appPath)
 		case len(artifact.Pkg) > 0:
 			sb.Write("# install pkg files")
 			// Quit the app before installing if it's running, and track state for relaunch
-			sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
+			sb.Writef("quit_and_track_application '%s' || exit 1", app.UniqueIdentifier)
 			switch len(artifact.Pkg) {
 			case 1:
 				if err := sb.InstallPkg(artifact.Pkg[0].String); err != nil {
@@ -817,6 +819,9 @@ ids.join("\n")'
 
 // quitAndTrackApplicationFunc quits a running application and tracks whether it was running
 // so it can be relaunched after installation. Sets APP_WAS_RUNNING_<bundle_id> environment variable.
+// Returns 1 if the application is still running after the timeout. The quit is
+// confirmed with 'is running' because a macOS app's command line is its
+// executable path, so 'pgrep -f <bundle_id>' never matches.
 const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
@@ -845,21 +850,21 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 `
