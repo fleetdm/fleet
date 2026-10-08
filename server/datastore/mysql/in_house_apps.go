@@ -712,6 +712,7 @@ WHERE ncr.id = ?
 AND ncr.status = 'Acknowledged'
 AND hihsi.verification_at IS NULL
 AND hihsi.verification_failed_at IS NULL
+AND hihsi.canceled = 0
 		`
 
 	var result []*fleet.HostVPPSoftwareInstall

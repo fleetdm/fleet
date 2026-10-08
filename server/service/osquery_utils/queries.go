@@ -1237,7 +1237,7 @@ FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 //
 // Every one of those drops the title's INSERT IGNORE and leaves the software row with no title
 // at all: invisible on the Software page, and an error logged on every check-in. Nothing
-// user-facing is lost, because the Type column shows a flat "Plugin (Adobe)" and never displays
+// user-facing is lost, because the Type column shows a flat "Adobe plugin" and never displays
 // the host application.
 var softwareAdobePlugins = DetailQuery{
 	Query: `
@@ -1293,6 +1293,32 @@ SELECT
 FROM packages`,
 	Platforms: fleet.HostLinuxOSs,
 	Discovery: discoveryTable("fleetd_pacman_packages"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
+// softwareLinuxNix collects the Nix store paths reachable from the active NixOS system
+// profile and users' Nix and Home Manager profiles, including runtime dependencies.
+// Outputs of one package (e.g. openssl-3.0.14 and openssl-3.0.14-bin) are one software
+// with several installed paths.
+//
+// Only NixOS is inventoried: the table returns no rows where Nix is installed alongside another
+// distribution's package manager, whose packages the other software queries already report.
+var softwareLinuxNix = DetailQuery{
+	Query: `
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'nix_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch,
+  store_path AS installed_path
+FROM fleetd_nix_packages`,
+	Platforms: []string{"nixos"},
+	Discovery: discoveryTable("fleetd_nix_packages"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
@@ -4076,6 +4102,7 @@ func GetDetailQueries(
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
+		generatedMap["software_linux_fleetd_nix"] = softwareLinuxNix
 		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
 		generatedMap["software_adobe_plugins"] = softwareAdobePlugins
 		generatedMap["software_go_binaries"] = softwareGoBinaries

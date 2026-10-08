@@ -715,7 +715,7 @@ func TestGetDetailQueries(t *testing.T) {
 
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
-	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_adobe_plugins", "software_linux_fleetd_pacman",
+	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_adobe_plugins", "software_linux_fleetd_pacman", "software_linux_fleetd_nix",
 		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_macos_homebrew_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
@@ -4383,6 +4383,44 @@ func TestSoftwareLinuxPacmanVersion(t *testing.T) {
 		{name: "linux-omarchy", version: "6.17.1.arch1", release: "2", source: "pacman_packages", arch: "x86_64"},
 		{name: "some-split", version: "2.0", release: "3.1", source: "pacman_packages", arch: "any"},
 		{name: "no-release", version: "1.2.3", release: "", source: "pacman_packages", arch: "any"},
+	}, got)
+}
+
+// TestSoftwareLinuxNix runs the Nix software query against sqlite, which osquery embeds.
+func TestSoftwareLinuxNix(t *testing.T) {
+	require.Equal(t, []string{"nixos"}, softwareLinuxNix.Platforms)
+	require.Equal(t, discoveryTable("fleetd_nix_packages"), softwareLinuxNix.Discovery)
+	require.Nil(t, softwareLinuxNix.IngestFunc)
+	require.Nil(t, softwareLinuxNix.DirectIngestFunc)
+	require.Nil(t, softwareLinuxNix.DirectTaskIngestFunc)
+
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, err = db.Exec(`CREATE TABLE fleetd_nix_packages (name TEXT, version TEXT, output TEXT, store_path TEXT, direct INTEGER, profiles TEXT)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO fleetd_nix_packages VALUES
+		('openssl', '3.0.14', '', '/nix/store/aaa-openssl-3.0.14', 0, ''),
+		('openssl', '3.0.14', 'bin', '/nix/store/bbb-openssl-3.0.14-bin', 1, 'system')`)
+	require.NoError(t, err)
+
+	rows, err := db.Query(softwareLinuxNix.Query)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	type pkg struct{ name, version, source, installedPath string }
+	var got []pkg
+	for rows.Next() {
+		var p pkg
+		var extensionID, extensionFor, release, vendor, arch string
+		require.NoError(t, rows.Scan(&p.name, &p.version, &extensionID, &extensionFor, &p.source, &release, &vendor, &arch, &p.installedPath))
+		got = append(got, p)
+	}
+	require.NoError(t, rows.Err())
+	require.Equal(t, []pkg{
+		{name: "openssl", version: "3.0.14", source: "nix_packages", installedPath: "/nix/store/aaa-openssl-3.0.14"},
+		{name: "openssl", version: "3.0.14", source: "nix_packages", installedPath: "/nix/store/bbb-openssl-3.0.14-bin"},
 	}, got)
 }
 
