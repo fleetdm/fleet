@@ -215,7 +215,7 @@ foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyCon
 }
 ```
 
-Finding the entry is not enough. **These uninstallers read the directory to remove out of the hive of whoever runs them**, so run as SYSTEM against a real user's install they exit **0 and delete nothing** — Signal left 473 MB behind while reporting success. Run the uninstaller as the user who owns the entry (derive the SID from the key path with `'HKEY_USERS\\(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)\\'`, translate it to an account, and launch via a scheduled task). Match both prefixes: Entra ID users are `S-1-12-1-`, and a user hive that falls through to SYSTEM lets a standard user plant an `UninstallString` that runs as SYSTEM. Entries genuinely under `S-1-5-18`/`.DEFAULT` — the stranded legacy installs — are the one case where running directly as SYSTEM is correct.
+Finding the entry is not enough. **These uninstallers read the directory to remove out of the hive of whoever runs them**, so run as SYSTEM against a real user's install they exit **0 and delete nothing** — Signal left 473 MB behind while reporting success. Run the uninstaller as the user who owns the entry (derive the SID from the key path with `'HKEY_USERS\\(S-1-5-21-[\d-]+)\\'`, translate it to an account, and launch via a scheduled task). Entries genuinely under `S-1-5-18`/`.DEFAULT` — the stranded legacy installs — are the one case where running directly as SYSTEM is correct.
 
 Two details that avoid per-app data:
 - **Stop processes by install directory, not by name.** Most apps are not running when you look, so a process-name list is usually empty and useless; matching on the directory also leaves another user's copy of the same app alone.
