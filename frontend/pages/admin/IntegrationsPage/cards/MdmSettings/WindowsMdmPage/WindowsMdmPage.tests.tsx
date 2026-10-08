@@ -57,6 +57,10 @@ describe("WindowsMdmPage", () => {
 
     expect(screen.getByText(MIGRATION_CHECKBOX_LABEL)).toBeVisible();
     expect(screen.getByRole("checkbox")).toBeVisible();
+    expect(screen.getByRole("checkbox")).not.toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
   });
 
   it("disables the Migration checkbox when programmatic enrollment is off", () => {
