@@ -1523,6 +1523,13 @@ WHERE
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "mark upcoming activities as activated")
 	}
+
+	switch toActivate[0].ActivityType {
+	case "script", "software_install", "software_uninstall":
+		// fleetd picks these up from its orbit config. MDM command activities
+		// are delivered by the APNs push instead.
+		ds.notifyOrbitConfig(ctx, tx, fleet.AgentWSReasonActivity, hostID)
+	}
 	return activatedExecIDs, nil
 }
 

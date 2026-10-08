@@ -1566,6 +1566,10 @@ func TestValidateWebSocketConfig(t *testing.T) {
 		PongTimeout:      30 * time.Second,
 		CheckInterval:    30 * time.Second,
 		CheckBatchSize:   500,
+
+		OrbitConfigEnabled:      true,
+		OrbitConfigPollInterval: 5 * time.Minute,
+		OrbitConfigSpread:       30 * time.Second,
 	}
 
 	t.Run("valid", func(t *testing.T) {
@@ -1573,7 +1577,7 @@ func TestValidateWebSocketConfig(t *testing.T) {
 	})
 
 	t.Run("invalid values ignored when transport disabled", func(t *testing.T) {
-		cfg := WebSocketConfig{TransportEnabled: false}
+		cfg := WebSocketConfig{TransportEnabled: false, OrbitConfigPollInterval: -1}
 		cfg.Validate(func(err error, msg string) { t.Errorf("unexpected error: %v (%s)", err, msg) })
 	})
 
@@ -1585,6 +1589,9 @@ func TestValidateWebSocketConfig(t *testing.T) {
 		{"negative pong_timeout", func(c *WebSocketConfig) { c.PongTimeout = -time.Second }},
 		{"zero check_interval", func(c *WebSocketConfig) { c.CheckInterval = 0 }},
 		{"zero check_batch_size", func(c *WebSocketConfig) { c.CheckBatchSize = 0 }},
+		{"orbit_config_enabled without transport", func(c *WebSocketConfig) { c.TransportEnabled = false }},
+		{"orbit_config_poll_interval below 30s", func(c *WebSocketConfig) { c.OrbitConfigPollInterval = 10 * time.Second }},
+		{"negative orbit_config_spread", func(c *WebSocketConfig) { c.OrbitConfigSpread = -time.Second }},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			cfg := valid

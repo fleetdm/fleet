@@ -992,13 +992,36 @@ type WebSocketConfig struct {
 	PongTimeout      time.Duration `yaml:"pong_timeout"`
 	CheckInterval    time.Duration `yaml:"check_interval"`
 	CheckBatchSize   int           `yaml:"check_batch_size"`
+	// OrbitConfigEnabled turns on orbit/config nudges: connected agents are
+	// notified when their orbit config changes and poll it every
+	// OrbitConfigPollInterval as a fallback, instead of every 30s.
+	OrbitConfigEnabled      bool          `yaml:"orbit_config_enabled"`
+	OrbitConfigPollInterval time.Duration `yaml:"orbit_config_poll_interval"`
+	// OrbitConfigSpread is the window over which an instance paces the
+	// nudges of a fleet-wide or global change across the agents it holds.
+	OrbitConfigSpread time.Duration `yaml:"orbit_config_spread"`
 }
+
+// minOrbitConfigPollInterval is orbit's default poll interval: a slower
+// fallback is the point of the setting.
+const minOrbitConfigPollInterval = 30 * time.Second
 
 // Validate checks that the WebSocketConfig has valid values. The values feed
 // tickers and batch loops, so zero or negative values would panic or spin.
 func (w WebSocketConfig) Validate(initFatal func(err error, msg string)) {
 	if !w.TransportEnabled {
+		if w.OrbitConfigEnabled {
+			initFatal(errors.New("requires websocket.transport_enabled"), "websocket.orbit_config_enabled")
+		}
 		return
+	}
+	if w.OrbitConfigEnabled {
+		if w.OrbitConfigPollInterval < minOrbitConfigPollInterval {
+			initFatal(fmt.Errorf("must be at least %s", minOrbitConfigPollInterval), "websocket.orbit_config_poll_interval")
+		}
+		if w.OrbitConfigSpread < 0 {
+			initFatal(errors.New("must not be negative"), "websocket.orbit_config_spread")
+		}
 	}
 	for name, ok := range map[string]bool{
 		"websocket.ping_interval":    w.PingInterval > 0,
@@ -2203,6 +2226,12 @@ func (man Manager) addConfigs() {
 		"Interval of the per-instance job that notifies connected agents with due interval work")
 	man.addConfigInt("websocket.check_batch_size", 500,
 		"Number of connected agents checked per batch by the interval notification job")
+	man.addConfigBool("websocket.orbit_config_enabled", false,
+		"Notify connected agents of orbit config changes so they can poll it less often (requires websocket.transport_enabled)")
+	man.addConfigDuration("websocket.orbit_config_poll_interval", 5*time.Minute,
+		"Fallback orbit config poll interval of connected agents with no pending work, when websocket.orbit_config_enabled is set")
+	man.addConfigDuration("websocket.orbit_config_spread", 30*time.Second,
+		"Window over which each instance spreads the orbit config notifications of a fleet-wide or global change")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -2581,6 +2610,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			PongTimeout:      man.getConfigDuration("websocket.pong_timeout"),
 			CheckInterval:    man.getConfigDuration("websocket.check_interval"),
 			CheckBatchSize:   man.getConfigInt("websocket.check_batch_size"),
+
+			OrbitConfigEnabled:      man.getConfigBool("websocket.orbit_config_enabled"),
+			OrbitConfigPollInterval: man.getConfigDuration("websocket.orbit_config_poll_interval"),
+			OrbitConfigSpread:       man.getConfigDuration("websocket.orbit_config_spread"),
 		},
 	}
 
@@ -3061,6 +3094,9 @@ func TestConfig() FleetConfig {
 			PongTimeout:      30 * time.Second,
 			CheckInterval:    30 * time.Second,
 			CheckBatchSize:   500,
+
+			OrbitConfigPollInterval: 5 * time.Minute,
+			OrbitConfigSpread:       30 * time.Second,
 		},
 	}
 }

@@ -6,6 +6,8 @@
 package agentws
 
 import (
+	"maps"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,11 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gorilla/websocket"
 )
-
-// sendBufferSize is the per-connection notification buffer. Overflow drops the
-// oldest entry: a dropped notification is always recovered later by the
-// interval check job or, at worst, by the agent's polling fallback.
-const sendBufferSize = 8
 
 // maxInboundMessageSize caps inbound data messages, which readLoop buffers
 // (ReadMessage) before discarding. The channel is server-to-agent only, so
@@ -31,22 +28,33 @@ type conn struct {
 	hostname    string
 	platform    string
 	ws          *websocket.Conn
-	send        chan fleet.AgentWSMessage
 	connectedAt time.Time
 	remoteAddr  string
 
 	closeOnce sync.Once
 	done      chan struct{}
 
+	// pending holds the notifications not yet written, as message type →
+	// latest reason. Notifications carry no data, so a notification of a type
+	// already pending is merged into it: nothing is ever dropped, and the
+	// buffer is bounded by the number of message types. wake (size 1) tells
+	// writeLoop that pending is not empty.
+	mu      sync.Mutex
+	pending map[string]string
+	wake    chan struct{}
+	// notifiedByType counts enqueued notifications per message type, for
+	// observability (see Hub.Snapshot). Protected by mu.
+	notifiedByType map[string]int64
+
 	// lastNotifiedNano/lastNotifyReason record the last enqueued notification
 	// for observability (see Hub.Snapshot). They are updated independently, so
 	// a snapshot may pair a timestamp with a concurrent enqueue's reason.
 	lastNotifiedNano atomic.Int64
 	lastNotifyReason atomic.Pointer[string]
-	// notified/dropped count enqueued and buffer-overflow-dropped
-	// notifications, for observability (see Hub.Snapshot).
-	notified atomic.Int64
-	dropped  atomic.Int64
+	// notified/coalesced count enqueued notifications and those merged into a
+	// pending one of the same type, for observability (see Hub.Snapshot).
+	notified  atomic.Int64
+	coalesced atomic.Int64
 	// counting is the byte-counting wrapper around the underlying net.Conn,
 	// installed at upgrade time; nil when the connection wasn't wrapped (e.g.
 	// tests that dial the hub directly).
@@ -59,10 +67,13 @@ func newConn(hostID uint, hostname, platform string, ws *websocket.Conn) *conn {
 		hostname:    hostname,
 		platform:    platform,
 		ws:          ws,
-		send:        make(chan fleet.AgentWSMessage, sendBufferSize),
 		connectedAt: time.Now(),
 		remoteAddr:  ws.RemoteAddr().String(),
 		done:        make(chan struct{}),
+
+		pending:        make(map[string]string),
+		wake:           make(chan struct{}, 1),
+		notifiedByType: make(map[string]int64),
 	}
 	if cc, ok := ws.NetConn().(*countingConn); ok {
 		c.counting = cc
@@ -79,29 +90,45 @@ func (c *conn) bytesInOut() (in, out int64) {
 	return c.counting.bytesIn.Load(), c.counting.bytesOut.Load()
 }
 
-// enqueue queues msg for delivery, dropping the oldest queued message when the
-// buffer is full. Best-effort by design; see sendBufferSize.
+// enqueue queues msg for delivery, merging it into a pending notification of
+// the same type (keeping the latest reason).
 func (c *conn) enqueue(msg fleet.AgentWSMessage) {
 	c.lastNotifiedNano.Store(time.Now().UnixNano())
 	c.lastNotifyReason.Store(&msg.Reason)
+	c.notified.Add(1)
+
+	c.mu.Lock()
+	if _, ok := c.pending[msg.Type]; ok {
+		c.coalesced.Add(1)
+	}
+	c.pending[msg.Type] = msg.Reason
+	c.notifiedByType[msg.Type]++
+	c.mu.Unlock()
+
 	select {
-	case c.send <- msg:
-		c.notified.Add(1)
-		return
+	case c.wake <- struct{}{}:
 	default:
 	}
-	// Buffer full: drop the oldest queued message to make room.
-	select {
-	case <-c.send:
-		c.dropped.Add(1)
-	default:
+}
+
+// takePending returns the pending notifications, sorted by type, and clears
+// them.
+func (c *conn) takePending() []fleet.AgentWSMessage {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	msgs := make([]fleet.AgentWSMessage, 0, len(c.pending))
+	for _, msgType := range slices.Sorted(maps.Keys(c.pending)) {
+		msgs = append(msgs, fleet.AgentWSMessage{Type: msgType, Reason: c.pending[msgType]})
 	}
-	select {
-	case c.send <- msg:
-		c.notified.Add(1)
-	default:
-		c.dropped.Add(1)
-	}
+	clear(c.pending)
+	return msgs
+}
+
+// notifiedByTypeSnapshot returns a copy of the per-type notification counts.
+func (c *conn) notifiedByTypeSnapshot() map[string]int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return maps.Clone(c.notifiedByType)
 }
 
 // lastNotifyReasonLoad returns the reason of the last enqueued notification,
@@ -137,11 +164,13 @@ func (c *conn) writeLoop(pingInterval, pongTimeout time.Duration) {
 	defer ticker.Stop()
 	for {
 		select {
-		case msg := <-c.send:
-			_ = c.ws.SetWriteDeadline(time.Now().Add(pongTimeout))
-			if err := c.ws.WriteJSON(msg); err != nil {
-				c.close()
-				return
+		case <-c.wake:
+			for _, msg := range c.takePending() {
+				_ = c.ws.SetWriteDeadline(time.Now().Add(pongTimeout))
+				if err := c.ws.WriteJSON(msg); err != nil {
+					c.close()
+					return
+				}
 			}
 		case <-ticker.C:
 			if err := c.ws.WriteControl(websocket.PingMessage, nil, time.Now().Add(pongTimeout)); err != nil {

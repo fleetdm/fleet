@@ -520,6 +520,12 @@ type agent struct {
 	wsMu        sync.Mutex
 	ws          *wsTransport
 	wsSupported bool
+	// orbitConfigReq (size 1) requests an orbit config fetch now, from an
+	// orbit/config nudge or a connect; requests arriving before it is served
+	// are merged. orbitConfigDisconnected (size 1) reports a dropped
+	// WebSocket, ending a slow fallback interval (see runOrbitLoop).
+	orbitConfigReq          chan orbitConfigRequest
+	orbitConfigDisconnected chan struct{}
 
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
@@ -872,6 +878,9 @@ func newAgent(
 		wsSupported:    rand.Float64() < websocketProb, // nolint:gosec // ignore weak randomizer
 		mdmAPNSPushURL: mdmAPNSPushURL,
 		ddmDeclTokens:  make(map[string]string),
+
+		orbitConfigReq:          make(chan orbitConfigRequest, 1),
+		orbitConfigDisconnected: make(chan struct{}, 1),
 
 		disableScriptExec:        disableScriptExec,
 		disableFleetDesktop:      disableFleetDesktop,
@@ -1281,8 +1290,12 @@ func (a *agent) runOrbitLoop() {
 	}
 
 	// orbit makes a call to check the config and update the CLI flags every 30
-	// seconds
-	orbitConfigTicker := time.Tick(30 * time.Second)
+	// seconds, or at the server's slower fallback interval while it is
+	// nudged on changes over the WebSocket (see nextOrbitConfigInterval)
+	orbitConfigInterval := orbitConfigDefaultInterval
+	orbitConfigTimer := time.NewTimer(orbitConfigInterval)
+	defer orbitConfigTimer.Stop()
+	var lastOrbitConfigFetch time.Time
 	// orbit makes a call every 5 minutes to check the validity of the device
 	// token on the server
 	orbitTokenRemoteCheckTicker := time.Tick(5 * time.Minute)
@@ -1296,51 +1309,57 @@ func (a *agent) runOrbitLoop() {
 	// fleet desktop pings every 10s for connectivity check.
 	fleetDesktopConnectivityCheck := time.Tick(10 * time.Second)
 
-	const windowsMDMEnrollmentAttemptFrequency = time.Hour
 	var lastEnrollAttempt time.Time
 
 	for {
 		select {
-		case <-orbitConfigTicker:
-			cfg, err := orbitClient.GetConfig()
-			if err != nil {
-				a.stats.IncrementOrbitErrors()
+		case <-a.orbitConfigDisconnected:
+			if orbitConfigInterval > orbitConfigDefaultInterval {
+				orbitConfigInterval = orbitConfigDefaultInterval
+				orbitConfigTimer.Reset(time.Duration(rand.Int63n(int64(orbitConfigInterval)))) // nolint:gosec // ignore weak randomizer
+			}
+			continue
+		case req := <-a.orbitConfigReq:
+			// Like orbit, a connect fetches only when the server nudges, at most
+			// once per default interval.
+			if req.cause == "connect" && (orbitConfigInterval <= orbitConfigDefaultInterval ||
+				time.Since(lastOrbitConfigFetch) < orbitConfigDefaultInterval) {
 				continue
 			}
-			// Follow the server's WebSocket transport directive, like fleetd.
-			a.syncWSTransport(cfg.WebSocketTransport)
-			if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
-				// there are pending scripts to execute on this host, start a goroutine
-				// that will simulate executing them.
-				go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
+			orbitConfigTimer.Stop()
+			orbitClient.ExpireConfigCache()
+			cfg, err := orbitClient.GetConfig()
+			lastOrbitConfigFetch = time.Now()
+			a.stats.IncrementOrbitConfigFetches(req.cause)
+			if !req.at.IsZero() {
+				a.stats.RecordOrbitConfigNudgeLatency(time.Since(req.at))
 			}
-			if len(cfg.Notifications.PendingSoftwareInstallerIDs) > 0 {
-				// there are pending software installations on this host, start a
-				// goroutine that will download the software
-				go a.installSoftware(cfg.Notifications.PendingSoftwareInstallerIDs, orbitClient)
+			if err != nil {
+				a.stats.IncrementOrbitErrors()
+				orbitConfigInterval = orbitConfigDefaultInterval
+				orbitConfigTimer.Reset(orbitConfigInterval)
+				continue
 			}
-			if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment &&
-				!a.mdmEnrolled() &&
-				a.winMDMClient != nil &&
-				time.Since(lastEnrollAttempt) > windowsMDMEnrollmentAttemptFrequency {
-				lastEnrollAttempt = time.Now()
-				if err := a.winMDMClient.Enroll(); err != nil {
-					log.Printf("Windows MDM enroll failed: %s", err)
-					a.stats.IncrementMDMErrors()
-				} else {
-					a.setMDMEnrolled()
-					a.stats.IncrementMDMEnrollments()
-					go a.runWindowsMDMLoop()
-				}
+			orbitConfigInterval = a.nextOrbitConfigInterval(cfg)
+			orbitConfigTimer.Reset(orbitConfigInterval)
+			a.handleOrbitConfig(cfg, orbitClient, &lastEnrollAttempt)
+		case <-orbitConfigTimer.C:
+			cfg, err := orbitClient.GetConfig()
+			lastOrbitConfigFetch = time.Now()
+			if orbitConfigInterval > orbitConfigDefaultInterval {
+				a.stats.IncrementOrbitConfigFetches("fallback")
+			} else {
+				a.stats.IncrementOrbitConfigFetches("fast")
 			}
-			if cfg.Notifications.WindowsMDMSyncRequest && a.mdmEnrolled() && a.winMDMWake != nil {
-				// The server has queued Windows MDM commands and asked this (relaxed-poll) host to start an OMA-DM
-				// session now.
-				select {
-				case a.winMDMWake <- struct{}{}:
-				default:
-				}
+			if err != nil {
+				a.stats.IncrementOrbitErrors()
+				orbitConfigInterval = orbitConfigDefaultInterval
+				orbitConfigTimer.Reset(orbitConfigInterval)
+				continue
 			}
+			orbitConfigInterval = a.nextOrbitConfigInterval(cfg)
+			orbitConfigTimer.Reset(orbitConfigInterval)
+			a.handleOrbitConfig(cfg, orbitClient, &lastEnrollAttempt)
 		case <-orbitTokenRemoteCheckTicker:
 			if !a.disableFleetDesktop && tokenRotationEnabled {
 				if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
@@ -1382,6 +1401,46 @@ func (a *agent) runOrbitLoop() {
 					continue
 				}
 			}
+		}
+	}
+}
+
+// handleOrbitConfig acts on a fetched orbit config, like fleetd's config
+// receivers.
+func (a *agent) handleOrbitConfig(cfg *fleet.OrbitConfig, orbitClient *fleetclient.OrbitClient, lastEnrollAttempt *time.Time) {
+	const windowsMDMEnrollmentAttemptFrequency = time.Hour
+	// Follow the server's WebSocket transport directive, like fleetd.
+	a.syncWSTransport(cfg.WebSocketTransport)
+	if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
+		// there are pending scripts to execute on this host, start a goroutine
+		// that will simulate executing them.
+		go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
+	}
+	if len(cfg.Notifications.PendingSoftwareInstallerIDs) > 0 {
+		// there are pending software installations on this host, start a
+		// goroutine that will download the software
+		go a.installSoftware(cfg.Notifications.PendingSoftwareInstallerIDs, orbitClient)
+	}
+	if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment &&
+		!a.mdmEnrolled() &&
+		a.winMDMClient != nil &&
+		time.Since(*lastEnrollAttempt) > windowsMDMEnrollmentAttemptFrequency {
+		*lastEnrollAttempt = time.Now()
+		if err := a.winMDMClient.Enroll(); err != nil {
+			log.Printf("Windows MDM enroll failed: %s", err)
+			a.stats.IncrementMDMErrors()
+		} else {
+			a.setMDMEnrolled()
+			a.stats.IncrementMDMEnrollments()
+			go a.runWindowsMDMLoop()
+		}
+	}
+	if cfg.Notifications.WindowsMDMSyncRequest && a.mdmEnrolled() && a.winMDMWake != nil {
+		// The server has queued Windows MDM commands and asked this (relaxed-poll) host to start an OMA-DM
+		// session now.
+		select {
+		case a.winMDMWake <- struct{}{}:
+		default:
 		}
 	}
 }

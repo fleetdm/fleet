@@ -126,6 +126,8 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 			"metrics_enabled": config.Logging.Debug,
 			"connections":     connections,
 			"read_stats":      readStats,
+			"notify_counts":   agentWSHub.NotifyCounts(),
+			"pacer_queue_len": agentWSHub.PacerQueueLen(),
 		}
 		// Interval check job timing, for the dashboard's "next sync" countdown.
 		// Remaining time is computed server-side so client clock skew doesn't

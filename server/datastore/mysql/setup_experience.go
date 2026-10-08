@@ -459,6 +459,11 @@ WHERE global_or_team_id = ?`
 				if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
 				}
+				if fleetPlatform == "darwin" {
+					if err := ds.notifyOrbitConfigByHostUUIDs(ctx, tx, fleet.AgentWSReasonMDM, hostUUID); err != nil {
+						return err
+					}
+				}
 			}
 		}
 
@@ -1178,7 +1183,13 @@ func (ds *Datastore) deleteSetupExperienceScript(ctx context.Context, tx sqlx.Ex
 
 func (ds *Datastore) SetHostAwaitingConfiguration(ctx context.Context, hostUUID string, awaitingConfiguration bool) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return setHostAwaitingConfiguration(ctx, tx, hostUUID, awaitingConfiguration)
+		if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, awaitingConfiguration); err != nil {
+			return err
+		}
+		if awaitingConfiguration {
+			return ds.notifyOrbitConfigByHostUUIDs(ctx, tx, fleet.AgentWSReasonMDM, hostUUID)
+		}
+		return nil
 	})
 }
 

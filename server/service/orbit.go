@@ -613,6 +613,11 @@ func resolveOrbitDebugLogging(ctx context.Context, host *fleet.Host, flags json.
 	return merged, &debug, nil
 }
 
+// orbitConfigOnboardingWindow is how long after osquery enrolls a host keeps
+// polling its orbit config at the default interval with orbit config nudges
+// enabled.
+const orbitConfigOnboardingWindow = time.Hour
+
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
@@ -621,6 +626,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if !ok {
 		return fleet.OrbitConfig{}, fleet.OrbitError{Message: "internal error: missing host from request context"}
 	}
+	recordOrbitConfigFallbackChanges(ctx, svc.logger, host.ID)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -844,6 +850,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	var wsTransport *fleet.OrbitWebSocketTransportConfig
 	if svc.config.WebSocket.TransportEnabled {
 		wsTransport = &fleet.OrbitWebSocketTransportConfig{Enabled: true}
+		// Onboarding hosts keep the default poll interval: many flags depend
+		// on state ingested from osquery (host_mdm, the Windows MDM enrollment
+		// link), which doesn't notify agents.
+		onboarding := !host.IsOsqueryEnrolled() || svc.clock.Now().Sub(host.LastEnrolledAt) < orbitConfigOnboardingWindow
+		if svc.config.WebSocket.OrbitConfigEnabled && !onboarding {
+			wsTransport.OrbitConfigPollInterval = new(int(svc.config.WebSocket.OrbitConfigPollInterval.Seconds()))
+		}
 	}
 
 	// team ID is not nil, get team specific flags and options

@@ -654,6 +654,6 @@ func (ds *Datastore) initiateWindowsManagedLocalAccountRotation(ctx context.Cont
 		`, fleet.MDMDeliveryPending), hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "mark windows managed local account rotation pending")
 		}
-		return nil
+		return ds.notifyOrbitConfigByHostUUIDs(ctx, tx, fleet.AgentWSReasonMDM, hostUUID)
 	})
 }

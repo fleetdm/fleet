@@ -2,8 +2,10 @@ package pubsub
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -40,7 +42,7 @@ func TestAgentNotificationsRoundTrip(t *testing.T) {
 				mu.Lock()
 				defer mu.Unlock()
 				received = append(received, n)
-			})
+			}, nil)
 		}()
 		<-subscribed
 		// Give the SUBSCRIBE command time to reach Redis before publishing.
@@ -50,11 +52,15 @@ func TestAgentNotificationsRoundTrip(t *testing.T) {
 		// sharing this Redis subscribes to the same channel, and realistic IDs
 		// would make it notify real connected hosts about a test "campaign".
 		require.NoError(t, notifier.NotifyAgentsForLiveQuery(ctx, []uint{testHostIDOffset + 1, testHostIDOffset + 2, testHostIDOffset + 3}, testCampaignIDOffset+42))
+		require.NoError(t, notifier.NotifyOrbitConfigHosts(ctx, []uint{testHostIDOffset + 4}, fleet.AgentWSReasonActivity))
+		// A team ID beyond any real one, for the same reason as the host IDs.
+		testScope := fleet.AgentNotificationScopeTeam(testHostIDOffset)
+		require.NoError(t, notifier.NotifyOrbitConfigScope(ctx, testScope, fleet.AgentWSReasonSettings))
 
 		require.Eventually(t, func() bool {
 			mu.Lock()
 			defer mu.Unlock()
-			return len(received) == 1
+			return len(received) == 3
 		}, 5*time.Second, 50*time.Millisecond)
 
 		mu.Lock()
@@ -62,6 +68,18 @@ func TestAgentNotificationsRoundTrip(t *testing.T) {
 		assert.Equal(t, fleet.AgentWSMessageTypeDistributedRead, received[0].Type)
 		assert.Equal(t, []uint{testHostIDOffset + 1, testHostIDOffset + 2, testHostIDOffset + 3}, received[0].HostIDs)
 		assert.Equal(t, fleet.AgentWSReasonLiveQuery(testCampaignIDOffset+42), received[0].Reason)
+		assert.Empty(t, received[0].Scope)
+
+		assert.Equal(t, AgentNotification{
+			Type:    fleet.AgentWSMessageTypeOrbitConfig,
+			HostIDs: []uint{testHostIDOffset + 4},
+			Reason:  fleet.AgentWSReasonActivity,
+		}, received[1])
+		assert.Equal(t, AgentNotification{
+			Type:   fleet.AgentWSMessageTypeOrbitConfig,
+			Reason: fleet.AgentWSReasonSettings,
+			Scope:  testScope,
+		}, received[2])
 	}
 
 	t.Run("standalone", func(t *testing.T) { runTest(t, false) })
@@ -69,45 +87,143 @@ func TestAgentNotificationsRoundTrip(t *testing.T) {
 }
 
 type captureNotifier struct {
-	mu         sync.Mutex
-	hostIDs    []uint
-	campaignID uint
-	notified   chan struct{}
+	mu       sync.Mutex
+	calls    []string
+	notified chan struct{}
 }
 
-func (c *captureNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hostIDs []uint, campaignID uint) error {
+func (c *captureNotifier) record(call string) error {
 	c.mu.Lock()
-	c.hostIDs = hostIDs
-	c.campaignID = campaignID
+	c.calls = append(c.calls, call)
 	c.mu.Unlock()
-	close(c.notified)
+	c.notified <- struct{}{}
 	return nil
 }
 
+func (c *captureNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hostIDs []uint, campaignID uint) error {
+	return c.record(fmt.Sprintf("live %v %d", hostIDs, campaignID))
+}
+
+func (c *captureNotifier) NotifyOrbitConfigHosts(ctx context.Context, hostIDs []uint, reason string) error {
+	return c.record(fmt.Sprintf("hosts %v %s", hostIDs, reason))
+}
+
+func (c *captureNotifier) NotifyOrbitConfigScope(ctx context.Context, scope fleet.AgentNotificationScope, reason string) error {
+	return c.record(fmt.Sprintf("scope %s %s", scope, reason))
+}
+
 func TestDelayedAgentNotifier(t *testing.T) {
-	inner := &captureNotifier{notified: make(chan struct{})}
-	const delay = 100 * time.Millisecond
-	notifier := NewDelayedAgentNotifier(inner, delay, slog.New(slog.DiscardHandler))
+	const (
+		liveDelay  = 100 * time.Millisecond
+		scopeDelay = 300 * time.Millisecond
+	)
 
-	// The call returns immediately; the publish happens after the delay, and
-	// survives the caller's context being canceled (the campaign-creation
-	// request ends right away).
-	ctx, cancel := context.WithCancel(t.Context())
-	start := time.Now()
-	require.NoError(t, notifier.NotifyAgentsForLiveQuery(ctx, []uint{1, 2}, 42))
-	require.Less(t, time.Since(start), delay)
-	cancel()
+	for _, c := range []struct {
+		name   string
+		notify func(ctx context.Context, n *DelayedAgentNotifier) error
+		delay  time.Duration
+		want   string
+	}{
+		{"live query", func(ctx context.Context, n *DelayedAgentNotifier) error {
+			return n.NotifyAgentsForLiveQuery(ctx, []uint{1, 2}, 42)
+		}, liveDelay, "live [1 2] 42"},
+		{"orbit config hosts", func(ctx context.Context, n *DelayedAgentNotifier) error {
+			return n.NotifyOrbitConfigHosts(ctx, []uint{3}, fleet.AgentWSReasonActivity)
+		}, 0, "hosts [3] activity"},
+		{"orbit config scope", func(ctx context.Context, n *DelayedAgentNotifier) error {
+			return n.NotifyOrbitConfigScope(ctx, fleet.AgentNotificationScopeTeam(5), fleet.AgentWSReasonSettings)
+		}, scopeDelay, "scope team:5 settings"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			inner := &captureNotifier{notified: make(chan struct{}, 1)}
+			notifier := NewDelayedAgentNotifier(inner, AgentNotifierDelays{
+				LiveQuery:        liveDelay,
+				OrbitConfigScope: scopeDelay,
+			}, slog.New(slog.DiscardHandler))
 
+			// The call returns immediately; the publish happens after the
+			// delay, and survives the caller's context being canceled (the
+			// triggering request ends right away).
+			ctx, cancel := context.WithCancel(t.Context())
+			start := time.Now()
+			require.NoError(t, c.notify(ctx, notifier))
+			if c.delay > 0 {
+				require.Less(t, time.Since(start), c.delay)
+			}
+			cancel()
+
+			select {
+			case <-inner.notified:
+			case <-time.After(5 * time.Second):
+				t.Fatal("delayed notification never published")
+			}
+			require.GreaterOrEqual(t, time.Since(start), c.delay)
+			inner.mu.Lock()
+			defer inner.mu.Unlock()
+			assert.Equal(t, []string{c.want}, inner.calls)
+		})
+	}
+}
+
+func TestDelayedAgentNotifierBatchesHosts(t *testing.T) {
+	inner := &captureNotifier{notified: make(chan struct{}, 2)}
+	notifier := NewDelayedAgentNotifier(inner, AgentNotifierDelays{OrbitConfigHosts: 200 * time.Millisecond},
+		slog.New(slog.DiscardHandler))
+
+	require.NoError(t, notifier.NotifyOrbitConfigHosts(t.Context(), []uint{3, 1}, fleet.AgentWSReasonActivity))
+	require.NoError(t, notifier.NotifyOrbitConfigHosts(t.Context(), []uint{2, 1}, fleet.AgentWSReasonActivity))
+	require.NoError(t, notifier.NotifyOrbitConfigHosts(t.Context(), []uint{4}, fleet.AgentWSReasonMDM))
+
+	for range 2 {
+		select {
+		case <-inner.notified:
+		case <-time.After(5 * time.Second):
+			t.Fatal("batched notification never published")
+		}
+	}
+	inner.mu.Lock()
+	assert.ElementsMatch(t, []string{"hosts [1 2 3] activity", "hosts [4] mdm"}, inner.calls)
+	inner.mu.Unlock()
+
+	// The window is over: the next notification starts a new batch.
+	require.NoError(t, notifier.NotifyOrbitConfigHosts(t.Context(), []uint{5}, fleet.AgentWSReasonActivity))
 	select {
 	case <-inner.notified:
 	case <-time.After(5 * time.Second):
-		t.Fatal("delayed notification never published")
+		t.Fatal("batched notification never published")
 	}
-	require.GreaterOrEqual(t, time.Since(start), delay)
 	inner.mu.Lock()
 	defer inner.mu.Unlock()
-	assert.Equal(t, []uint{1, 2}, inner.hostIDs)
-	assert.Equal(t, uint(42), inner.campaignID)
+	assert.Equal(t, "hosts [5] activity", inner.calls[2])
+}
+
+func TestAgentNotificationsResubscribe(t *testing.T) {
+	pool := redistest.SetupRedis(t, agentNotificationsChannel, false, false, false)
+	notifier := NewRedisAgentNotifier(pool, slog.New(slog.DiscardHandler))
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	var resubscribes atomic.Int32
+	var received atomic.Int32
+	go notifier.Subscribe(ctx, func(n AgentNotification) { received.Add(1) }, func() { resubscribes.Add(1) })
+	time.Sleep(200 * time.Millisecond)
+	// The first subscription is not a resubscription.
+	require.Zero(t, resubscribes.Load())
+
+	// Kill the subscription connection; Subscribe reconnects after its 1s
+	// backoff. This also kills other pub/sub clients of this Redis (e.g. a
+	// dev server), which recover the same way.
+	conn := pool.Get()
+	_, err := conn.Do("CLIENT", "KILL", "TYPE", "pubsub")
+	conn.Close()
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool { return resubscribes.Load() == 1 }, 5*time.Second, 50*time.Millisecond)
+
+	// Still delivering after resubscribing.
+	require.NoError(t, notifier.NotifyOrbitConfigHosts(ctx, []uint{testHostIDOffset + 1}, fleet.AgentWSReasonActivity))
+	require.Eventually(t, func() bool { return received.Load() == 1 }, 5*time.Second, 50*time.Millisecond)
 }
 
 func TestAgentNotificationsChunking(t *testing.T) {
@@ -123,7 +239,7 @@ func TestAgentNotificationsChunking(t *testing.T) {
 		mu.Lock()
 		defer mu.Unlock()
 		received = append(received, n)
-	})
+	}, nil)
 	time.Sleep(200 * time.Millisecond)
 
 	// 2.5 chunks worth of host IDs must arrive as 3 messages covering all IDs.

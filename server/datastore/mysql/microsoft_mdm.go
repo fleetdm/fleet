@@ -731,7 +731,7 @@ func (ds *Datastore) markMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx context
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "mark has_pending_commands by enrollment ids")
 		}
-		return nil
+		return ds.notifyOrbitConfigWindowsMDMSync(ctx, tx, batch)
 	})
 }
 

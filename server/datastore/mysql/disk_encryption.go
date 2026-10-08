@@ -264,7 +264,11 @@ func (ds *Datastore) QueueEscrow(ctx context.Context, hostID uint) error {
 INSERT INTO host_disk_encryption_keys
   (host_id, base64_encrypted, reset_requested) VALUES (?, '', TRUE) ON DUPLICATE KEY UPDATE reset_requested = TRUE
 `, hostID)
-	return err
+	if err != nil {
+		return err
+	}
+	ds.notifyOrbitConfig(ctx, ds.writer(ctx), fleet.AgentWSReasonDiskEncryption, hostID)
+	return nil
 }
 
 func (ds *Datastore) AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error {
@@ -319,8 +323,14 @@ func (ds *Datastore) SetHostsDiskEncryptionKeyStatus(
 	if err != nil {
 		return err
 	}
-	_, err = ds.writer(ctx).ExecContext(ctx, query, args...)
-	return err
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+		return err
+	}
+	if !decryptable {
+		// macOS hosts with an undecryptable key are asked to rotate it.
+		ds.notifyOrbitConfig(ctx, ds.writer(ctx), fleet.AgentWSReasonDiskEncryption, hostIDs...)
+	}
+	return nil
 }
 
 func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
@@ -613,7 +623,11 @@ ON DUPLICATE KEY UPDATE
 		if _, err := tx.ExecContext(ctx, stmt, host.ID, requestID[:], encryptedPIN, fleet.BitLockerPINRequestPending); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue bitlocker pin request")
 		}
-		return setBitLockerPINPendingFlag(ctx, tx, host.UUID, true)
+		if err := setBitLockerPINPendingFlag(ctx, tx, host.UUID, true); err != nil {
+			return err
+		}
+		ds.notifyOrbitConfig(ctx, tx, fleet.AgentWSReasonDiskEncryption, host.ID)
+		return nil
 	})
 }
 

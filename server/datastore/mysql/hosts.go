@@ -3062,6 +3062,10 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			return ctxerr.Wrap(ctx, err, "new host seen time")
 		}
 
+		// Several orbit config flags are only sent once osquery has enrolled,
+		// and orbit usually fetches its config before that.
+		ds.notifyOrbitConfig(ctx, tx, fleet.AgentWSReasonEnroll, hostID)
+
 		// Update the host id for the identity certificate
 		if enrollConfig.IdentityCert != nil {
 			err = updateHostIdentityCertHostIDBySerial(ctx, tx, hostID, enrollConfig.IdentityCert.SerialNumber)

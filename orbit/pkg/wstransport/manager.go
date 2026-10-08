@@ -39,6 +39,15 @@ type Options struct {
 	Client distributedClient
 	// Cache receives the queries fetched on "check now" notifications.
 	Cache *QueryCache
+	// OnOrbitConfig, when set, is called on orbit/config notifications, to
+	// fetch the orbit config now. Non-blocking.
+	OnOrbitConfig func()
+	// OnConnect, when set, is called after each successful connect.
+	// Non-blocking.
+	OnConnect func()
+	// OnDisconnect, when set, is called when an established connection drops.
+	// Non-blocking.
+	OnDisconnect func()
 
 	// PollInterval is the fallback polling cadence (default 10s, matching
 	// osquery's distributed interval).
@@ -176,8 +185,14 @@ func (m *Manager) connectionLoop() {
 		log.Debug().Msg("websocket connected, polling paused")
 
 		m.connected.Store(true)
+		if m.opts.OnConnect != nil {
+			m.opts.OnConnect()
+		}
 		m.readLoop(conn)
 		m.connected.Store(false)
+		if m.opts.OnDisconnect != nil {
+			m.opts.OnDisconnect()
+		}
 		_ = conn.Close()
 		if m.ctx.Err() != nil {
 			return
@@ -221,10 +236,23 @@ func (m *Manager) readLoop(conn *websocket.Conn) {
 		switch msg.Type {
 		case fleet.AgentWSMessageTypeDistributedRead:
 			m.trigger()
+		case fleet.AgentWSMessageTypeOrbitConfig:
+			m.onOrbitConfig()
 		default:
 			// Ignored for forward compatibility.
 			log.Debug().Str("type", msg.Type).Msg("ignoring unknown websocket notification type")
 		}
+	}
+}
+
+// Connected reports whether the WebSocket is up.
+func (m *Manager) Connected() bool {
+	return m.connected.Load()
+}
+
+func (m *Manager) onOrbitConfig() {
+	if m.opts.OnOrbitConfig != nil {
+		m.opts.OnOrbitConfig()
 	}
 }
 
