@@ -1458,6 +1458,7 @@ module.exports.routes = {
   'GET /learn-more-about/default-ab-token': '/guides/apple-mdm-setup#restrict-apple-account-sign-in-managed-apple-accounts',
   'GET /learn-more-about/deleting-a-host': '/guides/enroll-hosts#delete-a-host',
   'GET /learn-more-about/nixos-package-management': 'https://nixos.org/manual/nixos/stable/#sec-package-management',
+  'GET /learn-more-about/rejected-automatic-enrollment': '/guides/setup-experience#rejected-automatic-enrollments',
 
   // Sitemap
   // =============================================================================================================
