@@ -18,9 +18,11 @@ for home in /home/*; do
     -name "$NICKNAME" -out "$p12" -passout pass:
   chown "$user" "$p12"
 
-  # Chrome/Chromium, Firefox (deb and snap), and snap Chromium keep separate stores.
+  # Chrome/Chromium, Firefox (deb, snap, and Mozilla's apt package), and snap Chromium keep separate stores.
   dbs=("$home/.pki/nssdb")
-  for d in "$home"/.mozilla/firefox/*/ "$home"/snap/firefox/common/.mozilla/firefox/*/ "$home"/snap/chromium/current/.pki/nssdb/; do
+  # Snap Chromium doesn't create its store until it first runs, so create it here.
+  [ -d "$home/snap/chromium/current" ] && dbs+=("$home/snap/chromium/current/.pki/nssdb")
+  for d in "$home"/.mozilla/firefox/*/ "$home"/.config/mozilla/firefox/*/ "$home"/snap/firefox/common/.mozilla/firefox/*/; do
     [ -f "$d/cert9.db" ] && dbs+=("${d%/}")
   done
 
