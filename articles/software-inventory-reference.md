@@ -87,6 +87,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 | SteamOS | ❌ |
 | Bazzite, Bluefin, and Aurora | ❌ |
 | Ubuntu Core | ❌ |
+| IGEL OS | ❌ |
 | Any other distribution | ❌ |
 
 - Fedora, Rocky Linux, AlmaLinux, and Oracle Linux report as RHEL because they ship `/etc/redhat-release`. Fleet shows them under RHEL on the **Software** > **OS** page.
@@ -95,6 +96,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 - Alpine, elementary OS, Deepin, Garuda, Clear Linux, Photon OS, Solus, Parrot OS, Vanilla OS, openSUSE MicroOS, Aeon, and any distribution not listed above: Fleet recognizes Linux by matching the platform value Fleet reads from `/etc/os-release` against a [fixed list](https://github.com/fleetdm/fleet/blob/main/server/fleet/hosts.go). Hosts with any other value enroll, but Fleet doesn't collect an OS entry or software inventory for them.
 - SteamOS, Bazzite, Bluefin, and Aurora: these use immutable root filesystems. Installing Fleet's agent is unsupported, and their platform values aren't in Fleet's list.
 - Ubuntu Core runs snaps only. Fleet's agent isn't packaged as a snap, so Ubuntu Core hosts can't enroll.
+- [IGEL OS](https://www.igel.com/secure-endpoint-os/) uses an immutable root filesystem, and software is delivered as IGEL apps through IGEL's App Portal. Fleet's agent isn't available as an IGEL app, so IGEL OS isn't supported.
 
 ## Browser extensions
 

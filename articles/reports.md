@@ -42,15 +42,21 @@ How to view a report:
 
 1. In the top navigation, select **Reports**.
 
-2. In the **Reports** table, find the report you'd like to run and select the reports's name.
+2. In the **Reports** table, find the report you'd like to run and select the report's name.
 
 3. If you want to download the report, select **Export results** to save it as a CSV.
 
-Fleet stores up to 1,000 results per report. If the count stays below this limit, Fleet updates the report each time hosts send new data.
+Fleet limits each report to as many results as you have hosts. This means a report that returns one row per host always covers your whole fleet. As long as the report stays within this limit, Fleet updates it each time hosts send new data.
 
-If the results exceed 1,000, Fleet stops updating the report. To start collecting data again, clear the stored results from the report's page. Go to **Advanced options**, uncheck **Store data**, and select **Save**. Then check **Store data** and select **Save** again.
+> If you have fewer than 1,000 hosts, Fleet stores up to 1,000 results per report.
 
-> You can change the 1,000-result limit by setting [`server_settings.report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings).
+> If you're coming from Jamf, this works like extension attributes: one value per device, covering your whole fleet.
+
+When the report is full, Fleet keeps updating hosts already in the report as long as they don't return more rows than before, but doesn't add results from other hosts. To start collecting data from all hosts again, clear the stored results from the report's page. Go to **Advanced options**, uncheck **Store data**, and select **Save**. Then check **Store data** and select **Save** again.
+
+Fleet also doesn't store a host's result if it exceeds 512 KB. Fleet records when the host last sent results, but the report shows that the host returned no data. To reduce the size of a result, return fewer columns or rows in your query.
+
+> You can change the 1,000-result minimum by setting [`server_settings.report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings).
 
 Persisting results within Fleet creates load on the database, so you'll want to monitor database load as you add queries. If needed, you can disable stored results either globally or per-report.
 
