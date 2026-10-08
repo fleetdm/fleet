@@ -6533,6 +6533,13 @@
       "description": "Orion is a WebKit-based web browser."
     },
     {
+      "name": "Outset",
+      "slug": "outset/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.macadmins.Outset",
+      "description": "Outset is a tool that processes packages and scripts during boot, login, or on demand."
+    },
+    {
       "name": "P4V",
       "slug": "p4v/darwin",
       "platform": "darwin",

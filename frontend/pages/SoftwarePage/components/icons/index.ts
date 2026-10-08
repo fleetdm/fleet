@@ -770,6 +770,7 @@ import OptimusPlayer from "./png/OptimusPlayer.png";
 import OrbStack from "./png/OrbStack.png";
 import OrigamiStudio from "./png/OrigamiStudio.png";
 import Orion from "./png/Orion.png";
+import Outset from "./png/Outset.png";
 import P4V from "./png/P4V.png";
 import Pacifist from "./png/Pacifist.png";
 import PaintDotNet from "./png/PaintDotNet.png";
@@ -1956,6 +1957,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   orbstack: OrbStack,
   "origami studio": OrigamiStudio,
   orion: Orion,
+  outset: Outset,
   p4v: P4V,
   pacifist: Pacifist,
   package: Package,

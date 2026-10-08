@@ -87,7 +87,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "outset", "steam", "swiftdialog", "teleport-suite", "r-app", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -150,6 +150,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "google-chrome", UniqueIdentifier: "com.google.Chrome", InstallerFormat: "pkg", Name: "Google Chrome", Slug: "google-chrome/darwin"}},
 		{"", inputApp{Token: "firefox@nightly", UniqueIdentifier: "org.mozilla.nightly", InstallerFormat: "dmg", Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/darwin"}},
 		{"", inputApp{Token: "i1profiler", UniqueIdentifier: "com.x-rite.i1Profiler", InstallerFormat: "zip", Name: "i1Profiler", Slug: "i1profiler/darwin"}},
+		{"", inputApp{Token: "outset", UniqueIdentifier: "io.macadmins.Outset", InstallerFormat: "pkg", Name: "Outset", Slug: "outset/darwin"}},
 		{"", inputApp{Token: "steam", UniqueIdentifier: "com.valvesoftware.steam", InstallerFormat: "dmg", Name: "Steam", Slug: "steam/darwin"}},
 		{"", inputApp{Token: "swiftdialog", UniqueIdentifier: "au.csiro.dialog", InstallerFormat: "pkg", Name: "swiftDialog", Slug: "swiftdialog/darwin"}},
 		{"", inputApp{Token: "teleport-suite", UniqueIdentifier: "com.gravitational.teleport.tsh", InstallerFormat: "pkg", Name: "Teleport Suite", Slug: "teleport-suite/darwin"}},
@@ -234,6 +235,13 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.x-rite.i1Profiler';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.x-rite.i1Profiler' AND version_compare(bundle_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "outset":
+				// Outset's CFBundleShortVersionString ("4.2.0") drops the build number
+				// the cask version carries, so the patched query compares CFBundleVersion.
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.macadmins.Outset' AND version_compare(bundle_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "steam":
