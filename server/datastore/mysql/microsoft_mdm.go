@@ -1965,10 +1965,9 @@ WHERE
 }
 
 func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error) {
-	// The final clause ensures we only update if the host UUID changes so we can tell the caller as this basically
-	// signals a new MDM enrollment in certain cases, as it is the first time we associate a host with an enrollment.
-	// A deleted host returning with the same UUID changes nothing, so its enrollment's deleted host marker also
-	// counts as a new link; the caller clears the marker with MDMWindowsClearDeletedHostTeam.
+	// The final clause ensures we only update if the host UUID changes so we can tell the caller as this basically signals a new MDM
+	// enrollment in certain cases, as it is the first time we associate a host with an enrollment. A deleted host's enrollment's
+	// deleted host marker also counts as a new link.
 	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ?
 		WHERE mdm_device_id = ? AND (host_uuid <> ? OR deleted_host_team_id IS NOT NULL)`
 	res, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID, hostUUID)
@@ -1983,8 +1982,6 @@ func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, ho
 }
 
 func (ds *Datastore) MDMWindowsClearDeletedHostTeam(ctx context.Context, mdmDeviceID string) error {
-	// Keyed like UpdateMDMWindowsEnrollmentsHostUUID: mdm_device_id is not unique, and a marker left on any of its rows would
-	// keep reporting a new link.
 	if _, err := ds.writer(ctx).ExecContext(ctx, `
 		UPDATE mdm_windows_enrollments SET deleted_host_team_id = NULL
 		WHERE mdm_device_id = ? AND deleted_host_team_id IS NOT NULL`, mdmDeviceID); err != nil {

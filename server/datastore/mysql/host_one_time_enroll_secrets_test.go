@@ -1179,7 +1179,7 @@ func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore)
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, tc.defaultFleet))
-			_, device := deleteHost(t, tc.name, tc.teamID)
+			h, device := deleteHost(t, tc.name, tc.teamID)
 			if tc.deleteTeam {
 				require.NoError(t, ds.DeleteTeam(ctx, *tc.teamID))
 			}
@@ -1190,6 +1190,16 @@ func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore)
 				})
 			}
 			require.Equal(t, tc.wantSecretFor, nextSecret(t, device.ID).TeamID)
+
+			// The host comes back with the same UUID: a new link until the marker is cleared.
+			updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, h.UUID, device.MDMDeviceID)
+			require.NoError(t, err)
+			require.Equal(t, !tc.notRecorded, updated)
+			require.NoError(t, ds.MDMWindowsClearDeletedHostTeam(ctx, device.MDMDeviceID))
+			require.Nil(t, recordedTeam(t, device.ID))
+			updated, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, h.UUID, device.MDMDeviceID)
+			require.NoError(t, err)
+			require.False(t, updated)
 		})
 	}
 
