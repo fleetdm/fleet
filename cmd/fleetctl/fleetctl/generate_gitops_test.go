@@ -1359,6 +1359,10 @@ func TestGenerateGitopsWindowsEULA(t *testing.T) {
 		{"names that collide", "terms.md", "terms.md", "lib/eula/terms.md", "lib/eula/windows-terms.md"},
 		{"names that differ only in case", "Terms.md", "terms.md", "lib/eula/Terms.md", "lib/eula/windows-terms.md"},
 		{"characters windows rejects", "eula.pdf", `Terms: v2?.md`, "lib/eula/eula.pdf", "lib/eula/Terms- v2-.md"},
+		// Names Windows can't write fall back to the default name.
+		{"names windows reserves", "CON.pdf", "lpt1.md", "lib/eula/eula.pdf", "lib/eula/terms.md"},
+		{"names ending in a dot", "agreement.pdf.", "terms v2.md.", "lib/eula/eula.pdf", "lib/eula/terms.md"},
+		{"names too long to write", strings.Repeat("é", 120) + ".pdf", "terms.md", "lib/eula/eula.pdf", "lib/eula/terms.md"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

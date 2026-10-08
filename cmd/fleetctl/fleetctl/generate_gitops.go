@@ -1259,6 +1259,27 @@ func (cmd *GenerateGitopsCommand) generateWindowsEULA() (string, error) {
 
 // writeEULA adds an uploaded EULA, macOS or Windows, to lib/eula and returns
 // its path for the YAML, or "" when none is uploaded.
+// maxExportedNameBytes leaves room for a collision prefix under the 255-byte
+// limit common file systems put on a file name.
+const maxExportedNameBytes = 200
+
+// portableFileName reports whether an exported file can keep name on macOS,
+// Linux and Windows. Windows also refuses its reserved device names, with any
+// extension, and names ending in a dot.
+func portableFileName(name string) bool {
+	if name == "" || len(name) > maxExportedNameBytes || strings.HasSuffix(name, ".") {
+		return false
+	}
+	stem, _, _ := strings.Cut(name, ".")
+	switch stem = strings.ToUpper(strings.TrimRight(stem, " ")); {
+	case stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL":
+		return false
+	case len(stem) == 4 && (strings.HasPrefix(stem, "COM") || strings.HasPrefix(stem, "LPT")) && stem[3] >= '0' && stem[3] <= '9':
+		return false
+	}
+	return true
+}
+
 func (cmd *GenerateGitopsCommand) writeEULA(
 	label, defaultName, collisionPrefix string,
 	getMetadata func() (*fleet.MDMEULA, error),
@@ -1283,9 +1304,6 @@ func (cmd *GenerateGitopsCommand) writeEULA(
 	// The stored name is whatever the uploader sent, so keep only its last
 	// element: a path in it would write outside the output directory.
 	name := fleet.SanitizeEULAFileName(metadata.Name)
-	if name == "" {
-		name = defaultName
-	}
 	// Characters Windows rejects in file names would fail the write there.
 	name = strings.Map(func(r rune) rune {
 		if strings.ContainsRune(`<>:"|?*`, r) {
@@ -1293,6 +1311,9 @@ func (cmd *GenerateGitopsCommand) writeEULA(
 		}
 		return r
 	}, name)
+	if !portableFileName(name) {
+		name = defaultName
+	}
 	fileName := "lib/eula/" + name
 	// Both EULAs go to the same folder; keep both when their names match,
 	// ignoring case as macOS and Windows file systems do.
