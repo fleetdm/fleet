@@ -100,10 +100,6 @@ describe("AddVersionModal", () => {
     expect(screen.queryByText(/Enable auto updates/i)).not.toBeInTheDocument();
   });
 
-  // defaultAutoUpdate prefills the Auto updates section when the caller passes
-  // an existing version's schedule (set by the parent when exactly one version
-  // already exists). Covers the checkbox, both time inputs, and the POST
-  // payload the Add submits so a later refactor can't silently drop the prefill.
   it("pre-fills auto-update from defaultAutoUpdate and submits those values", async () => {
     const addSpy = jest
       .spyOn(softwareAPI, "addAppStoreAppVersion")

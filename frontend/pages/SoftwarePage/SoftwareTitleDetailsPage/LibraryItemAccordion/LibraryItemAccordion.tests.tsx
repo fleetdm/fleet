@@ -810,9 +810,7 @@ describe("LibraryItemAccordion", () => {
 
     it("renders the self-service and auto-update row icons", () => {
       renderVersionRow();
-      // Both icons open Edit version on a multi-version App Store row, so the
-      // self-service and auto-update buttons share an aria-label; getAllBy
-      // asserts both are present.
+      // Both icons share the "Edit version" aria-label on multi-version rows.
       expect(
         screen.getAllByRole("button", { name: /Edit version/i })
       ).toHaveLength(2);
@@ -820,8 +818,7 @@ describe("LibraryItemAccordion", () => {
 
     it("hides the auto-update icon when the version has it off", () => {
       renderVersionRow({ isAutoUpdateEnabled: false });
-      // Self-service icon still renders (same aria-label), so exactly one
-      // Edit version button remains.
+      // Self-service icon still renders with the same aria-label.
       expect(
         screen.getAllByRole("button", { name: /Edit version/i })
       ).toHaveLength(1);

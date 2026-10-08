@@ -54,7 +54,11 @@ import { getPathWithQueryParams } from "utilities/url";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import AndroidPlayStore from "../components/icons/AndroidPlayStore";
 import AppleAppStore from "../components/icons/AppleAppStore";
-import { getDisplayedSoftwareName, mergePolicies } from "../helpers";
+import {
+  getDefaultAutoUpdateFromVersions,
+  getDisplayedSoftwareName,
+  mergePolicies,
+} from "../helpers";
 
 import AddPackageModal from "./AddPackageModal";
 import AddVersionModal from "./AddVersionModal";
@@ -920,20 +924,9 @@ const SoftwareTitleDetailsPage = ({
     // Default Target to Custom so the admin's label scope wins the
     // first-added race.
     const defaultTargetCustom = true;
-    // When exactly one version already exists, suggest its auto-update
-    // schedule as the Add form default. Each version still writes its own
-    // schedule server-side; this is purely a form-prefill ergonomic. With 2+
-    // existing versions there's no single "right" schedule to prefer, so
-    // leave the form at its defaults and let the admin set it.
-    const singleExistingVersion =
-      title.app_store_apps?.length === 1 ? title.app_store_apps[0] : null;
-    const defaultAutoUpdate = singleExistingVersion
-      ? {
-          enabled: !!singleExistingVersion.auto_update_enabled,
-          windowStart: singleExistingVersion.auto_update_window_start ?? "",
-          windowEnd: singleExistingVersion.auto_update_window_end ?? "",
-        }
-      : undefined;
+    const defaultAutoUpdate = getDefaultAutoUpdateFromVersions(
+      title.app_store_apps
+    );
     return (
       <AddVersionModal
         teamId={teamIdForApi}

@@ -1220,11 +1220,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	_, err = s.ds.GetSoftwareTitleIcon(ctx, team.ID, titleID)
 	require.True(t, fleet.IsNotFound(err))
 
-	// Auto-update coverage for the add endpoint. The batch path already has
-	// coverage in TestBatchAppStoreAppVersions; the single-add endpoint added
-	// the same contract and needs regression coverage so a refactor can't
-	// silently drop validation, persist state the scheduler won't use, or
-	// omit the schedule from the activity payload.
+	// Auto-update coverage for the single-add endpoint (batch path already covered in TestBatchAppStoreAppVersions).
 	addTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "add-endpoint-auto-update"})
 	require.NoError(t, err)
 
@@ -1264,7 +1260,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.Equal(t, "03:00", *addDetails.AutoUpdateEndTime)
 
 	// Sub-hour window rejected at the service boundary.
-	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 		TeamID:              &addTeam.ID,
 		AppStoreID:          ipadOSAdamID,
 		Platform:            fleet.IPadOSPlatform,
@@ -1286,8 +1282,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 		AutoUpdateEndTime:   new("03:00"),
 	}, http.StatusUnprocessableEntity)
 
-	// macOS silently drops the auto-update fields (unsupported platform) so a
-	// direct API caller can't persist state the scheduler will never use.
+	// macOS is unsupported; auto-update fields are dropped silently.
 	var addMacAutoResp addAppStoreAppResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 		TeamID:              &addTeam.ID,

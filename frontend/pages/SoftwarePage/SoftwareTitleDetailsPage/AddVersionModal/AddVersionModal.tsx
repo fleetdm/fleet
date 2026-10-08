@@ -5,11 +5,13 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
-import { getErrorReason } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreApp } from "interfaces/software";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
-import { buildSelectedLabelsArray } from "pages/SoftwarePage/helpers";
+import {
+  buildLabelsForPayload,
+  routeVersionNameError,
+} from "pages/SoftwarePage/helpers";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -111,16 +113,6 @@ const AddVersionModal = ({
   );
 
   const onValidSubmit = async (data: IVersionFormData) => {
-    // Build the labels array only for Custom scope; omit the field entirely
-    // for All hosts so the backend's "nil means unchanged" fallback stays
-    // untouched. An empty selection in Custom would be a client-side
-    // validation failure, so arr.length is always > 0 here.
-    const customLabels =
-      data.targetType === "Custom"
-        ? buildSelectedLabelsArray(data.labelTargets)
-        : undefined;
-    const labelsArray = customLabels?.length ? customLabels : undefined;
-
     // Android configuration is a JSON object on the wire; parse the editor
     // string before sending. iOS/iPadOS send the XML plist as a string.
     const hasConfig =
@@ -141,12 +133,7 @@ const AddVersionModal = ({
         self_service: data.selfService,
         categories: data.categories.length ? data.categories : undefined,
         configuration: configurationPayload,
-        labels_include_any:
-          data.customTarget === "labelsIncludeAny" ? labelsArray : undefined,
-        labels_include_all:
-          data.customTarget === "labelsIncludeAll" ? labelsArray : undefined,
-        labels_exclude_any:
-          data.customTarget === "labelsExcludeAny" ? labelsArray : undefined,
+        ...buildLabelsForPayload(data, "noChange"),
         auto_update_enabled: data.autoUpdateEnabled || undefined,
         auto_update_window_start:
           data.autoUpdateEnabled && data.autoUpdateWindowStart
@@ -171,16 +158,11 @@ const AddVersionModal = ({
       });
       onSuccess();
     } catch (e) {
-      const reason = getErrorReason(e);
-      // Only route the backend's duplicate-version-name conflict to the Name
-      // field. Any other error containing "name" (e.g. an "Unsupported
-      // variable $FLEET_VAR_..._USERNAME" from a configuration variable) stays
-      // in the error toast so admins see the real reason.
-      if (reason?.toLowerCase().includes("a version named")) {
-        setServerErrors({ name: reason });
-      } else {
-        notify.error("Couldn't add. Please try again.", { response: e });
-      }
+      routeVersionNameError(
+        e,
+        setServerErrors,
+        "Couldn't add. Please try again."
+      );
     }
   };
 

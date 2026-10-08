@@ -100,10 +100,7 @@ describe("EditVersionModal", () => {
     expect(checkbox).toBeChecked();
   });
 
-  // Android with no stored configuration pre-fills the editor with the empty
-  // `{}` scaffold. Submitting as-is must send `{}` to the backend (clear-value
-  // semantics), not undefined, so the backend treats it as "clear" rather
-  // than "no change". iOS/iPadOS would send `null` in the same scenario.
+  // Android clear = {} (not undefined, which backend reads as "no change"). iOS/iPadOS clear = null.
   it("submits `{}` for Android when the editor holds the empty scaffold", async () => {
     const editSpy = jest
       .spyOn(softwareAPI, "editAppStoreAppVersion")

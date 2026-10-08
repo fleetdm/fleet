@@ -833,20 +833,13 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
 	}
 
-	// Reject malformed or sub-hour auto-update windows at the service boundary
-	// instead of trusting the frontend's validator; the datastore writes
-	// whatever strings it receives. Auto-update is iOS/iPadOS only — mirror
-	// the batch path (ee/server/service/vpp.go:414-433) and clear the fields
-	// on other platforms so direct API callers can't persist state the
-	// scheduler won't use.
+	// Auto-update is iOS/iPadOS only. Validate here and clear on other platforms; the datastore stores whatever strings arrive, and gitops/API bypass the FE validator.
 	if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
 		if appID.AutoUpdateEnabled != nil && *appID.AutoUpdateEnabled {
 			schedule := fleet.SoftwareAutoUpdateSchedule{
-				SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
-					AutoUpdateEnabled:   appID.AutoUpdateEnabled,
-					AutoUpdateStartTime: appID.AutoUpdateStartTime,
-					AutoUpdateEndTime:   appID.AutoUpdateEndTime,
-				},
+				AutoUpdateEnabled:   appID.AutoUpdateEnabled,
+				AutoUpdateStartTime: appID.AutoUpdateStartTime,
+				AutoUpdateEndTime:   appID.AutoUpdateEndTime,
 			}
 			if err := schedule.WindowIsValid(); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "validating auto-update schedule")
@@ -1119,10 +1112,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
 
-	// Only include the window when auto-update is enabled, matching the edit
-	// activity's behavior at line 1572-1579. insertVPPAppTeams clears the
-	// window on `enabled: false`, so copying the raw request here would log
-	// values the datastore didn't actually store.
+	// insertVPPAppTeams clears the window when enabled=false, so don't log a window the datastore didn't store.
 	act := fleet.ActivityAddedAppStoreApp{
 		AppStoreID:       app.AdamID,
 		Platform:         app.Platform,

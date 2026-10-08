@@ -6,11 +6,13 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
-import { getErrorReason } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreAppVersion } from "interfaces/software";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
-import { buildSelectedLabelsArray } from "pages/SoftwarePage/helpers";
+import {
+  buildLabelsForPayload,
+  routeVersionNameError,
+} from "pages/SoftwarePage/helpers";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -99,30 +101,7 @@ const EditVersionModal = ({
   );
 
   const onValidSubmit = async (data: IVersionFormData) => {
-    // Always send all three label arrays so the backend can normalize.
-    // "All hosts" clears every scope with empty arrays; "Custom" fills the
-    // active key and empties the other two.
-    const activeLabels =
-      data.targetType === "Custom"
-        ? buildSelectedLabelsArray(data.labelTargets)
-        : [];
-    const labelsIncludeAny =
-      data.targetType === "Custom" && data.customTarget === "labelsIncludeAny"
-        ? activeLabels
-        : [];
-    const labelsIncludeAll =
-      data.targetType === "Custom" && data.customTarget === "labelsIncludeAll"
-        ? activeLabels
-        : [];
-    const labelsExcludeAny =
-      data.targetType === "Custom" && data.customTarget === "labelsExcludeAny"
-        ? activeLabels
-        : [];
-
-    // Empty editor or an unmodified scaffold both clear the config (null for
-    // iOS/iPadOS, {} for Android, matching the backend's clear values). Any
-    // other content is a set/update. Typing `{}` into the Android editor is a
-    // deliberate clear even though it matches the scaffold.
+    // Empty editor or unmodified scaffold clears the config (null for iOS/iPadOS, {} for Android). Typing {} into the Android editor is a deliberate clear, same effect as the scaffold.
     let configurationPayload: string | Record<string, unknown> | null;
     if (!data.configuration || data.configuration === emptyScaffold) {
       configurationPayload = version.platform === "android" ? {} : null;
@@ -139,9 +118,7 @@ const EditVersionModal = ({
         self_service: data.selfService,
         categories: data.categories,
         configuration: configurationPayload,
-        labels_include_any: labelsIncludeAny,
-        labels_include_all: labelsIncludeAll,
-        labels_exclude_any: labelsExcludeAny,
+        ...buildLabelsForPayload(data, "clear"),
         auto_update_enabled: data.autoUpdateEnabled,
         auto_update_window_start:
           data.autoUpdateEnabled && data.autoUpdateWindowStart
@@ -166,16 +143,11 @@ const EditVersionModal = ({
       });
       onSuccess();
     } catch (e) {
-      const reason = getErrorReason(e);
-      // Only route the backend's duplicate-version-name conflict to the Name
-      // field. Any other error containing "name" (e.g. an "Unsupported
-      // variable $FLEET_VAR_..._USERNAME" from a configuration variable) stays
-      // in the error toast so admins see the real reason.
-      if (reason?.toLowerCase().includes("a version named")) {
-        setServerErrors({ name: reason });
-      } else {
-        notify.error("Couldn't edit. Please try again.", { response: e });
-      }
+      routeVersionNameError(
+        e,
+        setServerErrors,
+        "Couldn't edit. Please try again."
+      );
     }
   };
 

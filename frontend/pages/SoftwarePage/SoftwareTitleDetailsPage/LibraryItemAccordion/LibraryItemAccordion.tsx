@@ -339,10 +339,7 @@ const LibraryItemAccordion = ({
         !!isIosOrIpadosApp,
         !!isAndroidPlayStoreApp
       ),
-      // Same modal opens regardless of which icon is clicked; the icon glyph
-      // carries the contextual signal ("self-service is on for this row").
-      // Multi-version App Store rows open Edit version; custom-package rows
-      // open Edit package.
+      // Both icons open the same modal (version for multi-version rows, package otherwise); the glyph is the context cue.
       ariaLabel: canActivateMultipleVersions ? "Edit version" : "Edit package",
       onClick: onSelfServiceClick,
       canClick: canEditSoftware,
