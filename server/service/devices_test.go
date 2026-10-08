@@ -678,7 +678,17 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		require.ErrorContains(t, err, "Fleet does not yet support creating LUKS disk encryption keys on this platform.")
 		require.True(t, ds.GetHostEscrowStateFuncInvoked)
 
+		// Linux distributions Fleet does not escrow for, even though they are recognized platforms
+		unsupportedLinux := []string{"arch", "omarchy", "cachyos", "debian", "pop"}
+		for _, platform := range unsupportedLinux {
+			host.Platform = platform
+			host.OSVersion = platform
+			err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
+			require.ErrorContains(t, err, "Fleet does not yet support creating LUKS disk encryption keys on this platform.", platform)
+		}
+
 		// valid platform, no-team, encryption not enabled
+		host.Platform = "rhel"
 		host.OSVersion = "Fedora 32.0.0"
 		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnableDiskEncryption: optjson.SetBool(false)}}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -717,7 +727,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
 		require.ErrorContains(t, err, "Your version of fleetd does not support creating disk encryption keys on Linux. Please upgrade fleetd, then click Refetch, then try again.")
 
-		require.Len(t, reportedErrors, 6)
+		require.Len(t, reportedErrors, 6+len(unsupportedLinux))
 	})
 
 	t.Run("validation success", func(t *testing.T) {

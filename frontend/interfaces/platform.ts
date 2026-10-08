@@ -182,6 +182,8 @@ export const isMobilePlatform = (platform: string | HostPlatform) =>
 
 // --- OS Settings and Disk Encryption support by Platform ---
 
+/** Linux platforms whose disk encryption status Fleet displays (host vitals, OS settings card).
+ * Display only: escrow eligibility is LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS below. */
 export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
   "zorin", // Zorin OS (Ubuntu-based)
