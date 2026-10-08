@@ -371,6 +371,7 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 		"source": "chrome_extensions",
 		"extension_id": "test-extension-id",
 		"extension_for": "chrome",
+		"ai_tool": false,
 		"display_name": "",
 		"browser": "chrome",
 		"release": "1",
@@ -1398,4 +1399,19 @@ func TestParseSoftwareTypeFilter(t *testing.T) {
 			require.Equal(t, []map[string]string{{"name": tc.wantArg, "reason": tc.wantReason}}, argErr.Invalid())
 		})
 	}
+}
+
+// TestSoftwareAIToolNotPartOfIdentity pins the flag outside the software identity, so an
+// existing row can be flagged in place instead of becoming a second row.
+func TestSoftwareAIToolNotPartOfIdentity(t *testing.T) {
+	sw := Software{Name: "Claude", Version: "1.2.4", Source: "apps", BundleIdentifier: "com.anthropic.claudefordesktop"}
+	flagged := sw
+	flagged.AITool = true
+
+	require.Equal(t, sw.ToUniqueStr(), flagged.ToUniqueStr())
+	want, err := sw.ComputeRawChecksum()
+	require.NoError(t, err)
+	got, err := flagged.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }

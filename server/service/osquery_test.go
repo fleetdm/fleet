@@ -6176,14 +6176,76 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			},
 			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
-					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app"},
-					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush"},
-					{"name": "github", "source": "mcp_servers", "ai_type": "mcp_server", "installed_path": "/Users/a/.cursor/mcp.json"},
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app", "ai_tool": "1"},
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush", "ai_tool": "1"},
+					{"name": "github", "source": "mcp_servers", "ai_type": "mcp_server", "installed_path": "/Users/a/.cursor/mcp.json", "ai_tool": "1"},
 				},
 			},
 		},
 		{
-			name:      "ai_tools rows match software added by the override queries",
+			name: "ai_tool reported by the host without ai_tools results is dropped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":       fleet.StatusOK,
+				hostDetailQueryPrefix + "software_go_binaries": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "apps", "installed_path": "/Applications/Google Chrome.app", "ai_tool": "1"},
+				},
+				hostDetailQueryPrefix + "software_go_binaries": []map[string]string{
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush", "ai_tool": "1"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "apps", "installed_path": "/Applications/Google Chrome.app"},
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush"},
+				},
+			},
+		},
+		{
+			name: "ai_tool reported by the host in software_chrome is dropped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_chrome": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_chrome": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "chrome_extensions", "ai_tool": "1"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_chrome": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "chrome_extensions"},
+				},
+			},
+		},
+		{
+			name: "ai_tool reported by the host is replaced by the ai_tools match",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":    fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "apps", "installed_path": "/Applications/Google Chrome.app", "ai_tool": "1"},
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{
+					{"name": "Claude", "source": "ai_tools", "ai_type": "apps", "installed_path": "/Applications/Claude.app"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "apps", "installed_path": "/Applications/Google Chrome.app"},
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app", "ai_tool": "1"},
+				},
+			},
+		},
+		{
+			name:      "ai_tools rows can flag software added by the override queries",
 			host:      &fleet.Host{ID: 1, Platform: "windows"},
 			overrides: osquery_utils.SoftwareOverrideQueries,
 			statusesIn: map[string]fleet.OsqueryStatus{
@@ -6199,7 +6261,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					{"path": `C:\Program Files\ChatGPT\ChatGPT.exe`, "filename": "ChatGPT.exe", "product_version": "1.2025.209"},
 				},
 				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{
-					{"name": "chatgpt", "source": "ai_clis", "ai_type": "agents", "installed_path": `C:\Program Files\ChatGPT`},
+					{"name": "ChatGPT", "source": "ai_tools", "ai_type": "apps", "installed_path": `C:\Program Files\ChatGPT`},
 				},
 			},
 			resultsExpected: fleet.OsqueryDistributedQueryResults{
@@ -6209,6 +6271,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 						"name": "ChatGPT.exe", "version": "1.2025.209", "source": "programs", "vendor": "",
 						"installed_path": `C:\Program Files\ChatGPT`, "extension_id": "", "extension_for": "",
 						"upgrade_code": "", "release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+						"ai_tool": "1",
 					},
 				},
 			},
