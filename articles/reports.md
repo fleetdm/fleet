@@ -100,8 +100,8 @@ Here's when each interval runs on a host that never sleeps, and on laptops that 
 | Every 15 minutes | :00, :15, :30, and :45 | :00, :15, :30, and :45 during the workday (about 32 times a day) | :00, :15, :30, and :45 during the workday (about 32 times a day) |
 | Every 30 minutes | :00 and :30 | :00 and :30 during the workday (about 16 times a day) | :00 and :30 during the workday (about 16 times a day) |
 | Every hour | On the hour (11:00, 12:00, 13:00, and so on) | On the hour during the workday (about 8 times a day) | On the hour during the workday (about 8 times a day) |
-| Every 6 hours | 00:00, 06:00, 12:00, and 18:00 | Monday 1pm, Tuesday 11am, and Wednesday 9am and 3pm, then repeats (4 times every 3 workdays) | Monday 10am and 4pm, Tuesday 2pm, and Wednesday noon, then repeats (4 times every 3 workdays) |
-| Every 12 hours | 00:00 and 12:00 | Tuesday 11am and Wednesday 3pm, then repeats (2 times every 3 workdays) | Monday 4pm and Wednesday noon, then repeats (2 times every 3 workdays) |
+| Every 6 hours | 00:00, 06:00, 12:00, and 18:00 | Monday 1pm, Tuesday 11am, and Wednesday 9am and 3pm | Monday 10am and 4pm, Tuesday 2pm, and Wednesday noon |
+| Every 12 hours | 00:00 and 12:00 | Tuesday 11am and Wednesday 3pm | Monday 4pm and Wednesday noon |
 | Every day | Midnight (4pm Pacific, 7pm Eastern, or 9am in Tokyo) | 11am every 3 workdays (Tuesday, Friday, then the next Wednesday) | 4pm every 3 workdays (Monday, Thursday, then the next Tuesday) |
 | Every week | Thursday at midnight (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo) | 11am every 21 workdays (about once a month) | 4pm every 21 workdays (about once a month) |
 
