@@ -291,6 +291,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2026-10-02">
+<meta name="publishedOn" value="2026-10-08">
 <meta name="articleTitle" value="Fleet 4.93.0 | macOS app patching, Android zero-touch enrollment, Windows admin password rotation, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.93.0-1600x900@2x.png">
