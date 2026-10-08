@@ -1,0 +1,55 @@
+name: Require RC migration approval
+
+# Migration changes in a release candidate usually force a renumber on main,
+# which breaks environments that already ran the old version (dogfood, dev
+# databases). Infra signs off so those environments get fixed before release.
+on:
+  pull_request:
+    branches:
+      - rc-minor-*
+      - rc-patch-*
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  migration-approval:
+    # pull_request_review doesn't support a branches filter.
+    if: startsWith(github.event.pull_request.base.ref, 'rc-minor-') || startsWith(github.event.pull_request.base.ref, 'rc-patch-')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require approval for migration changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          APPROVERS: rfairburn
+        run: |
+          # Separate assignment so an API failure fails the check instead of
+          # looking like "no migrations".
+          files=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" \
+            --jq '.[] | .filename, (.previous_filename // empty)')
+          migrations=$(grep '^server/datastore/mysql/migrations/' <<< "$files" | sort -u || true)
+          if [ -z "$migrations" ]; then
+            echo "No migration changes."
+            exit 0
+          fi
+          echo "Migration changes:"
+          sed 's/^/  /' <<< "$migrations"
+
+          # A COMMENTED review doesn't change a reviewer's approval, so only the
+          # latest APPROVED/CHANGES_REQUESTED/DISMISSED state counts.
+          reviews=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/reviews" \
+            --jq '.[] | select(.state != "COMMENTED") | "\(.user.login) \(.state)"')
+          for approver in $APPROVERS; do
+            state=$(awk -v a="$approver" '$1 == a { s = $2 } END { print s }' <<< "$reviews")
+            if [ "$state" = "APPROVED" ]; then
+              echo "Approved by @$approver."
+              exit 0
+            fi
+          done
+
+          echo "::error::This PR changes database migrations in a release candidate. It needs an approval from one of: $APPROVERS"
+          exit 1
