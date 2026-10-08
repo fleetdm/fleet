@@ -4,6 +4,5 @@
   "token": "avast-secure-browser",
   "installer_format": "dmg",
   "slug": "avast-secure-browser/darwin",
-  "default_categories": ["Browsers"],
-  "frozen": true
+  "default_categories": ["Browsers"]
 }
