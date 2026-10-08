@@ -1667,6 +1667,10 @@ type ActivityDeletedAppStoreApp struct {
 	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 	LabelsIncludeAll []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
 	VersionName      string                    `json:"version_name"`
+	// Configuration mirrors added/edited App Store app activities so the
+	// activity-feed details modal renders the same fields regardless of which
+	// verb triggered it. Docs addition to `audit-logs.md` lands in a separate PR.
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {

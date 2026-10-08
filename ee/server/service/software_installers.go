@@ -1292,6 +1292,14 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		return fleet.ErrNoContext
 	}
 
+	// GetAppStoreAppVersionsByTeamAndTitleID (the batch caller) doesn't populate
+	// Configuration on the hydrated versions; fetch it before the DeleteVPPAppFromTeam
+	// clears the row so the activity payload carries the config bytes.
+	cfg, cfgErr := svc.ds.GetVPPAppConfiguration(ctx, meta.VPPAppsTeamsID)
+	if cfgErr != nil {
+		return ctxerr.Wrap(ctx, cfgErr, "getting VPP app configuration for delete activity")
+	}
+
 	err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.VPPAppID, &meta.VPPAppsTeamsID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting VPP app")
@@ -1319,6 +1327,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		LabelsIncludeAll: actLabelsInclAll,
 		SoftwareIconURL:  meta.IconURL,
 		VersionName:      meta.VersionName,
+		Configuration:    cfg,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}
