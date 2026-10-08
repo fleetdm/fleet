@@ -106,6 +106,9 @@ type Software struct {
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// AITool is true when fleetd's ai_tools table reported this software. It is not part of the
+	// software's identity (ToUniqueStr, ComputeRawChecksum), so the flag can be set on an existing row.
+	AITool bool `json:"ai_tool" db:"ai_tool"`
 	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
 	Browser string `json:"browser"`
 

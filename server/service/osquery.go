@@ -2417,6 +2417,18 @@ func preProcessSoftwareResults(
 		preProcessSoftwareExtraResults(ctx, fullQueryName, host.ID, results, statuses, messages, query, logger)
 	}
 
+	// The flag lands on the software row shared by every host, so a host must not be able to set
+	// it directly: only the ai_tools merge below may.
+	for _, query := range []string{
+		hostDetailQueryPrefix + "software_macos",
+		hostDetailQueryPrefix + "software_windows",
+		hostDetailQueryPrefix + "software_linux",
+	} {
+		for _, row := range results[query] {
+			delete(row, "ai_tool")
+		}
+	}
+
 	// Merged last so every row it can flag is already present, including rows the overrides add
 	// or re-append.
 	aiToolsExtraQuery := hostDetailQueryPrefix + "software_ai_tools"
