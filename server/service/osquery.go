@@ -3223,7 +3223,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return nil
 	}
 
-	host, err := svc.ds.Host(ctx, hostID)
+	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "failed to get host details")
 	}

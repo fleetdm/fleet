@@ -703,6 +703,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /europe': {
+    action: 'view-europe',
+    locals: {
+      pageTitleForMeta: 'Device management for Europe',
+      pageDescriptionForMeta: 'Keep device data in the EU. Manage Windows, macOS, Linux, and mobile devices from one independent platform.',
+    }
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝

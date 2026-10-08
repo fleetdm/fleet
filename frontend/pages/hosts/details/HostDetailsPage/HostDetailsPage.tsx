@@ -1,4 +1,4 @@
-import { pick } from "lodash";
+import { omit, pick } from "lodash";
 import React, {
   useContext,
   useState,
@@ -1754,7 +1754,11 @@ const HostDetailsPage = ({
                   isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                   router={router}
                   queryParams={{
-                    ...parseHostSoftwareQueryParams(location.query),
+                    // Types filter the Inventory tab only.
+                    ...omit(
+                      parseHostSoftwareQueryParams(location.query),
+                      "types"
+                    ),
                     available_for_install: true,
                   }}
                   pathname={location.pathname}
