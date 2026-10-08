@@ -2335,8 +2335,6 @@ type Datastore interface {
 	MDMInsertEULA(ctx context.Context, eula *MDMEULA) error
 	// MDMDeleteEULA deletes the platform's EULA file from the database.
 	MDMDeleteEULA(ctx context.Context, platform MDMEULAPlatform, token string) error
-	// MDMGetEULA returns the platform's EULA with its contents, for serving it to devices.
-	MDMGetEULA(ctx context.Context, platform MDMEULAPlatform) (*MDMEULA, error)
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)

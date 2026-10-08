@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -63,30 +64,70 @@ const (
 	maxRenderedSize = 2 << 20
 )
 
+// TermsError is a reason a document can't be used as terms. Error reads after
+// the document's name, as in "terms.md is larger than 512 KB"; Message is
+// written for the person who uploaded it.
+type TermsError struct {
+	reason  string
+	Message string
+}
+
+func (e *TermsError) Error() string { return e.reason }
+
 var (
 	// ErrTooLarge means the document is larger than MaxTermsSize.
-	ErrTooLarge = errors.New("is larger than 512 KB")
+	ErrTooLarge = &TermsError{
+		fmt.Sprintf("is larger than %d KB", MaxTermsSize>>10),
+		fmt.Sprintf("The file must be %d KB or smaller.", MaxTermsSize>>10),
+	}
 	// ErrNotUTF8 means the document is not valid UTF-8 text.
-	ErrNotUTF8 = errors.New("is not valid UTF-8 text")
+	ErrNotUTF8 = &TermsError{"is not valid UTF-8 text", "The file must be UTF-8 text."}
 	// ErrLineTooLong means a line is longer than the parser handles cheaply.
-	ErrLineTooLong = errors.New("has a line longer than 8 KB")
+	ErrLineTooLong = &TermsError{
+		fmt.Sprintf("has a line longer than %d KB", maxLineLength>>10),
+		fmt.Sprintf("The file has a line longer than %d KB. Split long paragraphs into shorter lines and upload again.", maxLineLength>>10),
+	}
 	// ErrTooManyLines means the document has more lines than any agreement needs.
-	ErrTooManyLines = errors.New("has more than 10,000 lines")
+	ErrTooManyLines = &TermsError{
+		fmt.Sprintf("has more than %s lines", thousands(maxLines)),
+		fmt.Sprintf("The file has more than %s lines.", thousands(maxLines)),
+	}
 	// ErrTooComplex means a paragraph or list has more emphasis and link
 	// characters than the parser handles cheaply.
-	ErrTooComplex = errors.New("has too much formatting in one paragraph or list")
+	ErrTooComplex = &TermsError{
+		"has too much formatting in one paragraph or list",
+		"The file has too much formatting in one paragraph or list. Add blank lines between paragraphs and upload again.",
+	}
 	// ErrNestedTooDeep means lists or quotes are nested beyond any real use.
-	ErrNestedTooDeep = errors.New("nests lists or quotes too deeply")
+	ErrNestedTooDeep = &TermsError{"nests lists or quotes too deeply", "The file nests lists or quotes too deeply."}
 	// ErrTableTooLarge means the tables have more cells than a page can show.
-	ErrTableTooLarge = errors.New("has tables with more than 10,000 cells in total")
+	ErrTableTooLarge = &TermsError{
+		fmt.Sprintf("has tables with more than %s cells in total", thousands(maxTableCells)),
+		fmt.Sprintf("The file's tables have more than %s cells in total.", thousands(maxTableCells)),
+	}
 	// ErrRenderedTooLarge means the rendered page is too large to serve.
-	ErrRenderedTooLarge = errors.New("renders to more than 2 MB")
+	ErrRenderedTooLarge = &TermsError{
+		fmt.Sprintf("renders to more than %d MB", maxRenderedSize>>20),
+		"The file is too large to show. Make it shorter and upload again.",
+	}
 	// ErrContainsHTML means the document has HTML blocks with text in them.
 	// Those blocks are dropped from the rendered page, text included.
-	ErrContainsHTML = errors.New("contains HTML, which isn't shown; convert it to markdown")
+	ErrContainsHTML = &TermsError{
+		"contains HTML, which isn't shown; convert it to markdown",
+		"The file contains HTML. Convert it to markdown and upload again.",
+	}
 	// ErrNoVisibleText means the rendered page would have nothing to read.
-	ErrNoVisibleText = errors.New("has no text to show")
+	ErrNoVisibleText = &TermsError{"has no text to show", "The file has no text to show."}
 )
+
+// thousands formats a limit the way the messages print it: 10000 as "10,000".
+func thousands(n int) string {
+	s := strconv.Itoa(n)
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	return s
+}
 
 // ValidateTerms reports what an admin should fix before a document is used as
 // terms: anything that would silently lose text or leave the page empty.

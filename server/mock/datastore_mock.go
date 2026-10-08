@@ -1370,8 +1370,6 @@ type MDMInsertEULAFunc func(ctx context.Context, eula *fleet.MDMEULA) error
 
 type MDMDeleteEULAFunc func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error
 
-type MDMGetEULAFunc func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error)
-
 type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error)
 
 type GetMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error)
@@ -4583,9 +4581,6 @@ type DataStore struct {
 
 	MDMDeleteEULAFunc        MDMDeleteEULAFunc
 	MDMDeleteEULAFuncInvoked bool
-
-	MDMGetEULAFunc        MDMGetEULAFunc
-	MDMGetEULAFuncInvoked bool
 
 	SetOrUpdateMDMAppleSetupAssistantFunc        SetOrUpdateMDMAppleSetupAssistantFunc
 	SetOrUpdateMDMAppleSetupAssistantFuncInvoked bool
@@ -11087,13 +11082,6 @@ func (s *DataStore) MDMDeleteEULA(ctx context.Context, platform fleet.MDMEULAPla
 	s.MDMDeleteEULAFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMDeleteEULAFunc(ctx, platform, token)
-}
-
-func (s *DataStore) MDMGetEULA(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
-	s.mu.Lock()
-	s.MDMGetEULAFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMGetEULAFunc(ctx, platform)
 }
 
 func (s *DataStore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {

@@ -1430,7 +1430,7 @@ func TestValidateMarkdownEULA(t *testing.T) {
 	}
 }
 
-func TestEULAMetadataReadsArePrimaryAndUncached(t *testing.T) {
+func TestEULAMetadataBypassesCache(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	authorizer, err := authz.NewAuthorizer()
@@ -1441,7 +1441,6 @@ func TestEULAMetadataReadsArePrimaryAndUncached(t *testing.T) {
 	var platforms []fleet.MDMEULAPlatform
 	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 		require.True(t, ctxdb.IsCachedMysqlBypassed(ctx), platform)
-		require.True(t, ctxdb.IsPrimaryRequired(ctx), platform)
 		platforms = append(platforms, platform)
 		return &fleet.MDMEULA{}, nil
 	}

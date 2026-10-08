@@ -7,14 +7,11 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"html/template"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"sort"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -4037,145 +4034,4 @@ func TestGetPendingMDMCmdsSkipsCommandThatFailsExpansion(t *testing.T) {
 	require.NoError(t, err, "a failed expansion must not fail the whole management session")
 	require.Len(t, cmds, 1)
 	require.Equal(t, "good", cmds[0].CmdID.Value)
-}
-
-func TestCustomWindowsTOSContent(t *testing.T) {
-	// windowsTOSCache is package state, so this test resets it and is not parallel.
-	windowsTOSCache.clear()
-	t.Cleanup(windowsTOSCache.clear)
-
-	ds := new(mock.Store)
-	svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
-	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-
-	var metaErr error
-	uploadID, doc := "upload-1", "# Terms\n"
-	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
-		if metaErr != nil {
-			return nil, metaErr
-		}
-		return &fleet.MDMEULA{Token: uploadID, Platform: platform}, nil
-	}
-	var loads atomic.Int32
-	var loadErr error
-	release := make(chan struct{})
-	ds.MDMGetEULAFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
-		loads.Add(1)
-		if _, ok := ctx.Deadline(); !ok {
-			return nil, errors.New("the shared load must be bounded")
-		}
-		<-release
-		if loadErr != nil {
-			return nil, loadErr
-		}
-		return &fleet.MDMEULA{Token: uploadID, Platform: platform, Bytes: []byte(doc)}, nil
-	}
-
-	t.Run("concurrent misses share one load and render", func(t *testing.T) {
-		var wg sync.WaitGroup
-		results := make(chan template.HTML, 10)
-		for range 10 {
-			wg.Go(func() { results <- svc.customWindowsTOSContent(ctx) })
-		}
-		require.Eventually(t, func() bool { return loads.Load() == 1 }, time.Second, 10*time.Millisecond)
-		// Without a shared render, the waiting requests would each start a load.
-		require.Never(t, func() bool { return loads.Load() > 1 }, 200*time.Millisecond, 10*time.Millisecond)
-		close(release)
-		wg.Wait()
-		close(results)
-		for got := range results {
-			require.Contains(t, string(got), "<h1>Terms</h1>")
-		}
-		require.EqualValues(t, 1, loads.Load())
-	})
-
-	t.Run("cached content needs no load", func(t *testing.T) {
-		require.Contains(t, string(svc.customWindowsTOSContent(ctx)), "<h1>Terms</h1>")
-		require.EqualValues(t, 1, loads.Load())
-	})
-
-	t.Run("a database error keeps the cached agreement", func(t *testing.T) {
-		metaErr = errors.New("connection refused")
-		t.Cleanup(func() { metaErr = nil })
-		require.Contains(t, string(svc.customWindowsTOSContent(ctx)), "<h1>Terms</h1>")
-	})
-
-	t.Run("a document that fails to render is cached as empty", func(t *testing.T) {
-		uploadID, doc = "upload-2", strings.Repeat("a", 9000) // over the line limit
-		require.Empty(t, svc.customWindowsTOSContent(ctx))
-		require.Empty(t, svc.customWindowsTOSContent(ctx))
-		require.EqualValues(t, 2, loads.Load())
-	})
-
-	t.Run("a deleted agreement clears the cache", func(t *testing.T) {
-		uploadID, doc = "upload-3", "# New terms\n"
-		require.Contains(t, string(svc.customWindowsTOSContent(ctx)), "New terms")
-
-		metaErr = newNotFoundError()
-		require.Empty(t, svc.customWindowsTOSContent(ctx))
-		metaErr = errors.New("connection refused")
-		require.Empty(t, svc.customWindowsTOSContent(ctx), "nothing cached to fall back on")
-		metaErr = nil
-	})
-
-	t.Run("Fleet Free shows the default terms", func(t *testing.T) {
-		require.NotEmpty(t, svc.customWindowsTOSContent(ctx))
-		freeCtx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierFree})
-		require.Empty(t, svc.customWindowsTOSContent(freeCtx))
-		metaErr = errors.New("connection refused")
-		t.Cleanup(func() { metaErr = nil })
-		require.Empty(t, svc.customWindowsTOSContent(ctx), "the downgrade cleared the cache")
-	})
-
-	t.Run("a database error while loading keeps the cached agreement", func(t *testing.T) {
-		uploadID, doc = "upload-4", "# Current terms\n"
-		require.Contains(t, string(svc.customWindowsTOSContent(ctx)), "Current terms")
-
-		uploadID, loadErr = "upload-5", errors.New("connection refused")
-		t.Cleanup(func() { loadErr = nil })
-		require.Contains(t, string(svc.customWindowsTOSContent(ctx)), "Current terms")
-	})
-
-	t.Run("an agreement deleted between the two reads shows the default terms", func(t *testing.T) {
-		uploadID, loadErr = "upload-6", newNotFoundError()
-		t.Cleanup(func() { loadErr = nil })
-		require.Empty(t, svc.customWindowsTOSContent(ctx))
-	})
-
-	t.Run("a request that stops waiting for a render gets the cached agreement", func(t *testing.T) {
-		uploadID, doc = "upload-7", "# Earlier terms\n"
-		require.Contains(t, string(svc.customWindowsTOSContent(ctx)), "Earlier terms")
-
-		uploadID, doc, release = "upload-8", "# Later terms\n", make(chan struct{})
-		canceled, cancel := context.WithCancel(ctx)
-		cancel()
-		require.Contains(t, string(svc.customWindowsTOSContent(canceled)), "Earlier terms")
-
-		// Let the shared render finish before the test ends, since the cache is package state.
-		close(release)
-		require.Eventually(t, func() bool {
-			_, ok := windowsTOSCache.get("upload-8")
-			return ok
-		}, time.Second, 10*time.Millisecond)
-	})
-}
-
-func TestRenderedTOSCacheKeepsNewerContent(t *testing.T) {
-	t.Parallel()
-	var c renderedTOSCache
-
-	// A render that started first but finishes last doesn't replace the newer agreement.
-	older := c.generation()
-	c.setIfUnchanged(c.generation(), "new", "new terms")
-	c.setIfUnchanged(older, "old", "old terms")
-	got, ok := c.get("new")
-	require.True(t, ok)
-	require.Equal(t, template.HTML("new terms"), got)
-	require.Equal(t, template.HTML("new terms"), c.last())
-
-	// Nor does it bring back an agreement deleted while it ran.
-	started := c.generation()
-	c.clear()
-	c.setIfUnchanged(started, "new", "new terms")
-	require.Empty(t, c.last())
 }

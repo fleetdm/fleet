@@ -725,10 +725,9 @@ func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, err
 		return nil, err
 	}
 
-	// Admins and GitOps compare against what they just uploaded, so read past
-	// the per-instance cache that serves the enrollment pages, and past a
-	// lagging replica.
-	ctx = ctxdb.BypassCachedMysql(ctxdb.RequirePrimary(ctx, true), true)
+	// The per-instance cache is for the enrollment pages, which read this on
+	// every request; admin and GitOps reads are rare and skip it.
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
 	eula, err := svc.ds.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatformDarwin)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting EULA metadata")
@@ -791,29 +790,12 @@ func validateMarkdownEULA(name string, content []byte) error {
 	}
 
 	err := markdown.ValidateTerms(content)
+	var termsErr *markdown.TermsError
 	switch {
 	case err == nil:
 		return nil
-	case errors.Is(err, markdown.ErrTooLarge):
-		return &fleet.BadRequestError{Message: "The file must be 512 KB or smaller.", InternalErr: err}
-	case errors.Is(err, markdown.ErrLineTooLong):
-		return &fleet.BadRequestError{Message: "The file has a line longer than 8 KB. Split long paragraphs into shorter lines and upload again.", InternalErr: err}
-	case errors.Is(err, markdown.ErrTooManyLines):
-		return &fleet.BadRequestError{Message: "The file has more than 10,000 lines.", InternalErr: err}
-	case errors.Is(err, markdown.ErrTooComplex):
-		return &fleet.BadRequestError{Message: "The file has too much formatting in one paragraph or list. Add blank lines between paragraphs and upload again.", InternalErr: err}
-	case errors.Is(err, markdown.ErrNestedTooDeep):
-		return &fleet.BadRequestError{Message: "The file nests lists or quotes too deeply.", InternalErr: err}
-	case errors.Is(err, markdown.ErrTableTooLarge):
-		return &fleet.BadRequestError{Message: "The file's tables have more than 10,000 cells in total.", InternalErr: err}
-	case errors.Is(err, markdown.ErrRenderedTooLarge):
-		return &fleet.BadRequestError{Message: "The file is too large to show. Make it shorter and upload again.", InternalErr: err}
-	case errors.Is(err, markdown.ErrNotUTF8):
-		return &fleet.BadRequestError{Message: "The file must be UTF-8 text.", InternalErr: err}
-	case errors.Is(err, markdown.ErrContainsHTML):
-		return &fleet.BadRequestError{Message: "The file contains HTML. Convert it to markdown and upload again.", InternalErr: err}
-	case errors.Is(err, markdown.ErrNoVisibleText):
-		return &fleet.BadRequestError{Message: "The file has no text to show.", InternalErr: err}
+	case errors.As(err, &termsErr):
+		return &fleet.BadRequestError{Message: termsErr.Message, InternalErr: err}
 	default:
 		return &fleet.BadRequestError{Message: "The file couldn't be read as markdown.", InternalErr: err}
 	}
@@ -857,10 +839,9 @@ func (svc *Service) MDMGetWindowsEULAMetadata(ctx context.Context) (*fleet.MDMEU
 		return nil, err
 	}
 
-	// Admins and GitOps compare against what they just uploaded, so read past
-	// the per-instance cache that serves the terms page, and past a lagging
-	// replica.
-	ctx = ctxdb.BypassCachedMysql(ctxdb.RequirePrimary(ctx, true), true)
+	// The per-instance cache is for the terms page, which reads this on every
+	// request; admin and GitOps reads are rare and skip it.
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
 	eula, err := svc.ds.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatformWindows)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting Windows EULA metadata")

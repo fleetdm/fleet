@@ -5505,9 +5505,9 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 		http.StatusBadRequest, "line longer than 8 KB")
 
 	// a dry run validates without storing anything, and a mistyped one doesn't save
-	s.uploadWindowsEULAWithQuery(&fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, "dry_run=treu", http.StatusBadRequest, "failed to decode dry_run")
-	s.uploadWindowsEULAWithQuery(&fleet.MDMEULA{Bytes: []byte("<!-- draft -->\n"), Name: mdName}, "dry_run=true", http.StatusBadRequest, "no text to show")
-	s.uploadWindowsEULAWithQuery(&fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, "dry_run=true", http.StatusOK, "")
+	s.uploadEULAFile("windows_eula", windowsEULAUploadPath+"?dry_run=treu", &fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, http.StatusBadRequest, "failed to decode dry_run")
+	s.uploadEULAFile("windows_eula", windowsEULAUploadPath+"?dry_run=true", &fleet.MDMEULA{Bytes: []byte("<!-- draft -->\n"), Name: mdName}, http.StatusBadRequest, "no text to show")
+	s.uploadEULAFile("windows_eula", windowsEULAUploadPath+"?dry_run=true", &fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, http.StatusOK, "")
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/windows_eula/metadata", nil, http.StatusNotFound, &metadataResp)
 
 	// upload; a path in the uploaded name is dropped, since generate-gitops
@@ -5593,25 +5593,23 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", macToken), nil, http.StatusOK, &macDelete)
 }
 
-func (s *integrationMDMTestSuite) uploadWindowsEULA(
-	eula *fleet.MDMEULA,
-	expectedStatus int,
-	wantErr string,
-) {
-	s.uploadWindowsEULAWithQuery(eula, "", expectedStatus, wantErr)
+const windowsEULAUploadPath = "/api/latest/fleet/setup_experience/windows_eula"
+
+func (s *integrationMDMTestSuite) uploadEULA(eula *fleet.MDMEULA, expectedStatus int, wantErr string) {
+	s.uploadEULAFile("eula", "/api/latest/fleet/setup_experience/eula", eula, expectedStatus, wantErr)
 }
 
-func (s *integrationMDMTestSuite) uploadWindowsEULAWithQuery(
-	eula *fleet.MDMEULA,
-	query string,
-	expectedStatus int,
-	wantErr string,
-) {
+func (s *integrationMDMTestSuite) uploadWindowsEULA(eula *fleet.MDMEULA, expectedStatus int, wantErr string) {
+	s.uploadEULAFile("windows_eula", windowsEULAUploadPath, eula, expectedStatus, wantErr)
+}
+
+// uploadEULAFile posts eula in the multipart field to path, which can carry a query string.
+func (s *integrationMDMTestSuite) uploadEULAFile(field, path string, eula *fleet.MDMEULA, expectedStatus int, wantErr string) {
 	t := s.T()
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
-	fw, err := w.CreateFormFile("windows_eula", eula.Name)
+	fw, err := w.CreateFormFile(field, eula.Name)
 	require.NoError(t, err)
 	_, err = io.Copy(fw, bytes.NewBuffer(eula.Bytes))
 	require.NoError(t, err)
@@ -5623,10 +5621,6 @@ func (s *integrationMDMTestSuite) uploadWindowsEULAWithQuery(
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	path := "/api/latest/fleet/setup_experience/windows_eula"
-	if query != "" {
-		path += "?" + query
-	}
 	res := s.DoRawWithHeaders("POST", path, b.Bytes(), expectedStatus, headers)
 
 	if wantErr != "" {
@@ -7111,37 +7105,6 @@ func (s *integrationMDMTestSuite) uploadBootstrapPackage(
 	}
 
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/bootstrap", b.Bytes(), expectedStatus, headers, "dry_run", strconv.FormatBool(dryRun))
-
-	if wantErr != "" {
-		errMsg := extractServerErrorText(res.Body)
-		assert.Contains(t, errMsg, wantErr)
-	}
-}
-
-func (s *integrationMDMTestSuite) uploadEULA(
-	eula *fleet.MDMEULA,
-	expectedStatus int,
-	wantErr string,
-) {
-	t := s.T()
-
-	var b bytes.Buffer
-	w := multipart.NewWriter(&b)
-
-	// add the eula field
-	fw, err := w.CreateFormFile("eula", eula.Name)
-	require.NoError(t, err)
-	_, err = io.Copy(fw, bytes.NewBuffer(eula.Bytes))
-	require.NoError(t, err)
-	w.Close()
-
-	headers := map[string]string{
-		"Content-Type":  w.FormDataContentType(),
-		"Accept":        "application/json",
-		"Authorization": fmt.Sprintf("Bearer %s", s.token),
-	}
-
-	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/eula", b.Bytes(), expectedStatus, headers)
 
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)

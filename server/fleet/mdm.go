@@ -353,11 +353,9 @@ const MaxEULAFileNameLength = 255
 // content is always a PDF, so the extension holds.
 const MDMEULADefaultDarwinFileName = "eula.pdf"
 
+// AuthzType is the same for every platform: their EULAs have the same access.
 func (e MDMEULA) AuthzType() string {
-	if e.Platform == MDMEULAPlatformWindows {
-		return "mdm_windows_eula"
-	}
-	return "mdm_apple_eula"
+	return "mdm_eula"
 }
 
 // SanitizeEULAFileName returns the last element of an uploaded EULA file name,
