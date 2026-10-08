@@ -16,12 +16,15 @@ func registerInventoryTools(s *server.MCPServer, fleetClient *FleetClient) {
 	registerGetHostUsers(s, fleetClient)
 }
 
-func validateGetSoftwareArgs(perHost bool, fleet, platform, vulnerable, source, extensionFor string) error {
+func validateGetSoftwareArgs(perHost bool, fleet, platform, vulnerable, aiTool, source, extensionFor string) error {
 	if perHost && (fleet != "" || platform != "") {
 		return fmt.Errorf("host_id/host_identifier are mutually exclusive with fleet/platform — pick per-host or cross-host mode")
 	}
 	if vulnerable != "" && vulnerable != "true" && vulnerable != "false" {
 		return fmt.Errorf("vulnerable must be 'true' or 'false', got %q", vulnerable)
+	}
+	if aiTool != "" && aiTool != "true" && aiTool != "false" {
+		return fmt.Errorf("ai_tool must be 'true' or 'false', got %q", aiTool)
 	}
 	if extensionFor != "" && source == "" {
 		return fmt.Errorf("extension_for requires source — e.g. source=chrome_extensions with extension_for=brave")
@@ -34,13 +37,14 @@ func validateGetSoftwareArgs(perHost bool, fleet, platform, vulnerable, source, 
 
 func registerGetSoftware(s *server.MCPServer, fleetClient *FleetClient) {
 	tool := mcp.NewTool("get_software",
-		mcp.WithDescription("List software/packages from Fleet's stored host inventory (refreshed on each host check-in — works even when hosts are offline). Two modes, picked automatically:\n\n- PER-HOST mode (when host_id OR host_identifier is set): every package installed on that host, including version, source, install paths, and any matching CVEs. Use this for 'what's on host X?' questions.\n- CROSS-HOST mode (no host arg): software TITLES seen across hosts, optionally scoped by fleet/platform/vulnerability. Use this for 'do we have python on any Workstation?' or 'every npm package across the fleet'.\n\nThe `source` arg is the osquery source-table name (e.g. 'npm_packages', 'python_packages', 'apps', 'deb_packages', 'rpm_packages', 'chrome_extensions', 'vscode_extensions', 'homebrew_packages'), matched case-insensitively. Fleet filters it server-side in cross-host mode and rejects unknown sources; in per-host mode it's filtered client-side. `extension_for` narrows an extension source to one browser or IDE (e.g. source='chrome_extensions' with extension_for='brave') and requires `source`. Use `query` for a substring match on software name OR a CVE id ('CVE-2026-12345') — server-side, fast. Prefer this tool over run_live_query for inventory lookups: the cached data is always-available and doesn't burn host CPU."),
+		mcp.WithDescription("List software/packages from Fleet's stored host inventory (refreshed on each host check-in — works even when hosts are offline). Two modes, picked automatically:\n\n- PER-HOST mode (when host_id OR host_identifier is set): every package installed on that host, including version, source, install paths, and any matching CVEs. Use this for 'what's on host X?' questions.\n- CROSS-HOST mode (no host arg): software TITLES seen across hosts, optionally scoped by fleet/platform/vulnerability. Use this for 'do we have python on any Workstation?' or 'every npm package across the fleet'.\n\nThe `source` arg is the osquery source-table name (e.g. 'npm_packages', 'python_packages', 'apps', 'deb_packages', 'rpm_packages', 'chrome_extensions', 'vscode_extensions', 'homebrew_packages'), matched case-insensitively. AI tools found by fleetd use 'ai_clis' (AI CLI tools), 'mcp_servers' (MCP servers) and 'ai_skills' (AI skills, e.g. CLAUDE.md files); these are Fleet Premium only. `ai_tool='true'` narrows either mode to AI tools whatever their source (AI apps, AI CLI tools, MCP servers, AI skills); Fleet Premium. Fleet filters it server-side in cross-host mode and rejects unknown sources; in per-host mode it's filtered client-side. `extension_for` narrows an extension source to one browser or IDE (e.g. source='chrome_extensions' with extension_for='brave') and requires `source`. Use `query` for a substring match on software name OR a CVE id ('CVE-2026-12345') — server-side, fast. Prefer this tool over run_live_query for inventory lookups: the cached data is always-available and doesn't burn host CPU."),
 		mcp.WithString("host_id", mcp.Description("Numeric Fleet host ID. Switches to per-host mode. Mutually exclusive with fleet/platform.")),
 		mcp.WithString("host_identifier", mcp.Description("Exact hostname / UUID / serial OR a substring (same disambiguation as get_host). Switches to per-host mode. Mutually exclusive with fleet/platform.")),
 		mcp.WithString("fleet", mcp.Description("Fleet name (e.g. 'Workstations') — cross-host mode only. Resolved via get_fleets.")),
 		mcp.WithString("platform", mcp.Description("Cross-host mode only, and REQUIRES `fleet` (Fleet's software/titles endpoint only filters by platform together with a team). One of: macos, windows, linux, chrome, ios, ipados.")),
 		mcp.WithString("vulnerable", mcp.Description("'true' to show only software with known CVEs; 'false' or omitted shows all.")),
-		mcp.WithString("source", mcp.Description("osquery source table (e.g. 'npm_packages', 'python_packages', 'apps', 'deb_packages', 'chrome_extensions'). Case-insensitive. Server-side in cross-host mode (unknown sources are rejected), client-side in per-host mode.")),
+		mcp.WithString("ai_tool", mcp.Description("'true' to show only AI tools (AI apps, AI CLI tools, MCP servers, AI skills), whatever their source. Fleet Premium. Server-side in both modes.")),
+		mcp.WithString("source", mcp.Description("osquery source table (e.g. 'npm_packages', 'python_packages', 'apps', 'deb_packages', 'chrome_extensions', or 'ai_clis', 'mcp_servers', 'ai_skills' for AI tools on Fleet Premium). Case-insensitive. Server-side in cross-host mode (unknown sources are rejected), client-side in per-host mode.")),
 		mcp.WithString("extension_for", mcp.Description("Browser or IDE an extension belongs to; requires `source`. Case-insensitive. One of: 'chrome', 'chromium', 'brave', 'edge', 'edge_beta', 'opera', 'yandex' (chrome_extensions); 'firefox' (firefox_addons); 'vscode', 'vscode_insiders', 'vscodium', 'vscodium_insiders', 'cursor', 'windsurf', 'trae' (vscode_extensions); JetBrains IDE names as osquery reports them, like 'intellij_idea', 'goland', 'pycharm', 'rust_rov' (jetbrains_plugins). Server-side in cross-host mode (unknown values are rejected), client-side in per-host mode.")),
 		mcp.WithString("query", mcp.Description("Substring (case-insensitive) matched against software name OR a CVE id. Server-side. Use for plain 'do we have X?' lookups.")),
 		mcp.WithString("per_page", mcp.Description("Max rows in the merged result (default 50, max 200). Applied AFTER the source filter so the cap reflects the filtered set.")),
@@ -56,6 +60,7 @@ func registerGetSoftware(s *server.MCPServer, fleetClient *FleetClient) {
 		fleet := getOptionalString(request, "fleet")
 		platform := getOptionalString(request, "platform")
 		vulnerable := getOptionalString(request, "vulnerable")
+		aiTool := getOptionalString(request, "ai_tool")
 		source := getOptionalString(request, "source")
 		extensionFor := getOptionalString(request, "extension_for")
 		query := getOptionalString(request, "query")
@@ -66,7 +71,7 @@ func registerGetSoftware(s *server.MCPServer, fleetClient *FleetClient) {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 		perHost := hostID != 0 || identifier != ""
-		if err := validateGetSoftwareArgs(perHost, fleet, platform, vulnerable, source, extensionFor); err != nil {
+		if err := validateGetSoftwareArgs(perHost, fleet, platform, vulnerable, aiTool, source, extensionFor); err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
@@ -82,7 +87,7 @@ func registerGetSoftware(s *server.MCPServer, fleetClient *FleetClient) {
 				})
 			}
 
-			software, truncated, err := fleetClient.GetHostSoftware(ctx, host.ID, query, vulnerable, source, extensionFor, perPage)
+			software, truncated, err := fleetClient.GetHostSoftware(ctx, host.ID, query, vulnerable, aiTool, source, extensionFor, perPage)
 			if err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("Failed to fetch host software: %v", err)), nil
 			}
@@ -104,7 +109,7 @@ func registerGetSoftware(s *server.MCPServer, fleetClient *FleetClient) {
 			})
 		}
 
-		titles, truncated, err := fleetClient.ListSoftwareTitles(ctx, fleet, platform, query, vulnerable, source, extensionFor, perPage)
+		titles, truncated, err := fleetClient.ListSoftwareTitles(ctx, fleet, platform, query, vulnerable, aiTool, source, extensionFor, perPage)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to list software titles: %v", err)), nil
 		}
