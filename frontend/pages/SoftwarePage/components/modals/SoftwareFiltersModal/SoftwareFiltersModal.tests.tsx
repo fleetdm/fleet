@@ -116,8 +116,8 @@ describe("SoftwareFiltersModal component", () => {
     const scoreInput = (field: "minScore" | "maxScore") =>
       document.querySelector(`input[name="${field}"]`) as HTMLInputElement;
 
-    const setUpEnabled = async () => {
-      const rendered = setUpModal();
+    const setUpEnabled = async (props = {}) => {
+      const rendered = setUpModal(props);
       await rendered.user.click(screen.getByRole("switch"));
       await openAdvanced(rendered.user);
       return rendered;
@@ -204,7 +204,7 @@ describe("SoftwareFiltersModal component", () => {
 
     it("drops the error when Vulnerable software is switched off", async () => {
       const onSubmitSpy = jest.fn();
-      const { user } = await setUpEnabled();
+      const { user } = await setUpEnabled({ onSubmit: onSubmitSpy });
 
       await user.type(scoreInput("minScore"), "11");
       await user.tab();
@@ -217,6 +217,15 @@ describe("SoftwareFiltersModal component", () => {
         screen.queryByText(SEVERITY_SCORE_RANGE_ERROR)
       ).not.toBeInTheDocument();
       expect(onSubmitSpy).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("button", { name: /Apply/i }));
+      expect(onSubmitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          vulnerable: false,
+          minCvssScore: undefined,
+          maxCvssScore: undefined,
+        })
+      );
     });
 
     it("clears a score error when the severity option changes", async () => {
