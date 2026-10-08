@@ -201,10 +201,8 @@ describe("SeverityFilter", () => {
     });
   });
 
-  // Typing a range that doesn't match the selected preset does not flip the
-  // dropdown to Custom mid-edit — that only happens once a parent re-derives
-  // severity from the saved range, i.e. after the user saves and reopens.
-  it("keeps the selected preset's label while its score inputs are edited", async () => {
+  // The dropdown re-derives when a score field loses focus, not per keystroke.
+  it("keeps the selected preset's label while typing, then switches to Custom on blur", async () => {
     const { user } = renderWithSetup(
       <ControlledSeverityFilter severity="medium" minScore="4" maxScore="6.9" />
     );
@@ -214,9 +212,25 @@ describe("SeverityFilter", () => {
 
     expect(screen.getByText("Medium severity")).toBeInTheDocument();
     expect(getMinInput()).toHaveValue(5);
+
+    await user.tab();
+
+    expect(screen.getByText("Custom severity")).toBeInTheDocument();
   });
 
-  describe("typing never changes the dropdown", () => {
+  it("switches back to a preset on blur when the range matches one", async () => {
+    const { user } = renderWithSetup(
+      <ControlledSeverityFilter severity="custom" minScore="5" maxScore="6.9" />
+    );
+
+    await user.clear(getMinInput());
+    await user.type(getMinInput(), "4");
+    await user.tab();
+
+    expect(screen.getByText("Medium severity")).toBeInTheDocument();
+  });
+
+  describe("typing alone never changes the dropdown", () => {
     const renderCustom = () =>
       renderWithSetup(<ControlledSeverityFilter severity="custom" />);
 

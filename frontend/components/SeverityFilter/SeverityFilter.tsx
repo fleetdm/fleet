@@ -12,8 +12,10 @@ import {
   getSeverityOption,
   ISeverityFieldErrors,
   ISeverityFilterValue,
+  parseSeverityScore,
   SEVERITY_DROPDOWN_OPTIONS,
   SEVERITY_HELP_TEXT,
+  severityForRange,
   SeverityScoreField,
 } from "./helpers";
 
@@ -56,6 +58,17 @@ const SeverityFilter = ({
     onChange({ severity, minScore, maxScore, [name]: value as string });
   };
 
+  const onScoreBlurred = (field: SeverityScoreField) => {
+    const derived = severityForRange(
+      parseSeverityScore(minScore),
+      parseSeverityScore(maxScore)
+    );
+    if (derived !== severity) {
+      onChange({ severity: derived, minScore, maxScore });
+    }
+    onScoreBlur?.(field);
+  };
+
   const renderLabel = () => (
     <TooltipWrapper
       tipContent="The worst case impact across different environments (CVSS version 3.x base score)."
@@ -83,7 +96,7 @@ const SeverityFilter = ({
         <InputField
           label="Min score"
           onChange={onScoreChange}
-          onBlur={() => onScoreBlur?.("minScore")}
+          onBlur={() => onScoreBlurred("minScore")}
           onFocus={() => onScoreFocus?.("minScore")}
           name="minScore"
           value={minScore}
@@ -99,7 +112,7 @@ const SeverityFilter = ({
         <InputField
           label="Max score"
           onChange={onScoreChange}
-          onBlur={() => onScoreBlur?.("maxScore")}
+          onBlur={() => onScoreBlurred("maxScore")}
           onFocus={() => onScoreFocus?.("maxScore")}
           name="maxScore"
           value={maxScore}
