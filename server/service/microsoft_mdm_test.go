@@ -4061,6 +4061,9 @@ func TestCustomWindowsTOSContent(t *testing.T) {
 	release := make(chan struct{})
 	ds.MDMGetEULAFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
 		loads.Add(1)
+		if _, ok := ctx.Deadline(); !ok {
+			return nil, errors.New("the shared load must be bounded")
+		}
 		<-release
 		if loadErr != nil {
 			return nil, loadErr

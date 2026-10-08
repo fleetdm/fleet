@@ -1363,9 +1363,12 @@ func (svc *Service) customWindowsTOSContent(ctx context.Context) template.HTML {
 	}
 
 	// Devices enrolling right after an upload miss the cache together; one request loads and renders the document for
-	// all of them. It must not carry that request's cancellation to the others.
+	// all of them. It must not carry that request's cancellation to the others, but it is capped so a stuck query
+	// can't hold the flight that every later request joins.
 	result := windowsTOSRender.DoChan(meta.Token, func() (any, error) {
-		return svc.renderWindowsTOS(context.WithoutCancel(ctx), meta.Token), nil
+		flightCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), windowsTOSRenderTimeout)
+		defer cancel()
+		return svc.renderWindowsTOS(flightCtx, meta.Token), nil
 	})
 	select {
 	case res := <-result:
@@ -1413,6 +1416,8 @@ var (
 	windowsTOSCache  renderedTOSCache
 	windowsTOSRender singleflight.Group
 )
+
+const windowsTOSRenderTimeout = 30 * time.Second
 
 type renderedTOSCache struct {
 	mu      sync.Mutex

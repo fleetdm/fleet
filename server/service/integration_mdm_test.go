@@ -5438,6 +5438,13 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", eulaToken), nil, http.StatusNotFound, &metadataResp)
 	// trying to delete again is a bad request
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", eulaToken), nil, http.StatusNotFound, &deleteResp)
+
+	// a name with nothing usable left after sanitizing is stored under the default name
+	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: ".."}, http.StatusOK, "")
+	metadataResp = getMDMEULAMetadataResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata", nil, http.StatusOK, &metadataResp)
+	require.Equal(t, fleet.MDMEULADefaultDarwinFileName, metadataResp.Name)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", metadataResp.Token), nil, http.StatusOK, &deleteResp)
 }
 
 func (s *integrationMDMTestSuite) TestWindowsEULA() {
@@ -5494,7 +5501,8 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: bytes.Repeat([]byte("A"), 9000), Name: "terms.md"},
 		http.StatusBadRequest, "line longer than 8 KB")
 
-	// a dry run validates without storing anything
+	// a dry run validates without storing anything, and a mistyped one doesn't save
+	s.uploadWindowsEULAWithQuery(&fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, "dry_run=treu", http.StatusBadRequest, "failed to decode dry_run")
 	s.uploadWindowsEULAWithQuery(&fleet.MDMEULA{Bytes: []byte("<!-- draft -->\n"), Name: mdName}, "dry_run=true", http.StatusBadRequest, "no text to show")
 	s.uploadWindowsEULAWithQuery(&fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, "dry_run=true", http.StatusOK, "")
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/windows_eula/metadata", nil, http.StatusNotFound, &metadataResp)

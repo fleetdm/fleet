@@ -291,7 +291,10 @@ func decodeEULAUpload(r *http.Request, field string, maxBody int64) (*multipart.
 
 	dryRun := false
 	if v := r.URL.Query().Get("dry_run"); v != "" {
-		dryRun, _ = strconv.ParseBool(v)
+		// A mistyped dry run must not save.
+		if dryRun, err = strconv.ParseBool(v); err != nil {
+			return nil, false, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode dry_run bool in query: %s", err.Error())}
+		}
 	}
 	return files[0], dryRun, nil
 }

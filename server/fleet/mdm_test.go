@@ -1006,7 +1006,7 @@ func TestSanitizeEULAFileName(t *testing.T) {
 		{"", ""},
 		{" terms.md\t", "terms.md"},
 		{"ter\x00ms\r\n.md", "terms.md"},
-		{"terms‮dm.exe", "termsdm.exe"},
+		{"terms\u202edm.exe", "termsdm.exe"},
 	} {
 		require.Equal(t, tc.want, fleet.SanitizeEULAFileName(tc.in), "%q", tc.in)
 	}

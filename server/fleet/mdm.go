@@ -347,6 +347,10 @@ func (l *MDMEULAMetadataLookup) Clone() (Cloner, error) {
 // MaxEULAFileNameLength matches the eulas.name column, varchar(255).
 const MaxEULAFileNameLength = 255
 
+// MDMEULADefaultDarwinFileName names a macOS EULA whose uploaded name has nothing usable left after sanitizing. The
+// content is always a PDF, so the extension holds.
+const MDMEULADefaultDarwinFileName = "eula.pdf"
+
 func (e MDMEULA) AuthzType() string {
 	if e.Platform == MDMEULAPlatformWindows {
 		return "mdm_windows_eula"

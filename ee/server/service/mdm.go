@@ -636,7 +636,7 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSee
 		return err
 	}
 	if name = fleet.SanitizeEULAFileName(name); name == "" {
-		name = "eula.pdf"
+		name = fleet.MDMEULADefaultDarwinFileName
 	}
 	if utf8.RuneCountInString(name) > fleet.MaxEULAFileNameLength {
 		return &fleet.BadRequestError{Message: "The file name must be 255 characters or fewer."}
@@ -726,8 +726,9 @@ func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, err
 	}
 
 	// Admins and GitOps compare against what they just uploaded, so read past
-	// the per-instance cache that serves the enrollment pages.
-	ctx = ctxdb.BypassCachedMysql(ctx, true)
+	// the per-instance cache that serves the enrollment pages, and past a
+	// lagging replica.
+	ctx = ctxdb.BypassCachedMysql(ctxdb.RequirePrimary(ctx, true), true)
 	eula, err := svc.ds.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatformDarwin)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting EULA metadata")
@@ -857,8 +858,9 @@ func (svc *Service) MDMGetWindowsEULAMetadata(ctx context.Context) (*fleet.MDMEU
 	}
 
 	// Admins and GitOps compare against what they just uploaded, so read past
-	// the per-instance cache that serves the terms page.
-	ctx = ctxdb.BypassCachedMysql(ctx, true)
+	// the per-instance cache that serves the terms page, and past a lagging
+	// replica.
+	ctx = ctxdb.BypassCachedMysql(ctxdb.RequirePrimary(ctx, true), true)
 	eula, err := svc.ds.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatformWindows)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting Windows EULA metadata")
