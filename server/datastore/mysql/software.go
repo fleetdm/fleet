@@ -148,6 +148,54 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 	return ds.applyChangesForNewSoftwareDB(ctx, hostID, software)
 }
 
+// MarkSoftwareAsAITool reads first and only updates the rows not yet flagged, so the hourly
+// ingest stays off the writer once a host's rows are flagged. The read goes to the replica on
+// purpose, like applyChangesForNewSoftwareDB: a stale answer either repeats an idempotent update
+// or defers the flag to the host's next ingest.
+func (ds *Datastore) MarkSoftwareAsAITool(ctx context.Context, software []fleet.Software) error {
+	seen := make(map[string]struct{}, len(software))
+	checksums := make([][]byte, 0, len(software))
+	for _, sw := range software {
+		checksum, err := sw.ComputeRawChecksum()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "compute software checksum")
+		}
+		if _, ok := seen[string(checksum)]; ok {
+			continue
+		}
+		seen[string(checksum)] = struct{}{}
+		checksums = append(checksums, checksum)
+	}
+
+	return common_mysql.BatchProcessSimple(checksums, 500, func(batch [][]byte) error {
+		stmt, args, err := sqlx.In(`SELECT checksum FROM software WHERE checksum IN (?) AND ai_tool = 0`, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build select unflagged software query")
+		}
+		var unflagged [][]byte
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &unflagged, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select unflagged software")
+		}
+		if len(unflagged) == 0 {
+			return nil
+		}
+		stmt, args, err = sqlx.In(`UPDATE software SET ai_tool = 1 WHERE checksum IN (?)`, unflagged)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build mark software as ai tool query")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			// Not retried, like applyChangesForNewSoftwareDB: this runs on every ingest, so the
+			// host's next refresh flags these rows.
+			if common_mysql.RetryableError(err) {
+				ds.logger.InfoContext(ctx, "retryable error marking software as ai tool, will retry on next agent refresh", "err", err)
+				return nil
+			}
+			return ctxerr.Wrap(ctx, err, "mark software as ai tool")
+		}
+		return nil
+	})
+}
+
 func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
@@ -590,6 +638,7 @@ SELECT
     s.arch,
     s.extension_id,
     s.upgrade_code,
+    s.ai_tool,
     hs.last_opened_at
 FROM
     software s
@@ -1540,9 +1589,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			}
 
 			// Insert software entries
-			const numberOfArgsPerSoftware = 13
+			const numberOfArgsPerSoftware = 14
 			values := strings.TrimSuffix(
-				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
+				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
 			)
 			stmt := fmt.Sprintf(
 				`INSERT IGNORE INTO software (
@@ -1558,7 +1607,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					title_id,
 					checksum,
 					application_id,
-					upgrade_code
+					upgrade_code,
+					ai_tool
 				) VALUES %s`,
 				values,
 			)
@@ -1605,6 +1655,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				args = append(
 					args, softwareName, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch,
 					sw.BundleIdentifier, sw.ExtensionID, sw.ExtensionFor, titleID, checksum, sw.ApplicationID, sw.UpgradeCode,
+					sw.AITool,
 				)
 			}
 
@@ -2232,6 +2283,7 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 			s.bundle_identifier,
 			s.extension_id,
 			s.extension_for,
+			s.ai_tool,
 			s.release,
 			s.vendor,
 			s.arch,
@@ -2329,6 +2381,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.bundle_identifier",
 			"s.extension_id",
 			"s.extension_for",
+			"s.ai_tool",
 			"s.release",
 			"s.vendor",
 			"s.arch",
@@ -2519,6 +2572,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"s.bundle_identifier",
 		"s.extension_id",
 		"s.extension_for",
+		"s.ai_tool",
 		"s.release",
 		"s.vendor",
 		"s.arch",
@@ -2543,6 +2597,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.bundle_identifier",
 			"s.extension_id",
 			"s.extension_for",
+			"s.ai_tool",
 			"s.release",
 			"s.vendor",
 			"s.arch",
