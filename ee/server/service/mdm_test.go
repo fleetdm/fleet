@@ -1438,8 +1438,8 @@ func TestEULAMetadataReadsArePrimaryAndUncached(t *testing.T) {
 	svc := &Service{ds: ds, authz: authorizer}
 	ctx := test.UserContext(t.Context(), test.UserAdmin)
 
-	var platforms []string
-	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+	var platforms []fleet.MDMEULAPlatform
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 		require.True(t, ctxdb.IsCachedMysqlBypassed(ctx), platform)
 		require.True(t, ctxdb.IsPrimaryRequired(ctx), platform)
 		platforms = append(platforms, platform)
@@ -1449,5 +1449,5 @@ func TestEULAMetadataReadsArePrimaryAndUncached(t *testing.T) {
 	require.NoError(t, err)
 	_, err = svc.MDMGetWindowsEULAMetadata(ctx)
 	require.NoError(t, err)
-	require.Equal(t, []string{fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows}, platforms)
+	require.Equal(t, []fleet.MDMEULAPlatform{fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows}, platforms)
 }

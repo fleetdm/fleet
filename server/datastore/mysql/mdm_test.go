@@ -3504,7 +3504,7 @@ func testMDMEULA(t *testing.T, ds *Datastore) {
 	err = ds.MDMInsertEULA(ctx, eula)
 	require.ErrorAs(t, err, &ae)
 	// The unique key is on platform, so that is what the conflict names.
-	require.ErrorContains(t, err, darwin)
+	require.ErrorContains(t, err, string(darwin))
 
 	gotEULA, err := ds.MDMGetEULAMetadata(ctx, darwin)
 	require.NoError(t, err)
@@ -3533,7 +3533,7 @@ func testMDMEULA(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	t.Run("unsupported platform", func(t *testing.T) {
-		for _, platform := range []string{"", "window", "macos"} {
+		for _, platform := range []fleet.MDMEULAPlatform{"", "window", "macos"} {
 			err := ds.MDMInsertEULA(ctx, &fleet.MDMEULA{Token: uuid.New().String(), Name: "eula.pdf", Bytes: []byte("x"), Platform: platform})
 			require.ErrorContains(t, err, "unsupported platform", platform)
 		}

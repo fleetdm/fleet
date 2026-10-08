@@ -301,9 +301,9 @@ func TestCachedEULAMetadata(t *testing.T) {
 	ds := New(mockedDS, WithEULAMetadataExpiration(time.Second))
 	ctx := t.Context()
 
-	stored := map[string]*fleet.MDMEULA{}
-	reads := map[string]int{}
-	mockedDS.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+	stored := map[fleet.MDMEULAPlatform]*fleet.MDMEULA{}
+	reads := map[fleet.MDMEULAPlatform]int{}
+	mockedDS.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 		reads[platform]++
 		eula, ok := stored[platform]
 		if !ok {
@@ -316,7 +316,7 @@ func TestCachedEULAMetadata(t *testing.T) {
 		stored[eula.Platform] = eula
 		return nil
 	}
-	mockedDS.MDMDeleteEULAFunc = func(ctx context.Context, platform, token string) error {
+	mockedDS.MDMDeleteEULAFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
 		delete(stored, platform)
 		return nil
 	}

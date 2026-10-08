@@ -21,4 +21,4 @@ time/Location	extend	string
 time/Location	cacheStart	int64
 time/Location	cacheEnd	int64
 time/Location	cacheZone	*time.zone
-github.com/fleetdm/fleet/v4/server/fleet/MDMEULA	Platform	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMEULA	Platform	fleet.MDMEULAPlatform	string

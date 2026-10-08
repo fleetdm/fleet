@@ -308,10 +308,12 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	return pkgURL.String(), nil
 }
 
-// Platforms that can each have their own EULA.
+// MDMEULAPlatform is a platform that can have its own EULA.
+type MDMEULAPlatform string
+
 const (
-	MDMEULAPlatformDarwin  = "darwin"
-	MDMEULAPlatformWindows = "windows"
+	MDMEULAPlatformDarwin  MDMEULAPlatform = "darwin"
+	MDMEULAPlatformWindows MDMEULAPlatform = "windows"
 )
 
 // MDMEULA represents an EULA (End User License Agreement) file.
@@ -322,7 +324,7 @@ type MDMEULA struct {
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// Platform is implied by the endpoint serving it, so it is not in the API.
-	Platform string `json:"-" db:"platform"`
+	Platform MDMEULAPlatform `json:"-" db:"platform"`
 }
 
 // MDMEULAMetadataLookup is the cached result of looking up a platform's EULA

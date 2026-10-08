@@ -950,7 +950,7 @@ func (a ActivityTypeAddedBootstrapPackage) ActivityName() string {
 }
 
 type ActivityTypeAddedEndUserAgreement struct {
-	Platform string `json:"platform"`
+	Platform MDMEULAPlatform `json:"platform"`
 }
 
 func (a ActivityTypeAddedEndUserAgreement) ActivityName() string {
@@ -958,7 +958,7 @@ func (a ActivityTypeAddedEndUserAgreement) ActivityName() string {
 }
 
 type ActivityTypeDeletedEndUserAgreement struct {
-	Platform string `json:"platform"`
+	Platform MDMEULAPlatform `json:"platform"`
 }
 
 func (a ActivityTypeDeletedEndUserAgreement) ActivityName() string {

@@ -2201,7 +2201,7 @@ func batchSetProfileLabelAssociationsDB(
 	return updatedDB, nil
 }
 
-func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 	stmt := "SELECT name, created_at, token, sha256, platform FROM eulas WHERE platform = ?"
 	var eula fleet.MDMEULA
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, platform); err != nil {
@@ -2213,7 +2213,7 @@ func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context, platform string) (*
 	return &eula, nil
 }
 
-func (ds *Datastore) MDMGetEULABytes(ctx context.Context, platform, token string) (*fleet.MDMEULA, error) {
+func (ds *Datastore) MDMGetEULABytes(ctx context.Context, platform fleet.MDMEULAPlatform, token string) (*fleet.MDMEULA, error) {
 	// Matching the platform too keeps one platform's endpoints from reaching
 	// the other platform's file with a token.
 	stmt := "SELECT name, bytes, platform FROM eulas WHERE token = ? AND platform = ?"
@@ -2227,7 +2227,7 @@ func (ds *Datastore) MDMGetEULABytes(ctx context.Context, platform, token string
 	return &eula, nil
 }
 
-func (ds *Datastore) MDMGetEULA(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+func (ds *Datastore) MDMGetEULA(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 	stmt := "SELECT name, bytes, token, sha256, created_at, platform FROM eulas WHERE platform = ?"
 	var eula fleet.MDMEULA
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, platform); err != nil {
@@ -2263,7 +2263,7 @@ func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) err
 	return nil
 }
 
-func (ds *Datastore) MDMDeleteEULA(ctx context.Context, platform, token string) error {
+func (ds *Datastore) MDMDeleteEULA(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
 	stmt := "DELETE FROM eulas WHERE token = ? AND platform = ?"
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, token, platform)
 	if err != nil {

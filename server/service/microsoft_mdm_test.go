@@ -4050,7 +4050,7 @@ func TestCustomWindowsTOSContent(t *testing.T) {
 
 	var metaErr error
 	uploadID, doc := "upload-1", "# Terms\n"
-	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 		if metaErr != nil {
 			return nil, metaErr
 		}
@@ -4059,7 +4059,7 @@ func TestCustomWindowsTOSContent(t *testing.T) {
 	var loads atomic.Int32
 	var loadErr error
 	release := make(chan struct{})
-	ds.MDMGetEULAFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+	ds.MDMGetEULAFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 		loads.Add(1)
 		if _, ok := ctx.Deadline(); !ok {
 			return nil, errors.New("the shared load must be bounded")

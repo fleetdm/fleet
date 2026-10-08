@@ -665,7 +665,7 @@ func (ds *cachedMysql) ClearRemovedFleetMaintainedApps(ctx context.Context, slug
 	return nil
 }
 
-func (ds *cachedMysql) MDMGetEULAMetadata(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+func (ds *cachedMysql) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 	key := fmt.Sprintf(eulaMetadataKey, platform)
 	if x, found := ds.c.Get(ctx, key); found {
 		if lookup, ok := x.(*fleet.MDMEULAMetadataLookup); ok {
@@ -697,7 +697,7 @@ func (ds *cachedMysql) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) e
 	return err
 }
 
-func (ds *cachedMysql) MDMDeleteEULA(ctx context.Context, platform, token string) error {
+func (ds *cachedMysql) MDMDeleteEULA(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
 	err := ds.Datastore.MDMDeleteEULA(ctx, platform, token)
 	ds.c.Delete(fmt.Sprintf(eulaMetadataKey, platform))
 	return err
