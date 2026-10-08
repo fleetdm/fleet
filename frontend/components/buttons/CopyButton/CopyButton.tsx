@@ -143,6 +143,8 @@ const CopyButton = ({
       disableTooltip={message !== null}
       position="top"
       showArrow
+      // Arrow is ~6px, so this leaves a 4px gap between arrow tip and button
+      tipOffset={10}
       underline={false}
       fixedPositionStrategy
     >

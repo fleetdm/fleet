@@ -134,6 +134,9 @@ describe("CustomHostVitalsTab - URL-persistent search", () => {
       expect(screen.getByText("Department", CELL_TEXT)).toBeInTheDocument();
       expect(screen.getByText("Purchase date", CELL_TEXT)).toBeInTheDocument();
     });
+    expect(
+      screen.getByRole("columnheader", { name: "Variable" })
+    ).toBeInTheDocument();
 
     const searchInput = screen.getByPlaceholderText(
       "Search by name"

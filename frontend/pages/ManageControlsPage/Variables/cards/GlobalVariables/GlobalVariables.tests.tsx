@@ -189,6 +189,9 @@ describe("Custom variables", () => {
           timeout: 3000,
         }
       );
+      expect(
+        screen.getByRole("columnheader", { name: "Variable" })
+      ).toBeInTheDocument();
     });
 
     it("shows the copy button but not delete when user cannot edit", async () => {
