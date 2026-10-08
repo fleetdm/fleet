@@ -1185,6 +1185,10 @@ type Datastore interface {
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error)
 	// GetPatchPolicy returns the patch policy associated with the title id
 	GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*PatchPolicyData, error)
+	// SyncPatchPolicyQueries regenerates each patch policy's query from its title's
+	// active Fleet-maintained app installer, clearing the results of any policy whose
+	// query changed. A failure on one policy doesn't stop the others.
+	SyncPatchPolicyQueries(ctx context.Context) error
 
 	// ConditionalAccessBypassDevice lets the host skip the conditional access check next time it fails
 	ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error
@@ -3415,6 +3419,8 @@ type Datastore interface {
 	// UpdateInstallerScriptsAndQueries writes the scripts and queries onto an
 	// installer still on the given version, cancelling pending installs as an edit
 	// does. The version can't be cached as a second row, being the dedup token.
+	// The title's patch policy query is then regenerated, as SyncPatchPolicyQueries
+	// does.
 	UpdateInstallerScriptsAndQueries(ctx context.Context, installerID uint, version string, installScript string, uninstallScript string, patchQuery string, appOpenQuery string) error
 
 	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific

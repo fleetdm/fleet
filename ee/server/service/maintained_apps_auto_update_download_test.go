@@ -122,6 +122,7 @@ func baseDownloadStore(t *testing.T, activeVersion string, activeID uint) *mock.
 
 func baseDownloadStoreWithEditedScripts(t *testing.T, activeVersion string, activeID uint, installEdited bool, uninstallEdited bool) *mock.Store {
 	ds := new(mock.Store)
+	ds.SyncPatchPolicyQueriesFunc = func(ctx context.Context) error { return nil }
 	teamID := uint(1)
 	ds.ListFleetMaintainedAppActiveInstallersFunc = func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
 		return []fleet.FMAAutoUpdateCandidate{{
@@ -363,6 +364,7 @@ func TestAutoUpdateCaretMajorExceededSkipsDownload(t *testing.T) {
 func TestAutoUpdateFetchesManifestOncePerSlug(t *testing.T) {
 	srv := newFakeManifestServer(t)
 	ds := new(mock.Store)
+	ds.SyncPatchPolicyQueriesFunc = func(ctx context.Context) error { return nil }
 	teamA, teamB := uint(1), uint(2)
 	ds.ListFleetMaintainedAppActiveInstallersFunc = func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
 		return []fleet.FMAAutoUpdateCandidate{

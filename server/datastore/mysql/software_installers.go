@@ -4371,7 +4371,25 @@ WHERE
 		return nil
 	}
 
-	return ds.ProcessInstallerUpdateSideEffects(ctx, installerID, true, false)
+	if err := ds.ProcessInstallerUpdateSideEffects(ctx, installerID, true, false); err != nil {
+		return err
+	}
+
+	// Sync the title's patch policy now rather than at the next auto-update run.
+	var policyID uint
+	err = sqlx.GetContext(ctx, ds.writer(ctx), &policyID, `
+SELECT p.id
+FROM policies p
+JOIN software_installers si ON si.global_or_team_id = p.team_id AND si.title_id = p.patch_software_title_id
+WHERE si.id = ? AND p.type = ?
+`, installerID, fleet.PolicyTypePatch)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting patch policy for installer")
+	}
+	return ds.syncPatchPolicyQuery(ctx, policyID)
 }
 
 func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint,

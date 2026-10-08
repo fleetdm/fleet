@@ -76,6 +76,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetSoftwareInstallerMetadataByStorageID", testGetSoftwareInstallerMetadataByStorageID},
 		{"SoftwareTitlePins", testSoftwareTitlePins},
 		{"SetFleetMaintainedAppActiveInstallerPin", testSetFleetMaintainedAppActiveInstallerPin},
+		{"UpdateInstallerScriptsAndQueries", testUpdateInstallerScriptsAndQueries},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
 		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
@@ -7611,6 +7612,135 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	require.Equal(t, v1Query, patchPolicy.Query)
 	_, err = ds.GetPinnedVersion(ctx, nil, titleID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testUpdateInstallerScriptsAndQueries(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// A manifest fix that compares a different column without publishing a new version.
+	const shortVersionQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') < 0);"
+	const bundleVersionQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_version, '100') < 0);"
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Maintained1", Slug: "maintained1", Platform: "darwin", UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	addInstaller := func(teamID *uint) (installerID, titleID uint) {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+		require.NoError(t, err)
+		installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			TeamID: teamID, Title: "testpkg", Source: "apps", Platform: "darwin",
+			InstallScript: "echo install", UninstallScript: "echo uninstall",
+			InstallerFile: tfr, StorageID: "storageid1", Filename: "test.pkg", Version: "1.0",
+			UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: &fma.ID,
+			PatchQuery: shortVersionQuery,
+		})
+		require.NoError(t, err)
+		return installerID, titleID
+	}
+	installerID, titleID := addInstaller(&team.ID)
+	_, noTeamTitleID := addInstaller(nil)
+	require.Equal(t, titleID, noTeamTitleID)
+
+	refresh := func(installerID uint, version, installScript, patchQuery string) {
+		require.NoError(t, ds.UpdateInstallerScriptsAndQueries(ctx, installerID, version, installScript, "echo uninstall", patchQuery, ""))
+	}
+	installerPatchQuery := func(installerID uint) (query string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &query, `SELECT patch_query FROM software_installers WHERE id = ?`, installerID)
+		})
+		return query
+	}
+	policyQuery := func(policyID uint) string {
+		p, err := ds.Policy(ctx, policyID)
+		require.NoError(t, err)
+		return p.Query
+	}
+	policyResultCounts := func(policyID uint) (membership int, stats int) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &membership, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, policyID); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &stats, `SELECT COUNT(*) FROM policy_stats WHERE policy_id = ?`, policyID)
+		})
+		return membership, stats
+	}
+
+	// No patch policy for the title yet: the refresh only touches the installer.
+	refresh(installerID, "1.0", "echo install", shortVersionQuery)
+
+	teamPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Type: fleet.PolicyTypePatch, PatchSoftwareTitleID: &titleID})
+	require.NoError(t, err)
+	require.Equal(t, shortVersionQuery, teamPolicy.Query)
+	noTeamPolicy, err := ds.NewTeamPolicy(ctx, 0, &user.ID, fleet.PolicyPayload{Type: fleet.PolicyTypePatch, PatchSoftwareTitleID: &titleID})
+	require.NoError(t, err)
+	require.Equal(t, shortVersionQuery, noTeamPolicy.Query)
+
+	teamHost := test.NewHost(t, ds, "teamhost", "1", "teamhostkey", "teamhostuuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID})))
+	noTeamHost := test.NewHost(t, ds, "noteamhost", "2", "noteamhostkey", "noteamhostuuid", time.Now())
+	recordResults := func() {
+		_, err := ds.RecordPolicyQueryExecutions(ctx, teamHost, map[uint]*bool{teamPolicy.ID: new(false)}, time.Now(), false, nil)
+		require.NoError(t, err)
+		_, err = ds.RecordPolicyQueryExecutions(ctx, noTeamHost, map[uint]*bool{noTeamPolicy.ID: new(false)}, time.Now(), false, nil)
+		require.NoError(t, err)
+		require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
+	}
+	recordResults()
+
+	// The fix reaches the patch policy without a version flip, and the results the
+	// old query produced are cleared so hosts re-evaluate.
+	refresh(installerID, "1.0", "echo install", bundleVersionQuery)
+	require.Equal(t, bundleVersionQuery, installerPatchQuery(installerID))
+	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+	membership, stats := policyResultCounts(teamPolicy.ID)
+	require.Zero(t, membership, "a changed query must clear stale policy membership")
+	require.Zero(t, stats, "a changed query must clear stale policy stats")
+
+	// The no-team installer of the same title wasn't refreshed, so its policy is untouched.
+	require.Equal(t, shortVersionQuery, policyQuery(noTeamPolicy.ID))
+	membership, stats = policyResultCounts(noTeamPolicy.ID)
+	require.Equal(t, 1, membership)
+	require.Equal(t, 1, stats)
+
+	// A script-only refresh leaves the query, and so the results, alone.
+	recordResults()
+	refresh(installerID, "1.0", "echo install v2", bundleVersionQuery)
+	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+	membership, stats = policyResultCounts(teamPolicy.ID)
+	require.Equal(t, 1, membership)
+	require.Equal(t, 1, stats)
+
+	// A case-only change still counts, though the column's collation would call it equal.
+	upperCaseQuery := strings.Replace(bundleVersionQuery, "fleet.maintained1", "Fleet.Maintained1", 1)
+	refresh(installerID, "1.0", "echo install v2", upperCaseQuery)
+	require.Equal(t, upperCaseQuery, policyQuery(teamPolicy.ID))
+	refresh(installerID, "1.0", "echo install v2", bundleVersionQuery)
+	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+
+	// A row that has moved to another version isn't refreshed, so the policy isn't either.
+	recordResults()
+	refresh(installerID, "9.9", "echo install v2", shortVersionQuery)
+	require.Equal(t, bundleVersionQuery, installerPatchQuery(installerID))
+	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+
+	// An inactive cached version is refreshed, but the policy follows the active one.
+	v2ID, err := ds.InsertFleetMaintainedAppVersion(ctx, installerID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0", StorageID: "storageid2", Filename: "test2.pkg", Extension: "pkg",
+		InstallScript: "echo install", UninstallScript: "echo uninstall", PatchQuery: shortVersionQuery,
+	})
+	require.NoError(t, err)
+	const v2Query = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_version, '200') < 0);"
+	refresh(v2ID, "2.0", "echo install", v2Query)
+	require.Equal(t, v2Query, installerPatchQuery(v2ID))
+	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+	membership, stats = policyResultCounts(teamPolicy.ID)
+	require.Equal(t, 1, membership)
+	require.Equal(t, 1, stats)
 }
 
 // A host with two queued installs for the same installer (one lower priority,

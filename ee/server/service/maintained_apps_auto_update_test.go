@@ -85,6 +85,7 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := new(mock.Store)
+			ds.SyncPatchPolicyQueriesFunc = func(ctx context.Context) error { return nil }
 
 			ds.ListFleetMaintainedAppActiveInstallersFunc = func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
 				return []fleet.FMAAutoUpdateCandidate{tc.active}, nil
@@ -127,6 +128,7 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 
 func TestAutoUpdateFleetMaintainedAppsContinuesPastError(t *testing.T) {
 	ds := new(mock.Store)
+	ds.SyncPatchPolicyQueriesFunc = func(ctx context.Context) error { return errors.New("sync boom") }
 	teamID := uint(1)
 	ds.ListFleetMaintainedAppActiveInstallersFunc = func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
 		return []fleet.FMAAutoUpdateCandidate{
@@ -152,15 +154,17 @@ func TestAutoUpdateFleetMaintainedAppsContinuesPastError(t *testing.T) {
 		return nil
 	}
 
-	// The first candidate errors; the run must still process the second.
+	// The patch policy sync and the first candidate error; the run must still process the second.
 	err := AutoUpdateFleetMaintainedApps(context.Background(), ds, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	require.NoError(t, err)
+	require.True(t, ds.SyncPatchPolicyQueriesFuncInvoked)
 	require.True(t, ds.SetFleetMaintainedAppActiveInstallerFuncInvoked)
 	require.Equal(t, uint(2), flippedTitle)
 }
 
 func TestAutoUpdateFleetMaintainedAppsReportsCancelDuringLastApp(t *testing.T) {
 	ds := new(mock.Store)
+	ds.SyncPatchPolicyQueriesFunc = func(ctx context.Context) error { return nil }
 	teamID := uint(1)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

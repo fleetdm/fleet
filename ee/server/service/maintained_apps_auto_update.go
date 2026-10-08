@@ -28,6 +28,13 @@ import (
 // fetches nothing from upstream. A failure on one app is logged and skipped so a
 // single bad row can't stall the whole run.
 func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, softwareInstallStore fleet.SoftwareInstallerStore, logger *slog.Logger) error {
+	// Catches up patch policies whose query fell behind their active installer, such
+	// as one refreshed in place by a server that didn't regenerate the policy. First,
+	// so a run that spends its budget on downloads can't skip it.
+	if err := ds.SyncPatchPolicyQueries(ctx); err != nil {
+		logger.ErrorContext(ctx, "syncing patch policy queries", "err", err)
+	}
+
 	candidates, err := ds.ListFleetMaintainedAppActiveInstallers(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "listing active fleet-maintained app installers")

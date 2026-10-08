@@ -104,6 +104,7 @@ func TestPolicies(t *testing.T) {
 		{"ResetAttemptsOnFailingToPassingAsync", testResetAttemptsOnFailingToPassingAsync},
 		{"PolicyModificationResetsAttemptNumber", testPolicyModificationResetsAttemptNumber},
 		{"TeamPatchPolicy", testTeamPatchPolicy},
+		{"SyncPatchPolicyQueries", testSyncPatchPolicyQueries},
 		{"ApplyPolicySpecsDynamicAndPatchSameFMA", testApplyPolicySpecsDynamicAndPatchSameFMA},
 		{"ApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery", testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery},
 		{"ApplyPolicySpecsNotifyBeforePatchingRejectsWindows", testApplyPolicySpecsNotifyBeforePatchingRejectsWindows},
@@ -9341,6 +9342,155 @@ func newPolicyTestHosts(t *testing.T, ds *Datastore, n int, prefix string) []*fl
 		hosts[i] = h
 	}
 	return hosts
+}
+
+func testSyncPatchPolicyQueries(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	const staleQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.stale' AND version_compare(bundle_short_version, '1.0') < 0);"
+	const fixedQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.stale' AND version_compare(bundle_version, '100') < 0);"
+	const otherQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.other' AND version_compare(bundle_short_version, '1.0') < 0);"
+
+	addFMA := func(name, bundleID, patchQuery string) (installerID, titleID uint) {
+		fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name: name, Slug: name + "/darwin", Platform: "darwin", UniqueIdentifier: bundleID,
+		})
+		require.NoError(t, err)
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(name), t.TempDir)
+		require.NoError(t, err)
+		installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			TeamID: &team.ID, Title: name, Source: "apps", Platform: "darwin", BundleIdentifier: bundleID,
+			InstallScript: "echo install", UninstallScript: "echo uninstall",
+			InstallerFile: tfr, StorageID: name, Filename: name + ".pkg", Version: "1.0",
+			UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: &fma.ID,
+			PatchQuery: patchQuery,
+		})
+		require.NoError(t, err)
+		return installerID, titleID
+	}
+	staleInstallerID, staleTitleID := addFMA("stale", "com.example.stale", staleQuery)
+	_, otherTitleID := addFMA("other", "com.example.other", otherQuery)
+
+	stalePolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Type: fleet.PolicyTypePatch, PatchSoftwareTitleID: &staleTitleID})
+	require.NoError(t, err)
+	otherPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Type: fleet.PolicyTypePatch, PatchSoftwareTitleID: &otherTitleID})
+	require.NoError(t, err)
+
+	setInstallerPatchQuery := func(query string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE software_installers SET patch_query = ? WHERE id = ?`, query, staleInstallerID)
+			return err
+		})
+	}
+	policyQuery := func(policyID uint) string {
+		p, err := ds.Policy(ctx, policyID)
+		require.NoError(t, err)
+		return p.Query
+	}
+	policyResultCounts := func(policyID uint) (membership int, stats int) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &membership, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, policyID); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &stats, `SELECT COUNT(*) FROM policy_stats WHERE policy_id = ?`, policyID)
+		})
+		return membership, stats
+	}
+
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+	recordResults := func() {
+		_, err := ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{stalePolicy.ID: new(false), otherPolicy.ID: new(false)}, time.Now(), false, nil)
+		require.NoError(t, err)
+		require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
+	}
+	recordResults()
+
+	// Policies already in step with their installers keep their results.
+	require.NoError(t, ds.SyncPatchPolicyQueries(ctx))
+	require.Equal(t, staleQuery, policyQuery(stalePolicy.ID))
+	membership, stats := policyResultCounts(stalePolicy.ID)
+	require.Equal(t, 1, membership)
+	require.Equal(t, 1, stats)
+
+	// An installer whose patch query was refreshed in place, without its policy.
+	setInstallerPatchQuery(fixedQuery)
+	require.NoError(t, ds.SyncPatchPolicyQueries(ctx))
+	require.Equal(t, fixedQuery, policyQuery(stalePolicy.ID))
+	membership, stats = policyResultCounts(stalePolicy.ID)
+	require.Zero(t, membership, "a changed query must clear stale policy membership")
+	require.Zero(t, stats, "a changed query must clear stale policy stats")
+	var needsCleanup bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &needsCleanup, `SELECT needs_full_membership_cleanup FROM policies WHERE id = ?`, stalePolicy.ID)
+	})
+	require.False(t, needsCleanup)
+
+	// The other policy was already current, so it's untouched.
+	require.Equal(t, otherQuery, policyQuery(otherPolicy.ID))
+	membership, stats = policyResultCounts(otherPolicy.ID)
+	require.Equal(t, 1, membership)
+	require.Equal(t, 1, stats)
+
+	// A second pass has nothing to do.
+	recordResults()
+	require.NoError(t, ds.SyncPatchPolicyQueries(ctx))
+	membership, _ = policyResultCounts(stalePolicy.ID)
+	require.Equal(t, 1, membership)
+
+	// Without a patch query the default one is generated, as when the policy was created.
+	setInstallerPatchQuery("")
+	require.NoError(t, ds.SyncPatchPolicyQueries(ctx))
+	require.Equal(t, staleQuery, policyQuery(stalePolicy.ID))
+
+	// A newer cached version that isn't active yet doesn't move the policy.
+	v2ID, err := ds.InsertFleetMaintainedAppVersion(ctx, staleInstallerID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0", StorageID: "stale2", Filename: "stale2.pkg", Extension: "pkg",
+		InstallScript: "echo install", UninstallScript: "echo uninstall", PatchQuery: fixedQuery,
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncPatchPolicyQueries(ctx))
+	require.Equal(t, staleQuery, policyQuery(stalePolicy.ID))
+
+	// The flip generates the same query the sync does, so the sync keeps the results.
+	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TeamID: &team.ID, TitleID: staleTitleID}, v2ID))
+	require.Equal(t, fixedQuery, policyQuery(stalePolicy.ID))
+	recordResults()
+	require.NoError(t, ds.SyncPatchPolicyQueries(ctx))
+	require.Equal(t, fixedQuery, policyQuery(stalePolicy.ID))
+	membership, _ = policyResultCounts(stalePolicy.ID)
+	require.Equal(t, 1, membership)
+
+	// No-team Windows title without a patch query: the default programs query.
+	winFMA, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Example Win", Slug: "example-win/windows", Platform: "windows", UniqueIdentifier: "Example Win",
+	})
+	require.NoError(t, err)
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("win"), t.TempDir)
+	require.NoError(t, err)
+	_, winTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title: "Example Win", Source: "programs", Platform: "windows",
+		InstallScript: "install", UninstallScript: "uninstall",
+		InstallerFile: tfr, StorageID: "win", Filename: "win.msi", Extension: "msi", Version: "1.0",
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: &winFMA.ID,
+	})
+	require.NoError(t, err)
+	winPolicy, err := ds.NewTeamPolicy(ctx, 0, &user.ID, fleet.PolicyPayload{Type: fleet.PolicyTypePatch, PatchSoftwareTitleID: &winTitleID})
+	require.NoError(t, err)
+	const winQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Example Win' AND version_compare(version, '1.0') < 0);"
+	require.Equal(t, winQuery, winPolicy.Query)
+	require.NoError(t, ds.SyncPatchPolicyQueries(ctx))
+	require.Equal(t, winQuery, policyQuery(winPolicy.ID))
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE policies SET query = 'SELECT 1;' WHERE id = ?`, winPolicy.ID)
+		return err
+	})
+	require.NoError(t, ds.SyncPatchPolicyQueries(ctx))
+	require.Equal(t, winQuery, policyQuery(winPolicy.ID))
 }
 
 func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
