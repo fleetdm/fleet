@@ -16,6 +16,7 @@ import (
 var cryptsetupPaths = []string{
 	"/usr/sbin/cryptsetup",
 	"/sbin/cryptsetup",
+	"/run/current-system/sw/bin/cryptsetup", // NixOS
 }
 
 const allowedNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/_"

@@ -461,7 +461,7 @@ func TestPubSubEnrollment(t *testing.T) {
 		}}, linkActivities)
 	})
 
-	t.Run("re-enrollment with rotated enroll secret does not panic", func(t *testing.T) {
+	t.Run("re-enrollment with rotated enroll secret is rejected", func(t *testing.T) {
 		mockDS.NewAndroidHostFuncInvoked = false
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{
@@ -491,19 +491,8 @@ func TestPubSubEnrollment(t *testing.T) {
 			return nil, common_mysql.NotFound("enroll secret")
 		}
 
-		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
-			return nil, false, nil
-		}
-
-		var capturedTeamID *uint
 		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
-			capturedTeamID = host.TeamID
-			return nil
-		}
-		mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
-			return nil
-		}
-		mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+			t.Error("UpdateAndroidHost should not be called when enroll secret is invalid")
 			return nil
 		}
 
@@ -517,16 +506,12 @@ func TestPubSubEnrollment(t *testing.T) {
 			EnrollmentTokenData: string(enrollTokenData),
 		})
 
-		// Should not panic even though VerifyEnrollSecret returns nil.
+		// Device should not be allowed to re-enroll with an invalid enroll secret.
 		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
-		require.NoError(t, err)
-
-		// Host should keep its original team since enroll secret was not found.
-		require.NotNil(t, capturedTeamID)
-		require.Equal(t, originalTeamID, *capturedTeamID)
+		require.Error(t, err)
 	})
 
-	t.Run("re-enrollment restores prior team from android_devices", func(t *testing.T) {
+	t.Run("re-enrollment uses enroll secret team not last known team", func(t *testing.T) {
 		mockDS.NewAndroidHostFuncInvoked = false
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{
@@ -549,13 +534,14 @@ func TestPubSubEnrollment(t *testing.T) {
 			}, nil
 		}
 
-		// Enroll secret points to team 1 (the default).
-		defaultTeamID := uint(1)
+		// Enroll secret points to team 1.
+		enrollSecretTeamID := uint(1)
 		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-			return &fleet.EnrollSecret{Secret: secret, TeamID: &defaultTeamID}, nil
+			return &fleet.EnrollSecret{Secret: secret, TeamID: &enrollSecretTeamID}, nil
 		}
 
-		// Prior team from android_devices is team 19 (admin transferred).
+		// "Last known team" from android_devices is team 19 (admin transferred).
+		// This should NOT be used — the enroll secret's team should win.
 		priorTeamID := uint(19)
 		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
 			return &priorTeamID, true, nil
@@ -586,9 +572,124 @@ func TestPubSubEnrollment(t *testing.T) {
 		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
 		require.NoError(t, err)
 
-		// Should use the prior team (19), not the enroll secret's team (1).
+		// Should use the enroll secret's team (1), not the "last known team" (19).
 		require.NotNil(t, capturedTeamID)
-		require.Equal(t, priorTeamID, *capturedTeamID)
+		require.Equal(t, enrollSecretTeamID, *capturedTeamID)
+	})
+
+	t.Run("zero-touch new device uses fleet_id from token", func(t *testing.T) {
+		mockDS.NewAndroidHostFuncInvoked = false
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		// No existing host — new device.
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return nil, common_mysql.NotFound("android host lite mock")
+		}
+
+		// Zero-touch token says fleet_id=7.
+		tokenTeamID := uint(7)
+		mockDS.DataStore.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) {
+			return id == tokenTeamID, nil
+		}
+
+		// "Last known team" is team 42 — should NOT be used.
+		priorTeamID := uint(42)
+		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
+			return &priorTeamID, true, nil
+		}
+
+		var capturedTeamID *uint
+		mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+			capturedTeamID = host.TeamID
+			return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
+		}
+
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{ //nolint:gosec // G101: test data, not a credential
+			Name:                createAndroidDeviceId("test-zt-new"),
+			EnrollmentTokenData: `{"fleet_id": 7}`,
+		})
+
+		err := svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		// Should use the token's fleet_id (7), not the "last known team" (42).
+		require.NotNil(t, capturedTeamID)
+		require.Equal(t, tokenTeamID, *capturedTeamID)
+	})
+
+	t.Run("zero-touch re-enrollment uses fleet_id from token", func(t *testing.T) {
+		mockDS.NewAndroidHostFuncInvoked = false
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		const existingHostUUID = "EXISTING-HOST-ZT"
+		existingTeamID := uint(10)
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{
+				Host: &fleet.Host{
+					ID:     40,
+					UUID:   existingHostUUID,
+					TeamID: &existingTeamID,
+				},
+				Device: &android.Device{
+					HostID:               40,
+					DeviceID:             "zt-device",
+					EnterpriseSpecificID: new(existingHostUUID),
+				},
+			}, nil
+		}
+
+		// Zero-touch token says fleet_id=7.
+		tokenTeamID := uint(7)
+		mockDS.DataStore.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) {
+			return id == tokenTeamID, nil
+		}
+
+		// "Last known team" is team 42 — should NOT be used.
+		priorTeamID := uint(42)
+		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
+			return &priorTeamID, true, nil
+		}
+
+		var capturedTeamID *uint
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			capturedTeamID = host.TeamID
+			return nil
+		}
+		mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
+			return nil
+		}
+		mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+		mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return nil, common_mysql.NotFound("scim user")
+		}
+		mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+			return nil, nil
+		}
+		mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return nil, common_mysql.NotFound("mdm idp account")
+		}
+
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{ //nolint:gosec // G101: test data, not a credential
+			Name:                createAndroidDeviceId("test-zt-re-enroll"),
+			EnrollmentTokenData: `{"fleet_id": 7}`,
+		})
+
+		err := svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		// Should use the token's fleet_id (7), not the "last known team" (42).
+		require.NotNil(t, capturedTeamID)
+		require.Equal(t, tokenTeamID, *capturedTeamID)
 	})
 }
 

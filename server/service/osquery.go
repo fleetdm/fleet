@@ -198,6 +198,8 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		secretOpts = append(secretOpts, fleet.WithEnrollOsqueryRejectSharedSecretForAppleMDMHosts(svc.config.MDM.AppleOneTimeEnrollSecrets))
 	}
 
+	// The identity cert's name is the derived identifier the host enrolls under, not the raw provided one.
+	hostIdentifier = getHostIdentifier(ctx, svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
 	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostIdentifier)
 	if err != nil && !fleet.IsNotFound(err) {
 		recordErrorDetail(ctx, err)
@@ -208,9 +210,11 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
 	if identityCert != nil {
 		if !httpSigPresent {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedHostIdentityCertRequired, identityCert.HostID, attempt)
 			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
 		}
 		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedHostIdentityCertRequired, identityCert.HostID, attempt)
 			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
 		}
 	} else if httpSigPresent { // but we couldn't find cert in DB
@@ -223,7 +227,6 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		return "", newOsqueryErrorWithInvalidNode("generate node key failed")
 	}
 
-	hostIdentifier = getHostIdentifier(ctx, svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
 	canEnroll, err := svc.enrollHostLimiter.CanEnrollNewHost(ctx)
 	if err != nil {
 		recordErrorDetail(ctx, err)
@@ -1695,10 +1698,8 @@ func (svc *Service) discardOutOfScopePolicyResults(ctx context.Context, host *fl
 //
 // The deletion is skipped for hosts in setup experience: they are sent a
 // filtered subset of policy queries (see policyQueriesForHost), so their stale
-// set is not meaningful. Under async policy processing this is a no-op, since
-// the task layer buffers results in Redis and always reports no stale policies.
-// Errors are logged and swallowed: this cleanup is best-effort and self-heals
-// on the host's next policy reporting cycle.
+// set is not meaningful. Errors are logged and swallowed: this cleanup is
+// best-effort and self-heals on the host's next policy reporting cycle.
 func (svc *Service) cleanupOutOfScopePolicyMembership(ctx context.Context, host *fleet.Host, stalePolicyIDs []uint) {
 	if len(stalePolicyIDs) == 0 {
 		return
@@ -2398,6 +2399,9 @@ func preProcessSoftwareResults(
 
 	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
 	preProcessSoftwareExtraResults(ctx, fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
+	fleetdNixPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_nix"
+	preProcessSoftwareExtraResults(ctx, fleetdNixPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
 	preProcessSoftwareExtraResults(ctx, jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
@@ -3219,7 +3223,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return nil
 	}
 
-	host, err := svc.ds.Host(ctx, hostID)
+	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "failed to get host details")
 	}

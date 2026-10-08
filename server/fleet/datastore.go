@@ -1153,6 +1153,9 @@ type Datastore interface {
 	// writes a fresh row and advances updated_at. Used at setup-experience enqueue time for the gating policies.
 	ClearHostPolicyMembershipForPolicies(ctx context.Context, hostID uint, policyIDs []uint) error
 
+	// StalePolicyIDsForHost returns the policies the host has a policy_membership row for but no result in reported.
+	StalePolicyIDsForHost(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error)
+
 	// ClearHostPolicyUpdatedAt resets the host's policy_updated_at to a stale sentinel so its full policy set re-runs promptly.
 	// Used after a setup-experience gating policy result is consumed (setup reports only the gated subset).
 	ClearHostPolicyUpdatedAt(ctx context.Context, hostID uint) error
@@ -2678,6 +2681,9 @@ type Datastore interface {
 	// WindowsHostLiteByHardwareSerial returns a HostLite for the Windows host whose hardware_serial matches the given serial.
 	WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*HostLite, error)
 
+	// WindowsHostLiteByUUID returns a HostLite for the Windows host with the given UUID, the lowest id if several share it.
+	WindowsHostLiteByUUID(ctx context.Context, hostUUID string) (*HostLite, error)
+
 	// MDMWindowsSaveUnlinkedEnrollmentHardwareSerial stores the SMBIOS serial reported over OMA-DM (DevDetail) on a still-unlinked
 	// Windows MDM enrollment, so the orbit enrollment path can reverse-link the enrollment once the host record exists.
 	MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.Context, mdmDeviceID string, hardwareSerial string) error
@@ -2694,6 +2700,10 @@ type Datastore interface {
 	// MDMWindowsClaimEnrolledActivity claims the right to record the mdm_enrolled activity for the given Windows MDM
 	// enrollment, returning true for the first caller only.
 	MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
+
+	// MDMWindowsSetEnrollmentFleetdPresent records that fleetd was seen present for the given Windows MDM enrollment, if it is still
+	// linked to hostUUID and that host still exists.
+	MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, enrollmentID uint, hostUUID string) error
 
 	// MDMWindowsReleaseEnrolledActivityClaim releases a claim taken with the given timestamp, so an enrollment whose
 	// activity could not be recorded is retried on a later session rather than left silently unannounced.
@@ -4416,6 +4426,13 @@ type Datastore interface {
 	// QueueHostMDMAppleProfileRemoval marks the host's profile row as a pending removal (NULL status), or deletes it
 	// if the install was never sent. It is a no-op if the host has no row for the profile.
 	QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUID, profileUUID string) error
+	// ConsumeAppleSCEPChallenge marks the given SCEP challenge as consumed and returns its associated info if found.
+	ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*AppleSCEPChallengeInfo, error)
+	// SetAppleSCEPChallengeIssuedCert records the issued certificate serial number for the given SCEP challenge.
+	// It will only have an effect on rows without a cert serial and for challenges that is already consumed.
+	SetAppleSCEPChallengeIssuedCert(ctx context.Context, challenge string, certSerial int64) error
+	// CleanupAppleSCEPChallenges deletes SCEP challenges consumed more than 7 days ago, and unconsumed ones expired more than 7 days ago.
+	CleanupAppleSCEPChallenges(ctx context.Context) error
 }
 
 type AndroidDatastore interface {

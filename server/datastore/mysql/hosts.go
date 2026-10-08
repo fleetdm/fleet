@@ -510,8 +510,12 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		GROUP BY q.id
 	`
 
+	// Results only exist for saved global/host-team queries (see QueriesPerHost); without saying so,
+	// MySQL probes query_results for every row in queries, which also includes live queries.
 	filter2 := `
-		WHERE EXISTS (
+		WHERE q.saved = 1
+			AND (q.team_id IS NULL OR q.team_id = ?)
+			AND EXISTS (
 				SELECT 1 FROM query_results
 				WHERE query_results.query_id = q.id
 				AND query_results.host_id = ?
@@ -537,6 +541,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		common_mysql.DefaultNonZeroTime,
 		hid,
 		hid,
+		teamID_,
 		hid,
 	}
 
@@ -2307,7 +2312,8 @@ func recordDeletedWindowsHostFleetsDB(ctx context.Context, tx sqlx.ExtContext, h
 	for _, teamID := range slices.Sorted(maps.Keys(uuidsByTeam)) {
 		for uuids := range slices.Chunk(uuidsByTeam[teamID], 5000) {
 			stmt, args, err := sqlx.In(`
-				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ? WHERE host_uuid IN (?)`,
+				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ?, fleetd_present_at = NULL
+				WHERE host_uuid IN (?)`,
 				teamID, uuids)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build record of deleted windows hosts' fleets")
@@ -2680,6 +2686,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				return ctxerr.New(ctx, "orbit host identity cert host id does not match enrolled host id. "+
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", hostInfo.OsqueryIdentifier))
 			}
+			if err := checkEnrollmentHoldsHostIdentityCert(ctx, tx, enrolledHostInfo.ID, enrollConfig.IdentityCert); err != nil {
+				return err
+			}
 
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {
 				if err := rejectSharedSecretForMDMManagedAppleHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
@@ -2985,6 +2994,9 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				*enrollConfig.IdentityCert.HostID != hostID {
 				return ctxerr.New(ctx, "host identity cert host id does not match enrolled host id. "+
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", osqueryHostID))
+			}
+			if err := checkEnrollmentHoldsHostIdentityCert(ctx, tx, hostID, enrollConfig.IdentityCert); err != nil {
+				return err
 			}
 
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {

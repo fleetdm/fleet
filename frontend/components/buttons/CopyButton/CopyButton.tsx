@@ -5,6 +5,7 @@ import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 import { stringToClipboard } from "utilities/copy_text";
 
 type CopyButtonVariant = "secondary" | "subdued" | "compact";
@@ -31,6 +32,9 @@ interface ICopyButtonProps {
   /** Table buttons show on row hover and tab focus only */
   rowHover?: boolean;
   disabled?: boolean;
+  /** Hover tooltip, hidden while the "Copied!" badge shows so the two
+   *  don't overlap. */
+  tooltip?: React.ReactNode;
 }
 
 const baseClass = "copy-button";
@@ -48,6 +52,7 @@ const CopyButton = ({
   tooltipOffset = 4,
   rowHover = false,
   disabled = false,
+  tooltip,
 }: ICopyButtonProps) => {
   const [message, setMessage] = useState<string | null>(null);
   const tipIdRef = useRef(uniqueId("copy-button-tooltip-"));
@@ -95,7 +100,7 @@ const CopyButton = ({
 
   const isCompact = variant === "compact";
 
-  return (
+  const copyButton = (
     <span className={baseClass} data-tooltip-id={tipIdRef.current}>
       <Button
         variant={isCompact ? "subdued" : variant}
@@ -129,6 +134,25 @@ const CopyButton = ({
         {message}
       </ReactTooltip5>
     </span>
+  );
+
+  if (!tooltip) {
+    return copyButton;
+  }
+
+  return (
+    <TooltipWrapper
+      tipContent={tooltip}
+      disableTooltip={message !== null}
+      position="top"
+      showArrow
+      // Arrow is ~6px, so this leaves a 4px gap between arrow tip and button
+      tipOffset={10}
+      underline={false}
+      fixedPositionStrategy
+    >
+      {copyButton}
+    </TooltipWrapper>
   );
 };
 
