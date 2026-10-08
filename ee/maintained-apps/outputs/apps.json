@@ -4237,13 +4237,6 @@
       "description": "Hubstaff is a work time tracker."
     },
     {
-      "name": "Huly",
-      "slug": "huly/darwin",
-      "platform": "darwin",
-      "unique_identifier": "hc.hcengineering.Huly",
-      "description": "Huly is an All-in-One Project Management Platform."
-    },
-    {
       "name": "HWMonitor",
       "slug": "hwmonitor/windows",
       "platform": "windows",
@@ -5026,13 +5019,6 @@
       "platform": "darwin",
       "unique_identifier": "at.obdev.LittleSnitch",
       "description": "Little Snitch is a network monitor and application firewall that provides real-time visibility and control over network connections for macOS."
-    },
-    {
-      "name": "lo-rain",
-      "slug": "lo-rain/darwin",
-      "platform": "darwin",
-      "unique_identifier": "lo.cafe.lo-rain",
-      "description": "lo-rain is an app that makes it rain no matter where you are, even over your apps."
     },
     {
       "name": "Local",
@@ -6090,13 +6076,6 @@
       "platform": "windows",
       "unique_identifier": "NoSQL Workbench",
       "description": "NoSQL Workbench is a client-side GUI application for modern database development and operations."
-    },
-    {
-      "name": "NotchNook",
-      "slug": "notchnook/darwin",
-      "platform": "darwin",
-      "unique_identifier": "lo.cafe.NotchNook",
-      "description": "NotchNook is a handy utility to manage and customize the notch area."
     },
     {
       "name": "Notepad++",
