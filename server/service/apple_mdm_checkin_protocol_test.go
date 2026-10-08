@@ -8,6 +8,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/pem"
 	"io"
 	"log/slog"
@@ -177,18 +178,31 @@ func (s *fakeCertAssocStore) IsCertHashAssociated(r *mdm.Request, _ string) (boo
 // newBindingCert returns a certificate carrying binding, or no binding extension if it's nil.
 func newBindingCert(t *testing.T, binding *apple_mdm.AppleMDMCertificateBindingExtension, ous ...string) *x509.Certificate {
 	t.Helper()
+	if binding == nil {
+		return newCertWithExtensions(t, ous)
+	}
+	ext, err := apple_mdm.BuildAppleMDMCertificateBindingExtension(*binding)
+	require.NoError(t, err)
+	return newCertWithExtensions(t, ous, ext)
+}
+
+// newRawBindingCert returns a certificate whose binding extension holds value as is, for values the builder can't
+// produce.
+func newRawBindingCert(t *testing.T, value []byte) *x509.Certificate {
+	t.Helper()
+	return newCertWithExtensions(t, nil, pkix.Extension{Id: apple_mdm.AppleMDMCertificateBindingExtensionOID, Value: value})
+}
+
+func newCertWithExtensions(t *testing.T, ous []string, exts ...pkix.Extension) *x509.Certificate {
+	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	tmpl := &x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject:      pkix.Name{CommonName: "Fleet Identity", OrganizationalUnit: ous},
-		NotBefore:    time.Now().Add(-time.Hour),
-		NotAfter:     time.Now().Add(time.Hour),
-	}
-	if binding != nil {
-		ext, err := apple_mdm.BuildAppleMDMCertificateBindingExtension(*binding)
-		require.NoError(t, err)
-		tmpl.ExtraExtensions = []pkix.Extension{ext}
+		SerialNumber:    big.NewInt(1),
+		Subject:         pkix.Name{CommonName: "Fleet Identity", OrganizationalUnit: ous},
+		NotBefore:       time.Now().Add(-time.Hour),
+		NotAfter:        time.Now().Add(time.Hour),
+		ExtraExtensions: exts,
 	}
 	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
 	require.NoError(t, err)
@@ -219,6 +233,12 @@ func TestCertVerifierEnrollmentCheckinServiceAuthenticate(t *testing.T) {
 		return b
 	}
 	deviceIdentity := func(b *apple_mdm.AppleMDMCertificateBindingExtension) { b.UDID, b.Serial = new(udid), new(serial) }
+	utf8Value := func(s string) []byte {
+		v, err := asn1.MarshalWithParams(s, "utf8")
+		require.NoError(t, err)
+		return v
+	}
+	validBindingJSON := `{"v":1,"purpose":"ade","udid":"` + udid + `","serial":"` + serial + `"}`
 
 	cases := []struct {
 		name          string
@@ -287,6 +307,16 @@ func TestCertVerifierEnrollmentCheckinServiceAuthenticate(t *testing.T) {
 		})), msg: userEnrollment(enrollmentID), associated: true, enrolled: true, allowed: true},
 
 		{name: "unknown purpose", cert: newBindingCert(t, bind("future", deviceIdentity)), msg: device(udid, serial)},
+
+		// a binding that doesn't parse is rejected even when the identity it claims would match, and static on doesn't
+		// treat it as unbound
+		{name: "raw JSON instead of DER", cert: newRawBindingCert(t, []byte(validBindingJSON)), msg: device(udid, serial), static: true},
+		{name: "malformed JSON", cert: newRawBindingCert(t, utf8Value(`{"v":1,"purpose":`)), msg: device(udid, serial), static: true},
+		{name: "trailing bytes after the binding", cert: newRawBindingCert(t, append(utf8Value(validBindingJSON), 0x00)), msg: device(udid, serial), static: true},
+		{name: "missing version", cert: newRawBindingCert(t, utf8Value(`{"purpose":"ade","udid":"`+udid+`","serial":"`+serial+`"}`)), msg: device(udid, serial), static: true},
+		{name: "unsupported version", cert: newRawBindingCert(t, utf8Value(`{"v":2,"purpose":"ade","udid":"`+udid+`","serial":"`+serial+`"}`)), msg: device(udid, serial), static: true},
+		{name: "unsupported version but associated", cert: newRawBindingCert(t, utf8Value(`{"v":2,"purpose":"ade","udid":"`+udid+`","serial":"`+serial+`"}`)), msg: device(udid, serial), associated: true, allowed: true},
+		{name: "supported version control", cert: newRawBindingCert(t, utf8Value(validBindingJSON)), msg: device(udid, serial), allowed: true},
 		{name: "mismatched but associated", cert: newBindingCert(t, bind(fleet.AppleMDMCertPurposeADE, deviceIdentity)), msg: device("other", serial), associated: true, allowed: true},
 
 		{name: "unbound with static on", cert: newBindingCert(t, nil), msg: device(udid, serial), static: true, allowed: true},
