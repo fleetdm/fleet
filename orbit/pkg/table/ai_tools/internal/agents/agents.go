@@ -255,10 +255,7 @@ func detect(k known, home string, binDirs, nmDirs []string) (Agent, bool) {
 			// Report the installed binary rather than the bin-dir link, so the
 			// path matches the package manager's install directory and carries
 			// the native installer's version.
-			if target := installedPath(home, path); target != path {
-				a.Path = target
-				a.Version = versionFromPath(home, k.versionsDir, target)
-			}
+			a.Path, a.Version = resolveInstall(home, path, k.versionsDir)
 		}
 	} else if a.Path == "" {
 		return Agent{}, false
@@ -295,39 +292,33 @@ func resolveSystemBinary(p string) string {
 	return p
 }
 
-// installedPath returns what the agent binary found at p links to. A link under
-// a trusted system prefix is resolved fully, as for hashing. A link under the
+// resolveInstall returns the installed binary the agent binary found at p
+// links to, and the version a native installer encodes in that path (the first
+// element under versionsDir, e.g. ~/.local/share/claude/versions/<v>). It
+// returns p and no version when p isn't a link it follows. A link under a
+// trusted system prefix is resolved fully, as for hashing. A link under the
 // user's home is read one level and used only when it points at a file in the
-// same home (fsutil.LinkTargetWithin): the scanner reports that path and parses
-// a version from it, but never opens anything through a user-controlled link.
-func installedPath(home, p string) string {
-	if resolved := resolveSystemBinary(p); resolved != p {
-		return resolved
+// same home (fsutil.LinkTargetWithin), so the scanner never opens anything
+// through a user-controlled link.
+func resolveInstall(home, p, versionsDir string) (path, version string) {
+	target := resolveSystemBinary(p)
+	if target == p && home != "" {
+		if t, ok := fsutil.LinkTargetWithin(home, p); ok {
+			target = t
+		}
 	}
-	if home == "" {
-		return p
-	}
-	if target, ok := fsutil.LinkTargetWithin(home, p); ok {
-		return target
-	}
-	return p
-}
-
-// versionFromPath returns the version directory or file name under a native
-// installer's versionsDir, or "" when target isn't under it.
-func versionFromPath(home, versionsDir, target string) string {
-	if versionsDir == "" {
-		return ""
+	if target == p || versionsDir == "" {
+		return target, ""
 	}
 	rel, err := filepath.Rel(filepath.Join(home, filepath.FromSlash(versionsDir)), target)
 	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
-		return ""
+		return target, ""
 	}
 	v, _, _ := strings.Cut(rel, string(filepath.Separator))
 	if v == "" || v[0] < '0' || v[0] > '9' {
-		return ""
+		return target, ""
 	}
-	return v
+	return target, v
 }
 
 func agentBinDirs(home string, _ paths.Roots) []string {

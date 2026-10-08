@@ -307,6 +307,10 @@ func walkBounded(root string, maxDepth int, visit func(dir string, entries []fs.
 	}
 }
 
+// walkDepth is how many levels below the home, and below each project root,
+// WalkHome reads: the reach each collector had when it walked on its own.
+const walkDepth = 3
+
 // projectRootNames are the conventional dev-project directories directly under
 // a home, matched case-insensitively.
 var projectRootNames = []string{
@@ -404,8 +408,8 @@ func IsDir(p string) bool {
 
 // WalkHome walks a home directory once for every collector that probes
 // per-directory files (MCP project configs, instruction files, workspace
-// markers, framework manifests). The home is walked to depth 3 and each
-// project root to depth 3 on its own budget, the same reach the collectors had
+// markers, framework manifests). The home is walked to walkDepth and each
+// project root to walkDepth on its own budget, the same reach the collectors had
 // with separate walks, but no directory is read twice: project roots are cut
 // out of the home walk. Roots are taken from the home's listing, so paths keep
 // their on-disk names on a case-insensitive filesystem.
@@ -441,7 +445,7 @@ func WalkHome(home string, probes []string) []WalkedDir {
 	}
 
 	var out []WalkedDir
-	walkBounded(home, 3, func(dir string, entries []fs.DirEntry, depth int) bool {
+	walkBounded(home, walkDepth, func(dir string, entries []fs.DirEntry, depth int) bool {
 		if _, ok := isRoot[dir]; ok && depth == 1 {
 			return false
 		}
@@ -451,7 +455,7 @@ func WalkHome(home string, probes []string) []WalkedDir {
 		return true
 	})
 	for _, root := range roots {
-		walkBounded(root, 3, func(dir string, entries []fs.DirEntry, _ int) bool {
+		walkBounded(root, walkDepth, func(dir string, entries []fs.DirEntry, _ int) bool {
 			if d, ok := newWalkedDir(dir, entries, kept); ok {
 				d.Project = true
 				out = append(out, d)

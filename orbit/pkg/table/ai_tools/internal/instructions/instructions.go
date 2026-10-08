@@ -84,6 +84,10 @@ func WalkProbes() []string {
 	return out
 }
 
+// cursorRulesDepth bounds how many folder levels under .cursor/rules are read
+// for rules.
+const cursorRulesDepth = 3
+
 // Scan returns every agent instruction file discoverable under a home dir:
 // fixed user-scope locations plus the directories in dirs, the home's
 // fsutil.WalkHome result.
@@ -109,15 +113,18 @@ func Scan(h homes.Home, dirs []fsutil.WalkedDir) []Instruction {
 				emit(filepath.Join(d.Path, pf.rel), pf.tool, "project")
 			}
 		}
-		// Cursor's newer rule format: .cursor/rules/*.mdc
+		// Cursor's newer rule format: .cursor/rules/**/*.mdc, organized in
+		// folders as deep as cursorRulesDepth.
 		if !d.IsDir(".cursor") {
 			continue
 		}
-		if matches, err := filepath.Glob(filepath.Join(d.Path, ".cursor", "rules", "*.mdc")); err == nil {
-			for _, m := range matches {
-				emit(m, "cursor", "project")
+		fsutil.WalkBounded(filepath.Join(d.Path, ".cursor", "rules"), cursorRulesDepth, func(dir string) {
+			if matches, err := filepath.Glob(filepath.Join(dir, "*.mdc")); err == nil {
+				for _, m := range matches {
+					emit(m, "cursor", "project")
+				}
 			}
-		}
+		})
 	}
 	return out
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
+	"github.com/stretchr/testify/require"
 )
 
 func write(t *testing.T, path, content string, mode os.FileMode) {
@@ -110,4 +111,23 @@ func TestWorldWritableFlag(t *testing.T) {
 		}
 	}
 	t.Fatal("CLAUDE.md not found")
+}
+
+// Cursor lets rules be organized in folders under .cursor/rules.
+func TestScanFindsNestedCursorRules(t *testing.T) {
+	home := t.TempDir()
+	rules := filepath.Join(home, "projects", "app", ".cursor", "rules")
+	write(t, filepath.Join(rules, "main.mdc"), "use tabs", 0o600)
+	write(t, filepath.Join(rules, "frontend", "patterns.mdc"), "use hooks", 0o600)
+	write(t, filepath.Join(rules, "frontend", "react", "state.mdc"), "lift state", 0o600)
+	write(t, filepath.Join(rules, "frontend", "notes.txt"), "not a rule", 0o600)
+
+	got := map[string]string{}
+	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}, fsutil.WalkHome(home, WalkProbes())) {
+		got[in.Path] = in.Tool
+	}
+	for _, rel := range []string{"main.mdc", filepath.Join("frontend", "patterns.mdc"), filepath.Join("frontend", "react", "state.mdc")} {
+		require.Equal(t, "cursor", got[filepath.Join(rules, rel)], "%s not found; got %v", rel, got)
+	}
+	require.NotContains(t, got, filepath.Join(rules, "frontend", "notes.txt"))
 }

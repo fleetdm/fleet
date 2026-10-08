@@ -190,13 +190,11 @@ func AgentCandidates(h homes.Home, snap *proc.Snapshot, b *Bundle) []AgentCandid
 		// Attach framework to nearest workspace root or use package path.
 		key := "fw:" + fw.Path
 		name := fw.Name
-		if dir := filepath.Dir(fw.Path); dir != "" {
-			// Prefer project root two levels up from package.json
-			if strings.HasSuffix(fw.Path, "package.json") || strings.HasSuffix(fw.Path, "pyproject.toml") ||
-				strings.HasSuffix(fw.Path, "requirements.txt") {
-				key = "ws:" + filepath.Dir(fw.Path)
-				name = filepath.Base(filepath.Dir(fw.Path))
-			}
+		// Prefer the project root, one level up from the manifest.
+		if strings.HasSuffix(fw.Path, "package.json") || strings.HasSuffix(fw.Path, "pyproject.toml") ||
+			strings.HasSuffix(fw.Path, "requirements.txt") {
+			key = "ws:" + filepath.Dir(fw.Path)
+			name = filepath.Base(filepath.Dir(fw.Path))
 		}
 		a := ensure(key, name, filepath.Dir(fw.Path))
 		a.c.Signals.Add("framework:" + fw.Name)
