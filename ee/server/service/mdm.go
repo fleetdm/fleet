@@ -292,6 +292,11 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		didUpdate = true
 	}
 
+	if payload.BootstrapPackageManualEnrollment != nil && ac.MDM.MacOSSetup.BootstrapPackageManualEnrollment != *payload.BootstrapPackageManualEnrollment {
+		ac.MDM.MacOSSetup.BootstrapPackageManualEnrollment = *payload.BootstrapPackageManualEnrollment
+		didUpdate = true
+	}
+
 	if payload.EnableReleaseDeviceManually != nil {
 		if ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
 			ac.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)
@@ -400,7 +405,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 
 	// If anything besides enable_end_user_authentication is being updated, ensure MDM is on.
 	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil ||
-		payload.EnableManagedLocalAccount != nil || payload.EndUserLocalAccountType != nil) && !ac.MDM.EnabledAndConfigured {
+		payload.BootstrapPackageManualEnrollment != nil || payload.EnableManagedLocalAccount != nil || payload.EndUserLocalAccountType != nil) && !ac.MDM.EnabledAndConfigured {
 		return fleet.ErrMDMNotConfigured
 	}
 

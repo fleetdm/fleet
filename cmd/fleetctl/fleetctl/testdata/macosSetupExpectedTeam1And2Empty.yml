@@ -42,6 +42,7 @@ spec:
         lock_end_user_info: false
         apple_setup_assistant: null
         macos_manual_agent_install: null
+        macos_bootstrap_package_manual_enrollment: false
         require_all_software_macos: false
         require_all_software_windows: false
         apple_enable_release_device_manually: false
@@ -112,6 +113,7 @@ spec:
         lock_end_user_info: false
         macos_setup_assistant: null
         manual_agent_install: null
+        macos_bootstrap_package_manual_enrollment: false
         require_all_software_macos: false
         require_all_software_windows: false
         enable_release_device_manually: false

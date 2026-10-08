@@ -4269,12 +4269,8 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 }
 
 func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
-	// NOTE: Consider joining on host_dep_assignments instead of host_mdm so DEP hosts that
-	// manually enroll or re-enroll are included in the results so long as they are not unassigned
-	// in Apple Business. The problem with using host_dep_assignments is that a host can be
-	// assigned to Fleet in AB but still manually enroll. We should probably keep using host_mdm,
-	// but be better at updating the table with the right values when a host enrolls (perhaps adding
-	// a query param to the enroll endpoint).
+	// DEP hosts are included from the start (so they show as pending before they enroll). Manually
+	// enrolled hosts are included only once Fleet has sent them the bootstrap package.
 	stmt := `
           SELECT
               COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
@@ -4291,7 +4287,7 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
           JOIN host_mdm hm ON
               hm.host_id = h.id
           WHERE
-              hm.installed_from_dep = 1 AND COALESCE(h.team_id, 0) = ? AND h.platform = 'darwin'`
+              (hm.installed_from_dep = 1 OR hmabp.host_uuid IS NOT NULL) AND COALESCE(h.team_id, 0) = ? AND h.platform = 'darwin'`
 
 	var bp fleet.MDMAppleBootstrapPackageSummary
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &bp, stmt, teamID); err != nil {
@@ -4327,12 +4323,8 @@ func (ds *Datastore) GetHostBootstrapPackageCommand(ctx context.Context, hostUUI
 }
 
 func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
-	// NOTE: Consider joining on host_dep_assignments instead of host_mdm so DEP hosts that
-	// manually enroll or re-enroll are included in the results so long as they are not unassigned
-	// in Apple Business. The problem with using host_dep_assignments is that a host can be
-	// assigned to Fleet in AB but still manually enroll. We should probably keep using host_mdm,
-	// but be better at updating the table with the right values when a host enrolls (perhaps adding
-	// a query param to the enroll endpoint).
+	// The join on host_mdm_apple_bootstrap_packages scopes this to hosts Fleet sent the package to,
+	// whether they enrolled via DEP or manually.
 	stmt := `
 SELECT
     CASE
@@ -4348,12 +4340,10 @@ JOIN host_mdm_apple_bootstrap_packages hmabp ON
     hmabp.host_uuid = h.uuid
 LEFT JOIN nano_command_results ncr ON
     ncr.command_uuid = hmabp.command_uuid
-JOIN host_mdm hm ON
-    hm.host_id = h.id
 JOIN mdm_apple_bootstrap_packages mabs ON
 		COALESCE(h.team_id, 0) = mabs.team_id
 WHERE
-    h.id = ? AND hm.installed_from_dep = 1 AND hmabp.skipped = 0`
+    h.id = ? AND hmabp.skipped = 0`
 
 	args := []interface{}{fleet.MDMBootstrapPackageInstalled, fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, hostID}
 

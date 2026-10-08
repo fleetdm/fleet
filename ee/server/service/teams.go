@@ -1762,7 +1762,8 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" ||
-		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value {
+		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value ||
+		macOSSetup.BootstrapPackageManualEnrollment {
 		if !appCfg.MDM.EnabledAndConfigured {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
@@ -2324,6 +2325,15 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 	team.Config.MDM.MacOSSetup.RequireAllSoftware = spec.MDM.MacOSSetup.RequireAllSoftware
+
+	didUpdateBootstrapPackageManualEnrollment := spec.MDM.MacOSSetup.BootstrapPackageManualEnrollment != oldMacOSSetup.BootstrapPackageManualEnrollment
+	if didUpdateBootstrapPackageManualEnrollment && spec.MDM.MacOSSetup.BootstrapPackageManualEnrollment {
+		if !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.macos_bootstrap_package_manual_enrollment",
+				`Couldn't update setup_experience.macos_bootstrap_package_manual_enrollment because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+	}
+	team.Config.MDM.MacOSSetup.BootstrapPackageManualEnrollment = spec.MDM.MacOSSetup.BootstrapPackageManualEnrollment
 
 	didUpdateWindowsRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftwareWindows != oldMacOSSetup.RequireAllSoftwareWindows
 	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
@@ -2911,6 +2921,11 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 
 	if payload.RequireAllSoftwareWindows != nil && tm.Config.MDM.MacOSSetup.RequireAllSoftwareWindows != *payload.RequireAllSoftwareWindows {
 		tm.Config.MDM.MacOSSetup.RequireAllSoftwareWindows = *payload.RequireAllSoftwareWindows
+		didUpdate = true
+	}
+
+	if payload.BootstrapPackageManualEnrollment != nil && tm.Config.MDM.MacOSSetup.BootstrapPackageManualEnrollment != *payload.BootstrapPackageManualEnrollment {
+		tm.Config.MDM.MacOSSetup.BootstrapPackageManualEnrollment = *payload.BootstrapPackageManualEnrollment
 		didUpdate = true
 	}
 

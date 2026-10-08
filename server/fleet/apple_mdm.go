@@ -723,15 +723,16 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 // MDMAppleSetupPayload describes the payload accepted by the endpoint to
 // update specific MDM macos setup values for a team (or no team).
 type MDMAppleSetupPayload struct {
-	TeamID                      *uint   `json:"team_id" renameto:"fleet_id"`
-	EnableEndUserAuthentication *bool   `json:"enable_end_user_authentication"`
-	EnableReleaseDeviceManually *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	ManualAgentInstall          *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware          *bool   `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows   *bool   `json:"require_all_software_windows"`
-	LockEndUserInfo             *bool   `json:"lock_end_user_info"`
-	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
-	EndUserLocalAccountType     *string `json:"end_user_local_account_type"`
+	TeamID                           *uint   `json:"team_id" renameto:"fleet_id"`
+	EnableEndUserAuthentication      *bool   `json:"enable_end_user_authentication"`
+	EnableReleaseDeviceManually      *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	ManualAgentInstall               *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
+	RequireAllSoftware               *bool   `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows        *bool   `json:"require_all_software_windows"`
+	BootstrapPackageManualEnrollment *bool   `json:"macos_bootstrap_package_manual_enrollment"`
+	LockEndUserInfo                  *bool   `json:"lock_end_user_info"`
+	EnableManagedLocalAccount        *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
+	EndUserLocalAccountType          *string `json:"end_user_local_account_type"`
 }
 
 // AuthzType implements authz.AuthzTyper.

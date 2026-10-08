@@ -1754,6 +1754,22 @@ func TestMDMConfig(t *testing.T) {
 			expectedError: "setup_experience.macos_manual_agent_install Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.",
 		},
 		{
+			name:        "bootstrap package for manual enrollment requires premium",
+			licenseTier: "free",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{BootstrapPackageManualEnrollment: true},
+			},
+			expectedError: "setup_experience.macos_bootstrap_package_manual_enrollment " + licenseErr,
+		},
+		{
+			name:        "bootstrap package for manual enrollment requires MDM enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{BootstrapPackageManualEnrollment: true},
+			},
+			expectedError: "setup_experience.macos_bootstrap_package_manual_enrollment Couldn't update setup_experience because MDM features aren't turned on in Fleet.",
+		},
+		{
 			name:        "windows entra client IDs require premium",
 			licenseTier: "free",
 			newMDM: fleet.MDM{

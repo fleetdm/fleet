@@ -1,0 +1,1 @@
+- Added `macos_bootstrap_package_manual_enrollment` setup experience option to install the bootstrap package on macOS hosts that enroll to Fleet manually.
