@@ -17,7 +17,10 @@ import {
   MdmProfileStatus,
   ProfilePlatform,
 } from "interfaces/mdm";
-import { isAppleDevice } from "interfaces/platform";
+import {
+  isAppleDevice,
+  LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS,
+} from "interfaces/platform";
 import { isDDMProfile } from "services/entities/mdm";
 
 import {
@@ -378,17 +381,21 @@ export const generateTableData = (
   hostMDMData: IHostMdmData,
   platform: string
 ) => {
+  // rhel is Fedora here: the OS settings card is only shown for Fedora among rhel-like hosts
+  if (
+    platform === "rhel" ||
+    LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS.includes(
+      platform as typeof LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS[number]
+    )
+  ) {
+    return makeLinuxRows(hostMDMData);
+  }
+
   switch (platform) {
     case "windows":
       return makeWindowsRows(hostMDMData);
     case "darwin":
       return makeDarwinRows(hostMDMData);
-    case "ubuntu":
-      return makeLinuxRows(hostMDMData);
-    case "zorin":
-      return makeLinuxRows(hostMDMData);
-    case "rhel":
-      return makeLinuxRows(hostMDMData);
     case "ios":
     case "ipados":
       return makeAppleMobileRows(hostMDMData, platform);
