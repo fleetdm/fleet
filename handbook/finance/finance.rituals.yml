@@ -45,7 +45,7 @@
   frequency: "Monthly"
   description: "Verify closed-won deal amounts, use commission calculators to determine commissions owed, and process payroll."
   moreInfoUrl: "https://fleetdm.com/handbook/finance#run-us-commission-payroll"
-  dri: "rfoo2015"
+  dri: "ireedy"
   autoIssue:
     labels: [":help-people"]
     repo: "confidential"
