@@ -1550,6 +1550,8 @@ type MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc func(ctx context.Cont
 
 type WindowsHostLiteByHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.HostLite, error)
 
+type WindowsHostLiteByUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.HostLite, error)
+
 type MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc func(ctx context.Context, mdmDeviceID string, hardwareSerial string) error
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error)
@@ -1557,6 +1559,8 @@ type MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc func(ctx context.
 type MDMWindowsConflictingEnrollmentHardwareIDFunc func(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error)
 
 type MDMWindowsClaimEnrolledActivityFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
+
+type MDMWindowsSetEnrollmentFleetdPresentFunc func(ctx context.Context, enrollmentID uint, hostUUID string) error
 
 type MDMWindowsReleaseEnrolledActivityClaimFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error
 
@@ -4852,6 +4856,9 @@ type DataStore struct {
 	WindowsHostLiteByHardwareSerialFunc        WindowsHostLiteByHardwareSerialFunc
 	WindowsHostLiteByHardwareSerialFuncInvoked bool
 
+	WindowsHostLiteByUUIDFunc        WindowsHostLiteByUUIDFunc
+	WindowsHostLiteByUUIDFuncInvoked bool
+
 	MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc        MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc
 	MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked bool
 
@@ -4863,6 +4870,9 @@ type DataStore struct {
 
 	MDMWindowsClaimEnrolledActivityFunc        MDMWindowsClaimEnrolledActivityFunc
 	MDMWindowsClaimEnrolledActivityFuncInvoked bool
+
+	MDMWindowsSetEnrollmentFleetdPresentFunc        MDMWindowsSetEnrollmentFleetdPresentFunc
+	MDMWindowsSetEnrollmentFleetdPresentFuncInvoked bool
 
 	MDMWindowsReleaseEnrolledActivityClaimFunc        MDMWindowsReleaseEnrolledActivityClaimFunc
 	MDMWindowsReleaseEnrolledActivityClaimFuncInvoked bool
@@ -11714,6 +11724,13 @@ func (s *DataStore) WindowsHostLiteByHardwareSerial(ctx context.Context, hardwar
 	return s.WindowsHostLiteByHardwareSerialFunc(ctx, hardwareSerial)
 }
 
+func (s *DataStore) WindowsHostLiteByUUID(ctx context.Context, hostUUID string) (*fleet.HostLite, error) {
+	s.mu.Lock()
+	s.WindowsHostLiteByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.WindowsHostLiteByUUIDFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.Context, mdmDeviceID string, hardwareSerial string) error {
 	s.mu.Lock()
 	s.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked = true
@@ -11740,6 +11757,13 @@ func (s *DataStore) MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHard
 	s.MDMWindowsClaimEnrolledActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsClaimEnrolledActivityFunc(ctx, mdmHardwareID, claimedAt)
+}
+
+func (s *DataStore) MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, enrollmentID uint, hostUUID string) error {
+	s.mu.Lock()
+	s.MDMWindowsSetEnrollmentFleetdPresentFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsSetEnrollmentFleetdPresentFunc(ctx, enrollmentID, hostUUID)
 }
 
 func (s *DataStore) MDMWindowsReleaseEnrolledActivityClaim(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error {
