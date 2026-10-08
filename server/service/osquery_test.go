@@ -6153,6 +6153,66 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ai_tools rows are merged after the other extra queries",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":       fleet.StatusOK,
+				hostDetailQueryPrefix + "software_go_binaries": fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools":    fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app"},
+				},
+				hostDetailQueryPrefix + "software_go_binaries": []map[string]string{
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{
+					{"name": "Claude", "source": "ai_tools", "ai_type": "apps", "installed_path": "/Applications/Claude.app"},
+					{"name": "crush", "source": "ai_clis", "ai_type": "agents", "installed_path": "/Users/a/go/bin/crush"},
+					{"name": "github", "source": "mcp_servers", "ai_type": "mcp_server", "installed_path": "/Users/a/.cursor/mcp.json"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app"},
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush"},
+					{"name": "github", "source": "mcp_servers", "ai_type": "mcp_server", "installed_path": "/Users/a/.cursor/mcp.json"},
+				},
+			},
+		},
+		{
+			name:      "ai_tools rows match software added by the override queries",
+			host:      &fleet.Host{ID: 1, Platform: "windows"},
+			overrides: osquery_utils.SoftwareOverrideQueries,
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_windows":                    fleet.StatusOK,
+				hostDetailQueryPrefix + "software_windows_program_files_scan": fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools":                   fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_windows": []map[string]string{
+					{"name": "Notepad++", "version": "8.0", "source": "programs", "installed_path": `C:\Program Files\Notepad++`},
+				},
+				hostDetailQueryPrefix + "software_windows_program_files_scan": []map[string]string{
+					{"path": `C:\Program Files\ChatGPT\ChatGPT.exe`, "filename": "ChatGPT.exe", "product_version": "1.2025.209"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{
+					{"name": "chatgpt", "source": "ai_clis", "ai_type": "agents", "installed_path": `C:\Program Files\ChatGPT`},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_windows": []map[string]string{
+					{"name": "Notepad++", "version": "8.0", "source": "programs", "installed_path": `C:\Program Files\Notepad++`},
+					{
+						"name": "ChatGPT.exe", "version": "1.2025.209", "source": "programs", "vendor": "",
+						"installed_path": `C:\Program Files\ChatGPT`, "extension_id": "", "extension_for": "",
+						"upgrade_code": "", "release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+					},
+				},
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host := &fleet.Host{ID: 1}

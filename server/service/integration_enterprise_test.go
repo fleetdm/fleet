@@ -6563,6 +6563,8 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_ai_tools")
+	require.Contains(t, dqResp.Discovery["fleet_detail_query_software_ai_tools"], "name = 'ai_tools'")
 	require.NotContains(t, dqResp.Queries, "fleet_additional_query_time")
 
 	// add the host to team1
@@ -6576,6 +6578,7 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_software_ai_tools")
 	require.Contains(t, dqResp.Queries, "fleet_additional_query_time")
 }
 
