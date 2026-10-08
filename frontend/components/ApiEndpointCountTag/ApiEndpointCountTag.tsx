@@ -7,7 +7,7 @@ interface IApiEndpointCountTagProps {
 }
 
 const ApiEndpointCountTag = ({ count }: IApiEndpointCountTagProps) => (
-  <Tag size="small">{`${count} API endpoint${count === 1 ? "" : "s"}`}</Tag>
+  <Tag size="xsmall">{`${count} API endpoint${count === 1 ? "" : "s"}`}</Tag>
 );
 
 export default ApiEndpointCountTag;
