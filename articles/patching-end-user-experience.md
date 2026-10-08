@@ -24,9 +24,9 @@ Here's what the end user sees with each option:
 | Option | End user experience |
 |:-------|:-----------------------|
 | **Patch when app is closed** (default) | The app is patched silently only when the app isn't running. |
-| **Force patch** > **Patch immediately** | The patch installs as soon as the policy fails. It can interupt the end user without notice. |
+| **Force patch** > **Patch immediately** | The patch installs as soon as the policy fails. It can interrupt the end user without notice. |
 | **Force patch** > **Notify before patching** | If the app is running, end user sees a notification that the app will close and update in 1 hour. If the app isn't running it's patched silently. |
-| **Force patch** > **Deadline** ([coming soon](https://github.com/fleetdm/fleet/issues/39176)) | Apps with this option will update every __n__ days (customizable), at the choosen time. Fleet consolidates all outdated apps into a single notification that appears one day, one hour, and 5 minutes before the deadline. Users can enable a grace period for those who were offline when the deadline was reached. |
+| **Force patch** > **Deadline** ([coming soon](https://github.com/fleetdm/fleet/issues/39176)) | Apps with this option will update every __n__ days (customizable), at the chosen time. Fleet consolidates all outdated apps into a single notification that appears one day, one hour, and 5 minutes before the deadline. Users can enable a grace period for those who were offline when the deadline was reached. |
 | **End user initiated (manual)** | Nothing installs on its own. The end user updates the app from Fleet Desktop > Self service when they choose. |
 
 > The [Fleet Desktop](https://fleetdm.com/software-catalog/fleet-desktop-darwin) app is required to notify end users. If app is missing and **Notify before patching** is selected, Fleet will skip patching on hosts that are missing Fleet Desktop.
