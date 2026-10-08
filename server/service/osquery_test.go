@@ -6205,6 +6205,23 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			},
 		},
 		{
+			name: "ai_tool reported by the host in software_chrome is dropped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_chrome": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_chrome": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "chrome_extensions", "ai_tool": "1"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_chrome": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "chrome_extensions"},
+				},
+			},
+		},
+		{
 			name: "ai_tool reported by the host is replaced by the ai_tools match",
 			host: &fleet.Host{ID: 1, Platform: "darwin"},
 			statusesIn: map[string]fleet.OsqueryStatus{
