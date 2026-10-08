@@ -21,7 +21,7 @@ export const getSoftwareFiltersFromQueryParams = (queryParams: QueryParams) => {
     minCvssScore: parseQueryValueToNumberOrUndefined(min_cvss_score, 0, 10),
     maxCvssScore: parseQueryValueToNumberOrUndefined(max_cvss_score, 0, 10),
     types: parseSoftwareTypesParam(types as string | undefined),
-    aiTool: stringUtils.strToBool(ai_tool as string),
+    aiTool: ai_tool === "true",
   };
 };
 
