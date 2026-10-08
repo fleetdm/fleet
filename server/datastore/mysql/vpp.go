@@ -3751,7 +3751,7 @@ func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, app
 		args = append(args, hostIDs)
 	}
 
-	// Read the latest install of the app on each host of the fleet that still has the app in its inventory. Skip failed
+	// Read the latest install of the app on each host of the fleet that still has the app in its inventory. Filter out failed
 	// installs since the host still has the version from the install before it.
 	stmt := fmt.Sprintf(`
 SELECT
