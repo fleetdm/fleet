@@ -1,6 +1,6 @@
 # Patching end user experience
 
-![Notify end user before update](../website/assets/images/articles/patching-end-user-experience-cover-img.png)
+![Notify end user before update](../website/assets/images/articles/patching-end-user-experience-cover-img-774x419@2x.png)
 
 When a patch policy for a Fleet-maintained app fails, Fleet can update the app for you. Each patch option gives your end users a different experience. 
 
