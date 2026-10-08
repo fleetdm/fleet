@@ -1,0 +1,1 @@
+- Fleet now collects the epoch of RPM packages on Linux hosts, which will be used to fix vulnerability false positives on packages with an epoch (e.g. `mod_ssl`, `tomcat`) on RHEL-based hosts.

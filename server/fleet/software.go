@@ -158,7 +158,17 @@ type Software struct {
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 
+	SoftwareMetadata
+
 	DisplayName string `json:"display_name"`
+}
+
+// SoftwareMetadata holds per-software data, stored in the software_metadata table, that is the same
+// on every host with that software but is not part of its identity (not in ToUniqueStr or the
+// checksum), so that collecting a new field doesn't create new software rows.
+type SoftwareMetadata struct {
+	// Epoch is the RPM package epoch, only set when greater than 0.
+	Epoch *uint32 `json:"-" db:"epoch"`
 }
 
 func (Software) AuthzType() string {
@@ -970,7 +980,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
 func SoftwareFromOsqueryRow(
 	name, version, source, vendor, installedPath, release, arch,
-	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode string,
+	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode, epoch string,
 ) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
@@ -1025,6 +1035,12 @@ func SoftwareFromOsqueryRow(
 	}
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
+	}
+	if truncatedSource == "rpm_packages" {
+		// osquery reports a missing epoch as empty; epoch 0 is equivalent for RPM comparisons.
+		if e, err := strconv.ParseUint(epoch, 10, 32); err == nil && e > 0 {
+			software.Epoch = new(uint32(e))
+		}
 	}
 
 	return &software, nil

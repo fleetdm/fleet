@@ -72,6 +72,7 @@ func TestSoftware(t *testing.T) {
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"ListSoftwareForVulnDetectionByOSVersion", testListSoftwareForVulnDetectionByOSVersion},
+		{"UpdateHostSoftwareMetadata", testUpdateHostSoftwareMetadata},
 		{"ListSoftwareVulnerabilitiesBySoftwareIDs", testListSoftwareVulnerabilitiesBySoftwareIDs},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
 		{"AllSoftwareIteratorForCustomLinuxImages", testSoftwareIteratorForLinuxKernelCustomImages},
@@ -11447,9 +11448,9 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 
-	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "", "")
+	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
-	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "", "")
+	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
 
 	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{*existingSw})
@@ -14052,6 +14053,109 @@ func testListSoftwareForVulnDetectionByOSVersion(t *testing.T, ds *Datastore) {
 
 	_, err = ds.ListSoftwareForVulnDetectionByOSVersion(ctx, ubuntu2204, []string{"deb_packages", ""})
 	require.ErrorContains(t, err, "empty software source")
+}
+
+func testUpdateHostSoftwareMetadata(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	rocky := fleet.OSVersion{Platform: "rhel", Name: "Rocky Linux 9.3.0"}
+
+	newRHELHost := func(name string) *fleet.Host {
+		h := test.NewHost(t, ds, name, "", name+"key", name+"uuid", time.Now())
+		h.Platform = rocky.Platform
+		h.OSVersion = rocky.Name
+		require.NoError(t, ds.UpdateHost(ctx, h))
+		return h
+	}
+	rpm := func(name, version, release string, epoch *uint32) fleet.Software {
+		return fleet.Software{
+			Name: name, Version: version, Release: release, Arch: "x86_64", Vendor: "Rocky", Source: "rpm_packages",
+			SoftwareMetadata: fleet.SoftwareMetadata{Epoch: epoch},
+		}
+	}
+	storedEpochs := func() map[string]uint32 {
+		var rows []struct {
+			Name  string `db:"name"`
+			Epoch uint32 `db:"epoch"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `SELECT s.name, sm.epoch FROM software_metadata sm JOIN software s ON s.id = sm.software_id`)
+		})
+		m := make(map[string]uint32, len(rows))
+		for _, r := range rows {
+			m[r.Name] = r.Epoch
+		}
+		return m
+	}
+	hostSoftwareIDs := func(hostID uint) map[string]uint {
+		sw, err := ds.ListSoftwareByHostIDShort(ctx, hostID)
+		require.NoError(t, err)
+		m := make(map[string]uint, len(sw))
+		for _, s := range sw {
+			m[s.Name] = s.ID
+		}
+		return m
+	}
+	softwareUpdatedAt := func(hostID uint) time.Time {
+		var ts time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &ts, `SELECT software_updated_at FROM host_updates WHERE host_id = ?`, hostID)
+		})
+		return ts
+	}
+
+	modSSL := rpm("mod_ssl", "2.4.62", "13.el9_8.6", new(uint32(1)))
+	httpd := rpm("httpd", "2.4.62", "13.el9_8.6", nil)
+	tomcatWithoutEpoch := rpm("tomcat", "9.0.120", "2.el9_8", nil)
+	tomcat := rpm("tomcat", "9.0.120", "2.el9_8", new(uint32(1)))
+	bindLibsWithoutEpoch := rpm("bind-libs", "9.16.23", "40.el9_8.10", nil)
+	bindLibs := rpm("bind-libs", "9.16.23", "40.el9_8.10", new(uint32(32)))
+
+	// New software stores its epoch; software without one gets no metadata row.
+	h1 := newRHELHost("h1")
+	_, err := ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{modSSL, httpd, tomcatWithoutEpoch})
+	require.NoError(t, err)
+	require.Equal(t, map[string]uint32{"mod_ssl": 1}, storedEpochs())
+
+	// Software reported before epochs were collected is backfilled in place: same software rows,
+	// and the host's software isn't considered changed.
+	idsBefore := hostSoftwareIDs(h1.ID)
+	pastUpdate := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_updates SET software_updated_at = ? WHERE host_id = ?`, pastUpdate, h1.ID)
+		return err
+	})
+	_, err = ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{modSSL, httpd, tomcat})
+	require.NoError(t, err)
+	require.Equal(t, map[string]uint32{"mod_ssl": 1, "tomcat": 1}, storedEpochs())
+	require.Equal(t, idsBefore, hostSoftwareIDs(h1.ID))
+	require.True(t, pastUpdate.Equal(softwareUpdatedAt(h1.ID)))
+
+	// Existing software newly installed on another host is backfilled too.
+	h2 := newRHELHost("h2")
+	_, err = ds.UpdateHostSoftware(ctx, h2.ID, []fleet.Software{bindLibsWithoutEpoch})
+	require.NoError(t, err)
+	h3 := newRHELHost("h3")
+	_, err = ds.UpdateHostSoftware(ctx, h3.ID, []fleet.Software{bindLibs})
+	require.NoError(t, err)
+	require.Equal(t, hostSoftwareIDs(h2.ID)["bind-libs"], hostSoftwareIDs(h3.ID)["bind-libs"])
+	require.Equal(t, map[string]uint32{"mod_ssl": 1, "tomcat": 1, "bind-libs": 32}, storedEpochs())
+
+	// Vulnerability detection gets the epoch.
+	vulnSoftware, err := ds.ListSoftwareForVulnDetectionByOSVersion(ctx, rocky, []string{"rpm_packages"})
+	require.NoError(t, err)
+	vulnEpochs := make(map[string]*uint32, len(vulnSoftware))
+	for _, s := range vulnSoftware {
+		vulnEpochs[s.Name] = s.Epoch
+	}
+	require.Equal(t, map[string]*uint32{
+		"mod_ssl": new(uint32(1)), "httpd": nil, "tomcat": new(uint32(1)), "bind-libs": new(uint32(32)),
+	}, vulnEpochs)
+
+	// Cleaning up software no host has anymore removes its metadata.
+	_, err = ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{httpd})
+	require.NoError(t, err)
+	require.NoError(t, ds.cleanupUnusedSoftware(ctx))
+	require.Equal(t, map[string]uint32{"bind-libs": 32}, storedEpochs())
 }
 
 func testListSoftwareVulnerabilitiesBySoftwareIDs(t *testing.T, ds *Datastore) {
