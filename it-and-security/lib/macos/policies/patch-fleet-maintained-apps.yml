@@ -58,7 +58,7 @@
   type: patch
   fleet_maintained_app_slug: slack/darwin
   install_software: true
-  notify_before_patching: true
+  patch_when_closed: true
   labels_include_any:
     - Macs with Slack installed
 - name: Zoom up to date (macOS)
