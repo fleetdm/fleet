@@ -1283,7 +1283,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 		AutoUpdateStartTime: new("23:30"),
 		AutoUpdateEndTime:   new("00:15"),
 	}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(res.Body), "60 minutes")
+	require.Contains(t, extractServerErrorText(res.Body), "at least one hour long")
 
 	// Malformed times (not HH:MM) rejected at the service boundary.
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
