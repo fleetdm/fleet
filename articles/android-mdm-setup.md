@@ -62,7 +62,7 @@ Fleet also clears the host's past activities. To keep them, turn on **Preserve h
 
 ## Migration
 
-To migrate personal (BYOD) Android hosts from other MDM solution, first unenroll the host from your old solution. Then, share the enrollment page with your end users so they can enroll to Fleet. Unenrolling BYOD hosts will only remove/wipe the work profile (company data). Personal data won't be removed.
+To migrate personal (BYOD) Android hosts from another MDM solution, follow the [Android BYOD MDM migration guide](https://fleetdm.com/guides/android-byod-mdm-migration).
 
 To migrate company-owned (fully-managed) hosts, first wipe them and then, on another device, open the enrollment page. To enroll the Android host to Fleet, you'll scan a QR code on this page.
 
