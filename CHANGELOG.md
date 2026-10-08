@@ -6,7 +6,10 @@
 - Added the new Android host vitals to the Vitals card on the host details page: USB debugging enabled, passcode set, Play Protect enabled, encryption status, manufacturer, security update version, kernel version, bootloader version, software update status, security posture, carrier, phone number, IMEI, and MEID, plus the device's Android API level in a tooltip on the operating system. Phone number, carrier, IMEI, and MEID are shown only for company-owned hosts. On Android hosts the operating system no longer repeats the security patch level, which now has its own vital.
 - Added collection of the Android hardware radio identifiers (IMEI and MEID) from AMAPI status reports, returned as `imei` and `meid` by the get host endpoints for company-owned Android hosts.
 - Added the ability to rotate the managed local account password on Windows hosts, from Host details > Actions > Show managed account or the `POST /hosts/:id/managed_account_password/rotate` endpoint. As on macOS, viewing the password also schedules an automatic rotation about an hour later.
+- Added IdP host vitals (username, full name, groups, department) on Entra-joined Windows hosts enrolled without Fleet MDM, by matching the Entra join user reported by the device to the SCIM-provisioned user. Manually set and end user authentication usernames take precedence.
+- Added `host_id` and `host_serial` to the `mdm_enrolled` activity for Windows hosts, so the activity appears on the host's activity timeline and automations can identify the device. Windows automatic (Entra/Autopilot) enrollments report neither the host nor its serial at enrollment time, so their activity is now recorded the first time the enrollment is linked to a host instead of being recorded without them. The activity also reports `installed_from_dep` for Windows, and the activity feed shows the serial and the enrollment type alongside the host name.
 - Added support for restricting Managed Apple Account sign-ins via Apple Business, using the GetToken protocol.
+- Added the ability for users with the Technician role to clear passcodes on iOS and iPadOS hosts.
 - Raised the report cap to the number of hosts when that is higher than `report_cap`, so reports that return one result per host are never clipped.
 - Changed reports that reach the cap to keep updating results for hosts already in the report instead of pausing entirely. Only results from hosts not yet in the report are skipped.
 - Stopped storing a host's result for a report when it is larger than 512 KB. Only the fetch time is recorded.
@@ -14,10 +17,7 @@
 - Changed the report results page to paginate, sort, and search server-side instead of loading every result into the browser.
 - Added real online and offline status for iOS, iPadOS, and Android hosts based on MDM activity, instead of always reporting them as offline. The status is reflected on the hosts list, host details, dashboard summary, and target counts.
 - Added an online history modal on the host details page. Clicking a host's online/offline status opens a 30-day checkerboard of that host's connectivity.
-- Added IdP host vitals (username, full name, groups, department) on Entra-joined Windows hosts enrolled without Fleet MDM, by matching the Entra join user reported by the device to the SCIM-provisioned user. Manually set and end user authentication usernames take precedence.
-- Added the ability for users with the Technician role to clear passcodes on iOS and iPadOS hosts.
 - Added the ability to filter hosts by platform label and disk encryption status at the same time. Disk encryption status rows on Controls > OS settings now link to the host list filtered by both.
-- Added `host_id` and `host_serial` to the `mdm_enrolled` activity for Windows hosts, so the activity appears on the host's activity timeline and automations can identify the device. Windows automatic (Entra/Autopilot) enrollments report neither the host nor its serial at enrollment time, so their activity is now recorded the first time the enrollment is linked to a host instead of being recorded without them. The activity also reports `installed_from_dep` for Windows, and the activity feed shows the serial and the enrollment type alongside the host name.
 - Added a `populate_end_users` query parameter to the "List hosts" API endpoint, which includes each host's end users, with their identity provider (IdP) details and other emails, in the response.
 - Added `disk_encryption_enabled` to each host in the response of the list hosts endpoint (`GET /api/v1/fleet/hosts`).
 - Added a `--cpu-quota` flag to `fleetctl package` to set the systemd `CPUQuota` enforced on fleetd in Linux packages (deb, rpm, pkg.tar.zst). The default remains 20%.
@@ -26,14 +26,14 @@
 
 ### Security Engineers
 - Added hardware attestation (ACME) for iPhones and iPads assigned to Fleet in Apple Business. With `apple_require_hardware_attestation` on, devices with an A11 Bionic chip or later running iOS or iPadOS 16 or later prove their hardware matches a known Apple Business record when they enroll. Hosts already enrolled with SCEP move to ACME on their next certificate renewal, and older devices keep enrolling with SCEP.
+- Added the ability to limit enrollments to only automated (DEP) Apple Business device enrollments.
+- Added the `mdm.apple_one_time_enroll_secrets` server configuration option, which uses one-time enrollment secrets delivered in the fleetd configuration profile for macOS hosts instead of shared enrollment secrets.
 - Added vulnerability detection for Go binaries in software inventory, using the Go vulnerability database (https://vuln.go.dev).
 - Added the Go module path and Go toolchain version to Go binaries in software inventory. Go binaries now show a Go icon, and their version includes the toolchain they were built with (for example, `v0.21.1 (go1.26.1)`).
+- Added `signature_information` with `executable_path` and `executable_sha256` for each Mach-O executable installed by a Homebrew formula under its keg's `bin` and `sbin`, for use with Santa binary rules. Requires an updated fleetd.
 - Added multi-signal detection to the `ai_tools` fleetd table, so AI agents that aren't recognized tools (homegrown agents and CrewAI, AutoGen, or LangChain harnesses) are reported instead of being missed. Two new columns, `confidence` and `evidence`, show how certain each detection is and which signals produced it. Hosts may report more `agents` rows than before as a result.
 - Added TOML and YAML MCP config parsing to the `ai_tools` table, so MCP servers declared by Grok, Codex, Hermes, and the OpenClaw family are now reported. An MCP server that stores an `Authorization` value in its config is now flagged with the existing `plaintext_secret` risk flag.
 - Added support for end users to create their own BitLocker startup PIN from the **My device** page, so a Windows user without local admin rights can satisfy a fleet that requires one. The PIN is stored encrypted, handed to the host's agent exactly once, and cleared. Fleet never shows it back to the end user or to an admin.
-- Added the ability to limit enrollments to only automated (DEP) Apple Business device enrollments.
-- Added the `mdm.apple_one_time_enroll_secrets` server configuration option, which uses one-time enrollment secrets delivered in the fleetd configuration profile for macOS hosts instead of shared enrollment secrets.
-- Added `signature_information` with `executable_path` and `executable_sha256` for each Mach-O executable installed by a Homebrew formula under its keg's `bin` and `sbin`, for use with Santa binary rules. Requires an updated fleetd.
 - Updated CIS Windows 10 Enterprise benchmark policies from v4.0.0 to v5.0.0.
 
 ### Bug fixes and improvements
