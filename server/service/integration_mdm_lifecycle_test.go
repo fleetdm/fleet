@@ -1127,20 +1127,18 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
-	// Devices renew their SCEP cert by re-enrolling. A genuine renewal re-keys from a pushed renewal
-	// profile, which (unlike a freshly-fetched enrollment profile) carries no new-enrollment Subject OU;
-	// SimulateSCEPRenewal replays the full re-enroll flow but omits that marker so the checkin is treated
-	// as a renewal rather than a fresh enrollment.
+	// Devices renew their SCEP cert by re-keying from the pushed renewal profile, which (unlike a
+	// freshly-fetched enrollment profile) carries the static challenge and no new-enrollment Subject OU.
+	// Re-fetching the enrollment profile would mint a purpose-bound challenge and look like a fresh enrollment.
 	for _, d := range []*mdmtest.TestAppleMDMClient{
 		manualEnrolledDevice, automaticEnrolledDevice, automaticEnrolledDeviceWithRef, migratedDevice, iPhoneMdmDevice,
 	} {
 		d.SimulateSCEPRenewal = true
+		d.EnrollInfo.SCEPChallenge = s.scepChallenge
+		require.NoError(t, d.SCEPEnroll())
+		require.NoError(t, d.Authenticate())
+		require.NoError(t, d.TokenUpdate(false))
 	}
-	require.NoError(t, manualEnrolledDevice.Reenroll())
-	require.NoError(t, automaticEnrolledDevice.Reenroll())
-	require.NoError(t, automaticEnrolledDeviceWithRef.Reenroll())
-	require.NoError(t, migratedDevice.Reenroll())
-	require.NoError(t, iPhoneMdmDevice.Reenroll())
 
 	// no new commands are enqueued right after enrollment
 	cmd, err = manualEnrolledDevice.Idle()
