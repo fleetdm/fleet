@@ -1425,7 +1425,14 @@ func (ds *Datastore) applyHostFilters(
 				return "", nil, ctxerr.Wrap(ctx, err, "get available installer by team and title id")
 
 			case installerID > 0:
-				// found a software installer package
+				// found a software installer package. Reject a VPP-shaped child
+				// id (app_store_app_version_id) on a package title so a client
+				// filter is never silently dropped.
+				if opt.AppStoreAppVersionIDFilter != nil {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "app_store_app_version_id does not apply to this software_title_id (title is a software installer package)",
+					}, "mismatched child id for title")
+				}
 				installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, opt.SoftwareInstallerIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
@@ -1434,7 +1441,13 @@ func (ds *Datastore) applyHostFilters(
 				joinParams = append(joinParams, installerParams...)
 
 			case vppID != nil:
-				// found a VPP app
+				// found a VPP app. Reject a package-shaped child id
+				// (software_installer_id) on a VPP title for the same reason.
+				if opt.SoftwareInstallerIDFilter != nil {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "software_installer_id does not apply to this software_title_id (title is a VPP app)",
+					}, "mismatched child id for title")
+				}
 				vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, opt.AppStoreAppVersionIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
@@ -1443,6 +1456,12 @@ func (ds *Datastore) applyHostFilters(
 				joinParams = append(joinParams, vppAppParams...)
 
 			case inHouseID > 0:
+				// in-house apps don't support either per-child filter.
+				if opt.SoftwareInstallerIDFilter != nil || opt.AppStoreAppVersionIDFilter != nil {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "software_installer_id and app_store_app_version_id do not apply to in-house app titles",
+					}, "mismatched child id for title")
+				}
 				inHouseJoin, inHouseParams, err := ds.inHouseAppJoin(inHouseID, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "in-house app join")
