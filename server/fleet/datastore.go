@@ -2760,8 +2760,12 @@ type Datastore interface {
 	// GetMDMWindowsCommands returns the results of command
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
-	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
+	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID. It returns true when the host UUID
+	// changed, or when the enrollment's host was deleted and this is its first link since.
 	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
+
+	// MDMWindowsClearDeletedHostTeam clears the deleted host marker of the device's enrollments.
+	MDMWindowsClearDeletedHostTeam(ctx context.Context, mdmDeviceID string) error
 
 	// SetMDMWindowsAwaitingConfiguration performs a compare-and-swap update on the
 	// awaiting_configuration status for a Windows MDM enrollment identified by

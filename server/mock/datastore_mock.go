@@ -1594,6 +1594,8 @@ type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID strin
 
 type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
 
+type MDMWindowsClearDeletedHostTeamFunc func(ctx context.Context, mdmDeviceID string) error
+
 type SetMDMWindowsAwaitingConfigurationFunc func(ctx context.Context, mdmDeviceID string, expectFrom fleet.WindowsMDMAwaitingConfiguration, to fleet.WindowsMDMAwaitingConfiguration) (bool, error)
 
 type GetMDMWindowsHostConfigStateFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error)
@@ -4921,6 +4923,9 @@ type DataStore struct {
 
 	UpdateMDMWindowsEnrollmentsHostUUIDFunc        UpdateMDMWindowsEnrollmentsHostUUIDFunc
 	UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
+
+	MDMWindowsClearDeletedHostTeamFunc        MDMWindowsClearDeletedHostTeamFunc
+	MDMWindowsClearDeletedHostTeamFuncInvoked bool
 
 	SetMDMWindowsAwaitingConfigurationFunc        SetMDMWindowsAwaitingConfigurationFunc
 	SetMDMWindowsAwaitingConfigurationFuncInvoked bool
@@ -11876,6 +11881,13 @@ func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hos
 	s.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateMDMWindowsEnrollmentsHostUUIDFunc(ctx, hostUUID, mdmDeviceID)
+}
+
+func (s *DataStore) MDMWindowsClearDeletedHostTeam(ctx context.Context, mdmDeviceID string) error {
+	s.mu.Lock()
+	s.MDMWindowsClearDeletedHostTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsClearDeletedHostTeamFunc(ctx, mdmDeviceID)
 }
 
 func (s *DataStore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom fleet.WindowsMDMAwaitingConfiguration, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
