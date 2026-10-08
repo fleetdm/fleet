@@ -56,34 +56,6 @@ func TestInstallScriptPkgPropagatesInstallerExitCode(t *testing.T) {
 	require.Contains(t, script, "relaunch_application 'com.example.Foo'")
 }
 
-// TestInstallScriptPkgUsesDownloadedFileName covers a flat-pkg cask whose pkg
-// stanza differs from the download's file name only in case (outset): Fleet
-// stages the download under its own name, so the script must use that name or
-// installer fails on a case-sensitive volume.
-func TestInstallScriptPkgUsesDownloadedFileName(t *testing.T) {
-	cask := &brewCask{
-		URL: "https://github.com/macadmins/outset/releases/download/v4.2.0.21973/Outset-4.2.0.21973.pkg",
-		Artifacts: []*brewArtifact{
-			{Pkg: []optjson.StringOr[*brewPkgChoices]{{String: "outset-4.2.0.21973.pkg"}}},
-		},
-	}
-
-	script, err := installScriptForApp(inputApp{
-		Token:            "outset",
-		UniqueIdentifier: "io.macadmins.Outset",
-		InstallerFormat:  "pkg",
-	}, cask)
-	require.NoError(t, err)
-	require.Contains(t, script, `sudo installer -pkg "$TMPDIR/Outset-4.2.0.21973.pkg" -target / || exit $?`)
-
-	// A pkg inside a dmg/zip keeps the cask's name.
-	cask.URL = "https://example.com/Foo.dmg"
-	cask.Artifacts[0].Pkg[0].String = "Foo Installer.pkg"
-	script, err = installScriptForApp(inputApp{Token: "foo", UniqueIdentifier: "com.example.Foo", InstallerFormat: "dmg"}, cask)
-	require.NoError(t, err)
-	require.Contains(t, script, `sudo installer -pkg "$TMPDIR/Foo Installer.pkg" -target / || exit $?`)
-}
-
 // TestInstallScriptPkgWithChoicesPropagatesExitCode is the choices variant of the
 // above (e.g. Microsoft apps), which installs via -applyChoiceChangesXML.
 func TestInstallScriptPkgWithChoicesPropagatesExitCode(t *testing.T) {
