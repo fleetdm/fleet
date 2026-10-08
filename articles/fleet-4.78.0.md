@@ -15,7 +15,7 @@ Fleet 4.78.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Self-service software on iOS and Android
 
-You can now offer self-service app access on both iOS/iPadOS and Android. Deploy a web-based self-service portal to iPhones ([learn how](https://fleetdm.com/guides/software-self-service#deploy-self-service-on-ios-and-ipados)) and surface approved Google Play Store apps in managed Google Play. 
+You can now offer self-service app access on both iOS/iPadOS and Android. Deploy a web-based self-service portal to iPhones ([learn how](https://fleetdm.com/guides/software-self-service#deploy-self-service-on-ios-and-ipados)) and surface approved apps in the Google Play Store. 
 
 This means you can now offer self-service software on macOS, Windows, Linux, iOS/iPadOS, and Android hosts. Learn more about [self-service software](https://fleetdm.com/guides/software-self-service).
 
