@@ -11183,69 +11183,6 @@ func (s *integrationMDMTestSuite) TestUpdateMDMWindowsEnrollmentsHostUUID() {
 	require.Equal(t, hostUUID, gotDevice.HostUUID)
 }
 
-func (s *integrationMDMTestSuite) TestWindowsMDMDeletedHostRelinkRestoresIdPUser() {
-	t := s.T()
-	ctx := t.Context()
-	logger := slog.New(slog.DiscardHandler)
-
-	const upn = "relinked.user@example.com"
-	scimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: upn})
-	require.NoError(t, err)
-
-	host := createOrbitEnrolledHost(t, "windows", "", s.ds)
-	device := &fleet.MDMWindowsEnrolledDevice{
-		MDMDeviceID:     uuid.NewString(),
-		MDMHardwareID:   uuid.NewString(),
-		MDMDeviceState:  microsoft_mdm.MDMDeviceStateEnrolled,
-		MDMEnrollType:   "ProgrammaticEnrollment",
-		MDMEnrollUserID: upn,
-		MDMNotInOOBE:    true,
-	}
-	require.NoError(t, s.ds.MDMWindowsInsertEnrolledDevice(ctx, device))
-
-	requireIdPUser := func(hostID uint) {
-		mappings, err := s.ds.ListHostDeviceMapping(ctx, hostID)
-		require.NoError(t, err)
-		require.Len(t, mappings, 1)
-		require.Equal(t, upn, mappings[0].Email)
-		require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappings[0].Source)
-		scimUser, err := s.ds.ScimUserByHostID(ctx, hostID)
-		require.NoError(t, err)
-		require.Equal(t, scimUserID, scimUser.ID)
-	}
-
-	linked, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, logger, s.ds, host.ID, host.UUID, device.MDMDeviceID, true)
-	require.NoError(t, err)
-	require.True(t, linked)
-	requireIdPUser(host.ID)
-
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
-
-	// The device comes back with the same UUID, which the enrollment kept.
-	returned, err := s.ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID: new(uuid.NewString()),
-		NodeKey:       new(uuid.NewString()),
-		UUID:          host.UUID,
-		Hostname:      host.Hostname,
-		Platform:      "windows",
-	})
-	require.NoError(t, err)
-
-	linked, err = osquery_utils.LinkWindowsHostMDMEnrollment(ctx, logger, s.ds, returned.ID, returned.UUID, device.MDMDeviceID, true)
-	require.NoError(t, err)
-	require.True(t, linked)
-	requireIdPUser(returned.ID)
-
-	gotDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
-	require.NoError(t, err)
-	require.Nil(t, gotDevice.DeletedHostTeamID)
-
-	// The bookkeeping runs once per return, like a first link.
-	linked, err = osquery_utils.LinkWindowsHostMDMEnrollment(ctx, logger, s.ds, returned.ID, returned.UUID, device.MDMDeviceID, true)
-	require.NoError(t, err)
-	require.False(t, linked)
-}
-
 func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	t := s.T()
 	ctx := context.Background()

@@ -1192,6 +1192,9 @@ func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore)
 			require.Equal(t, tc.wantSecretFor, nextSecret(t, device.ID).TeamID)
 
 			// The host comes back with the same UUID: a new link until the marker is cleared.
+			enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
+			require.NoError(t, err)
+			require.Equal(t, recordedTeam(t, device.ID), enrolled.DeletedHostTeamID)
 			updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, h.UUID, device.MDMDeviceID)
 			require.NoError(t, err)
 			require.Equal(t, !tc.notRecorded, updated)
