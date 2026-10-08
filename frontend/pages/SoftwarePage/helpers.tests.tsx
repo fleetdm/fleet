@@ -17,7 +17,22 @@ import {
   getSelfServiceTooltip,
   getAutomaticInstallPoliciesCount,
   getDisplayedSoftwareName,
+  getSoftwareListName,
 } from "./helpers";
+
+it("keeps custom software names while identifying script filenames", () => {
+  const title = createMockSoftwareTitle({
+    name: "hello",
+    display_name: "Setup script",
+    source: "py_packages",
+    software_package: createMockSoftwarePackage({ name: "hello.py" }),
+  });
+
+  expect(getSoftwareListName(title)).toBe("Setup script (hello.py)");
+  expect(getSoftwareListName({ ...title, source: "pkg_packages" })).toBe(
+    "Setup script"
+  );
+});
 
 describe("getSelfServiceTooltip", () => {
   it("returns Play Store tooltip content when isAndroidPlayStoreApp is true", () => {

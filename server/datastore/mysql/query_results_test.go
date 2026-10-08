@@ -25,6 +25,8 @@ func TestQueryResults(t *testing.T) {
 	}{
 		{"Get", testGetQueryResultRows},
 		{"GetForHost", testGetQueryResultRowsForHost},
+		{"GetForHostByQuery", testQueryResultRowsForHostByQuery},
+		{"UpdateLastFetched", testUpdateQueryResultsLastFetched},
 		{"CountForQuery", testCountResultsForQuery},
 		{"CountForQueryAndHost", testCountResultsForQueryAndHost},
 		{"Overwrite", testOverwriteQueryResultRows},
@@ -276,6 +278,98 @@ func testQueryResultRowsTeamFilter(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(*observerTeamRow[0].Data), string(*results[1].Data))
 }
 
+func testQueryResultRowsForHostByQuery(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query1 := test.NewQuery(t, ds, nil, "Query 1", "SELECT 1", user.ID, true)
+	query2 := test.NewQuery(t, ds, nil, "Query 2", "SELECT 2", user.ID, true)
+	query3 := test.NewQuery(t, ds, nil, "Query 3", "SELECT 3", user.ID, true)
+	host1 := test.NewHost(t, ds, "hostname1", "192.168.1.100", "1111", "UI8XB1223", time.Now())
+	host2 := test.NewHost(t, ds, "hostname2", "192.168.1.101", "2222", "UI8XB1224", time.Now())
+
+	fetched := time.Now().UTC().Truncate(time.Second)
+	write := func(queryID, hostID uint, data ...*json.RawMessage) {
+		rows := make([]*fleet.ScheduledQueryResultRow, 0, len(data))
+		for _, d := range data {
+			rows = append(rows, &fleet.ScheduledQueryResultRow{QueryID: queryID, HostID: hostID, LastFetched: fetched, Data: d})
+		}
+		_, err := ds.OverwriteQueryResultRows(ctx, rows, fleet.DefaultMaxQueryReportRows, 0)
+		require.NoError(t, err)
+	}
+	write(query1.ID, host1.ID, new(json.RawMessage(`{"a": "2"}`)), new(json.RawMessage(`{"a": "1"}`)))
+	write(query2.ID, host1.ID, nil)
+	write(query1.ID, host2.ID, new(json.RawMessage(`{"a": "3"}`)))
+	write(query3.ID, host1.ID, new(json.RawMessage(`{"a": "4"}`)))
+
+	got, err := ds.QueryResultRowsForHostByQuery(ctx, host1.ID, nil)
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// query3 isn't asked for and host2's rows aren't returned.
+	got, err = ds.QueryResultRowsForHostByQuery(ctx, host1.ID, []uint{query1.ID, query2.ID, 9999})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+
+	require.Len(t, got[query1.ID], 2)
+	require.Less(t, got[query1.ID][0].ID, got[query1.ID][1].ID)
+	for i, want := range []string{`{"a": "2"}`, `{"a": "1"}`} {
+		row := got[query1.ID][i]
+		require.NotZero(t, row.ID)
+		require.Equal(t, query1.ID, row.QueryID)
+		require.Equal(t, host1.ID, row.HostID)
+		require.Equal(t, fetched, row.LastFetched.UTC())
+		require.NotNil(t, row.Data)
+		require.JSONEq(t, want, string(*row.Data))
+	}
+
+	require.Len(t, got[query2.ID], 1)
+	require.Nil(t, got[query2.ID][0].Data)
+}
+
+func testUpdateQueryResultsLastFetched(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query := test.NewQuery(t, ds, nil, "Query 1", "SELECT 1", user.ID, true)
+	host1 := test.NewHost(t, ds, "hostname1", "192.168.1.100", "1111", "UI8XB1223", time.Now())
+	host2 := test.NewHost(t, ds, "hostname2", "192.168.1.101", "2222", "UI8XB1224", time.Now())
+
+	fetched := time.Now().UTC().Truncate(time.Second).Add(-time.Hour)
+	for _, hostID := range []uint{host1.ID, host2.ID} {
+		_, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+			{QueryID: query.ID, HostID: hostID, LastFetched: fetched, Data: new(json.RawMessage(`{"a": "1"}`))},
+			{QueryID: query.ID, HostID: hostID, LastFetched: fetched, Data: nil},
+		}, fleet.DefaultMaxQueryReportRows, 0)
+		require.NoError(t, err)
+	}
+	rowsFor := func(hostID uint) []*fleet.StoredQueryResultRow {
+		got, err := ds.QueryResultRowsForHostByQuery(ctx, hostID, []uint{query.ID})
+		require.NoError(t, err)
+		return got[query.ID]
+	}
+	var host1IDs []uint
+	for _, r := range rowsFor(host1.ID) {
+		host1IDs = append(host1IDs, r.ID)
+	}
+
+	require.NoError(t, ds.UpdateQueryResultsLastFetched(ctx, nil, time.Now()))
+
+	// Only the given rows change; IDs that don't exist are ignored.
+	later := fetched.Add(30 * time.Minute)
+	require.NoError(t, ds.UpdateQueryResultsLastFetched(ctx, append(host1IDs, 999_999), later))
+	for _, r := range rowsFor(host1.ID) {
+		require.Equal(t, later, r.LastFetched.UTC())
+	}
+	for _, r := range rowsFor(host2.ID) {
+		require.Equal(t, fetched, r.LastFetched.UTC())
+	}
+
+	// An older time doesn't move last_fetched back.
+	require.NoError(t, ds.UpdateQueryResultsLastFetched(ctx, host1IDs, fetched))
+	for _, r := range rowsFor(host1.ID) {
+		require.Equal(t, later, r.LastFetched.UTC())
+	}
+}
+
 func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
 	query1 := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", user.ID, true)
@@ -509,14 +603,10 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, res.RowsAdded)
 
-	// Assert that the data has not changed
+	// Results of a deleted query are never returned; CleanupStaleQueryResults deletes them.
 	results, err = ds.QueryResultRowsForHost(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID)
 	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, overwriteRows[0].QueryID, results[0].QueryID)
-	require.Equal(t, overwriteRows[0].HostID, results[0].HostID)
-	require.Equal(t, overwriteRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
-	require.JSONEq(t, string(*overwriteRows[0].Data), string(*results[0].Data))
+	require.Empty(t, results)
 }
 
 func testQueryResultRowsListOptions(t *testing.T, ds *Datastore) {
@@ -1748,4 +1838,9 @@ func testQueryResultRowsLargeRows(t *testing.T, ds *Datastore) {
 	require.Len(t, reports, 1)
 	assert.Equal(t, 1, reports[0].NHostResults)
 	assert.Equal(t, big, reports[0].FirstResult["big"])
+
+	stored, err := ds.QueryResultRowsForHostByQuery(ctx, hostA.ID, []uint{query.ID})
+	require.NoError(t, err)
+	require.Len(t, stored[query.ID], 1)
+	assert.Contains(t, string(*stored[query.ID][0].Data), big)
 }

@@ -22,7 +22,7 @@ if (-not $userName) {
 
 # Copy the installer to a public folder so that the logged-in user can read it
 $exeFilename = Split-Path $exeFilePath -leaf
-Copy-Item -Path $exeFilePath -Destination "${env:PUBLIC}" -Force
+Copy-Item -Path $exeFilePath -Destination "${env:PUBLIC}" -Force -ErrorAction Stop
 $publicCopy = "${env:PUBLIC}\$exeFilename"
 
 # /S is the NSIS silent switch
@@ -77,4 +77,6 @@ if ($taskResult -ne 0) { $exitCode = $taskResult }
     }
 }
 
+# Exit turns a code above Int32.MaxValue, such as a task's HRESULT, into 0.
+if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
 Exit $exitCode

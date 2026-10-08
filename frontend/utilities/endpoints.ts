@@ -301,6 +301,7 @@ export default {
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
   SOFTWARE_PACKAGE_ADD: `/${API_VERSION}/fleet/software/package`,
+  STAGED_UPLOAD: `/${API_VERSION}/fleet/staged_upload`,
   SOFTWARE_PACKAGE_TOKEN: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package/token`,
   SOFTWARE_INSTALL_RESULTS: (uuid: string) =>

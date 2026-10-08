@@ -1992,6 +1992,11 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
 			}
 		}
+		if err := fleet.ValidateLabelFieldLengths(l.Name, l.Description); err != nil {
+			for _, inv := range err.Invalid() {
+				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
+			}
+		}
 
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
@@ -2280,7 +2285,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 		return nil
 	}
 	if policy.RunScript != nil && policy.RunScript.Path != "" && teamName == nil {
-		return errors.New("run_script can only be set on team policies")
+		return errors.New("run_script can only be set on fleet-level policies")
 	}
 
 	if policy.RunScript.Path == "" {
@@ -2315,7 +2320,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 
 func parsePolicyResendConfigurationProfile(parentFilePath string, teamName *string, policy *Policy, definedProfiles map[string]struct{}) error {
 	if teamName == nil && policy.ResendConfigurationProfile != "" {
-		return errors.New("resend_configuration_profile can only be set on team policies")
+		return errors.New("resend_configuration_profile can only be set on fleet-level policies")
 	}
 
 	name := strings.TrimSpace(policy.ResendConfigurationProfile)
@@ -2350,7 +2355,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	hasHash := installSoftwareObj.HashSHA256 != ""
 
 	if (hasPath || hasAppStore || hasHash || hasFMA) && teamName == nil {
-		return wrapErrs(errors.New("install_software can only be set on team policies"))
+		return wrapErrs(errors.New("install_software can only be set on fleet-level policies"))
 	}
 	if !hasPath && !hasAppStore && !hasHash && !hasFMA {
 		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug"))

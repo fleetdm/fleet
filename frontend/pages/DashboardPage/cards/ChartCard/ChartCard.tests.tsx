@@ -262,7 +262,9 @@ describe("ChartCard", () => {
       await waitFor(() => {
         expect(document.querySelectorAll("rect").length).toBeGreaterThan(0);
       });
-      await user.click(screen.getByRole("combobox", { name: "dataset" }));
+      await user.click(
+        screen.getByRole("combobox", { name: "Select dataset" })
+      );
       const option = screen
         .getAllByTestId("dropdown-option")
         .find((el) => el.textContent?.startsWith(label));

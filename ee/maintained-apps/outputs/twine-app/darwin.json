@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.12.0",
+      "version": "2.12.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.twine';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.twine' AND version_compare(bundle_short_version, '2.12.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.twine' AND version_compare(bundle_short_version, '2.12.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.electron.twine' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/klembot/twinejs/releases/download/2.12.0/Twine-2.12.0-macOS.dmg",
+      "installer_url": "https://github.com/klembot/twinejs/releases/download/2.12.1/Twine-2.12.1-macOS.dmg",
       "install_script_ref": "c33abed2",
       "uninstall_script_ref": "98c83b80",
-      "sha256": "918c55e1ccb4131db6f64f7586d024875075331211c2a1d03c73d2f3ed77bddc",
+      "sha256": "33de0146b3ac39db8746ed3bd670ff57ae47c75518d151f4276c08370a1edaab",
       "default_categories": [
         "Productivity"
       ]
