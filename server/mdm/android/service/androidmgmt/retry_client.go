@@ -7,13 +7,21 @@ import (
 	"math/rand/v2"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
 // defaultRetryDelays are the waits between attempts after AMAPI returns a 429. Google asks callers to wait
 // at least 60 seconds before retrying a quota error.
-var defaultRetryDelays = []time.Duration{60 * time.Second, 120 * time.Second, 240 * time.Second}
+var defaultRetryDelays = []time.Duration{60 * time.Second}
+
+// defaultRetryBudget is the latest a retry may start, measured from the start of the HTTP request (or of the
+// first attempt, outside a request). Every retried call is made while serving an HTTP request, and Fleet stops
+// writing responses after 100s with the default FLEET_LIVE_QUERY_REST_PERIOD, so this leaves time for the
+// retried call and the response. A retry that started later would complete after the client was told the
+// request failed, or be cancelled partway when the client disconnects.
+const defaultRetryBudget = 75 * time.Second
 
 // retryClient wraps a Client and retries calls that fail because the AMAPI quota was exceeded.
 type retryClient struct {
@@ -22,23 +30,38 @@ type retryClient struct {
 	next   Client
 	logger *slog.Logger
 	delays []time.Duration
+	budget time.Duration
 }
 
 // Compile-time check to ensure that retryClient implements Client.
 var _ Client = &retryClient{}
 
-// NewRetryClient wraps client so that AMAPI calls rejected with a 429 are retried with exponential
-// backoff, until the retries are exhausted or ctx is done. Calls made with a WithoutRetry context are not
+// NewRetryClient wraps client so that AMAPI calls rejected with a 429 are retried, as long as the retry can
+// start within the retry budget and ctx is not done. The budget is shared by all calls made for one request. Calls made with a WithoutRetry context are not
 // retried. It returns nil if client is nil.
 func NewRetryClient(client Client, logger *slog.Logger) Client {
 	if client == nil {
 		return nil
 	}
-	return newRetryClient(client, logger, defaultRetryDelays)
+	return newRetryClient(client, logger, defaultRetryDelays, defaultRetryBudget)
 }
 
-func newRetryClient(client Client, logger *slog.Logger, delays []time.Duration) *retryClient {
-	return &retryClient{next: client, logger: logger, delays: delays}
+func newRetryClient(client Client, logger *slog.Logger, delays []time.Duration, budget time.Duration) *retryClient {
+	return &retryClient{next: client, logger: logger, delays: delays, budget: budget}
+}
+
+// retryWait returns how long to wait before a retry whose base delay is delay, when remaining is the time
+// left in the retry budget. It returns false if the retry can't start within the budget.
+func retryWait(delay, remaining time.Duration) (time.Duration, bool) {
+	if delay > remaining {
+		return 0, false
+	}
+	// Jitter spreads out the retries of Fleet servers that share the proxy's quota, so they don't all
+	// land at the start of the next quota window.
+	if spread := min(delay/2, remaining-delay); spread > 0 {
+		delay += time.Duration(rand.Int64N(int64(spread))) //nolint:gosec // jitter does not need a secure source
+	}
+	return delay, true
 }
 
 type withoutRetryKey struct{}
@@ -56,7 +79,17 @@ func RetryDisabled(ctx context.Context) bool {
 	return disabled
 }
 
+// retryBudgetStart returns when the retry budget for a call made under ctx starts: the start of the HTTP
+// request, so that several calls made for one request share a single budget, or now outside a request.
+func retryBudgetStart(ctx context.Context) time.Time {
+	if start, ok := logging.StartTime(ctx); ok && !start.IsZero() {
+		return start
+	}
+	return time.Now()
+}
+
 func withRetry[T any](ctx context.Context, r *retryClient, method string, fn func() (T, error)) (T, error) {
+	start := retryBudgetStart(ctx)
 	ret, err := fn()
 	if RetryDisabled(ctx) {
 		return ret, err
@@ -65,13 +98,15 @@ func withRetry[T any](ctx context.Context, r *retryClient, method string, fn fun
 		if !IsTooManyRequestsError(err) {
 			break
 		}
-		// Jitter spreads out the retries of Fleet servers that share the proxy's quota, so they don't all
-		// land at the start of the next quota window.
-		if half := int64(delay / 2); half > 0 {
-			delay += time.Duration(rand.Int64N(half)) //nolint:gosec // jitter does not need a secure source
+		remaining := r.budget - time.Since(start)
+		wait, ok := retryWait(delay, remaining)
+		if !ok {
+			r.logger.WarnContext(ctx, "AMAPI quota exceeded, not retrying because the retry would exceed the retry budget",
+				"method", method, "retry", attempt+1, "delay", delay, "remaining", remaining)
+			break
 		}
-		r.logger.WarnContext(ctx, "AMAPI quota exceeded, retrying", "method", method, "retry", attempt+1, "delay", delay)
-		timer := time.NewTimer(delay)
+		r.logger.WarnContext(ctx, "AMAPI quota exceeded, retrying", "method", method, "retry", attempt+1, "delay", wait)
+		timer := time.NewTimer(wait)
 		select {
 		case <-timer.C:
 		case <-ctx.Done():
