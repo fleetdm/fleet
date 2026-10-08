@@ -3883,8 +3883,6 @@ type hostSoftware struct {
 	VPPAppVersion             *string    `db:"vpp_app_version"`
 	VPPAppPlatform            *string    `db:"vpp_app_platform"`
 	VPPAppIconURL             *string    `db:"vpp_app_icon_url"`
-	VPPAppTeamID              *uint      `db:"vpp_app_team_id"`
-	VPPAppTeamName            *string    `db:"vpp_app_team_name"`
 	InHouseAppID              *uint      `db:"in_house_app_id"`
 	InHouseAppName            *string    `db:"in_house_app_name"`
 	InHouseAppPlatform        *string    `db:"in_house_app_platform"`
@@ -4633,15 +4631,13 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 	}
 	vppInstallsStmt := fmt.Sprintf(`
 	(   -- upcoming_vpp_install
-			SELECT id, last_install_install_uuid, last_install_installed_at, vpp_app_adam_id, vpp_app_self_service, vpp_app_team_id, vpp_app_team_name, status FROM (
+			SELECT id, last_install_install_uuid, last_install_installed_at, vpp_app_adam_id, vpp_app_self_service, status FROM (
 				SELECT
 						vpp_apps.title_id AS id,
 						ua.execution_id AS last_install_install_uuid,
 						ua.created_at AS last_install_installed_at,
 						vaua.adam_id AS vpp_app_adam_id,
 						vat.self_service AS vpp_app_self_service,
-						vat_installed.id AS vpp_app_team_id,
-						vat_installed.name AS vpp_app_team_name,
 						'pending_install' AS status,
 						ROW_NUMBER() OVER (
 							PARTITION BY vaua.adam_id, vaua.platform, ua.activity_type
@@ -4659,8 +4655,6 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 						ORDER BY vat_fleet.id <=> vaua.vpp_app_team_id DESC, vat_fleet.id
 						LIMIT 1
 					)
-				LEFT JOIN
-					vpp_apps_teams vat_installed ON vat_installed.id = vaua.vpp_app_team_id AND vat_installed.global_or_team_id = :global_or_team_id
 				INNER JOIN
 					vpp_apps ON vaua.adam_id = vpp_apps.adam_id AND vaua.platform = vpp_apps.platform
 				WHERE
@@ -4678,8 +4672,6 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				hvsi.created_at AS last_install_installed_at,
 				hvsi.adam_id AS vpp_app_adam_id,
 				vat.self_service AS vpp_app_self_service,
-				vat_installed.id AS vpp_app_team_id,
-				vat_installed.name AS vpp_app_team_name,
 				-- vppAppHostStatusNamedQuery(hvsi, ncr, status)
 				%s
 			FROM
@@ -4704,8 +4696,6 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 					ORDER BY vat_fleet.id <=> hvsi.vpp_app_team_id DESC, vat_fleet.id
 					LIMIT 1
 				)
-			LEFT JOIN
-				vpp_apps_teams vat_installed ON vat_installed.id = hvsi.vpp_app_team_id AND vat_installed.global_or_team_id = :global_or_team_id
 			INNER JOIN
 				vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
 			WHERE
@@ -7287,14 +7277,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		case len(hs.InstalledVersions) > 0 && hs.InstalledVersions[0].BundleIdentifier != "":
 			hs.HostSoftwareWithInstaller.BundleIdentifier = hs.InstalledVersions[0].BundleIdentifier
 		}
+
+		// The app version this host is currently scoped for
 		if hostVersion, ok := hostVPPAppVersionByTitleID[hs.ID]; ok && hs.AppStoreApp != nil {
 			hs.AppStoreApp.VersionID = hostVersion.VPPAppTeamID
-			hs.AppStoreApp.VersionName = hostVersion.Name
-			// Use the version of the host's latest install when there is one, the host may no longer be in scope for that version
-			install, installFound := byVPPAdamID[hs.AppStoreApp.AppStoreID]
-			if installFound && install.ID == hs.ID && install.VPPAppTeamID != nil && install.VPPAppTeamName != nil {
-				hs.AppStoreApp.VersionID = *install.VPPAppTeamID
-				hs.AppStoreApp.VersionName = *install.VPPAppTeamName
+			if hostVersion.VersionCount > 1 {
+				hs.AppStoreApp.VersionName = hostVersion.Name
 			}
 		}
 		software = append(software, &hs.HostSoftwareWithInstaller)
@@ -8024,9 +8012,15 @@ func (ds *Datastore) ListHostAppStoreAppVersions(ctx context.Context, host *flee
 		return nil, ctxerr.Wrap(ctx, err, "list host app store app versions")
 	}
 
+	versionCountByTitleID := make(map[uint]int)
+	for _, version := range versions {
+		versionCountByTitleID[version.TitleID]++
+	}
+
 	// Pick the first-added in-scope version per title, versions are ordered by id
 	hostVersionByTitleID := make(map[uint]*fleet.HostAppStoreAppVersion)
 	for _, version := range versions {
+		version.VersionCount = versionCountByTitleID[version.TitleID]
 		picked, ok := hostVersionByTitleID[version.TitleID]
 		if !ok || (!picked.InScope && version.InScope) {
 			hostVersionByTitleID[version.TitleID] = version

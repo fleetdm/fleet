@@ -1022,7 +1022,7 @@ type SoftwarePackageOrApp struct {
 	AppStoreID string `json:"app_store_id,omitempty"`
 	// VersionID is only present for VPP apps.
 	VersionID uint `json:"version_id,omitempty"`
-	// VersionName is only present for VPP apps.
+	// VersionName is only present for VPP apps with more than one version.
 	VersionName string `json:"version_name,omitempty"`
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
