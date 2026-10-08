@@ -13,6 +13,7 @@ import Modal from "components/Modal";
 import {
   ANY_SEVERITY_VALUE,
   ISeverityFilterValue,
+  parseSeverityScore,
   severityForRange,
   SeverityValue,
 } from "components/SeverityFilter";
@@ -54,10 +55,7 @@ export const PLATFORM_OPTIONS = [
 ];
 
 const deriveSeverity = (minScore: string, maxScore: string): SeverityValue =>
-  severityForRange(
-    minScore === "" ? undefined : Number(minScore),
-    maxScore === "" ? undefined : Number(maxScore)
-  );
+  severityForRange(parseSeverityScore(minScore), parseSeverityScore(maxScore));
 
 type HostFilterMode = "none" | "include" | "exclude";
 
