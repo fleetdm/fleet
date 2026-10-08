@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -834,36 +835,21 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	// lifecycle and update the lifecycle to support Android, so that TurnOnMDM
 	// inserts the host_mdm, and TurnOffMDM deletes it.
 
-	var enrollmentTokenRequest enrollmentTokenRequest
-	err = json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "unmarshalling enrollment token data")
-	}
-
 	if host != nil {
 		svc.logger.DebugContext(ctx, "The enrolling Android host is already present in Fleet. Updating team if needed",
 			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
-		enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
-		if err != nil && !fleet.IsNotFound(err) {
-			return 0, ctxerr.Wrap(ctx, err, "verifying enroll secret")
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(ctx, device.EnrollmentTokenData)
+		if err != nil {
+			return 0, err
 		}
-		if err == nil {
-			host.TeamID = enrollSecret.GetTeamID()
-		}
+		host.TeamID = teamID
 
-		// If the device was previously known restore the last-known team instead of the enrollment secret's default.
-		hostKey := getAndroidHostKey(device)
-		if priorTeamID, found, err := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); err != nil {
-			svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enroll secret", "err", err)
-			ctxerr.Handle(ctx, err)
-		} else if found {
-			host.TeamID = priorTeamID
-		}
-
-		if enrollmentTokenRequest.IdpUUID != "" {
-			if err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, enrollmentTokenRequest.IdpUUID); err != nil {
+		if idpUUID != "" {
+			previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, idpUUID)
+			if err != nil {
 				return 0, ctxerr.Wrap(ctx, err, "updating IdP account on re-enrollment")
 			}
+			shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.newActivity, svc.logger, host.Host.UUID, previousAcctUUID, idpUUID)
 		}
 
 		if err := svc.updateHost(ctx, device, host, true); err != nil {
@@ -959,7 +945,12 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 			host.Device.AppliedPolicyVersion = &device.AppliedPolicyVersion
 		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
-		svc.verifyDevicePolicy(ctx, host.UUID, device)
+		// Profiles are only ever delivered in the host-specific policy. The applied version
+		// of any other policy (e.g. the default one a device enrolls with) says nothing
+		// about them.
+		if policy != nil && *policy == host.UUID {
+			svc.verifyDevicePolicy(ctx, host.UUID, device)
+		}
 		svc.verifyDeviceSoftware(ctx, host.Host, device)
 	} else if fromEnroll {
 		// Re-enrollment of a previously-enrolled host: the freshly-enrolled device has not applied any policy yet.
@@ -1299,15 +1290,6 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return 0, err
 	}
 
-	// If the device was previously known restore the last-known team instead of the token's default.
-	hostKey := getAndroidHostKey(device)
-	if priorTeamID, found, tlErr := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); tlErr != nil {
-		svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enrollment data default", "err", tlErr)
-		ctxerr.Handle(ctx, tlErr)
-	} else if found {
-		teamID = priorTeamID
-	}
-
 	deviceID, err := svc.getDeviceID(ctx, device)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting device ID")
@@ -1380,10 +1362,11 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 
 	if idpUUID != "" {
 		svc.logger.InfoContext(ctx, "associating android host with idp account", "host_uuid", host.UUID, "idp_uuid", idpUUID)
-		err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpUUID)
+		previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpUUID)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "associating host with idp account")
 		}
+		shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.newActivity, svc.logger, host.UUID, previousAcctUUID, idpUUID)
 		if err := svc.fleetDS.MaybeAssociateHostWithScimUser(ctx, fleetHost.Host.ID); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "associating android host with scim user")
 		}

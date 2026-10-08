@@ -6134,6 +6134,146 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotCreateUserInOtherTea
 	require.NotNil(t, resp.User)
 }
 
+func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlobalRole() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_other"})
+	require.NoError(t, err)
+	defer func() {
+		s.token = s.getTestAdminToken()
+		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+		require.NoError(t, s.ds.DeleteTeam(ctx, otherTeam.ID))
+	}()
+	otherTeamLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:                t.Name() + "_other_label",
+		Query:               "SELECT 1",
+		TeamID:              &otherTeam.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	teamAdminEmail := t.Name() + "_team_admin@example.com"
+	teamAdmin := &fleet.User{
+		Name:  teamAdminEmail,
+		Email: teamAdminEmail,
+		Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleAdmin}},
+	}
+	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, teamAdmin)
+	require.NoError(t, err)
+
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+
+	var createResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", map[string]any{
+		"name":                        "svc",
+		"email":                       t.Name() + "_svc@example.com",
+		"password":                    test.GoodPassword,
+		"global_role":                 "",
+		"teams":                       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"api_only":                    true,
+		"admin_forced_password_reset": false,
+	}, http.StatusUnprocessableEntity, &createResp)
+	_, err = s.ds.UserByEmail(ctx, t.Name()+"_svc@example.com")
+	require.True(t, fleet.IsNotFound(err))
+
+	createResp = createUserResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        t.Name() + "_svc_api",
+		"global_role": "",
+		"fleets":      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+	}, http.StatusUnprocessableEntity, &createResp)
+	require.Nil(t, createResp.User)
+	require.Empty(t, createResp.Token)
+
+	var selfModResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", teamAdmin.ID), map[string]any{
+		"global_role": "",
+		"teams":       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+	}, http.StatusUnprocessableEntity, &selfModResp)
+
+	plantedEmail := t.Name() + "_planted@example.com"
+	planted := &fleet.User{
+		Name:  plantedEmail,
+		Email: plantedEmail,
+		Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleAdmin}},
+	}
+	require.NoError(t, planted.SetPassword(test.GoodPassword, 10, 10))
+	planted, err = s.ds.NewUser(ctx, planted)
+	require.NoError(t, err)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE users SET global_role = '' WHERE id = ?`, planted.ID)
+		return err
+	})
+
+	s.token = s.getTestToken(planted.Email, test.GoodPassword)
+
+	var labelsResp fleet.ListLabelsResponse
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusForbidden, &labelsResp, "team_id", fmt.Sprint(otherTeam.ID))
+	labelsResp = fleet.ListLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &labelsResp)
+	for _, lbl := range labelsResp.Labels {
+		require.NotEqual(t, otherTeamLabel.ID, lbl.ID)
+	}
+
+	var meResp getUserResponse
+	s.DoJSON("GET", "/api/latest/fleet/me", nil, http.StatusOK, &meResp)
+	require.Len(t, meResp.AvailableTeams, 1)
+	require.Equal(t, team.ID, meResp.AvailableTeams[0].ID)
+
+	globalAdminEmail := t.Name() + "_global_admin@example.com"
+	globalAdmin := &fleet.User{
+		Name:       globalAdminEmail,
+		Email:      globalAdminEmail,
+		GlobalRole: new(fleet.RoleAdmin),
+	}
+	require.NoError(t, globalAdmin.SetPassword(test.GoodPassword, 10, 10))
+	globalAdmin, err = s.ds.NewUser(ctx, globalAdmin)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, s.ds.DeleteUser(ctx, globalAdmin.ID))
+	}()
+
+	// First step of demoting a global admin: getting them onto a team the caller administers.
+	var teamUsersResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", team.ID), map[string]any{
+		"users": []map[string]any{{"id": globalAdmin.ID, "role": fleet.RoleObserver}},
+	}, http.StatusForbidden, &teamUsersResp)
+	globalAdmin, err = s.ds.UserByID(ctx, globalAdmin.ID)
+	require.NoError(t, err)
+	require.Empty(t, globalAdmin.Teams)
+
+	// Even if a global admin ends up with a membership row on the caller's
+	// team, a team admin must not be able to demote them through it.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO user_teams (user_id, team_id, role) VALUES (?, ?, ?)`,
+			globalAdmin.ID, team.ID, fleet.RoleObserver)
+		return err
+	})
+	var modResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", globalAdmin.ID), map[string]any{
+		"teams": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
+	}, http.StatusForbidden, &modResp)
+	globalAdmin, err = s.ds.UserByID(ctx, globalAdmin.ID)
+	require.NoError(t, err)
+	require.NotNil(t, globalAdmin.GlobalRole)
+	require.Equal(t, fleet.RoleAdmin, *globalAdmin.GlobalRole)
+
+	modResp = modifyUserResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", planted.ID), map[string]any{
+		"global_role": fleet.RoleAdmin,
+	}, http.StatusForbidden, &modResp)
+
+	planted, err = s.ds.UserByID(ctx, planted.ID)
+	require.NoError(t, err)
+	require.NotNil(t, planted.GlobalRole)
+	require.Empty(t, *planted.GlobalRole)
+}
+
 func (s *integrationEnterpriseTestSuite) TestDeviceSSOWithoutAppleMDM() {
 	t := s.T()
 
@@ -14057,6 +14197,57 @@ func checkSoftwareInstaller(t *testing.T, ds *mysql.Datastore, payload *fleet.Up
 	}
 
 	return meta.InstallerID, *meta.TitleID
+}
+
+func (s *integrationEnterpriseTestSuite) TestPackageUploadPreAuthAndTempFileCleanup() {
+	t := s.T()
+	tmpDir := t.TempDir()
+	t.Setenv("TMPDIR", tmpDir)
+	requireNoTempFiles := func() {
+		files, err := filepath.Glob(filepath.Join(tmpDir, "multipart-*"))
+		require.NoError(t, err)
+		require.Empty(t, files)
+	}
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, err := mw.CreateFormFile("software", "a.pkg")
+	require.NoError(t, err)
+	_, err = fw.Write(bytes.Repeat([]byte{0}, 2<<20))
+	require.NoError(t, err)
+	require.NoError(t, mw.Close())
+	contentType := mw.FormDataContentType()
+
+	for _, r := range []struct{ method, path string }{
+		{"POST", "/api/latest/fleet/software/package"},
+		{"PATCH", "/api/latest/fleet/software/titles/1/package"},
+		{"POST", "/api/latest/fleet/bootstrap"},
+		{"POST", "/api/latest/fleet/mdm/bootstrap"},
+		{"POST", "/api/latest/fleet/mdm/apple/bootstrap"},
+	} {
+		res := s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnauthorized, map[string]string{"Content-Type": contentType})
+		res.Body.Close()
+		requireNoTempFiles()
+
+		res = s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnauthorized, map[string]string{
+			"Content-Type": contentType, "Authorization": "Bearer invalid",
+		})
+		res.Body.Close()
+		requireNoTempFiles()
+
+		res = s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnsupportedMediaType, map[string]string{
+			"Content-Type": contentType, "Content-Encoding": "gzip", "Authorization": "Bearer " + s.token,
+		})
+		res.Body.Close()
+		requireNoTempFiles()
+	}
+
+	// An authenticated upload that parses but fails validation must not leave its file behind.
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", body.Bytes(), http.StatusBadRequest, map[string]string{
+		"Content-Type": contentType, "Authorization": "Bearer " + s.token,
+	})
+	res.Body.Close()
+	requireNoTempFiles()
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {

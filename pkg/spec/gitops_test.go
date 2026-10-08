@@ -1967,7 +1967,7 @@ policies:
     package_path: ./some_path.yml
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "install_software can only be set on team policies")
+	assert.ErrorContains(t, err, "install_software can only be set on fleet-level policies")
 }
 
 func TestGitOpsGlobalPolicyWithRunScript(t *testing.T) {
@@ -1981,7 +1981,7 @@ policies:
     path: ./some_path.sh
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "run_script can only be set on team policies")
+	assert.ErrorContains(t, err, "run_script can only be set on fleet-level policies")
 }
 
 func TestGitOpsTeamPolicyWithInvalidInstallSoftware(t *testing.T) {
@@ -5523,7 +5523,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		}
 		errs := parsePolicyInstallSoftware(".", nil, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "install_software can only be set on team policies")
+		assert.Contains(t, errs[0].Error(), "install_software can only be set on fleet-level policies")
 	})
 
 	t.Run("patch policy with the same fleet_maintained_app_slug", func(t *testing.T) {
@@ -6534,7 +6534,7 @@ policies:
   query: SELECT 1;
   resend_configuration_profile: Password policy
 `)
-		require.ErrorContains(t, err, "resend_configuration_profile can only be set on team policies")
+		require.ErrorContains(t, err, "resend_configuration_profile can only be set on fleet-level policies")
 	})
 }
 
@@ -6609,4 +6609,27 @@ policies:
 	_, err = GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Payload name")
+}
+
+func TestLabelFieldLengths(t *testing.T) {
+	t.Parallel()
+
+	labelYAML := func(name, description string) string {
+		return getGlobalConfig([]string{}) + fmt.Sprintf(`
+labels:
+  - name: %q
+    description: %q
+    query: SELECT 1
+    label_membership_type: dynamic`, name, description)
+	}
+
+	// 255 two-byte characters fit varchar(255), which counts characters, not bytes.
+	_, err := gitOpsFromString(t, labelYAML("ok", strings.Repeat("é", 255)))
+	require.NoError(t, err)
+
+	_, err = gitOpsFromString(t, labelYAML("long description", strings.Repeat("a", 256)))
+	require.ErrorContains(t, err, `label "long description" description may not exceed 255 characters`)
+
+	_, err = gitOpsFromString(t, labelYAML(strings.Repeat("a", 256), "ok"))
+	require.ErrorContains(t, err, `label "`+strings.Repeat("a", 40)+`..." name may not exceed 255 characters`)
 }

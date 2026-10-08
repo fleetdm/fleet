@@ -151,6 +151,9 @@ func TestGenerateOpenQuery(t *testing.T) {
 		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'acrobat.exe');", got, title)
 	}
 
+	got = patch_policy.GenerateOpenQuery("windows", "", "Clockify Desktop")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'clockifywindows.exe');", got)
+
 	// Unknown platform yields no query.
 	// every Firefox channel and architecture ships firefox.exe
 	for _, title := range []string{"Mozilla Firefox", "Mozilla Firefox ESR", "Mozilla Firefox Developer Edition (ARM64)", "Mozilla Firefox Nightly (ARM64)"} {

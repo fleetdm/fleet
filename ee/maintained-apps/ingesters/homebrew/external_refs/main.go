@@ -13,7 +13,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"microsoft-powerpoint/darwin":   {MicrosoftVersionFromReleaseNotes},
 	"microsoft-onenote/darwin":      {MicrosoftVersionFromReleaseNotes},
 	"brave-browser/darwin":          {BraveVersionTransformer},
-	"whatsapp/darwin":               {WhatsAppVersionShortener, WhatsAppInstallerURL},
+	"whatsapp/darwin":               {WhatsAppInstallerURL},
 	"google-chrome/darwin":          {ChromePKGInstaller},
 	"google-drive/darwin":           {GoogleDriveVersionShortener},
 	"1password/darwin":              {OnePasswordPKGInstaller},

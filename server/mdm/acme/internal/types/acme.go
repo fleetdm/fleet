@@ -47,6 +47,8 @@ type Enrollment struct {
 	HostIdentifier string     `db:"host_identifier"`
 	NotValidAfter  *time.Time `db:"not_valid_after"`
 	Revoked        bool       `db:"revoked"`
+	Purpose        string     `db:"purpose"`
+	EnrollmentID   *string    `db:"enrollment_id"`
 }
 
 // IsValid returns true if the enrollment is still valid
