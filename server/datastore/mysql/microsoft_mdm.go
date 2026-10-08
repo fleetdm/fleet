@@ -775,7 +775,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			credentials_acknowledged = VALUES(credentials_acknowledged),
 			-- A re-enrollment may not have ztd id, so don't overwrite.
 			ztd_registration_id   = IF(VALUES(ztd_registration_id) = '', ztd_registration_id, VALUES(ztd_registration_id)),
-			entra_device_id       = VALUES(entra_device_id)
+			entra_device_id       = VALUES(entra_device_id),
+			fleetd_present_at     = NULL
 	`
 	_, err := ds.writer(ctx).ExecContext(
 		ctx,
