@@ -1,1 +1,1 @@
-Fixed `fleetctl apply` silently dropping incorrectly typed paths and labels in fleet custom profile settings. Invalid values now return a validation error.
+- Fixed `fleetctl apply` silently dropping incorrectly typed paths and labels in fleet custom profile settings. Invalid values now return a validation error.
