@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import React from "react";
 
+import { notify } from "components/ToastNotification";
 import {
   createMockHostSoftwarePackage,
   createMockHostAppStoreApp,
@@ -20,7 +21,17 @@ import {
   getAutoUpdateWindowDurationMinutes,
   getDefaultAutoUpdateFromVersions,
   getDisplayedSoftwareName,
+  routeVersionNameError,
 } from "./helpers";
+
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
 
 describe("getSelfServiceTooltip", () => {
   it("returns Play Store tooltip content when isAndroidPlayStoreApp is true", () => {
@@ -328,5 +339,70 @@ describe("getDefaultAutoUpdateFromVersions", () => {
       windowStart: "",
       windowEnd: "",
     });
+  });
+});
+
+describe("routeVersionNameError", () => {
+  const setServerErrors = jest.fn();
+  const notifyError = notify.error as jest.Mock;
+
+  beforeEach(() => {
+    setServerErrors.mockClear();
+    notifyError.mockClear();
+  });
+
+  // Regression guard: the duplicate-version-name conflict must land on the
+  // Name field, not the toast. Matcher keys on the BE phrase "a version named"
+  // (see server/datastore/mysql/vpp.go and ee/server/service/vpp.go — reword
+  // those and this test breaks).
+  it("routes `A version named ...` to the Name field", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                "A version named \"Production\" already exists for this app in this fleet.",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(err, setServerErrors, "fallback");
+
+    expect(setServerErrors).toHaveBeenCalledWith({
+      name:
+        "A version named \"Production\" already exists for this app in this fleet.",
+    });
+    expect(notifyError).not.toHaveBeenCalled();
+  });
+
+  // Regression guard: an unrelated error whose reason happens to contain
+  // "name" (e.g. an unsupported FLEET_VAR username) must stay in the toast,
+  // not clobber the Name field.
+  it("routes an unrelated `name`-containing reason to the toast", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                "Unsupported variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP_USERNAME",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(err, setServerErrors, "Couldn't update. Please try again.");
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(notifyError).toHaveBeenCalledWith(
+      "Couldn't update. Please try again.",
+      { response: err }
+    );
   });
 });
