@@ -154,11 +154,11 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "swiftdialog", UniqueIdentifier: "au.csiro.dialog", InstallerFormat: "pkg", Name: "swiftDialog", Slug: "swiftdialog/darwin"}},
 		{"", inputApp{Token: "teleport-suite", UniqueIdentifier: "com.gravitational.teleport.tsh", InstallerFormat: "pkg", Name: "Teleport Suite", Slug: "teleport-suite/darwin"}},
 		{"", inputApp{Token: "r-app", UniqueIdentifier: "org.R-project.R", InstallerFormat: "pkg", Name: "R for macOS", Slug: "r/darwin"}},
-		{"", inputApp{Token: "4k-slideshow-maker", UniqueIdentifier: "com.openmedia.4kslideshowmaker", InstallerFormat: "dmg", Name: "4K Slideshow Maker", Slug: "4k-slideshow-maker/darwin"}},
+		{"", inputApp{Token: "4k-slideshow-maker", UniqueIdentifier: "com.openmedia.4kslideshowmaker", InstallerFormat: "dmg", Name: "4K Slideshow Maker", Slug: "4k-slideshow-maker/darwin"}}, //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "4k-stogram", UniqueIdentifier: "com.openmedia.4kstogram", InstallerFormat: "dmg", Name: "4K Stogram", Slug: "4k-stogram/darwin"}},
-		{"", inputApp{Token: "4k-video-downloader", UniqueIdentifier: "com.openmedia.4kvideodownloader", InstallerFormat: "dmg", Name: "4K Video Downloader", Slug: "4k-video-downloader/darwin"}},
-		{"", inputApp{Token: "4k-video-to-mp3", UniqueIdentifier: "com.openmedia.4kvideotomp3", InstallerFormat: "dmg", Name: "4K Video to MP3", Slug: "4k-video-to-mp3/darwin"}},
-		{"", inputApp{Token: "4k-youtube-to-mp3", UniqueIdentifier: "com.openmedia.4kyoutubetomp3", InstallerFormat: "dmg", Name: "4K YouTube to MP3", Slug: "4k-youtube-to-mp3/darwin"}},
+		{"", inputApp{Token: "4k-video-downloader", UniqueIdentifier: "com.openmedia.4kvideodownloader", InstallerFormat: "dmg", Name: "4K Video Downloader", Slug: "4k-video-downloader/darwin"}}, //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "4k-video-to-mp3", UniqueIdentifier: "com.openmedia.4kvideotomp3", InstallerFormat: "dmg", Name: "4K Video to MP3", Slug: "4k-video-to-mp3/darwin"}},                  //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "4k-youtube-to-mp3", UniqueIdentifier: "com.openmedia.4kyoutubetomp3", InstallerFormat: "dmg", Name: "4K YouTube to MP3", Slug: "4k-youtube-to-mp3/darwin"}},          //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
 		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
 		{"", inputApp{Token: "open-query", UniqueIdentifier: "com.example.app", InstallerFormat: "pkg", Name: "Example App"}},
