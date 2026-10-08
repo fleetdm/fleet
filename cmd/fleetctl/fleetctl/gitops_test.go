@@ -6364,7 +6364,7 @@ org_settings:
 			name: "not a PDF file replacing an existing EULA keeps it",
 			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{Name: "eula.pdf", Token: "test-token", Sha256: []byte("other")}, nil
 				}
 			},
@@ -6653,18 +6653,18 @@ org_settings:
 			ds.CleanupAllHostMDMProfilesForPlatformFunc = func(ctx context.Context, platform string) error { return nil }
 
 			var inserted, deleted []string
-			ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+			ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 				if platform == fleet.MDMEULAPlatformWindows && tt.existing != nil {
 					return tt.existing, nil
 				}
 				return nil, &notFoundError{}
 			}
 			ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
-				inserted = append(inserted, eula.Platform+":"+eula.Name)
+				inserted = append(inserted, string(eula.Platform)+":"+eula.Name)
 				return nil
 			}
-			ds.MDMDeleteEULAFunc = func(ctx context.Context, platform, token string) error {
-				deleted = append(deleted, platform+":"+token)
+			ds.MDMDeleteEULAFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
+				deleted = append(deleted, string(platform)+":"+token)
 				return nil
 			}
 
@@ -6690,12 +6690,12 @@ org_settings:
 			require.NoError(t, err, out.String())
 			assert.Contains(t, out.String(), tt.wantRealOut)
 			if tt.wantInsert {
-				require.Equal(t, []string{fleet.MDMEULAPlatformWindows + ":terms.md"}, inserted)
+				require.Equal(t, []string{string(fleet.MDMEULAPlatformWindows) + ":terms.md"}, inserted)
 			} else {
 				assert.Empty(t, inserted)
 			}
 			if tt.wantDelete {
-				require.Equal(t, []string{fleet.MDMEULAPlatformWindows + ":existing"}, deleted)
+				require.Equal(t, []string{string(fleet.MDMEULAPlatformWindows) + ":existing"}, deleted)
 			} else {
 				assert.Empty(t, deleted)
 			}
