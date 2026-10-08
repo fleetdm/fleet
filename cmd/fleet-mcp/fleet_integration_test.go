@@ -822,7 +822,7 @@ func TestListSoftwareTitles_AIToolFilter(t *testing.T) {
 	if got.Get("ai_tool") != "true" {
 		t.Fatalf("server got ai_tool=%q, want true", got.Get("ai_tool"))
 	}
-	if len(out) != 2 || out[0].ID != 1 || out[1].ID != 3 || !out[0].AITool || !out[1].AITool {
+	if len(out) != 2 || out[0].ID != 1 || out[1].ID != 3 || !isAITool(out[0].AITool) || !isAITool(out[1].AITool) {
 		t.Fatalf("ai_tool=true: got %+v, want rows 1 and 3 flagged", out)
 	}
 
@@ -834,7 +834,7 @@ func TestListSoftwareTitles_AIToolFilter(t *testing.T) {
 		if got.Get("ai_tool") != aiTool {
 			t.Fatalf("ai_tool=%q: server got ai_tool=%q", aiTool, got.Get("ai_tool"))
 		}
-		if len(out) != 3 || out[1].AITool {
+		if len(out) != 3 || isAITool(out[1].AITool) {
 			t.Fatalf("ai_tool=%q: got %+v, want all 3 rows with Slack unflagged", aiTool, out)
 		}
 	}
@@ -861,7 +861,7 @@ func TestGetHostSoftware_AIToolFilter(t *testing.T) {
 	if got.Get("ai_tool") != "true" {
 		t.Fatalf("server got ai_tool=%q, want true", got.Get("ai_tool"))
 	}
-	if len(out) != 2 || out[0].ID != 1 || out[1].ID != 3 || !out[0].AITool || !out[1].AITool {
+	if len(out) != 2 || out[0].ID != 1 || out[1].ID != 3 || !isAITool(out[0].AITool) || !isAITool(out[1].AITool) {
 		t.Fatalf("ai_tool=true: got %+v, want rows 1 and 3 flagged", out)
 	}
 
@@ -874,6 +874,41 @@ func TestGetHostSoftware_AIToolFilter(t *testing.T) {
 	}
 	if len(out) != 3 {
 		t.Fatalf("got %+v, want all 3 rows", out)
+	}
+}
+
+func isAITool(aiTool *bool) bool {
+	return aiTool != nil && *aiTool
+}
+
+// Fleet Free omits ai_tool; the tool output must omit it too rather than report false.
+func TestSoftware_AIToolOmittedWhenServerOmitsIt(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/v1/fleet/hosts/") {
+			_, _ = w.Write([]byte(`{"software": [{"id": 1, "name": "Slack", "source": "apps"}]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"software_titles": [{"id": 1, "name": "Slack", "source": "apps"}]}`))
+	}))
+	defer srv.Close()
+	fc := newTestClient(srv.URL)
+
+	titles, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "", "", "", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	hostSoftware, _, err := fc.GetHostSoftware(t.Context(), 42, "", "", "", "", "", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for name, v := range map[string]any{"titles": titles, "host software": hostSoftware} {
+		b, err := json.Marshal(v)
+		if err != nil {
+			t.Fatalf("%s: marshal: %v", name, err)
+		}
+		if strings.Contains(string(b), "ai_tool") {
+			t.Errorf("%s: got %s, want ai_tool omitted", name, b)
+		}
 	}
 }
 

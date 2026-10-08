@@ -566,7 +566,8 @@ type SoftwareTitle struct {
 	Versions      []SoftwareVersion `json:"versions,omitempty"`
 	Browser       string            `json:"browser,omitempty"`
 	ExtensionFor  string            `json:"extension_for,omitempty"`
-	AITool        bool              `json:"ai_tool"`
+	// AITool is omitted by Fleet Free, and stays omitted here rather than reading as false.
+	AITool *bool `json:"ai_tool,omitempty"`
 }
 
 type HostSoftwareInstalledVersion struct {
@@ -577,12 +578,13 @@ type HostSoftwareInstalledVersion struct {
 }
 
 type HostSoftware struct {
-	ID                uint                           `json:"id"`
-	Name              string                         `json:"name"`
-	Source            string                         `json:"source"`
-	BundleIdentifier  string                         `json:"bundle_identifier,omitempty"`
-	ExtensionFor      string                         `json:"extension_for,omitempty"`
-	AITool            bool                           `json:"ai_tool"`
+	ID               uint   `json:"id"`
+	Name             string `json:"name"`
+	Source           string `json:"source"`
+	BundleIdentifier string `json:"bundle_identifier,omitempty"`
+	ExtensionFor     string `json:"extension_for,omitempty"`
+	// AITool is omitted by Fleet Free, and stays omitted here rather than reading as false.
+	AITool            *bool                          `json:"ai_tool,omitempty"`
 	InstalledVersions []HostSoftwareInstalledVersion `json:"installed_versions,omitempty"`
 }
 
@@ -621,8 +623,8 @@ func matchesSoftwareSource(rowSource, want string) bool {
 }
 
 // matchesAITool also guards Fleet servers that predate the ai_tool param and ignore it.
-func matchesAITool(rowAITool bool, aiTool string) bool {
-	return aiTool != "true" || rowAITool
+func matchesAITool(rowAITool *bool, aiTool string) bool {
+	return aiTool != "true" || (rowAITool != nil && *rowAITool)
 }
 
 // source and extensionFor are filtered client-side (not server-side params on this endpoint);
