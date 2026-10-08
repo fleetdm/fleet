@@ -1679,7 +1679,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				args = append(
 					args, softwareName, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch,
 					sw.BundleIdentifier, sw.ExtensionID, sw.ExtensionFor, titleID, checksum, sw.ApplicationID, sw.UpgradeCode,
-					sw.AITool,
+					ptr.ValOrZero(sw.AITool),
 				)
 			}
 
@@ -7646,7 +7646,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	case opts.AITool:
 		// The filter already pruned every title that isn't an AI tool.
 		for _, s := range software {
-			s.AITool = true
+			s.AITool = new(true)
 		}
 	case len(software) > 0:
 		titleIDs := make([]uint, 0, len(software))
@@ -7658,7 +7658,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, ctxerr.Wrap(ctx, err, "get ai tool host software titles")
 		}
 		for _, s := range software {
-			_, s.AITool = aiToolTitles[s.ID]
+			_, ok := aiToolTitles[s.ID]
+			s.AITool = new(ok)
 		}
 	}
 

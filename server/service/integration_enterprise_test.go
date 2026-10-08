@@ -38001,14 +38001,14 @@ func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{teamHost.ID})))
 
 	_, err = s.ds.UpdateHostSoftware(ctx, teamHost.ID, []fleet.Software{
-		{Name: "AIToolClaude", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolclaude", AITool: true},
+		{Name: "AIToolClaude", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolclaude", AITool: new(true)},
 		{Name: "AIToolSlack", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolslack"},
-		{Name: "aitool-codex", Version: "1.0", Source: "ai_clis", AITool: true},
+		{Name: "aitool-codex", Version: "1.0", Source: "ai_clis", AITool: new(true)},
 	})
 	require.NoError(t, err)
 	_, err = s.ds.UpdateHostSoftware(ctx, noTeamHost.ID, []fleet.Software{
 		{Name: "AIToolSlack", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolslack"},
-		{Name: "aitool-github", Version: "0.1", Source: "mcp_servers", AITool: true},
+		{Name: "aitool-github", Version: "0.1", Source: "mcp_servers", AITool: new(true)},
 	})
 	require.NoError(t, err)
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
@@ -38016,13 +38016,19 @@ func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
 	token := "ai_tool_premium_token"
 	createDeviceTokenForHost(t, s.ds, teamHost.ID, token)
 
+	// flag returns an item's ai_tool, which Premium sets on every item.
+	flag := func(name string, aiTool *bool) bool {
+		require.NotNil(t, aiTool, "ai_tool missing on %q", name)
+		return *aiTool
+	}
+
 	// Restrict the cross-host lists to this test's software, which all match "aitool".
 	listTitles := func(params ...string) (map[string]bool, int) {
 		var resp listSoftwareTitlesResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &resp, append(params, "query", "aitool")...)
 		got := make(map[string]bool, len(resp.SoftwareTitles))
 		for _, title := range resp.SoftwareTitles {
-			got[title.Name] = title.AITool
+			got[title.Name] = flag(title.Name, title.AITool)
 		}
 		return got, resp.Count
 	}
@@ -38034,14 +38040,14 @@ func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
 		require.Equal(t, resp.Count, countResp.Count)
 		got := make(map[string]bool, len(resp.Software))
 		for _, sw := range resp.Software {
-			got[sw.Name] = sw.AITool
+			got[sw.Name] = flag(sw.Name, sw.AITool)
 		}
 		return got, resp.Count
 	}
 	hostSoftware := func(sw []*fleet.HostSoftwareWithInstaller) map[string]bool {
 		got := make(map[string]bool, len(sw))
 		for _, s := range sw {
-			got[s.Name] = s.AITool
+			got[s.Name] = flag(s.Name, s.AITool)
 		}
 		return got
 	}
@@ -38119,20 +38125,32 @@ func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
 	for _, listed := range titlesResp.SoftwareTitles {
 		var titleResp getSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", listed.ID), nil, http.StatusOK, &titleResp)
-		require.Equal(t, listed.AITool, titleResp.SoftwareTitle.AITool, listed.Name)
+		require.Equal(t, flag(listed.Name, listed.AITool), flag(listed.Name, titleResp.SoftwareTitle.AITool), listed.Name)
 	}
 	var versionsResp listSoftwareVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", "aitool")
 	for _, listed := range versionsResp.Software {
 		var versionResp getSoftwareResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", listed.ID), nil, http.StatusOK, &versionResp)
-		require.Equal(t, listed.AITool, versionResp.Software.AITool, listed.Name)
+		require.Equal(t, flag(listed.Name, listed.AITool), flag(listed.Name, versionResp.Software.AITool), listed.Name)
 	}
-	var hostResp getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", teamHost.ID), nil, http.StatusOK, &hostResp)
-	hostDetailsFlags := make(map[string]bool)
-	for _, sw := range hostResp.Host.Software {
-		hostDetailsFlags[sw.Name] = sw.AITool
+	teamHostAITool := make(map[string]*bool, len(teamHostFlags))
+	for name, aiTool := range teamHostFlags {
+		teamHostAITool[name] = &aiTool
 	}
-	require.Equal(t, teamHostFlags, hostDetailsFlags)
+	get := func(path string, params ...string) *http.Response {
+		return s.Do("GET", path, nil, http.StatusOK, params...)
+	}
+	require.Equal(t, teamHostAITool, aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/hosts/%d", teamHost.ID)), "host", "software"))
+	require.Equal(t, teamHostAITool, aiToolByName(t, get("/api/latest/fleet/hosts/identifier/"+teamHost.UUID), "host", "software"))
+	require.Equal(t, teamHostAITool, aiToolByName(t,
+		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK), "host", "software"))
+	var hostsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "populate_software", "true", "query", teamHost.Hostname)
+	require.Len(t, hostsResp.Hosts, 1)
+	populated := make(map[string]bool, len(hostsResp.Hosts[0].Software))
+	for _, sw := range hostsResp.Hosts[0].Software {
+		populated[sw.Name] = flag(sw.Name, sw.AITool)
+	}
+	require.Equal(t, teamHostFlags, populated)
 }

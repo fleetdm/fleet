@@ -744,6 +744,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 			VersionsCount:   title.VersionsCount,
 			Versions:        title.Versions,
 			CountsUpdatedAt: title.CountsUpdatedAt,
+			AITool:          title.AITool,
 		},
 	)
 
@@ -796,7 +797,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// ListSoftwareTitles does not populate version host counts, so we do that manually
 	titles[0].Versions[0].HostsCount = ptr.Uint(1)
-	assert.Equal(t, titles[0], fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, ExtensionFor: title.ExtensionFor, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt})
+	assert.Equal(t, fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, ExtensionFor: title.ExtensionFor, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt, AITool: title.AITool}, titles[0])
 
 	// Testing the team 2 user
 	titles, count, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, TeamID: &team2.ID}, fleet.TeamFilter{
@@ -3493,15 +3494,15 @@ func testListSoftwareTitlesAIToolFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{teamHost.ID})))
 
 	res, err := ds.UpdateHostSoftware(ctx, teamHost.ID, []fleet.Software{
-		{Name: "Claude", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude", AITool: true},
+		{Name: "Claude", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude", AITool: new(true)},
 		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
-		{Name: "codex", Version: "1.0", Source: "ai_clis", AITool: true},
+		{Name: "codex", Version: "1.0", Source: "ai_clis", AITool: new(true)},
 	})
 	require.NoError(t, err)
 	// The second codex version isn't flagged; the title still is.
 	_, err = ds.UpdateHostSoftware(ctx, noTeamHost.ID, []fleet.Software{
 		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
-		{Name: "github", Version: "", Source: "mcp_servers", AITool: true},
+		{Name: "github", Version: "", Source: "mcp_servers", AITool: new(true)},
 		{Name: "codex", Version: "2.0", Source: "ai_clis"},
 	})
 	require.NoError(t, err)
@@ -3550,7 +3551,8 @@ func testListSoftwareTitlesAIToolFilter(t *testing.T, ds *Datastore) {
 			require.Equal(t, totalCount, count)
 			for _, title := range titles {
 				require.NotContains(t, got, title.Name)
-				got[title.Name] = title.AITool
+				require.NotNil(t, title.AITool, title.Name)
+				got[title.Name] = *title.AITool
 			}
 			require.NotNil(t, meta)
 			if !meta.HasNextResults {
@@ -3625,7 +3627,8 @@ func testListSoftwareTitlesAIToolFilter(t *testing.T, ds *Datastore) {
 		for _, listed := range titles {
 			title, err := ds.SoftwareTitleByID(ctx, listed.ID, &tm.ID, tmFilter)
 			require.NoError(t, err)
-			require.Equal(t, listed.AITool, title.AITool, listed.Name)
+			require.NotNil(t, title.AITool, listed.Name)
+			require.Equal(t, *listed.AITool, *title.AITool, listed.Name)
 		}
 	})
 }

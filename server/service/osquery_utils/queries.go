@@ -2606,9 +2606,11 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 			continue
 		}
 
-		s.AITool = row["ai_tool"] == "1"
+		if row["ai_tool"] == "1" {
+			s.AITool = new(true)
+		}
 		software = append(software, *s)
-		if s.AITool {
+		if ptr.ValOrZero(s.AITool) {
 			aiTools = append(aiTools, *s)
 		}
 
@@ -2676,7 +2678,7 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 	if len(aiTools) > 0 && result != nil {
 		flagged := make(map[string]struct{}, len(aiTools))
 		for _, sw := range result.WasCurrInstalled {
-			if sw.AITool {
+			if ptr.ValOrZero(sw.AITool) {
 				flagged[sw.ToUniqueStr()] = struct{}{}
 			}
 		}
