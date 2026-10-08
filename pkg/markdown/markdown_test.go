@@ -203,6 +203,7 @@ func TestValidateTerms(t *testing.T) {
 		{"html table", "<table><tr><td>Clause</td></tr></table>\n", ErrContainsHTML},
 		{"nothing to read", "[](https://example.com)\n", ErrNoVisibleText},
 		{"only a comment", "<!-- draft -->\n", ErrNoVisibleText},
+		{"only invisible characters", "\u200b\u2060\n", ErrNoVisibleText},
 		{"not utf-8", "\xff\xfeA", ErrNotUTF8},
 		{"too large", strings.Repeat("a\n", MaxTermsSize/2+1), ErrTooLarge},
 		{"longest allowed line", strings.Repeat("a", maxLineLength), nil},

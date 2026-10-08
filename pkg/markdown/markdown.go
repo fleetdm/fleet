@@ -9,6 +9,7 @@ import (
 	"html"
 	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/microcosm-cc/bluemonday"
@@ -375,8 +376,12 @@ func (b *cappedBuffer) Write(p []byte) (int, error) {
 // and style, which is what a reader of the page would see.
 var textPolicy = bluemonday.StrictPolicy()
 
+// hasVisibleText ignores invisible format characters such as a zero-width
+// space, which TrimSpace keeps.
 func hasVisibleText(s string) bool {
-	return strings.TrimSpace(html.UnescapeString(textPolicy.Sanitize(s))) != ""
+	return strings.IndexFunc(html.UnescapeString(textPolicy.Sanitize(s)), func(r rune) bool {
+		return !unicode.IsSpace(r) && !unicode.Is(unicode.Cf, r)
+	}) >= 0
 }
 
 func htmlBlockSource(b *ast.HTMLBlock, src []byte) string {
