@@ -543,6 +543,30 @@ func createVPPAppInstallRequest(t *testing.T, ds *Datastore, host *fleet.Host, a
 	return cmdUUID
 }
 
+func insertVPPAppInstallWithResult(t *testing.T, ds *Datastore, host *fleet.Host, app *fleet.VPPApp, result string) {
+	ctx := t.Context()
+	cmdUUID := uuid.NewString()
+	err := ds.InsertHostVPPSoftwareInstall(ctx, host.ID, app.VPPAppID, cmdUUID, "event", fleet.HostSoftwareInstallOptions{VPPAppTeamID: app.AppTeamID})
+	require.NoError(t, err)
+
+	switch result {
+	case "acknowledged":
+		createVPPAppInstallResult(t, ds, host, cmdUUID, fleet.MDMAppleStatusAcknowledged)
+	case "verified":
+		createVPPAppInstallResult(t, ds, host, cmdUUID, fleet.MDMAppleStatusAcknowledged)
+		err = ds.SetVPPInstallAsVerified(ctx, host.ID, cmdUUID, uuid.NewString())
+		require.NoError(t, err)
+	case "mdm_error":
+		createVPPAppInstallResult(t, ds, host, cmdUUID, fleet.MDMAppleStatusError)
+	case "verification_failed":
+		createVPPAppInstallResult(t, ds, host, cmdUUID, fleet.MDMAppleStatusAcknowledged)
+		err = ds.SetVPPInstallAsFailed(ctx, host.ID, cmdUUID, uuid.NewString())
+		require.NoError(t, err)
+	default:
+		t.Fatalf("unknown install result %q", result)
+	}
+}
+
 func createVPPAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host, cmdUUID string, status string) {
 	ctx := context.Background()
 
@@ -5056,12 +5080,9 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Empty(t, installedVersionByHostID)
 
-		// acknowledge the host's install, then install the other version and fail the MDM command, the host should be returned with the version of its earlier install
+		// acknowledge the first version, then fail the MDM command for the other version, the host should be returned with the first version
 		createVPPAppInstallResult(t, ds, hostWithActivatedInstall, activatedCmdUUID, fleet.MDMAppleStatusAcknowledged)
-		failedCmdUUID := uuid.NewString()
-		err = ds.InsertHostVPPSoftwareInstall(ctx, hostWithActivatedInstall.ID, otherVersion.VPPAppID, failedCmdUUID, "event", fleet.HostSoftwareInstallOptions{VPPAppTeamID: otherVersion.AppTeamID})
-		require.NoError(t, err)
-		createVPPAppInstallResult(t, ds, hostWithActivatedInstall, failedCmdUUID, fleet.MDMAppleStatusError)
+		insertVPPAppInstallWithResult(t, ds, hostWithActivatedInstall, otherVersion, "mdm_error")
 		installedVersionByHostID, err = ds.ListHostAppStoreAppInstallVersions(ctx, app.VPPAppID, fleetID, nil)
 		require.NoError(t, err)
 		require.Equal(t, map[uint]*uint{hostWithActivatedInstall.ID: new(app.AppTeamID)}, installedVersionByHostID)
@@ -5081,5 +5102,32 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		installedVersionByHostID, err = ds.ListHostAppStoreAppInstallVersions(ctx, app.VPPAppID, fleetID, nil)
 		require.NoError(t, err)
 		require.Empty(t, installedVersionByHostID)
+
+		hostWithPendingInstall := newIOSHost("pending-install-")
+		hostWithFailedVerification := newIOSHost("failed-verification-")
+		hostWithOnlyFailedInstalls := newIOSHost("only-failed-installs-")
+		for _, host := range []*fleet.Host{hostWithPendingInstall, hostWithFailedVerification, hostWithOnlyFailedInstalls} {
+			_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{{Name: "ResendApp", Version: "1.0", Source: "ios_apps", BundleIdentifier: bundleID}})
+			require.NoError(t, err)
+		}
+
+		// verify the first version, then acknowledge the other version, the host should be returned with the other version
+		insertVPPAppInstallWithResult(t, ds, hostWithPendingInstall, app, "verified")
+		insertVPPAppInstallWithResult(t, ds, hostWithPendingInstall, otherVersion, "acknowledged")
+
+		// verify the first version, then fail verification of the other version, the host should be returned with the first version
+		insertVPPAppInstallWithResult(t, ds, hostWithFailedVerification, app, "verified")
+		insertVPPAppInstallWithResult(t, ds, hostWithFailedVerification, otherVersion, "verification_failed")
+
+		// fail the MDM command for the first version, then fail verification of the other version, the host should not be returned
+		insertVPPAppInstallWithResult(t, ds, hostWithOnlyFailedInstalls, app, "mdm_error")
+		insertVPPAppInstallWithResult(t, ds, hostWithOnlyFailedInstalls, otherVersion, "verification_failed")
+
+		installedVersionByHostID, err = ds.ListHostAppStoreAppInstallVersions(ctx, app.VPPAppID, fleetID, []uint{hostWithPendingInstall.ID, hostWithFailedVerification.ID, hostWithOnlyFailedInstalls.ID})
+		require.NoError(t, err)
+		require.Equal(t, map[uint]*uint{
+			hostWithPendingInstall.ID:     new(otherVersion.AppTeamID),
+			hostWithFailedVerification.ID: new(app.AppTeamID),
+		}, installedVersionByHostID)
 	}
 }
