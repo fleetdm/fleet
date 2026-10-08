@@ -25,7 +25,7 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("Version")).toBeVisible();
     expect(screen.getByText("1.0.0")).toBeVisible();
     expect(screen.getByText("Type")).toBeVisible();
-    expect(screen.getByText("Application (macOS)")).toBeVisible();
+    expect(screen.getByText("macOS app")).toBeVisible();
     expect(screen.getByText("Bundle identifier")).toBeVisible();
     expect(screen.getByText("com.test.mock")).toBeVisible();
     expect(screen.getByText("Last opened")).toBeVisible();
@@ -75,7 +75,7 @@ describe("SoftwareDetailsModal", () => {
       <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
     expect(screen.getByText("Type")).toBeVisible();
-    expect(screen.getByText("Application (macOS)")).toBeVisible();
+    expect(screen.getByText("macOS app")).toBeVisible();
     expect(screen.queryByText("Version")).not.toBeInTheDocument();
     expect(screen.queryByText("Path:")).not.toBeInTheDocument();
   });
@@ -94,15 +94,11 @@ describe("SoftwareDetailsModal", () => {
               installed_path: "/Applications/foo.app",
               team_identifier: "TEAM1",
               hash_sha256: "hashfoo123",
-              executable_sha256: null,
-              executable_path: null,
             },
             {
               installed_path: "/Applications/bar.app",
               team_identifier: "TEAM2",
               hash_sha256: "hashbar456",
-              executable_sha256: null,
-              executable_path: null,
             },
           ],
         },
@@ -136,8 +132,6 @@ describe("SoftwareDetailsModal", () => {
               installed_path: "/Applications/mock.app",
               team_identifier: "12345TEAMIDENT",
               hash_sha256: "mockhashhere",
-              executable_sha256: null,
-              executable_path: null,
             },
           ],
         },

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.6.8",
+      "version": "3.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.freemacsoft.AppCleaner';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.freemacsoft.AppCleaner' AND version_compare(bundle_short_version, '3.6.8') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.freemacsoft.AppCleaner' AND version_compare(bundle_short_version, '3.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.freemacsoft.AppCleaner' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.freemacsoft.net/downloads/AppCleaner_3.6.8.zip",
+      "installer_url": "https://www.freemacsoft.net/downloads/AppCleaner_3.7.zip",
       "install_script_ref": "bac574c8",
       "uninstall_script_ref": "91de10a8",
-      "sha256": "e012f729442473c20e7cce334b00182521e4b6672ea681b34931b180feb3d6be",
+      "sha256": "3d7fa6146fb57da955dca408587fc658ac14aeb86eda7907763ae66397c9e65e",
       "default_categories": [
         "Productivity"
       ]

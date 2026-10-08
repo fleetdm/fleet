@@ -9712,3 +9712,66 @@ policies:
 	require.Equal(t, "Plain policy", appliedSpecs[1].Name)
 	require.Equal(t, new(""), appliedSpecs[1].ProfileUUID)
 }
+
+func TestGitOpsPolicyHidden(t *testing.T) {
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	var appliedSpecs []*fleet.PolicySpec
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		appliedSpecs = append(appliedSpecs, specs...)
+		return nil
+	}
+
+	tmpDir := t.TempDir()
+	teamYAMLPath := filepath.Join(tmpDir, "team.yml")
+	require.NoError(t, os.WriteFile(teamYAMLPath, []byte(`
+name: Hidden Policy Team
+team_settings:
+  secrets:
+    - secret: "ABC"
+queries:
+agent_options:
+software:
+controls:
+policies:
+  - name: Hidden policy
+    query: "SELECT 1"
+    hidden: true
+  - name: Plain policy
+    query: "SELECT 2"
+`), 0o600))
+
+	_, err := runAppNoChecks([]string{"gitops", "-f", teamYAMLPath})
+	require.NoError(t, err)
+
+	require.Len(t, appliedSpecs, 2)
+	require.Equal(t, "Hidden policy", appliedSpecs[0].Name)
+	require.True(t, appliedSpecs[0].Hidden)
+	require.Equal(t, "Plain policy", appliedSpecs[1].Name)
+	require.False(t, appliedSpecs[1].Hidden)
+
+	// A hidden conditional access policy is rejected before anything is applied.
+	appliedSpecs = nil
+	require.NoError(t, os.WriteFile(teamYAMLPath, []byte(`
+name: Hidden Policy Team
+team_settings:
+  secrets:
+    - secret: "ABC"
+queries:
+agent_options:
+software:
+controls:
+policies:
+  - name: Hidden conditional access policy
+    query: "SELECT 1"
+    platform: darwin
+    hidden: true
+    conditional_access_enabled: true
+`), 0o600))
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamYAMLPath})
+	require.ErrorContains(t, err, `"hidden" and "conditional_access_enabled" cannot both be set`)
+	require.Empty(t, appliedSpecs)
+}

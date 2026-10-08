@@ -5,11 +5,12 @@ import "time"
 // DesktopSummary is a summary of the status of a host that's used by Fleet
 // Desktop to operate (show/hide menu items, etc)
 type DesktopSummary struct {
-	AlternativeBrowserHost string               `json:"alternative_browser_host,omitempty"`
-	FailingPolicies        *uint                `json:"failing_policies_count,omitempty"`
-	SelfService            *bool                `json:"self_service"`
-	Notifications          DesktopNotifications `json:"notifications"`
-	Config                 DesktopConfig        `json:"config"`
+	AlternativeBrowserHost  string               `json:"alternative_browser_host,omitempty"`
+	FailingPolicies         *uint                `json:"failing_policies_count,omitempty"`
+	FailingUnhiddenPolicies *uint                `json:"failing_unhidden_policies_count,omitempty"`
+	SelfService             *bool                `json:"self_service"`
+	Notifications           DesktopNotifications `json:"notifications"`
+	Config                  DesktopConfig        `json:"config"`
 }
 
 // DesktopNotifications are notifications that the fleet server sends to

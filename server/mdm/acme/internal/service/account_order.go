@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"go.step.sm/crypto/jose"
@@ -152,6 +154,8 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 		return nil, ctxerr.Wrap(ctx, err, "getting base URL")
 	}
 
+	// Orders have a single authorization today; with more, each one's attested key would need checking.
+	var attestedPublicKey []byte
 	for _, authz := range authorizations {
 		authzURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "authorizations", fmt.Sprint(authz.ID))
 		if err != nil {
@@ -169,6 +173,7 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 		for _, chlg := range challenges {
 			if chlg.Status == types.ChallengeStatusValid {
 				hasAValidChallenge = true
+				attestedPublicKey = chlg.AttestedPublicKey
 				break
 			}
 		}
@@ -195,22 +200,49 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 	if err != nil {
 		return nil, types.BadCSRError("CSR signature is invalid")
 	}
+	// Only the attested key may be certified, otherwise one attestation could certify any key.
+	// Fails closed when no key is on record (challenge validated before keys were recorded).
+	if len(attestedPublicKey) == 0 {
+		return nil, types.BadCSRError("CSR public key does not match the attested device key")
+	}
+	// Compared as keys, not DER bytes, so an encoding difference can't reject a genuine device.
+	attestedKey, err := x509.ParsePKIXPublicKey(attestedPublicKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing attested public key")
+	}
+	if k, ok := attestedKey.(interface{ Equal(crypto.PublicKey) bool }); !ok || !k.Equal(parsedCSR.PublicKey) {
+		return nil, types.BadCSRError("CSR public key does not match the attested device key")
+	}
 	// Normalize the common name and OU to match Fleet-issued SCEP certs. Preserve Fleet's
 	// new-enrollment marker OU when the device presents it: it rides the enrollment profile's ACME
 	// Subject and lets the MDM checkin handler tell a fresh enrollment from a SCEP renewal (see
 	// certIsFromNewEnrollment in server/service/apple_mdm.go).
 	newEnrollment := slices.Contains(parsedCSR.Subject.OrganizationalUnit, apple_mdm.FleetEnrollmentSubjectOU)
-	parsedCSR.Subject.CommonName = "Fleet Identity"
-	parsedCSR.Subject.OrganizationalUnit = []string{"fleet"}
-	if newEnrollment {
-		parsedCSR.Subject.OrganizationalUnit = append(parsedCSR.Subject.OrganizationalUnit, apple_mdm.FleetEnrollmentSubjectOU)
-	}
 
 	signer, err := s.providers.CSRSigner(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting CSR signer")
 	}
-	cert, err := signer.SignCSR(ctx, parsedCSR)
+
+	extension := apple_mdm.AppleMDMCertificateBindingExtension{Purpose: fleet.AppleMDMCertPurpose(enrollment.Purpose)}
+	switch fleet.AppleMDMCertPurpose(enrollment.Purpose) {
+	case fleet.AppleMDMCertPurposeACME:
+		extension.Serial = &enrollment.HostIdentifier
+	case fleet.AppleMDMCertPurposeACMERenewal:
+		extension.EnrollmentID = enrollment.EnrollmentID
+		extension.Serial = &enrollment.HostIdentifier
+	default:
+		return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported ACME purpose: %s", enrollment.Purpose))
+	}
+
+	ext, err := apple_mdm.BuildAppleMDMCertificateBindingExtension(extension)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to build Apple MDM certificate binding extension")
+	}
+
+	cert, err := signer.SignX509CSRWithCallback(parsedCSR, apple_mdm.AppleMDMAcmeCertificateSubject(newEnrollment), func(tmpl *x509.Certificate) {
+		tmpl.ExtraExtensions = append(tmpl.ExtraExtensions, ext)
+	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing CSR")
 	}

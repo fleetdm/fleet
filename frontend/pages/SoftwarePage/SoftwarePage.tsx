@@ -17,11 +17,11 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig } from "interfaces/config";
 import { IJiraIntegration, IZendeskIntegration } from "interfaces/integration";
 import { SelectedPlatform } from "interfaces/platform";
+import { SOFTWARE_TYPES } from "interfaces/software";
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
-import { ISoftwareApiParams } from "services/entities/software";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { getNextLocationPath } from "utilities/helpers";
 import {
@@ -33,9 +33,9 @@ import AddSoftwareModal from "./components/modals/AddSoftwareModal";
 import ManageAutomationsModal from "./components/modals/ManageSoftwareAutomationsModal";
 import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 import {
-  buildSoftwareVulnFiltersQueryParams,
-  getSoftwareVulnFiltersFromQueryParams,
-  ISoftwareVulnFiltersParams,
+  buildSoftwareFiltersQueryParams,
+  getSoftwareFiltersFromQueryParams,
+  ISoftwareFilters,
 } from "./SoftwareInventory/SoftwareInventoryTable/helpers";
 
 interface ISoftwareSubNavItem {
@@ -85,10 +85,40 @@ export const getTabIndex = (
 // default values for query params used on this page if not provided
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
+// The OS tab defaults to sorting by version (latest first) instead, once a
+// single platform is selected — see getOSTabSortHeader below.
+const OS_TAB_DEFAULT_SORT_HEADER = "version";
 // Increased from 20 to 50 per design spec (#32128). Load test the software
 // endpoints before shipping to confirm acceptable response times at this threshold.
 const DEFAULT_PAGE_SIZE = 50;
 const DEFAULT_PAGE = 0;
+
+/** Comparing OS versions across different platforms isn't meaningful, so the
+ * OS tab's "All platforms" view can't sort by version — the Version column
+ * itself is unclickable there. But `order_key=version` could still reach
+ * this page via a crafted/bookmarked URL, or a stale one restored by
+ * browser back/forward, bypassing that UI restriction entirely (this page
+ * is server-driven — whatever order_key is used here becomes the API
+ * request). Guard against that specific combination rather than trusting
+ * order_key verbatim whenever platform is "all". */
+export const getOSTabSortHeader = (
+  pathname: string,
+  platform: string,
+  orderKeyParam?: string
+): string => {
+  const isOnOSTab = pathname.startsWith(PATHS.SOFTWARE_OS);
+  const defaultSortHeader =
+    isOnOSTab && platform !== "all"
+      ? OS_TAB_DEFAULT_SORT_HEADER
+      : DEFAULT_SORT_HEADER;
+  if (!orderKeyParam) {
+    return defaultSortHeader;
+  }
+  if (isOnOSTab && platform === "all" && orderKeyParam === "version") {
+    return defaultSortHeader;
+  }
+  return orderKeyParam;
+};
 
 const baseClass = "software-page";
 
@@ -150,10 +180,12 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const queryParams = location.query;
 
   // initial values for query params used on this page
-  const sortHeader =
-    queryParams && queryParams.order_key
-      ? queryParams.order_key
-      : DEFAULT_SORT_HEADER;
+  const platform = queryParams?.platform || "all";
+  const sortHeader = getOSTabSortHeader(
+    location?.pathname || "",
+    platform,
+    queryParams?.order_key
+  );
   const sortDirection =
     queryParams?.order_direction === undefined
       ? DEFAULT_SORT_DIRECTION
@@ -162,7 +194,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     queryParams && queryParams.page
       ? parseInt(queryParams.page, 10)
       : DEFAULT_PAGE;
-  const platform = queryParams?.platform || "all";
   // TODO: move query/filter parsing down into individual tab components
   const query = queryParams && queryParams.query ? queryParams.query : "";
   const showExploitedVulnerabilitiesOnly =
@@ -171,9 +202,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // Library uses a self-service toggle (boolean), not the old dropdown filter
   const selfServiceOnly = queryParams?.self_service === "true";
 
-  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
-    queryParams
-  );
+  const softwareFilters = getSoftwareFiltersFromQueryParams(queryParams);
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -340,14 +369,14 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     router,
   ]);
 
-  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
-    const newQueryParams: ISoftwareApiParams = {
+  const onApplyFilters = (filters: ISoftwareFilters) => {
+    const newQueryParams = {
       query,
       teamId: currentTeamId,
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
-      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+      ...buildSoftwareFiltersQueryParams(filters),
     };
 
     router.replace(
@@ -495,7 +524,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             query,
             showExploitedVulnerabilitiesOnly,
             selfServiceOnly,
-            vulnFilters: softwareVulnFilters,
+            filters: softwareFilters,
             onAddFiltersClick: toggleSoftwareFiltersModal,
           })}
         </div>
@@ -550,9 +579,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         {showSoftwareFiltersModal && (
           <SoftwareFiltersModal
             onExit={toggleSoftwareFiltersModal}
-            onSubmit={onApplyVulnFilters}
-            vulnFilters={softwareVulnFilters}
+            onSubmit={onApplyFilters}
+            filters={softwareFilters}
             isPremiumTier={isPremiumTier || false}
+            availableTypes={SOFTWARE_TYPES}
           />
         )}
       </>

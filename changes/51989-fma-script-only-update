@@ -1,1 +1,0 @@
-- Fixed the Fleet-maintained apps auto-update cron job not updating scripts when they change in the manifest without a version change.

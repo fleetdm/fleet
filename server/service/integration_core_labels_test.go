@@ -377,7 +377,7 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Empty(t, listHostsResp.Hosts)
 
 		// set MDM information on a host
-		require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), lbl2Hosts[0].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
+		require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), lbl2Hosts[0].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone))
 		var mdmID uint
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(context.Background(), q, &mdmID,
@@ -1152,7 +1152,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	require.NoError(
 		t,
 		s.ds.SetOrUpdateMDMData(
-			context.Background(), host.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false,
+			context.Background(), host.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone,
 		),
 	)
 
@@ -1619,6 +1619,72 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	}, http.StatusOK, &removeLabelsFromHostResp)
 	teamHost2Labels = getHostLabels(teamHost2)
 	require.Empty(t, teamHost2Labels)
+}
+
+// TestManualLabelMembershipNotRemovableByHost verifies that a host cannot
+// remove itself from a manual label by reporting a result for that label's ID
+// through distributed/write. Only a node key is needed for that endpoint, so
+// this would otherwise let a compromised host escape admin-pinned scoping.
+func (s *integrationTestSuite) TestManualLabelMembershipNotRemovableByHost() {
+	t := s.T()
+	ctx := t.Context()
+
+	host := s.createHosts(t, "darwin")[0]
+	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
+
+	manual, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:                t.Name() + "manual",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+	dynamic, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:                t.Name() + "dynamic",
+		Query:               "SELECT 1",
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	var addResp addLabelsToHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host.ID), addLabelsToHostRequest{
+		Labels: []string{manual.Name},
+	}, http.StatusOK, &addResp)
+
+	hostLabelIDs := func() []uint {
+		var getHostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+		ids := make([]uint, 0, len(getHostResp.Host.Labels))
+		for _, l := range getHostResp.Host.Labels {
+			if l.LabelType == fleet.LabelTypeRegular {
+				ids = append(ids, l.ID)
+			}
+		}
+		return ids
+	}
+	require.Equal(t, []uint{manual.ID}, hostLabelIDs())
+
+	// A false result for the manual label (the reported attack) is ignored, as
+	// is a true one. The dynamic label result is still recorded.
+	for _, result := range []bool{false, true} {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithLabelResults(host, map[uint]*bool{
+			manual.ID:  new(result),
+			dynamic.ID: new(true),
+		}), http.StatusOK, &distributedResp)
+		require.ElementsMatch(t, []uint{manual.ID, dynamic.ID}, hostLabelIDs())
+	}
+
+	// A check-in with only the manual label result changes nothing either.
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithLabelResults(host, map[uint]*bool{
+		manual.ID: new(false),
+	}), http.StatusOK, &distributedResp)
+	require.ElementsMatch(t, []uint{manual.ID, dynamic.ID}, hostLabelIDs())
+
+	// The dynamic label is still removable by the host's own result.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithLabelResults(host, map[uint]*bool{
+		dynamic.ID: new(false),
+	}), http.StatusOK, &distributedResp)
+	require.Equal(t, []uint{manual.ID}, hostLabelIDs())
 }
 
 // TestLabelScopePremiumGate verifies that all policy label scope fields

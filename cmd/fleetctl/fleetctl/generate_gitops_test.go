@@ -36,6 +36,8 @@ type MockClient struct {
 	WithoutVPP       bool
 	WithAssets       bool
 	WithActivations  bool
+	// adds two Windows profiles whose names sanitize to the same file name
+	WithCollidingProfileNames bool
 }
 
 func (c MockClient) GetProfileActivation(profileID string) ([]byte, error) {
@@ -145,6 +147,7 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 				Name:        "Global MacOS MobileConfig Profile",
 				Platform:    "darwin",
 				Identifier:  "com.example.global-macos-mobileconfig-profile",
+				SelfService: true,
 				LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{
 					LabelName: "Label A",
 				}, {
@@ -163,7 +166,9 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 			{
 				ProfileUUID: "global-windows-profile-uuid",
 				Name:        "Global Windows Profile",
+				Description: "Blocks inbound connections",
 				Platform:    "windows",
+				Hidden:      true,
 				LabelsIncludeAny: []fleet.ConfigurationProfileLabel{{
 					LabelName: "Label D",
 				}},
@@ -192,6 +197,12 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 				Identifier:  "com.example.team-declaration",
 			})
 		}
+		if c.WithCollidingProfileNames {
+			profiles = append(profiles,
+				&fleet.MDMConfigProfilePayload{ProfileUUID: "team-win-uuid", Name: "Team Win", Platform: "windows"},
+				&fleet.MDMConfigProfilePayload{ProfileUUID: "team-dash-win-uuid", Name: "Team-Win", Platform: "windows"},
+			)
+		}
 		return profiles, nil
 	}
 	if *teamID == 0 || *teamID == 2 || *teamID == 3 || *teamID == 4 || *teamID == 5 || *teamID == 6 {
@@ -201,6 +212,9 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 }
 
 func (c MockClient) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
+	if c.IsFree {
+		return nil, fleet.ErrMissingLicense
+	}
 	if !c.WithAssets {
 		return nil, nil
 	}
@@ -247,6 +261,10 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 		return []byte("<xml>test mobileconfig profile</xml>"), nil
 	case "team-declaration-profile-uuid":
 		return []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.example.team-declaration","Payload":{}}`), nil
+	case "team-win-uuid":
+		return []byte("<xml>team win</xml>"), nil
+	case "team-dash-win-uuid":
+		return []byte("<xml>team-win</xml>"), nil
 	}
 	return nil, errors.New("profile not found")
 }
@@ -372,6 +390,17 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					FleetMaintainedAppID: ptr.Uint(3),
 				},
 			},
+			{
+				ID:         11,
+				Name:       "My Notify FMA",
+				HashSHA256: new("notify-fma-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "my-notify-fma.pkg",
+					Platform:             "darwin",
+					Version:              "1",
+					FleetMaintainedAppID: new(uint(4)),
+				},
+			},
 		}, nil
 	case "available_for_install=1&fleet_id=0&order_key=name":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -389,6 +418,7 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 		{ID: 1, Slug: "fma1/darwin", Name: "My FMA", Platform: "darwin", UniqueIdentifier: "com.my.fma"},
 		{ID: 2, Slug: "fma2/windows", Name: "My Windows FMA", Platform: "windows", UniqueIdentifier: "My Windows FMA"},
 		{ID: 3, Slug: "fma3/windows", Name: "Version Locked Name 2.0", Platform: "windows", UniqueIdentifier: "Version Locked Name 2.0"},
+		{ID: 4, Slug: "fma4/darwin", Name: "My Notify FMA", Platform: "darwin", UniqueIdentifier: "com.my.notifyfma"},
 	}, nil
 }
 
@@ -470,6 +500,19 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			},
 		},
 		{
+			ID:                           6,
+			Name:                         "My Notify FMA up to date",
+			Resolution:                   new("Install the latest version from self-service"),
+			Description:                  "This is a team patch policy that notifies before patching",
+			Platform:                     "darwin",
+			Type:                         fleet.PolicyTypePatch,
+			NotifyBeforePatching:         true,
+			ContinuousAutomationsEnabled: true,
+			PatchSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 11,
+			},
+		},
+		{
 			PolicyData: fleet.PolicyData{
 				ID:          3,
 				Name:        "Team VPP policy",
@@ -478,6 +521,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				Description: "This is a team policy with VPP app automation",
 				Platform:    "darwin",
 				Type:        fleet.PolicyTypeDynamic,
+				Hidden:      true,
 			},
 			InstallSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 2,
@@ -749,6 +793,26 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(3),
 				PinnedVersion:        new("^123"),
+			},
+		}, nil
+	case 11:
+		return &fleet.SoftwareTitle{
+			ID:   11,
+			Name: "My Notify FMA",
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:        "install",
+				UninstallScript:      "uninstall",
+				Platform:             "darwin",
+				FleetMaintainedAppID: new(uint(4)),
+				// Mirrors the API, which returns the managed app open query while
+				// notify_before_patching is on.
+				PreInstallQuery: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'My Notify FMA');",
+				PatchPolicy: &fleet.PatchPolicyData{
+					ID:                           6,
+					Name:                         "My Notify FMA up to date",
+					NotifyBeforePatching:         true,
+					ContinuousAutomationsEnabled: true,
+				},
 			},
 		}, nil
 	default:
@@ -1070,7 +1134,7 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 func configureFMAManifestServer(t *testing.T) {
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "apps.json") {
-			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}, {"name": "Version Locked Name 2.0", "slug": "fma3/windows", "platform": "windows", "unique_identifier": "Version Locked Name 2.0"}]}`)
+			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}, {"name": "Version Locked Name 2.0", "slug": "fma3/windows", "platform": "windows", "unique_identifier": "Version Locked Name 2.0"}, {"name": "My Notify FMA", "slug": "fma4/darwin", "platform": "darwin", "unique_identifier": "com.my.notifyfma"}]}`)
 			err := json.NewEncoder(w).Encode(data)
 			require.NoError(t, err)
 			return
@@ -2089,6 +2153,9 @@ func TestGenerateSoftware(t *testing.T) {
 	// The windows FMA is patch_when_closed, so its query is not written out.
 	require.NotContains(t, cmd.FilesToWrite, "lib/some-team/queries/my-windows-fma-windows-preinstallquery.yml")
 
+	// The notify FMA is notify_before_patching, so its query is not written out either.
+	require.NotContains(t, cmd.FilesToWrite, "lib/some-team/queries/my-notify-fma-darwin-preinstallquery.yml")
+
 	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-setup-experience-app-android-config.json"]; ok {
 		require.JSONEq(t, `{"managedConfiguration": "WORK_PROFILE_ALLOWED"}`, string(fileContents.([]byte)))
 	} else {
@@ -2718,6 +2785,10 @@ func TestGeneratePolicies(t *testing.T) {
 				MaintainedAppID: 1,
 				Slug:            "fma1/darwin",
 			},
+			11: {
+				MaintainedAppID: 4,
+				Slug:            "fma4/darwin",
+			},
 		},
 		ScriptList: map[uint]string{
 			1: "/path/to/script1.sh",
@@ -2766,7 +2837,7 @@ func TestGeneratePolicies(t *testing.T) {
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedPolicies, generatedPolicies)
+	require.Equal(t, expectedTeamPolicies, generatedTeamPolicies)
 }
 
 func TestGenerateQueries(t *testing.T) {
@@ -3021,6 +3092,53 @@ func TestGenerateControlsDiskEncryption(t *testing.T) {
 		require.NotContains(t, controls, "enable_disk_encryption")
 		require.NotContains(t, controls, "windows_require_bitlocker_pin")
 	})
+}
+
+// These are org-level settings, so they belong only in the file holding the global controls:
+// default.yml on Free, unassigned.yml on Premium.
+func TestGenerateControlsMDMEnabledAndConfigured(t *testing.T) {
+	cases := []struct {
+		name       string
+		isFree     bool
+		teamID     *uint
+		mdmEnabled bool
+		wantEmit   bool
+	}{
+		{name: "free global, MDM on", isFree: true, teamID: nil, mdmEnabled: true, wantEmit: true},
+		{name: "free global, MDM off", isFree: true, teamID: nil, mdmEnabled: false, wantEmit: false},
+		{name: "premium unassigned, MDM on", teamID: new(uint(0)), mdmEnabled: true, wantEmit: true},
+		{name: "premium unassigned, MDM off", teamID: new(uint(0)), mdmEnabled: false, wantEmit: false},
+		{name: "premium fleet, MDM on", teamID: new(uint(1)), mdmEnabled: true, wantEmit: false},
+		{name: "premium fleet, MDM off", teamID: new(uint(1)), mdmEnabled: false, wantEmit: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &MockClient{IsFree: tc.isFree}
+			appConfig, err := client.GetAppConfig()
+			require.NoError(t, err)
+			appConfig.MDM.WindowsEnabledAndConfigured = tc.mdmEnabled
+			appConfig.MDM.AndroidEnabledAndConfigured = tc.mdmEnabled
+			cmd := &GenerateGitopsCommand{
+				Client:       client,
+				CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+				Messages:     Messages{},
+				FilesToWrite: make(map[string]any),
+				AppConfig:    appConfig,
+				ScriptList:   make(map[uint]string),
+			}
+
+			controls, err := cmd.generateControls(tc.teamID, "some_team", &fleet.TeamMDM{})
+			require.NoError(t, err)
+
+			for _, key := range []string{"windows_enabled_and_configured", "android_enabled_and_configured"} {
+				if tc.wantEmit {
+					assert.Equal(t, true, controls[key], key)
+				} else {
+					assert.NotContains(t, controls, key)
+				}
+			}
+		})
+	}
 }
 
 func TestGenerateMDMVPPTokens(t *testing.T) {
@@ -3544,4 +3662,39 @@ func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T)
 	_, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Team patch policy")
+}
+
+func TestGenerateProfilesFilenameCollision(t *testing.T) {
+	// "Team Win" and "Team-Win" sanitize to the same file name, so each needs
+	// its own file or one profile's contents would apply under both names
+	fleetClient := &MockClient{WithCollidingProfileNames: true}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		ScriptList:   make(map[uint]string),
+	}
+
+	got, err := cmd.generateProfiles(new(uint(1)), "team-a")
+	require.NoError(t, err)
+	windows, ok := got["windows_profiles"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, windows, 2)
+	require.Equal(t, "../lib/team-a/profiles/team-win.xml", windows[0]["path"])
+	require.Equal(t, "../lib/team-a/profiles/team-win-2.xml", windows[1]["path"])
+
+	contentsByName := make(map[string]any, len(windows))
+	for _, p := range windows {
+		path, _ := p["path"].(string)
+		name, _ := p["name"].(string)
+		contentsByName[name] = cmd.FilesToWrite[strings.TrimPrefix(path, "../")]
+	}
+	require.Equal(t, map[string]any{
+		"Team Win": "<xml>team win</xml>",
+		"Team-Win": "<xml>team-win</xml>",
+	}, contentsByName)
 }

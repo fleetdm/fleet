@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.6.7",
+      "version": "1.6.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.aone.keka';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.aone.keka' AND version_compare(bundle_short_version, '1.6.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.aone.keka' AND version_compare(bundle_short_version, '1.6.8') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.aone.keka' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/aonez/Keka/releases/download/v1.6.7/Keka-1.6.7.dmg",
+      "installer_url": "https://github.com/aonez/Keka/releases/download/v1.6.8/Keka-1.6.8.dmg",
       "install_script_ref": "70a86665",
       "uninstall_script_ref": "4b5f9669",
-      "sha256": "0fa0995fc3e58ba3e438ba53aba03636eb226c64002757d21250934116e19f7e",
+      "sha256": "25a4daf0492b7e3bca043c8a7ba1ae97507dd8dbf872811daf74b01f16a12125",
       "default_categories": [
         "Productivity"
       ]

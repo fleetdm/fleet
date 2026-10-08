@@ -11,7 +11,7 @@ cask "xcreds" do
     skip "Twocanoes does not expose a parseable XCreds version feed; bump manually"
   end
 
-  depends_on macos: ">= :big_sur"
+  depends_on macos: :big_sur
 
   pkg "XCreds_Build-#{version.csv.second}_Version-#{version.csv.first}.pkg"
 

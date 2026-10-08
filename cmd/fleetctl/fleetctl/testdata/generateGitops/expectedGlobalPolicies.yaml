@@ -3,6 +3,7 @@
   continuous_automations_enabled: false
   critical: false
   description: This is a global policy
+  hidden: false
   install_software:
     hash_sha256: team-software-hash __TEAM_SOFTWARE_COMMENT_TOKEN__
   labels_include_any:
@@ -19,6 +20,7 @@
   continuous_automations_enabled: false
   critical: false
   description: This is a global policy with include_all scope
+  hidden: false
   labels_include_all:
   - Label C
   - Label D

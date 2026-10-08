@@ -12,7 +12,7 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostReport } from "services/entities/host_reports";
 import { Colors } from "styles/var/colors";
-import { humanLastSeen } from "utilities/helpers";
+import { humanLastSeen, internallyTruncateText } from "utilities/helpers";
 import { pluralize } from "utilities/strings/stringUtils";
 
 const baseClass = "host-report-card";
@@ -30,7 +30,7 @@ const ReportBanner = ({
   message: ReactNode;
   children?: ReactNode;
 }) => (
-  <InfoBanner borderRadius="xlarge">
+  <InfoBanner>
     <div className={`${baseClass}__banner-content`}>
       <div className={`${baseClass}__banner-text`}>
         <Icon name={iconName} color={ICON_COLOR} />
@@ -103,7 +103,14 @@ const HostReportCard = ({
           <DataSet
             key={key}
             title={key}
-            value={<TooltipTruncatedText value={value} />}
+            value={
+              <TooltipTruncatedText
+                value={value}
+                tooltip={
+                  value.length > 300 ? internallyTruncateText(value) : undefined
+                }
+              />
+            }
             textOnly
           />
         ))}
@@ -167,7 +174,7 @@ const HostReportCard = ({
   };
 
   return (
-    <Card className={baseClass} borderRadiusSize="xlarge" paddingSize="xlarge">
+    <Card className={baseClass} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header-left`}>
           <div className={`${baseClass}__title-row`}>

@@ -1,0 +1,1 @@
+* Fixed navigating to `/device` without a device token showing a blank page instead of the 404 page.

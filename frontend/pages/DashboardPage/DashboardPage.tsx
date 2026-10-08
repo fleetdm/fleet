@@ -346,6 +346,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     }),
     [config?.features?.historical_data, teamHistoricalData]
   );
+  const historicalDataGloballyEnabled = useMemo(
+    () => ({
+      uptime: config?.features?.historical_data?.uptime ?? true,
+      vulnerabilities:
+        config?.features?.historical_data?.vulnerabilities ?? true,
+    }),
+    [config?.features?.historical_data]
+  );
   const isViewingVulnerableSoftware = !!softwareNavTabIndex; // we can take the tab index as a boolean to represent the vulnerable flag
 
   const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
@@ -445,6 +453,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           enrolled_automated_hosts_count,
           enrolled_manual_hosts_count,
           enrolled_personal_hosts_count,
+          enrolled_manual_personal_hosts_count,
           unenrolled_hosts_count,
           pending_hosts_count,
           hosts_count,
@@ -467,12 +476,16 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             hosts: enrolled_manual_hosts_count,
           },
           {
+            status: "On (personal)",
+            hosts: enrolled_personal_hosts_count,
+          },
+          {
             status: "On (automatic)",
             hosts: enrolled_automated_hosts_count,
           },
           {
             status: "On (manual - personal)",
-            hosts: enrolled_personal_hosts_count,
+            hosts: enrolled_manual_personal_hosts_count,
           },
           { status: "Off", hosts: unenrolled_hosts_count },
         ];
@@ -594,7 +607,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   );
 
   const HostCountCards = errorHosts ? (
-    <Card borderRadiusSize="large">
+    <Card>
       <DataError verticalPaddingSize="pad-large" />
     </Card>
   ) : (
@@ -910,7 +923,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           </div>
         </div>
         <div className={`${baseClass}__charts-row`}>
-          <Card paddingSize="xlarge" borderRadiusSize="large">
+          <Card paddingSize="xlarge">
             <HostsEnrolledCard
               counts={totalCounts}
               totalHostCount={hostSummaryTotals?.totals_hosts_count || 0}
@@ -919,10 +932,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               router={router}
             />
           </Card>
-          <Card paddingSize="xlarge" borderRadiusSize="large">
+          <Card paddingSize="xlarge">
             <ChartCard
               currentTeamId={teamIdForApi}
               historicalDataEnabled={historicalDataEnabled}
+              historicalDataGloballyEnabled={historicalDataGloballyEnabled}
               filterDefaults={
                 featuresConfig?.vulnerability_exposure_historical_reporting
               }
@@ -932,6 +946,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         <div className={`${baseClass}__platforms`}>
           <span>Platform:&nbsp;</span>
           <DropdownWrapper
+            ariaLabel="Filter by platform"
             name="platform-filter"
             value={selectedPlatform || ""}
             className={`${baseClass}__platform-filter`}

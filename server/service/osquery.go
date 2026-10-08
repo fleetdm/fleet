@@ -173,7 +173,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		secretOpts   []fleet.DatastoreEnrollOsqueryOption
 	)
 	var oneTime *fleet.HostOneTimeEnrollSecret
-	if svc.config.Auth.UseOneTimeEnrollSecrets {
+	if svc.config.MDM.OneTimeEnrollSecretsEnabled() {
 		var err error
 		oneTime, err = svc.lookupOneTimeEnrollSecret(ctx, enrollSecret)
 		if err != nil {
@@ -195,9 +195,11 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 			return "", newOsqueryErrorWithInvalidNode("enroll failed")
 		}
 		enrollTeamID = secret.TeamID
-		secretOpts = append(secretOpts, fleet.WithEnrollOsqueryRejectSharedSecretForMDMHosts(svc.config.Auth.UseOneTimeEnrollSecrets))
+		secretOpts = append(secretOpts, fleet.WithEnrollOsqueryRejectSharedSecretForAppleMDMHosts(svc.config.MDM.AppleOneTimeEnrollSecrets))
 	}
 
+	// The identity cert's name is the derived identifier the host enrolls under, not the raw provided one.
+	hostIdentifier = getHostIdentifier(ctx, svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
 	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostIdentifier)
 	if err != nil && !fleet.IsNotFound(err) {
 		recordErrorDetail(ctx, err)
@@ -208,9 +210,11 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
 	if identityCert != nil {
 		if !httpSigPresent {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedHostIdentityCertRequired, identityCert.HostID, attempt)
 			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
 		}
 		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedHostIdentityCertRequired, identityCert.HostID, attempt)
 			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
 		}
 	} else if httpSigPresent { // but we couldn't find cert in DB
@@ -223,7 +227,6 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		return "", newOsqueryErrorWithInvalidNode("generate node key failed")
 	}
 
-	hostIdentifier = getHostIdentifier(ctx, svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
 	canEnroll, err := svc.enrollHostLimiter.CanEnrollNewHost(ctx)
 	if err != nil {
 		recordErrorDetail(ctx, err)
@@ -254,6 +257,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
 		fleet.WithEnrollOsqueryCreated(&hostCreated),
+		fleet.WithEnrollOsqueryRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOsquery(ctx, enrollOpts...)
 	if err != nil {
@@ -314,7 +318,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 	if save {
 		if appConfig.ServerSettings.DeferredSaveHost {
-			go svc.serialUpdateHost(ctx, host)
+			go func() { _ = svc.serialUpdateHost(ctx, host) }()
 		} else {
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
 				return "", enrollError(ctx, err, "save host in enroll agent")
@@ -327,7 +331,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 var counter = int64(0)
 
-func (svc *Service) serialUpdateHost(ctx context.Context, host *fleet.Host) {
+func (svc *Service) serialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	newVal := atomic.AddInt64(&counter, 1)
 	defer func() {
 		atomic.AddInt64(&counter, -1)
@@ -341,6 +345,7 @@ func (svc *Service) serialUpdateHost(ctx context.Context, host *fleet.Host) {
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "serial update host background error", "err", err)
 	}
+	return err
 }
 
 func getHostIdentifier(ctx context.Context, logger *slog.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
@@ -1693,10 +1698,8 @@ func (svc *Service) discardOutOfScopePolicyResults(ctx context.Context, host *fl
 //
 // The deletion is skipped for hosts in setup experience: they are sent a
 // filtered subset of policy queries (see policyQueriesForHost), so their stale
-// set is not meaningful. Under async policy processing this is a no-op, since
-// the task layer buffers results in Redis and always reports no stale policies.
-// Errors are logged and swallowed: this cleanup is best-effort and self-heals
-// on the host's next policy reporting cycle.
+// set is not meaningful. Errors are logged and swallowed: this cleanup is
+// best-effort and self-heals on the host's next policy reporting cycle.
 func (svc *Service) cleanupOutOfScopePolicyMembership(ctx context.Context, host *fleet.Host, stalePolicyIDs []uint) {
 	if len(stalePolicyIDs) == 0 {
 		return
@@ -2004,9 +2007,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
-		// Force clear results for labels that do not apply to the host anymore.
+		// Discard results for labels that do not apply to the host: manual labels,
+		// labels of another team or platform, or unknown IDs. Agent-reported
+		// results must never change manual membership, and the result must be
+		// dropped rather than recorded as false: a false becomes a DELETE, which
+		// is how a host could remove itself from a manual label.
 		//
-		// There could be a timing bug where:
+		// This also covers a timing bug where:
 		// 1. Host receives a "team label" query to run (distributed/read).
 		// 2. Host is transferred to another team (all its label/policy membership are cleared).
 		// 3. Fleet receives distributed/write corresponding to (1) which includes the result for
@@ -2017,13 +2024,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 		for labelID := range labelResults {
 			if _, ok := hostLabelQueries[fmt.Sprint(labelID)]; !ok {
-				svc.logger.DebugContext(ctx, "clearing result for inapplicable label", "labelID", labelID, "hostID", host.ID)
-				labelResults[labelID] = ptr.Bool(false)
+				svc.logger.InfoContext(ctx, "discarding result for inapplicable label", "labelID", labelID, "hostID", host.ID)
+				delete(labelResults, labelID)
 			}
 		}
 
-		if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
-			logging.WithErr(ctx, err)
+		if len(labelResults) > 0 {
+			if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 	}
 
@@ -2194,20 +2203,35 @@ func (svc *Service) SubmitDistributedQueryResults(
 		svc.logger.DebugContext(ctx, "refetch critical status on submit distributed query results", "host_id", host.ID, "refetch_requested", refetchRequested, "refetch_critical_queries_until", host.RefetchCriticalQueriesUntil, "refetch_critical_cleared", refetchCriticalCleared)
 	}
 
+	reportDeviceName := detailUpdated && ac.MDM.EnabledAndConfigured && host.Platform == "darwin" && host.ComputerName != ""
 	if refetchRequested || detailUpdated || refetchCriticalCleared {
 		if ac.ServerSettings.DeferredSaveHost {
-			go svc.serialUpdateHost(ctx, host)
+			hostUUID, computerName, report := host.UUID, host.ComputerName, reportDeviceName
+			go func() {
+				// The device-name cron compares the template against the saved
+				// computer_name, so drift must only be re-queued once the host save has
+				// landed; otherwise the cron can see the old, matching name and mark the
+				// host verified without renaming it.
+				if err := svc.serialUpdateHost(ctx, host); err != nil {
+					return
+				}
+				if report {
+					reportCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+					defer cancel()
+					svc.reconcileHostDeviceNameReport(reportCtx, hostUUID, computerName)
+				}
+			}()
+			reportDeviceName = false
 		} else {
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
 				logging.WithErr(ctx, err)
+				reportDeviceName = false
 			}
 		}
 	}
 
-	if detailUpdated && ac.MDM.EnabledAndConfigured && host.Platform == "darwin" && host.ComputerName != "" {
-		if err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, host.ComputerName); err != nil {
-			logging.WithErr(ctx, err)
-		}
+	if reportDeviceName {
+		svc.reconcileHostDeviceNameReport(ctx, host.UUID, host.ComputerName)
 	}
 
 	if host.DiskEncryptionKeyEscrowed {
@@ -2375,6 +2399,9 @@ func preProcessSoftwareResults(
 
 	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
 	preProcessSoftwareExtraResults(ctx, fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
+	fleetdNixPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_nix"
+	preProcessSoftwareExtraResults(ctx, fleetdNixPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
 	preProcessSoftwareExtraResults(ctx, jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
@@ -2711,6 +2738,26 @@ func (svc *Service) ingestDistributedQuery(
 		return newOsqueryError("unable to parse campaign ID: " + trimmedQuery)
 	}
 
+	// The host controls the campaign ID in the query name and IDs are sequential,
+	// so without this any enrolled host could stream forged rows into every
+	// running campaign server-wide, including other fleets' campaigns. Marking
+	// the host complete before publishing makes the check free: the same Redis
+	// commands report whether the host was still a target. The cost is that an
+	// undelivered result below must re-target the host so it retries, and that a
+	// crash between here and the publish loses this host's rows for the campaign
+	// where before it would have re-run the query. Live results are ephemeral,
+	// so that trade is accepted.
+	campaignName := strconv.Itoa(campaignID)
+	targeted, err := svc.liveQueryStore.QueryCompletedByHost(campaignName, host.ID)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "recording live query completion for host", "campaignID", campaignID, "hostID", host.ID, "err", err)
+		return newOsqueryError("record query completion: " + err.Error())
+	}
+	if !targeted {
+		svc.logger.DebugContext(ctx, "discarding live query result for campaign not targeting host", "campaignID", campaignID, "hostID", host.ID)
+		return nil
+	}
+
 	// Write the results to the pubsub store
 	res := fleet.DistributedQueryResult{
 		DistributedQueryCampaignID: uint(campaignID), //nolint:gosec // dismiss G115
@@ -2731,6 +2778,7 @@ func (svc *Service) ingestDistributedQuery(
 		var pse pubsub.Error
 		ok := errors.As(err, &pse)
 		if !ok || !pse.NoSubscriber() {
+			svc.restoreQueryTarget(ctx, campaignID, host.ID)
 			return newOsqueryError("writing results: " + err.Error())
 		}
 
@@ -2757,6 +2805,7 @@ func (svc *Service) ingestDistributedQuery(
 			// This expected error can happen if:
 			//	A. A device checked in and sent results back in between steps (1) and (2).
 			// 	B. The client stopped listening in (2) and devices continue to send results back.
+			svc.restoreQueryTarget(ctx, campaignID, host.ID)
 			return newOsqueryError(fmt.Sprintf("campaignID=%d waiting for listener", campaignID))
 		}
 
@@ -2771,16 +2820,16 @@ func (svc *Service) ingestDistributedQuery(
 			return newOsqueryError("stopping orphaned campaign: " + err.Error())
 		}
 
-		// No need to record query completion in this case
 		return newOsqueryError(fmt.Sprintf("campaignID=%d stopped", campaignID))
 	}
 
-	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(campaignID), host.ID)
-	if err != nil {
-		return newOsqueryError("record query completion: " + err.Error())
-	}
-
 	return nil
+}
+
+func (svc *Service) restoreQueryTarget(ctx context.Context, campaignID int, hostID uint) {
+	if err := svc.liveQueryStore.RestoreQueryTargetForHost(strconv.Itoa(campaignID), hostID); err != nil {
+		svc.logger.WarnContext(ctx, "restoring live query target after undelivered result", "campaignID", campaignID, "hostID", hostID, "err", err)
+	}
 }
 
 // ingestMembershipQuery records the results of label queries run by a host
@@ -3030,6 +3079,21 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			continue
 		}
 
+		// Skip an app  that's already on a patch notification the end user has seen, the notification's deadline is what
+		// installs it. If we queue a skippable install here, its skip can report after the notification is acted and its
+		// force installs are queued, and create a second notification.
+		var appHasDisplayedPatchNotification bool
+		if failingPolicyWithInstaller.OverridePreInstallQuery {
+			appHasDisplayedPatchNotification, err = svc.ds.DisplayedPatchNotificationExistsForApp(ctx, hostID, softwareInstallerTitleID_)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check whether a displayed patch notification lists this app")
+			}
+		}
+		if appHasDisplayedPatchNotification {
+			logger.DebugContext(ctx, "skipping policy automation install, the app is on a patch notification the end user has seen")
+			continue
+		}
+
 		// Throttle continuous policy automation re-installs: if this policy fired only
 		// because continuous_automations_enabled is set (not a pass→fail transition)
 		// and we already queued a successful install within the policy update interval,
@@ -3073,9 +3137,10 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			ctx, hostID,
 			installerMetadata.InstallerID,
 			fleet.HostSoftwareInstallOptions{
-				SelfService:     false,
-				PolicyID:        &policyID,
-				DeferActivation: svc.deferFleetInitiatedActivation(),
+				SelfService:             false,
+				PolicyID:                &policyID,
+				OverridePreInstallQuery: failingPolicyWithInstaller.OverridePreInstallQuery,
+				DeferActivation:         svc.deferFleetInitiatedActivation(),
 			},
 		)
 		if err != nil {
@@ -3158,7 +3223,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return nil
 	}
 
-	host, err := svc.ds.Host(ctx, hostID)
+	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "failed to get host details")
 	}
@@ -4326,6 +4391,91 @@ func (svc *Service) saveResultLogsToQueryReports(
 	// Filter results to only the most recent for each query.
 	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
 
+	// Pick the results to store before touching the database, so requests with nothing to store
+	// don't take a slot.
+	type resultToStore struct {
+		result *fleet.ScheduledQueryResult
+		query  *fleet.Query
+	}
+	hostTeamID := uint(0)
+	if host.TeamID != nil {
+		hostTeamID = *host.TeamID
+	}
+	var toStore []resultToStore
+	for _, result := range unmarshaledResultsFiltered {
+		dbQuery, ok := queriesDBData[result.QueryName]
+		if !ok {
+			// Means the query does not exist with such name anymore. Thus we ignore its result.
+			continue
+		}
+
+		if dbQuery.DiscardData || dbQuery.Logging != fleet.LoggingSnapshot {
+			// Ignore result if query is marked as discard data or if logging is not snapshot
+			continue
+		}
+
+		if dbQuery.TeamID != nil && *dbQuery.TeamID != hostTeamID {
+			// The host was transferred to another team/global so we ignore the incoming results
+			// of this query that belong to a different team.
+			continue
+		}
+		toStore = append(toStore, resultToStore{result: result, query: dbQuery})
+	}
+	if len(toStore) == 0 {
+		return
+	}
+
+	// Read the host's stored rows from the replica so unchanged results skip the write
+	// transaction. Without a live query store the rows can't be recorded, so nothing is read.
+	var storedRows map[uint][]*fleet.StoredQueryResultRow
+	releaseRead := func() {}
+	if svc.liveQueryStore != nil {
+		queryIDs := make([]uint, 0, len(toStore))
+		for _, r := range toStore {
+			queryIDs = append(queryIDs, r.query.ID)
+		}
+		var busy bool
+		storedRows, releaseRead, busy = svc.readStoredQueryResultRows(ctx, host.ID, queryIDs)
+		if busy {
+			queryReportWritesSkipped.Add(ctx, int64(len(toStore)), queryReportSkipReason(queryReportSkipReadBusy))
+			svc.logger.DebugContext(ctx, "too many concurrent query report reads, skipping results", "host_id", host.ID)
+			return
+		}
+		defer releaseRead()
+	}
+
+	// Unchanged results only need last_fetched updated, which the query_results_cleanup cron
+	// does in batches; the rest are written below.
+	type resultToWrite struct {
+		query *fleet.Query
+		rows  []*fleet.ScheduledQueryResultRow
+	}
+	var toWrite []resultToWrite
+	for _, r := range toStore {
+		rows := svc.queryResultRows(ctx, r.result, r.query.ID, host.ID)
+		if svc.recordUnchangedQueryResultRows(ctx, rows, storedRows[r.query.ID]) {
+			continue
+		}
+		toWrite = append(toWrite, resultToWrite{query: r.query, rows: rows})
+	}
+	// Don't hold a read slot while waiting on the writer.
+	releaseRead()
+	if len(toWrite) == 0 {
+		return
+	}
+
+	// Skip rather than wait at the limit: waiting requests pile up in memory while the database
+	// is slow, and the host sends fresh results on the report's next run.
+	release, ok := svc.acquireQueryReportWriteSlot(ctx)
+	if !ok {
+		queryReportWritesSkipped.Add(ctx, int64(len(toWrite)), queryReportSkipReason(queryReportSkipWriteBusy))
+		svc.logger.DebugContext(ctx, "too many concurrent query report writes, skipping results", "host_id", host.ID)
+		return
+	}
+	defer release()
+	writeCtx, cancel := context.WithTimeout(ctx, queryReportWriteTimeout)
+	defer cancel()
+
 	// Batch fetch query result counts from Redis for all queries, reading any that Redis
 	// doesn't have from the database and seeding them so later requests hit the cache.
 	var queryResultCounts map[uint]int
@@ -4347,7 +4497,7 @@ func (svc *Service) saveResultLogsToQueryReports(
 			}
 		}
 		if len(missing) > 0 {
-			fromDB, err := svc.ds.ResultCountsForQueries(ctx, missing)
+			fromDB, err := svc.ds.ResultCountsForQueries(writeCtx, missing)
 			if err != nil {
 				svc.logger.ErrorContext(ctx, "count results for queries missing from redis", "err", err)
 				return
@@ -4369,45 +4519,24 @@ func (svc *Service) saveResultLogsToQueryReports(
 	clippedTTLByQuery := make(map[uint]time.Duration)
 	var admittedQueryIDs []uint
 
-	for _, result := range unmarshaledResultsFiltered {
-		dbQuery, ok := queriesDBData[result.QueryName]
-		if !ok {
-			// Means the query does not exist with such name anymore. Thus we ignore its result.
-			continue
-		}
-
-		if dbQuery.DiscardData || dbQuery.Logging != fleet.LoggingSnapshot {
-			// Ignore result if query is marked as discard data or if logging is not snapshot
-			continue
-		}
-
-		hostTeamID := uint(0)
-		if host.TeamID != nil {
-			hostTeamID = *host.TeamID
-		}
-		if dbQuery.TeamID != nil && *dbQuery.TeamID != hostTeamID {
-			// The host was transferred to another team/global so we ignore the incoming results
-			// of this query that belong to a different team.
-			continue
-		}
-
+	for _, w := range toWrite {
 		// Approximate count from Redis; the datastore decides whether replacing
 		// this host's rows fits under the cap, so a full report keeps updating
 		// for hosts already in it.
-		currentCount := queryResultCounts[dbQuery.ID]
+		currentCount := queryResultCounts[w.query.ID]
 
-		res, err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows, currentCount)
+		res, err := svc.ds.OverwriteQueryResultRows(writeCtx, w.rows, maxQueryReportRows, currentCount)
 		if err != nil {
-			svc.logger.ErrorContext(ctx, "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
+			svc.logger.ErrorContext(ctx, "overwrite results", "err", err, "query_id", w.query.ID, "host_id", host.ID)
 			continue
 		}
 		switch {
 		case res.Rejected:
-			clippedTTLByQuery[dbQuery.ID] = queryReportClippedTTL(dbQuery)
+			clippedTTLByQuery[w.query.ID] = queryReportClippedTTL(w.query)
 		case res.NewHost:
-			admittedQueryIDs = append(admittedQueryIDs, dbQuery.ID)
+			admittedQueryIDs = append(admittedQueryIDs, w.query.ID)
 		}
-		rowsAddedByQuery[dbQuery.ID] += res.RowsAdded
+		rowsAddedByQuery[w.query.ID] += res.RowsAdded
 	}
 
 	// Batch increment Redis counters after all successful inserts
@@ -4556,12 +4685,12 @@ func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult)
 	return filteredResults
 }
 
-// overwriteResultRows deletes existing and inserts the new results for a query and host.
+// queryResultRows returns the rows to store for a result of a query on a host.
 //
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+func (svc *Service) queryResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint) []*fleet.ScheduledQueryResultRow {
 	fetchTime := time.Now()
 
 	snapshot := result.Snapshot
@@ -4592,12 +4721,38 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		}
 		rows = append(rows, row)
 	}
+	return rows
+}
 
-	res, err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows, currentCount)
-	if err != nil {
-		return fleet.QueryReportWriteResult{}, ctxerr.Wrap(ctx, err, "overwriting query result rows")
+// recordUnchangedQueryResultRows records the stored rows for the query_results_cleanup cron to
+// update their last_fetched if rows hold the same data and their last_fetched is older than
+// queryResultsLastFetchedRefreshAge. It reports whether that handled the result; if not, the rows
+// must be written.
+func (svc *Service) recordUnchangedQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, stored []*fleet.StoredQueryResultRow) bool {
+	if !queryResultRowsUnchanged(rows, stored) {
+		return false
 	}
-	return res, nil
+	if !queryResultRowsLastFetchedStale(stored, rows[0].LastFetched) {
+		queryReportWritesSkipped.Add(ctx, 1, queryReportSkipReason(queryReportSkipUnchanged))
+		return true
+	}
+	ids := make([]uint, 0, len(stored))
+	for _, row := range stored {
+		ids = append(ids, row.ID)
+	}
+	err := svc.liveQueryStore.RecordQueryResultsLastFetched(ids, rows[0].LastFetched)
+	switch {
+	case err == nil:
+		queryReportWritesSkipped.Add(ctx, 1, queryReportSkipReason(queryReportSkipUnchanged))
+		return true
+	case errors.Is(err, fleet.ErrQueryResultsLastFetchedFull):
+		// Rewriting would add load while the cron is behind; last_fetched just stays stale.
+		queryReportWritesSkipped.Add(ctx, 1, queryReportSkipReason(queryReportSkipLastFetchedDropped))
+		return true
+	default:
+		svc.logger.ErrorContext(ctx, "record query results last fetched", "err", err, "query_id", rows[0].QueryID, "host_id", rows[0].HostID)
+		return false
+	}
 }
 
 // minQueryReportClippedTTL is the shortest time a clipped marker lives. Rejections recur every

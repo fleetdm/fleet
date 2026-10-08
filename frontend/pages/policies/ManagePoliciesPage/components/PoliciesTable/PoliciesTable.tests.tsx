@@ -247,6 +247,71 @@ describe("Policies table", () => {
     });
   });
 
+  it("Renders a hidden badge and tooltip for a policy hidden from end users", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const hiddenPolicy = createMockPolicy({ team_id: 2, hidden: true });
+
+    const { user } = render(
+      <PoliciesTable
+        policiesList={[hiddenPolicy]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
+        currentTeam={{ id: 2, name: "Workstations" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        router={mockRouter}
+        renderPoliciesCount={() => null}
+        count={1}
+      />
+    );
+
+    await user.hover(screen.getByTestId("eye-slash-icon"));
+    await waitFor(() => {
+      expect(screen.getByText("Hidden from end users")).toBeInTheDocument();
+    });
+  });
+
+  it("Does not render a hidden badge for a visible policy", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[createMockPolicy({ team_id: 2, hidden: false })]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
+        currentTeam={{ id: 2, name: "Workstations" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        router={mockRouter}
+        renderPoliciesCount={() => null}
+        count={1}
+      />
+    );
+
+    expect(screen.queryByTestId("eye-slash-icon")).not.toBeInTheDocument();
+  });
+
   it("Renders an inherited badge and tooltip for inherited policy on a team's policies page", async () => {
     const render = createCustomRenderer({
       context: {

@@ -13,11 +13,14 @@ import {
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
-import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
+import {
+  getAutomaticInstallPoliciesCount,
+  getSoftwareListName,
+} from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
-import VersionCell from "../../components/tables/VersionCell";
+import { VersionsColumnCell } from "../../components/tables/VersionCell";
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 
 import { getVulnerabilities } from "./helpers";
@@ -84,7 +87,7 @@ const getSoftwareNameCellData = (
 
   return {
     name: softwareTitle.name,
-    displayName: softwareTitle.display_name,
+    displayName: getSoftwareListName(softwareTitle),
     bundleIdentifier: softwareTitle.bundle_identifier,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,
@@ -147,9 +150,7 @@ const generateTableHeaders = (
       Header: "Version",
       disableSortBy: true,
       accessor: "versions",
-      Cell: (cellProps: IVersionsCellProps) => (
-        <VersionCell versions={cellProps.cell.value} />
-      ),
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Type",

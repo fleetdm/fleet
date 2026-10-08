@@ -237,8 +237,8 @@
       "linux"
     ],
     "evented": false,
-    "examples": "Count AI tools per type on the host.\n\n```\nSELECT type, count(*) FROM ai_tools GROUP BY type;\n```\n\nList outbound AI/MCP connections to see where data is going.\n\n```\nSELECT name, endpoint FROM ai_tools WHERE type = 'sockets' AND location = 'remote';\n```\n\nList running MCP servers and their transport.\n\n```\nSELECT name, source AS client, location, running, pid FROM ai_tools WHERE type = 'mcp_server' AND running = 1;\n```\n\nFind anything carrying a security risk flag across every type.\n\n```\nSELECT type, name, risk_flags, path FROM ai_tools WHERE risk_flags != '';\n```\n\nList AI editor plugins with versions.\n\n```\nSELECT name, identifier, version, category FROM ai_tools WHERE type = 'ide_plugins';\n```\n\nList AI browser extensions and their risk flags.\n\n```\nSELECT name, identifier, source, risk_flags FROM ai_tools WHERE type = 'browser_extension';\n```\n\nFind AI agents that aren't recognized tools, and see what they were detected by.\n\n```\nSELECT name, path, confidence, evidence FROM ai_tools WHERE type = 'agents' AND confidence < 100 ORDER BY confidence DESC;\n```",
-    "notes": "- One table covers seven kinds of AI tool, discriminated by `type`. Each column lists the types that populate it; a column that doesn't apply to a row's `type` is an empty string.\n- The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\\Users\\*`), not just the daemon account's. Running as root provides full visibility across all users.\n- This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "examples": "Count AI tools per type on the host.\n\n```\nSELECT type, count(*) FROM ai_tools GROUP BY type;\n```\n\nList outbound AI/MCP connections that are open right now.\n\n```\nSELECT name, endpoint FROM ai_tools WHERE type = 'sockets' AND location = 'remote';\n```\n\nList running MCP servers and their transport.\n\n```\nSELECT name, source AS client, location, running, pid FROM ai_tools WHERE type = 'mcp_server' AND running = 1;\n```\n\nFind anything carrying a security risk flag across every type.\n\n```\nSELECT type, name, risk_flags, path FROM ai_tools WHERE risk_flags != '';\n```\n\nList AI editor plugins with versions.\n\n```\nSELECT name, identifier, version, category FROM ai_tools WHERE type = 'ide_plugins';\n```\n\nList AI browser extensions and their risk flags.\n\n```\nSELECT name, identifier, source, risk_flags FROM ai_tools WHERE type = 'browser_extension';\n```\n\nFind AI agents that aren't recognized tools, and see what they were detected by.\n\n```\nSELECT name, path, confidence, evidence FROM ai_tools WHERE type = 'agents' AND confidence < 100 ORDER BY confidence DESC;\n```",
+    "notes": "- One table covers seven kinds of AI tool, discriminated by `type`. Each column lists the types that populate it; a column that doesn't apply to a row's `type` is an empty string.\n- The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\\Users\\*`), not just the daemon account's. Running as root provides full visibility across all users.\n- Process and socket data is a point-in-time snapshot taken when the query runs, so a tool that starts and exits between queries leaves no `sockets` row.\n- This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
     "columns": [
       {
         "name": "type",
@@ -254,7 +254,7 @@
       },
       {
         "name": "identifier",
-        "description": "Unique identifier varying by type: MCP server name, plugin ID (`publisher.name`), agent binary, bundle ID, socket service, or instruction tool. Populated for all types.",
+        "description": "Unique identifier varying by type: MCP server name, plugin ID (`publisher.name`), agent binary, Fleet's name for the app (e.g. `claude-desktop`; the bundle ID is in `detail`), socket service, instruction tool, or browser extension ID. Populated for all types.",
         "type": "text",
         "required": false
       },
@@ -12228,6 +12228,56 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/fleetd_logs.yml"
   },
   {
+    "name": "fleetd_nix_packages",
+    "platforms": [
+      "linux"
+    ],
+    "description": "List the Nix store paths installed by the active NixOS system profile and the users' Nix and Home Manager profiles. Includes the packages listed in each profile and, unless filtered with `direct = 1`, their runtime dependencies.",
+    "examples": "List the packages installed directly in the NixOS system profile or a user's profile:\n\n```\nSELECT name, version, profiles FROM fleetd_nix_packages WHERE direct = 1;\n```",
+    "columns": [
+      {
+        "name": "name",
+        "type": "text",
+        "required": false,
+        "description": "Name of the package"
+      },
+      {
+        "name": "version",
+        "type": "text",
+        "required": false,
+        "description": "Version of the package"
+      },
+      {
+        "name": "output",
+        "type": "text",
+        "required": false,
+        "description": "The derivation output of the store path (for example, `bin`, `dev`, or `man`). Empty for the default output."
+      },
+      {
+        "name": "store_path",
+        "type": "text",
+        "required": false,
+        "description": "The full `/nix/store` path of the package"
+      },
+      {
+        "name": "direct",
+        "type": "integer",
+        "required": false,
+        "description": "1 if the package is listed in a profile (for example, `environment.systemPackages`), 0 if it's a runtime dependency of a listed package. Filtering with `direct = 1` skips computing the runtime closure."
+      },
+      {
+        "name": "profiles",
+        "type": "text",
+        "required": false,
+        "description": "Comma-separated list of the profiles that directly include the package (for example, `system,user:alice,home-manager:alice`). Empty for runtime dependencies."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). It returns no rows on hosts other than NixOS.",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/fleetd_nix_packages",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/fleetd_nix_packages.yml"
+  },
+  {
     "name": "fleetd_pacman_packages",
     "platforms": [
       "linux"
@@ -12955,7 +13005,7 @@
         "required": false
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). It is queried as the current console (logged-in) user, so hosts with no console user (headless, or sitting at the login window) return no rows even when Homebrew is installed. It reflects a single Homebrew installation — if both a system-wide install (`/opt/homebrew` or `/usr/local`) and a per-user install (`~/homebrew`) are present, the system-wide one is used. If the console user does not own the Homebrew installation, `current_version` may be out of date because Homebrew's update step can fail for a non-owner. `install_path` assumes Homebrew's default layout; non-default `HOMEBREW_CELLAR` or `HOMEBREW_CASKROOM` locations are not reflected.",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). It is queried as the current console (logged-in) user, so hosts with no console user (headless, or sitting at the login window) return no rows even when Homebrew is installed. It reflects a single Homebrew installation — if both a system-wide install (`/opt/homebrew` or `/usr/local`) and a per-user install (`~/homebrew`) are present, the system-wide one is used. The table never updates Homebrew or its taps. For Homebrew's own formulae and casks, `current_version` comes from Homebrew's package data, which the table refreshes at most once a day on Homebrew 4.4.16 or newer; on older versions it is only as current as the user's last `brew update`. Packages from third-party taps are compared against the tap as of the user's last `brew update`, so a newer upstream version may not be reported. Like `brew outdated`, the table leaves out casks that update themselves (`auto_updates`) or use version `latest`. Results, including errors, are cached for up to 5 minutes, so a package upgraded or removed in that window may still be listed. `install_path` assumes Homebrew's default layout; non-default `HOMEBREW_CELLAR` or `HOMEBREW_CASKROOM` locations are not reflected.",
     "evented": false,
     "examples": "Check the installed and latest available version of an outdated package. This\nexample checks ffmpeg, which should be replaced by the actual package you want\nto check for. This is useful for finding outdated or vulnerable installs,\nthough Fleet will detect vulnerable packages automatically.\n\n```\nSELECT installed_version, current_version FROM homebrew_outdated WHERE name = 'ffmpeg';\n```",
     "url": "https://fleetdm.com/tables/homebrew_outdated",
@@ -19995,7 +20045,7 @@
       },
       {
         "name": "arch",
-        "description": "OS Architecture",
+        "description": "CPU architecture (x86 vs ARM, for example)",
         "type": "text",
         "notes": "",
         "hidden": false,

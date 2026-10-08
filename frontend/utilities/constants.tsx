@@ -383,6 +383,13 @@ export const MDM_STATUS_TOOLTIP: Record<
       admins can wipe this device and enforce all MDM restrictions.
     </span>
   ),
+  "On (personal)": (
+    <span>
+      Enrolled via a Managed Apple Account (Account-driven User Enrollment) or
+      Android work profile as a personal (BYOD) device. IT admins cannot wipe
+      this device or lock the end user out.
+    </span>
+  ),
   "On (manual - personal)": (
     <span>
       Enrolled with a manual enrollment profile as a personal (BYOD) device. IT

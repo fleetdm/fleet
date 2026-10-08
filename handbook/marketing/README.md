@@ -1,4 +1,4 @@
-xf# Marketing
+# Marketing
 
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
@@ -6,7 +6,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| Marketing Coordinator | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([*@irenareedy*](https://github.com/irenareedy))_
+| Marketing Coordinator | <sup><sub> See [🌐 IT](https://fleetdm.com/handbook/it#team) </sup></sub>
 | Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  · [*@tombasgil*](https://github.com/tombasgil) · Establish, manage and grow Fleet’s social media presence across all appropriate channels. Monitor and respond to comments on company page posts (e.g., LinkedIn); comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel |
 | Public relations (Consultant) | [Alyssa Pallotti](https://www.linkedin.com/in/alyssapallotti/) · Establish Fleet AR & PR program Identify and train key Fleet employees on AR & PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
 
@@ -32,7 +32,7 @@ Deploy Fleet anywhere - on-prem, air-gapped, or on any major cloud, and keep ful
 
 ## Fleet writing style, tone, and voice instructions for AI
 
-When using an AI to create written content for Fleet, give your AI [these instructions first](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) so that it will write in the correct style, tone, and voice. These instructions can also be used to have the AI audit existing writing. These instructions are aggregated and token-optimized from the handbook, in addition to fine tuned from usage results, which we should all continue to contribute to.
+When using an AI to create written content for Fleet, give your AI [these instructions first](https://github.com/fleetdm/fleet/blob/main/.claude/skills/content-style/SKILL.md) so that it will write in the correct style, tone, and voice. These instructions can also be used to have the AI audit existing writing.
 
 
 ### Website traffic Looker dashboard 
@@ -438,7 +438,7 @@ Although details on how to format and meta tag a blog are in [the writing handbo
 4. First line should be the Title of the blog with H1 markdown (`#`)
 5. Put in your article, using markdown to format it
 6. Add the required meta data at the END of the file (see [writing handbook page](https://fleetdm.com/handbook/company/writing#article-meta-tags) for syntax) or copy it from an existing blog and edit
-7. If you are having AI help you write the blog, before you start, ask it to read the [Fleet writing, style, and tone instructions](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) first
+7. If you are having AI help you write the blog, before you start, ask it to read the [Fleet writing, style, and tone instructions](https://github.com/fleetdm/fleet/blob/main/.claude/skills/content-style/SKILL.md) first
 8. If you have written the blog yourself, ask AI to read the instructions and then analyze your blog for needed changes
 9. Once you think your blog is ready, commit the changes
 10. Before submitting a PR to merge it, preview it:
@@ -447,6 +447,12 @@ Although details on how to format and meta tag a blog are in [the writing handbo
     - Or if local, [follow this setup to view your changes locally](https://fleetdm.com/handbook/engineering#test-fleetdm-com-locally) - this provides the most true to reality check
 11. When ready, submit a PR to get it reviewed and merged
 
+## Update competitor database
+
+To add a company as a competitor, e.g. so that we don't spend money to advertise to them unnecessarily:
+
+1. Update [this spreadsheet in Fleet's feature chart / competitors database](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) so that the team is aware of subsidaries, parent companies, and which category this company competes in.
+2. Update LinkedIn ads so that we don't advertise to this competitor by updating [this spreadsheet used for uploading to LI ads](https://docs.google.com/spreadsheets/d/1VqG87Jxtwn7dX94yJW2E2338zBtVrg9hLXSiBLtFhPA/edit?gid=1226811520#gid=1226811520) and then reupload it to the [matched audience for competitors](https://www.linkedin.com/campaignmanager/accounts/509911695/audiences/matched/88570054/matched-companies?businessId=personal).
 
 
 ## Rituals
