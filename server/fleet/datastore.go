@@ -2757,7 +2757,7 @@ type Datastore interface {
 	// changed, or when the enrollment's host was deleted and this is its first link since.
 	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
 
-	// MDMWindowsClearDeletedHostTeam clears the deleted host marker of the device's enrollments once its host has linked again.
+	// MDMWindowsClearDeletedHostTeam clears the deleted host marker of the device's enrollments.
 	MDMWindowsClearDeletedHostTeam(ctx context.Context, mdmDeviceID string) error
 
 	// SetMDMWindowsAwaitingConfiguration performs a compare-and-swap update on the

@@ -3553,8 +3553,7 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 // LinkWindowsHostMDMEnrollment associates the Windows MDM enrollment for mdmDeviceID with the host identified by
 // (hostID, hostUUID). On the first time the linkage is established (i.e. mdm_windows_enrollments.host_uuid changes, or
 // the enrollment's host was deleted and this host came back), it also reconciles the host's IDP device mapping, SCIM
-// user attribution, and DEP flag for Azure (Entra) enrollments, matching the post-link bookkeeping that osquery's
-// directIngestMDMDeviceIDWindows has historically performed.
+// user attribution, and DEP flag for Azure (Entra) enrollments.
 //
 // Returns true when UpdateMDMWindowsEnrollmentsHostUUID reported a new link, false when it did not. The "no change"
 // case covers two scenarios callers must not conflate with an error: (a) the enrollment was already linked to this
@@ -3571,8 +3570,7 @@ func LinkWindowsHostMDMEnrollment(
 	if !updated {
 		return false, nil
 	}
-	// The primary, because the deleted host marker read here decides the host's fleet.
-	device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctxdb.RequirePrimary(ctx, true), mdmDeviceID)
+	device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, mdmDeviceID)
 	if err != nil {
 		return updated, ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
 	}
@@ -3649,8 +3647,8 @@ func LinkWindowsHostMDMEnrollment(
 // enrollment is user-driven, a default fleet is configured, the host has no fleet, and the host record was created at or after
 // the enrollment row (MDM-first ordering, as in Autopilot, where Fleet installs fleetd after MDM enrollment). Hosts that enrolled
 // fleetd first keep the fleet their enroll secret chose. Pre-existing hosts are never moved, including hosts deliberately parked
-// in Unassigned, matching macOS ABM re-enrollment behavior. A deleted host that came back keeps the fleet it enrolled into, which
-// a one-time enroll secret chose from the deleted host's fleet.
+// in Unassigned, matching macOS ABM re-enrollment behavior. A deleted host that came back keeps the fleet its enroll secret put it
+// in: a shared secret's fleet, or for a one-time secret, the fleet the host was in when deleted.
 func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, device *fleet.MDMWindowsEnrolledDevice) error {
 	if device.DeletedHostTeamID != nil {
 		return nil

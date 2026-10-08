@@ -970,7 +970,7 @@ type MDMWindowsEnrolledDevice struct {
 	HardwareSerial *string `db:"hardware_serial"`
 	// EnrolledActivityAt is when the mdm_enrolled activity was recorded for this enrollment, and nil until it has been.
 	EnrolledActivityAt *time.Time `db:"enrolled_activity_at"`
-	// DeletedHostTeamID is set when the enrollment's host was deleted and has not linked again: the fleet it was in, or 0 for none.
+	// DeletedHostTeamID is set when the enrollment's host was deleted. It is cleared when the host is linked again.
 	DeletedHostTeamID *uint     `db:"deleted_host_team_id"`
 	CreatedAt         time.Time `db:"created_at"`
 	UpdatedAt         time.Time `db:"updated_at"`
