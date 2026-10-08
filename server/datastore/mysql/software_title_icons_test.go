@@ -431,6 +431,10 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Equal(t, "label2", activity.LabelsIncludeAny[0].Name)
 			require.Len(t, activity.LabelsIncludeAll, 1)
 			require.Equal(t, "label3", activity.LabelsIncludeAll[0].Name)
+			// VPP titles populate VersionName from the first-added vpp_apps_teams
+			// row (MIN(vat.id)); InsertVPPAppWithTeam defaults an unset name to
+			// fleet.DefaultAppStoreAppVersionName, which is what we see here.
+			require.Equal(t, fleet.DefaultAppStoreAppVersionName, activity.VersionName)
 		}},
 		{"team id 0", func(ds *Datastore) {
 			user := test.NewUser(t, ds, "user1", "user1@example.com", false)

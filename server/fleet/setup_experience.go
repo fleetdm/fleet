@@ -48,13 +48,16 @@ type SetupExperienceStatusResult struct {
 	VPPAppTeamID                    *uint                             `db:"vpp_app_team_id" json:"-" `
 	VPPAppAdamID                    *string                           `db:"vpp_app_adam_id" json:"-"`
 	VPPAppPlatform                  *string                           `db:"vpp_app_platform" json:"-"`
-	VPPAppVersionName               *string                           `db:"vpp_app_version_name" json:"-"`
-	NanoCommandUUID                 *string                           `db:"nano_command_uuid" json:"-" `
-	InHouseAppID                    *uint                             `db:"in_house_app_id" json:"-"`
-	SetupExperienceScriptID         *uint                             `db:"setup_experience_script_id" json:"-" `
-	ScriptContentID                 *uint                             `db:"script_content_id" json:"-"`
-	ScriptExecutionID               *string                           `db:"script_execution_id" json:"execution_id,omitempty" `
-	Error                           *string                           `db:"error" json:"error" `
+	// VPPAppVersionName is the admin-provided label of the targeted App Store
+	// app version (e.g. "Production"). Populated by ListSetupExperienceResultsByHostUUID
+	// via a JOIN on vpp_apps_teams. Nil for installer / in-house / script items.
+	VPPAppVersionName       *string `db:"vpp_app_version_name" json:"-"`
+	NanoCommandUUID         *string `db:"nano_command_uuid" json:"-" `
+	InHouseAppID            *uint   `db:"in_house_app_id" json:"-"`
+	SetupExperienceScriptID *uint   `db:"setup_experience_script_id" json:"-" `
+	ScriptContentID         *uint   `db:"script_content_id" json:"-"`
+	ScriptExecutionID       *string `db:"script_execution_id" json:"execution_id,omitempty" `
+	Error                   *string `db:"error" json:"error" `
 	// PolicyGated marks a Windows/Linux setup-experience software item whose installer has at least one gating policy (a
 	// team policy with an install-software automation pointing at the same installer). It is resolved server-side at
 	// enqueue time and is internal (json:"-"). When set, the item is installed only if some in-scope gating policy

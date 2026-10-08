@@ -202,6 +202,12 @@ func userHasAccessToStorageID(ctx context.Context, svc *Service, teamId uint, st
 
 func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service, user *fleet.User, iconUrl string, activityDetailsForSoftwareTitleIcon fleet.DetailsForSoftwareIconActivity) error {
 	if activityDetailsForSoftwareTitleIcon.AdamID != nil {
+		// Audit-log docs promise "Default version" when the admin didn't name
+		// the version. Fallback mirrors vpp.go:487 and vpp.go:1007.
+		versionName := activityDetailsForSoftwareTitleIcon.VersionName
+		if versionName == "" {
+			versionName = fleet.DefaultAppStoreAppVersionName
+		}
 		if err := svc.NewActivity(ctx, user, fleet.ActivityEditedAppStoreApp{
 			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
 			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
@@ -214,6 +220,7 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
 			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
 			LabelsIncludeAll: activityDetailsForSoftwareTitleIcon.LabelsIncludeAll,
+			VersionName:      versionName,
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating activity for software title icon")
 		}

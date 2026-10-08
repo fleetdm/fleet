@@ -2478,13 +2478,27 @@ FROM upcoming
 	return &dest, nil
 }
 
-func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+// vppAppJoin builds the status-join for a VPP app title. When vppAppTeamID is
+// non-nil, every scanned source (upcoming activities, the Android pending
+// branch, the ranked history) is also scoped to that specific vpp_apps_teams
+// row so the status + version composition picks the latest row FOR THAT
+// VERSION and the pending branch only matches queued installs of that version.
+func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, vppAppTeamID *uint, status fleet.SoftwareInstallerStatus) (string, []any, error) {
 	// for pending status, we'll join through upcoming_activities
 	// EXCEPT for android VPP apps, which currently bypass upcoming activities
 	// NOTE: this should change when standard VPP app installs are supported for Android
 	// (in https://github.com/fleetdm/fleet/issues/25595)
 	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
-		stmt := `JOIN (
+		// upcoming-activity branch scopes vpp_app_upcoming_activities on vpp_app_team_id;
+		// android pending branch scopes host_vpp_software_installs on vpp_app_team_id.
+		vppuaScope := ""
+		androidHvsiScope := ""
+		if vppAppTeamID != nil {
+			vppuaScope = " AND vppua.vpp_app_team_id = ?"
+			androidHvsiScope = "hvsi.vpp_app_team_id = ? AND "
+		}
+
+		stmt := fmt.Sprintf(`JOIN (
 SELECT DISTINCT
 	host_id
 FROM (
@@ -2492,22 +2506,22 @@ FROM (
 	FROM upcoming_activities ua
 		JOIN vpp_app_upcoming_activities vppua ON ua.id = vppua.upcoming_activity_id
 	WHERE
-		%s
+		%%s
 
 	UNION
 
 	SELECT host_id
 	FROM host_vpp_software_installs hvsi
 	WHERE
-		hvsi.adam_id = ? AND
+		%shvsi.adam_id = ? AND
 		hvsi.platform = ? AND
 		hvsi.platform = 'android' AND
 		hvsi.verification_at IS NULL AND
 		hvsi.verification_failed_at IS NULL
 	) combined_pending
-) hss ON hss.host_id = h.id`
+) hss ON hss.host_id = h.id`, androidHvsiScope)
 
-		filter := "vppua.adam_id = ? AND vppua.platform = ?"
+		filter := "vppua.adam_id = ? AND vppua.platform = ?" + vppuaScope
 		switch status {
 		case fleet.SoftwareInstallPending:
 			filter += " AND ua.activity_type = 'vpp_app_install'"
@@ -2519,7 +2533,16 @@ FROM (
 			// activity type that is associated with the app (i.e. both install and uninstall)
 		}
 
-		return fmt.Sprintf(stmt, filter), []any{appID.AdamID, appID.Platform, appID.AdamID, appID.Platform}, nil
+		// Arg order: upcoming-branch filter args, then android-pending-branch args.
+		args := []any{appID.AdamID, appID.Platform}
+		if vppAppTeamID != nil {
+			args = append(args, *vppAppTeamID)
+		}
+		if vppAppTeamID != nil {
+			args = append(args, *vppAppTeamID)
+		}
+		args = append(args, appID.AdamID, appID.Platform)
+		return fmt.Sprintf(stmt, filter), args, nil
 	}
 
 	// TODO: Update this when VPP supports uninstall so that we map for now we map the generic failed status to the install statuses
@@ -2533,6 +2556,14 @@ FROM (
 	// Rank once over the app rather than looking the latest row up per host:
 	// host_vpp_software_installs has no host_id-leading index, so a correlated
 	// per-host lookup rescans the app's whole history for every candidate host.
+	// When scoped to a specific vpp_apps_teams row (version), rank only that
+	// version's history so the "latest row per host" check is per-version.
+	versionScope := ""
+	pendingVersionScope := ""
+	if vppAppTeamID != nil {
+		versionScope = "AND hvsi.vpp_app_team_id = :vpp_app_team_id"
+		pendingVersionScope = "AND vaua.vpp_app_team_id = :vpp_app_team_id"
+	}
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	ranked.host_id
@@ -2551,6 +2582,7 @@ FROM (
 	WHERE
 		hvsi.adam_id = :adam_id
 		AND hvsi.platform = :platform
+		%s
 		AND hvsi.canceled = 0
 ) ranked
 LEFT JOIN
@@ -2573,12 +2605,13 @@ WHERE
 		WHERE
 			vaua.adam_id = :adam_id
 			AND vaua.platform = :platform
+			%s
 			AND ua.activity_type = 'vpp_app_install'
 	)
 ) hss ON hss.host_id = h.id
-`, vppAppHostStatusNamedQuery("ranked", "ncr", ""))
+`, versionScope, vppAppHostStatusNamedQuery("ranked", "ncr", ""), pendingVersionScope)
 
-	return sqlx.Named(stmt, map[string]interface{}{
+	named := map[string]any{
 		"status":                    status,
 		"adam_id":                   appID.AdamID,
 		"platform":                  appID.Platform,
@@ -2588,10 +2621,19 @@ WHERE
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
-	})
+	}
+	if vppAppTeamID != nil {
+		named["vpp_app_team_id"] = *vppAppTeamID
+	}
+	return sqlx.Named(stmt, named)
 }
 
-func (ds *Datastore) softwareInstallerJoin(titleID uint, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+// softwareInstallerJoin builds the status-join for a software-installer title.
+// When installerID is non-nil, the ranked and pending-queue subqueries are also
+// scoped to that specific installer so composition with the status filter picks
+// the host's latest row FOR THAT INSTALLER (not the title as a whole) and the
+// pending-install path only matches queued installs of that installer.
+func (ds *Datastore) softwareInstallerJoin(titleID uint, installerID *uint, status fleet.SoftwareInstallerStatus) (string, []any, error) {
 	// for pending status, we'll join through upcoming_activities
 	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
 		stmt := `JOIN (
@@ -2604,6 +2646,11 @@ WHERE
 	%s) hss ON hss.host_id = h.id`
 
 		filter := "siua.software_title_id = ?"
+		args := []any{titleID}
+		if installerID != nil {
+			filter += " AND siua.software_installer_id = ?"
+			args = append(args, *installerID)
+		}
 		switch status {
 		case fleet.SoftwareInstallPending:
 			filter += " AND ua.activity_type = 'software_install'"
@@ -2613,7 +2660,7 @@ WHERE
 			// no change
 		}
 
-		return fmt.Sprintf(stmt, filter), []interface{}{titleID}, nil
+		return fmt.Sprintf(stmt, filter), args, nil
 	}
 
 	// for non-pending statuses, we'll join through host_software_installs filtered by the status
@@ -2625,6 +2672,15 @@ WHERE
 	if status == fleet.SoftwareFailed {
 		// failed is a special case, we must include both install and uninstall failures
 		statusFilter = "ranked.status IN (:installFailed, :uninstallFailed)"
+	}
+
+	// When scoped to a specific installer, rank only that installer's history so
+	// the "latest row per host" check is per-installer rather than per-title.
+	installerScope := ""
+	pendingInstallerScope := ""
+	if installerID != nil {
+		installerScope = "AND hsi.software_installer_id = :installer_id"
+		pendingInstallerScope = "AND siua.software_installer_id = :installer_id"
 	}
 
 	stmt := fmt.Sprintf(`JOIN (
@@ -2642,6 +2698,7 @@ FROM (
 		host_software_installs hsi
 	WHERE
 		hsi.software_title_id = :title_id
+		%s
 		AND hsi.removed = 0
 		AND hsi.canceled = 0
 ) ranked
@@ -2658,17 +2715,22 @@ WHERE
 			JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
 		WHERE
 			siua.software_title_id = :title_id
+			%s
 			AND ua.activity_type = 'software_install'
 	)
 ) hss ON hss.host_id = h.id
-`, statusFilter)
+`, installerScope, statusFilter, pendingInstallerScope)
 
-	return sqlx.Named(stmt, map[string]interface{}{
+	named := map[string]any{
 		"status":          status,
 		"installFailed":   fleet.SoftwareInstallFailed,
 		"uninstallFailed": fleet.SoftwareUninstallFailed,
 		"title_id":        titleID,
-	})
+	}
+	if installerID != nil {
+		named["installer_id"] = *installerID
+	}
+	return sqlx.Named(stmt, named)
 }
 
 func (ds *Datastore) inHouseAppJoin(inHouseID uint, status fleet.SoftwareInstallerStatus) (string, []any, error) {
