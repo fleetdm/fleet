@@ -1464,7 +1464,12 @@ func (ds *Datastore) applyHostFilters(
 	// host list filtered to one specific installer id on a multi-package
 	// title. ANDs into any existing softwareFilter above.
 	if opt.SoftwareInstallerIDFilter != nil {
-		softwareFilter = fmt.Sprintf("(%s) AND EXISTS (SELECT 1 FROM host_software_installs hsi WHERE hsi.host_id = h.id AND hsi.software_installer_id = ?)", softwareFilter)
+		installerExists := "EXISTS (SELECT 1 FROM host_software_installs hsi WHERE hsi.host_id = h.id AND hsi.software_installer_id = ?)"
+		if softwareFilter == "TRUE" {
+			softwareFilter = installerExists
+		} else {
+			softwareFilter = fmt.Sprintf("(%s) AND %s", softwareFilter, installerExists)
+		}
 		whereParams = append(whereParams, *opt.SoftwareInstallerIDFilter)
 	}
 
@@ -1472,7 +1477,12 @@ func (ds *Datastore) applyHostFilters(
 	// through to a host list filtered to one admin-created version id
 	// (`vpp_apps_teams.id`).
 	if opt.AppStoreAppVersionIDFilter != nil {
-		softwareFilter = fmt.Sprintf("(%s) AND EXISTS (SELECT 1 FROM host_vpp_software_installs hvsi WHERE hvsi.host_id = h.id AND hvsi.vpp_app_team_id = ?)", softwareFilter)
+		versionExists := "EXISTS (SELECT 1 FROM host_vpp_software_installs hvsi WHERE hvsi.host_id = h.id AND hvsi.vpp_app_team_id = ?)"
+		if softwareFilter == "TRUE" {
+			softwareFilter = versionExists
+		} else {
+			softwareFilter = fmt.Sprintf("(%s) AND %s", softwareFilter, versionExists)
+		}
 		whereParams = append(whereParams, *opt.AppStoreAppVersionIDFilter)
 	}
 
