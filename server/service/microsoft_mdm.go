@@ -1374,13 +1374,14 @@ func (svc *Service) customWindowsTOSContent(ctx context.Context) template.HTML {
 	case res := <-result:
 		return res.Val.(template.HTML)
 	case <-ctx.Done():
-		return ""
+		return windowsTOSCache.last()
 	}
 }
 
 // renderWindowsTOS loads and renders the agreement for token and caches the result. A document that fails to render is
 // cached as empty, so it is not reloaded on every request.
 func (svc *Service) renderWindowsTOS(ctx context.Context, token string) template.HTML {
+	gen := windowsTOSCache.generation()
 	// A render that finished just before this flight started has cached it.
 	if cached, ok := windowsTOSCache.get(token); ok {
 		return cached
@@ -1405,7 +1406,7 @@ func (svc *Service) renderWindowsTOS(ctx context.Context, token string) template
 	// A lagging replica can return an older upload than the metadata named; serve it, but don't cache it under a token
 	// nobody asks for.
 	if eula.Token == token {
-		windowsTOSCache.set(eula.Token, content)
+		windowsTOSCache.setIfUnchanged(gen, eula.Token, content)
 	}
 	return content
 }
@@ -1421,8 +1422,15 @@ const windowsTOSRenderTimeout = 30 * time.Second
 
 type renderedTOSCache struct {
 	mu      sync.Mutex
+	gen     uint64 // changes on every write, so a render can tell the cache moved on while it ran
 	token   string
 	content template.HTML
+}
+
+func (c *renderedTOSCache) generation() uint64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.gen
 }
 
 func (c *renderedTOSCache) get(token string) (template.HTML, bool) {
@@ -1434,9 +1442,16 @@ func (c *renderedTOSCache) get(token string) (template.HTML, bool) {
 	return c.content, true
 }
 
-func (c *renderedTOSCache) set(token string, content template.HTML) {
+// setIfUnchanged stores content only if nothing was written since gen was read: a render that started before a newer
+// upload or a delete must not replace that upload or bring the deleted agreement back. Losing the race costs one extra
+// render on the next request.
+func (c *renderedTOSCache) setIfUnchanged(gen uint64, token string, content template.HTML) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.gen != gen {
+		return
+	}
+	c.gen++
 	c.token, c.content = token, content
 }
 
@@ -1448,7 +1463,10 @@ func (c *renderedTOSCache) last() template.HTML {
 }
 
 func (c *renderedTOSCache) clear() {
-	c.set("", "")
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.gen++
+	c.token, c.content = "", ""
 }
 
 type requestAuthState int

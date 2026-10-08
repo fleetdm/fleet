@@ -4141,4 +4141,41 @@ func TestCustomWindowsTOSContent(t *testing.T) {
 		t.Cleanup(func() { loadErr = nil })
 		require.Empty(t, svc.customWindowsTOSContent(ctx))
 	})
+
+	t.Run("a request that stops waiting for a render gets the cached agreement", func(t *testing.T) {
+		uploadID, doc = "upload-7", "# Earlier terms\n"
+		require.Contains(t, string(svc.customWindowsTOSContent(ctx)), "Earlier terms")
+
+		uploadID, doc, release = "upload-8", "# Later terms\n", make(chan struct{})
+		canceled, cancel := context.WithCancel(ctx)
+		cancel()
+		require.Contains(t, string(svc.customWindowsTOSContent(canceled)), "Earlier terms")
+
+		// Let the shared render finish before the test ends, since the cache is package state.
+		close(release)
+		require.Eventually(t, func() bool {
+			_, ok := windowsTOSCache.get("upload-8")
+			return ok
+		}, time.Second, 10*time.Millisecond)
+	})
+}
+
+func TestRenderedTOSCacheKeepsNewerContent(t *testing.T) {
+	t.Parallel()
+	var c renderedTOSCache
+
+	// A render that started first but finishes last doesn't replace the newer agreement.
+	older := c.generation()
+	c.setIfUnchanged(c.generation(), "new", "new terms")
+	c.setIfUnchanged(older, "old", "old terms")
+	got, ok := c.get("new")
+	require.True(t, ok)
+	require.Equal(t, template.HTML("new terms"), got)
+	require.Equal(t, template.HTML("new terms"), c.last())
+
+	// Nor does it bring back an agreement deleted while it ran.
+	started := c.generation()
+	c.clear()
+	c.setIfUnchanged(started, "new", "new terms")
+	require.Empty(t, c.last())
 }
