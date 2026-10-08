@@ -169,16 +169,6 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
     />
   );
 
-  const migrationCheckbox = (
-    <Checkbox
-      disabled={!turnOnProgrammatically || !mdmOn || gitOpsModeEnabled}
-      value={autoMigration}
-      onChange={onChangeAutoMigration}
-    >
-      Automatically migrate hosts connected to another MDM solution
-    </Checkbox>
-  );
-
   const programmaticToggleTooltip = (
     <>
       When enabled, MDM is turned on when Fleet&apos;s agent is installed. When
@@ -223,7 +213,15 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
               disabled={!mdmOn || gitOpsModeEnabled}
             />
           )}
-          {isPremiumTier && migrationCheckbox}
+          {isPremiumTier && (
+            <Checkbox
+              disabled={!turnOnProgrammatically || !mdmOn || gitOpsModeEnabled}
+              value={autoMigration}
+              onChange={onChangeAutoMigration}
+            >
+              Automatically migrate hosts connected to another MDM solution
+            </Checkbox>
+          )}
           {isPremiumTier && defaultFleetDropdown}
           <GitOpsModeTooltipWrapper
             tipOffset={8}
