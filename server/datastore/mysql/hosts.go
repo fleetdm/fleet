@@ -1426,7 +1426,7 @@ func (ds *Datastore) applyHostFilters(
 
 			case installerID > 0:
 				// found a software installer package
-				installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
+				installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, opt.SoftwareInstallerIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
 				}
@@ -1435,7 +1435,7 @@ func (ds *Datastore) applyHostFilters(
 
 			case vppID != nil:
 				// found a VPP app
-				vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, *opt.SoftwareStatusFilter)
+				vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, opt.AppStoreAppVersionIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
 				}
@@ -1460,10 +1460,13 @@ func (ds *Datastore) applyHostFilters(
 		}
 	}
 
-	// Per-package status counts in the Software Library click through to a
-	// host list filtered to one specific installer id on a multi-package
-	// title. ANDs into any existing softwareFilter above.
-	if opt.SoftwareInstallerIDFilter != nil {
+	// Per-package / per-version status counts in the Software Library click
+	// through to a host list filtered to one specific installer id or App Store
+	// app version id. When composed with software_status, the installer/version
+	// is scoped inside softwareInstallerJoin / vppAppJoin above so the ranking
+	// stays per-installer / per-version. The EXISTS clauses here only run when
+	// the status filter isn't set (direct API usage against title inventory).
+	if opt.SoftwareInstallerIDFilter != nil && opt.SoftwareStatusFilter == nil {
 		installerExists := "EXISTS (SELECT 1 FROM host_software_installs hsi WHERE hsi.host_id = h.id AND hsi.software_installer_id = ?)"
 		if softwareFilter == "TRUE" {
 			softwareFilter = installerExists
@@ -1473,10 +1476,7 @@ func (ds *Datastore) applyHostFilters(
 		whereParams = append(whereParams, *opt.SoftwareInstallerIDFilter)
 	}
 
-	// Per-version status counts for multi-version App Store app titles click
-	// through to a host list filtered to one admin-created version id
-	// (`vpp_apps_teams.id`).
-	if opt.AppStoreAppVersionIDFilter != nil {
+	if opt.AppStoreAppVersionIDFilter != nil && opt.SoftwareStatusFilter == nil {
 		versionExists := "EXISTS (SELECT 1 FROM host_vpp_software_installs hvsi WHERE hvsi.host_id = h.id AND hvsi.vpp_app_team_id = ?)"
 		if softwareFilter == "TRUE" {
 			softwareFilter = versionExists
