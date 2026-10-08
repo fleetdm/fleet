@@ -2,10 +2,10 @@
 
 Fleet supports two ways to enroll personal (BYOD) iPhones and iPads:
 
-- **Account-driven User Enrollment**: the end user signs in to their Managed Apple Account in **Settings**. Work and personal data stay separate, and Fleet only manages work apps and data. The host shows as **On (personal)**. To set it up, see [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account). _Available in Fleet Premium._
+- **Account-driven User Enrollment**: the end user signs in to their Managed Apple Account in **Settings**. Work and personal data stay separate, and Fleet only manages work apps and data. The host shows as **On (personal)**. For set up and end user instructions, see [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account). _Available in Fleet Premium._
 - **Profile-based enrollment**: the end user opens an enrollment link and installs Fleet's enrollment profile. The host shows as **On (manual - personal)**, and IT can't wipe it or lock the end user out. The steps are below.
 
-> Neither works if [**Allow only Apple Business enrollments**](https://fleetdm.com/guides/apple-mdm-setup#turn-on-mdm-on-a-host) is on. Only devices assigned in Apple Business can enroll.
+> Neither works if [Allow only Apple Business enrollments](https://fleetdm.com/guides/apple-mdm-setup#turn-on-mdm-on-a-host) is on. Only devices assigned in Apple Business can enroll.
 
 Fleet only collects software inventory for apps installed through Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included.
 
