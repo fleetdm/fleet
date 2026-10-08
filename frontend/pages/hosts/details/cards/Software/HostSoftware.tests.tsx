@@ -457,6 +457,26 @@ describe("HostSoftware", () => {
       }
     );
 
+    it.each<HostPlatform>(["ios", "ipados", "android", "chrome"])(
+      "drops ai_tool from the URL and the request on a %s host",
+      async (platform) => {
+        const { replace, rerender } = renderHostSoftware({
+          platform,
+          query: { ai_tool: "true" },
+          isPremiumTier: true,
+        });
+
+        await waitFor(() => expect(replace).toHaveBeenCalledTimes(1));
+        const url = new URL(replace.mock.calls[0][0], "http://fleet");
+        expect(url.searchParams.has("ai_tool")).toBe(false);
+        expect(getHostSoftware).not.toHaveBeenCalled();
+
+        rerender({});
+        await waitFor(() => expect(getHostSoftware).toHaveBeenCalled());
+        expect(lastCallParams(getHostSoftware).ai_tool).toBeUndefined();
+      }
+    );
+
     it.each([
       {
         name: "Host details, ai_tool alone",
