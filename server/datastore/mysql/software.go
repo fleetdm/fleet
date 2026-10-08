@@ -7277,8 +7277,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		case len(hs.InstalledVersions) > 0 && hs.InstalledVersions[0].BundleIdentifier != "":
 			hs.HostSoftwareWithInstaller.BundleIdentifier = hs.InstalledVersions[0].BundleIdentifier
 		}
+
+		// The app version this host is currently scoped for
 		if hostVersion, ok := hostVPPAppVersionByTitleID[hs.ID]; ok && hs.AppStoreApp != nil {
-			hs.AppStoreApp.VersionName = hostVersion.Name
+			hs.AppStoreApp.VersionID = hostVersion.VPPAppTeamID
+			if hostVersion.VersionCount > 1 {
+				hs.AppStoreApp.VersionName = hostVersion.Name
+			}
 		}
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
@@ -8007,9 +8012,15 @@ func (ds *Datastore) ListHostAppStoreAppVersions(ctx context.Context, host *flee
 		return nil, ctxerr.Wrap(ctx, err, "list host app store app versions")
 	}
 
+	versionCountByTitleID := make(map[uint]int)
+	for _, version := range versions {
+		versionCountByTitleID[version.TitleID]++
+	}
+
 	// Pick the first-added in-scope version per title, versions are ordered by id
 	hostVersionByTitleID := make(map[uint]*fleet.HostAppStoreAppVersion)
 	for _, version := range versions {
+		version.VersionCount = versionCountByTitleID[version.TitleID]
 		picked, ok := hostVersionByTitleID[version.TitleID]
 		if !ok || (!picked.InScope && version.InScope) {
 			hostVersionByTitleID[version.TitleID] = version

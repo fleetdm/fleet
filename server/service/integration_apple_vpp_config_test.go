@@ -1629,6 +1629,17 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersionHostPrecedence() {
 	require.Equal(t, titleID, hostSoftwareResp.Software[0].ID)
 	require.NotNil(t, hostSoftwareResp.Software[0].AppStoreApp)
 	require.Equal(t, "Version B", hostSoftwareResp.Software[0].AppStoreApp.VersionName)
+	require.Equal(t, addBResp.VersionID, hostSoftwareResp.Software[0].AppStoreApp.VersionID)
+
+	// remove label A from the host that installed version A, the title should be listed with version B, the version the host is scoped to
+	require.NoError(t, s.ds.RemoveLabelsFromHost(ctx, hostInAAndB.ID, []uint{labelA.ID}))
+	hostSoftwareResp = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", hostInAAndB.ID), nil, http.StatusOK, &hostSoftwareResp,
+		"available_for_install", "true")
+	require.Len(t, hostSoftwareResp.Software, 1)
+	require.NotNil(t, hostSoftwareResp.Software[0].AppStoreApp)
+	require.Equal(t, "Version B", hostSoftwareResp.Software[0].AppStoreApp.VersionName)
+	require.Equal(t, addBResp.VersionID, hostSoftwareResp.Software[0].AppStoreApp.VersionID)
 
 	// install the title on the host in scope for neither version, the request should be rejected
 	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInNeither.ID, titleID), &installSoftwareRequest{}, http.StatusBadRequest)

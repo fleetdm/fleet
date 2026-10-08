@@ -412,4 +412,5 @@ type HostAppStoreAppVersion struct {
 	TitleID      uint   `db:"title_id"`
 	Name         string `db:"name"`
 	InScope      bool   `db:"in_scope"`
+	VersionCount int    `db:"-"`
 }
