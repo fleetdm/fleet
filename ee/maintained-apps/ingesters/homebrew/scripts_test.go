@@ -160,7 +160,12 @@ func TestInstallScriptFirefoxPermissionsRollback(t *testing.T) {
 	if [ "$1" = "$FAIL_STEP" ]; then
 		return "$FAIL_STATUS"
 	fi
-	if [ "$1" = chown ] || [ "$1" = chmod ]; then
+	if [ "$1" = chown ]; then
+		[ "$#" -eq 5 ] && [ "$2" = -R ] && [ "$3" = -P ] && [ "$4" = root:admin ] && [ "$5" = "$APPDIR/Firefox.app" ] || return 43
+		return 0
+	fi
+	if [ "$1" = chmod ]; then
+		[ "$#" -eq 5 ] && [ "$2" = -R ] && [ "$3" = -P ] && [ "$4" = "a=r,a+X,ug+w" ] && [ "$5" = "$APPDIR/Firefox.app" ] || return 43
 		return 0
 	fi
 	"$@"
