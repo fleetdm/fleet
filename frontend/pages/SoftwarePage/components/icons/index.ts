@@ -38,7 +38,6 @@ import SevenZip from "./png/7Zip.png";
 import EightXEightWork from "./png/8X8Work.png";
 import ABetterFinderRename from "./png/ABetterFinderRename.png";
 import AbletonLive12Suite from "./png/AbletonLive12Suite.png";
-import Abstract from "./png/Abstract.png";
 import Acorn from "./png/Acorn.png";
 import Activedock from "./png/Activedock.png";
 import Activitywatch from "./png/Activitywatch.png";
@@ -1184,7 +1183,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "8x8 work": EightXEightWork,
   "a better finder rename": ABetterFinderRename,
   "ableton live suite": AbletonLive12Suite,
-  abstract: Abstract,
   acorn: Acorn,
   activedock: Activedock,
   activitywatch: Activitywatch,
