@@ -52,17 +52,20 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 //////////////////////////////////////////////////////////////////////////////
 
 type addAppStoreAppRequest struct {
-	TeamID           *uint                           `json:"team_id" renameto:"fleet_id"`
-	AppStoreID       string                          `json:"app_store_id"`
-	Platform         fleet.InstallableDevicePlatform `json:"platform"`
-	SelfService      bool                            `json:"self_service"`
-	AutomaticInstall bool                            `json:"automatic_install"`
-	LabelsIncludeAny []string                        `json:"labels_include_any"`
-	LabelsExcludeAny []string                        `json:"labels_exclude_any"`
-	LabelsIncludeAll []string                        `json:"labels_include_all"`
-	Categories       []string                        `json:"categories"`
-	Configuration    json.RawMessage                 `json:"configuration,omitempty"`
-	Name             string                          `json:"name"`
+	TeamID              *uint                           `json:"team_id" renameto:"fleet_id"`
+	AppStoreID          string                          `json:"app_store_id"`
+	Platform            fleet.InstallableDevicePlatform `json:"platform"`
+	SelfService         bool                            `json:"self_service"`
+	AutomaticInstall    bool                            `json:"automatic_install"`
+	LabelsIncludeAny    []string                        `json:"labels_include_any"`
+	LabelsExcludeAny    []string                        `json:"labels_exclude_any"`
+	LabelsIncludeAll    []string                        `json:"labels_include_all"`
+	Categories          []string                        `json:"categories"`
+	Configuration       json.RawMessage                 `json:"configuration,omitempty"`
+	Name                string                          `json:"name"`
+	AutoUpdateEnabled   *bool                           `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string                         `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string                         `json:"auto_update_window_end,omitempty"`
 }
 
 type addAppStoreAppResponse struct {
@@ -87,6 +90,9 @@ func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.
 		AddAutoInstallPolicy: req.AutomaticInstall,
 		Categories:           req.Categories,
 		Configuration:        req.Configuration,
+		AutoUpdateEnabled:    req.AutoUpdateEnabled,
+		AutoUpdateStartTime:  req.AutoUpdateStartTime,
+		AutoUpdateEndTime:    req.AutoUpdateEndTime,
 	})
 	if err != nil {
 		return &addAppStoreAppResponse{Err: err}, nil

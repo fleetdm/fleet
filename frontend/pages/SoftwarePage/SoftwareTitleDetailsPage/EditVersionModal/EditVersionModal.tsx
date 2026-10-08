@@ -6,10 +6,13 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
-import { getErrorReason } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreAppVersion } from "interfaces/software";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
+import {
+  buildLabelsForPayload,
+  routeVersionNameError,
+} from "pages/SoftwarePage/helpers";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -38,11 +41,6 @@ interface IEditVersionModalProps {
   onSuccess: () => void;
 }
 
-const buildLabelArray = (labelTargets: Record<string, boolean>): string[] =>
-  Object.entries(labelTargets)
-    .filter(([, selected]) => selected)
-    .map(([name]) => name);
-
 const EditVersionModal = ({
   softwareId,
   teamId,
@@ -60,10 +58,6 @@ const EditVersionModal = ({
   const siblingNamesSet = new Set(
     siblingVersionNames.map((n) => n.toLowerCase())
   );
-
-  // A negative id means the row came from the pre-BE shim; the BE has no
-  // record of this version so submitting an edit would PATCH a bogus id.
-  const isShimVersion = version.id < 0;
 
   const [serverErrors, setServerErrors] = useState<IFormErrors | null>(null);
   const [
@@ -107,35 +101,11 @@ const EditVersionModal = ({
   );
 
   const onValidSubmit = async (data: IVersionFormData) => {
-    // Always send all three label arrays so the backend can normalize.
-    // "All hosts" clears every scope with empty arrays; "Custom" fills the
-    // active key and empties the other two.
-    const activeLabels =
-      data.targetType === "Custom" ? buildLabelArray(data.labelTargets) : [];
-    const labelsIncludeAny =
-      data.targetType === "Custom" && data.customTarget === "labelsIncludeAny"
-        ? activeLabels
-        : [];
-    const labelsIncludeAll =
-      data.targetType === "Custom" && data.customTarget === "labelsIncludeAll"
-        ? activeLabels
-        : [];
-    const labelsExcludeAny =
-      data.targetType === "Custom" && data.customTarget === "labelsExcludeAny"
-        ? activeLabels
-        : [];
-
-    // Three-way: unchanged scaffold = no change (undefined), empty editor =
-    // deliberate clear (null for iOS/iPadOS, {} for Android, matching the
-    // backend's clear values), content = set/update.
-    let configurationPayload:
-      | string
-      | Record<string, unknown>
-      | null
-      | undefined;
-    if (data.configuration === emptyScaffold) {
-      configurationPayload = undefined;
-    } else if (!data.configuration) {
+    // Empty editor or unmodified scaffold clears the config (null for
+    // iOS/iPadOS, {} for Android). Typing {} into the Android editor is a
+    // deliberate clear, same effect as the scaffold.
+    let configurationPayload: string | Record<string, unknown> | null;
+    if (!data.configuration || data.configuration === emptyScaffold) {
       configurationPayload = version.platform === "android" ? {} : null;
     } else {
       configurationPayload =
@@ -150,9 +120,7 @@ const EditVersionModal = ({
         self_service: data.selfService,
         categories: data.categories,
         configuration: configurationPayload,
-        labels_include_any: labelsIncludeAny,
-        labels_include_all: labelsIncludeAll,
-        labels_exclude_any: labelsExcludeAny,
+        ...buildLabelsForPayload(data, "clear"),
         auto_update_enabled: data.autoUpdateEnabled,
         auto_update_window_start:
           data.autoUpdateEnabled && data.autoUpdateWindowStart
@@ -166,7 +134,7 @@ const EditVersionModal = ({
 
       notify.success(
         <>
-          Successfully edited <strong>{data.name}</strong>.
+          Successfully updated <strong>{data.name}</strong>.
         </>
       );
       queryClient.invalidateQueries({
@@ -177,12 +145,11 @@ const EditVersionModal = ({
       });
       onSuccess();
     } catch (e) {
-      const reason = getErrorReason(e);
-      if (reason?.toLowerCase().includes("name")) {
-        setServerErrors({ name: reason });
-      } else {
-        notify.error("Couldn't edit. Please try again.", { response: e });
-      }
+      routeVersionNameError(
+        e,
+        setServerErrors,
+        "Couldn't update. Please try again."
+      );
     }
   };
 
@@ -223,7 +190,7 @@ const EditVersionModal = ({
                 <Button
                   type="submit"
                   isLoading={isSubmitting}
-                  disabled={isSubmitting || !!gitOpsDisabled || isShimVersion}
+                  disabled={isSubmitting || !!gitOpsDisabled}
                 >
                   Save
                 </Button>

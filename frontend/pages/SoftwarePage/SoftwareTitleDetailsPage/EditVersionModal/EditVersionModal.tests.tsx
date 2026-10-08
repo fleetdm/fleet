@@ -1,7 +1,8 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 import { createMockAppStoreAppVersion } from "__mocks__/softwareMock";
+import softwareAPI from "services/entities/software";
 import { createCustomRenderer } from "test/test-utils";
 
 import EditVersionModal from "./EditVersionModal";
@@ -97,5 +98,26 @@ describe("EditVersionModal", () => {
     });
     const checkbox = screen.getByLabelText(/Enable auto updates/i);
     expect(checkbox).toBeChecked();
+  });
+
+  // Android clear = {} (not undefined, which backend reads as "no change"). iOS/iPadOS clear = null.
+  it("submits `{}` for Android when the editor holds the empty scaffold", async () => {
+    const editSpy = jest
+      .spyOn(softwareAPI, "editAppStoreAppVersion")
+      .mockResolvedValue({} as never);
+
+    const { user } = renderModal({
+      version: mockVersion({
+        platform: "android",
+        app_store_id: "com.example.app",
+        configuration: undefined,
+      }),
+    });
+
+    await user.click(screen.getByRole("button", { name: /^Save$/i }));
+
+    await waitFor(() => expect(editSpy).toHaveBeenCalled());
+    const [, , , body] = editSpy.mock.calls[0];
+    expect(body.configuration).toEqual({});
   });
 });

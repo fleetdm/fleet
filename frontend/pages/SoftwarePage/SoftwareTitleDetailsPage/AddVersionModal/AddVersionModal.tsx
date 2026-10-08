@@ -5,10 +5,13 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
-import { getErrorReason } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreApp } from "interfaces/software";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
+import {
+  buildLabelsForPayload,
+  routeVersionNameError,
+} from "pages/SoftwarePage/helpers";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -33,24 +36,25 @@ interface IAddVersionModalProps {
   /** When true, the "Target" field defaults to `Custom` so the admin's label
    * scope wins the first-added race. Set when adding the 2nd+ version. */
   defaultTargetCustom?: boolean;
+  /** Auto-update schedule pre-fill. Set by the caller when every existing
+   * version on this title shares the same schedule so the Add form suggests
+   * it; each version still stores its own schedule server-side. Admins can
+   * toggle it off or change times before saving. */
+  defaultAutoUpdate?: {
+    enabled: boolean;
+    windowStart: string;
+    windowEnd: string;
+  };
   onExit: () => void;
   onSuccess: () => void;
 }
-
-const buildLabelArray = (
-  labelTargets: Record<string, boolean>
-): string[] | undefined => {
-  const names = Object.entries(labelTargets)
-    .filter(([, selected]) => selected)
-    .map(([name]) => name);
-  return names.length ? names : undefined;
-};
 
 const AddVersionModal = ({
   teamId,
   appStore,
   existingVersionNames,
   defaultTargetCustom = false,
+  defaultAutoUpdate,
   onExit,
   onSuccess,
 }: IAddVersionModalProps) => {
@@ -92,6 +96,11 @@ const AddVersionModal = ({
       selfService: appStore.platform === "android",
       configuration: emptyScaffold,
       targetType: defaultTargetCustom ? "Custom" : "All hosts",
+      ...(defaultAutoUpdate && {
+        autoUpdateEnabled: defaultAutoUpdate.enabled,
+        autoUpdateWindowStart: defaultAutoUpdate.windowStart,
+        autoUpdateWindowEnd: defaultAutoUpdate.windowEnd,
+      }),
     },
     validate,
     serverErrors,
@@ -104,11 +113,6 @@ const AddVersionModal = ({
   );
 
   const onValidSubmit = async (data: IVersionFormData) => {
-    const labelsArray =
-      data.targetType === "Custom"
-        ? buildLabelArray(data.labelTargets)
-        : undefined;
-
     // Android configuration is a JSON object on the wire; parse the editor
     // string before sending. iOS/iPadOS send the XML plist as a string.
     const hasConfig =
@@ -129,12 +133,7 @@ const AddVersionModal = ({
         self_service: data.selfService,
         categories: data.categories.length ? data.categories : undefined,
         configuration: configurationPayload,
-        labels_include_any:
-          data.customTarget === "labelsIncludeAny" ? labelsArray : undefined,
-        labels_include_all:
-          data.customTarget === "labelsIncludeAll" ? labelsArray : undefined,
-        labels_exclude_any:
-          data.customTarget === "labelsExcludeAny" ? labelsArray : undefined,
+        ...buildLabelsForPayload(data, "noChange"),
         auto_update_enabled: data.autoUpdateEnabled || undefined,
         auto_update_window_start:
           data.autoUpdateEnabled && data.autoUpdateWindowStart
@@ -159,12 +158,11 @@ const AddVersionModal = ({
       });
       onSuccess();
     } catch (e) {
-      const reason = getErrorReason(e);
-      if (reason?.toLowerCase().includes("name")) {
-        setServerErrors({ name: reason });
-      } else {
-        notify.error("Couldn't add. Please try again.", { response: e });
-      }
+      routeVersionNameError(
+        e,
+        setServerErrors,
+        "Couldn't add. Please try again."
+      );
     }
   };
 

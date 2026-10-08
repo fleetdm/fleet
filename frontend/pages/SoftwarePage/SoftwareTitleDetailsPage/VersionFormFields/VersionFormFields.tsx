@@ -15,6 +15,7 @@ import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
   getAutoUpdateWindowDurationMinutes,
+  HHMM_RE,
 } from "pages/SoftwarePage/helpers";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -61,8 +62,6 @@ export const DEFAULT_VERSION_FORM_DATA: IVersionFormData = {
   autoUpdateWindowStart: "",
   autoUpdateWindowEnd: "",
 };
-
-const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 /** Shared validator for Add and Edit version modals. Mirrors the shape used
  * by `EditAutoUpdateConfigModal/helpers.tsx`: at least one label when Target

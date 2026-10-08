@@ -810,19 +810,18 @@ describe("LibraryItemAccordion", () => {
 
     it("renders the self-service and auto-update row icons", () => {
       renderVersionRow();
+      // Both icons share the "Edit version" aria-label on multi-version rows.
       expect(
-        screen.getByRole("button", { name: /Edit package/i })
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /Edit version/i })
-      ).toBeInTheDocument();
+        screen.getAllByRole("button", { name: /Edit version/i })
+      ).toHaveLength(2);
     });
 
     it("hides the auto-update icon when the version has it off", () => {
       renderVersionRow({ isAutoUpdateEnabled: false });
+      // Self-service icon still renders with the same aria-label.
       expect(
-        screen.queryByRole("button", { name: /Edit version/i })
-      ).not.toBeInTheDocument();
+        screen.getAllByRole("button", { name: /Edit version/i })
+      ).toHaveLength(1);
     });
   });
 });

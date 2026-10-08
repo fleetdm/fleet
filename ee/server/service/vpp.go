@@ -833,6 +833,24 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
 	}
 
+	// Auto-update is iOS/iPadOS only. Validate here and clear on other platforms; the datastore stores whatever strings arrive, and gitops/API bypass the FE validator.
+	if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
+		if appID.AutoUpdateEnabled != nil && *appID.AutoUpdateEnabled {
+			schedule := fleet.SoftwareAutoUpdateSchedule{
+				AutoUpdateEnabled:   appID.AutoUpdateEnabled,
+				AutoUpdateStartTime: appID.AutoUpdateStartTime,
+				AutoUpdateEndTime:   appID.AutoUpdateEndTime,
+			}
+			if err := schedule.WindowIsValid(); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "validating auto-update schedule")
+			}
+		}
+	} else {
+		appID.AutoUpdateEnabled = nil
+		appID.AutoUpdateStartTime = nil
+		appID.AutoUpdateEndTime = nil
+	}
+
 	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, appID.LabelsIncludeAny, appID.LabelsExcludeAny, appID.LabelsIncludeAll)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating software labels for adding vpp app")
@@ -870,6 +888,10 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	if versionNameExists {
+		// FE routes the duplicate-name conflict to the Name field by matching
+		// the "a version named" substring (routeVersionNameError in
+		// frontend/pages/SoftwarePage/helpers.tsx). Keep the phrase if you
+		// reword this message.
 		return nil, ctxerr.Wrap(ctx, fleet.ConflictError{
 			Message: fmt.Sprintf("Couldn't add. A version named %q already exists for this app in the %s fleet.", appID.VersionName, teamName),
 		}, "adding app store app version")
@@ -1094,6 +1116,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
 
+	// Only log the window when enabled=true; insertVPPAppTeams drops it otherwise, and the activity shouldn't claim stored values that weren't.
 	act := fleet.ActivityAddedAppStoreApp{
 		AppStoreID:       app.AdamID,
 		Platform:         app.Platform,
@@ -1107,6 +1130,13 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		LabelsIncludeAll: actLabelsInclAll,
 		Configuration:    json.RawMessage(appID.Configuration),
 		VersionName:      addedApp.VersionName,
+	}
+	if appID.AutoUpdateEnabled != nil {
+		act.AutoUpdateEnabled = appID.AutoUpdateEnabled
+		if *appID.AutoUpdateEnabled {
+			act.AutoUpdateStartTime = appID.AutoUpdateStartTime
+			act.AutoUpdateEndTime = appID.AutoUpdateEndTime
+		}
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
