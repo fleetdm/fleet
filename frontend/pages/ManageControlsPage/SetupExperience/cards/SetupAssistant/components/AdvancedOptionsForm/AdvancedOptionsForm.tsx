@@ -61,7 +61,6 @@ const AdvancedOptionsForm = ({
           <Card
             className={`${baseClass}__settings-card`}
             color="white"
-            borderRadiusSize="large"
           >
             <Checkbox
               value={releaseDevice}

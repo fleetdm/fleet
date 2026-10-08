@@ -70,7 +70,6 @@ const BootstrapAdvancedOptions = ({
               <Card
                 className={`${baseClass}__settings-card`}
                 color="white"
-                borderRadiusSize="large"
               >
                 <Checkbox
                   value={selectManualAgentInstall}
