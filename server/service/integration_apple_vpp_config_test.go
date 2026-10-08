@@ -1281,6 +1281,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 		AutoUpdateStartTime: new("not-a-time"),
 		AutoUpdateEndTime:   new("03:00"),
 	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "HH:MM")
 
 	// macOS is unsupported; auto-update fields are dropped silently.
 	var addMacAutoResp addAppStoreAppResponse
@@ -1299,6 +1300,21 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.Nil(t, macVersions[0].AutoUpdateEnabled, "macOS should not persist auto-update fields")
 	require.Nil(t, macVersions[0].AutoUpdateStartTime)
 	require.Nil(t, macVersions[0].AutoUpdateEndTime)
+	// Activity for the macOS add should also omit the window.
+	var macActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &macActivities,
+		"order_key", "id", "order_direction", "desc", "per_page", "1")
+	require.Len(t, macActivities.Activities, 1)
+	require.Equal(t, fleet.ActivityAddedAppStoreApp{}.ActivityName(), macActivities.Activities[0].Type)
+	var macDetails struct {
+		AutoUpdateEnabled   *bool   `json:"auto_update_enabled"`
+		AutoUpdateStartTime *string `json:"auto_update_window_start"`
+		AutoUpdateEndTime   *string `json:"auto_update_window_end"`
+	}
+	require.NoError(t, json.Unmarshal(*macActivities.Activities[0].Details, &macDetails))
+	require.Nil(t, macDetails.AutoUpdateEnabled)
+	require.Nil(t, macDetails.AutoUpdateStartTime)
+	require.Nil(t, macDetails.AutoUpdateEndTime)
 }
 
 func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {

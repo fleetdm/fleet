@@ -101,7 +101,9 @@ const EditVersionModal = ({
   );
 
   const onValidSubmit = async (data: IVersionFormData) => {
-    // Empty editor or unmodified scaffold clears the config (null for iOS/iPadOS, {} for Android). Typing {} into the Android editor is a deliberate clear, same effect as the scaffold.
+    // Empty editor or unmodified scaffold clears the config (null for
+    // iOS/iPadOS, {} for Android). Typing {} into the Android editor is a
+    // deliberate clear, same effect as the scaffold.
     let configurationPayload: string | Record<string, unknown> | null;
     if (!data.configuration || data.configuration === emptyScaffold) {
       configurationPayload = version.platform === "android" ? {} : null;

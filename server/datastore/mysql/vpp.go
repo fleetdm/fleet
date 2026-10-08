@@ -973,7 +973,8 @@ ON DUPLICATE KEY UPDATE
 		appID.InstallDuringSetup, appID.AutoUpdateEnabled, startTime, startTime, endTime, endTime)
 	if err != nil {
 		if IsDuplicate(err) && existingVPPAppTeamID != nil {
-			// Return the rename conflict from the unique key on the name, it compares names the same way the column collation does
+			// Return the rename conflict from the unique key on the name, it compares names the same way the column collation does.
+			// FE routes this to the Name field by matching the "a version named" substring (routeVersionNameError in frontend/pages/SoftwarePage/helpers.tsx); keep the phrase if you reword.
 			return 0, ctxerr.Wrap(ctx, fleet.ConflictError{
 				Message: fmt.Sprintf("Couldn't edit. A version named %q already exists for this app in this fleet.", versionName),
 			}, "renaming app store app version")

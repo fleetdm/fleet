@@ -10,6 +10,7 @@ import {
   createMockSoftwareTitle,
   createMockSoftwarePackage,
   createMockAppStoreApp,
+  createMockAppStoreAppVersion,
 } from "__mocks__/softwareMock";
 import { ISoftwareInstallPolicy } from "interfaces/software";
 
@@ -17,6 +18,7 @@ import {
   getSelfServiceTooltip,
   getAutomaticInstallPoliciesCount,
   getAutoUpdateWindowDurationMinutes,
+  getDefaultAutoUpdateFromVersions,
   getDisplayedSoftwareName,
 } from "./helpers";
 
@@ -259,5 +261,72 @@ describe("getAutoUpdateWindowDurationMinutes", () => {
     expect(getAutoUpdateWindowDurationMinutes("bad", "02:00")).toBeNull();
     expect(getAutoUpdateWindowDurationMinutes("09:00", "25:00")).toBeNull();
     expect(getAutoUpdateWindowDurationMinutes("", "")).toBeNull();
+  });
+});
+
+describe("getDefaultAutoUpdateFromVersions", () => {
+  it("returns undefined when there are no versions", () => {
+    expect(getDefaultAutoUpdateFromVersions([])).toBeUndefined();
+    expect(getDefaultAutoUpdateFromVersions(null)).toBeUndefined();
+    expect(getDefaultAutoUpdateFromVersions(undefined)).toBeUndefined();
+  });
+
+  it("returns the shared schedule when all versions agree", () => {
+    const a = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    const b = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    expect(getDefaultAutoUpdateFromVersions([a, b])).toEqual({
+      enabled: true,
+      windowStart: "22:00",
+      windowEnd: "02:00",
+    });
+  });
+
+  it("returns undefined when siblings disagree on the window", () => {
+    const a = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    const b = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "23:00",
+      auto_update_window_end: "02:00",
+    });
+    expect(getDefaultAutoUpdateFromVersions([a, b])).toBeUndefined();
+  });
+
+  it("returns undefined when siblings disagree on enabled", () => {
+    const a = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    const b = createMockAppStoreAppVersion({
+      auto_update_enabled: false,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    expect(getDefaultAutoUpdateFromVersions([a, b])).toBeUndefined();
+  });
+
+  it("normalizes nullish windows to empty strings when all versions agree", () => {
+    const a = createMockAppStoreAppVersion({
+      auto_update_enabled: false,
+      auto_update_window_start: null,
+      auto_update_window_end: null,
+    });
+    expect(getDefaultAutoUpdateFromVersions([a])).toEqual({
+      enabled: false,
+      windowStart: "",
+      windowEnd: "",
+    });
   });
 });

@@ -888,6 +888,10 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	if versionNameExists {
+		// FE routes the duplicate-name conflict to the Name field by matching
+		// the "a version named" substring (routeVersionNameError in
+		// frontend/pages/SoftwarePage/helpers.tsx). Keep the phrase if you
+		// reword this message.
 		return nil, ctxerr.Wrap(ctx, fleet.ConflictError{
 			Message: fmt.Sprintf("Couldn't add. A version named %q already exists for this app in the %s fleet.", appID.VersionName, teamName),
 		}, "adding app store app version")
