@@ -91,9 +91,7 @@ Fleet allows you to schedule reports to run at a set interval. Scheduled reports
 
 Reports run at target moments (rather than at an interval starting after the report is saved). On a host that never sleeps, the target moments line up with the clock in UTC. While a host sleeps, its report schedule pauses, so on a laptop the target moments shift later after each sleep.
 
-Here's when each interval runs on a host that never sleeps, and on laptops that are only awake from 9am to 5pm Eastern (ET) or Pacific (PT), starting on a Monday. Times are in standard time. During daylight saving time, they're an hour later.
-
-| Interval | Host that never sleeps (UTC) | Laptop awake 9 to 5 ET | Laptop awake 9 to 5 PT |
+| Interval | Host that never sleeps (UTC) | Laptop awake 9 to 5 ET, starting Monday | Laptop awake 9 to 5 PT, starting Monday |
 |:---------|:-----------------------------|:------------------------|:------------------------|
 | Every 5 minutes | :00, :05, :10, and so on | :00, :05, :10, and so on during the workday (about 96 times a day) | :00, :05, :10, and so on during the workday (about 96 times a day) |
 | Every 10 minutes | :00, :10, :20, and so on | :00, :10, :20, and so on during the workday (about 48 times a day) | :00, :10, :20, and so on during the workday (about 48 times a day) |
