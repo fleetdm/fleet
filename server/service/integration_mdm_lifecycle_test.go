@@ -1716,6 +1716,8 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		// Subject carries no new-enrollment OU (verified in the server/mdm/apple unit tests), so the
 		// issued cert lacks the marker.
 		dev.EnrollInfo.SCEPSubjectOUs = nil
+		// the enrollment's dynamic challenge is single use; renewal profiles carry the static one
+		dev.EnrollInfo.SCEPChallenge = s.scepChallenge
 		require.NoError(t, dev.SCEPEnroll())
 		require.NoError(t, dev.Authenticate())
 		require.NoError(t, dev.TokenUpdate(false))

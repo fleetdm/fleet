@@ -8710,7 +8710,15 @@ func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enr
 		switch p.PayloadType {
 		case "com.apple.security.scep":
 			require.Equal(t, s.getConfig().ServerSettings.ServerURL+apple_mdm.SCEPPath, p.PayloadContent.URL)
-			require.Equal(t, s.scepChallenge, p.PayloadContent.Challenge)
+			// the profile carries either the static challenge or one minted for it
+			if p.PayloadContent.Challenge != s.scepChallenge {
+				var minted bool
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					return sqlx.GetContext(t.Context(), q, &minted,
+						`SELECT EXISTS(SELECT 1 FROM mdm_apple_scep_challenges WHERE challenge = ?)`, p.PayloadContent.Challenge)
+				})
+				require.True(t, minted, "unexpected SCEP challenge %q", p.PayloadContent.Challenge)
+			}
 		case "com.apple.mdm":
 			require.Contains(t, p.ServerURL, s.getConfig().ServerSettings.ServerURL+apple_mdm.MDMPath)
 			if enrollmentRef != "" {
@@ -30877,4 +30885,106 @@ func (s *integrationMDMTestSuite) TestBatchModifyConfigProfilesSelfServiceAndHid
 	batch([]map[string]any{
 		{"name": "W", "profile": syncMLForTest("./Device/Vendor/MSFT/Policy/Config/BatchModifyW/Test"), "self_service": true},
 	}, http.StatusUnprocessableEntity)
+}
+
+// TestAppleEnrollmentProfilesCarryBoundSCEPChallenges checks that each lane enrolls with the dynamic challenge
+// from its profile. The static challenge is rotated first, so neither the original nor the new static value
+// could have been used at SCEP.
+func (s *integrationMDMTestSuite) TestAppleEnrollmentProfilesCarryBoundSCEPChallenges() {
+	t := s.T()
+	ctx := t.Context()
+
+	rotated := "rotated-" + uuid.NewString()
+	require.NoError(t, s.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(rotated)}}, nil))
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.ReplaceMDMConfigAssets(context.Background(),
+			[]fleet.MDMConfigAsset{{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(s.scepChallenge)}}, nil))
+	})
+
+	// requireBound checks the challenge was minted for want, was used for exactly one identity certificate,
+	// and that certificate carries the matching binding.
+	requireBound := func(t *testing.T, challenge string, want fleet.AppleSCEPChallengeInfo) {
+		require.NotEmpty(t, challenge)
+		require.NotEqual(t, s.scepChallenge, challenge)
+		require.NotEqual(t, rotated, challenge)
+
+		var row struct {
+			fleet.AppleSCEPChallengeInfo
+			Consumed   bool  `db:"consumed"`
+			CertSerial int64 `db:"issued_cert_serial"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `SELECT purpose, host_uuid, hardware_serial, idp_account_uuid,
+				consumed_at IS NOT NULL AS consumed, COALESCE(issued_cert_serial, 0) AS issued_cert_serial
+				FROM mdm_apple_scep_challenges WHERE challenge = ?`, challenge)
+		})
+		require.Equal(t, want, row.AppleSCEPChallengeInfo)
+		require.True(t, row.Consumed)
+		require.NotZero(t, row.CertSerial)
+
+		var certPEM string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &certPEM, `SELECT certificate_pem FROM identity_certificates WHERE serial = ?`, row.CertSerial)
+		})
+		block, _ := pem.Decode([]byte(certPEM))
+		require.NotNil(t, block)
+		cert, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		binding, err := apple_mdm.ParseAppleMDMCertificateBindingExtension(cert)
+		require.NoError(t, err)
+		require.NotNil(t, binding)
+		require.Equal(t, want.Purpose, binding.Purpose)
+	}
+
+	// ade
+	rawProfile := json.RawMessage(`{}`)
+	_, err := s.ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Type: "automatic", DEPProfile: &rawProfile, Token: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	serial := mdmtest.RandSerialNumber()
+	_, adeDevice := s.createAppleMobileHostThenDEPEnrollMDM("ios", serial)
+	requireBound(t, adeDevice.EnrollInfo.SCEPChallenge, fleet.AppleSCEPChallengeInfo{
+		Purpose: fleet.AppleMDMCertPurposeADE, UUID: new(adeDevice.UUID), Serial: new(serial),
+	})
+	// a challenge gives exactly one certificate
+	require.Error(t, adeDevice.SCEPEnroll())
+
+	// ota
+	secret := "bound-challenge-secret"
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: secret}}},
+	}, http.StatusOK, &applyResp)
+
+	otaDevice := mdmtest.NewTestMDMClientAppleOTA(s.server.URL, secret, "MacBookPro16,1")
+	require.NoError(t, otaDevice.Enroll())
+	identity := fleet.AppleSCEPChallengeInfo{UUID: new(otaDevice.UUID), Serial: new(otaDevice.SerialNumber)}
+
+	phaseTwo := identity
+	phaseTwo.Purpose = fleet.AppleMDMCertPurposeOTAPhaseTwo
+	requireBound(t, otaDevice.EnrollInfo.SCEPChallenge, phaseTwo)
+
+	var phaseOneChallenge string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &phaseOneChallenge, `SELECT challenge FROM mdm_apple_scep_challenges
+			WHERE purpose = ? AND host_uuid = ? AND hardware_serial = ?`,
+			fleet.AppleMDMCertPurposeOTAPhaseOne, otaDevice.UUID, otaDevice.SerialNumber)
+	})
+	phaseOne := identity
+	phaseOne.Purpose = fleet.AppleMDMCertPurposeOTAPhaseOne
+	requireBound(t, phaseOneChallenge, phaseOne)
+	require.NotEqual(t, phaseOneChallenge, otaDevice.EnrollInfo.SCEPChallenge)
+
+	// adue
+	account := &fleet.MDMIdPAccount{UUID: uuid.NewString(), Username: "bound-adue", Email: "bound-adue@example.com"}
+	require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, account))
+	token, err := s.ds.InsertADUEEnrollmentChallenge(ctx, nil, account.UUID, time.Hour)
+	require.NoError(t, err)
+
+	adueDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(s.server.URL, "iPhone14,5", token)
+	require.NoError(t, adueDevice.Enroll())
+	requireBound(t, adueDevice.EnrollInfo.SCEPChallenge, fleet.AppleSCEPChallengeInfo{
+		Purpose: fleet.AppleMDMCertPurposeADUE, IDPAccountUUID: new(account.UUID),
+	})
 }

@@ -2556,6 +2556,8 @@ type QueueHostMDMAppleProfileInstallFunc func(ctx context.Context, hostUUID stri
 
 type QueueHostMDMAppleProfileRemovalFunc func(ctx context.Context, hostUUID string, profileUUID string) error
 
+type NewAppleSCEPChallengeFunc func(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error)
+
 type ConsumeAppleSCEPChallengeFunc func(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error)
 
 type SetAppleSCEPChallengeIssuedCertFunc func(ctx context.Context, challenge string, certSerial int64) error
@@ -6360,6 +6362,9 @@ type DataStore struct {
 
 	QueueHostMDMAppleProfileRemovalFunc        QueueHostMDMAppleProfileRemovalFunc
 	QueueHostMDMAppleProfileRemovalFuncInvoked bool
+
+	NewAppleSCEPChallengeFunc        NewAppleSCEPChallengeFunc
+	NewAppleSCEPChallengeFuncInvoked bool
 
 	ConsumeAppleSCEPChallengeFunc        ConsumeAppleSCEPChallengeFunc
 	ConsumeAppleSCEPChallengeFuncInvoked bool
@@ -15233,6 +15238,13 @@ func (s *DataStore) QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUI
 	s.QueueHostMDMAppleProfileRemovalFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueueHostMDMAppleProfileRemovalFunc(ctx, hostUUID, profileUUID)
+}
+
+func (s *DataStore) NewAppleSCEPChallenge(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error) {
+	s.mu.Lock()
+	s.NewAppleSCEPChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewAppleSCEPChallengeFunc(ctx, info, ttl)
 }
 
 func (s *DataStore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error) {
