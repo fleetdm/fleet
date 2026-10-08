@@ -4,7 +4,7 @@ _Available in Fleet Premium_
 
 Fleet can set a recovery lock password on Apple Silicon Macs enrolled to Fleet with MDM turned on. With recovery lock on, anyone who boots the Mac into recoveryOS has to enter this password first. This stops end users and bad actors from changing settings there, like turning off System Integrity Protection (SIP), lowering startup security, or reinstalling or erasing macOS. It's the macOS equivalent of a BIOS password on Windows and Linux.
 
-> The recovery lock password doesn't help if an end user forgets their login password. To get back into the Mac, use the host's [disk encryption key](https://fleetdm.com/guides/enforce-disk-encryption#use-disk-encryption-key-to-login).
+> If an end user forgets their login password, use the host's [disk encryption key](https://fleetdm.com/guides/enforce-disk-encryption#use-disk-encryption-key-to-login) instead.
 
 Fleet automatically generates, encrypts, and stores the password server-side. Admins can view or rotate it from the Fleet UI or API.
 
