@@ -203,8 +203,7 @@ describe("SeverityFilter", () => {
 
   // Typing a range that doesn't match the selected preset does not flip the
   // dropdown to Custom mid-edit — that only happens once a parent re-derives
-  // severity from the saved range (see the Dev note on #52474: only show
-  // Custom severity after the user saves and reopens the modal).
+  // severity from the saved range, i.e. after the user saves and reopens.
   it("keeps the selected preset's label while its score inputs are edited", async () => {
     const { user } = renderWithSetup(
       <ControlledSeverityFilter severity="medium" minScore="4" maxScore="6.9" />

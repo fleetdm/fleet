@@ -110,11 +110,6 @@ describe("ChartFilterModal severity", () => {
     );
   });
 
-  // The dropdown intentionally keeps showing "Critical severity" while the
-  // score inputs are being edited (no per-keystroke flicker), but what gets
-  // saved must reflect the range that was actually typed — otherwise
-  // reopening the modal, or the filter summary tooltip, would keep
-  // mislabeling a custom range as Critical indefinitely.
   it("re-derives severity from the edited range on Apply, rather than saving the stale preset", async () => {
     const onApply = jest.fn();
     const { user } = renderModal({ onApply });
