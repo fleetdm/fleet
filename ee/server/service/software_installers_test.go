@@ -2909,7 +2909,7 @@ func TestBatchSetSoftwareInstallersDryRunNewFleet(t *testing.T) {
 
 	t.Run("fleet-scoped user can't validate for a new fleet", func(t *testing.T) {
 		teamCtx := viewer.NewContext(t.Context(), viewer.Viewer{
-			User: &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			User: &fleet.User{Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleAdmin}}},
 		})
 		_, err := svc.BatchSetSoftwareInstallers(teamCtx, "New fleet", nil, true)
 		checkAuthErr(t, true, err)
