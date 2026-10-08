@@ -68,10 +68,7 @@ const BootstrapAdvancedOptions = ({
           <GitOpsModeTooltipWrapper
             isInputField
             renderChildren={(gitopsDisable) => (
-              <Card
-                className={`${baseClass}__settings-card`}
-                color="white"
-              >
+              <Card className={`${baseClass}__settings-card`} color="white">
                 <Checkbox
                   value={selectManualAgentInstall}
                   onChange={onChange}

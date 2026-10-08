@@ -58,10 +58,7 @@ const AdvancedOptionsForm = ({
       />
       {showAdvancedOptions && (
         <form onSubmit={handleSubmit}>
-          <Card
-            className={`${baseClass}__settings-card`}
-            color="white"
-          >
+          <Card className={`${baseClass}__settings-card`} color="white">
             <Checkbox
               value={releaseDevice}
               onChange={() => setReleaseDevice(!releaseDevice)}
