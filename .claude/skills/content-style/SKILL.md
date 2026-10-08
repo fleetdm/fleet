@@ -16,8 +16,7 @@ This skill works both inside the Fleet repo and outside it. The rules below are 
 1. **Identify the content type and the mode.** Type drives format discipline: website copy, guide/tutorial, article/blog, announcement, docs reference, product UI text, or marketing/sales enablement. Mode is either *writing new* content or *reviewing/editing existing* content. If the type or intended placement is unclear, ask — don't guess, because format rules differ by type.
 
 2. **Load the canonical guidelines if they exist.** When working in a repo that contains them, read these before writing, since they may have been updated since this skill was written:
-   - `handbook/marketing/fleet-ai-writing-instructions.md` — the token-optimized ruleset (start here)
-   - `handbook/company/writing.md` — the full writing guide (headings, links, lists, numbers)
+   - `handbook/company/writing.md` — the full writing guide: style, headings, links, lists, and numbers (start here)
    - `handbook/company/brand.md` — visual brand, naming, imagery
    If they aren't present (e.g. drafting external copy), use the embedded rules below.
 

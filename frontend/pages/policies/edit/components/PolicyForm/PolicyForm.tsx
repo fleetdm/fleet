@@ -50,6 +50,7 @@ import {
   usePolicyLabelTargets,
 } from "pages/policies/hooks";
 import {
+  EndUserExperience,
   getPatchPolicyFlags,
   PatchOption,
   PatchOptionSelector,
@@ -139,8 +140,12 @@ const PolicyForm = ({
   const isPatchPolicy = storedPolicy?.type === "patch";
   const [isAddingAutomation, setIsAddingAutomation] = useState(false);
   const [patchOption, setPatchOption] = useState<PatchOption>("manual");
+  const [endUserExperience, setEndUserExperience] = useState<EndUserExperience>(
+    "immediate"
+  );
   const storedPatchPolicyId = storedPolicy?.id;
   const storedPatchWhenClosed = storedPolicy?.patch_when_closed;
+  const storedNotifyBeforePatching = storedPolicy?.notify_before_patching;
   const storedInstallSoftwareId =
     storedPolicy?.install_software?.software_title_id;
 
@@ -153,10 +158,12 @@ const PolicyForm = ({
       nextPatchOption = "force";
     }
     setPatchOption(nextPatchOption);
+    setEndUserExperience(storedNotifyBeforePatching ? "notify" : "immediate");
   }, [
     isPatchPolicy,
     storedPatchPolicyId,
     storedPatchWhenClosed,
+    storedNotifyBeforePatching,
     storedInstallSoftwareId,
   ]);
 
@@ -169,6 +176,7 @@ const PolicyForm = ({
     lastEditedQueryBody,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    lastEditedQueryHidden,
     lastEditedQueryPlatform,
     lastEditedQueryLabelsIncludeAny,
     lastEditedQueryLabelsIncludeAll,
@@ -180,6 +188,7 @@ const PolicyForm = ({
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
@@ -291,6 +300,17 @@ const PolicyForm = ({
   }
 
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
+  const [conditionalAccessOn, setConditionalAccessOn] = useState(
+    storedPolicy?.conditional_access_enabled ?? false
+  );
+  useEffect(() => {
+    setConditionalAccessOn(storedPolicy?.conditional_access_enabled ?? false);
+  }, [storedPolicy?.conditional_access_enabled]);
+  useEffect(() => {
+    if (conditionalAccessOn) {
+      setLastEditedQueryHidden(false);
+    }
+  }, [conditionalAccessOn, setLastEditedQueryHidden]);
 
   const {
     mutate: saveAutomations,
@@ -444,7 +464,7 @@ const PolicyForm = ({
               patchOption === "manual"
                 ? null
                 : storedPolicy?.patch_software?.software_title_id ?? null,
-            ...getPatchPolicyFlags(patchOption),
+            ...getPatchPolicyFlags(patchOption, endUserExperience),
           },
         };
       }
@@ -467,6 +487,12 @@ const PolicyForm = ({
       }
     };
 
+    // The core PATCH lands before the automations PATCH, and the backend
+    // validates hidden against the stored conditional access value, so a
+    // disable has to travel with the core update or hidden is rejected.
+    const disablesConditionalAccess =
+      automations?.policyUpdate?.conditional_access_enabled === false;
+
     if (isPatchPolicy && isEditMode) {
       // Patch policies: only send editable fields, not query/platform
       const payload: IPolicyFormData = {
@@ -476,6 +502,10 @@ const PolicyForm = ({
       };
       if (isPremiumTier) {
         payload.critical = lastEditedQueryCritical;
+        payload.hidden = lastEditedQueryHidden;
+        if (disablesConditionalAccess) {
+          payload.conditional_access_enabled = false;
+        }
       }
       await onUpdate(payload);
       persistAutomations();
@@ -519,6 +549,10 @@ const PolicyForm = ({
       if (isPremiumTier) {
         Object.assign(payload, getLabelsPayload());
         payload.critical = lastEditedQueryCritical;
+        payload.hidden = lastEditedQueryHidden;
+        if (disablesConditionalAccess) {
+          payload.conditional_access_enabled = false;
+        }
       }
       await onUpdate(payload);
       persistAutomations();
@@ -632,7 +666,6 @@ const PolicyForm = ({
           className="critical-policy"
           onChange={(value: boolean) => setLastEditedQueryCritical(value)}
           value={lastEditedQueryCritical}
-          isLeftLabel
           disabled={gitOpsModeEnabled}
         >
           <TooltipWrapper
@@ -645,6 +678,30 @@ const PolicyForm = ({
             }
           >
             Critical
+          </TooltipWrapper>
+        </Checkbox>
+      </div>
+    );
+  };
+
+  const renderHiddenPolicy = () => {
+    return (
+      <div className={`${baseClass}__hidden-checkbox-wrapper`}>
+        <Checkbox
+          name="hidden-policy"
+          className="hidden-policy"
+          onChange={(value: boolean) => setLastEditedQueryHidden(value)}
+          value={lastEditedQueryHidden}
+          disabled={gitOpsModeEnabled || conditionalAccessOn}
+        >
+          <TooltipWrapper
+            tipContent={
+              conditionalAccessOn
+                ? "This setting is not compatible with the conditional access automation."
+                : "Does not require action from the end user and is hidden in Fleet Desktop."
+            }
+          >
+            Hide from end user
           </TooltipWrapper>
         </Checkbox>
       </div>
@@ -710,6 +767,9 @@ const PolicyForm = ({
             <PatchOptionSelector
               patchOption={patchOption}
               onSelectPatchOption={setPatchOption}
+              platform={storedPolicy?.platform}
+              endUserExperience={endUserExperience}
+              onSelectEndUserExperience={setEndUserExperience}
               disabled={disableChildren}
             />
           )}
@@ -769,8 +829,12 @@ const PolicyForm = ({
                 patchOption={
                   isPremiumTier && isPatchPolicy ? patchOption : undefined
                 }
+                endUserExperience={
+                  isPremiumTier && isPatchPolicy ? endUserExperience : undefined
+                }
                 patchSlot={patchOptions}
                 selectedPlatforms={getSelectedPlatforms()}
+                onConditionalAccessChange={setConditionalAccessOn}
               />
             </div>
           )}
@@ -779,6 +843,7 @@ const PolicyForm = ({
             isPremiumTier &&
             !isPatchPolicy &&
             renderCriticalPolicy()}
+          {isEditMode && isPremiumTier && renderHiddenPolicy()}
           <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}

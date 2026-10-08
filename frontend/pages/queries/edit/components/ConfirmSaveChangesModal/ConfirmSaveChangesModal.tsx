@@ -18,15 +18,20 @@ const ConfirmSaveChangesModal = ({
   onClose,
   showChangedSQLCopy = false,
 }: IConfirmSaveChangesModalProps) => {
-  const warningText = showChangedSQLCopy
-    ? "Changing this report's SQL will delete its previous results, since the existing results do not reflect the updated SQL."
-    : "The changes you are making to this report will delete its previous results.";
+  const warningText = showChangedSQLCopy ? (
+    <>
+      Changing this report&apos;s <strong>Query</strong> will delete its
+      previous results, since the existing results do not reflect the updated{" "}
+      <strong>Query</strong>.
+    </>
+  ) : (
+    "The changes you are making to this report will delete its previous results."
+  );
 
   return (
     <Modal title="Save changes?" onExit={onClose}>
       <form className={`${baseClass}__form`}>
         <p>{warningText}</p>
-        <p>You cannot undo this action.</p>
         <div className="modal-cta-wrap">
           <Button
             type="button"

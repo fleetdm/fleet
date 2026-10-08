@@ -21,6 +21,10 @@ import (
 // initial attempt, after which it is marked as failed and no further attempts will be made to install the profile.
 const MaxAppleProfileRetries = 3
 
+// MaxAppleDeviceNameRetries is the maximum number of times Fleet automatically re-sends the host name template
+// to a host (after drift or a failed command) before marking it as failed until a manual resend.
+const MaxAppleDeviceNameRetries = 3
+
 // MaxWindowsProfileRetries is the maximum number of times a Windows install profile command may be retried after the
 // initial attempt, after which it is marked as failed and no further attempts will be made to install the profile.
 const MaxWindowsProfileRetries = 3
@@ -287,26 +291,31 @@ const (
 	// FleetIPadOSUpdatesProfileName is the name of the DDM profile used by Fleet
 	// to configure iPadOS OS updates.
 	FleetIPadOSUpdatesProfileName = "Fleet iPadOS OS Updates"
+
+	// FleetWindowsEnrollSecretProfileName is the name of the profile used by Fleet to deliver a one-time enroll secret to a
+	// Windows host's registry.
+	FleetWindowsEnrollSecretProfileName = "Fleetd enroll secret" //nolint:gosec // G101 false positive, a profile name
 )
 
 // FleetReservedProfileNames returns a map of PayloadDisplayName or profile
 // name strings that are reserved by Fleet.
 func FleetReservedProfileNames() map[string]struct{} {
 	return map[string]struct{}{
-		FleetdConfigProfileName:          {},
-		FleetFileVaultProfileName:        {},
-		FleetWindowsOSUpdatesProfileName: {},
-		FleetMacOSUpdatesProfileName:     {},
-		FleetIOSUpdatesProfileName:       {},
-		FleetIPadOSUpdatesProfileName:    {},
-		FleetCAConfigProfileName:         {},
+		FleetdConfigProfileName:             {},
+		FleetFileVaultProfileName:           {},
+		FleetWindowsOSUpdatesProfileName:    {},
+		FleetMacOSUpdatesProfileName:        {},
+		FleetIOSUpdatesProfileName:          {},
+		FleetIPadOSUpdatesProfileName:       {},
+		FleetCAConfigProfileName:            {},
+		FleetWindowsEnrollSecretProfileName: {},
 	}
 }
 
 // ListFleetReservedWindowsProfileNames returns a list of PayloadDisplayName strings
 // that are reserved by Fleet for Windows.
 func ListFleetReservedWindowsProfileNames() []string {
-	return []string{FleetWindowsOSUpdatesProfileName}
+	return []string{FleetWindowsOSUpdatesProfileName, FleetWindowsEnrollSecretProfileName}
 }
 
 // ListFleetReservedMacOSProfileNames returns a list of PayloadDisplayName strings

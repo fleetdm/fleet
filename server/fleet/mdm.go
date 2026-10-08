@@ -7,11 +7,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/google/uuid"
@@ -88,6 +90,11 @@ const (
 	FleetVarHostTargetOSVersion  FleetVarName = "HOST_TARGET_OS_VERSION"
 	FleetVarHostTargetOSDeadline FleetVarName = "HOST_TARGET_OS_DEADLINE"
 
+	// FleetVarPatchNotificationURL is Fleet-internal in the same way: resolved to
+	// a notification's device page URL at fetch time, and deliberately absent
+	// from FleetVarsSupportedInScripts since it carries a device auth token.
+	FleetVarPatchNotificationURL FleetVarName = "PATCH_NOTIFICATION_URL"
+
 	// FleetVarPSSODeviceRegistrationToken is the admin-facing variable placed in
 	// the RegistrationToken key of a Fleet com.apple.extensiblesso (Platform SSO
 	// v2) payload. It resolves to the FLEET_HOST_SECRET_ placeholder of the same
@@ -112,6 +119,10 @@ const (
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour
 )
+
+// NDESNotConfiguredMsg is the failure detail for a $FLEET_VAR_NDES_SCEP_CHALLENGE
+// reference when no NDES certificate authority is configured.
+const NDESNotConfiguredMsg = "NDES is not configured. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE."
 
 // HasCAVariables returns true if any of the given Fleet variable names
 // (as returned by variables.Find, without the FLEET_VAR_ prefix) correspond
@@ -278,6 +289,8 @@ type MDMAppleBootstrapPackage struct {
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"-" db:"updated_at"`
+	// PackageFile, when set, is stored in the object store in place of Bytes.
+	PackageFile io.ReadSeeker `json:"-" db:"-"`
 }
 
 func (bp MDMAppleBootstrapPackage) AuthzType() string {
@@ -579,6 +592,9 @@ type HostMDMProfile struct {
 	Retrying   *bool `db:"-" json:"retrying,omitempty"`
 	RetryCount *uint `db:"-" json:"retry_count,omitempty"`
 	MaxRetries *uint `db:"-" json:"max_retries,omitempty"`
+
+	SelfService bool `db:"-" json:"self_service"`
+	Hidden      bool `db:"-" json:"hidden"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -678,9 +694,13 @@ type MDMConfigProfilePayload struct {
 	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
 	TeamID      *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"` // null for no-team
 	Name        string `json:"name" db:"name"`
+	Description string `json:"description" db:"description"`
 	Platform    string `json:"platform" db:"platform"`               // "windows", "android" or "darwin"
 	Identifier  string `json:"identifier,omitempty" db:"identifier"` // only set for macOS
 	Scope       string `json:"scope,omitempty" db:"scope"`           // only set for macOS, can be "System" or "User"
+	// PayloadDisplayName is the name inside a .mobileconfig, which can differ
+	// from Name once an admin renames the profile. Empty for other types.
+	PayloadDisplayName string `json:"payload_display_name,omitempty" db:"-"`
 	// Checksum is the following
 	// - for Apple configuration profiles: the MD5 checksum of the profile contents
 	// - for Apple device declarations: the MD5 checksum of the profile contents and secrets updated timestamp (if profile contains secret variables)
@@ -694,23 +714,35 @@ type MDMConfigProfilePayload struct {
 	// Base64-encoded activation for declaration (DDM) profiles, null for any
 	// other profile type and for declarations without a custom activation.
 	Activation []byte `json:"activation" db:"-"`
+	// SelfService is only supported for .mobileconfig profiles.
+	SelfService bool `json:"self_service" db:"self_service"`
+	Hidden      bool `json:"hidden" db:"hidden"`
 }
 
 // BatchModifyMDMConfigProfilePayload represents the payload for a config profile when
 // performing a batch modify operation.
 type BatchModifyMDMConfigProfilePayload struct {
-	Profile          []byte   `json:"profile,omitempty"`
+	Profile []byte `json:"profile,omitempty"`
+	Name    string `json:"name,omitempty"`
+	// DisplayName is the older spelling of Name, kept for compatibility.
 	DisplayName      string   `json:"display_name,omitempty"`
+	Description      string   `json:"description,omitempty"`
 	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+	SelfService      bool     `json:"self_service,omitempty"`
+	Hidden           bool     `json:"hidden,omitempty"`
 }
 
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
 // a team or no-team.
 type MDMProfileBatchPayload struct {
-	Name     string `json:"name,omitempty"`
-	Contents []byte `json:"contents,omitempty"`
+	Name string `json:"name,omitempty"`
+	// DisplayName is the older spelling of Name on the public batch endpoint,
+	// kept for compatibility. The service folds it into Name.
+	DisplayName string `json:"display_name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Contents    []byte `json:"contents,omitempty"`
 
 	// Deprecated: Labels is the backwards-compatible way of specifying
 	// LabelsIncludeAll.
@@ -722,6 +754,10 @@ type MDMProfileBatchPayload struct {
 
 	// Base64-encoded custom activation, only valid for Apple declarations.
 	Activation []byte `json:"activation,omitempty"`
+
+	// SelfService is only valid for .mobileconfig profiles.
+	SelfService bool `json:"self_service,omitempty"`
+	Hidden      bool `json:"hidden,omitempty"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -733,7 +769,9 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		ProfileUUID:      cp.ProfileUUID,
 		TeamID:           tid,
 		Name:             cp.Name,
+		Description:      cp.Description,
 		Platform:         "windows",
+		Hidden:           cp.Hidden,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
@@ -748,18 +786,22 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		tid = cp.TeamID
 	}
 	return &MDMConfigProfilePayload{
-		ProfileUUID:      cp.ProfileUUID,
-		TeamID:           tid,
-		Name:             cp.Name,
-		Identifier:       cp.Identifier,
-		Platform:         "darwin",
-		Checksum:         cp.Checksum,
-		CreatedAt:        cp.CreatedAt,
-		UploadedAt:       cp.UploadedAt,
-		Scope:            string(cp.Scope),
-		LabelsIncludeAll: cp.LabelsIncludeAll,
-		LabelsIncludeAny: cp.LabelsIncludeAny,
-		LabelsExcludeAny: cp.LabelsExcludeAny,
+		ProfileUUID:        cp.ProfileUUID,
+		TeamID:             tid,
+		Name:               cp.Name,
+		Description:        cp.Description,
+		PayloadDisplayName: PayloadDisplayNameFromMobileconfig(cp.Mobileconfig),
+		Identifier:         cp.Identifier,
+		Platform:           "darwin",
+		Checksum:           cp.Checksum,
+		CreatedAt:          cp.CreatedAt,
+		UploadedAt:         cp.UploadedAt,
+		Scope:              string(cp.Scope),
+		SelfService:        cp.SelfService,
+		Hidden:             cp.Hidden,
+		LabelsIncludeAll:   cp.LabelsIncludeAll,
+		LabelsIncludeAny:   cp.LabelsIncludeAny,
+		LabelsExcludeAny:   cp.LabelsExcludeAny,
 	}
 }
 
@@ -772,9 +814,11 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		ProfileUUID:      decl.DeclarationUUID,
 		TeamID:           tid,
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Identifier:       decl.Identifier,
 		Platform:         "darwin",
 		Checksum:         []byte(decl.Token),
+		Hidden:           decl.Hidden,
 		CreatedAt:        decl.CreatedAt,
 		UploadedAt:       decl.UploadedAt,
 		LabelsIncludeAll: decl.LabelsIncludeAll,
@@ -796,7 +840,9 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 		ProfileUUID:      cp.ProfileUUID,
 		TeamID:           tid,
 		Name:             cp.Name,
+		Description:      cp.Description,
 		Platform:         "android",
+		Hidden:           cp.Hidden,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
@@ -811,9 +857,19 @@ type MDMProfileSpec struct {
 	Path  string `json:"path,omitempty"`
 	Paths string `json:"paths,omitempty"`
 
+	// Name overrides the name derived from the file (PayloadDisplayName or
+	// file name). Only valid for a single file, so not with a multi-file glob.
+	Name string `json:"name,omitempty"`
+	// Description is free text shown next to the profile name.
+	Description string `json:"description,omitempty"`
+
 	// Activation is a path to a custom activation JSON file, only valid
 	// alongside an Apple declaration.
 	Activation string `json:"activation,omitempty"`
+
+	// SelfService is only valid for .mobileconfig profiles.
+	SelfService bool `json:"self_service,omitempty"`
+	Hidden      bool `json:"hidden,omitempty"`
 
 	// Deprecated: the Labels field is now deprecated, it is superseded by
 	// LabelsIncludeAll, so any value set via this field will be transferred to
@@ -878,13 +934,9 @@ func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &backwardsCompat); err != nil {
 			return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
 		}
-		p.Path = backwardsCompat
-
-		// FIXME: equivalent of no label condition, should clear all labels slice?
-		// p.Labels = nil
-		// p.LabelsIncludeAll = nil
-		// p.LabelsIncludeAny = nil
-		// p.LabelsExcludeAny = nil
+		// replace the whole spec, as below: decoding into a reused slice
+		// element would otherwise keep its name, description and labels
+		*p = MDMProfileSpec{Path: backwardsCompat}
 		return nil
 	}
 
@@ -950,7 +1002,25 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		return false
 	}
 
+	type profileMetadata struct {
+		Name        string
+		Description string
+		Hidden      bool
+		SelfService bool
+	}
+	metadata := func(v MDMProfileSpec) profileMetadata {
+		return profileMetadata{
+			Name:        strings.TrimSpace(v.Name),
+			Description: strings.TrimSpace(v.Description),
+			Hidden:      v.Hidden,
+			SelfService: v.SelfService,
+		}
+	}
+
+	pathMetadata := make(map[string]profileMetadata, len(a))
 	pathLabelIncludeCounts := make(map[string]map[string]int)
+	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
+	pathLabelExcludeCounts := make(map[string]map[string]int)
 	for _, v := range a {
 		// the deprecated Labels field is only relevant if LabelsIncludeAll is
 		// empty.
@@ -959,14 +1029,10 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		} else {
 			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
 		}
-	}
-	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
-	for _, v := range a {
 		pathLabelsIncludeAnyCounts[v.Path] = labelCountMap(v.LabelsIncludeAny)
-	}
-	pathLabelExcludeCounts := make(map[string]map[string]int)
-	for _, v := range a {
 		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
+
+		pathMetadata[v.Path] = metadata(v)
 	}
 
 	for _, v := range b {
@@ -974,6 +1040,9 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		includeAnyLabels, okInclAny := pathLabelsIncludeAnyCounts[v.Path]
 		excludeLabels, okExcl := pathLabelExcludeCounts[v.Path]
 		if !okIncl || !okExcl || !okInclAny {
+			return false
+		}
+		if pathMetadata[v.Path] != metadata(v) {
 			return false
 		}
 
@@ -1248,6 +1317,45 @@ func VerifySoftwareInstallCommandUUID() string {
 	return VerifySoftwareInstallVPPPrefix + uuid.NewString()
 }
 
+// AppleMDMCommandRetentionClass identifies a set of Fleet-generated commands
+// eligible for cleanup. An empty UUIDPrefix matches any command of RequestType.
+type AppleMDMCommandRetentionClass struct {
+	RequestType string
+	UUIDPrefix  string
+}
+
+// AppleMDMShortRetentionClasses are the recurring commands the cleanup deletes
+// after the short retention window. The UUID prefixes separate Fleet's own
+// inventory chatter from customer-run commands of the same request type, which
+// fall under the standard window instead.
+var AppleMDMShortRetentionClasses = []AppleMDMCommandRetentionClass{
+	{RequestType: "DeviceInformation", UUIDPrefix: RefetchDeviceCommandUUIDPrefix},
+	{RequestType: "InstalledApplicationList", UUIDPrefix: RefetchAppsCommandUUIDPrefix},
+	{RequestType: "CertificateList", UUIDPrefix: RefetchCertsCommandUUIDPrefix},
+	{RequestType: "Settings", UUIDPrefix: DeviceNameCommandUUIDPrefix},
+	{RequestType: "InstalledApplicationList", UUIDPrefix: VerifySoftwareInstallVPPPrefix},
+	{RequestType: "DeclarativeManagement"},
+}
+
+// AppleMDMStandardRetentionRequestTypes are the request types the cleanup
+// deletes after the standard retention window. Any type not listed here or in
+// the short classes is retained indefinitely, so a new feature's commands are
+// kept until someone reviews them for deletion.
+var AppleMDMStandardRetentionRequestTypes = []string{
+	"InstallProfile", "RemoveProfile", "InstallApplication",
+	"InstallEnterpriseApplication", "DeviceConfigured", "DeviceInformation",
+	"InstalledApplicationList", "CertificateList", "ProfileList", "SecurityInfo",
+	DeviceLocationCmdName, SetRecoveryLockCmdName, VerifyRecoveryLockCmdName, SetAutoAdminPasswordCmdName,
+	"UserList", RotateFileVaultKeyCmdName,
+}
+
+// AppleMDMInactivePurgeDenylist lists request types whose deactivated queue rows
+// are still read back afterwards (lock/wipe/lost-mode status), so the inactive
+// purge must skip them even at active = 0.
+var AppleMDMInactivePurgeDenylist = []string{
+	"DeviceLock", "EraseDevice", EnableLostModeCmdName, DisableLostModeCmdName, AccountConfigurationCmdName,
+}
+
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
 	OrgName   string `json:"org_name"`
@@ -1398,6 +1506,11 @@ func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
 type HostMDMCommand struct {
 	HostID      uint   `db:"host_id"`
 	CommandType string `db:"command_type"`
+	// CommandUUID is the queued command this tracking row refers to. Empty on
+	// rows written before Fleet recorded it and by flows that have not adopted
+	// it (e.g. VPP install verification); those rows keep the pre-UUID
+	// semantics everywhere.
+	CommandUUID string `db:"command_uuid"`
 }
 
 // MDMProfileUUIDFleetVariables represents the Fleet variables used by a
@@ -1472,6 +1585,12 @@ type NanoMDMEnrollmentDetails struct {
 	HardwareAttested       bool       `db:"hardware_attested"`
 	UnlockToken            *string    `db:"unlock_token"`
 	BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
+	// EnrollmentType is the MDM enrollment channel as reported by nanomdm, e.g.
+	// "Device" or "User Enrollment (Device)".
+	EnrollmentType string `db:"enrollment_type"`
+	// Enabled is false after checkout, when last_seen_at still keeps updating.
+	// Liveness-signal callers must ignore LastMDMSeenTime in that case.
+	Enabled bool `db:"enabled"`
 }
 
 // MDM SSO initiator constants identify which enrollment flow initiated the SSO
@@ -1583,4 +1702,35 @@ func GenerateRandom32ByteEntropyURLSafeToken() ([]byte, error) {
 	urlEncodedToken := make([]byte, base64.RawURLEncoding.EncodedLen(len(token)))
 	base64.RawURLEncoding.Encode(urlEncodedToken, token[:])
 	return urlEncodedToken, nil
+}
+
+// MDMProfileMaxDescriptionLen matches the description column on the profile
+// tables.
+const MDMProfileMaxDescriptionLen = 1023
+
+// ValidateMDMProfileName checks a profile name. It applies to every profile
+// type; derived names (PayloadDisplayName, file name) go through it too so the
+// limits are the same however the name was set.
+func ValidateMDMProfileName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return NewInvalidArgumentError("name", "Profile name can't be empty.")
+	}
+	if utf8.RuneCountInString(name) > MaxProfileNameLength {
+		return NewInvalidArgumentError("name", MaxProfileNameLengthErrMsg+".")
+	}
+	if len(ContainsPrefixVars(name, ServerSecretPrefix)) > 0 {
+		return NewInvalidArgumentError("name", "Profile name can't contain FLEET_SECRET variables.")
+	}
+	if _, reserved := mdm_types.FleetReservedProfileNames()[name]; reserved {
+		return NewInvalidArgumentError("name", fmt.Sprintf("Profile name %q is not allowed.", name))
+	}
+	return nil
+}
+
+// ValidateMDMProfileDescription checks an admin-provided profile description.
+func ValidateMDMProfileDescription(description string) error {
+	if utf8.RuneCountInString(description) > MDMProfileMaxDescriptionLen {
+		return NewInvalidArgumentError("description", fmt.Sprintf("Profile description can't be longer than %d characters.", MDMProfileMaxDescriptionLen))
+	}
+	return nil
 }

@@ -1,0 +1,1 @@
+- Fixed a bug where updating an in-house app package failed if a host failed to install it without verifying

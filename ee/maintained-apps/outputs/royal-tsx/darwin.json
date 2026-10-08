@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.4.4",
+      "version": "6.4.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemonmojo.RoyalTSX.App';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemonmojo.RoyalTSX.App' AND version_compare(bundle_short_version, '6.4.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemonmojo.RoyalTSX.App' AND version_compare(bundle_short_version, '6.4.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.lemonmojo.RoyalTSX.App' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://royaltsx-v6.royalapps.com/updates/royaltsx_6.4.4.1000.dmg",
+      "installer_url": "https://royaltsx-v6.royalapps.com/updates/royaltsx_6.4.5.1000.dmg",
       "install_script_ref": "be412b9a",
       "uninstall_script_ref": "4bb8cd55",
-      "sha256": "3fc8fb0078f0af7e9b04ce5e0980ab3f23fbc7eef192e521e0066108254835ed",
+      "sha256": "aea06877ff32bba0c9627b162e3bb44473551936708e6a931b95a1ece4127454",
       "default_categories": [
         "Productivity"
       ]

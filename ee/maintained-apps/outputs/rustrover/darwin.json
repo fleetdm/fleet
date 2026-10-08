@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.2",
+      "version": "2026.2.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rustrover';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rustrover' AND version_compare(bundle_short_version, '2026.2.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rustrover' AND version_compare(bundle_short_version, '2026.2.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.jetbrains.rustrover' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.jetbrains.com/rustrover/RustRover-2026.2.2-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/rustrover/RustRover-2026.2.3-aarch64.dmg",
       "install_script_ref": "60ccf7c0",
       "uninstall_script_ref": "27a2d061",
-      "sha256": "61c626adb68a85d8b4360723c4df1960882015426b6622a9178ddaa21b4985ba",
+      "sha256": "7f5ca1ad7578606c182671b987160efd80884c3be9b55e9feb76b1150d8029dd",
       "default_categories": [
         "Developer tools"
       ]

@@ -69,6 +69,8 @@ export interface IPolicy {
   critical: boolean;
   calendar_events_enabled: boolean;
   conditional_access_enabled: boolean;
+  /** Hidden from end users in Fleet Desktop. Absent on device (My device) policies. */
+  hidden?: boolean;
   type: string;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
@@ -76,6 +78,7 @@ export interface IPolicy {
   patch_software?: IPolicySoftwareToInstall;
   continuous_automations_enabled?: boolean;
   patch_when_closed?: boolean;
+  notify_before_patching?: boolean;
   labels_include_any?: ILabelPolicy[];
   labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
@@ -154,8 +157,10 @@ export interface IPolicyFormData {
   id?: number;
   calendar_events_enabled?: boolean;
   conditional_access_enabled?: boolean;
+  hidden?: boolean;
   continuous_automations_enabled?: boolean;
   patch_when_closed?: boolean;
+  notify_before_patching?: boolean;
   software_title_id?: number | null;
   /** Pins the policy to a specific package on a multi-package title. `null`
    * on PATCH clears the pinned package (mirrors `software_title_id`'s unset

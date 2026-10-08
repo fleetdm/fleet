@@ -99,17 +99,19 @@ Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/d
 
 A configuration profile only applies to hosts on the platform it's built for. A macOS, iOS, or iPadOS profile (`.mobileconfig` or `.json`) never installs on Windows or Android hosts, and a Windows profile (`.xml`) never installs on Apple hosts. You don't need a label to keep a profile on the right platform.
 
-On Fleet Premium, you can use labels to scope a profile to a subset of those hosts. There are three targeting modes, and you can use only one per profile:
+On Fleet Premium, you can use labels to scope a profile to a subset of those hosts. There are three targeting modes. Each profile can use one include mode (**Include all** or **Include any**), **Exclude any**, or one include mode combined with **Exclude any**:
 
 - **Include all:** the profile applies to hosts that have all of the selected labels.
 - **Include any:** the profile applies to hosts that have any of the selected labels.
 - **Exclude any:** the profile applies to hosts that have none of the selected labels.
 
+When you combine an include mode with **Exclude any**, the profile applies to hosts that match the include labels and have none of the exclude labels. A label can't appear in both lists.
+
 If you don't select any labels, the profile applies to all hosts that support its platform.
 
-Fleet UI: on the **Add profile** modal, select **Custom**, choose a targeting mode, and select one or more labels.
+Fleet UI: on the **Add profile** modal, select **Custom**, then select labels on the **Include** tab (choose **Any** or **All**), the **Exclude** tab, or both.
 
-GitOps: set `labels_include_all`, `labels_include_any`, or `labels_exclude_any` on the profile. Each takes a list of label names. See the [YAML reference](https://fleetdm.com/docs/configuration/yaml-files) for the full syntax.
+GitOps: on the profile, set `labels_include_all` or `labels_include_any`, and/or `labels_exclude_any`. Each takes a list of label names. See the [YAML reference](https://fleetdm.com/docs/configuration/yaml-files) for the full syntax.
 
 ```yaml
 controls:
@@ -188,6 +190,8 @@ Here's an example DDM (`com.apple.configuration.*`) snippet:
 1. Head to the [Windows configuration profiles (CSPs) documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider) to verify that all the settings in your Windows profile support the user scope. For example, the [SCEP setting](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp#devicescep) supports both the device and user scope.
 
 2. To make your Windows configuration profiles user scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
+
+Fleet delivers user-scoped profiles after an end user signs in to the host. Until then, they show **Pending**. If a profile includes both `./Device` and `./User` settings, Fleet delivers the whole profile after an end user signs in, so put device-scoped settings in a separate profile to deliver them right away.
 
 #### Upgrading from below 4.71.0
 

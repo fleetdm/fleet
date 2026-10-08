@@ -378,6 +378,12 @@ func (c DiskEncryptionConfig) MacOSEnforceOnly() bool {
 	return c.MacOSEnabled && !c.MacOSEscrowEnabled
 }
 
+// MacOSFileVaultOff reports whether neither macOS setting is on, so the fleet
+// delivers no FileVault profile and one a host still has is awaiting removal.
+func (c DiskEncryptionConfig) MacOSFileVaultOff() bool {
+	return !c.MacOSEnabled && !c.MacOSEscrowEnabled
+}
+
 // MacOSDiskEncryptionSettingsPayload is the macos_settings object accepted by
 // POST /disk_encryption. Nil fields mean "don't change".
 type MacOSDiskEncryptionSettingsPayload struct {
@@ -903,6 +909,24 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 		return ret
 	}
 
+	// unlike a bad label, a wrong type here is an error: dropping it would
+	// clear the stored name or description
+	extractStringField := func(parentMap map[string]any, fieldName string) (string, error) {
+		v, ok := parentMap[fieldName]
+		if !ok || v == nil {
+			return "", nil
+		}
+		str, ok := v.(string)
+		if !ok {
+			return "", &json.UnmarshalTypeError{
+				Value: fmt.Sprintf("%T", v),
+				Type:  reflect.TypeFor[string](),
+				Field: "macos_settings.custom_settings." + fieldName,
+			}
+		}
+		return str, nil
+	}
+
 	if v, ok := m["custom_settings"]; ok {
 		set["custom_settings"] = true
 
@@ -915,6 +939,13 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 					// extract the Path field
 					if path, ok := m["path"].(string); ok {
 						spec.Path = path
+					}
+					var err error
+					if spec.Name, err = extractStringField(m, "name"); err != nil {
+						return nil, err
+					}
+					if spec.Description, err = extractStringField(m, "description"); err != nil {
+						return nil, err
 					}
 
 					spec.Labels = extractLabelField(m, "labels")
@@ -1205,6 +1236,8 @@ func (c *AppConfig) Obfuscate() {
 	for _, gwIntegration := range c.Integrations.GoogleWorkspace {
 		gwIntegration.ApiKey.SetMasked()
 	}
+	// Integrations.CertificatesIdPIntrospectionURLs and CertificatesIdPClientIDs are deliberately not masked: no secret,
+	// just URLs and public OAuth client IDs.
 	// The Apple account provisioning IdP client secret lives in
 	// mdm_config_assets, never in the AppConfig JSON. Surface the masked value
 	// whenever the feature is configured (token URL present implies a stored
@@ -1316,6 +1349,12 @@ func (c *AppConfig) Copy() *AppConfig {
 			}
 		}
 	}
+	if c.Integrations.CertificatesIdPIntrospectionURLs.Value != nil {
+		clone.Integrations.CertificatesIdPIntrospectionURLs.Value = slices.Clone(c.Integrations.CertificatesIdPIntrospectionURLs.Value)
+	}
+	if c.Integrations.CertificatesIdPClientIDs.Value != nil {
+		clone.Integrations.CertificatesIdPClientIDs.Value = slices.Clone(c.Integrations.CertificatesIdPClientIDs.Value)
+	}
 	// // TODO(hca): do we want to cache the new grouped CAs datastore method?
 	// if len(c.Integrations.DigiCert.Value) > 0 {
 	// 	digicert := make([]DigiCertCA, len(c.Integrations.DigiCert.Value))
@@ -1426,6 +1465,7 @@ type enrichedAppConfigFields struct {
 	Logging                *Logging               `json:"logging,omitempty"`
 	Email                  *EmailConfig           `json:"email,omitempty"`
 	MaxSoftwarePackageSize int64                  `json:"max_software_package_size"`
+	StagedUploadAvailable  bool                   `json:"staged_upload_available"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -1808,6 +1848,17 @@ func (f *ServerSettings) GetQueryReportCap() int {
 		return DefaultMaxQueryReportRows
 	}
 	return f.QueryReportCap
+}
+
+// GetEffectiveQueryReportCap returns the report cap raised to the given host
+// count when that is higher. Results are stored per host, so this lets a report
+// that returns one row per host cover the whole fleet while bounding the worst
+// case to one row per host.
+func (f *ServerSettings) GetEffectiveQueryReportCap(hostCount int) int {
+	if reportCap := f.GetQueryReportCap(); hostCount <= reportCap {
+		return reportCap
+	}
+	return hostCount
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
@@ -2301,6 +2352,16 @@ const (
 // Partnerships contains specialized configuration options for Fleet partners.
 type Partnerships struct {
 	EnablePrimo bool `json:"enable_primo,omitempty"`
+}
+
+// AuthSettings exposes the read-only authentication settings that come from
+// the server configuration and that the UI adapts to.
+type AuthSettings struct {
+	// MDMAppleOneTimeEnrollSecrets mirrors the mdm.apple_one_time_enroll_secrets
+	// server configuration.
+	MDMAppleOneTimeEnrollSecrets bool `json:"mdm_apple_one_time_enroll_secrets,omitempty"`
+	// MDMWindowsOneTimeEnrollSecrets mirrors the mdm.windows_one_time_enroll_secrets server configuration.
+	MDMWindowsOneTimeEnrollSecrets bool `json:"mdm_windows_one_time_enroll_secrets,omitempty"`
 }
 
 // LicenseInfo contains information about the Fleet license.

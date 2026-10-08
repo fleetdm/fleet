@@ -1,9 +1,18 @@
-import PATHS from "router/paths";
+import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
-import {
+import createMockConfig from "__mocks__/configMock";
+import createMockUser from "__mocks__/userMock";
+import { ITeamSummary } from "interfaces/team";
+import { IUser } from "interfaces/user";
+import PATHS from "router/paths";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
+import SoftwarePage, {
   softwareSubNav,
   premiumSoftwareSubNav,
   getTabIndex,
+  getOSTabSortHeader,
 } from "./SoftwarePage";
 
 // These are not exported by default — we'll test the logic via the exported
@@ -75,5 +84,183 @@ describe("SoftwarePage tab configuration", () => {
     it("returns -1 for an unknown path", () => {
       expect(getTabIndex("/software/unknown", premiumSoftwareSubNav)).toBe(-1);
     });
+  });
+
+  describe("getOSTabSortHeader", () => {
+    it("defaults to version once a single platform is selected on the OS tab", () => {
+      expect(getOSTabSortHeader(PATHS.SOFTWARE_OS, "darwin", undefined)).toBe(
+        "version"
+      );
+    });
+
+    it("defaults to host count on the OS tab's 'All platforms' view", () => {
+      expect(getOSTabSortHeader(PATHS.SOFTWARE_OS, "all", undefined)).toBe(
+        "hosts_count"
+      );
+    });
+
+    it("ignores a crafted/stale order_key=version on 'All platforms', instead of sending a nonsensical cross-platform version sort to the API", () => {
+      // Comparing OS versions across platforms isn't meaningful, and the
+      // Version column is unclickable on this view — but this page is
+      // server-driven, so a URL with both params together (typed by hand,
+      // bookmarked, or restored via browser back/forward) would otherwise
+      // still reach the API as a real order_key=version request.
+      expect(getOSTabSortHeader(PATHS.SOFTWARE_OS, "all", "version")).toBe(
+        "hosts_count"
+      );
+    });
+
+    it("still honors an explicit order_key on a single platform, or on other tabs", () => {
+      expect(getOSTabSortHeader(PATHS.SOFTWARE_OS, "darwin", "name")).toBe(
+        "name"
+      );
+      expect(
+        getOSTabSortHeader(PATHS.SOFTWARE_INVENTORY, "all", "version")
+      ).toBe("version");
+    });
+  });
+});
+
+const ALL_FLEETS: ITeamSummary[] = [
+  { id: -1, name: "All fleets" },
+  { id: 7, name: "Workstations" },
+  { id: 0, name: "Unassigned" },
+];
+
+const GLOBAL_ADMIN = { isGlobalAdmin: true, isOnGlobalTeam: true };
+
+const FLEET_ADMIN = {
+  currentUser: createMockUser({
+    global_role: null,
+    teams: [{ id: 7, name: "Workstations", role: "admin" }],
+  }) as IUser,
+};
+
+const renderPage = ({
+  pathname,
+  query = {},
+  app,
+  children = <div />,
+}: {
+  pathname: string;
+  query?: Record<string, string>;
+  app: Record<string, unknown>;
+  children?: React.ReactElement;
+}) => {
+  const router = createMockRouter();
+  const render = createCustomRenderer({
+    withBackendMock: true,
+    context: {
+      app: {
+        currentUser: createMockUser(),
+        config: createMockConfig(),
+        availableTeams: ALL_FLEETS,
+        setCurrentTeam: jest.fn(),
+        ...app,
+      },
+    },
+  });
+
+  const params = new URLSearchParams(query).toString();
+  const rendered = render(
+    <SoftwarePage
+      router={router}
+      location={{ pathname, search: params && `?${params}`, query, hash: "" }}
+    >
+      {children}
+    </SoftwarePage>
+  );
+
+  return { router, ...rendered };
+};
+
+describe("SoftwarePage Library tab redirect", () => {
+  it.each([
+    {
+      name: "All fleets is selected",
+      app: { isPremiumTier: true, ...GLOBAL_ADMIN },
+    },
+    {
+      name: "the instance is Free",
+      app: { isFreeTier: true, isPremiumTier: false, ...GLOBAL_ADMIN },
+    },
+  ])("redirects to Inventory with no fleet id when $name", async ({ app }) => {
+    const { router } = renderPage({ pathname: PATHS.SOFTWARE_LIBRARY, app });
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(PATHS.SOFTWARE_INVENTORY);
+    });
+  });
+
+  it.each([
+    {
+      name: "a fleet is selected",
+      app: { isPremiumTier: true, ...FLEET_ADMIN },
+    },
+    {
+      name: "the user's fleets are still loading",
+      app: { isPremiumTier: true, ...FLEET_ADMIN, availableTeams: undefined },
+    },
+  ])("stays on Library when $name", async ({ app }) => {
+    const { router } = renderPage({
+      pathname: PATHS.SOFTWARE_LIBRARY,
+      query: { fleet_id: "7" },
+      app,
+    });
+
+    await waitFor(() => undefined);
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("SoftwarePage type filter", () => {
+  const FiltersOpener = ({
+    onAddFiltersClick,
+  }: {
+    onAddFiltersClick?: () => void;
+  }) => (
+    <button type="button" onClick={onAddFiltersClick}>
+      Open filters
+    </button>
+  );
+
+  const renderInventoryTab = (query: Record<string, string>) =>
+    renderPage({
+      pathname: PATHS.SOFTWARE_INVENTORY,
+      query,
+      app: { isPremiumTier: true, ...GLOBAL_ADMIN },
+      children: <FiltersOpener />,
+    });
+
+  it("restores the selection from the URL and writes it back on Apply", async () => {
+    const { router, user } = renderInventoryTab({
+      types: "macos_app,foo,brave_extension",
+    });
+
+    await user.click(screen.getByRole("button", { name: "Open filters" }));
+
+    expect(
+      screen
+        .getAllByRole("checkbox", { checked: true })
+        .map((el) => el.textContent)
+    ).toEqual(["Brave extension", "macOS app"]);
+
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(router.replace).toHaveBeenLastCalledWith(
+      expect.stringContaining("types=brave_extension%2Cmacos_app")
+    );
+  });
+
+  it("writes no types param once every type is cleared", async () => {
+    const { router, user } = renderInventoryTab({ types: "macos_app" });
+
+    await user.click(screen.getByRole("button", { name: "Open filters" }));
+    await user.click(screen.getByRole("checkbox", { name: "macOS app" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(router.replace).toHaveBeenLastCalledWith(
+      expect.not.stringContaining("types=")
+    );
   });
 });

@@ -6,6 +6,8 @@ _Available in Fleet Premium._
 
 Fleet can map an end user's IdP username, groups, and department to their host(s) in Fleet. Then, you can use these IdP host vitals as [variables in configuration profiles](https://fleetdm.com/guides/fleet-variables) or criteria for [labels](https://fleetdm.com/guides/managing-labels-in-fleet).
 
+> A Fleet user is someone who signs in to the Fleet UI to perform administrative tasks, while an end user is the person assigned to the host.
+
 Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace), as well as [any other IdP](#other-idps) that supports the [SCIM (System for Cross-domain Identity Management) protocol](https://scim.cloud/).
 
 Fleet automatically collects IdP host vitals when an [end user authenticates](https://fleetdm.com/guides/setup-experience#require-idp-authentication) during these enrollment scenarios:
@@ -95,7 +97,7 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 1. From the side menu, select **Provisioning**.
 2. In **Get started with application provisioning** section, select **Connect your application**.
 3. For the **Tenant URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim?aadOptscim062020`.
-4. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in the **Secret token** field.
+4. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with global admin permissions and access to all [`/scim/*` API endpoints](https://fleetdm.com/docs/rest-api/rest-api#scim), and copy API token for that user. Paste your API token in the **Secret token** field.
 5. Select the **Test connection** button. You should see success message.
 6. Select **Create** and, after successful creation, you'll be redirected to the overview page.
 
@@ -186,7 +188,7 @@ If the sync fails, check the connection status in **Settings > Integrations > Id
 IdPs generally require a Fleet SCIM URL and API token:
 
 - SCIM URL - `https://<your_fleet_server_url>/api/v1/fleet/scim`
-- API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in the **Secret token** field.
+- API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with global admin permissions and access to all [`/scim/*` API endpoints](https://fleetdm.com/docs/rest-api/rest-api#scim), and copy API token for that user. Paste your API token in the **Secret token** field.
 
 Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Make sure these attributes are correctly mapped in your IdP with `userName` as the unique identifier. Fleet uses the `userName` attribute to map to IdP groups and department.
 

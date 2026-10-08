@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.8.0",
+      "version": "9.9.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mockoon.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mockoon.app' AND version_compare(bundle_short_version, '9.8.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mockoon.app' AND version_compare(bundle_short_version, '9.9.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.mockoon.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/mockoon/mockoon/releases/download/v9.8.0/mockoon.setup.9.8.0.arm64.dmg",
+      "installer_url": "https://github.com/mockoon/mockoon/releases/download/v9.9.0/mockoon.setup.9.9.0.arm64.dmg",
       "install_script_ref": "ced539a3",
       "uninstall_script_ref": "69ac3b20",
-      "sha256": "99c0a347b5e8c39b6f2c3059b7d4fd2b2a012af90f36ee08fbfbd65417c64d2b",
+      "sha256": "d1bd3440620694fa2ac433a1c0723bbfc79b3ba5d8884de3a82eee419b54a826",
       "default_categories": [
         "Productivity"
       ]

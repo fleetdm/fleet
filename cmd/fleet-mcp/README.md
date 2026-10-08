@@ -65,7 +65,7 @@ These read from Fleet's stored host inventory (refreshed on each host check-in),
 
 | Tool | Description |
 |------|-------------|
-| `get_software` | List software/packages from Fleet's stored inventory. Two modes, auto-selected: **per-host** (pass `host_id` or `host_identifier`) returns every package on that host with version / source / installed paths / matching CVEs via `/hosts/:id/software`; **cross-host** (no host arg) returns software TITLES seen across hosts via `/software/titles` — the full inventory by default, optionally scoped by `fleet` / `vulnerable` (and `platform`, which requires `fleet`: Fleet's titles endpoint only filters by platform together with a team). The `source` arg (e.g. `npm_packages`, `python_packages`, `apps`, `deb_packages`, `chrome_extensions`) is a client-side case-insensitive filter against the osquery source table name. Use `query` for a substring match on software name or a CVE id. Prefer this over `run_live_query` for inventory lookups — cached, always-available, no host CPU. |
+| `get_software` | List software/packages from Fleet's stored inventory. Two modes, auto-selected: **per-host** (pass `host_id` or `host_identifier`) returns every package on that host with version / source / installed paths / matching CVEs via `/hosts/:id/software`; **cross-host** (no host arg) returns software TITLES seen across hosts via `/software/titles` — the full inventory by default, optionally scoped by `fleet` / `vulnerable` (and `platform`, which requires `fleet`: Fleet's titles endpoint only filters by platform together with a team). The `source` arg (e.g. `npm_packages`, `python_packages`, `apps`, `deb_packages`, `chrome_extensions`) filters by osquery source table name, case-insensitively; `extension_for` (requires `source`) narrows an extension source to one browser or IDE (e.g. `source=chrome_extensions` with `extension_for=brave`). In cross-host mode Fleet applies both server-side and rejects unknown values; per-host mode filters client-side. Use `query` for a substring match on software name or a CVE id. Prefer this over `run_live_query` for inventory lookups — cached, always-available, no host CPU. |
 | `get_host_users` | List OS-local user accounts on a single host as inventoried by osquery (uid, username, type, groupname, shell). Accepts `host_id` (preferred) or `host_identifier` (same disambiguation as `get_host`). Optional `query` substring filters the returned users client-side across username / uid / groupname / shell. |
 
 ### Filter dimensions at a glance
@@ -317,7 +317,7 @@ cmd/fleet-mcp/
   mcp_tools_policies.go    # policy/vuln MCP tools
   mcp_tools_inventory.go   # inventory MCP tools
   schema.go                # canonical osquery schema (embedded fallback + live HTTP refresh from raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json) and ValidateSQLForPlatforms (table-vs-platform + TEXT-column type sniff)
-  osquery_fleet_schema.json # vendored canonical snapshot (//go:embed source-of-truth fallback). Refresh via `go generate ./cmd/fleet-mcp/...`.
+  osquery_fleet_schema.json # vendored canonical snapshot (//go:embed source-of-truth fallback). Written by `generate-merged-schema` in `website/`.
   vetted_queries.go        # vetted CIS-8.1 query library
   seed_fleet.go            # -seed mode
 ```

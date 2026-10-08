@@ -81,9 +81,6 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
             onChange={() => setEnrollmentType("fullyManaged")}
           />
         </fieldset>
-        <h3 className="platform-wrapper__panel-heading">
-          Enrollment instructions
-        </h3>
         <InputField
           label="Share this link with your end users:"
           enableCopy
@@ -92,7 +89,7 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
           name="enroll-link"
           value={url}
         />
-        <EnrollQrCode url={url} />
+        {enrollmentType === "workProfile" && <EnrollQrCode url={url} />}
       </form>
     </div>
   );

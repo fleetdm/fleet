@@ -14,7 +14,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
 | Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ <br> [Jonathan Porter](https://linkedin.com/in/jp-cpe) _([@jp-cpe](https://github.com/jp-cpe))_
 | Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/) <br> [Sean Hannon](https://www.linkedin.com/in/sean-hannon-73b603105/) <br> [Kelly Kroening](https://www.linkedin.com/in/kelly-kroening)
-| Customer Support Engineer (CSE)       | [Ryn Satterlee](https://www.linkedin.com/in/rynsatterlee/) _([@rynsatterlee](https://github.com/rynsatterlee))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
+| Customer Support Engineer (CSE)       | [Ryn Satterlee](https://www.linkedin.com/in/rynsatterlee/) _([@rynsatterlee](https://github.com/rynsatterlee))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> [Matthew Thomas](https://linkedin.com/in/mthomas172) _([@adriant172](https://github.com/adriant172))_ <br> [Noel Rodriguez-Lebron](https://www.linkedin.com/in/noel-w-rl) _([@MrNRod](https://github.com/MrNRod))_
 
 ## Contact us
 
@@ -162,7 +162,7 @@ Health checks are conducted quarterly or bi-annually, in preparation for a quart
 
 Business reviews are conducted quarterly or bi-annually to ensure initial success criteria completion, ongoing adoption, alignment on goals, and delivery of value as a vendor. Use the meeting to assess customer priorities for the coming year, review performance metrics, address any challenges and showcase value in upcoming and unutilized features.
 1. Work with your champion to schedule the business review at a time their stakeholders are available (typically 90 days after kickoff and again, 90 days before renewal).
-2. Collect usage metrics from the [usage data report](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit?gid=0#gid=0) (internal Fleet document) and the following:
+2. Collect usage metrics from the [usage statistics Google sheet](https://docs.google.com/spreadsheets/d/1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI/edit) (internal Fleet document) and the following:
     - Optionally schedule a health check with day to day admins prior to the QBR to better understand how the product is being used and which features have been adopted.
     - Have a support engineer collect data on open and closed bugs from the previous quarter and highlight any P0 or P1 incidents along with a summary of the postmortem (search Unthread and GitHub for issues tagged with the customer codename and ':bug').
     - Summarize status updates for open feature requests and highlight delivered feature requests.
@@ -397,7 +397,7 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. W
 
 When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) brings one or more user stories through [drafting](https://fleetdm.com/handbook/product-design#drafting).
 
-After the user stories are released and the relevant Customer Solutions Architect (CSA) confirms that the request is fulfilled during [confirm and celebrate](https://fleetdm.com/handbook/product-design#confirm-and-celebrate), it's up to the Customer Success Manager (CSM) to inform the customer and close the issue.
+After the user stories are released and reviewed at [confirm and celebrate](https://fleetdm.com/handbook/product-design#confirm-and-celebrate), it's up to the Customer Success Manager (CSM) to inform the customer and close the issue.
 
 If we learn the improvements are missing something in order to meet the customer's needs, the CSM re-opens the issue, adds feedback in a comment (Gong snippet, Slack thread, or meetings notes), and @ mentions the HPD.
 
@@ -640,11 +640,9 @@ This will automatically be added to the `:help-customers` project board, with th
 
 ### Update premium usage stats
 
-Every month, the VP of Customer Success creates a new tab in the [usage stats Google Sheet](https://docs.google.com/spreadsheets/d/1ZcWXIShQyhHNXdaJ927_ykHcPk6DuZQewfk4egbM0bw/edit?gid=889119618#gid=889119618).
+The [usage statistics Google sheet](https://docs.google.com/spreadsheets/d/1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI/edit) (internal Fleet document) updates automatically every day with the latest usage statistics from each Fleet Premium deployment. There's no manual export. Use the **Customer view** tab to see a single deployment, or the **Dashboard** tab for totals across all customers.
 
-The Google sheet exists for historical purposes (e.g. how many hosts has a customer had enrolled on average over the course of 1 quarter) and to track customers with multiple Fleet environments.
-
-A Grafana dashboard is [coming soon](https://github.com/fleetdm/confidential/issues/15810).
+The sheet only shows each deployment's current state, not history. Deployments that haven't reported in the last 60 days drop off the sheet.
 
 ## Rituals
 

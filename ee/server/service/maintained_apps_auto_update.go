@@ -291,7 +291,7 @@ func downloadNewVersionIfEligible(
 	if isLatest && pin != "" && !versionMatchesMajor(version, strings.TrimPrefix(pin, "^")) {
 		return "", nil
 	}
-	if version != app.Version {
+	if !versionAlreadyCached {
 		versionExists, cachedHash, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, version)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "checking cached version")

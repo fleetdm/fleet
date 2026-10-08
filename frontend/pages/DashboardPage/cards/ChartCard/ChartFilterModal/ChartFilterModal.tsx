@@ -1,4 +1,3 @@
-import { isEmpty } from "lodash";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
@@ -14,7 +13,6 @@ import Modal from "components/Modal";
 import {
   ANY_SEVERITY_VALUE,
   ISeverityFilterValue,
-  severityFilters,
   severityForRange,
   SeverityValue,
 } from "components/SeverityFilter";
@@ -27,9 +25,10 @@ import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
 import labelsAPI from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
+import { hasActiveHostFilters, hasActiveSoftwareFilters } from "../helpers";
+
 import SoftwareFilters from "./SoftwareFilters";
 import {
-  isEpssActive,
   ISoftwareFilterErrors,
   NO_CATEGORIES_MSG,
   SoftwareFilterField,
@@ -117,6 +116,7 @@ const ChartFilterModal = ({
   const [activeTab, setActiveTab] = useState(
     initialTab === "software" ? SOFTWARE_TAB_INDEX : HOSTS_TAB_INDEX
   );
+  const isSoftwareTabActive = isCVE && activeTab === SOFTWARE_TAB_INDEX;
 
   // Software (cve) filter state.
   const [softwareFilters, setSoftwareFilters] = useState<string[]>(
@@ -307,6 +307,22 @@ const ChartFilterModal = ({
     setSoftwareFilters(next);
   };
 
+  // What Apply would send, and what Clear all is offered against.
+  const draft: IChartFilterState = {
+    labelIDs: selectedLabelIDs,
+    platforms: selectedPlatforms,
+    hostFilterMode,
+    selectedHosts,
+    softwareFilters,
+    knownExploit,
+    epssMin,
+    epssMax,
+    severity: deriveSeverity(severityFilter.minScore, severityFilter.maxScore),
+    cvssMin: severityFilter.minScore,
+    cvssMax: severityFilter.maxScore,
+    excludeCVEs,
+  };
+
   const handleSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
@@ -330,35 +346,21 @@ const ChartFilterModal = ({
       }
     }
 
-    onApply({
-      labelIDs: selectedLabelIDs,
-      platforms: selectedPlatforms,
-      hostFilterMode,
-      selectedHosts,
-      softwareFilters,
-      knownExploit,
-      epssMin,
-      epssMax,
-      severity: deriveSeverity(
-        severityFilter.minScore,
-        severityFilter.maxScore
-      ),
-      cvssMin: severityFilter.minScore,
-      cvssMax: severityFilter.maxScore,
-      excludeCVEs,
-    });
+    onApply(draft);
   };
 
-  const handleClear = () => {
+  const clearHostFilters = () => {
     setSelectedLabelIDs([]);
     setSelectedPlatforms([]);
-    setHostFilterMode("none");
     setSelectedHosts([]);
     setSearchInput("");
     setSearchQuery("");
     setPageCount(1);
     setSearchFieldKey((k) => k + 1);
     debouncedSetSearchQuery.cancel();
+  };
+
+  const clearSoftwareFilters = () => {
     // Reset software filters to their defaults (all categories selected).
     setSoftwareFilters([...ALL_CVE_SOFTWARE_CATEGORY_VALUES]);
     setKnownExploit(false);
@@ -394,19 +396,9 @@ const ChartFilterModal = ({
     setSelectedHosts((prev) => prev.filter((h) => h.id !== hostId));
   };
 
-  const softwareFiltersActive =
-    isCVE &&
-    (softwareFilters.length !== ALL_CVE_SOFTWARE_CATEGORY_VALUES.length ||
-      knownExploit ||
-      isEpssActive(epssMin, epssMax) ||
-      !isEmpty(severityFilters(severityFilter)) ||
-      excludeCVEs.length > 0);
-
-  const hasFilters =
-    selectedLabelIDs.length > 0 ||
-    selectedPlatforms.length > 0 ||
-    selectedHosts.length > 0 ||
-    softwareFiltersActive;
+  const hasFilters = isSoftwareTabActive
+    ? hasActiveSoftwareFilters(draft)
+    : hasActiveHostFilters(draft);
 
   // Inner host include/exclude tab.
   const tabIndex = hostFilterMode === "include" ? 1 : 0;
@@ -569,7 +561,12 @@ const ChartFilterModal = ({
         )}
         <div className={`${baseClass}__btn-wrap`}>
           {hasFilters && (
-            <Button variant="secondary" onClick={handleClear}>
+            <Button
+              variant="secondary"
+              onClick={
+                isSoftwareTabActive ? clearSoftwareFilters : clearHostFilters
+              }
+            >
               Clear all
             </Button>
           )}

@@ -2,11 +2,12 @@ import { cloneDeep } from "lodash";
 import React from "react";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { RecoveryLockPasswordStatus } from "interfaces/host";
 import {
   isAndroidBYO,
   isAndroidCOBO,
   isAutomaticDeviceEnrollment,
-  isBYODAccountDrivenUserEnrollment,
+  isPersonalEnrollment,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
 import {
@@ -121,8 +122,9 @@ interface IHostActionConfigOptions {
   isPrimoMode: boolean;
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
   isRecoveryLockPasswordEnabled: boolean;
-  diskEncryptionProfileStatus: string | undefined;
+  diskEncryptionProfileStatus: string | null | undefined;
   recoveryLockPasswordAvailable: boolean;
+  recoveryLockPasswordStatus: RecoveryLockPasswordStatus | undefined;
   isManagedLocalAccountEnabled: boolean;
   managedAccountStatus: string | null | undefined;
   managedAccountDetail: string | undefined;
@@ -269,11 +271,10 @@ const canWipeHost = ({
   const canWipeWindowsOrAppleOS =
     hostMdmEnabled && isConnectedToFleetMdm && isEnrolledInMdm;
 
-  // there is a special case for iOS and iPadOS devices that are account driven enrolled
-  // in MDM. These hosts cannot be wiped.
-  const isAccountDrivenEnrolledIosOrIpadosDevice =
+  // Personal (BYOD) iOS and iPadOS hosts cannot be wiped.
+  const isPersonalIosOrIpadosDevice =
     isIPadOrIPhone(hostPlatform) &&
-    isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus);
+    isPersonalEnrollment(hostMdmEnrollmentStatus);
 
   // Android: Wipe is COBO-only. COBO maps to enrollment_status="On (automatic)" today (matching
   // the generated-column rule enrolled=1 AND installed_from_dep=1 AND is_personal_enrollment=0).
@@ -291,7 +292,7 @@ const canWipeHost = ({
   // other platforms Premium-only.
   return (
     (isPremiumTier || canWipeAndroid) &&
-    !isAccountDrivenEnrolledIosOrIpadosDevice &&
+    !isPersonalIosOrIpadosDevice &&
     hostMdmDeviceStatus === "unlocked" &&
     (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS || canWipeAndroid) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
@@ -339,10 +340,19 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
+    isGlobalTechnician,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamTechnician,
   } = config;
-  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  return (
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isGlobalTechnician ||
+    isTeamAdmin ||
+    isTeamMaintainer ||
+    isTeamTechnician
+  );
 };
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
@@ -657,7 +667,8 @@ export const getDropdownOptionTooltipContent = (
   value: string | number,
   isHostOnline?: boolean,
   scriptsGloballyDisabled?: boolean,
-  byodDisabled?: boolean
+  byodDisabled?: boolean,
+  hostMdmDeviceStatus?: HostMdmDeviceStatusUIState
 ) => {
   if (
     byodDisabled &&
@@ -691,6 +702,21 @@ export const getDropdownOptionTooltipContent = (
   if (!isHostOnline && value === "query") {
     return <>You can&apos;t run a live report on an offline host.</>;
   }
+  if (value === "query") {
+    if (hostMdmDeviceStatus === "locked" || hostMdmDeviceStatus === "wiped") {
+      return (
+        <>You can&apos;t run a live report on a {hostMdmDeviceStatus} host.</>
+      );
+    }
+    if (hostMdmDeviceStatus && isDeviceStatusUpdating(hostMdmDeviceStatus)) {
+      return (
+        <>
+          You can&apos;t run a live report while the host&apos;s device status
+          is updating.
+        </>
+      );
+    }
+  }
   return undefined;
 };
 
@@ -717,6 +743,7 @@ const modifyOptions = (
     scriptsGloballyDisabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
+    recoveryLockPasswordStatus,
     managedAccountStatus,
     managedAccountDetail,
     managedAccountPasswordAvailable,
@@ -731,7 +758,9 @@ const modifyOptions = (
       option.tooltipContent = getDropdownOptionTooltipContent(
         option.value,
         isHostOnline,
-        scriptsGloballyDisabled
+        scriptsGloballyDisabled,
+        false,
+        hostMdmDeviceStatus
       );
     });
   };
@@ -842,13 +871,23 @@ const modifyOptions = (
     );
     if (rlpOption) {
       rlpOption.disabled = true;
-      rlpOption.tooltipContent = (
-        <>
-          Recovery Lock password is unavailable
-          <br />
-          while pending or has failed.
-        </>
-      );
+      if (recoveryLockPasswordStatus === "failed") {
+        rlpOption.tooltipContent = (
+          <>
+            Failed to retrieve Recovery Lock password.
+            <br />
+            Head to <b>Controls</b> to see the error and retry.
+          </>
+        );
+      } else {
+        rlpOption.tooltipContent = (
+          <>
+            Recovery Lock password isn&apos;t available yet.
+            <br />
+            The command to retrieve it is pending.
+          </>
+        );
+      }
     }
   }
 

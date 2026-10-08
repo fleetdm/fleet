@@ -1754,6 +1754,58 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	require.WithinDuration(t, time.Now(), st.SoftwareTitle.SoftwarePackage.UploadedAt, time.Hour)
 }
 
+func (s *integrationMDMTestSuite) TestInHouseAppInstallErrorThenUpdatePackage() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+	var titleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM in_house_apps WHERE filename = 'ipa_test.ipa' AND platform = 'ios'")
+	})
+
+	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iosHost.ID, titleID), nil, http.StatusAccepted, &installResp)
+
+	var installCmdUUID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installCmdUUID, "SELECT command_uuid FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID)
+	})
+	require.NotEmpty(t, installCmdUUID)
+
+	// reply Error to the InstallApplication command, the install row should be set as failed
+	s.runWorker()
+	cmd, err := iosDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		switch cmd.Command.RequestType {
+		case "InstallApplication":
+			require.Equal(t, installCmdUUID, cmd.CommandUUID)
+			cmd, err = iosDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1407, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "The app could not be installed"}})
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+		}
+	}
+
+	var verificationFailedAt *time.Time
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &verificationFailedAt, "SELECT verification_failed_at FROM host_in_house_software_installs WHERE command_uuid = ?", installCmdUUID)
+	})
+	require.NotNil(t, verificationFailedAt)
+
+	var listResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", iosHost.ID), nil, http.StatusOK, &listResp)
+	require.Empty(t, listResp.Activities)
+
+	// update the package, the request should succeed
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, Filename: "ipa_test.ipa"}, http.StatusOK, "")
+}
+
 func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
@@ -1864,7 +1916,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	// installed activity is now created
 	activityData = fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "command_uuid": %q, "install_uuid": "",
 	"software_title": "ipa_test", "software_package": "", "self_service": true, "status": "installed",
-	"policy_id": null, "policy_name": null, "from_setup_experience": false}`, iosHost.ID, iosHost.DisplayName(), installCmdUUID)
+	"policy_id": null, "policy_name": null, "from_setup_experience": false, "patch_when_closed": false}`, iosHost.ID, iosHost.DisplayName(), installCmdUUID)
 	s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), activityData, 0)
 
 	// host has no more upcoming activities
@@ -2228,11 +2280,8 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 			commands, err := s.ds.GetHostMDMCommands(context.Background(), host.ID)
 			require.NoError(t, err)
 			require.Len(t, commands, 3)
-			assert.ElementsMatch(t, []fleet.HostMDMCommand{
-				{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-				{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-				{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-			}, commands)
+			requireTrackedRefetchCommands(t, commands, host.ID,
+				fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 		}
 
 		handleRefetch := func(software []fleet.Software) {
@@ -3028,4 +3077,111 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	require.Len(t, listResp.Hosts, 2)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
 	require.Equal(t, listResp.Hosts[1].ID, mdmHost2.ID)
+}
+
+// The refetch that follows a verified install must respect the host's
+// enrollment type, like the hourly cron and the manual refetch do.
+func (s *integrationMDMTestSuite) TestVPPInstallRefetchManagedAppsOnlyForBYODiDevices() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+
+	var newTeamResp teamResponse
+	teamPayload := fleet.TeamPayload{Name: new("Managed apps only")}
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: teamPayload}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+	s.setVPPTokenForTeam(team.ID)
+
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "3", Platform: fleet.IPadOSPlatform},
+		http.StatusOK, &addAppStoreAppResponse{})
+
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID),
+		"available_for_install", "true")
+	var titleID uint
+	for _, sw := range listSw.SoftwareTitles {
+		if sw.Source == "ipados_apps" {
+			titleID = sw.ID
+		}
+	}
+	require.NotZero(t, titleID)
+
+	managedApp := fleet.Software{Name: "App 3", BundleIdentifier: "c-3", Version: "3.0.0", Installed: true}
+	personalApp := fleet.Software{Name: "PersonalGame", BundleIdentifier: "com.example.personalgame", Version: "9.9.9", Installed: true}
+
+	for _, tc := range []struct {
+		name             string
+		installedFromDEP bool
+	}{
+		{"manual enrollment", false},
+		{"automatic enrollment", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			host, device := s.createAppleMobileHostThenEnrollMDM("ipados")
+			require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, tc.installedFromDEP, "", "", fleet.PersonalEnrollmentTypeNone))
+			s.awaitRunAppleMDMWorkerSchedule()
+			s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
+			s.Do("POST", "/api/latest/fleet/hosts/transfer",
+				&addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
+
+			// Report the personal app only when the command didn't ask for
+			// managed apps, the way a real device does.
+			var refetchManagedOnly *bool
+			drain := func() {
+				cmd, err := device.Idle()
+				require.NoError(t, err)
+				for cmd != nil {
+					switch cmd.Command.RequestType {
+					case "InstalledApplicationList":
+						var fullCmd micromdm.CommandPayload
+						require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+						require.NotNil(t, fullCmd.Command.InstalledApplicationList)
+						managedOnly := fullCmd.Command.InstalledApplicationList.ManagedAppsOnly
+						reported := []fleet.Software{managedApp}
+						if !managedOnly {
+							reported = append(reported, personalApp)
+						}
+						if strings.HasPrefix(cmd.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix) {
+							refetchManagedOnly = &managedOnly
+						}
+						cmd, err = device.AcknowledgeInstalledApplicationList(device.UUID, cmd.CommandUUID, reported)
+						require.NoError(t, err)
+					default:
+						cmd, err = device.Acknowledge(cmd.CommandUUID)
+						require.NoError(t, err)
+					}
+				}
+			}
+
+			s.runWorker()
+			drain()
+
+			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID),
+				&installSoftwareRequest{}, http.StatusAccepted, &installSoftwareResponse{})
+
+			for range 5 {
+				s.runWorker()
+				drain()
+				if refetchManagedOnly != nil {
+					break
+				}
+			}
+			require.NotNil(t, refetchManagedOnly, "no refetch apps command was sent")
+			require.Equal(t, !tc.installedFromDEP, *refetchManagedOnly)
+
+			var getHostSw getHostSoftwareResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+			var names []string
+			for _, sw := range getHostSw.Software {
+				names = append(names, sw.Name)
+			}
+			require.Contains(t, names, managedApp.Name)
+			if tc.installedFromDEP {
+				require.Contains(t, names, personalApp.Name)
+			} else {
+				require.NotContains(t, names, personalApp.Name)
+			}
+		})
+	}
 }

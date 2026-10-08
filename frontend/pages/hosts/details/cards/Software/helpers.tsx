@@ -1,22 +1,88 @@
-import { flatMap } from "lodash";
+import { flatMap, isEqual } from "lodash";
 import { Row } from "react-table";
 
 import { IconNames } from "components/icons";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
-import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
+import {
+  isBYODAccountDrivenUserEnrollment,
+  isBYODManualEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
+import { HostPlatform, isIPadOrIPhone, isMacOS } from "interfaces/platform";
 import {
   IHostSoftware,
   IHostSoftwareUiStatus,
   IHostSoftwareWithUiStatus,
+  MACOS_APP_SOFTWARE_TYPE,
   NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
+import {
+  buildSoftwareFiltersQueryParams,
+  ISoftwareFilters,
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
+import { getNextLocationPath } from "utilities/helpers";
 import { QueryParams } from "utilities/url";
 
 import {
   getLastInstall,
   getLastUninstall,
 } from "../HostSoftwareLibrary/helpers";
+
+/** Written as `types` on a macOS host when nothing is selected, since an absent
+ * `types` re-applies the "macOS app" default. parseSoftwareTypesParam drops it
+ * as an unknown key, leaving an empty selection. */
+export const CLEARED_SOFTWARE_TYPES_PARAM = "none";
+
+interface IHostSoftwareLocationParams {
+  pathname: string;
+  platform: string;
+  query: string;
+  orderKey: string;
+  orderDirection: string;
+  page: number;
+  fleetId?: number;
+  macosApplications?: boolean;
+  filters: ISoftwareFilters;
+}
+
+/** Host software Inventory URL. Every change to the table, filters or Show
+ * helpers goes through here so none of them drops another's params. */
+export const getHostSoftwareLocationPath = ({
+  pathname,
+  platform,
+  query,
+  orderKey,
+  orderDirection,
+  page,
+  fleetId,
+  macosApplications,
+  filters,
+}: IHostSoftwareLocationParams) =>
+  getNextLocationPath({
+    pathPrefix: pathname,
+    routeTemplate: "",
+    queryParams: {
+      query,
+      order_direction: orderDirection,
+      order_key: orderKey,
+      page,
+      fleet_id: fleetId,
+      macos_applications: macosApplications,
+      ...buildSoftwareFiltersQueryParams(filters),
+      ...(isMacOS(platform) &&
+        !filters.types?.length && { types: CLEARED_SOFTWARE_TYPES_PARAM }),
+    },
+  });
+
+/** The macOS default selection narrows nothing the user asked for, so a zero
+ * count under it still means the host reported no software. */
+export const isDefaultTypeSelection = (
+  platform: string,
+  filters: ISoftwareFilters
+) =>
+  isMacOS(platform) &&
+  !filters.vulnerable &&
+  isEqual(filters.types, [MACOS_APP_SOFTWARE_TYPE]);
 
 // available_for_install string > boolean conversion in parseHostSoftwareQueryParams
 export const getHostSoftwareFilterFromQueryParams = (
@@ -184,7 +250,7 @@ export const compareVersions = (v1: string, v2: string): number => {
 
 // INSTALLER UTILITIES
 
-const getInstallerVersion = (software: IHostSoftware) => {
+export const getInstallerVersion = (software: IHostSoftware) => {
   if (software.software_package && software.software_package.version) {
     return software.software_package.version;
   }
@@ -204,7 +270,12 @@ export const getUiStatus = (
   software: IHostSoftware,
   isHostOnline: boolean,
   hostSoftwareUpdatedAt?: string | null,
-  recentlyUpdatedIds?: Set<number>
+  recentlyUpdatedIds?: Set<number>,
+  // Self-service (end-user My device view) omits the "Patch skipped" state
+  // because patch policies are an admin concept, and the end user can already
+  // retry the install directly. Callers there pass true so a skip collapses
+  // back into the ordinary failed_install family.
+  suppressSkippedInstall = false
 ): IHostSoftwareUiStatus => {
   const { status, installed_versions, source } = software;
 
@@ -247,6 +318,13 @@ export const getUiStatus = (
   // would otherwise render "Installed" for a package that was never installed
   // (matters for script packages, which never populate installed_versions).
   if (status === "failed_install") {
+    // A patch-when-closed skip is stored as failed_install; surface it as its
+    // own status instead of "Failed" (matches the policy status page). The
+    // Self-service view opts out via suppressSkippedInstall so an end user
+    // never sees the admin-oriented "Patch skipped" label.
+    if (software.skipped_install && !suppressSkippedInstall) {
+      return "skipped_install";
+    }
     if (
       installerVersion &&
       installed_versions &&
@@ -416,10 +494,14 @@ export const getInstallerActionButtonConfig = (
       case "recently_installed":
       case "recently_updated":
         return { text: "Reinstall", icon: "refresh" };
+      // skipped_install joins the update family: a patch-when-closed skip is
+      // a deferred update, so the action button reads "Update" even though the
+      // label column says "Patch skipped".
       case "pending_update":
       case "updating":
       case "update_available":
       case "failed_uninstall_update_available":
+      case "skipped_install":
         return { text: "Update", icon: "refresh" };
       default:
         return { text: "Install", icon: "install" };
@@ -443,8 +525,9 @@ const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
   "failed_install", // Failed
   "failed_script", // Failed to run (for script packages)
   "failed_uninstall", // Failed uninstall
-  "failed_install_update_available", // (Shows "Update available") Failed install with update available
+  "failed_install_update_available", // (Shows "Failed") Failed install with update available
   "failed_uninstall_update_available", // (Shows "Update available")  Failed uninstall with update available
+  "skipped_install", // Patch skipped (deferred update)
   "update_available", // // Update available
   "updating", // Updating...
   "pending_update", // Update (pending)
@@ -504,12 +587,15 @@ export const getSoftwareSubheader = ({
   isMyDevicePage,
 }: IGetSoftwareSubheader): string => {
   if (isIPadOrIPhone(platform)) {
-    if (hostMdmEnrollmentStatus === "On (manual - personal)") {
+    if (isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus)) {
       return isMyDevicePage
         ? "Software installed on your work profile (Managed Apple Account)."
         : "Software installed on work profile (Managed Apple Account).";
     }
-    if (hostMdmEnrollmentStatus === "On (manual)") {
+    if (
+      hostMdmEnrollmentStatus === "On (manual)" ||
+      isBYODManualEnrollment(hostMdmEnrollmentStatus)
+    ) {
       return "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included.";
     }
   }

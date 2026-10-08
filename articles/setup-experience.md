@@ -38,6 +38,8 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 > (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a
 > new SAML app for IdP authentication. This way, only Fleet users can log in to Fleet.
 
+> If your organization uses Okta, create a dedicated [app sign-in policy](https://help.okta.com/oie/en-us/content/topics/identity-engine/policies/about-app-sign-on-policies.htm) on this SAML app that disallows FastPass. During automatic enrollment (ADE), Fleet end-user authentication runs before Okta Verify is installed, but Okta still offers **Use Okta FastPass**. **Open Okta Verify** then does nothing. If Okta Verify is already present (for example, during an MDM migration), the FastPass pop-up can appear behind **Retrieving enrollment profile**, preventing the user from completing FastPass and causing enrollment to get stuck.
+
 ## End user account type
 
 During setup, the end user's local account is created as either an **admin** or **standard** account. The account type determines what the end user can do on their device.
@@ -94,6 +96,8 @@ Valid values are `"admin"`, `"standard"`, and `"none"`. When set to `"standard"`
 ## Managed local account
 
 Fleet can create a hidden admin account (`_fleetadmin`) with a unique password on each eligible host during setup. IT admins can use this account as a break-glass login for troubleshooting.
+
+> The managed local account is only created during automatic enrollment (ADE). It is not created during [MDM migration](https://fleetdm.com/guides/mdm-migration). Wipe and re-enroll the Mac to get the account.
 
 This feature is available for macOS hosts that automatically enroll via Apple Business (AB) and Windows hosts that automatically enroll via Azure AD. Manually enrolled hosts are not supported.
 
@@ -297,7 +301,31 @@ To reduce these risks:
 - Before a large rollout, confirm your VPP token is valid and you have enough available licenses for the apps you're installing.
 - If available, choose Fleet-maintained app over App Store (VPP) app for better control
 
+### Host stuck during setup experience
+
 If a host gets stuck, you can send the [`DeviceConfigured`](https://developer.apple.com/documentation/devicemanagement/device-configured-command) command using Fleet's [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API to let the end user through.
+
+Generate a `CommandUUID` by running `uuidgen` on macOS, Linux, or use an online [UUID Generator](https://www.uuidgenerator.net/), and use the following example:
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>DeviceConfigured</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>REPLACE-WITH-A-UUID</string>
+</dict>
+</plist>
+```
+You can then send this command using [`fleetctl`](https://fleetdm.com/guides/fleetctl), or via the API.
+
+- `fleetctl mdm run-command --hosts <hostname-or-serial-or-uuid> --payload <path-to-plist>`
+- `POST /api/v1/fleet/commands/run`
 
 ## Run script
 

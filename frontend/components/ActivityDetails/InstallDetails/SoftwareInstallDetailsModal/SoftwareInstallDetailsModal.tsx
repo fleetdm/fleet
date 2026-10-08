@@ -29,6 +29,10 @@ import {
   ISoftwareInstallResult,
   ISoftwareInstallResults,
 } from "interfaces/software";
+import {
+  compareVersions,
+  getInstallerVersion,
+} from "pages/hosts/details/cards/Software/helpers";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import deviceUserAPI from "services/entities/device_user";
@@ -36,6 +40,7 @@ import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
 
+import { isNotifyBeforePatchingSkip } from "../../NotifyBeforePatchingDetailsModal/helpers";
 import {
   INSTALL_DETAILS_STATUS_ICONS,
   SKIPPED_INSTALL_DETAILS,
@@ -108,13 +113,79 @@ export const StatusMessage = ({
     host_display_name,
     software_package,
     software_title,
+    software_display_name,
     status,
     updated_at,
     created_at,
   } = installResult;
+  const displayedTitle = getDisplayedSoftwareName(
+    software_title,
+    software_display_name
+  );
+
+  const formattedHost = host_display_name ? (
+    <b>{host_display_name}</b>
+  ) : (
+    "the host"
+  );
+
+  const displayTimeStamp = ["failed_install", "installed"].includes(
+    status || ""
+  )
+    ? ` (${timeAgo(new Date(updated_at || created_at), {
+        includeSeconds: true,
+        addSuffix: true,
+      })})`
+    : "";
+
+  // A patch-when-closed skip must render its own message even when the host
+  // currently reports the app as installed. The skip is the load-bearing state
+  // (deferred update); collapsing it into "is installed" would hide the
+  // reason the row is flagged.
+  if (skippedInstall && status === "failed_install") {
+    // Notify variant appends "Fleet notifies the end user..." to
+    // pre_install_query_output; patch_when_closed doesn't.
+    const isNotifyVariant = isNotifyBeforePatchingSkip(
+      installResult.pre_install_query_output
+    );
+
+    // Admin-facing pages link "policy runs again" to cadence docs; the end-user
+    // "My device" flow shows plain text since the doc is admin-only.
+    const skippedDetails = isMyDevicePage ? (
+      SKIPPED_INSTALL_DETAILS
+    ) : (
+      <>
+        {SKIPPED_INSTALL_DETAILS_PREFIX}
+        <CustomLink
+          url={SKIPPED_INSTALL_DETAILS_LINK_URL}
+          text={SKIPPED_INSTALL_DETAILS_LINK_TEXT}
+          newTab
+        />
+      </>
+    );
+
+    return (
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName={INSTALL_DETAILS_STATUS_ICONS.skipped_install}
+        iconColor="ui-fleet-black-50"
+        message={
+          <span>
+            Fleet skipped install of <b>{displayedTitle}</b> ({software_package}
+            ) on {formattedHost}
+            {displayTimeStamp}.{" "}
+            {isNotifyVariant
+              ? "The app was open. Fleet notifies the end user 1 hour before the patch is forced."
+              : skippedDetails}
+          </span>
+        }
+      />
+    );
+  }
 
   // Treat failed_install/failed_uninstall with installed versions as installed
-  // as the host still reports installed versions (4.82 #31663)
+  // as the host still reports installed versions (4.82 #31663). Skipped installs
+  // are handled above so this override never masks a patch-when-closed skip.
   const overrideFailureWithInstalled =
     canOverrideFailureWithInstalled &&
     ["failed_install", "failed_uninstall"].includes(status || "");
@@ -133,58 +204,10 @@ export const StatusMessage = ({
     );
   }
 
-  const formattedHost = host_display_name ? (
-    <b>{host_display_name}</b>
-  ) : (
-    "the host"
-  );
-
-  const displayTimeStamp = ["failed_install", "installed"].includes(
-    status || ""
-  )
-    ? ` (${timeAgo(new Date(updated_at || created_at), {
-        includeSeconds: true,
-        addSuffix: true,
-      })})`
-    : "";
-
-  if (skippedInstall && status === "failed_install") {
-    // Admin-facing pages link "policy runs again" to cadence docs; the end-user
-    // "My device" flow shows plain text since the doc is admin-only.
-    const skippedDetails = isMyDevicePage ? (
-      SKIPPED_INSTALL_DETAILS
-    ) : (
-      <>
-        {SKIPPED_INSTALL_DETAILS_PREFIX}
-        <CustomLink
-          url={SKIPPED_INSTALL_DETAILS_LINK_URL}
-          text={SKIPPED_INSTALL_DETAILS_LINK_TEXT}
-          newTab
-        />
-        .
-      </>
-    );
-
-    return (
-      <IconStatusMessage
-        className={`${baseClass}__status-message`}
-        iconName={INSTALL_DETAILS_STATUS_ICONS.skipped_install}
-        iconColor="ui-fleet-black-50"
-        message={
-          <span>
-            Fleet skipped install of <b>{software_title}</b> ({software_package}
-            ) on {formattedHost}
-            {displayTimeStamp}. {skippedDetails}
-          </span>
-        }
-      />
-    );
-  }
-
   const renderStatusCopy = () => {
     const prefix = (
       <>
-        Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>
+        Fleet {getInstallDetailsStatusPredicate(status)} <b>{displayedTitle}</b>
       </>
     );
 
@@ -334,9 +357,11 @@ export const SoftwareInstallDetailsModal = ({
     const outputs = [
       {
         label: "Pre-install query output:",
-        value: detailsFromProps.skipped_install
-          ? SKIPPED_PRE_INSTALL_OUTPUT
-          : swInstallResult?.pre_install_query_output,
+        value:
+          swInstallResult?.pre_install_query_output ||
+          (detailsFromProps.skipped_install
+            ? SKIPPED_PRE_INSTALL_OUTPUT
+            : undefined),
       },
       {
         label: "Install script output:",
@@ -393,6 +418,18 @@ export const SoftwareInstallDetailsModal = ({
   // True when host inventory reports at least one installed version for this app.
   const inventoryReportsInstalled = !!hostSoftware?.installed_versions?.length;
 
+  // True when inventory has a version strictly older than the installer version
+  // (i.e. ui_status is `failed_install_update_available`). In that case the row
+  // reads "Failed" and must open to the failure, not an "is installed" override.
+  const installerVersion = hostSoftware
+    ? getInstallerVersion(hostSoftware)
+    : null;
+  const hasAvailableUpdate =
+    !!installerVersion &&
+    !!hostSoftware?.installed_versions?.some(
+      (iv) => compareVersions(iv.version, installerVersion) === -1
+    );
+
   // This modal is opened in three contexts:
   // - Admin Host -> Software: hostSoftware defined, no deviceAuthToken.
   // - End-user My device: hostSoftware defined, deviceAuthToken present.
@@ -400,20 +437,25 @@ export const SoftwareInstallDetailsModal = ({
   const openedFromHostSoftwarePage = !!hostSoftware;
 
   // Used only for overriding failed_install/failed_uninstall -> "is installed."
-  // - Admin Host -> Software: override based on inventory (4.82 #31663).
-  // - My device: never override — the end user just triggered Update and needs
-  //   to see the failure + Details + Retry (#52017).
+  // - Admin Host -> Software: override only when inventory is on the installer
+  //   version. If an update is still available the row says "Failed" and the
+  //   modal must mirror that; otherwise keep the installed override.
+  // - My device: never override. The end user just triggered Update and needs
+  //   to see the failure + Details + Retry.
   // - Activity feed: never override (always show the failure).
   const canOverrideFailureWithInstalled =
     openedFromHostSoftwarePage && !deviceAuthToken
-      ? inventoryReportsInstalled
+      ? inventoryReportsInstalled && !hasAvailableUpdate
       : false;
 
-  // Treat failed_install / failed_uninstall with installed versions as installed
+  // Treat failed_install / failed_uninstall with installed versions as installed.
+  // Skips escape the override so the Details button + SKIPPED_PRE_INSTALL_OUTPUT
+  // still render on Library rows where inventory reports an older version.
   const overrideFailedMessageWithInstalledMessage =
     canOverrideFailureWithInstalled &&
+    !detailsFromProps.skipped_install &&
     ["failed_install", "failed_uninstall"].includes(
-      swInstallResult?.status || "" || ""
+      swInstallResult?.status || ""
     );
 
   // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)

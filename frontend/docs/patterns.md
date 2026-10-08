@@ -160,11 +160,12 @@ Render the label from the resolved display name, but pass the **raw** `name` to
 #### Display name
 
 **Never render `name` directly in the UI.** Always route software names through
-`getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx`.
-It prefers `display_name`, normalizes known awkward titles (e.g.
-`microsoft.companyportal` → `Company Portal`), and falls back to a sensible
-default. This applies everywhere a software title is shown: table rows, dropdown
-options, modal text, activity feed entries, automation summaries, etc.
+`getDisplayedSoftwareName(name, display_name, bundle_identifier?)` from
+`pages/SoftwarePage/helpers.tsx`. It prefers `display_name`, normalizes known
+awkward titles (e.g. `microsoft.companyportal` → `Company Portal`), and falls back
+to a sensible default. This applies everywhere a software title is shown: table
+rows, dropdown options, modal text, activity feed entries, automation summaries,
+etc.
 
 ```tsx
 // good
