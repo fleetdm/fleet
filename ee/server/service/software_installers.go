@@ -3490,8 +3490,8 @@ func (svc *Service) softwareBatchUpload(
 			// the remaining payloads. With the limit of 1 above, gctx is always
 			// cancelled before the next goroutine starts; in-flight work isn't
 			// interrupted if the limit is raised.
-			if gctx.Err() != nil {
-				return nil
+			if err := gctx.Err(); err != nil {
+				return err
 			}
 
 			// NOTE: cannot defer tfr.Close() here because the reader needs to be
