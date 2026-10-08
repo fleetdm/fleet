@@ -61,6 +61,10 @@ fi`, appPath)
 	fi
 	exit 1
 fi`, appPath)
+				if app.Token == "firefox" {
+					sb.Writef(`sudo chown -R -P root:admin "$APPDIR/%s" || exit $?`, appPath)
+					sb.Writef(`sudo chmod -R -P a=r,a+X,ug+w "$APPDIR/%s" || exit $?`, appPath)
+				}
 			}
 			// Relaunch the app if it was running before installation
 			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
