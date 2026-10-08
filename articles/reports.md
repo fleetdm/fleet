@@ -102,7 +102,7 @@ Here's when each interval runs on a host that never sleeps, and on laptops that 
 | Every hour | On the hour (11:00, 12:00, 13:00, and so on) | On the hour during the workday (about 8 times a day) | On the hour during the workday (about 8 times a day) |
 | Every 6 hours | 00:00, 06:00, 12:00, and 18:00 | Monday 1pm, Tuesday 11am, and Wednesday 9am and 3pm | Monday 10am and 4pm, Tuesday 2pm, and Wednesday noon |
 | Every 12 hours | 00:00 and 12:00 | Tuesday 11am and Wednesday 3pm | Monday 4pm and Wednesday noon |
-| Every day | Midnight (4pm Pacific, 7pm Eastern, or 9am in Tokyo) | 11am every 3 workdays (Tuesday, Friday, then the next Wednesday) | 4pm every 3 workdays (Monday, Thursday, then the next Tuesday) |
+| Every day | Midnight (4pm Pacific, 7pm Eastern, or 9am in Tokyo) | 11am on Tuesday, Friday, and the next Wednesday | 4pm on Monday, Thursday, and the next Tuesday |
 | Every week | Thursday at midnight (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo) | 11am every 21 workdays (about once a month) | 4pm every 21 workdays (about once a month) |
 
 Those are target moments, not exact ones. The first time a host picks up a report, Fleet nudges the interval up or down by up to 10% (configurable via `schedule_splay_percent` in [agent options](https://fleetdm.com/docs/configuration/agent-configuration)) and locks in that adjusted number for that host, so different hosts don't all check in at once. So in practice, an hourly report checks in every 54 to 66 minutes, and a weekly report checks in roughly every 6 to 8 days, consistently for that host. Want to know exactly when a specific host will check in next? Run `SELECT * FROM osquery_schedule` as a live query.
