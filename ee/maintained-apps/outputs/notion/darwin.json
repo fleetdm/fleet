@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.36.1",
+      "version": "7.37.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id' AND version_compare(bundle_short_version, '7.36.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id' AND version_compare(bundle_short_version, '7.37.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'notion.id' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://desktop-release.notion-static.com/Notion-7.36.1-arm64.dmg",
+      "installer_url": "https://desktop-release.notion-static.com/Notion-7.37.1-arm64.dmg",
       "install_script_ref": "48cf3d91",
       "uninstall_script_ref": "ac52c373",
-      "sha256": "e005dd414bb020f1ff2914fab662c21aa43d063824c40f039b364b04a7dfb759",
+      "sha256": "730773ed44c78010968fa3af9ec5d4e5b91021149cbf04b729799091ca785a51",
       "default_categories": [
         "Productivity"
       ]

@@ -703,6 +703,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /europe': {
+    action: 'view-europe',
+    locals: {
+      pageTitleForMeta: 'Device management for Europe',
+      pageDescriptionForMeta: 'Keep device data in the EU. Manage Windows, macOS, Linux, and mobile devices from one independent platform.',
+    }
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
@@ -1447,6 +1455,7 @@ module.exports.routes = {
   'GET /learn-more-about/policy-automation-resend-configuration-profile': '/guides/policy-automation-resend-configuration-profile',
   'GET /learn-more-about/device-attestation': '/guides/what-is-device-attestation',
   'GET /learn-more-about/deleting-a-host': '/guides/enroll-hosts#delete-a-host',
+  'GET /learn-more-about/nixos-package-management': 'https://nixos.org/manual/nixos/stable/#sec-package-management',
 
   // Sitemap
   // =============================================================================================================

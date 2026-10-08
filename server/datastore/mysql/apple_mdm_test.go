@@ -55,6 +55,9 @@ func TestMDMApple(t *testing.T) {
 		{"CleanupExpiredADUEEnrollmentChallenges", testCleanupExpiredADUEEnrollmentChallenges},
 		{"MDMAppleDEPEnrollmentChallenges", testMDMAppleDEPEnrollmentChallenges},
 		{"RotateMDMAppleAutomaticEnrollmentToken", testRotateMDMAppleAutomaticEnrollmentToken},
+		{"ConsumeAppleSCEPChallenge", testConsumeAppleSCEPChallenge},
+		{"SetAppleSCEPChallengeIssuedCert", testSetAppleSCEPChallengeIssuedCert},
+		{"CleanupAppleSCEPChallenges", testCleanupAppleSCEPChallenges},
 		{"GetABMOrganizationNamesAssociatedByDefaultTeams", testGetABMOrganizationNamesAssociatedByDefaultTeams},
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
 		{"GetHostMDMAppleProfilesOrphanedRows", testGetHostMDMAppleProfilesOrphanedRows},
@@ -79,6 +82,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleHostsDiskEncryption", testMDMAppleHostsDiskEncryption},
 		{"TestMDMAppleIdPAccount", testMDMAppleIdPAccount},
 		{"TestAssociateHostMDMIdPAccountFromSSO", testAssociateHostMDMIdPAccountFromSSO},
+		{"TestHostMDMIdPAccountWritesReturnPrevious", testHostMDMIdPAccountWritesReturnPrevious},
 		{"TestIgnoreMDMClientError", testDoNotIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 		{"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
@@ -1731,7 +1735,7 @@ func testPreserveDisplayNameAfterFleetdEnroll(t *testing.T, ds *Datastore) {
 		"MDM enrollment must not overwrite a display name previously set by fleetd")
 
 	// Repeat for the OTA enrollment path which goes through createHostFromMDMDB.
-	err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "",
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "",
 		fleet.MDMAppleMachineInfo{Serial: testSerial, UDID: testUUID, Product: "MacBookPro18,1"})
 	require.NoError(t, err)
 
@@ -2706,6 +2710,7 @@ func upsertHostCPs(
 
 func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	enableMacOSDiskEncryptionForTest(t, ds, nil)
 
 	checkListHosts := func(status fleet.OSSettingsStatus, teamID *uint, expected []*fleet.Host) bool {
 		expectedIDs := []uint{}
@@ -2869,6 +2874,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	// create a team
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
 	require.NoError(t, err)
+	enableMacOSDiskEncryptionForTest(t, ds, &team.ID)
 
 	// add hosts[9] to team
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hosts[9].ID}))
@@ -3381,10 +3387,10 @@ func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Nil(t, idpAccount)
 
-	err = ds.AssociateHostMDMIdPAccount(ctx, host1.UUID, acc1.UUID)
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, host1.UUID, acc1.UUID)
 	require.NoError(t, err)
 
-	err = ds.AssociateHostMDMIdPAccount(ctx, host2.UUID, acc2.UUID)
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, host2.UUID, acc2.UUID)
 	require.NoError(t, err)
 
 	idpAccounts, err = ds.GetMDMIdPAccountsByHostUUIDs(ctx, []string{host1.UUID, host2.UUID})
@@ -3453,6 +3459,74 @@ func testAssociateHostMDMIdPAccountFromSSO(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, bound)
 	require.Equal(t, acc1.UUID, bound.UUID)
+}
+
+func testHostMDMIdPAccountWritesReturnPrevious(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newAcct := func(email string) *fleet.MDMIdPAccount {
+		require.NoError(t, ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Username: email, Email: email}))
+		acct, err := ds.GetMDMIdPAccountByEmail(ctx, email)
+		require.NoError(t, err)
+		return acct
+	}
+	acc1, acc2 := newAcct("prev1@example.com"), newAcct("prev2@example.com")
+
+	requireLinked := func(hostUUID, want string) {
+		t.Helper()
+		got, err := ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == "" {
+			require.Nil(t, got)
+			return
+		}
+		require.NotNil(t, got)
+		require.Equal(t, want, got.UUID)
+	}
+
+	t.Run("enroll ref", func(t *testing.T) {
+		mi := &fleet.MDMAppleMachineInfo{UDID: uuid.NewString()}
+		for _, step := range []struct {
+			ref, wantPrevious string
+		}{
+			{"", ""},               // nothing to remove
+			{acc1.UUID, ""},        // first link
+			{acc1.UUID, acc1.UUID}, // same account again
+			{acc2.UUID, acc1.UUID}, // replaced
+			{"", acc2.UUID},        // removed
+			{"", ""},               // already removed
+		} {
+			_, previous, err := ds.ReconcileMDMAppleEnrollRef(ctx, step.ref, mi)
+			require.NoError(t, err)
+			require.Equal(t, step.wantPrevious, previous, "ref %q", step.ref)
+			requireLinked(mi.UDID, step.ref)
+		}
+	})
+
+	t.Run("associate", func(t *testing.T) {
+		hostUUID := newTestHostWithPlatform(t, ds, "prev-associate-host", "android", nil).UUID
+		previous, err := ds.AssociateHostMDMIdPAccount(ctx, hostUUID, acc1.UUID)
+		require.NoError(t, err)
+		require.Empty(t, previous)
+		previous, err = ds.AssociateHostMDMIdPAccount(ctx, hostUUID, acc2.UUID)
+		require.NoError(t, err)
+		require.Equal(t, acc1.UUID, previous)
+		requireLinked(hostUUID, acc2.UUID)
+	})
+
+	t.Run("ota", func(t *testing.T) {
+		mi := fleet.MDMAppleMachineInfo{UDID: uuid.NewString(), Serial: "OTA-PREV-1", Product: "MacBookPro16,1"}
+		previous, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc1.UUID, mi)
+		require.NoError(t, err)
+		require.Empty(t, previous)
+		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc2.UUID, mi)
+		require.NoError(t, err)
+		require.Equal(t, acc1.UUID, previous)
+		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", mi)
+		require.NoError(t, err)
+		require.Equal(t, acc2.UUID, previous)
+		requireLinked(mi.UDID, "")
+	})
 }
 
 func testDoNotIgnoreMDMClientError(t *testing.T, ds *Datastore) {
@@ -3601,9 +3675,39 @@ func TestInsertABMTokenDuplicateOrg(t *testing.T) {
 	require.NotErrorAs(t, err, &mysqlErr, "raw driver error must not reach the caller")
 }
 
+// enableMacOSDiskEncryptionForTest turns on both macOS disk encryption settings
+// for no team (teamID nil) or the given fleet. A FileVault profile is only
+// delivered while one is on; without them a delivered one is awaiting removal.
+func enableMacOSDiskEncryptionForTest(t *testing.T, ds *Datastore, teamID *uint) {
+	ctx := context.Background()
+	if teamID != nil {
+		tm, err := ds.TeamWithExtras(ctx, *teamID)
+		require.NoError(t, err)
+		tm.Config.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+		tm.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+		_, err = ds.SaveTeam(ctx, tm)
+		require.NoError(t, err)
+		return
+	}
+
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	prev := ac.MDM.MacOSSettings
+	ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+	ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+	require.NoError(t, ds.SaveAppConfig(ctx, ac))
+	t.Cleanup(func() {
+		ac, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.MDM.MacOSSettings = prev
+		require.NoError(t, ds.SaveAppConfig(ctx, ac))
+	})
+}
+
 func TestMDMAppleFileVaultSummary(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := t.Context()
+	enableMacOSDiskEncryptionForTest(t, ds, nil)
 
 	// 10 new hosts
 	var hosts []*fleet.Host
@@ -3840,6 +3944,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	verifyingTeam1Host := hosts[6]
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
 	require.NoError(t, err)
+	enableMacOSDiskEncryptionForTest(t, ds, &tm.ID)
 	team1FVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, tm.ID), nil)
 	require.NoError(t, err)
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{verifyingTeam1Host.ID}))
@@ -5333,6 +5438,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 func TestMDMAppleFileVaultSummary_NullDecryptableKey(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := t.Context()
+	enableMacOSDiskEncryptionForTest(t, ds, nil)
 
 	fvProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, 0), nil)
 	require.NoError(t, err)
@@ -5374,7 +5480,7 @@ func TestMDMAppleFileVaultSummary_NullDecryptableKey(t *testing.T) {
 		profs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 		require.NoError(t, err)
 		mdmData := fleet.MDMHostData{}
-		mdmData.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier, fleet.DiskEncryptionConfig{}, nil)
+		mdmData.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier, fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, nil)
 		require.NotNil(t, mdmData.MacOSSettings)
 		require.NotNil(t, mdmData.MacOSSettings.DiskEncryption)
 		assert.Equal(t, fleet.DiskEncryptionVerifying, *mdmData.MacOSSettings.DiskEncryption,
@@ -10592,7 +10698,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 	wantSerials = append(wantSerials, "abc", "xyz", "ijk", "tuv")
 
 	for _, d := range otaDevices {
-		err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", d)
+		_, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", d)
 		require.NoError(t, err)
 	}
 
@@ -10665,7 +10771,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 		Product: "MacBook Pro",
 		UDID:    hostUDID,
 	}
-	err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo)
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo)
 	require.NoError(t, err)
 
 	host, err := ds.HostByIdentifier(ctx, hostSerial)
@@ -10699,7 +10805,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 	// Re-enrollment of the same hardware must be idempotent: no duplicate
 	// key error, exactly one mapping row, no stale change. host_scim_user
 	// has host_id as the PK, so a raw re-INSERT would fail.
-	err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo)
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo)
 	require.NoError(t, err)
 	var hostCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -10731,7 +10837,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 		Email:    "no.scim@example.com",
 	})
 	require.NoError(t, err)
-	err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, unmatchedIdpUUID, fleet.MDMAppleMachineInfo{
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, unmatchedIdpUUID, fleet.MDMAppleMachineInfo{
 		Serial:  unmatchedHostSerial,
 		Product: "MacBook Pro",
 		UDID:    unmatchedHostUDID,
@@ -10747,7 +10853,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 
 	// Empty idpUUID → no IdP or SCIM mapping created (existing else-branch behavior).
 	const emptyIdpHostSerial = "TAHOEMIGRATED03"
-	err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial:  emptyIdpHostSerial,
 		Product: "MacBook Pro",
 		UDID:    "TAHOE-MIGRATED-UDID-EMPTY",
@@ -12270,9 +12376,11 @@ func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
 
 func testMDMAppleHostsDiskEncryption(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	enableMacOSDiskEncryptionForTest(t, ds, nil)
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
 	require.NoError(t, err)
+	enableMacOSDiskEncryptionForTest(t, ds, &team.ID)
 
 	hostCountEncryptionStatus := func(status fleet.DiskEncryptionStatus, teamID *uint) int {
 		gotHosts, err := ds.ListHosts(
@@ -13658,6 +13766,16 @@ func TestMDMAppleFileVaultSummaryPerPlatformSettings(t *testing.T) {
 		fleet.DiskEncryptionFailed:              ids(8),
 		fleet.DiskEncryptionRemovingEnforcement: ids(9),
 	}
+	// with both settings off the fleet delivers no FileVault profile, so every
+	// delivered one is awaiting removal whatever the key or disk say
+	fileVaultOff := expected{
+		fleet.DiskEncryptionEnforcing:           ids(0),
+		fleet.DiskEncryptionVerifying:           ids(),
+		fleet.DiskEncryptionVerified:            ids(),
+		fleet.DiskEncryptionActionRequired:      ids(),
+		fleet.DiskEncryptionFailed:              ids(8),
+		fleet.DiskEncryptionRemovingEnforcement: ids(1, 2, 3, 4, 5, 6, 7, 9, 10, 11),
+	}
 	// OS settings aggregate: enforcing, action required and removing enforcement
 	// all report as pending.
 	osSettingsStatus := map[fleet.DiskEncryptionStatus]fleet.OSSettingsStatus{
@@ -13736,7 +13854,7 @@ func TestMDMAppleFileVaultSummaryPerPlatformSettings(t *testing.T) {
 	}{
 		{"enforce on, escrow on", true, true, keyBased},
 		{"enforce off, escrow on", false, true, keyBased},
-		{"enforce off, escrow off", false, false, keyBased},
+		{"enforce off, escrow off", false, false, fileVaultOff},
 		{"enforce on, escrow off", true, false, diskBased},
 	} {
 		t.Run(combo.name, func(t *testing.T) {
@@ -13876,7 +13994,8 @@ func testMDMAppleResetEnrollmentScimLink(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Username: email, Fullname: "Given Family", Email: email}))
 		acct, err := ds.GetMDMIdPAccountByEmail(ctx, email)
 		require.NoError(t, err)
-		require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, host.UUID, acct.UUID))
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, acct.UUID)
+		require.NoError(t, err)
 
 		attached, err := ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
 		require.NoError(t, err)
@@ -14407,4 +14526,126 @@ func testRotateMDMAppleAutomaticEnrollmentToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, "token-4", *prev)
 	requireTokenValid("token-6", true)
 	requireTokenValid("token-4", true)
+}
+
+// insertAppleSCEPChallenge inserts a row whose expires_at and consumed_at are offsets from the DB's NOW(6),
+// so tests don't depend on the client and server clocks agreeing. A nil consumedOffset leaves the row unconsumed.
+func insertAppleSCEPChallenge(t *testing.T, ds *Datastore, challenge string, purpose fleet.AppleMDMCertPurpose, expiresOffset time.Duration, consumedOffset *time.Duration) {
+	t.Helper()
+	var consumed any
+	if consumedOffset != nil {
+		consumed = int64(*consumedOffset / time.Second)
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `INSERT INTO mdm_apple_scep_challenges
+			(challenge, purpose, host_uuid, hardware_serial, idp_account_uuid, expires_at, consumed_at)
+			VALUES (?, ?, ?, ?, ?, NOW(6) + INTERVAL ? SECOND, IF(? IS NULL, NULL, NOW(6) + INTERVAL ? SECOND))`,
+			challenge, purpose, "uuid-"+challenge, "serial-"+challenge, "idp-"+challenge,
+			int64(expiresOffset/time.Second), consumed, consumed)
+		return err
+	})
+}
+
+func testConsumeAppleSCEPChallenge(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	_, err := ds.ConsumeAppleSCEPChallenge(ctx, "")
+	require.Error(t, err)
+
+	_, err = ds.ConsumeAppleSCEPChallenge(ctx, "does-not-exist")
+	require.True(t, fleet.IsNotFound(err), err)
+
+	insertAppleSCEPChallenge(t, ds, "valid", fleet.AppleMDMCertPurposeADE, time.Hour, nil)
+	info, err := ds.ConsumeAppleSCEPChallenge(ctx, "valid")
+	require.NoError(t, err)
+	require.Equal(t, &fleet.AppleSCEPChallengeInfo{
+		Purpose:        fleet.AppleMDMCertPurposeADE,
+		UUID:           new("uuid-valid"),
+		Serial:         new("serial-valid"),
+		IDPAccountUUID: new("idp-valid"),
+	}, info)
+
+	// single use
+	_, err = ds.ConsumeAppleSCEPChallenge(ctx, "valid")
+	require.True(t, fleet.IsNotFound(err), err)
+
+	insertAppleSCEPChallenge(t, ds, "expired", fleet.AppleMDMCertPurposeADE, -time.Second, nil)
+	_, err = ds.ConsumeAppleSCEPChallenge(ctx, "expired")
+	require.True(t, fleet.IsNotFound(err), err)
+	var consumedAt *time.Time
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &consumedAt, `SELECT consumed_at FROM mdm_apple_scep_challenges WHERE challenge = 'expired'`)
+	})
+	require.Nil(t, consumedAt)
+
+	// concurrent consumers of the same challenge: exactly one wins
+	insertAppleSCEPChallenge(t, ds, "race", fleet.AppleMDMCertPurposeSCEPRenewal, time.Hour, nil)
+	const workers = 10
+	var wins, losses atomic.Int32
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Go(func() {
+			_, err := ds.ConsumeAppleSCEPChallenge(ctx, "race")
+			switch {
+			case err == nil:
+				wins.Add(1)
+			case fleet.IsNotFound(err):
+				losses.Add(1)
+			default:
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+	wg.Wait()
+	require.EqualValues(t, 1, wins.Load())
+	require.EqualValues(t, workers-1, losses.Load())
+}
+
+func testSetAppleSCEPChallengeIssuedCert(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	getSerial := func(challenge string) *int64 {
+		var serial *int64
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &serial, `SELECT issued_cert_serial FROM mdm_apple_scep_challenges WHERE challenge = ?`, challenge)
+		})
+		return serial
+	}
+
+	insertAppleSCEPChallenge(t, ds, "unconsumed", fleet.AppleMDMCertPurposeADE, time.Hour, nil)
+	require.NoError(t, ds.SetAppleSCEPChallengeIssuedCert(ctx, "unconsumed", 41))
+	require.Nil(t, getSerial("unconsumed"))
+
+	insertAppleSCEPChallenge(t, ds, "consumed", fleet.AppleMDMCertPurposeADE, time.Hour, nil)
+	_, err := ds.ConsumeAppleSCEPChallenge(ctx, "consumed")
+	require.NoError(t, err)
+	require.NoError(t, ds.SetAppleSCEPChallengeIssuedCert(ctx, "consumed", 42))
+	require.Equal(t, new(int64(42)), getSerial("consumed"))
+
+	// first serial sticks
+	require.NoError(t, ds.SetAppleSCEPChallengeIssuedCert(ctx, "consumed", 43))
+	require.Equal(t, new(int64(42)), getSerial("consumed"))
+}
+
+func testCleanupAppleSCEPChallenges(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	day := 24 * time.Hour
+	ago := func(d time.Duration) *time.Duration { d = -d; return &d }
+
+	insertAppleSCEPChallenge(t, ds, "consumed-8d", fleet.AppleMDMCertPurposeADE, -7*day, ago(8*day))
+	insertAppleSCEPChallenge(t, ds, "consumed-6d", fleet.AppleMDMCertPurposeADE, -5*day, ago(6*day))
+	// consumed recently: age is measured from consumption, not expiry
+	insertAppleSCEPChallenge(t, ds, "consumed-1d-expired-8d", fleet.AppleMDMCertPurposeADE, -8*day, ago(day))
+	insertAppleSCEPChallenge(t, ds, "unconsumed-expired-8d", fleet.AppleMDMCertPurposeADE, -8*day, nil)
+	insertAppleSCEPChallenge(t, ds, "unconsumed-expired-6d", fleet.AppleMDMCertPurposeADE, -6*day, nil)
+	insertAppleSCEPChallenge(t, ds, "unconsumed-active", fleet.AppleMDMCertPurposeADE, time.Hour, nil)
+
+	require.NoError(t, ds.CleanupAppleSCEPChallenges(ctx))
+
+	var remaining []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &remaining, `SELECT challenge FROM mdm_apple_scep_challenges WHERE challenge IN (?, ?, ?, ?, ?, ?)`,
+			"consumed-8d", "consumed-6d", "consumed-1d-expired-8d", "unconsumed-expired-8d", "unconsumed-expired-6d", "unconsumed-active")
+	})
+	require.ElementsMatch(t, []string{"consumed-6d", "consumed-1d-expired-8d", "unconsumed-expired-6d", "unconsumed-active"}, remaining)
 }
