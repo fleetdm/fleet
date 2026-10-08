@@ -478,6 +478,7 @@ type agent struct {
 	softwareVSCodeExtensionsCount softwareExtraEntityCount
 	softwareAdobePluginsCount     softwareExtraEntityCount
 	softwareGoBinariesCount       entityCount
+	softwareAIToolsCount          softwareAIToolsCount
 	userCount                     entityCount
 	policyPassProb                float64
 	munkiIssueProb                float64
@@ -583,6 +584,7 @@ type agent struct {
 	softwareVSCodeExtensionsFailProb float64
 	softwareAdobePluginsFailProb     float64
 	softwareGoBinariesFailProb       float64
+	softwareAIToolsFailProb          float64
 
 	softwareInstaller softwareInstaller
 
@@ -696,6 +698,13 @@ type softwareEntityCount struct {
 	homebrewKegPercent                int
 	homebrewLargeKegPercent           int
 }
+type softwareAIToolsCount struct {
+	entityCount
+	// markedApps is the number of the host's apps also reported by ai_tools, which Fleet flags
+	// as AI tools instead of adding new titles.
+	markedApps int
+}
+
 type softwareExtraEntityCount struct {
 	entityCount
 	commonSoftwareUninstallCount int
@@ -744,11 +753,13 @@ func newAgent(
 	softwareVSCodeExtensionsQueryFailureProb float64,
 	softwareAdobePluginsQueryFailureProb float64,
 	softwareGoBinariesQueryFailureProb float64,
+	softwareAIToolsQueryFailureProb float64,
 	softwareInstaller softwareInstaller,
 	softwareCount softwareEntityCount,
 	softwareVSCodeExtensionsCount softwareExtraEntityCount,
 	softwareAdobePluginsCount softwareExtraEntityCount,
 	softwareGoBinariesCount entityCount,
+	softwareAIToolsCount softwareAIToolsCount,
 	userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
@@ -837,6 +848,7 @@ func newAgent(
 		softwareVSCodeExtensionsCount: softwareVSCodeExtensionsCount,
 		softwareAdobePluginsCount:     softwareAdobePluginsCount,
 		softwareGoBinariesCount:       softwareGoBinariesCount,
+		softwareAIToolsCount:          softwareAIToolsCount,
 		userCount:                     userCount,
 		strings:                       make(map[string]string),
 		policyPassProb:                policyPassProb,
@@ -861,6 +873,7 @@ func newAgent(
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
 		softwareAdobePluginsFailProb:     softwareAdobePluginsQueryFailureProb,
 		softwareGoBinariesFailProb:       softwareGoBinariesQueryFailureProb,
+		softwareAIToolsFailProb:          softwareAIToolsQueryFailureProb,
 		softwareInstaller:                softwareInstaller,
 
 		linuxUniqueSoftwareVersion: linuxUniqueSoftwareVersion,
@@ -3217,6 +3230,92 @@ func (a *agent) softwareGoBinaries() []map[string]string {
 	return binaries
 }
 
+// aiHomeDir returns the simulated user's home directory, with a trailing separator.
+func (a *agent) aiHomeDir() string {
+	switch a.os {
+	case "windows":
+		return `C:\Users\fleet\`
+	case "darwin":
+		return "/Users/fleet/"
+	default:
+		return "/home/fleet/"
+	}
+}
+
+func aiToolRow(name, version, source, installedPath, aiType, installMethod string) map[string]string {
+	return map[string]string{
+		"name":              name,
+		"version":           version,
+		"bundle_identifier": "",
+		"extension_id":      "",
+		"extension_for":     "",
+		"source":            source,
+		"vendor":            "",
+		"last_opened_at":    "",
+		"installed_path":    installedPath,
+		"ai_type":           aiType,
+		"ai_install_method": installMethod,
+	}
+}
+
+// softwareAITools generates the rows of the software_ai_tools detail query, covering the shapes
+// the ingestion handles: MCP servers declared in a shared config file and in a second client,
+// one instruction file name at several paths, agent CLIs installed natively (one with a catalog
+// slug that gets a display name), and marker rows at the path of apps the host already reports.
+func (a *agent) softwareAITools() []map[string]string {
+	c := a.softwareAIToolsCount
+	if c.common == 0 && c.unique == 0 && c.markedApps == 0 {
+		return nil
+	}
+
+	home := a.aiHomeDir()
+	sep := "/"
+	if a.os == "windows" {
+		sep = `\`
+	}
+	cursorConfig := home + ".cursor" + sep + "mcp.json"
+	claudeConfig := home + ".claude.json"
+	localBin := home + ".local" + sep + "bin" + sep
+
+	var rows []map[string]string
+	for i := range c.common {
+		name := fmt.Sprintf("common-mcp-server-%d", i)
+		rows = append(rows, aiToolRow(name, "", "mcp_servers", cursorConfig, "mcp_server", "cursor"))
+		if i == 0 {
+			rows = append(rows, aiToolRow(name, "", "mcp_servers", claudeConfig, "mcp_server", "claude"))
+		}
+		cli := fmt.Sprintf("common-ai-cli-%d", i)
+		rows = append(rows, aiToolRow(cli, a.selectSoftwareVersion(cli, "1.0.0", "1.0.1"), "ai_clis", localBin+cli, "agents", "native"))
+	}
+	for i := range c.unique {
+		name := fmt.Sprintf("unique-mcp-server-%s-%d", a.CachedString("hostname"), i)
+		rows = append(rows, aiToolRow(name, "", "mcp_servers", cursorConfig, "mcp_server", "cursor"))
+	}
+	if c.common > 0 || c.unique > 0 {
+		rows = append(rows, aiToolRow("claude-code", a.selectSoftwareVersion("claude-code", "2.0.14", "2.0.15"), "ai_clis", localBin+"claude", "agents", "native"))
+		for _, repo := range []string{"api", "web", "infra"} {
+			rows = append(rows, aiToolRow("CLAUDE.md", "", "ai_skills", home+"src"+sep+repo+sep+"CLAUDE.md", "agent_instruction", "claude"))
+		}
+	}
+
+	// Template apps are reported identically by every simulated Mac, so their paths always match.
+	if a.os == "darwin" {
+		marked := 0
+		for _, app := range macOSSoftware {
+			if marked >= c.markedApps {
+				break
+			}
+			if app["source"] != "apps" || app["installed_path"] == "" {
+				continue
+			}
+			rows = append(rows, aiToolRow(app["name"], app["version"], "ai_tools", app["installed_path"], "apps", "apps"))
+			marked++
+		}
+	}
+
+	return rows
+}
+
 func selectKernels(kernelList []map[string]string) []map[string]string {
 	// Determine number of kernels based on probability distribution
 	r := rand.Float64()
@@ -4136,6 +4235,15 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			results = a.softwareGoBinaries()
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_ai_tools":
+		ss := fleet.StatusOK
+		if a.softwareAIToolsFailProb > 0.0 && rand.Float64() <= a.softwareAIToolsFailProb { //nolint:gosec // ignore weak randomizer
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			results = a.softwareAITools()
+		}
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
@@ -4542,6 +4650,7 @@ func main() {
 		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.0, "Probability of the software vscode_extensions query failing")
 		softwareAdobePluginsQueryFailureProb     = flag.Float64("software_adobe_plugins_query_fail_prob", 0.0, "Probability of the software adobe_plugins query failing")
 		softwareGoBinariesQueryFailureProb       = flag.Float64("software_go_binaries_query_fail_prob", 0.0, "Probability of the software go_binaries query failing")
+		softwareAIToolsQueryFailureProb          = flag.Float64("software_ai_tools_query_fail_prob", 0.0, "Probability of the software ai_tools query failing (Fleet Premium only sends it)")
 
 		softwareInstallerPreInstallFailureProb = flag.Float64("software_installer_pre_install_fail_prob", 0.05,
 			"Probability of the pre-install query failing")
@@ -4556,6 +4665,8 @@ func main() {
 		commonAdobePluginsSoftwareUninstallCount     = flag.Int("common_adobe_plugins_software_uninstall_count", 1, "Number of common adobe_plugins plugins to uninstall")
 		commonAdobePluginsSoftwareUninstallProb      = flag.Float64("common_adobe_plugins_software_uninstall_prob", 0.1, "Probability of uninstalling common_adobe_plugins_software_uninstall_count common plugin/s")
 		commonGoBinariesSoftwareCount                = flag.Int("common_go_binaries_software_count", 5, "Number of common go_binaries binaries reported to fleet")
+		commonAIToolsCount                           = flag.Int("common_ai_tools_count", 3, "Number of common MCP servers and AI CLIs reported by ai_tools")
+		aiToolsMarkedAppsCount                       = flag.Int("ai_tools_marked_apps_count", 2, "Number of macOS template apps also reported by ai_tools, flagged as AI tools")
 		commonSoftwareUninstallCount                 = flag.Int("common_software_uninstall_count", 1, "Number of common software to uninstall")
 		commonVSCodeExtensionsSoftwareUninstallCount = flag.Int("common_vscode_extensions_software_uninstall_count", 1, "Number of common vscode_extensions software to uninstall")
 		commonSoftwareUninstallProb                  = flag.Float64("common_software_uninstall_prob", 0.1, "Probability of uninstalling common_software_uninstall_count unique software/s")
@@ -4567,6 +4678,7 @@ func main() {
 		uniqueAdobePluginsSoftwareUninstallCount     = flag.Int("unique_adobe_plugins_software_uninstall_count", 1, "Number of unique adobe_plugins plugins to uninstall")
 		uniqueAdobePluginsSoftwareUninstallProb      = flag.Float64("unique_adobe_plugins_software_uninstall_prob", 0.1, "Probability of uninstalling unique_adobe_plugins_software_uninstall_count unique plugin/s")
 		uniqueGoBinariesSoftwareCount                = flag.Int("unique_go_binaries_software_count", 1, "Number of unique go_binaries binaries installed on each host")
+		uniqueAIToolsCount                           = flag.Int("unique_ai_tools_count", 1, "Number of unique MCP servers reported by ai_tools on each host")
 		uniqueSoftwareUninstallCount                 = flag.Int("unique_software_uninstall_count", 1, "Number of unique software to uninstall")
 		uniqueVSCodeExtensionsSoftwareUninstallCount = flag.Int("unique_vscode_extensions_software_uninstall_count", 1, "Number of unique vscode_extensions software to uninstall")
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
@@ -4714,6 +4826,9 @@ func main() {
 	}
 	if *uniqueGoBinariesSoftwareCount < 0 {
 		log.Fatalf("Argument unique_go_binaries_software_count cannot be negative, got %d", *uniqueGoBinariesSoftwareCount)
+	}
+	if *commonAIToolsCount < 0 || *uniqueAIToolsCount < 0 || *aiToolsMarkedAppsCount < 0 {
+		log.Fatalf("Arguments common_ai_tools_count, unique_ai_tools_count and ai_tools_marked_apps_count cannot be negative")
 	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
@@ -4881,6 +4996,7 @@ func main() {
 			*softwareVSCodeExtensionsQueryFailureProb,
 			*softwareAdobePluginsQueryFailureProb,
 			*softwareGoBinariesQueryFailureProb,
+			*softwareAIToolsQueryFailureProb,
 			softwareInstaller{
 				preInstallFailureProb:  *softwareInstallerPreInstallFailureProb,
 				installFailureProb:     *softwareInstallerInstallFailureProb,
@@ -4928,6 +5044,11 @@ func main() {
 			entityCount{
 				common: *commonGoBinariesSoftwareCount,
 				unique: *uniqueGoBinariesSoftwareCount,
+			},
+			softwareAIToolsCount{
+				common:     *commonAIToolsCount,
+				unique:     *uniqueAIToolsCount,
+				markedApps: *aiToolsMarkedAppsCount,
 			},
 			entityCount{
 				common: *commonUserCount,
