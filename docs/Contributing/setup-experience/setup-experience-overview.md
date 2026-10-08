@@ -8,6 +8,18 @@ Setup experience has various triggers depending on the platform and MDM enrollme
 
 The orbit `SetupExperiencer` config receiver runs every 30s and requests the current setup experience status. This status lets orbit know if config profiles, software installers and scripts are still pending or finished while those happen asynchronously through MDM and unified queue activities. Once all items are completed, the end user can exit setup experience.
 
+## End user authentication gate (Linux and Windows)
+
+When a team requires end user authentication, `EnrollOrbit` refuses a first-time Linux or Windows enrollment whose hardware UUID has no IdP account linked in `host_mdm_idp_accounts`, answering `401 END_USER_AUTH_REQUIRED`. orbit opens the browser to `/mdm/sso?initiator=setup_experience&host_uuid=<hardware UUID>` and retries the enroll request every 30 seconds until it succeeds.
+
+The `POST /api/v1/fleet/mdm/sso` endpoint is unauthenticated, so it must not accept any host UUID a caller names. Each `401 END_USER_AUTH_REQUIRED` answer also writes a pending marker for that hardware UUID to the Redis key-value store (`eua_pending:<hardware UUID>`, 24h TTL, refreshed on every retry). Initiating the setup experience SSO flow requires that marker; any other host UUID gets the same generic 401 so the endpoint does not reveal which hosts are waiting. A store error also refuses the request. A successful enrollment clears the marker.
+
+The SAML callback links the host to the IdP account it resolved by email. While the marker is still present the link may replace an existing one, which covers an end user correcting a wrong-account sign-in before enrollment completes. Once the marker is gone the callback may only fill in a missing link, never replace one, which covers a sign-in that completes after the device enrolled. The read of the previous link and the conditional write happen in one transaction under a row lock.
+
+Every link is recorded as a `bound_host_to_idp_account` activity, carrying the replaced account when there was one. A sign-in that would have replaced the link of an enrolled host is recorded as `refused_host_idp_account_change`. Both are Fleet-initiated, since the flow has no authenticated user. The trust floor remains the enroll secret: a caller holding one can trigger the 401 and mint a marker, which is why bindings are auditable rather than only gated.
+
+The check runs at initiation only. Re-checking at the SAML callback would fail a legitimate sign-in that finished after orbit's retry enrolled the host through another path.
+
 ## Enqueuing items
 
 Fleet enqueues relevant software installers, VPP apps, and scripts during MDM enrollment for Apple hosts or after orbit calls `setup_experience/init` for Windows and Linux hosts. This is what the end user sees on the web UI.

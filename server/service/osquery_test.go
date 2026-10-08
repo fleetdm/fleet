@@ -634,6 +634,22 @@ func TestEnrollOsquery(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, nodeKey)
 	require.Equal(t, []int{1}, hostCountIncrs)
+
+	// The identity cert is looked up by the derived identifier, not the raw provided one.
+	uuidCfg := config.TestConfig()
+	uuidCfg.Osquery.HostIdentifier = "uuid"
+	uuidSvc, uuidCtx := newTestServiceWithConfig(t, ds, uuidCfg, nil, lq)
+	var certLookupNames []string
+	ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+		certLookupNames = append(certLookupNames, name)
+		return nil, newNotFoundError()
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
+	_, err = uuidSvc.EnrollOsquery(uuidCtx, "valid_secret", "provided-junk", map[string]map[string]string{
+		"osquery_info": {"uuid": "derived-uuid"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"derived-uuid"}, certLookupNames)
 }
 
 func TestEnrollOsqueryCertLoadError(t *testing.T) {
@@ -6475,7 +6491,7 @@ func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
 	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
 		return []fleet.PolicyVPPData{{ID: policyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: true}}, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{ID: hostID, Platform: "darwin"}, nil
 	}
 	ds.MapAdamIDsPendingInstallFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
@@ -6552,7 +6568,7 @@ func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
 	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
 		return []fleet.PolicyVPPData{{ID: policyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: continuousAutomations}}, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{ID: hostID, Platform: "darwin"}, nil
 	}
 	// A stuck queue leaves the command delivered and acknowledged, so neither of the existing

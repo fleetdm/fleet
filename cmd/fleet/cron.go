@@ -3138,6 +3138,12 @@ func newCleanupExpiredADUEChallengesSchedule(
 			}
 			return nil
 		}),
+		schedule.WithJob("cleanup_apple_scep_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupAppleSCEPChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up apple scep challenges")
+			}
+			return nil
+		}),
 	)
 
 	return s, nil
