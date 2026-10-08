@@ -1594,12 +1594,28 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersionHostPrecedence() {
 	}, http.StatusOK, &updateAppStoreAppResponse{})
 	require.Equal(t, resendJobsBeforeLabelsEdit+1, countResendJobs())
 
+	// add version C scoped to label A, after version B
+	var addCResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID: &team.ID, AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, SelfService: true, Name: "Version C",
+		LabelsIncludeAny: []string{labelA.Name},
+	}, http.StatusOK, &addCResp)
+
 	resendJobsBeforeDelete := countResendJobs()
 
 	// delete version A, a configuration re-send should be queued for the hosts that move to version B
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
 		"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addAResp.VersionID))
 	require.Equal(t, resendJobsBeforeDelete+1, countResendJobs())
+
+	// list the software library of the host that installed the deleted version A and is in scope for C only, the title should be listed with version C and not the first-added version B
+	hostSoftwareResp = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", hostInA.ID), nil, http.StatusOK, &hostSoftwareResp,
+		"available_for_install", "true")
+	require.Len(t, hostSoftwareResp.Software, 1)
+	require.NotNil(t, hostSoftwareResp.Software[0].AppStoreApp)
+	require.Equal(t, "Version C", hostSoftwareResp.Software[0].AppStoreApp.VersionName)
+	require.Equal(t, addCResp.VersionID, hostSoftwareResp.Software[0].AppStoreApp.VersionID)
 
 	// delete every remaining version of the app, no configuration re-send should be queued since deleting never removes the app from hosts
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,

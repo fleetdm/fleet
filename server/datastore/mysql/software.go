@@ -4640,8 +4640,8 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 						ua.created_at AS last_install_installed_at,
 						vaua.adam_id AS vpp_app_adam_id,
 						vat.self_service AS vpp_app_self_service,
-						vat.id AS vpp_app_team_id,
-						vat.name AS vpp_app_team_name,
+						vat_installed.id AS vpp_app_team_id,
+						vat_installed.name AS vpp_app_team_name,
 						'pending_install' AS status,
 						ROW_NUMBER() OVER (
 							PARTITION BY vaua.adam_id, vaua.platform, ua.activity_type
@@ -4659,6 +4659,8 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 						ORDER BY vat_fleet.id <=> vaua.vpp_app_team_id DESC, vat_fleet.id
 						LIMIT 1
 					)
+				LEFT JOIN
+					vpp_apps_teams vat_installed ON vat_installed.id = vaua.vpp_app_team_id AND vat_installed.global_or_team_id = :global_or_team_id
 				INNER JOIN
 					vpp_apps ON vaua.adam_id = vpp_apps.adam_id AND vaua.platform = vpp_apps.platform
 				WHERE
@@ -4676,8 +4678,8 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				hvsi.created_at AS last_install_installed_at,
 				hvsi.adam_id AS vpp_app_adam_id,
 				vat.self_service AS vpp_app_self_service,
-				vat.id AS vpp_app_team_id,
-				vat.name AS vpp_app_team_name,
+				vat_installed.id AS vpp_app_team_id,
+				vat_installed.name AS vpp_app_team_name,
 				-- vppAppHostStatusNamedQuery(hvsi, ncr, status)
 				%s
 			FROM
@@ -4702,6 +4704,8 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 					ORDER BY vat_fleet.id <=> hvsi.vpp_app_team_id DESC, vat_fleet.id
 					LIMIT 1
 				)
+			LEFT JOIN
+				vpp_apps_teams vat_installed ON vat_installed.id = hvsi.vpp_app_team_id AND vat_installed.global_or_team_id = :global_or_team_id
 			INNER JOIN
 				vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
 			WHERE
