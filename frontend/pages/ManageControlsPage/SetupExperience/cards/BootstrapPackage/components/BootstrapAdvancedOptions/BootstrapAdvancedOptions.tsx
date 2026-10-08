@@ -66,6 +66,7 @@ const BootstrapAdvancedOptions = ({
       {showAdvancedOptions && (
         <form onSubmit={onSubmit}>
           <GitOpsModeTooltipWrapper
+            isInputField
             renderChildren={(gitopsDisable) => (
               <Card
                 className={`${baseClass}__settings-card`}
