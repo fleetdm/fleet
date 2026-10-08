@@ -58,7 +58,7 @@
   type: patch
   fleet_maintained_app_slug: slack/darwin
   install_software: true
-  patch_when_closed: true
+  notify_before_patching: true
   labels_include_any:
     - Macs with Slack installed
 - name: Zoom up to date (macOS)
@@ -127,7 +127,7 @@
   type: patch
   fleet_maintained_app_slug: utm/darwin
   install_software: true
-  patch_when_closed: true
+  notify_before_patching: true
   labels_include_any:
     - Macs with UTM installed
 - name: Postman up to date
@@ -226,7 +226,7 @@
   type: patch
   fleet_maintained_app_slug: whatsapp/darwin
   install_software: true
-  patch_when_closed: true
+  notify_before_patching: true
   labels_include_any:
     - Macs with WhatsApp installed
 - name: Android Studio up to date
