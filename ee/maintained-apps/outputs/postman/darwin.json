@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "12.31.3",
+      "version": "12.31.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.postmanlabs.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.postmanlabs.mac' AND version_compare(bundle_short_version, '12.31.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.postmanlabs.mac' AND version_compare(bundle_short_version, '12.31.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.postmanlabs.mac' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.pstmn.io/download/version/12.31.3/osx_arm64",
+      "installer_url": "https://dl.pstmn.io/download/version/12.31.6/osx_arm64",
       "install_script_ref": "0e85ef74",
       "uninstall_script_ref": "727f8e9d",
-      "sha256": "1fdffd5952fbf0105cf4d4e0032c34f1fa466753e8dfc7c28d0f500cd0d004ee",
+      "sha256": "04bd5795e0dfbf5365f2e6796cdfd4b1104e71bdae77868cd80fd6467a4e2c6a",
       "default_categories": [
         "Developer tools"
       ]
