@@ -1030,6 +1030,9 @@ func TestHostDetailsLoadsAndroidDeviceVitals(t *testing.T) {
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostDetailsOSSettings(t *testing.T) {
 	ds := new(mock.Store)
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 	ds.ListAppleProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
 		return nil, nil
 	}
@@ -1291,6 +1294,9 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 
 func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	ds := new(mock.Store)
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 	ds.ListAppleProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
 		return nil, nil
 	}
@@ -1416,6 +1422,9 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 
 func TestHostDetailsHostNameStatus(t *testing.T) {
 	ds := new(mock.Store)
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 	ds.ListAppleProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
 		return nil, nil
 	}
@@ -1555,6 +1564,9 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 
 func TestHostDetailsOSUpdates(t *testing.T) {
 	ds := new(mock.Store)
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 	ds.ListAppleProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
 		return nil, nil
 	}

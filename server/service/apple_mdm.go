@@ -8091,7 +8091,13 @@ func renewMDMAppleEnrollmentProfile(
 	}
 
 	if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID, profileName); err != nil {
-		return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", uuids)
+		// The command is queued, so devices still get it at their next check-in.
+		// Returning here would leave every later host in the run (and in future
+		// runs) without a renewal.
+		if _, isNotifErr := errors.AsType[*apple_mdm.NotificationFailedError](err); !isNotifErr {
+			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", uuids)
+		}
+		logger.ErrorContext(ctx, "sending push notifications for SCEP renewal", "command_uuid", cmdUUID, "host_count", len(uuids), "err", err)
 	}
 
 	if err := ds.SetCommandForPendingSCEPRenewal(ctx, assocs, cmdUUID); err != nil {

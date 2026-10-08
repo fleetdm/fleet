@@ -796,7 +796,8 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 			svc.ds,
 			svc.logger,
 			worker.MacosSetupAssistantProfileChanged,
-			newAsst.TeamID); err != nil {
+			newAsst.TeamID,
+		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
 		}
 
@@ -805,7 +806,8 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 				TeamID:   newAsst.TeamID,
 				TeamName: teamName,
 				Name:     newAsst.Name,
-			}); err != nil {
+			},
+		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for changed macos setup assistant")
 		}
 	}
@@ -891,7 +893,8 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 			svc.ds,
 			svc.logger,
 			worker.MacosSetupAssistantProfileDeleted,
-			teamID); err != nil {
+			teamID,
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile deleted job")
 		}
 
@@ -908,7 +911,8 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 				TeamID:   teamID,
 				TeamName: teamName,
 				Name:     prevAsst.Name,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for deleted macos setup assistant")
 		}
 	}
@@ -977,7 +981,8 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	}
 	acsURL := sso.CallbackURL(parsedURL, svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback").String()
 
-	samlProvider, err := sso.SAMLProviderFromConfiguredMetadata(ctx,
+	samlProvider, err := sso.SAMLProviderFromConfiguredMetadata(
+		ctx,
 		mdmSSOSettings.EntityID,
 		acsURL,
 		&mdmSSOSettings,
@@ -1012,7 +1017,8 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	}
 
 	sessionDurationSeconds = int(svc.config.Auth.SsoSessionValidityPeriod.Seconds())
-	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
+	sessionID, idpURL, err = sso.CreateAuthorizationRequest(
+		ctx,
 		samlProvider, svc.ssoSessionStore, originalURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
 		fleet.SSORelayStateNone,
@@ -1278,7 +1284,8 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		// already include it, so the subpath is present exactly once.
 		acsURL := sso.CallbackURL(parsedServerURL, svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
 
-		expectedAudiences = append(expectedAudiences,
+		expectedAudiences = append(
+			expectedAudiences,
 			appConfig.ServerSettings.ServerURL,
 			acsURL.String(),
 		)

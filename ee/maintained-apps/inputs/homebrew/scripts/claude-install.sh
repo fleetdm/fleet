@@ -122,9 +122,12 @@ if [[ -z "$target_user" || "$target_user" == "root" || "$target_user" == "loginw
   # last user that logged in.
   target_user=$(defaults read /Library/Preferences/com.apple.loginwindow lastUserName 2>/dev/null)
 fi
-if [[ -n "$target_user" && "$target_user" != "root" ]] && id -u "$target_user" >/dev/null 2>&1; then
-  sudo chown -R "$target_user":staff "$APPDIR/Claude.app"
-  echo "Assigned ownership of Claude.app to '$target_user' so Claude can auto-update."
+if [[ -n "$target_user" && "$target_user" != "root" && "$target_user" != "_mbsetupuser" ]] && id -u "$target_user" >/dev/null 2>&1; then
+  if sudo chown -R "$target_user":staff "$APPDIR/Claude.app"; then
+    echo "Assigned ownership of Claude.app to '$target_user' so Claude can auto-update."
+  else
+    echo "Failed to assign ownership of Claude.app to '$target_user'; Claude will prompt the user to fix ownership before it can auto-update."
+  fi
 else
   echo "No logged-in (or last logged-in) user found; Claude.app stays owned by root and Claude will prompt the user to fix ownership before it can auto-update."
 fi

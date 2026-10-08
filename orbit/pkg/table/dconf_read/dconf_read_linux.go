@@ -8,11 +8,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
 )
+
+// NixOS has no /usr/bin: sudo is a setuid wrapper in /run/wrappers/bin and system
+// packages are linked into /run/current-system/sw/bin.
+var (
+	sudoPaths  = []string{"/usr/bin/sudo", "/run/wrappers/bin/sudo"}
+	dconfPaths = []string{"/usr/bin/dconf", "/run/current-system/sw/bin/dconf"}
+)
+
+func firstExisting(paths []string) string {
+	for _, p := range paths {
+		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+			return p
+		}
+	}
+	return ""
+}
 
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
@@ -47,7 +67,20 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, errors.New("missing key")
 	}
 
-	cmd := exec.Command("/usr/bin/sudo", "-u", username, "/usr/bin/dconf", "read", key)
+	sudoPath := firstExisting(sudoPaths)
+	if sudoPath == "" {
+		return nil, fmt.Errorf("sudo not found in %v", sudoPaths)
+	}
+	dconfCandidates := slices.Clone(dconfPaths)
+	if !strings.ContainsRune(username, '/') {
+		dconfCandidates = append(dconfCandidates, filepath.Join("/etc/profiles/per-user", username, "bin", "dconf"))
+	}
+	dconfPath := firstExisting(dconfCandidates)
+	if dconfPath == "" {
+		return nil, fmt.Errorf("dconf not found in %v", dconfCandidates)
+	}
+
+	cmd := exec.Command(sudoPath, "-u", username, dconfPath, "read", key)
 	var (
 		stdout bytes.Buffer
 		stderr bytes.Buffer
