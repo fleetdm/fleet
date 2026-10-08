@@ -286,14 +286,13 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
-	if input.Token == "i1profiler" || input.Token == "outset" {
+	if input.Token == "i1profiler" {
 		// X-Rite versions the cask by CFBundleVersion (e.g. "3.8.7.19247"), while
 		// i1Profiler.app's CFBundleShortVersionString is only the marketing version
 		// ("3.8.7"), so version_compare(bundle_short_version, <cask version>) < 0 is
 		// always true and the default patch policy can never pass. Compare
 		// bundle_version so patch status tracks the installed build; software
-		// inventory still reports the short version. Outset is the same shape
-		// (cask "4.2.0.21973" = CFBundleVersion; short version "4.2.0").
+		// inventory still reports the short version.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
 			out.UniqueIdentifier, out.Version,
