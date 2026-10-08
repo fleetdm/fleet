@@ -40,6 +40,24 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 
 > If your organization uses Okta, create a dedicated [app sign-in policy](https://help.okta.com/oie/en-us/content/topics/identity-engine/policies/about-app-sign-on-policies.htm) on this SAML app that disallows FastPass. During automatic enrollment (ADE), Fleet end-user authentication runs before Okta Verify is installed, but Okta still offers **Use Okta FastPass**. **Open Okta Verify** then does nothing. If Okta Verify is already present (for example, during an MDM migration), the FastPass pop-up can appear behind **Retrieving enrollment profile**, preventing the user from completing FastPass and causing enrollment to get stuck.
 
+## Rejected automatic enrollments
+
+When **Require IdP authentication** is turned on for a fleet, Fleet only accepts automatic enrollments (ADE) where the end user signs in with your IdP. Fleet rejects enrollments that present the fleet's static enrollment token instead.
+
+This can happen when:
+
+- A device was assigned to a different fleet in Apple Business (AB), downloaded that fleet's static enrollment URL, and was then transferred to a fleet with **Require IdP authentication** turned on.
+- **Require IdP authentication** was turned on after the device already downloaded the static enrollment URL.
+
+When Fleet rejects an enrollment, the activity feed shows "Fleet rejected an automatic enrollment for {host} because IdP authentication is required." On the host's **Activity** card, select **Show details** to see the rejection reason (`end_user_authentication_required`) and the host's identifiers. Repeated rejections within 12 hours don't create additional activity.
+
+### Reactivate the device
+
+The device has to go through IdP sign-in to enroll:
+
+- **Mac:** Erase the Mac and go through Setup Assistant again. The IdP sign-in page appears at Remote Management. On a Mac that's already set up, running `sudo profiles renew -type enrollment` may also re-trigger automatic enrollment.
+- **iPhone or iPad:** Restore the device in DFU mode, then go through Setup Assistant again.
+
 ## End user account type
 
 During setup, the end user's local account is created as either an **admin** or **standard** account. The account type determines what the end user can do on their device.
