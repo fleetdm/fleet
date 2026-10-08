@@ -5085,7 +5085,7 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 }
 
 func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	mkHost := func(i int) *fleet.Host {
@@ -5164,6 +5164,14 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 	linkInstall(host1.ID, installer1)
 	linkInstall(host2.ID, installer2)
 
+	hostIDs := func(hs []*fleet.Host) []uint {
+		ids := make([]uint, 0, len(hs))
+		for _, h := range hs {
+			ids = append(ids, h.ID)
+		}
+		return ids
+	}
+
 	// Installer filter narrows to the one host that received installer1.
 	// Tested without a title filter at the datastore layer — transport
 	// enforces the title_id requirement; datastore just applies the EXISTS
@@ -5172,12 +5180,14 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 		SoftwareInstallerIDFilter: &installer1,
 	}, 1)
 	require.Equal(t, host1.ID, hosts[0].ID)
+	require.NotContains(t, hostIDs(hosts), host3.ID)
 
 	// Switching to installer2 picks up the other host.
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
 		SoftwareInstallerIDFilter: &installer2,
 	}, 1)
 	require.Equal(t, host2.ID, hosts[0].ID)
+	require.NotContains(t, hostIDs(hosts), host3.ID)
 
 	// Unknown installer id returns 0.
 	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
@@ -5237,16 +5247,14 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 		AppStoreAppVersionIDFilter: &version1,
 	}, 1)
 	require.Equal(t, host1.ID, hosts[0].ID)
+	require.NotContains(t, hostIDs(hosts), host3.ID)
 
 	// And version2 picks up the other host.
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
 		AppStoreAppVersionIDFilter: &version2,
 	}, 1)
 	require.Equal(t, host2.ID, hosts[0].ID)
-
-	// Host3 shows up in neither filter.
-	_ = host3
-	_ = vppTitleID
+	require.NotContains(t, hostIDs(hosts), host3.ID)
 }
 
 func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
