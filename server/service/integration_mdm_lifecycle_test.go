@@ -1786,20 +1786,31 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		host, err := s.ds.HostByIdentifier(ctx, dev.SerialNumber)
 		require.NoError(t, err)
 		firstEnrollID := lastEnrolledActivityID()
+		// the renewal cron sends ACME only to hosts with a reported macOS 14+ version
+		require.NoError(t, s.ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{Name: "macOS", Platform: "darwin", Version: dev.OSVersion}))
 
-		// Genuine ACME renewal short-circuits: no new mdm_enrolled. A bound cert is a renewal by its purpose, so
-		// re-key from an acme_renewal enrollment for this host, as the renewal profile hands out.
+		// Genuine ACME renewal short-circuits: no new mdm_enrolled. The device re-keys from the renewal profile the
+		// cron pushed, whose ACME enrollment is an acme_renewal bound to this host.
 		forcePendingRenewal(host.UUID)
-		renewalIdent, err := s.acmeSvc.NewACMEEnrollment(ctx, dev.SerialNumber)
+		var renewalACMEURL string
+		cmd, err := dev.Idle()
+		for ; cmd != nil && err == nil; cmd, err = dev.Acknowledge(cmd.CommandUUID) {
+			if cmd.Command.RequestType != "InstallProfile" {
+				continue
+			}
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			payload := fullCmd.Command.InstallProfile.Payload
+			if p7, err := pkcs7.Parse(payload); err == nil {
+				payload = p7.Content
+			}
+			if info, err := mdmtest.ParseEnrollmentProfile(payload); err == nil && info.ACMEURL != "" {
+				renewalACMEURL = info.ACMEURL
+			}
+		}
 		require.NoError(t, err)
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE acme_enrollments SET purpose = ?, enrollment_id = ? WHERE path_identifier = ?`,
-				fleet.AppleMDMCertPurposeACMERenewal, host.UUID, renewalIdent)
-			return err
-		})
-		freshDirectoryURL := dev.EnrollInfo.ACMEURL
-		acmePathPrefix := freshDirectoryURL[:strings.Index(freshDirectoryURL, "/acme/")+len("/acme/")]
-		require.NoError(t, dev.UseACMEDirectory(acmePathPrefix+renewalIdent+"/directory"))
+		require.NotEmpty(t, renewalACMEURL, "the renewal cron should have queued an ACME renewal profile")
+		require.NoError(t, dev.UseACMEDirectory(renewalACMEURL))
 		dev.SimulateSCEPRenewal = true
 		require.NoError(t, dev.ACMEEnroll())
 		require.NoError(t, dev.Authenticate())
