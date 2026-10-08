@@ -134,7 +134,7 @@ const EditVersionModal = ({
 
       notify.success(
         <>
-          Successfully edited <strong>{data.name}</strong>.
+          Successfully updated <strong>{data.name}</strong>.
         </>
       );
       queryClient.invalidateQueries({
@@ -148,7 +148,7 @@ const EditVersionModal = ({
       routeVersionNameError(
         e,
         setServerErrors,
-        "Couldn't edit. Please try again."
+        "Couldn't update. Please try again."
       );
     }
   };
