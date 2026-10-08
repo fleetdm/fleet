@@ -2316,6 +2316,44 @@ describe("Activity Feed", () => {
     expect(screen.queryByText(/\(Default version\)/)).toBeNull();
   });
 
+  // The self-service and skipped-install branches of installedSoftware both
+  // weave in versionSuffix. Pin both so a future refactor can't drop the suffix
+  // on either path silently.
+  it("appends the version name on a self-service iOS install_app_store_app activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        host_display_name: "iPhone",
+        host_platform: "ios",
+        version_name: "Production",
+        self_service: true,
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/\(Production\)/)).toBeInTheDocument();
+  });
+
+  it("appends the version name on a skipped-install iOS install_app_store_app activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        host_display_name: "iPhone",
+        host_platform: "ios",
+        version_name: "Production",
+        skipped_install: true,
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/\(Production\)/)).toBeInTheDocument();
+  });
+
   // Parallel suffix logic for add / edit / delete routes through the same
   // helper; one iOS positive + one macOS negative per activity type covers it.
   it.each([

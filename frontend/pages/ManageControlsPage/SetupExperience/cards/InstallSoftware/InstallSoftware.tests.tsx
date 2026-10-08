@@ -126,7 +126,7 @@ describe("InstallSoftware", () => {
 
         expect(
           await screen.findByText(
-            /so first added version will be always installed/i
+            /so the first-added version will always be installed/i
           )
         ).toBeVisible();
       }
@@ -146,7 +146,9 @@ describe("InstallSoftware", () => {
 
       expect(await screen.findByRole("button", { name: "Save" })).toBeVisible();
       expect(
-        screen.queryByText(/so first added version will be always installed/i)
+        screen.queryByText(
+          /so the first-added version will always be installed/i
+        )
       ).toBeNull();
     });
   });

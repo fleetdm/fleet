@@ -21,7 +21,7 @@ const generateHelpText = (platform: SetupExperiencePlatform) => {
     case "ipados":
     case "android":
       // Versioned platforms: disclaim that labels don't apply during setup.
-      return "Software will be installed on all hosts. Currently, custom targets (labels) don't apply during setup experience, so first added version will be always installed.";
+      return "Software will be installed on all hosts. Currently, custom targets (labels) don't apply during setup experience, so the first-added version will always be installed.";
     default:
       return "Software will be installed on all hosts. Currently, custom targets (labels) don't apply during setup experience.";
   }
