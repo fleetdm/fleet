@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import React from "react";
 
-import { notify } from "components/ToastNotification";
 import {
   createMockHostSoftwarePackage,
   createMockHostAppStoreApp,
@@ -13,6 +12,7 @@ import {
   createMockAppStoreApp,
   createMockAppStoreAppVersion,
 } from "__mocks__/softwareMock";
+import { notify } from "components/ToastNotification";
 import { ISoftwareInstallPolicy } from "interfaces/software";
 
 import {
@@ -363,7 +363,7 @@ describe("routeVersionNameError", () => {
             {
               name: "base",
               reason:
-                "A version named \"Production\" already exists for this app in this fleet.",
+                'A version named "Production" already exists for this app in this fleet.',
             },
           ],
         },
@@ -374,7 +374,7 @@ describe("routeVersionNameError", () => {
 
     expect(setServerErrors).toHaveBeenCalledWith({
       name:
-        "A version named \"Production\" already exists for this app in this fleet.",
+        'A version named "Production" already exists for this app in this fleet.',
     });
     expect(notifyError).not.toHaveBeenCalled();
   });
@@ -397,12 +397,18 @@ describe("routeVersionNameError", () => {
       },
     };
 
-    routeVersionNameError(err, setServerErrors, "Couldn't update. Please try again.");
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
 
     expect(setServerErrors).not.toHaveBeenCalled();
     expect(notifyError).toHaveBeenCalledWith(
       "Couldn't update. Please try again.",
-      { response: err }
+      {
+        response: err,
+      }
     );
   });
 });

@@ -36,10 +36,10 @@ interface IAddVersionModalProps {
   /** When true, the "Target" field defaults to `Custom` so the admin's label
    * scope wins the first-added race. Set when adding the 2nd+ version. */
   defaultTargetCustom?: boolean;
-  /** Auto-update schedule pre-fill. Set by the caller when exactly one
-   * version already exists on this title so the Add form suggests the same
-   * schedule; each version still stores its own schedule server-side. Admins
-   * can toggle it off or change times before saving. */
+  /** Auto-update schedule pre-fill. Set by the caller when every existing
+   * version on this title shares the same schedule so the Add form suggests
+   * it; each version still stores its own schedule server-side. Admins can
+   * toggle it off or change times before saving. */
   defaultAutoUpdate?: {
     enabled: boolean;
     windowStart: string;

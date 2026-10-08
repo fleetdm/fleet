@@ -1116,7 +1116,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
 
-	// insertVPPAppTeams clears the window when enabled=false, so don't log a window the datastore didn't store.
+	// Only log the window when enabled=true; insertVPPAppTeams drops it otherwise, and the activity shouldn't claim stored values that weren't.
 	act := fleet.ActivityAddedAppStoreApp{
 		AppStoreID:       app.AdamID,
 		Platform:         app.Platform,
