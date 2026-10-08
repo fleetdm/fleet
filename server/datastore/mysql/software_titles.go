@@ -1516,9 +1516,9 @@ WHERE va.title_id = ? AND vat.global_or_team_id = ?
 }
 
 func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
-	// TODO(JK): return a row per instance with its id, this returns the first-added instance of each title
 	stmt := `
 SELECT
+	vat.id AS vpp_app_team_id,
 	vat.global_or_team_id AS team_id,
 	va.title_id,
 	vat.update_schedule_enabled AS auto_update_enabled,
@@ -1528,10 +1528,6 @@ FROM vpp_apps_teams vat
 JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 JOIN software_titles st ON st.id = va.title_id
 WHERE vat.global_or_team_id = ? AND st.source = ? AND (vat.update_schedule_enabled = 1 OR vat.start_time != '')
-	AND vat.id = (
-		SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
-		WHERE vat2.adam_id = vat.adam_id AND vat2.platform = vat.platform AND vat2.global_or_team_id = vat.global_or_team_id
-	)
 `
 
 	args := []any{teamID, source}

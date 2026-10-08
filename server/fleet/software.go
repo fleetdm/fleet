@@ -393,8 +393,9 @@ type SoftwareAutoUpdateConfig struct {
 }
 
 type SoftwareAutoUpdateSchedule struct {
-	TitleID uint `json:"title_id" db:"title_id"`
-	TeamID  uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TitleID      uint `json:"title_id" db:"title_id"`
+	TeamID       uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	VPPAppTeamID uint `json:"-" db:"vpp_app_team_id"`
 	SoftwareAutoUpdateConfig
 }
 

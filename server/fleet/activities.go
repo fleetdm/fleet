@@ -1674,20 +1674,21 @@ func (a ActivityDeletedAppStoreApp) ActivityName() string {
 }
 
 type ActivityInstalledAppStoreApp struct {
-	HostID              uint    `json:"host_id"`
-	HostDisplayName     string  `json:"host_display_name"`
-	SoftwareTitle       string  `json:"software_title"`
-	AppStoreID          string  `json:"app_store_id"`
-	CommandUUID         string  `json:"command_uuid"`
-	Status              string  `json:"status,omitempty"`
-	SelfService         bool    `json:"self_service"`
-	PolicyID            *uint   `json:"policy_id"`
-	PolicyName          *string `json:"policy_name"`
-	HostPlatform        string  `json:"host_platform"`
-	FromSetupExperience bool    `json:"from_setup_experience"`
-	FromAutoUpdate      bool    `json:"from_auto_update"`
-	FailureReason       string  `json:"failure_reason,omitempty"`
-	VersionName         string  `json:"version_name,omitempty"`
+	HostID                  uint    `json:"host_id"`
+	HostDisplayName         string  `json:"host_display_name"`
+	SoftwareTitle           string  `json:"software_title"`
+	AppStoreID              string  `json:"app_store_id"`
+	CommandUUID             string  `json:"command_uuid"`
+	Status                  string  `json:"status,omitempty"`
+	SelfService             bool    `json:"self_service"`
+	PolicyID                *uint   `json:"policy_id"`
+	PolicyName              *string `json:"policy_name"`
+	HostPlatform            string  `json:"host_platform"`
+	FromSetupExperience     bool    `json:"from_setup_experience"`
+	FromAutoUpdate          bool    `json:"from_auto_update"`
+	FromConfigurationResend bool    `json:"from_configuration_resend"`
+	FailureReason           string  `json:"failure_reason,omitempty"`
+	VersionName             string  `json:"version_name,omitempty"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -1699,7 +1700,7 @@ func (a ActivityInstalledAppStoreApp) ActivityName() string {
 }
 
 func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
-	return a.PolicyID != nil || a.FromSetupExperience || a.FromAutoUpdate
+	return a.PolicyID != nil || a.FromSetupExperience || a.FromAutoUpdate || a.FromConfigurationResend
 }
 
 func (a ActivityInstalledAppStoreApp) MustActivateNextUpcomingActivity() bool {

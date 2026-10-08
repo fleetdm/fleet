@@ -1020,6 +1020,8 @@ type PatchPolicyData struct {
 type SoftwarePackageOrApp struct {
 	// AppStoreID is only present for VPP apps.
 	AppStoreID string `json:"app_store_id,omitempty"`
+	// VersionName is only present for VPP apps.
+	VersionName string `json:"version_name,omitempty"`
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
 	// AutomaticInstallPolicies is present for Fleet maintained apps and custom packages
@@ -1475,14 +1477,16 @@ type HostSoftwareInstallOptions struct {
 	DeferActivation bool
 	// VPPAppTeamID is the vpp_apps_teams row an App Store app install is for.
 	VPPAppTeamID uint
+	// ForConfigurationResend means the install request re-sends an iOS/iPadOS App Store app configuration, which means it was Fleet-initiated.
+	ForConfigurationResend bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
-// Software installs initiated via a policy, scheduled updates or setup
-// experience are fleet-initiated (and we also make sure SelfService is false,
-// as this case is always user-initiated).
+// Software installs initiated via a policy, scheduled updates, configuration
+// re-sends or setup experience are fleet-initiated (and we also make sure
+// SelfService is false, as this case is always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates || o.ForSetupExperience)
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates || o.ForConfigurationResend || o.ForSetupExperience)
 }
 
 // Priority returns the upcoming activities queue priority to use for this

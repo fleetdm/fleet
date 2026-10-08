@@ -399,7 +399,7 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 	}
 
 	// The iOS app has two versions with their own labels.
-	ds.GetVPPAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
+	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
 		require.EqualValues(t, 30, titleID)
 		return []*fleet.VPPAppStoreApp{
 			{

@@ -43,6 +43,7 @@ func TestSetupExperience(t *testing.T) {
 		{"CrossPlatformShScripts", testSetupExperienceCrossPlatformShScripts},
 		{"CrossPlatformPyScripts", testSetupExperienceCrossPlatformPyScripts},
 		{"FirstAddedPerTitleNoDoubleQueue", testEnqueueSetupExperienceFirstAddedPerTitle},
+		{"FirstAddedAppStoreAppVersionNoDoubleQueue", testEnqueueSetupExperienceFirstAddedAppStoreAppVersion},
 		{"InHouseApps", testSetupExperienceInHouseApps},
 		{"EnqueueInHouseApps", testEnqueueSetupExperienceInHouseApps},
 	}
@@ -1789,12 +1790,13 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			Source:              ptr.String("apps"),
 		},
 		{
-			HostUUID:        hostUUID,
-			Name:            "vpp",
-			Status:          fleet.SetupExperienceStatusPending,
-			VPPAppTeamID:    ptr.Uint(vppAppsTeamsID),
-			SoftwareTitleID: ptr.Uint(vppApp.TitleID),
-			Source:          ptr.String("apps"),
+			HostUUID:          hostUUID,
+			Name:              "vpp",
+			Status:            fleet.SetupExperienceStatusPending,
+			VPPAppTeamID:      new(vppAppsTeamsID),
+			VPPAppVersionName: new(fleet.DefaultAppStoreAppVersionName),
+			SoftwareTitleID:   new(vppApp.TitleID),
+			Source:            new("apps"),
 		},
 		{
 			HostUUID:                hostUUID,
@@ -3110,4 +3112,75 @@ func testEnqueueSetupExperienceFirstAddedPerTitle(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, enqueued)
 	assertSinglePackageQueued()
+}
+
+func testEnqueueSetupExperienceFirstAddedAppStoreAppVersion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "se-app-store-app-versions"})
+	require.NoError(t, err)
+
+	const adamID = "66665555"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+
+	cases := []struct {
+		name    string
+		fleetID uint
+	}{
+		{name: "no team", fleetID: 0},
+		{name: "team", fleetID: team.ID},
+	}
+	for _, c := range cases {
+		t.Log(c.name)
+		fleetID := c.fleetID
+
+		// add two versions of the app and flag both for setup
+		var versionA *fleet.VPPApp
+		if c.fleetID == 0 {
+			versionA, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID, fleet.IOSPlatform, nil)
+		} else {
+			versionA, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+				Name:             "SetupVersionsApp",
+				AdamID:           adamID,
+				Platform:         fleet.IOSPlatform,
+				BundleIdentifier: "com.example." + adamID,
+			}, &team.ID, nil)
+		}
+		require.NoError(t, err)
+		require.NotNil(t, versionA)
+		versionB, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			Name:             "SetupVersionsApp",
+			BundleIdentifier: "com.example." + adamID,
+			AdamID:           adamID,
+			Platform:         fleet.IOSPlatform,
+			VersionName:      "Beta",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "UPDATE vpp_apps_teams SET install_during_setup = 1 WHERE id IN (?, ?)", versionA.AppTeamID, versionB.AppTeamID)
+			return err
+		})
+
+		hostUUID := "se-app-store-app-versions-" + c.name
+		_, err = ds.NewHost(ctx, &fleet.Host{
+			Hostname:       hostUUID,
+			UUID:           hostUUID,
+			Platform:       "ios",
+			HardwareSerial: hostUUID,
+		})
+		require.NoError(t, err)
+
+		// enqueue setup experience items, only the first-added version should be queued
+		enqueued, err := ds.EnqueueSetupExperienceItems(ctx, "ios", "ios", hostUUID, fleetID)
+		require.NoError(t, err)
+		require.True(t, enqueued)
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, fleetID)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.NotNil(t, results[0].VPPAppTeamID)
+		require.Equal(t, versionA.AppTeamID, *results[0].VPPAppTeamID)
+		require.NotNil(t, results[0].VPPAppVersionName)
+		require.Equal(t, fleet.DefaultAppStoreAppVersionName, *results[0].VPPAppVersionName)
+	}
 }

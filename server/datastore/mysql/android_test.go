@@ -3926,13 +3926,13 @@ func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(configuration), string(retrieved))
 
 	// test bulk-get configuration
-	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID}, 0)
+	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []uint{appTeamID})
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
 	require.Equal(t, string(retrieved), string(configsByAppID[appID]))
 
 	// bulk-get configuration returns any known app config, ignores others
-	configsByAppID, err = ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID, "no-such-app"}, 0)
+	configsByAppID, err = ds.BulkGetAndroidAppConfigurations(testCtx(), []uint{appTeamID, 999999})
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
 	require.Equal(t, string(retrieved), string(configsByAppID[appID]))

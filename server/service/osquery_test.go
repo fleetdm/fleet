@@ -6454,8 +6454,11 @@ func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
 	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 1, VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: platform}}}, nil
 	}
-	ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
-		return true, nil
+	ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{0: {VPPAppTeamID: 1, AdamID: adamID, InScope: true}}, nil
+	}
+	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
+		return &fleet.VPPApp{AppTeamID: 1, AdamID: adamID, Platform: fleet.MacOSPlatform}, nil
 	}
 
 	var installCalled bool
@@ -6540,8 +6543,11 @@ func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
 	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 1, VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: platform}}}, nil
 	}
-	ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
-		return true, nil
+	ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{0: {VPPAppTeamID: 1, AdamID: adamID, InScope: true}}, nil
+	}
+	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
+		return &fleet.VPPApp{AppTeamID: 1, AdamID: adamID, Platform: fleet.MacOSPlatform}, nil
 	}
 
 	var (
@@ -6623,8 +6629,8 @@ func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
 			{ID: policyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: true},
 		}, nil
 	}
-	ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
-		return false, nil
+	ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{0: {VPPAppTeamID: 1, AdamID: adamID, InScope: false}}, nil
 	}
 	installs = nil
 	outOfScope := newFailingMap()
