@@ -23,6 +23,7 @@ To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleet
 3. Copy the command to generate fleetd and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 
 4. Install fleetd on your host(s) to enroll it to Fleet.
+   > On macOS, if a host is enrolled through ADE, or manually enrolled by installing an MDM enrollment profile, the fleetd agent is automatically deployed via an MDM command.
 
 #### Mobile devices
 
