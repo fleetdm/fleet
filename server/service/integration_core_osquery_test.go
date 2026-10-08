@@ -124,6 +124,8 @@ func (s *integrationTestSuite) TestDistributedReadWithChangedQueries() {
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 	require.Contains(t, dqResp.Queries["fleet_detail_query_software_macos"], "FROM apps")
 	require.Contains(t, dqResp.Queries["fleet_detail_query_users"], "FROM users")
+	// AI tools inventory is Fleet Premium only.
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_software_ai_tools")
 }
 
 func (s *integrationTestSuite) TestOsqueryConfig() {

@@ -502,6 +502,9 @@ func TestTranslateSoftwareToCPEExcludedSources(t *testing.T) {
 	require.Contains(t, excludedSources[0], "ios_apps")
 	require.Contains(t, excludedSources[0], "ipados_apps")
 	require.Contains(t, excludedSources[0], "go_binaries")
+	require.Contains(t, excludedSources[0], "ai_clis")
+	require.Contains(t, excludedSources[0], "mcp_servers")
+	require.Contains(t, excludedSources[0], "ai_skills")
 }
 
 // TestTranslateSoftwareToCPEIgnoreEmptyVersion tests that TranslateSoftwareToCPE ignores

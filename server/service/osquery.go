@@ -2417,6 +2417,16 @@ func preProcessSoftwareResults(
 		preProcessSoftwareExtraResults(ctx, fullQueryName, host.ID, results, statuses, messages, query, logger)
 	}
 
+	// Merged last so every row it can flag is already present, including rows the overrides add
+	// or re-append.
+	aiToolsExtraQuery := hostDetailQueryPrefix + "software_ai_tools"
+	aiToolsMerge := osquery_utils.DetailQuery{
+		SoftwareProcessResults: func(mainRows, aiRows []map[string]string) []map[string]string {
+			return osquery_utils.AIToolsProcessResults(host.Platform, mainRows, aiRows)
+		},
+	}
+	preProcessSoftwareExtraResults(ctx, aiToolsExtraQuery, host.ID, results, statuses, messages, aiToolsMerge, logger)
+
 	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
 
