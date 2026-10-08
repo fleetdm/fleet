@@ -371,7 +371,6 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 		"source": "chrome_extensions",
 		"extension_id": "test-extension-id",
 		"extension_for": "chrome",
-		"ai_tool": false,
 		"display_name": "",
 		"browser": "chrome",
 		"release": "1",
@@ -1406,7 +1405,7 @@ func TestParseSoftwareTypeFilter(t *testing.T) {
 func TestSoftwareAIToolNotPartOfIdentity(t *testing.T) {
 	sw := Software{Name: "Claude", Version: "1.2.4", Source: "apps", BundleIdentifier: "com.anthropic.claudefordesktop"}
 	flagged := sw
-	flagged.AITool = true
+	flagged.AITool = new(true)
 
 	require.Equal(t, sw.ToUniqueStr(), flagged.ToUniqueStr())
 	want, err := sw.ComputeRawChecksum()

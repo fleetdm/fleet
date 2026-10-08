@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -40,6 +41,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
 		{"ListSoftwareTitlesTypeFilter", testListSoftwareTitlesTypeFilter},
+		{"ListSoftwareTitlesAIToolFilter", testListSoftwareTitlesAIToolFilter},
 		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
 		{"ListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam", testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam},
 		{"ListSoftwareTitlesPackagesOnly", testSoftwareTitlesPackagesOnly},
@@ -742,6 +744,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 			VersionsCount:   title.VersionsCount,
 			Versions:        title.Versions,
 			CountsUpdatedAt: title.CountsUpdatedAt,
+			AITool:          title.AITool,
 		},
 	)
 
@@ -794,7 +797,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// ListSoftwareTitles does not populate version host counts, so we do that manually
 	titles[0].Versions[0].HostsCount = ptr.Uint(1)
-	assert.Equal(t, titles[0], fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, ExtensionFor: title.ExtensionFor, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt})
+	assert.Equal(t, fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, ExtensionFor: title.ExtensionFor, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt, AITool: title.AITool}, titles[0])
 
 	// Testing the team 2 user
 	titles, count, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, TeamID: &team2.ID}, fleet.TeamFilter{
@@ -3479,4 +3482,153 @@ func testListSoftwareTitlesTypeFilter(t *testing.T, ds *Datastore) {
 			require.ElementsMatch(t, c.want, listAll(t, opts))
 		})
 	}
+}
+
+func testListSoftwareTitlesAIToolFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	teamHost := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	noTeamHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{teamHost.ID})))
+
+	res, err := ds.UpdateHostSoftware(ctx, teamHost.ID, []fleet.Software{
+		{Name: "Claude", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude", AITool: new(true)},
+		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "codex", Version: "1.0", Source: "ai_clis", AITool: new(true)},
+	})
+	require.NoError(t, err)
+	// The second codex version isn't flagged; the title still is.
+	_, err = ds.UpdateHostSoftware(ctx, noTeamHost.ID, []fleet.Software{
+		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "github", Version: "", Source: "mcp_servers", AITool: new(true)},
+		{Name: "codex", Version: "2.0", Source: "ai_clis"},
+	})
+	require.NoError(t, err)
+	for _, s := range res.Inserted {
+		if s.Name == "Claude" || s.Name == "Slack" {
+			_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: s.ID, CVE: "CVE-2024-0001"}, fleet.NVDSource)
+			require.NoError(t, err)
+		}
+	}
+
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "setup script",
+		Source:          "sh_packages",
+		InstallScript:   "echo",
+		Filename:        "setup.sh",
+		Extension:       "sh",
+		Platform:        "linux",
+		TeamID:          &tm.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	tmFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+
+	// listAll lists every page with a small page size, asserts the reported count matches the list
+	// and returns each title's ai_tool by name.
+	listAll := func(t *testing.T, opts fleet.SoftwareTitleListOptions) map[string]bool {
+		t.Helper()
+		opts.ListOptions.IncludeMetadata = true
+		opts.ListOptions.PerPage = 2
+
+		got := make(map[string]bool)
+		var totalCount int
+		for page := uint(0); ; page++ {
+			opts.ListOptions.Page = page
+			titles, count, meta, err := ds.ListSoftwareTitles(ctx, opts, tmFilter)
+			require.NoError(t, err)
+			if page == 0 {
+				totalCount = count
+			}
+			require.Equal(t, totalCount, count)
+			for _, title := range titles {
+				require.NotContains(t, got, title.Name)
+				require.NotNil(t, title.AITool, title.Name)
+				got[title.Name] = *title.AITool
+			}
+			require.NotNil(t, meta)
+			if !meta.HasNextResults {
+				break
+			}
+			require.Len(t, titles, 2)
+		}
+		require.Len(t, got, totalCount)
+		return got
+	}
+
+	for _, teamID := range []*uint{nil, &tm.ID} {
+		t.Run(fmt.Sprintf("ai_tool field team=%v", teamID != nil), func(t *testing.T) {
+			want := map[string]bool{"Claude": true, "Slack": false, "codex": true}
+			if teamID == nil {
+				want["github"] = true
+			} else {
+				want["setup script"] = false
+			}
+			require.Equal(t, want, listAll(t, fleet.SoftwareTitleListOptions{TeamID: teamID}))
+		})
+	}
+
+	cases := []struct {
+		name       string
+		source     string
+		vulnerable bool
+		query      string
+		noTeam     []string
+		team       []string
+	}{
+		{name: "ai_tool", noTeam: []string{"Claude", "codex", "github"}, team: []string{"Claude", "codex"}},
+		{name: "with source", source: "apps", noTeam: []string{"Claude"}, team: []string{"Claude"}},
+		{name: "with AI source", source: "mcp_servers", noTeam: []string{"github"}, team: nil},
+		{name: "with vulnerable", vulnerable: true, noTeam: []string{"Claude"}, team: []string{"Claude"}},
+		{name: "with search", query: "c", noTeam: []string{"Claude", "codex"}, team: []string{"Claude", "codex"}},
+	}
+	for _, c := range cases {
+		filter, err := fleet.ParseSoftwareTypeFilter(c.source, "")
+		require.NoError(t, err)
+		for _, teamID := range []*uint{nil, &tm.ID} {
+			want := c.noTeam
+			if teamID != nil {
+				want = c.team
+			}
+			for _, orderKey := range []string{"hosts_count", "name"} {
+				t.Run(fmt.Sprintf("%s team=%v order=%s", c.name, teamID != nil, orderKey), func(t *testing.T) {
+					opts := fleet.SoftwareTitleListOptions{
+						ListOptions:    fleet.ListOptions{OrderKey: orderKey, MatchQuery: c.query},
+						TeamID:         teamID,
+						VulnerableOnly: c.vulnerable,
+						TypeFilter:     filter,
+						AITool:         true,
+					}
+					if orderKey == "hosts_count" && !c.vulnerable && c.query == "" {
+						require.True(t, canUseOptimizedListTitlesQuery(opts))
+					}
+					got := listAll(t, opts)
+					require.ElementsMatch(t, want, slices.Collect(maps.Keys(got)))
+					for name, aiTool := range got {
+						require.True(t, aiTool, name)
+					}
+				})
+			}
+		}
+	}
+
+	t.Run("by id", func(t *testing.T) {
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &tm.ID}, tmFilter)
+		require.NoError(t, err)
+		require.NotEmpty(t, titles)
+		for _, listed := range titles {
+			title, err := ds.SoftwareTitleByID(ctx, listed.ID, &tm.ID, tmFilter)
+			require.NoError(t, err)
+			require.NotNil(t, title.AITool, listed.Name)
+			require.Equal(t, *listed.AITool, *title.AITool, listed.Name)
+		}
+	})
 }

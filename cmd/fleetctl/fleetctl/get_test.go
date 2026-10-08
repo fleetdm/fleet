@@ -1192,7 +1192,6 @@ spec:
   source: chrome_extensions
   browser: chrome
   extension_for: chrome
-  ai_tool: false
   display_name: ""
   version: 0.0.1
   vulnerabilities:
@@ -1210,7 +1209,6 @@ spec:
   extension_id: xyz
   browser: edge
   extension_for: edge
-  ai_tool: false
   display_name: ""
   vulnerabilities: null
 - generated_cpe: someothercpewithoutvulns
@@ -1219,7 +1217,6 @@ spec:
   source: chrome_extensions
   browser: chrome
   extension_for: chrome
-  ai_tool: false
   display_name: ""
   version: 0.0.3
   vulnerabilities: null
@@ -1231,7 +1228,6 @@ spec:
   source: deb_packages
   browser: ""
   extension_for: ""
-  ai_tool: false
   display_name: ""
   version: 0.0.3
   vulnerabilities: null
@@ -1249,7 +1245,6 @@ spec:
       "source": "chrome_extensions",
 	  "browser": "chrome",
 	  "extension_for": "chrome",
-	  "ai_tool": false,
 	  "display_name": "",
       "generated_cpe": "somecpe",
       "vulnerabilities": [
@@ -1273,7 +1268,6 @@ spec:
       "extension_id": "xyz",
       "browser": "edge",
 	  "extension_for": "edge",
-	  "ai_tool": false,
 	  "display_name": "",
       "generated_cpe": "",
       "vulnerabilities": null
@@ -1285,7 +1279,6 @@ spec:
       "source": "chrome_extensions",
 	  "browser": "chrome",
 	  "extension_for": "chrome",
-	  "ai_tool": false,
 	  "display_name": "",
       "generated_cpe": "someothercpewithoutvulns",
       "vulnerabilities": null
@@ -1299,7 +1292,6 @@ spec:
       "display_name": "",
       "browser": "",
 	  "extension_for": "",
-	  "ai_tool": false,
       "generated_cpe": "",
       "vulnerabilities": null,
       "last_opened_at": "2022-01-01T00:00:00Z"

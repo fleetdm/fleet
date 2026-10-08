@@ -1,0 +1,1 @@
+- Fleet Premium: added the `ai_tool` filter to `GET /software/titles`, `GET /software/versions`, `GET /hosts/:id/software` and `GET /device/:token/software`, and an `ai_tool` field on software titles, versions and host software. The field is omitted on Fleet Free.

@@ -2046,6 +2046,10 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusUnprocessableEntity, c.params...)
 		require.Contains(t, extractServerErrorText(res.Body), c.reason)
 	}
+	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusPaymentRequired, "ai_tool", "true")
+	require.NoError(t, res.Body.Close())
+	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, "source", "mcp_servers")
+	require.NoError(t, res.Body.Close())
 	getHostSoftwareResp = getHostSoftwareResponse{}
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID),

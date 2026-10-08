@@ -200,6 +200,10 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusUnprocessableEntity, c.params...)
 		require.Contains(t, extractServerErrorText(res.Body), c.reason)
 	}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusPaymentRequired, "ai_tool", "true")
+	require.NoError(t, res.Body.Close())
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK, "source", "mcp_servers")
+	require.NoError(t, res.Body.Close())
 	var deviceSoftwareResp getDeviceSoftwareResponse
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK,
 		"source", "chrome_extensions", "extension_for", "brave,edge", "per_page", "1")
