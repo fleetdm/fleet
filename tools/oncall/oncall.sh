@@ -14,7 +14,7 @@ Usage:
 Commands:
     issues      List open issues from outside contributors.
     prs [-v|-s] List open prs from outside contributors.
-                -v also lists the linked issue's labels, the assignee and the pr link.
+                -v also lists whether the pr was manually tested, the linked issue's labels, the assignee and the pr link.
                 -s prints one Slack mrkdwn line per pr, with links and short dates.
 EOF
 }
@@ -110,9 +110,8 @@ prs() {
 			| [
 				"<\(.url)|#\(.url | split("/") | last)>",
 				short_date,
-				(if $issue == "" then "no issue" else "issue <https://github.com/fleetdm/fleet/issues/\($issue)|#\($issue)>" end),
-				(if manually_tested == "" then "not tested" else "tested" end),
-				.author.login,
+				(if $issue == "" then "no issue" else "<https://github.com/fleetdm/fleet/issues/\($issue)|#\($issue)>" end),
+				(.author.login | if startswith("app/") then "<https://github.com/apps/\(ltrimstr("app/"))|@\(.)>" else "<https://github.com/\(.)|@\(.)>" end),
 				(.title | gsub("[\\r\\n\\t]"; " ") | slack_escape)
 			]
 			| join(" · ")' <<<"$prs_json"
@@ -131,7 +130,9 @@ prs() {
 	jq -r --argjson members "$members" --argjson issue_labels "$issue_labels" --arg verbose "$verbose" "$defs"'
 		[open_prs
 		| .[]
-		| [(.url | split("/") | last), .createdAt, linked_issue, manually_tested, .author.login]
+		| [(.url | split("/") | last), .createdAt, linked_issue]
+		+ (if $verbose == "" then [] else [manually_tested] end)
+		+ [.author.login]
 		+ (if $verbose == "" then [] else [([.assignees[].login] | join(", ")), .url] end)
 		+ [(.title | gsub("[\\r\\n\\t]"; " "))]
 		+ (if $verbose == "" then [] else [($issue_labels[linked_issue] // "")] end)]

@@ -2868,7 +2868,7 @@ func TestEnrollOrbitRecordsPendingEndUserAuth(t *testing.T) {
 		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
 			return &fleet.MDMIdPAccount{UUID: "acct-uuid-1"}, nil
 		}
-		ds.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, acctUUID string) error { return nil }
+		ds.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, acctUUID string) (string, error) { return acctUUID, nil }
 
 		nodeKey, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
 		require.NoError(t, err)
@@ -2904,6 +2904,36 @@ func TestEnrollOrbitRecordsPendingEndUserAuth(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, pending)
 	})
+}
+
+func TestEnrollOrbitLogsIdPAccountLink(t *testing.T) {
+	opts := &TestServerOpts{}
+	ds, svc, ctx := newEnrollOrbitEUATestService(t, true, config.TestConfig(), opts)
+
+	ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return &fleet.MDMIdPAccount{UUID: "acct-uuid-1"}, nil
+	}
+	ds.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, acctUUID string) (string, error) {
+		return "acct-uuid-0", nil
+	}
+	ds.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+		return &fleet.MDMIdPAccount{UUID: uuid, Email: uuid + "@example.com"}, nil
+	}
+	var activities []fleet.ActivityTypeBoundHostToIdPAccount
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+		if bound, ok := act.(fleet.ActivityTypeBoundHostToIdPAccount); ok {
+			activities = append(activities, bound)
+		}
+		return nil
+	}
+
+	_, err := svc.EnrollOrbit(euaCtx(ctx), enrollOrbitEUATestHostInfo, "secret", "")
+	require.NoError(t, err)
+	require.Equal(t, []fleet.ActivityTypeBoundHostToIdPAccount{{
+		HostUUID:         enrollOrbitEUATestHostInfo.HardwareUUID,
+		IdPEmail:         "acct-uuid-1@example.com",
+		ReplacedIdPEmail: "acct-uuid-0@example.com",
+	}}, activities)
 }
 
 // enrollOrbitEUATestHostInfo is a first-time Linux enrollment, the shape both

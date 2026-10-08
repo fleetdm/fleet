@@ -337,6 +337,21 @@
                           </div>
                         </div>
                       </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="europe" href="/europe">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-europe-40x40@2x.png" alt="Europe">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Device management for Europe
+                            </p>
+                            <p purpose="nav-item-body">
+                              Keep device data in the EU. Manage Windows, macOS, Linux, and mobile devices from one independent platform.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
                     </div>
 
                     <hr>
@@ -593,6 +608,21 @@
                             </p>
                             <p purpose="nav-item-body">
                               Move faster with AI, safely and in your control.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="europe" href="/europe">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-europe-40x40@2x.png" alt="Europe">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Device management for Europe
+                            </p>
+                            <p purpose="nav-item-body">
+                              Keep device data in the EU.
                             </p>
                           </div>
                         </div>
@@ -980,6 +1010,7 @@
     <script src="/js/pages/entrance/login.page.js"></script>
     <script src="/js/pages/entrance/new-password.page.js"></script>
     <script src="/js/pages/entrance/signup.page.js"></script>
+    <script src="/js/pages/europe.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
     <script src="/js/pages/fast-track.page.js"></script>
     <script src="/js/pages/fleet-premium-trial.page.js"></script>
@@ -1159,7 +1190,7 @@
       });
     </script>
     <script>
-      // Sends search queries to a scoped Google search.
+      // Sends search queries to a scoped Google search. (Searches from the handbook are scoped to /handbook.)
       document.addEventListener('submit', function(event) {
         var form = event.target.closest('form[purpose="google-search"]');
         if (!form) { return; }
@@ -1167,7 +1198,8 @@
         var input = form.querySelector('input');
         var searchQuery = (input ? input.value : '').trim();
         if (!searchQuery) { return; }
-        window.open('https://www.google.com/search?q=' + encodeURIComponent('site:fleetdm.com ' + searchQuery), '_blank', 'noopener');
+        var searchScope = /^\/handbook(\/|$)/.test(window.location.pathname) ? 'site:fleetdm.com/handbook ' : 'site:fleetdm.com ';
+        window.open('https://www.google.com/search?q=' + encodeURIComponent(searchScope + searchQuery), '_blank', 'noopener');
       });
     </script>
     <% if (sails.config.environment === 'production') { %>

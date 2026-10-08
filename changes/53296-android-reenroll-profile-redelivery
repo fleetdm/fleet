@@ -1,0 +1,1 @@
+- Fixed Android hosts that were factory reset or re-enrolled showing their configuration profiles as verified while none of the profile settings were applied. Fleet now re-sends the host's profiles after assigning the host its own policy, and only verifies profiles against the host's own policy.

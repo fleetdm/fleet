@@ -492,6 +492,10 @@ type QueryResultRowsFunc func(ctx context.Context, queryID uint, filter fleet.Te
 
 type QueryResultRowsForHostFunc func(ctx context.Context, queryID uint, hostID uint) ([]*fleet.ScheduledQueryResultRow, error)
 
+type QueryResultRowsForHostByQueryFunc func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error)
+
+type UpdateQueryResultsLastFetchedFunc func(ctx context.Context, ids []uint, lastFetched time.Time) error
+
 type ResultCountForQueryAndHostFunc func(ctx context.Context, queryID uint, hostID uint) (int, error)
 
 type ResultCountsForQueriesFunc func(ctx context.Context, queryIDs []uint) (map[uint]int, error)
@@ -499,6 +503,8 @@ type ResultCountsForQueriesFunc func(ctx context.Context, queryIDs []uint) (map[
 type OverwriteQueryResultRowsFunc func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int, currentCount int) (fleet.QueryReportWriteResult, error)
 
 type CleanupDiscardedQueryResultsFunc func(ctx context.Context) error
+
+type CleanupStaleQueryResultsFunc func(ctx context.Context) error
 
 type CleanupExcessQueryResultRowsFunc func(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
 
@@ -765,6 +771,8 @@ type PolicyQueriesForHostFilteredFunc func(ctx context.Context, host *fleet.Host
 type GetSetupExperiencePolicyResultFunc func(ctx context.Context, hostID uint, policyID uint, since time.Time) (*bool, error)
 
 type ClearHostPolicyMembershipForPoliciesFunc func(ctx context.Context, hostID uint, policyIDs []uint) error
+
+type StalePolicyIDsForHostFunc func(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error)
 
 type ClearHostPolicyUpdatedAtFunc func(ctx context.Context, hostID uint) error
 
@@ -1166,7 +1174,7 @@ type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []go
 
 type SetHostMDMMigrationCompletedFunc func(ctx context.Context, hostID uint) error
 
-type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) error
+type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) (previousAcctUUID string, err error)
 
 type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error
 
@@ -1282,9 +1290,9 @@ type DeactivateHostDeviceNameCommandsFunc func(ctx context.Context, hostUUIDs []
 
 type SetHostDeviceNameStatusFunc func(ctx context.Context, hostUUID string, status fleet.MDMDeliveryStatus, commandUUID *string, expectedName string, detail string) error
 
-type UpdateHostDeviceNameStatusFromCommandFunc func(ctx context.Context, commandUUID string, acknowledged bool, detail string) error
+type UpdateHostDeviceNameStatusFromCommandFunc func(ctx context.Context, commandUUID string, acknowledged bool, detail string, retryable bool) (fleet.DeviceNameRetryOutcome, error)
 
-type UpdateHostDeviceNameStatusFromReportFunc func(ctx context.Context, hostUUID string, reportedName string) error
+type UpdateHostDeviceNameStatusFromReportFunc func(ctx context.Context, hostUUID string, reportedName string) (fleet.DeviceNameRetryOutcome, error)
 
 type GetHostDeviceNameEnforcementFunc func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error)
 
@@ -1500,11 +1508,11 @@ type DeactivateMDMAppleHostSCEPRenewCommandsFunc func(ctx context.Context, hostU
 
 type ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc func(ctx context.Context, limit int) ([]string, error)
 
-type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
+type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (legacyRef string, previousAcctUUID string, err error)
 
 type GetMDMIdPAccountByHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error)
 
-type AssociateHostMDMIdPAccountFunc func(ctx context.Context, hostUUID string, accountUUID string) error
+type AssociateHostMDMIdPAccountFunc func(ctx context.Context, hostUUID string, accountUUID string) (previousAcctUUID string, err error)
 
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
@@ -1517,6 +1525,8 @@ type MDMWindowsInsertEnrolledDeviceFunc func(ctx context.Context, device *fleet.
 type MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc func(ctx context.Context, mdmDeviceHWID string) (string, error)
 
 type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
+
+type MDMWindowsGetEnrolledDeviceWithHardwareIDFunc func(ctx context.Context, mdmHardwareID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
 type MDMWindowsEnqueuePollScheduleCommandFunc func(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *fleet.MDMWindowsCommand, relaxed bool) error
 
@@ -1540,6 +1550,8 @@ type MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc func(ctx context.Cont
 
 type WindowsHostLiteByHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.HostLite, error)
 
+type WindowsHostLiteByUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.HostLite, error)
+
 type MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc func(ctx context.Context, mdmDeviceID string, hardwareSerial string) error
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error)
@@ -1547,6 +1559,8 @@ type MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc func(ctx context.
 type MDMWindowsConflictingEnrollmentHardwareIDFunc func(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error)
 
 type MDMWindowsClaimEnrolledActivityFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
+
+type MDMWindowsSetEnrollmentFleetdPresentFunc func(ctx context.Context, enrollmentID uint, hostUUID string) error
 
 type MDMWindowsReleaseEnrolledActivityClaimFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error
 
@@ -2178,6 +2192,12 @@ type AndroidResetOnReenrollmentFunc func(ctx context.Context, hostID uint, hostU
 
 type BulkUpsertMDMAndroidHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error
 
+type GetMDMAndroidProfilesWriteTimeFunc func(ctx context.Context) (time.Time, error)
+
+type BulkUpsertMDMAndroidHostProfilesUnlessResetSinceFunc func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, since time.Time) error
+
+type ResetMDMAndroidHostProfilesForRedeliveryFunc func(ctx context.Context, hostUUID string) error
+
 type BulkDeleteMDMAndroidHostProfilesFunc func(ctx context.Context, hostUUID string, policyVersionID int64) error
 
 type ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
@@ -2484,6 +2504,14 @@ type ConsumeADUEEnrollmentChallengeFunc func(ctx context.Context, challenge stri
 
 type CleanupExpiredADUEEnrollmentChallengesFunc func(ctx context.Context) error
 
+type InsertMDMAppleDEPEnrollmentChallengeFunc func(ctx context.Context, idpAccountUUID string, hardwareSerial string, hostUUID string, expiration time.Duration) (challenge string, err error)
+
+type GetMDMAppleDEPEnrollmentChallengeFunc func(ctx context.Context, challenge string) (*fleet.MDMAppleDEPEnrollmentChallenge, error)
+
+type ConsumeMDMAppleDEPEnrollmentChallengeFunc func(ctx context.Context, challenge string) (*fleet.MDMAppleDEPEnrollmentChallenge, error)
+
+type CleanupExpiredMDMAppleDEPEnrollmentChallengesFunc func(ctx context.Context) error
+
 type ListAppleDDMAssetsFunc func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error)
 
 type GetAppleDDMAssetFunc func(ctx context.Context, assetUUID string) (*fleet.DDMAsset, error)
@@ -2531,6 +2559,12 @@ type HasHostMDMProfileOptInFunc func(ctx context.Context, hostUUID string, profi
 type QueueHostMDMAppleProfileInstallFunc func(ctx context.Context, hostUUID string, profile *fleet.AppleProfileForReconcile) error
 
 type QueueHostMDMAppleProfileRemovalFunc func(ctx context.Context, hostUUID string, profileUUID string) error
+
+type ConsumeAppleSCEPChallengeFunc func(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error)
+
+type SetAppleSCEPChallengeIssuedCertFunc func(ctx context.Context, challenge string, certSerial int64) error
+
+type CleanupAppleSCEPChallengesFunc func(ctx context.Context) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -3235,6 +3269,12 @@ type DataStore struct {
 	QueryResultRowsForHostFunc        QueryResultRowsForHostFunc
 	QueryResultRowsForHostFuncInvoked bool
 
+	QueryResultRowsForHostByQueryFunc        QueryResultRowsForHostByQueryFunc
+	QueryResultRowsForHostByQueryFuncInvoked bool
+
+	UpdateQueryResultsLastFetchedFunc        UpdateQueryResultsLastFetchedFunc
+	UpdateQueryResultsLastFetchedFuncInvoked bool
+
 	ResultCountForQueryAndHostFunc        ResultCountForQueryAndHostFunc
 	ResultCountForQueryAndHostFuncInvoked bool
 
@@ -3246,6 +3286,9 @@ type DataStore struct {
 
 	CleanupDiscardedQueryResultsFunc        CleanupDiscardedQueryResultsFunc
 	CleanupDiscardedQueryResultsFuncInvoked bool
+
+	CleanupStaleQueryResultsFunc        CleanupStaleQueryResultsFunc
+	CleanupStaleQueryResultsFuncInvoked bool
 
 	CleanupExcessQueryResultRowsFunc        CleanupExcessQueryResultRowsFunc
 	CleanupExcessQueryResultRowsFuncInvoked bool
@@ -3645,6 +3688,9 @@ type DataStore struct {
 
 	ClearHostPolicyMembershipForPoliciesFunc        ClearHostPolicyMembershipForPoliciesFunc
 	ClearHostPolicyMembershipForPoliciesFuncInvoked bool
+
+	StalePolicyIDsForHostFunc        StalePolicyIDsForHostFunc
+	StalePolicyIDsForHostFuncInvoked bool
 
 	ClearHostPolicyUpdatedAtFunc        ClearHostPolicyUpdatedAtFunc
 	ClearHostPolicyUpdatedAtFuncInvoked bool
@@ -4774,6 +4820,9 @@ type DataStore struct {
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFunc        MDMWindowsGetEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked bool
 
+	MDMWindowsGetEnrolledDeviceWithHardwareIDFunc        MDMWindowsGetEnrolledDeviceWithHardwareIDFunc
+	MDMWindowsGetEnrolledDeviceWithHardwareIDFuncInvoked bool
+
 	MDMWindowsEnqueuePollScheduleCommandFunc        MDMWindowsEnqueuePollScheduleCommandFunc
 	MDMWindowsEnqueuePollScheduleCommandFuncInvoked bool
 
@@ -4807,6 +4856,9 @@ type DataStore struct {
 	WindowsHostLiteByHardwareSerialFunc        WindowsHostLiteByHardwareSerialFunc
 	WindowsHostLiteByHardwareSerialFuncInvoked bool
 
+	WindowsHostLiteByUUIDFunc        WindowsHostLiteByUUIDFunc
+	WindowsHostLiteByUUIDFuncInvoked bool
+
 	MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc        MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc
 	MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked bool
 
@@ -4818,6 +4870,9 @@ type DataStore struct {
 
 	MDMWindowsClaimEnrolledActivityFunc        MDMWindowsClaimEnrolledActivityFunc
 	MDMWindowsClaimEnrolledActivityFuncInvoked bool
+
+	MDMWindowsSetEnrollmentFleetdPresentFunc        MDMWindowsSetEnrollmentFleetdPresentFunc
+	MDMWindowsSetEnrollmentFleetdPresentFuncInvoked bool
 
 	MDMWindowsReleaseEnrolledActivityClaimFunc        MDMWindowsReleaseEnrolledActivityClaimFunc
 	MDMWindowsReleaseEnrolledActivityClaimFuncInvoked bool
@@ -5764,6 +5819,15 @@ type DataStore struct {
 	BulkUpsertMDMAndroidHostProfilesFunc        BulkUpsertMDMAndroidHostProfilesFunc
 	BulkUpsertMDMAndroidHostProfilesFuncInvoked bool
 
+	GetMDMAndroidProfilesWriteTimeFunc        GetMDMAndroidProfilesWriteTimeFunc
+	GetMDMAndroidProfilesWriteTimeFuncInvoked bool
+
+	BulkUpsertMDMAndroidHostProfilesUnlessResetSinceFunc        BulkUpsertMDMAndroidHostProfilesUnlessResetSinceFunc
+	BulkUpsertMDMAndroidHostProfilesUnlessResetSinceFuncInvoked bool
+
+	ResetMDMAndroidHostProfilesForRedeliveryFunc        ResetMDMAndroidHostProfilesForRedeliveryFunc
+	ResetMDMAndroidHostProfilesForRedeliveryFuncInvoked bool
+
 	BulkDeleteMDMAndroidHostProfilesFunc        BulkDeleteMDMAndroidHostProfilesFunc
 	BulkDeleteMDMAndroidHostProfilesFuncInvoked bool
 
@@ -6223,6 +6287,18 @@ type DataStore struct {
 	CleanupExpiredADUEEnrollmentChallengesFunc        CleanupExpiredADUEEnrollmentChallengesFunc
 	CleanupExpiredADUEEnrollmentChallengesFuncInvoked bool
 
+	InsertMDMAppleDEPEnrollmentChallengeFunc        InsertMDMAppleDEPEnrollmentChallengeFunc
+	InsertMDMAppleDEPEnrollmentChallengeFuncInvoked bool
+
+	GetMDMAppleDEPEnrollmentChallengeFunc        GetMDMAppleDEPEnrollmentChallengeFunc
+	GetMDMAppleDEPEnrollmentChallengeFuncInvoked bool
+
+	ConsumeMDMAppleDEPEnrollmentChallengeFunc        ConsumeMDMAppleDEPEnrollmentChallengeFunc
+	ConsumeMDMAppleDEPEnrollmentChallengeFuncInvoked bool
+
+	CleanupExpiredMDMAppleDEPEnrollmentChallengesFunc        CleanupExpiredMDMAppleDEPEnrollmentChallengesFunc
+	CleanupExpiredMDMAppleDEPEnrollmentChallengesFuncInvoked bool
+
 	ListAppleDDMAssetsFunc        ListAppleDDMAssetsFunc
 	ListAppleDDMAssetsFuncInvoked bool
 
@@ -6294,6 +6370,15 @@ type DataStore struct {
 
 	QueueHostMDMAppleProfileRemovalFunc        QueueHostMDMAppleProfileRemovalFunc
 	QueueHostMDMAppleProfileRemovalFuncInvoked bool
+
+	ConsumeAppleSCEPChallengeFunc        ConsumeAppleSCEPChallengeFunc
+	ConsumeAppleSCEPChallengeFuncInvoked bool
+
+	SetAppleSCEPChallengeIssuedCertFunc        SetAppleSCEPChallengeIssuedCertFunc
+	SetAppleSCEPChallengeIssuedCertFuncInvoked bool
+
+	CleanupAppleSCEPChallengesFunc        CleanupAppleSCEPChallengesFunc
+	CleanupAppleSCEPChallengesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -7936,6 +8021,20 @@ func (s *DataStore) QueryResultRowsForHost(ctx context.Context, queryID uint, ho
 	return s.QueryResultRowsForHostFunc(ctx, queryID, hostID)
 }
 
+func (s *DataStore) QueryResultRowsForHostByQuery(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error) {
+	s.mu.Lock()
+	s.QueryResultRowsForHostByQueryFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueryResultRowsForHostByQueryFunc(ctx, hostID, queryIDs)
+}
+
+func (s *DataStore) UpdateQueryResultsLastFetched(ctx context.Context, ids []uint, lastFetched time.Time) error {
+	s.mu.Lock()
+	s.UpdateQueryResultsLastFetchedFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateQueryResultsLastFetchedFunc(ctx, ids, lastFetched)
+}
+
 func (s *DataStore) ResultCountForQueryAndHost(ctx context.Context, queryID uint, hostID uint) (int, error) {
 	s.mu.Lock()
 	s.ResultCountForQueryAndHostFuncInvoked = true
@@ -7962,6 +8061,13 @@ func (s *DataStore) CleanupDiscardedQueryResults(ctx context.Context) error {
 	s.CleanupDiscardedQueryResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupDiscardedQueryResultsFunc(ctx)
+}
+
+func (s *DataStore) CleanupStaleQueryResults(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupStaleQueryResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupStaleQueryResultsFunc(ctx)
 }
 
 func (s *DataStore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) (map[uint]int, error) {
@@ -8893,6 +8999,13 @@ func (s *DataStore) ClearHostPolicyMembershipForPolicies(ctx context.Context, ho
 	s.ClearHostPolicyMembershipForPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ClearHostPolicyMembershipForPoliciesFunc(ctx, hostID, policyIDs)
+}
+
+func (s *DataStore) StalePolicyIDsForHost(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error) {
+	s.mu.Lock()
+	s.StalePolicyIDsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.StalePolicyIDsForHostFunc(ctx, hostID, reported)
 }
 
 func (s *DataStore) ClearHostPolicyUpdatedAt(ctx context.Context, hostID uint) error {
@@ -10295,7 +10408,7 @@ func (s *DataStore) SetHostMDMMigrationCompleted(ctx context.Context, hostID uin
 	return s.SetHostMDMMigrationCompletedFunc(ctx, hostID)
 }
 
-func (s *DataStore) IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) error {
+func (s *DataStore) IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) (previousAcctUUID string, err error) {
 	s.mu.Lock()
 	s.IngestMDMAppleDeviceFromOTAEnrollmentFuncInvoked = true
 	s.mu.Unlock()
@@ -10701,14 +10814,14 @@ func (s *DataStore) SetHostDeviceNameStatus(ctx context.Context, hostUUID string
 	return s.SetHostDeviceNameStatusFunc(ctx, hostUUID, status, commandUUID, expectedName, detail)
 }
 
-func (s *DataStore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) error {
+func (s *DataStore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string, retryable bool) (fleet.DeviceNameRetryOutcome, error) {
 	s.mu.Lock()
 	s.UpdateHostDeviceNameStatusFromCommandFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostDeviceNameStatusFromCommandFunc(ctx, commandUUID, acknowledged, detail)
+	return s.UpdateHostDeviceNameStatusFromCommandFunc(ctx, commandUUID, acknowledged, detail, retryable)
 }
 
-func (s *DataStore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID string, reportedName string) error {
+func (s *DataStore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID string, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
 	s.mu.Lock()
 	s.UpdateHostDeviceNameStatusFromReportFuncInvoked = true
 	s.mu.Unlock()
@@ -11464,7 +11577,7 @@ func (s *DataStore) ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.C
 	return s.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc(ctx, limit)
 }
 
-func (s *DataStore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
+func (s *DataStore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (legacyRef string, previousAcctUUID string, err error) {
 	s.mu.Lock()
 	s.ReconcileMDMAppleEnrollRefFuncInvoked = true
 	s.mu.Unlock()
@@ -11478,7 +11591,7 @@ func (s *DataStore) GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID str
 	return s.GetMDMIdPAccountByHostUUIDFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID string, accountUUID string) error {
+func (s *DataStore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID string, accountUUID string) (previousAcctUUID string, err error) {
 	s.mu.Lock()
 	s.AssociateHostMDMIdPAccountFuncInvoked = true
 	s.mu.Unlock()
@@ -11525,6 +11638,13 @@ func (s *DataStore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context,
 	s.MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc(ctx, mdmDeviceID)
+}
+
+func (s *DataStore) MDMWindowsGetEnrolledDeviceWithHardwareID(ctx context.Context, mdmHardwareID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	s.mu.Lock()
+	s.MDMWindowsGetEnrolledDeviceWithHardwareIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsGetEnrolledDeviceWithHardwareIDFunc(ctx, mdmHardwareID)
 }
 
 func (s *DataStore) MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *fleet.MDMWindowsCommand, relaxed bool) error {
@@ -11604,6 +11724,13 @@ func (s *DataStore) WindowsHostLiteByHardwareSerial(ctx context.Context, hardwar
 	return s.WindowsHostLiteByHardwareSerialFunc(ctx, hardwareSerial)
 }
 
+func (s *DataStore) WindowsHostLiteByUUID(ctx context.Context, hostUUID string) (*fleet.HostLite, error) {
+	s.mu.Lock()
+	s.WindowsHostLiteByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.WindowsHostLiteByUUIDFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.Context, mdmDeviceID string, hardwareSerial string) error {
 	s.mu.Lock()
 	s.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked = true
@@ -11630,6 +11757,13 @@ func (s *DataStore) MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHard
 	s.MDMWindowsClaimEnrolledActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsClaimEnrolledActivityFunc(ctx, mdmHardwareID, claimedAt)
+}
+
+func (s *DataStore) MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, enrollmentID uint, hostUUID string) error {
+	s.mu.Lock()
+	s.MDMWindowsSetEnrollmentFleetdPresentFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsSetEnrollmentFleetdPresentFunc(ctx, enrollmentID, hostUUID)
 }
 
 func (s *DataStore) MDMWindowsReleaseEnrolledActivityClaim(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error {
@@ -13837,6 +13971,27 @@ func (s *DataStore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payloa
 	return s.BulkUpsertMDMAndroidHostProfilesFunc(ctx, payload)
 }
 
+func (s *DataStore) GetMDMAndroidProfilesWriteTime(ctx context.Context) (time.Time, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidProfilesWriteTimeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidProfilesWriteTimeFunc(ctx)
+}
+
+func (s *DataStore) BulkUpsertMDMAndroidHostProfilesUnlessResetSince(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, since time.Time) error {
+	s.mu.Lock()
+	s.BulkUpsertMDMAndroidHostProfilesUnlessResetSinceFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkUpsertMDMAndroidHostProfilesUnlessResetSinceFunc(ctx, payload, since)
+}
+
+func (s *DataStore) ResetMDMAndroidHostProfilesForRedelivery(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ResetMDMAndroidHostProfilesForRedeliveryFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetMDMAndroidHostProfilesForRedeliveryFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error {
 	s.mu.Lock()
 	s.BulkDeleteMDMAndroidHostProfilesFuncInvoked = true
@@ -14908,6 +15063,34 @@ func (s *DataStore) CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) 
 	return s.CleanupExpiredADUEEnrollmentChallengesFunc(ctx)
 }
 
+func (s *DataStore) InsertMDMAppleDEPEnrollmentChallenge(ctx context.Context, idpAccountUUID string, hardwareSerial string, hostUUID string, expiration time.Duration) (challenge string, err error) {
+	s.mu.Lock()
+	s.InsertMDMAppleDEPEnrollmentChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMDMAppleDEPEnrollmentChallengeFunc(ctx, idpAccountUUID, hardwareSerial, hostUUID, expiration)
+}
+
+func (s *DataStore) GetMDMAppleDEPEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.MDMAppleDEPEnrollmentChallenge, error) {
+	s.mu.Lock()
+	s.GetMDMAppleDEPEnrollmentChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleDEPEnrollmentChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) ConsumeMDMAppleDEPEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.MDMAppleDEPEnrollmentChallenge, error) {
+	s.mu.Lock()
+	s.ConsumeMDMAppleDEPEnrollmentChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConsumeMDMAppleDEPEnrollmentChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) CleanupExpiredMDMAppleDEPEnrollmentChallenges(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupExpiredMDMAppleDEPEnrollmentChallengesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupExpiredMDMAppleDEPEnrollmentChallengesFunc(ctx)
+}
+
 func (s *DataStore) ListAppleDDMAssets(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
 	s.mu.Lock()
 	s.ListAppleDDMAssetsFuncInvoked = true
@@ -15074,4 +15257,25 @@ func (s *DataStore) QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUI
 	s.QueueHostMDMAppleProfileRemovalFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueueHostMDMAppleProfileRemovalFunc(ctx, hostUUID, profileUUID)
+}
+
+func (s *DataStore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error) {
+	s.mu.Lock()
+	s.ConsumeAppleSCEPChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConsumeAppleSCEPChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) SetAppleSCEPChallengeIssuedCert(ctx context.Context, challenge string, certSerial int64) error {
+	s.mu.Lock()
+	s.SetAppleSCEPChallengeIssuedCertFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAppleSCEPChallengeIssuedCertFunc(ctx, challenge, certSerial)
+}
+
+func (s *DataStore) CleanupAppleSCEPChallenges(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupAppleSCEPChallengesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupAppleSCEPChallengesFunc(ctx)
 }

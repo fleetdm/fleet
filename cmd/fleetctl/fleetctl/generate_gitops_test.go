@@ -36,6 +36,8 @@ type MockClient struct {
 	WithoutVPP       bool
 	WithAssets       bool
 	WithActivations  bool
+	// adds two Windows profiles whose names sanitize to the same file name
+	WithCollidingProfileNames bool
 }
 
 func (c MockClient) GetProfileActivation(profileID string) ([]byte, error) {
@@ -145,6 +147,7 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 				Name:        "Global MacOS MobileConfig Profile",
 				Platform:    "darwin",
 				Identifier:  "com.example.global-macos-mobileconfig-profile",
+				SelfService: true,
 				LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{
 					LabelName: "Label A",
 				}, {
@@ -163,7 +166,9 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 			{
 				ProfileUUID: "global-windows-profile-uuid",
 				Name:        "Global Windows Profile",
+				Description: "Blocks inbound connections",
 				Platform:    "windows",
+				Hidden:      true,
 				LabelsIncludeAny: []fleet.ConfigurationProfileLabel{{
 					LabelName: "Label D",
 				}},
@@ -191,6 +196,12 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 				Platform:    "darwin",
 				Identifier:  "com.example.team-declaration",
 			})
+		}
+		if c.WithCollidingProfileNames {
+			profiles = append(profiles,
+				&fleet.MDMConfigProfilePayload{ProfileUUID: "team-win-uuid", Name: "Team Win", Platform: "windows"},
+				&fleet.MDMConfigProfilePayload{ProfileUUID: "team-dash-win-uuid", Name: "Team-Win", Platform: "windows"},
+			)
 		}
 		return profiles, nil
 	}
@@ -250,6 +261,10 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 		return []byte("<xml>test mobileconfig profile</xml>"), nil
 	case "team-declaration-profile-uuid":
 		return []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.example.team-declaration","Payload":{}}`), nil
+	case "team-win-uuid":
+		return []byte("<xml>team win</xml>"), nil
+	case "team-dash-win-uuid":
+		return []byte("<xml>team-win</xml>"), nil
 	}
 	return nil, errors.New("profile not found")
 }
@@ -3647,4 +3662,39 @@ func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T)
 	_, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Team patch policy")
+}
+
+func TestGenerateProfilesFilenameCollision(t *testing.T) {
+	// "Team Win" and "Team-Win" sanitize to the same file name, so each needs
+	// its own file or one profile's contents would apply under both names
+	fleetClient := &MockClient{WithCollidingProfileNames: true}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		ScriptList:   make(map[uint]string),
+	}
+
+	got, err := cmd.generateProfiles(new(uint(1)), "team-a")
+	require.NoError(t, err)
+	windows, ok := got["windows_profiles"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, windows, 2)
+	require.Equal(t, "../lib/team-a/profiles/team-win.xml", windows[0]["path"])
+	require.Equal(t, "../lib/team-a/profiles/team-win-2.xml", windows[1]["path"])
+
+	contentsByName := make(map[string]any, len(windows))
+	for _, p := range windows {
+		path, _ := p["path"].(string)
+		name, _ := p["name"].(string)
+		contentsByName[name] = cmd.FilesToWrite[strings.TrimPrefix(path, "../")]
+	}
+	require.Equal(t, map[string]any{
+		"Team Win": "<xml>team win</xml>",
+		"Team-Win": "<xml>team-win</xml>",
+	}, contentsByName)
 }

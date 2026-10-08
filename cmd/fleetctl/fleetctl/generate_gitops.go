@@ -692,7 +692,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 			for _, comment := range cmd.Comments {
 				if comment.Filename == path {
-					b = bytes.ReplaceAll(b,
+					b = bytes.ReplaceAll(
+						b,
 						[]byte(comment.Token),
 						[]byte("# "+comment.Comment),
 					)
@@ -798,6 +799,21 @@ func generateFilename(name string) string {
 	// Strip any leading/trailing dashes using regex.
 	fileName = strings.Trim(fileName, "-")
 	return fileName
+}
+
+// uniqueFilename numbers fileName ("a-b-2.xml") when it's already taken:
+// distinct names can sanitize alike ("A B" and "a-b"), and since each YAML
+// entry carries its own name, a shared file would apply one profile's
+// contents under both names.
+func uniqueFilename(fileName string, taken map[string]bool) string {
+	ext := filepath.Ext(fileName)
+	base := strings.TrimSuffix(fileName, ext)
+	candidate := fileName
+	for i := 2; taken[candidate]; i++ {
+		candidate = fmt.Sprintf("%s-%d%s", base, i, ext)
+	}
+	taken[candidate] = true
+	return candidate
 }
 
 func scriptExtensionForPlatform(platform string) string {
@@ -920,7 +936,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		})
 	}
 
-	if (orgSettings)[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(cmd.AppConfig.SSOSettings); err != nil {
+	if orgSettings[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(cmd.AppConfig.SSOSettings); err != nil {
 		return nil, err
 	}
 
@@ -1623,11 +1639,12 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 	if len(profiles) == 0 {
 		return nil, nil
 	}
-	appleProfilesSlice := make([]map[string]interface{}, 0)
-	windowsProfilesSlice := make([]map[string]interface{}, 0)
-	androidProfilesSlice := make([]map[string]interface{}, 0)
+	appleProfilesSlice := make([]map[string]any, 0)
+	windowsProfilesSlice := make([]map[string]any, 0)
+	androidProfilesSlice := make([]map[string]any, 0)
+	usedFilenames := make(map[string]bool, len(profiles))
 	for _, profile := range profiles {
-		profileSpec := map[string]interface{}{}
+		profileSpec := map[string]any{}
 		// Parse any labels.
 		if profile.LabelsIncludeAll != nil {
 			labels := make([]string, len(profile.LabelsIncludeAll))
@@ -1663,6 +1680,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		if generatedFilename == "" {
 			continue // Error logged inside generateProfileFilename
 		}
+		generatedFilename = uniqueFilename(generatedFilename, usedFilenames)
 
 		fileName := fmt.Sprintf("profiles/%s", generatedFilename)
 		if teamId == nil {
@@ -1680,6 +1698,19 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 
 		profileSpec["path"] = path
+		if profile.SelfService {
+			profileSpec["self_service"] = true
+		}
+		if profile.Hidden {
+			profileSpec["hidden"] = true
+		}
+
+		// Always emitted: the file name is a sanitized copy of the name, so
+		// omitting it would rename profiles whose name the file can't carry.
+		profileSpec["name"] = profile.Name
+		if profile.Description != "" {
+			profileSpec["description"] = profile.Description
+		}
 
 		// Only declarations can carry one, and the list endpoint doesn't return
 		// activations, so it takes a second call.
@@ -1720,7 +1751,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"apple_profiles":   appleProfilesSlice,
 		"windows_profiles": windowsProfilesSlice,
 		"android_profiles": androidProfilesSlice,
