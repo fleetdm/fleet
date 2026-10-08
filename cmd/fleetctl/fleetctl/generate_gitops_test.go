@@ -1366,20 +1366,7 @@ func TestGenerateGitopsWindowsEULA(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fleetClient := &MockClient{EULAName: tc.eulaName, WindowsEULAName: tc.windowsName}
-			action := createGenerateGitopsAction(fleetClient)
-			buf := new(bytes.Buffer)
-			tempDir := t.TempDir()
-			flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
-			flagSet.String("dir", tempDir, "")
-
-			cliContext := cli.NewContext(&cli.App{
-				Name:      "test",
-				Usage:     "test",
-				Writer:    buf,
-				ErrWriter: buf,
-			}, flagSet, nil)
-			require.NoError(t, action(cliContext), buf.String())
+			tempDir := runGenerateGitopsToDir(t, &MockClient{EULAName: tc.eulaName, WindowsEULAName: tc.windowsName})
 
 			defaultYML, err := os.ReadFile(filepath.Join(tempDir, "default.yml"))
 			require.NoError(t, err)
@@ -1397,20 +1384,25 @@ func TestGenerateGitopsWindowsEULA(t *testing.T) {
 
 func TestGenerateGitopsWithoutEULAs(t *testing.T) {
 	configureFMAManifestServer(t)
-	action := createGenerateGitopsAction(&MockClient{WithoutEULAs: true})
-	buf := new(bytes.Buffer)
-	tempDir := t.TempDir()
-	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
-	flagSet.String("dir", tempDir, "")
-
-	cliContext := cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)
-	require.NoError(t, action(cliContext), buf.String())
+	tempDir := runGenerateGitopsToDir(t, &MockClient{WithoutEULAs: true})
 
 	defaultYML, err := os.ReadFile(filepath.Join(tempDir, "default.yml"))
 	require.NoError(t, err)
 	assert.NotContains(t, string(defaultYML), "lib/eula")
 	_, err = os.Stat(filepath.Join(tempDir, "lib", "eula"))
 	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+// runGenerateGitopsToDir runs generate-gitops against client and returns the directory it wrote to.
+func runGenerateGitopsToDir(t *testing.T, client *MockClient) string {
+	t.Helper()
+	buf := new(bytes.Buffer)
+	dir := t.TempDir()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", dir, "")
+	cliContext := cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)
+	require.NoError(t, createGenerateGitopsAction(client)(cliContext), buf.String())
+	return dir
 }
 
 func TestGenerateGitopsFree(t *testing.T) {

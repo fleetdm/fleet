@@ -6163,10 +6163,12 @@ func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
 	require.False(t, appConfig.Integrations.ConditionalAccessEnabled.Value)
 }
 
-func TestGitOpsEULASetting(t *testing.T) {
-	createGlobalGitOpsConfig := func(mdm string) string {
-		return fmt.Sprintf(`
+// eulaGitOpsConfig is a global GitOps file whose org_settings.mdm has the given setting. controls is one line under
+// controls, or empty.
+func eulaGitOpsConfig(controls, mdm string) string {
+	return fmt.Sprintf(`
 controls:
+  %s
 queries:
 policies:
 agent_options:
@@ -6180,8 +6182,18 @@ org_settings:
     - secret: "global"
   mdm:
     %s
-`, mdm)
-	}
+`, controls, mdm)
+}
+
+// writeGitOpsFile writes cfg as a GitOps file in dir, where paths relative to it resolve, and returns its path.
+func writeGitOpsFile(t *testing.T, dir, cfg string) string {
+	t.Helper()
+	path := filepath.Join(dir, "global.yml")
+	require.NoError(t, os.WriteFile(path, []byte(cfg), 0o600))
+	return path
+}
+
+func TestGitOpsEULASetting(t *testing.T) {
 
 	// Create a temporary PDF file
 	pdfContent := []byte("%PDF-1\npdf-test")
@@ -6210,7 +6222,7 @@ org_settings:
 	}{
 		{
 			name: "valid pdf file (no existing EULA uploaded)",
-			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
+			cfg:  eulaGitOpsConfig("", fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
@@ -6229,7 +6241,7 @@ org_settings:
 		},
 		{
 			name: "relative path to working dir to pdf file (no existing EULA uploaded)",
-			cfg:  createGlobalGitOpsConfig(`end_user_license_agreement: "./testdata/gitops/tiny_eula.pdf"`),
+			cfg:  eulaGitOpsConfig("", `end_user_license_agreement: "./testdata/gitops/tiny_eula.pdf"`),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
@@ -6250,7 +6262,7 @@ org_settings:
 		},
 		{
 			name: "relative path to yaml file to pdf file (no existing EULA uploaded)",
-			cfg:  createGlobalGitOpsConfig(`end_user_license_agreement: "./lib/eula.pdf"`),
+			cfg:  eulaGitOpsConfig("", `end_user_license_agreement: "./lib/eula.pdf"`),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				err := os.Mkdir(filepath.Join(dir, "lib"), 0o755)
 				require.NoError(t, err)
@@ -6278,7 +6290,7 @@ org_settings:
 		},
 		{
 			name: "valid new pdf file (different EULA already uploaded)",
-			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
+			cfg:  eulaGitOpsConfig("", fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{
@@ -6302,7 +6314,7 @@ org_settings:
 		},
 		{
 			name: "no EULA specified (no existing EULA uploaded)",
-			cfg:  createGlobalGitOpsConfig(""),
+			cfg:  eulaGitOpsConfig("", ""),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
@@ -6323,7 +6335,7 @@ org_settings:
 		},
 		{
 			name: "deleting existing EULA",
-			cfg:  createGlobalGitOpsConfig(""),
+			cfg:  eulaGitOpsConfig("", ""),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{
@@ -6345,7 +6357,7 @@ org_settings:
 		},
 		{
 			name: "not a PDF file",
-			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
+			cfg:  eulaGitOpsConfig("", fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
@@ -6362,7 +6374,7 @@ org_settings:
 			// The server validates the new file before the old one is deleted, so
 			// a rejected file leaves the existing EULA in place.
 			name: "not a PDF file replacing an existing EULA keeps it",
-			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
+			cfg:  eulaGitOpsConfig("", fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{Name: "eula.pdf", Token: "test-token", Sha256: []byte("other")}, nil
@@ -6379,7 +6391,7 @@ org_settings:
 		},
 		{
 			name: "uploading the same EULA again",
-			cfg:  createGlobalGitOpsConfig(""),
+			cfg:  eulaGitOpsConfig("", ""),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					hash := sha256.Sum256(pdfContent) // Simulate same EULA
@@ -6415,55 +6427,27 @@ org_settings:
 				return nil
 			}
 
-			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = tmpFile.WriteString(tt.cfg)
-			require.NoError(t, err)
+			dir := t.TempDir()
+			cfgPath := writeGitOpsFile(t, dir, tt.cfg)
 
 			// these mocks are defined in the individual test cases
-			tt.mockSetup(t, ds, filepath.Dir(tmpFile.Name()))
+			tt.mockSetup(t, ds, dir)
 
 			// Dry run
-			out, err := runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+			out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath, "--dry-run"})
 			tt.dryRunAssertion(t, ds, out.String(), err)
 			if t.Failed() {
 				t.FailNow()
 			}
 
 			// Real run
-			out, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+			out, err = runAppNoChecks([]string{"gitops", "-f", cfgPath})
 			tt.realRunAssertion(t, ds, out.String(), err)
 		})
 	}
 }
 
 func TestGitOpsWindowsEULASetting(t *testing.T) {
-	writeConfig := func(t *testing.T, dir string, windowsMDM bool, mdm string) string {
-		t.Helper()
-		cfg := fmt.Sprintf(`
-controls:
-  windows_enabled_and_configured: %t
-queries:
-policies:
-agent_options:
-software:
-org_settings:
-  server_settings:
-    server_url: "https://foo.example.com"
-  org_info:
-    org_name: GitOps Test
-  secrets:
-    - secret: "global"
-  mdm:
-    %s
-`, windowsMDM, mdm)
-		f, err := os.CreateTemp(dir, "*.yml")
-		require.NoError(t, err)
-		_, err = f.WriteString(cfg)
-		require.NoError(t, err)
-		require.NoError(t, f.Close())
-		return f.Name()
-	}
 	writeFile := func(t *testing.T, dir, name string, content []byte) string {
 		t.Helper()
 		p := filepath.Join(dir, name)
@@ -6646,7 +6630,7 @@ org_settings:
 			if strings.Contains(setting, "%s") {
 				setting = fmt.Sprintf(setting, mdPath)
 			}
-			cfgPath := writeConfig(t, dir, tt.windowsInFile, setting)
+			cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig(fmt.Sprintf("windows_enabled_and_configured: %t", tt.windowsInFile), setting))
 
 			// Turning Windows MDM off through the config cleans up profiles, which
 			// the shared gitops mocks do not cover.
@@ -6715,25 +6699,7 @@ func TestGitOpsWindowsEULAFreeTierWarns(t *testing.T) {
 	dir := t.TempDir()
 	mdPath := filepath.Join(dir, "terms.md")
 	require.NoError(t, os.WriteFile(mdPath, []byte("# Terms\n"), 0o600))
-	cfg := fmt.Sprintf(`
-controls:
-  windows_enabled_and_configured: false
-queries:
-policies:
-agent_options:
-software:
-org_settings:
-  server_settings:
-    server_url: "https://foo.example.com"
-  org_info:
-    org_name: GitOps Test
-  secrets:
-    - secret: "global"
-  mdm:
-    windows_eula: "%s"
-`, mdPath)
-	cfgPath := filepath.Join(dir, "global.yml")
-	require.NoError(t, os.WriteFile(cfgPath, []byte(cfg), 0o600))
+	cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig("windows_enabled_and_configured: false", fmt.Sprintf(`windows_eula: "%s"`, mdPath)))
 
 	out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath})
 	require.NoError(t, err, out.String())
