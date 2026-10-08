@@ -1249,7 +1249,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 		AutoUpdateStartTime: new("01:00"),
 		AutoUpdateEndTime:   new("03:00"),
 	}, http.StatusOK, &addAutoResp)
-	addedVersions, err := s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, addTeam.ID, addAutoResp.TitleID)
+	addedVersions, err := s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, addTeam.ID, addAutoResp.TitleID)
 	require.NoError(t, err)
 	require.Len(t, addedVersions, 1)
 	require.NotNil(t, addedVersions[0].AutoUpdateEnabled)
@@ -1308,7 +1308,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 		AutoUpdateStartTime: new("01:00"),
 		AutoUpdateEndTime:   new("03:00"),
 	}, http.StatusOK, &addMacAutoResp)
-	macVersions, err := s.ds.GetVPPAppVersionsByTeamAndTitleID(ctx, addTeam.ID, addMacAutoResp.TitleID)
+	macVersions, err := s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, addTeam.ID, addMacAutoResp.TitleID)
 	require.NoError(t, err)
 	require.Len(t, macVersions, 1)
 	require.Nil(t, macVersions[0].AutoUpdateEnabled, "macOS should not persist auto-update fields")
