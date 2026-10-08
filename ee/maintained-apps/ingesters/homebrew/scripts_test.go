@@ -3,6 +3,7 @@ package homebrew
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -109,6 +110,94 @@ func TestInstallScriptAppCopyPropagatesAndRestores(t *testing.T) {
 	fi
 	exit 1
 fi`)
+}
+
+func TestInstallScriptFirefoxPermissionsRollback(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("macOS install scripts require bash")
+	}
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{App: []optjson.StringOr[*brewAppTarget]{{String: "Firefox.app"}}},
+		},
+	}
+	script, err := installScriptForApp(inputApp{
+		Token:            "firefox",
+		UniqueIdentifier: "org.mozilla.firefox",
+		InstallerFormat:  "dmg",
+	}, cask)
+	require.NoError(t, err)
+	copyStart := strings.Index(script, "# copy to the applications folder")
+	require.NotEqual(t, -1, copyStart)
+
+	for _, tc := range []struct {
+		name        string
+		hasPrevious bool
+		failure     string
+		exitCode    int
+	}{
+		{"fresh", false, "", 0},
+		{"replacement", true, "", 0},
+		{"fresh ownership failure", false, "chown", 41},
+		{"replacement ownership failure", true, "chown", 41},
+		{"fresh permission failure", false, "chmod", 42},
+		{"replacement permission failure", true, "chmod", 42},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			appDir := filepath.Join(root, "Applications")
+			stageDir := filepath.Join(root, "staging")
+			appPath := filepath.Join(appDir, "Firefox.app")
+			require.NoError(t, os.MkdirAll(appDir, 0755))
+			require.NoError(t, os.MkdirAll(filepath.Join(stageDir, "Firefox.app"), 0755))
+			require.NoError(t, os.WriteFile(filepath.Join(stageDir, "Firefox.app", "new"), []byte("new"), 0644))
+			if tc.hasPrevious {
+				require.NoError(t, os.MkdirAll(appPath, 0755))
+				require.NoError(t, os.WriteFile(filepath.Join(appPath, "previous"), []byte("previous"), 0644))
+			}
+
+			probe := `sudo() {
+	if [ "$1" = "$FAIL_STEP" ]; then
+		return "$FAIL_STATUS"
+	fi
+	if [ "$1" = chown ] || [ "$1" = chmod ]; then
+		return 0
+	fi
+	"$@"
+}
+quit_and_track_application() { :; }
+relaunch_application() { touch "$APPDIR/relaunched"; }
+` + script[copyStart:]
+			cmd := exec.Command("bash", "-c", probe)
+			cmd.Env = append(os.Environ(),
+				"APPDIR="+appDir,
+				"TMPDIR="+stageDir,
+				"FAIL_STEP="+tc.failure,
+				"FAIL_STATUS="+strconv.Itoa(tc.exitCode),
+			)
+			output, err := cmd.CombinedOutput()
+			if tc.exitCode == 0 {
+				require.NoError(t, err, string(output))
+				require.FileExists(t, filepath.Join(appPath, "new"))
+				require.FileExists(t, filepath.Join(appDir, "relaunched"))
+				if tc.hasPrevious {
+					require.FileExists(t, filepath.Join(stageDir, "Firefox.app.bkp", "previous"))
+				}
+			} else {
+				var exitErr *exec.ExitError
+				require.ErrorAs(t, err, &exitErr, string(output))
+				require.Equal(t, tc.exitCode, exitErr.ExitCode())
+				require.NoFileExists(t, filepath.Join(appPath, "new"))
+				require.NoFileExists(t, filepath.Join(appDir, "relaunched"))
+				if tc.hasPrevious {
+					require.FileExists(t, filepath.Join(appPath, "previous"))
+					require.NoDirExists(t, filepath.Join(stageDir, "Firefox.app.bkp"))
+				} else {
+					require.NoDirExists(t, appPath)
+				}
+			}
+		})
+	}
 }
 
 func TestShellDoubleQuoteEscape(t *testing.T) {

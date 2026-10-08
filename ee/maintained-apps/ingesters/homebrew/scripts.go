@@ -62,8 +62,15 @@ fi`, appPath)
 	exit 1
 fi`, appPath)
 				if app.Token == "firefox" {
-					sb.Writef(`sudo chown -R -P root:admin "$APPDIR/%s" || exit $?`, appPath)
-					sb.Writef(`sudo chmod -R -P a=r,a+X,ug+w "$APPDIR/%s" || exit $?`, appPath)
+					sb.Writef(`sudo chown -R -P root:admin "$APPDIR/%[1]s" &&
+	sudo chmod -R -P a=r,a+X,ug+w "$APPDIR/%[1]s" || {
+	permission_status=$?
+	sudo rm -rf "$APPDIR/%[1]s" || exit "$permission_status"
+	if [ -d "$TMPDIR/%[1]s.bkp" ]; then
+		sudo mv "$TMPDIR/%[1]s.bkp" "$APPDIR/%[1]s"
+	fi
+	exit "$permission_status"
+}`, appPath)
 				}
 			}
 			// Relaunch the app if it was running before installation
