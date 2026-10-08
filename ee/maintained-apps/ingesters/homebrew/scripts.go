@@ -2,6 +2,8 @@ package homebrew
 
 import (
 	"fmt"
+	"net/url"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -69,13 +71,14 @@ fi`, appPath)
 			sb.Write("# install pkg files")
 			// Quit the app before installing if it's running, and track state for relaunch
 			sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
+			pkg := downloadedPkgName(artifact.Pkg[0].String, cask.URL)
 			switch len(artifact.Pkg) {
 			case 1:
-				if err := sb.InstallPkg(artifact.Pkg[0].String); err != nil {
+				if err := sb.InstallPkg(pkg); err != nil {
 					return "", fmt.Errorf("building statement to install pkg: %w", err)
 				}
 			case 2:
-				if err := sb.InstallPkg(artifact.Pkg[0].String, artifact.Pkg[1].Other.Choices); err != nil {
+				if err := sb.InstallPkg(pkg, artifact.Pkg[1].Other.Choices); err != nil {
 					return "", fmt.Errorf("building statement to install pkg with choices: %w", err)
 				}
 			default:
@@ -477,6 +480,21 @@ func (s *scriptBuilder) AddFunction(name, definition string) {
 // Write appends a raw shell command or statement to the script.
 func (s *scriptBuilder) Write(in string) {
 	s.statements = append(s.statements, in)
+}
+
+// downloadedPkgName returns the name of the cask's download when the pkg stanza
+// names that same file in different case (e.g. outset's "outset-x.pkg" for
+// "Outset-x.pkg"). Fleet stages the download under its own name, so the cask's
+// spelling only resolves on a case-insensitive volume.
+func downloadedPkgName(pkg, caskURL string) string {
+	u, err := url.Parse(caskURL)
+	if err != nil {
+		return pkg
+	}
+	if base := path.Base(u.Path); strings.EqualFold(base, pkg) {
+		return base
+	}
+	return pkg
 }
 
 // Writef formats a string according to the specified format and arguments,
