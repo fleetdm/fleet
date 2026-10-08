@@ -25,7 +25,7 @@
 - Added support for hosts running AMD Ryzen AI Developer Platform, a Debian-based Linux distribution.
 
 ### Security Engineers
-- Added ACME support for valid Apple Business assigned iPhones and iPads.
+- Added hardware attestation (ACME) for iPhones and iPads assigned to Fleet in Apple Business. With `apple_require_hardware_attestation` on, devices with an A11 Bionic chip or later running iOS or iPadOS 16 or later prove their hardware matches a known Apple Business record when they enroll. Hosts already enrolled with SCEP move to ACME on their next certificate renewal, and older devices keep enrolling with SCEP.
 - Added vulnerability detection for Go binaries in software inventory, using the Go vulnerability database (https://vuln.go.dev).
 - Added the Go module path and Go toolchain version to Go binaries in software inventory. Go binaries now show a Go icon, and their version includes the toolchain they were built with (for example, `v0.21.1 (go1.26.1)`).
 - Added multi-signal detection to the `ai_tools` fleetd table, so AI agents that aren't recognized tools (homegrown agents and CrewAI, AutoGen, or LangChain harnesses) are reported instead of being missed. Two new columns, `confidence` and `evidence`, show how certain each detection is and which signals produced it. Hosts may report more `agents` rows than before as a result.
