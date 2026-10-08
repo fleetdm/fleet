@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.2.1",
+      "version": "2.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.DigiDNA.iMazingProfileEditorMac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.DigiDNA.iMazingProfileEditorMac' AND version_compare(bundle_short_version, '2.2.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.DigiDNA.iMazingProfileEditorMac' AND version_compare(bundle_short_version, '2.3.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.DigiDNA.iMazingProfileEditorMac' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.imazing.com/mac/iMazing-Profile-Editor/2.2.1.393403/iMazing_Profile_Editor_2.2.1.393403.dmg",
+      "installer_url": "https://downloads.imazing.com/mac/iMazing-Profile-Editor/2.3.1.407603/iMazing_Profile_Editor_2.3.1.407603.dmg",
       "install_script_ref": "afa0cb8b",
       "uninstall_script_ref": "1aba25e9",
-      "sha256": "e870b87dfc66a491814b969cbbe818a62f51d68e09263ca5a315e5400362b487",
+      "sha256": "3bda18c08a41af169feb903f2db88f23d19f68bb76b75f5743753fce36f206f6",
       "default_categories": [
         "Developer tools"
       ]

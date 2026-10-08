@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -27,6 +28,8 @@ import (
 
 type uploadSoftwareInstallerRequest struct {
 	File              *multipart.FileHeader
+	StagedUploadID    string
+	Filename          string
 	TeamID            *uint
 	TitleID           *uint
 	InstallScript     string
@@ -47,6 +50,8 @@ type updateSoftwareInstallerRequest struct {
 	// InstallerID selects which package to edit; required when the title has multiple.
 	InstallerID       *uint
 	File              *multipart.FileHeader
+	StagedUploadID    string
+	Filename          string
 	TeamID            *uint
 	InstallScript     *string
 	PreInstallQuery   *string
@@ -66,6 +71,9 @@ type updateSoftwareInstallerRequest struct {
 	Patch *bool
 	// PatchWhenClosed skips the install while the app is open. Omitted leaves it unchanged. FMA-only.
 	PatchWhenClosed *bool
+	// NotifyBeforePatching skips the install while the app is open and notifies the end user an hour
+	// before the patch is forced. Omitted leaves it unchanged. FMA-only.
+	NotifyBeforePatching *bool
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -117,6 +125,9 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 				Message: fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 			}
 		}
+	}
+	if decoded.StagedUploadID, decoded.Filename, err = decodeStagedUploadFields(r.MultipartForm, "software"); err != nil {
+		return nil, err
 	}
 
 	// default is no team
@@ -181,6 +192,14 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode patch_when_closed bool in multipart form: %s", err.Error())}
 		}
 		decoded.PatchWhenClosed = &parsed
+	}
+
+	if notifyBeforePatchingVal, ok := r.MultipartForm.Value["notify_before_patching"]; ok && len(notifyBeforePatchingVal) > 0 && notifyBeforePatchingVal[0] != "" {
+		parsed, err := strconv.ParseBool(notifyBeforePatchingVal[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode notify_before_patching bool in multipart form: %s", err.Error())}
+		}
+		decoded.NotifyBeforePatching = &parsed
 	}
 
 	val, ok = r.MultipartForm.Value["self_service"]
@@ -285,23 +304,24 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 	req := request.(*updateSoftwareInstallerRequest)
 
 	payload := &fleet.UpdateSoftwareInstallerPayload{
-		TitleID:           req.TitleID,
-		InstallerID:       ptr.ValOrZero(req.InstallerID),
-		TeamID:            req.TeamID,
-		InstallScript:     req.InstallScript,
-		PreInstallQuery:   req.PreInstallQuery,
-		PostInstallScript: req.PostInstallScript,
-		UninstallScript:   req.UninstallScript,
-		SelfService:       req.SelfService,
-		LabelsIncludeAny:  req.LabelsIncludeAny,
-		LabelsExcludeAny:  req.LabelsExcludeAny,
-		LabelsIncludeAll:  req.LabelsIncludeAll,
-		Categories:        req.Categories,
-		DisplayName:       req.DisplayName,
-		Configuration:     req.Configuration,
-		PinnedVersion:     req.Version,
-		Patch:             req.Patch,
-		PatchWhenClosed:   req.PatchWhenClosed,
+		TitleID:              req.TitleID,
+		InstallerID:          ptr.ValOrZero(req.InstallerID),
+		TeamID:               req.TeamID,
+		InstallScript:        req.InstallScript,
+		PreInstallQuery:      req.PreInstallQuery,
+		PostInstallScript:    req.PostInstallScript,
+		UninstallScript:      req.UninstallScript,
+		SelfService:          req.SelfService,
+		LabelsIncludeAny:     req.LabelsIncludeAny,
+		LabelsExcludeAny:     req.LabelsExcludeAny,
+		LabelsIncludeAll:     req.LabelsIncludeAll,
+		Categories:           req.Categories,
+		DisplayName:          req.DisplayName,
+		Configuration:        req.Configuration,
+		PinnedVersion:        req.Version,
+		Patch:                req.Patch,
+		PatchWhenClosed:      req.PatchWhenClosed,
+		NotifyBeforePatching: req.NotifyBeforePatching,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
@@ -318,6 +338,10 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 
 		payload.InstallerFile = tfr
 		payload.Filename = req.File.Filename
+	}
+	if req.StagedUploadID != "" {
+		payload.StagedUploadID = req.StagedUploadID
+		payload.Filename = req.Filename
 	}
 
 	installer, err := svc.UpdateSoftwareInstaller(ctx, payload)
@@ -364,19 +388,24 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		}
 	}
 
-	if len(r.MultipartForm.File["software"]) == 0 {
-		return nil, &fleet.BadRequestError{
-			Message:     "software multipart field is required",
-			InternalErr: err,
-		}
+	if decoded.StagedUploadID, decoded.Filename, err = decodeStagedUploadFields(r.MultipartForm, "software"); err != nil {
+		return nil, err
 	}
-
-	decoded.File = r.MultipartForm.File["software"][0]
-	if decoded.File.Size > maxInstallerSize {
-		// Should never happen here since the request's body is limited to the
-		// maximum size.
-		return nil, &fleet.BadRequestError{
-			Message: fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
+	if decoded.StagedUploadID == "" {
+		if len(r.MultipartForm.File["software"]) == 0 {
+			return nil, &fleet.BadRequestError{
+				Message:     "software multipart field is required",
+				InternalErr: err,
+			}
+		}
+		decoded.File = r.MultipartForm.File["software"][0]
+		decoded.Filename = decoded.File.Filename
+		if decoded.File.Size > maxInstallerSize {
+			// Should never happen here since the request's body is limited to the
+			// maximum size.
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
+			}
 		}
 	}
 
@@ -499,17 +528,20 @@ func (r uploadSoftwareInstallerResponse) Error() error { return r.Err }
 
 func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*uploadSoftwareInstallerRequest)
-	ff, err := req.File.Open()
-	if err != nil {
-		return uploadSoftwareInstallerResponse{Err: err}, nil
-	}
-	defer ff.Close()
+	var tfr *fleet.TempFileReader
+	if req.File != nil {
+		ff, err := req.File.Open()
+		if err != nil {
+			return uploadSoftwareInstallerResponse{Err: err}, nil
+		}
+		defer ff.Close()
 
-	tfr, err := fleet.NewTempFileReader(ff, nil)
-	if err != nil {
-		return uploadSoftwareInstallerResponse{Err: err}, nil
+		tfr, err = fleet.NewTempFileReader(ff, nil)
+		if err != nil {
+			return uploadSoftwareInstallerResponse{Err: err}, nil
+		}
+		defer tfr.Close()
 	}
-	defer tfr.Close()
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		TeamID:            req.TeamID,
@@ -518,7 +550,8 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		PreInstallQuery:   req.PreInstallQuery,
 		PostInstallScript: req.PostInstallScript,
 		InstallerFile:     tfr,
-		Filename:          req.File.Filename,
+		StagedUploadID:    req.StagedUploadID,
+		Filename:          req.Filename,
 		SelfService:       req.SelfService,
 		UninstallScript:   req.UninstallScript,
 		LabelsIncludeAny:  req.LabelsIncludeAny,
@@ -534,6 +567,27 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 	}
 
 	return &uploadSoftwareInstallerResponse{SoftwarePackage: installer}, nil
+}
+
+// decodeStagedUploadFields reads the upload_id and filename parts that stand in
+// for an uploaded file.
+func decodeStagedUploadFields(form *multipart.Form, fileField string) (uploadID, filename string, err error) {
+	if v := form.Value["upload_id"]; len(v) > 0 {
+		uploadID = v[0]
+	}
+	if uploadID == "" {
+		return "", "", nil
+	}
+	if len(form.File[fileField]) > 0 {
+		return "", "", &fleet.BadRequestError{Message: fmt.Sprintf("only one of %s or upload_id can be provided", fileField)}
+	}
+	if v := form.Value["filename"]; len(v) > 0 && v[0] != "" {
+		filename = filepath.Base(v[0])
+	}
+	if filename == "" {
+		return "", "", &fleet.BadRequestError{Message: "filename multipart field is required with upload_id"}
+	}
+	return uploadID, filename, nil
 }
 
 func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {

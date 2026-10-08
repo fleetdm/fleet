@@ -50,12 +50,14 @@ func TestVulnerabilities(t *testing.T) {
 		{"TestListVulnerabilities", testListVulnerabilities},
 		{"TestVulnerabilityWithOS", testVulnerabilityWithOS},
 		{"TestVulnerabilityWithSoftware", testVulnerabilityWithSoftware},
+		{"TestIsCVEKnownToFleet", testIsCVEKnownToFleet},
 		{"TestOSVersionsByCVEFailsGracefullyWithNoOSVersionRows", testOSVersionsByCVEFailsGracefullyWithNoOSVersionRows},
 		{"TestOSVersionsByCVE", testOSVersionsByCVE},
 		{"TestSoftwareByCVE", testSoftwareByCVE},
 		{"TestVulnerabilitiesPagination", testVulnerabilitiesPagination},
 		{"TestVulnerabilitiesTeamFilter", testVulnerabilitiesTeamFilter},
 		{"TestListVulnerabilitiesSort", testListVulnerabilitiesSort},
+		{"TestListVulnerabilitiesSortByCreatedAt", testListVulnerabilitiesSortByCreatedAt},
 		{"TestVulnerabilitiesFilters", testVulnerabilitiesFilters},
 		{"TestCountVulnerabilities", testCountVulnerabilities},
 		{"TestInsertVulnerabilityCounts", testInsertVulnerabilityCounts},
@@ -204,6 +206,10 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	var nfe *common_mysql.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 
+	known, err := ds.IsCVEKnownToFleet(ctx, "CVE-2020-1234")
+	require.NoError(t, err)
+	require.False(t, known)
+
 	// Insert Host Count
 	insertStmt := `
 		INSERT INTO vulnerability_host_counts (cve, team_id, host_count, global_stats)
@@ -225,6 +231,20 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 		},
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
+
+	// Matched CVEs can lack cve_meta, e.g. when MSRC publishes a CVE before NVD does.
+	known, err = ds.IsCVEKnownToFleet(ctx, "CVE-2020-1234")
+	require.NoError(t, err)
+	require.True(t, known)
+	for teamID, hostsCount := range map[*uint]uint{nil: 10, new(uint(1)): 4, new(uint(0)): 6} {
+		for _, includeCVEScores := range []bool{false, true} {
+			v, err = ds.Vulnerability(ctx, "CVE-2020-1234", teamID, includeCVEScores)
+			require.NoError(t, err)
+			require.Equal(t, fleet.CVE{CVE: "CVE-2020-1234"}, v.CVE)
+			require.Equal(t, hostsCount, v.HostsCount)
+			require.Equal(t, fleet.MSRCSource, v.Source)
+		}
+	}
 
 	// // insert CVEMeta
 	err = ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
@@ -303,6 +323,27 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 }
 
+func testIsCVEKnownToFleet(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	require.NoError(t, ds.InsertCVEMeta(ctx, []fleet.CVEMeta{{CVE: "CVE-2020-0001", CVSSScore: new(5.0)}}))
+	_, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: 1, CVE: "CVE-2020-0002"}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertOSVulnerability(ctx, fleet.OSVulnerability{OSID: 1, CVE: "CVE-2020-0003"}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	for cve, want := range map[string]bool{
+		"CVE-2020-0001": true, // cve_meta only: NVD knows it, nothing matched
+		"CVE-2020-0002": true, // software match only
+		"CVE-2020-0003": true, // OS match only
+		"CVE-2020-0004": false,
+	} {
+		known, err := ds.IsCVEKnownToFleet(ctx, cve)
+		require.NoError(t, err)
+		require.Equal(t, want, known, cve)
+	}
+}
+
 func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 	mockTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	ctx := context.Background()
@@ -332,6 +373,15 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 		CVE:        "CVE-2020-1234",
 	}, fleet.NVDSource)
 	require.NoError(t, err)
+
+	known, err := ds.IsCVEKnownToFleet(ctx, "CVE-2020-1234")
+	require.NoError(t, err)
+	require.True(t, known)
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, true)
+	require.NoError(t, err)
+	require.Equal(t, fleet.CVE{CVE: "CVE-2020-1234"}, v.CVE)
+	require.Equal(t, uint(10), v.HostsCount)
+	require.Equal(t, fleet.NVDSource, v.Source)
 
 	// insert CVEMeta
 	err = ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
@@ -556,6 +606,186 @@ func testListVulnerabilitiesSort(t *testing.T, ds *Datastore) {
 	})
 }
 
+func testListVulnerabilitiesSortByCreatedAt(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// osOnly exists only in operating_system_vulnerabilities, swOnly and newest
+	// only in software_cve, and crossTable is in both with its older row on the
+	// OS side so the minimum has to span the two tables.
+	const (
+		osOnly     = "CVE-2020-0001"
+		swOnly     = "CVE-2020-0002"
+		crossTable = "CVE-2020-0003"
+		newest     = "CVE-2020-0004"
+	)
+
+	host := test.NewHost(t, ds, "host1", "192.168.0.1", "1111", "1111", time.Now())
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{
+		Name:     "Windows 11 Pro",
+		Version:  "10.0.22000.3007",
+		Arch:     "x86_64",
+		Platform: "windows",
+	}))
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Chrome", Version: "1.0.0", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	_, err = ds.InsertOSVulnerabilities(ctx, []fleet.OSVulnerability{
+		{OSID: 1, CVE: osOnly},
+		{OSID: 1, CVE: crossTable},
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	for _, cve := range []string{swOnly, crossTable, newest} {
+		_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: 1, CVE: cve}, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	setCreatedAt := []struct {
+		table string
+		cve   string
+		at    time.Time
+	}{
+		{"operating_system_vulnerabilities", crossTable, base},
+		{"software_cve", swOnly, base.Add(1 * time.Hour)},
+		{"operating_system_vulnerabilities", osOnly, base.Add(2 * time.Hour)},
+		{"software_cve", newest, base.Add(3 * time.Hour)},
+		{"software_cve", crossTable, base.Add(4 * time.Hour)},
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for _, s := range setCreatedAt {
+			if _, err := q.ExecContext(ctx, fmt.Sprintf("UPDATE %s SET created_at = ? WHERE cve = ?", s.table), s.at, s.cve); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	expectedCreatedAt := map[string]time.Time{
+		crossTable: base,
+		swOnly:     base.Add(1 * time.Hour),
+		osOnly:     base.Add(2 * time.Hour),
+		newest:     base.Add(3 * time.Hour),
+	}
+	ascending := []string{crossTable, swOnly, osOnly, newest}
+	descending := []string{newest, osOnly, swOnly, crossTable}
+
+	require.NoError(t, ds.UpdateVulnerabilityHostCounts(ctx, 5))
+
+	assertOrder := func(t *testing.T, opts fleet.VulnListOptions, want []string) {
+		t.Helper()
+		opts.ListOptions.OrderKey = "created_at"
+		list, _, err := ds.ListVulnerabilities(ctx, opts)
+		require.NoError(t, err)
+		got := make([]string, 0, len(list))
+		for _, vuln := range list {
+			got = append(got, vuln.CVE.CVE)
+			require.Equal(t, expectedCreatedAt[vuln.CVE.CVE], vuln.CreatedAt, "created_at for %s", vuln.CVE.CVE)
+		}
+		require.Equal(t, want, got)
+	}
+
+	for _, isEE := range []bool{true, false} {
+		t.Run(fmt.Sprintf("is_ee=%t", isEE), func(t *testing.T) {
+			assertOrder(t, fleet.VulnListOptions{
+				IsEE:        isEE,
+				ListOptions: fleet.ListOptions{OrderDirection: fleet.OrderAscending},
+			}, ascending)
+
+			assertOrder(t, fleet.VulnListOptions{
+				IsEE:        isEE,
+				ListOptions: fleet.ListOptions{OrderDirection: fleet.OrderDescending},
+			}, descending)
+		})
+	}
+
+	t.Run("team_scoped", func(t *testing.T) {
+		assertOrder(t, fleet.VulnListOptions{
+			IsEE:        true,
+			TeamID:      new(team.ID),
+			ListOptions: fleet.ListOptions{OrderDirection: fleet.OrderAscending},
+		}, ascending)
+	})
+
+	t.Run("cursor_pagination", func(t *testing.T) {
+		var got []string
+		var after string
+		for range len(ascending) {
+			list, _, err := ds.ListVulnerabilities(ctx, fleet.VulnListOptions{
+				IsEE: true,
+				ListOptions: fleet.ListOptions{
+					PerPage:        1,
+					OrderKey:       "created_at",
+					OrderDirection: fleet.OrderAscending,
+					After:          after,
+				},
+			})
+			require.NoError(t, err)
+			if len(list) == 0 {
+				break
+			}
+			require.Len(t, list, 1)
+			got = append(got, list[0].CVE.CVE)
+			after = list[0].CreatedAt.Format("2006-01-02 15:04:05")
+		}
+		require.Equal(t, ascending, got)
+	})
+
+	// Added last because the cursor subtest above compares only the primary
+	// sort column, so it would skip a CVE that ties with the previous page.
+	t.Run("ties_break_on_cve", func(t *testing.T) {
+		const tiedWithSwOnly = "CVE-2020-0000"
+		_, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: 1, CVE: tiedWithSwOnly}, fleet.NVDSource)
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "UPDATE software_cve SET created_at = ? WHERE cve = ?", base.Add(1*time.Hour), tiedWithSwOnly)
+			return err
+		})
+		expectedCreatedAt[tiedWithSwOnly] = base.Add(1 * time.Hour)
+		require.NoError(t, ds.UpdateVulnerabilityHostCounts(ctx, 5))
+
+		assertOrder(t, fleet.VulnListOptions{
+			IsEE:        true,
+			ListOptions: fleet.ListOptions{OrderDirection: fleet.OrderAscending},
+		}, []string{crossTable, tiedWithSwOnly, swOnly, osOnly, newest})
+		// The cve tie-break stays ascending when the primary sort is descending.
+		assertOrder(t, fleet.VulnListOptions{
+			IsEE:        true,
+			ListOptions: fleet.ListOptions{OrderDirection: fleet.OrderDescending},
+		}, []string{newest, osOnly, tiedWithSwOnly, swOnly, crossTable})
+	})
+
+	// software_cve.created_at is nullable; a NULL there must not hide the dated
+	// OS row for the same CVE.
+	t.Run("null_software_created_at", func(t *testing.T) {
+		const mixedNull = "CVE-2020-0005"
+		_, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: 1, CVE: mixedNull}, fleet.NVDSource)
+		require.NoError(t, err)
+		_, err = ds.InsertOSVulnerabilities(ctx, []fleet.OSVulnerability{{OSID: 1, CVE: mixedNull}}, fleet.MSRCSource)
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, "UPDATE software_cve SET created_at = NULL WHERE cve = ?", mixedNull); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, "UPDATE operating_system_vulnerabilities SET created_at = ? WHERE cve = ?", base.Add(30*time.Minute), mixedNull)
+			return err
+		})
+		expectedCreatedAt[mixedNull] = base.Add(30 * time.Minute)
+		require.NoError(t, ds.UpdateVulnerabilityHostCounts(ctx, 5))
+
+		assertOrder(t, fleet.VulnListOptions{
+			IsEE:        true,
+			ListOptions: fleet.ListOptions{OrderDirection: fleet.OrderAscending},
+		}, []string{crossTable, mixedNull, "CVE-2020-0000", swOnly, osOnly, newest})
+	})
+}
+
 func testListVulnerabilitiesCursorPagination(t *testing.T, ds *Datastore) {
 	seedVulnerabilities(t, ds)
 
@@ -570,6 +800,7 @@ func testListVulnerabilitiesCursorPagination(t *testing.T, ds *Datastore) {
 		{"cve", "cve", "CVE-2020-1236"},
 		{"hosts_count", "hosts_count", "70"},
 		{"cve_published", "cve_published", "2020-01-01"},
+		{"created_at", "created_at", "2020-01-01"},
 	}
 
 	for _, tc := range cursorTests {

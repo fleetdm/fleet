@@ -51,10 +51,12 @@ func TestInstallerFilenameExtraction(t *testing.T) {
 }
 
 func TestDownloadInstallerUserAgent(t *testing.T) {
-	// Vendor CDNs that reject Go's default User-Agent with a 403 are the reason
-	// the downloader identifies itself explicitly.
+	// Mimics both CDN rules: Cloudflare-fronted hosts that reject Go's default
+	// User-Agent, and Akamai hosts that reject any User-Agent lacking a known
+	// HTTP library token.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.UserAgent(), "Go-http-client") {
+		ua := r.UserAgent()
+		if strings.HasPrefix(ua, "Go-http-client") || !strings.Contains(ua, "Go-http-client/") {
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
@@ -65,5 +67,5 @@ func TestDownloadInstallerUserAgent(t *testing.T) {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(time.Second))
 	_, _, err := DownloadInstaller(context.Background(), srv.URL+"/installer.pkg", client)
 	require.NoError(t, err)
-	require.Equal(t, "fleet/"+version.Version().Version, installerUserAgent())
+	require.Equal(t, "fleet/"+version.Version().Version+" Go-http-client/1.1", installerUserAgent())
 }

@@ -1,6 +1,11 @@
 import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
 import React from "react";
 
+import {
+  renderNotifyTitleList,
+  formatNotifyTimeLabel,
+  isNotifyFailure,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -22,7 +27,11 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { API_NO_TEAM_ID } from "interfaces/team";
-import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import {
+  formatMdmCommandNameForActivityItem,
+  PREMIUM_ONLY_DETAIL_ACTIVITIES,
+} from "utilities/activityHelpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -48,7 +57,9 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.RanScriptBatch,
   ActivityType.CanceledScriptBatch,
   ActivityType.FailedEnrollmentProfileRenewal,
+  ActivityType.NotifiedEndUserBeforePatching,
   ActivityType.HostEnrollmentRejected,
+  ActivityType.FailedToRotateDiskEncryptionKey,
 ]);
 
 const getProfilesPlatformDisplayName = (
@@ -659,6 +670,24 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         triggered rotation of the Recovery Lock password for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  rotatedDiskEncryptionKey: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        triggered rotation of the disk encryption key for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  failedToRotateDiskEncryptionKey: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        failed to rotate the disk encryption key for{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
     );
@@ -1503,6 +1532,19 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  optInConfigProfile: (activity: IActivity) => {
+    const verb =
+      activity.type === ActivityType.InstalledOptInConfigurationProfile
+        ? "installed"
+        : "uninstalled";
+    return (
+      <>
+        {activity.details?.self_service ? <b>End user</b> : ""} {verb} the
+        opt-in <b>{activity.details?.profile_name}</b> profile on{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   resentConfigProfileBatch: (activity: IActivity) => {
     return (
       <>
@@ -1578,13 +1620,18 @@ const TAGGED_TEMPLATES = {
 
     const {
       host_display_name: hostName,
-      software_title: title,
+      software_title,
+      software_display_name,
       status,
       source,
       self_service,
       from_setup_experience,
       skipped_install,
     } = details;
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
 
     const showSoftwarePackage =
       !!details.software_package &&
@@ -1639,9 +1686,14 @@ const TAGGED_TEMPLATES = {
 
     const {
       host_display_name: hostName,
-      software_title: title,
+      software_title,
+      software_display_name,
       self_service,
     } = details;
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     const status =
       details.status === "failed" ? "failed_uninstall" : details.status;
 
@@ -1743,13 +1795,17 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
+    const { software_title, software_display_name, platform } =
       activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
-        edited <b>{swTitle}</b>{" "}
-        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
+        edited <b>{title}</b>{" "}
+        {platform ? `(${PLATFORM_DISPLAY_NAMES[platform]}) ` : ""}
         on{" "}
         {activity.details?.team_name ? (
           <>
@@ -1763,13 +1819,17 @@ const TAGGED_TEMPLATES = {
     );
   },
   deletedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
+    const { software_title, software_display_name, platform } =
       activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
-        deleted <b>{swTitle}</b>{" "}
-        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
+        deleted <b>{title}</b>{" "}
+        {platform ? `(${PLATFORM_DISPLAY_NAMES[platform]}) ` : ""}
         from{" "}
         {activity.details?.team_name ? (
           <>
@@ -1898,10 +1958,15 @@ const TAGGED_TEMPLATES = {
   },
   canceledInstallSoftware: (activity: IActivity) => {
     const {
-      software_title: title,
+      software_title,
+      software_display_name,
       host_display_name: hostName,
       from_setup_experience: fromSetupExperience,
     } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -1914,8 +1979,15 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledSetupExperience: (activity: IActivity) => {
-    const { software_title: title, host_display_name: hostName } =
-      activity.details || {};
+    const {
+      software_title,
+      software_display_name,
+      host_display_name: hostName,
+    } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -1925,8 +1997,15 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledUninstallSoftware: (activity: IActivity) => {
-    const { software_title: title, host_display_name: hostName } =
-      activity.details || {};
+    const {
+      software_title,
+      software_display_name,
+      host_display_name: hostName,
+    } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -2145,6 +2224,37 @@ const TAGGED_TEMPLATES = {
       <>
         <b>End user </b>created a disk encryption PIN for{" "}
         <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  refusedHostIdpAccountChange: (activity: IActivity) => {
+    return (
+      <>
+        kept <b>{activity.details?.host_uuid}</b> linked to the identity
+        provider account <b>{activity.details?.existing_idp_email}</b> instead
+        of <b>{activity.details?.idp_email}</b>.
+      </>
+    );
+  },
+  unboundHostFromIdpAccount: (activity: IActivity) => {
+    return (
+      <>
+        unlinked <b>{activity.details?.host_uuid}</b> from the identity provider
+        account <b>{activity.details?.idp_email}</b>.
+      </>
+    );
+  },
+  boundHostToIdpAccount: (activity: IActivity) => {
+    return (
+      <>
+        linked <b>{activity.details?.host_uuid}</b> to the identity provider
+        account <b>{activity.details?.idp_email}</b>
+        {activity.details?.replaced_idp_email ? (
+          <>
+            , replacing <b>{activity.details.replaced_idp_email}</b>
+          </>
+        ) : null}
+        .
       </>
     );
   },
@@ -2439,6 +2549,32 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  notifiedEndUserBeforePatching: (activity: IActivity) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+    const {
+      host_display_name: hostName,
+      software_titles: titles = [],
+      status,
+      time_before: timeBefore,
+    } = details;
+    const timeLabel = formatNotifyTimeLabel(timeBefore);
+    const failed = isNotifyFailure(status);
+    const verb = failed ? "failed to notify" : "notified";
+
+    const titleList = renderNotifyTitleList(titles);
+
+    return (
+      <>
+        {" "}
+        {verb} end user {timeLabel} before patching
+        {titleList && <> {titleList}</>} on{" "}
+        <strong>{hostName || "the host"}</strong>.
+      </>
+    );
+  },
   enabledOnlyAppleBusinessEnrollment: () => {
     return <>enabled Apple Business only enrollment for Apple hosts.</>;
   },
@@ -2544,6 +2680,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.RotatedHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.rotatedHostRecoveryLockPassword(activity);
+    }
+    case ActivityType.RotatedDiskEncryptionKey: {
+      return TAGGED_TEMPLATES.rotatedDiskEncryptionKey(activity);
+    }
+    case ActivityType.FailedToRotateDiskEncryptionKey: {
+      return TAGGED_TEMPLATES.failedToRotateDiskEncryptionKey(activity);
     }
     case ActivityType.EnabledManagedLocalAccount: {
       return TAGGED_TEMPLATES.enabledManagedLocalAccount(activity);
@@ -2772,6 +2914,10 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.ResentConfigurationProfile: {
       return TAGGED_TEMPLATES.resentConfigProfile(activity);
     }
+    case ActivityType.InstalledOptInConfigurationProfile:
+    case ActivityType.UninstalledOptInConfigurationProfile: {
+      return TAGGED_TEMPLATES.optInConfigProfile(activity);
+    }
     case ActivityType.ResentConfigurationProfileBatch: {
       return TAGGED_TEMPLATES.resentConfigProfileBatch(activity);
     }
@@ -2920,6 +3066,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.CreatedDiskEncryptionPIN: {
       return TAGGED_TEMPLATES.createdDiskEncryptionPIN(activity);
     }
+    case ActivityType.BoundHostToIdpAccount: {
+      return TAGGED_TEMPLATES.boundHostToIdpAccount(activity);
+    }
+    case ActivityType.UnboundHostFromIdpAccount: {
+      return TAGGED_TEMPLATES.unboundHostFromIdpAccount(activity);
+    }
+    case ActivityType.RefusedHostIdpAccountChange: {
+      return TAGGED_TEMPLATES.refusedHostIdpAccountChange(activity);
+    }
     case ActivityType.CreatedCustomVariable: {
       return TAGGED_TEMPLATES.createdCustomVariable(activity);
     }
@@ -2989,6 +3144,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.ReleasedDeviceFromAB: {
       return TAGGED_TEMPLATES.releasedDeviceFromAB(activity);
     }
+    case ActivityType.NotifiedEndUserBeforePatching: {
+      return TAGGED_TEMPLATES.notifiedEndUserBeforePatching(activity);
+    }
     case ActivityType.EnabledAppleBusinessOnlyEnrollment: {
       return TAGGED_TEMPLATES.enabledOnlyAppleBusinessEnrollment();
     }
@@ -3017,7 +3175,9 @@ const GlobalActivityItem = ({
   isPremiumTier,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
-  const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
+  const hasDetails =
+    ACTIVITIES_WITH_DETAILS.has(activity.type) &&
+    (isPremiumTier || !PREMIUM_ONLY_DETAIL_ACTIVITIES.has(activity.type));
 
   const renderActivityPrefix = () => {
     const DEFAULT_ACTOR_DISPLAY = (
@@ -3054,6 +3214,9 @@ const GlobalActivityItem = ({
       case ActivityType.InstalledAllSelfServiceSoftware:
         // The template carries the "End user" subject for this roll-up.
         return null;
+      case ActivityType.InstalledOptInConfigurationProfile:
+      case ActivityType.UninstalledOptInConfigurationProfile:
+        return activity.details?.self_service ? null : DEFAULT_ACTOR_DISPLAY;
       case ActivityType.CreatedDiskEncryptionPIN:
         // The template carries the "End user" subject for this roll-up.
         return null;

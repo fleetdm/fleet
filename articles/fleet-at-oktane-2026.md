@@ -4,7 +4,9 @@ Mike McNeil, Fleet's CEO, will speak at [Oktane 2026](https://www.okta.com/oktan
 
 ## Mike's session
 
-Mike will talk about how IT and security teams can bring Linux devices under the same identity controls as macOS and Windows. Session title, time, and room will be posted here once the Oktane schedule is final.
+- **Session title:** Every employee has an EA now
+- **Session date and time:** Wednesday, September 23, 2026. 2:30 - 3:00
+- **Room location:** Alliance 311. 
 
 ## Fleet and Okta
 

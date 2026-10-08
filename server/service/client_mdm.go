@@ -19,6 +19,7 @@ import (
 
 	"github.com/beevik/etree"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"howett.net/plist"
@@ -127,18 +128,50 @@ func (c *Client) DeleteBootstrapPackage(teamID uint, dryRun bool) error {
 }
 
 func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dryRun bool) error {
+	uploadID, err := c.stageBootstrapPackage(pkg)
+	if err != nil {
+		return err
+	}
+	return c.registerBootstrapPackage(pkg, uploadID, dryRun)
+}
+
+// stageBootstrapPackage sends the package bytes straight to the object store, so
+// they don't cross Fleet's ingress, when the server supports it. It returns an
+// empty upload id otherwise.
+func (c *Client) stageBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) (string, error) {
+	appCfg, err := c.GetAppConfig()
+	if err != nil {
+		return "", fmt.Errorf("getting app config: %w", err)
+	}
+	if !appCfg.StagedUploadAvailable {
+		return "", nil
+	}
+	return c.stagedUpload(fleet.StagedUploadTargetBootstrapPackage, pkg.TeamID, pkg.Bytes)
+}
+
+// registerBootstrapPackage adds the package from uploadID, or from pkg.Bytes when uploadID is empty.
+func (c *Client) registerBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, uploadID string, dryRun bool) error {
 	verb, path := "POST", "/api/latest/fleet/bootstrap"
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
-	// add the package field
-	fw, err := w.CreateFormFile("package", pkg.Name)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(fw, bytes.NewBuffer(pkg.Bytes)); err != nil {
-		return err
+	if uploadID != "" {
+		if err := w.WriteField("upload_id", uploadID); err != nil {
+			return err
+		}
+		if err := w.WriteField("filename", pkg.Name); err != nil {
+			return err
+		}
+	} else {
+		// add the package field
+		fw, err := w.CreateFormFile("package", pkg.Name)
+		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(fw, bytes.NewBuffer(pkg.Bytes)); err != nil {
+			return err
+		}
 	}
 
 	// add the fleet_id field
@@ -169,6 +202,32 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dry
 	return nil
 }
 
+// stagedUpload uploads content to a presigned object store URL and returns the
+// upload id to register it with.
+func (c *Client) stagedUpload(target fleet.StagedUploadTarget, teamID uint, content []byte) (string, error) {
+	var staged createStagedUploadResponse
+	if err := c.authenticatedRequest(createStagedUploadRequest{Target: target, FleetID: teamID, Size: int64(len(content))},
+		"POST", "/api/latest/fleet/staged_upload", &staged); err != nil {
+		return "", fmt.Errorf("creating staged upload: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPut, staged.URL, bytes.NewReader(content))
+	if err != nil {
+		return "", fmt.Errorf("creating staged upload request: %w", err)
+	}
+	// No Fleet Authorization header: the URL is presigned for the object store.
+	resp, err := fleethttp.NewClient(fleethttp.WithTimeout(fleet.StagedUploadURLExpiry)).Do(req)
+	if err != nil {
+		return "", fmt.Errorf("uploading to staged upload URL: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return "", fmt.Errorf("uploading to staged upload URL: status %d: %s", resp.StatusCode, body)
+	}
+	return staged.UploadID, nil
+}
+
 func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPackage, teamID uint, dryRun bool) error {
 	isFirstTime := false
 	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
@@ -185,7 +244,16 @@ func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPacka
 		if bytes.Equal(oldMeta.Sha256, bp.Sha256) {
 			return nil
 		}
+	}
 
+	// Stage before deleting, so a failed upload leaves the old package in place.
+	bp.TeamID = teamID
+	uploadID, err := c.stageBootstrapPackage(bp)
+	if err != nil {
+		return err
+	}
+
+	if !isFirstTime {
 		// similar to the expected UI experience, delete the bootstrap package first
 		err = c.DeleteBootstrapPackage(teamID, dryRun)
 		if err != nil {
@@ -193,12 +261,7 @@ func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPacka
 		}
 	}
 
-	bp.TeamID = teamID
-	if err := c.UploadBootstrapPackage(bp, dryRun); err != nil {
-		return err
-	}
-
-	return nil
+	return c.registerBootstrapPackage(bp, uploadID, dryRun)
 }
 
 func (c *Client) ValidateBootstrapPackageFromURL(url string) (*fleet.MDMAppleBootstrapPackage, error) {

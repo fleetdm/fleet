@@ -124,6 +124,8 @@ describe("generateTableData - host name row", () => {
           detail: "",
           scope: "device",
           managed_local_account: null,
+          hidden: false,
+          self_service: false,
         },
       ],
       os_settings: {

@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -452,4 +454,30 @@ func TestGetHostActivitiesWebhookSettings(t *testing.T) {
 		require.Nil(t, settings)
 		require.False(t, ds.ListHostsLiteByIDsFuncInvoked)
 	})
+}
+
+// The wipe or erase this cleanup follows is already recorded, and the caller can't reach this code
+// again on a retry, so a notifications failure is logged rather than returned.
+func TestCancelActivitiesAndNotificationsForHost(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	ds.BatchCancelAllHostUpcomingActivitiesFunc = func(context.Context, uint) ([]fleet.ActivityDetails, error) {
+		return nil, nil
+	}
+
+	notificationsSvc := &mock.MockNotificationsService{}
+	notificationsSvc.FailNotificationsForHostFunc = func(context.Context, uint, string) error {
+		return errors.New("notifications are down")
+	}
+
+	err := cancelActivitiesAndNotificationsForHost(ctx, ds, notificationsSvc, slog.New(slog.DiscardHandler), 1)
+	require.NoError(t, err)
+	require.True(t, notificationsSvc.FailNotificationsForHostFuncInvoked)
+
+	// Cancelling the upcoming activities is the part of this cleanup the caller can still retry.
+	ds.BatchCancelAllHostUpcomingActivitiesFunc = func(context.Context, uint) ([]fleet.ActivityDetails, error) {
+		return nil, errors.New("database is down")
+	}
+	err = cancelActivitiesAndNotificationsForHost(ctx, ds, notificationsSvc, slog.New(slog.DiscardHandler), 1)
+	require.Error(t, err)
 }

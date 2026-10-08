@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -34,10 +35,13 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
+	"github.com/fleetdm/fleet/v4/server/acl/notificationsacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/chart"
 	chart_bootstrap "github.com/fleetdm/fleet/v4/server/chart/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -66,6 +70,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/notifications"
+	notifications_bootstrap "github.com/fleetdm/fleet/v4/server/notifications/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -163,6 +169,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		softwareInstallStore   fleet.SoftwareInstallerStore
 		bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 		softwareTitleIconStore fleet.SoftwareTitleIconStore
+		stagedUploadStore      fleet.StagedUploadStore
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
 		androidService         android.Service
@@ -231,6 +238,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].SoftwareTitleIconStore != nil {
 			softwareTitleIconStore = opts[0].SoftwareTitleIconStore
 		}
+		stagedUploadStore = opts[0].StagedUploadStore
 
 		// allow to explicitly set MDM storage to nil
 		mdmStorage = opts[0].MDMStorage
@@ -358,6 +366,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,
+			stagedUploadStore,
 			distributedLock,
 			keyValueStore,
 			installAttemptCounter,
@@ -389,6 +398,14 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	// Set up mock ACME service for unit tests. When DBConns is provided,
 	// RunServerForTestsWithServiceWithDS will overwrite this with the real service module.
 	svc.SetACMEService(&fleet_mock.MockACMEService{})
+
+	// Set up mock notifications service for unit tests. When DBConns is provided,
+	// RunServerForTestsWithServiceWithDS will overwrite this with the real bounded context.
+	notificationsMock := &fleet_mock.MockNotificationsService{}
+	svc.SetNotificationsService(notificationsMock)
+	if len(opts) > 0 {
+		opts[0].NotificationsMock = notificationsMock
+	}
 
 	return svc, ctx
 }
@@ -545,16 +562,59 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(activityRoutesFn(noopAuth)))
 	}
 
-	// The chart bounded context is wired into the real server in serve.go but not into
-	// this test handler, so build a path-only stub (regardless of DBConns) so that
-	// apiendpoints.Validate can see the chart routes declared in api_endpoints.yml.
-	// chart_bootstrap.New stores its deps without dereferencing them, so empty conns +
-	// nil authorizer/viewer are fine when only the route paths are needed.
-	{
+	// Notifications routes. Same DBConns-gated pattern as the activity bounded
+	// context above, but auth is device-token based rather than user-session
+	// based.
+	if len(opts) > 0 && opts[0].DBConns != nil {
+		notificationsACLAdapter := notificationsacl.NewFleetServiceAdapter(ds)
+		notificationsSvc, notificationsRoutesFn := notifications_bootstrap.New(
+			opts[0].DBConns,
+			notificationsACLAdapter,
+			logger,
+		)
+		svc.SetNotificationsService(notificationsSvc)
+		patchNotificationKind := NewPatchNotificationKind(ds, svc, notificationsSvc, logger)
+		notificationsSvc.RegisterKind(patchNotificationKind)
+		notificationsAuthMiddleware := DeviceAuthMiddleware(svc, logger, notifications.NewHostContext)
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, notificationsRoutesFn(notificationsAuthMiddleware))
+		opts[0].NotificationsSvc = notificationsSvc
+		opts[0].PatchNotificationKind = patchNotificationKind
+	} else {
+		_, notificationsRoutesFn := notifications_bootstrap.New(
+			&common_mysql.DBConnections{},
+			nil,
+			logger,
+		)
+		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
+		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(notificationsRoutesFn(noopAuth)))
+	}
+
+	// Chart routes. Same DBConns-gated pattern as the activity bounded context,
+	// mirroring createChartBoundedContext in cmd/fleet/serve.go.
+	if len(opts) > 0 && opts[0].DBConns != nil {
+		legacyAuthorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		chartSvc, chartRoutesFn := chart_bootstrap.New(
+			opts[0].DBConns,
+			authz.NewAuthorizerAdapter(legacyAuthorizer),
+			chartacl.NewFleetViewerAdapter(),
+			chartacl.ExpandPlatform,
+			logger,
+		)
+		chartSvc.RegisterDataset(&chart.UptimeDataset{})
+		chartSvc.RegisterDataset(&chart.CVEDataset{})
+		chartAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(next))
+		}
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, chartRoutesFn(chartAuthMiddleware))
+	} else {
+		// chart_bootstrap.New stores its deps without dereferencing them, so empty conns +
+		// nil authorizer/viewer are fine when only the route paths are needed.
 		_, chartRoutesFn := chart_bootstrap.New(
 			&common_mysql.DBConnections{},
 			nil,
 			nil,
+			chartacl.ExpandPlatform,
 			logger,
 		)
 		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
@@ -588,7 +648,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			rootCAPool.AddCert(opts[0].ACMECertCA)
 			acmeOpts = append(acmeOpts, acme_bootstrap.WithTestAppleRootCAs(rootCAPool))
 		}
-		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365), depot.WithAllowRenewalDays(14))}
+		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365))}
 		acmeSvc, acmeRoutes := acme_bootstrap.New(opts[0].DBConns, redisPool, acmeacl.NewFleetDatastoreAdapter(ds, acmeSigner), logger, acmeOpts...)
 		svc.SetACMEService(acmeSvc)
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, acmeRoutes(log.Logged))
@@ -600,8 +660,12 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
 			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+			var notificationsSvc fleet.NotificationsWriteService = opts[0].NotificationsMock
+			if opts[0].NotificationsSvc != nil {
+				notificationsSvc = opts[0].NotificationsSvc
+			}
 			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity,
-				cfg.Activity.FleetInitiatedReleasePerMinute > 0)
+				cfg.Activity.FleetInitiatedReleasePerMinute > 0, notificationsSvc, cfg.MDM.AppleCommandCleanupShortRetention)
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
 			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
 			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger, commander))
@@ -892,7 +956,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		premiumOnly         bool
 	}{
 		{"POST", "/api/latest/fleet/mdm/apple/enqueue", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/commandresults", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/installers/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
@@ -928,6 +991,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"DELETE", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
+		{"POST", "/api/latest/fleet/device/%s/configuration_profiles/wfoo/resend", true, false},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
 		{"POST", "/api/latest/fleet/mdm/commands/run", false, false},
@@ -1593,8 +1657,8 @@ type acmeCSRSigner struct {
 	signer *depot.Signer
 }
 
-func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	return a.signer.Signx509CSR(csr)
+func (a *acmeCSRSigner) SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(*x509.Certificate)) (*x509.Certificate, error) {
+	return a.signer.SignX509CSRWithCallback(csr, subject, callback)
 }
 
 // mockRoundTripper is a custom http.RoundTripper that redirects requests to a mock server.

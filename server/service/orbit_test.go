@@ -11,7 +11,9 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/WatchBeam/clock"
 	hostidentity_types "github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -24,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -1339,6 +1342,41 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		return nil
 	}
 
+	opts.NotificationsMock.CreateNotificationFunc = func(_ context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error) {
+		created := *notification
+		created.UUID = uuid.NewString()
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, expires_at)
+				VALUES (?, ?, ?, ?, ?, ?)
+			`, created.UUID, created.HostID, notifications_api.EndUserNotificationPending,
+				created.Kind, created.Payload, created.ExpiresAt)
+			return err
+		})
+		return &created, nil
+	}
+
+	// batching reads back what the create above wrote
+	opts.NotificationsMock.NotificationAwaitingDisplayFunc = func(_ context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error) {
+		var awaiting []struct {
+			UUID    string          `db:"uuid"`
+			Payload json.RawMessage `db:"payload"`
+		}
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &awaiting, `
+				SELECT uuid, payload FROM notifications_end_user
+				WHERE host_id = ? AND kind = ? AND status IN (?, ?) AND displayed_at IS NULL
+				ORDER BY id DESC LIMIT 1`,
+				hostID, kind, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched)
+		})
+		if len(awaiting) == 0 {
+			return nil, nil
+		}
+		return &notifications_api.EndUserNotification{
+			UUID: awaiting[0].UUID, HostID: hostID, Kind: kind, Payload: awaiting[0].Payload,
+		}, nil
+	}
+
 	user, err := ds.NewUser(ctx, &fleet.User{
 		Name:       "Admin",
 		Password:   []byte("p4ssw0rd.123"),
@@ -1374,17 +1412,25 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 			`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
 	})
 
-	// createFailingPolicy makes a failing team policy for the host (optionally patch-when-closed) so a
-	// retry would be eligible. patch_when_closed isn't settable via the create path yet, so set it directly.
-	createFailingPolicy := func(t *testing.T, host *fleet.Host, patchWhenClosed bool) uint {
+	// createFailingPolicy makes a failing team policy for the host so a retry would be eligible.
+	// patchColumn names the patch option to turn on ("" for neither); neither is settable via the
+	// create path yet, so set it directly.
+	createFailingPolicy := func(t *testing.T, host *fleet.Host, patchColumn string) uint {
 		policy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
 			Name:  "policy-" + uuid.NewString(),
 			Query: "SELECT 1;",
 		})
 		require.NoError(t, err)
-		if patchWhenClosed {
+		var stmt string
+		switch patchColumn {
+		case "patch_when_closed":
+			stmt = `UPDATE policies SET patch_when_closed = 1 WHERE id = ?`
+		case "notify_before_patching":
+			stmt = `UPDATE policies SET notify_before_patching = 1 WHERE id = ?`
+		}
+		if stmt != "" {
 			mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx, `UPDATE policies SET patch_when_closed = 1 WHERE id = ?`, policy.ID)
+				_, err := q.ExecContext(ctx, stmt, policy.ID)
 				return err
 			})
 		}
@@ -1394,21 +1440,23 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	}
 
 	// insertPendingInstall queues a pending policy-automation install, returning its execution id.
-	// patch_when_closed is snapshotted from the policy at insert time — matches what the
+	// overridePreInstallQuery is on for a patch policy install, off for an "Update now" install.
+	// patch_when_closed is snapshotted from the policy at insert time, matching what the
 	// real activateNextSoftwareInstallActivity write path does.
-	insertPendingInstall := func(t *testing.T, host *fleet.Host, policyID uint) string {
+	insertPendingInstall := func(t *testing.T, host *fleet.Host, policyID uint, overridePreInstallQuery bool) string {
 		installUUID := uuid.New().String()
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `
 				INSERT INTO host_software_installs (
 					execution_id, host_id, software_installer_id, policy_id, patch_when_closed,
-					installer_filename, version, software_title_id, software_title_name
+					installer_filename, version, software_title_id, software_title_name,
+					override_pre_install_query
 				)
-				SELECT ?, ?, ?, ?, COALESCE(p.patch_when_closed, 0), ?, ?, ?, ?
+				SELECT ?, ?, ?, ?, COALESCE(p.patch_when_closed, 0), ?, ?, ?, ?, ?
 				FROM policies p WHERE p.id = ?
 			`, installUUID, host.ID, installerID, policyID,
 				installerPayload.Filename, installerPayload.Version, titleID, installerPayload.Title,
-				policyID)
+				overridePreInstallQuery, policyID)
 			return err
 		})
 		return installUUID
@@ -1435,12 +1483,12 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	t.Run("app open -> skip, no attempt consumed, no retry, activity flagged", func(t *testing.T) {
 		host := test.NewHost(t, ds, "skip-host", "10.0.0.1", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
-		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, true))
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "patch_when_closed"), true)
 
 		result := &fleet.HostSoftwareInstallResultPayload{
 			HostID:                    host.ID,
 			InstallUUID:               installUUID,
-			PreInstallConditionOutput: new(""), // app open
+			PreInstallConditionOutput: new(""),
 		}
 		hctx := hostctx.NewContext(ctx, host)
 		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, result))
@@ -1455,6 +1503,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.True(t, ok, "an installed_software activity should have been emitted")
 		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
 		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
+		require.True(t, act.PatchWhenClosed, "a skip must record which patch option its install ran under")
 
 		// The host software list must surface the skip so the UI can render "Patch
 		// skipped" instead of "Failed" for the row (issue #52297).
@@ -1477,8 +1526,8 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.True(t, found.SkippedInstall, "response must flag the row as a patch-when-closed skip")
 
 		// Regression guard for the snapshotting design: the classification lives
-		// on host_software_installs.patch_when_closed (persisted at activation),
-		// so mutating or deleting the source policy must NOT relabel the row.
+		// on host_software_installs.override_pre_install_query (persisted at
+		// activation), so mutating or deleting the source policy must NOT relabel the row.
 		policyIDForSkip := *installedActivities[installUUID].PolicyID
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `UPDATE policies SET patch_when_closed = 0 WHERE id = ?`, policyIDForSkip)
@@ -1519,10 +1568,156 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.True(t, found.SkippedInstall, "deleting the source policy (ON DELETE SET NULL) must not reclassify the skip")
 	})
 
+	t.Run("notify before patching -> skip carrying its own output copy", func(t *testing.T) {
+		host := test.NewHost(t, ds, "notify-host", "10.0.0.4", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching"), true)
+
+		result := &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               installUUID,
+			PreInstallConditionOutput: new(""),
+		}
+		hctx := hostctx.NewContext(ctx, host)
+		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, result))
+
+		attempt := getAttemptNumber(t, installUUID)
+		require.NotNil(t, attempt)
+		require.Equal(t, 0, *attempt, "skip must not consume a retry attempt")
+
+		require.Equal(t, 0, countPendingRetries(t, host.ID), "skip must not queue an immediate retry")
+
+		act, ok := installedActivities[installUUID]
+		require.True(t, ok, "an installed_software activity should have been emitted")
+		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
+		require.False(t, act.PatchWhenClosed, "a notify before patching skip records patch_when_closed false")
+
+		// The two patch options are told apart by the pre-install output the details modal shows.
+		res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
+		require.NoError(t, err)
+		require.True(t, res.NotifyBeforePatching)
+		require.False(t, res.PatchWhenClosed)
+		res.EnhanceOutputDetails()
+		require.NotNil(t, res.PreInstallQueryOutput)
+		require.Equal(t, fleet.SoftwareInstallerAppOpenNotifyCopy, *res.PreInstallQueryOutput)
+	})
+
+	patchNotificationsForHost := func(t *testing.T, hostID uint) []string {
+		var uuids []string
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &uuids, `
+				SELECT neu.uuid FROM notifications_end_user neu
+					JOIN patch_notifications pn ON pn.notification_uuid = neu.uuid
+				WHERE neu.host_id = ? ORDER BY neu.id`, hostID)
+		})
+		return uuids
+	}
+
+	reportAppOpenSkip := func(t *testing.T, host *fleet.Host, installUUID string) {
+		hctx := hostctx.NewContext(ctx, host)
+		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               installUUID,
+			PreInstallConditionOutput: new(""),
+		}))
+	}
+
+	t.Run("two skips on one host make one notification listing both apps", func(t *testing.T) {
+		host := test.NewHost(t, ds, "batch-host", "10.0.0.5", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		// a second app, so the two skips are for different titles
+		otherPayload := *installerPayload
+		otherPayload.Title = "Second Software"
+		otherPayload.Filename = "second_software.pkg"
+		otherPayload.StorageID = uuid.NewString()
+		otherInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &otherPayload)
+		require.NoError(t, err)
+
+		var otherTitleID uint
+		otherInstallUUID := uuid.NewString()
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &otherTitleID,
+				`SELECT title_id FROM software_installers WHERE id = ?`, otherInstallerID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_software_installs (
+					execution_id, host_id, software_installer_id, policy_id,
+					installer_filename, version, software_title_id, software_title_name,
+					override_pre_install_query
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+			`, otherInstallUUID, host.ID, otherInstallerID, createFailingPolicy(t, host, "notify_before_patching"),
+				otherPayload.Filename, otherPayload.Version, otherTitleID, otherPayload.Title)
+			return err
+		})
+
+		// the first skip creates the notification, and the second app is added to
+		// that same notification because Fleet has not sent that notification to
+		// the host yet
+		reportAppOpenSkip(t, host, insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching"), true))
+		reportAppOpenSkip(t, host, otherInstallUUID)
+
+		notificationUUIDs := patchNotificationsForHost(t, host.ID)
+		require.Len(t, notificationUUIDs, 1, "both apps belong on one notification, not one each")
+
+		var titleIDs []uint
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &titleIDs,
+				`SELECT software_title_id FROM patch_notification_apps WHERE notification_uuid = ?`,
+				notificationUUIDs[0])
+		})
+		require.ElementsMatch(t, []uint{titleID, otherTitleID}, titleIDs)
+	})
+
+	// patch_when_closed waits for the end user to close the app on their own, so
+	// there is nothing to tell the end user
+	t.Run("a patch_when_closed skip makes no notification", func(t *testing.T) {
+		host := test.NewHost(t, ds, "no-notification-host", "10.0.0.8", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		reportAppOpenSkip(t, host, insertPendingInstall(t, host, createFailingPolicy(t, host, "patch_when_closed"), true))
+
+		require.Empty(t, patchNotificationsForHost(t, host.ID))
+	})
+
+	t.Run("a retry of an Update now install installs with the app open", func(t *testing.T) {
+		host := test.NewHost(t, ds, "update-now-retry-host", "10.0.0.9", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching"), false)
+
+		hctx := hostctx.NewContext(ctx, host)
+		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                host.ID,
+			InstallUUID:           installUUID,
+			InstallScriptExitCode: new(1),
+		}))
+
+		act, ok := installedActivities[installUUID]
+		require.True(t, ok, "an installed_software activity should have been emitted")
+		require.False(t, act.SkippedInstall, "the end user asked for this install, so it failed rather than skipped")
+
+		var retryExecutionIDs []string
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &retryExecutionIDs, `
+				SELECT execution_id FROM upcoming_activities
+				WHERE activity_type = 'software_install' AND host_id = ?`, host.ID)
+		})
+		require.Len(t, retryExecutionIDs, 1, "the failure should queue a retry")
+
+		retry, err := ds.GetSoftwareInstallResults(ctx, retryExecutionIDs[0])
+		require.NoError(t, err)
+		require.False(t, retry.OverridePreInstallQuery,
+			"the retry installs with the app open, like the attempt it retries")
+
+		require.Empty(t, patchNotificationsForHost(t, host.ID),
+			"the end user is not notified again for an update they already asked for")
+	})
+
 	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
 		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
-		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, false))
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, ""), false)
 
 		result := &fleet.HostSoftwareInstallResultPayload{
 			HostID:                    host.ID,
@@ -1564,7 +1759,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		// True case: patch-when-closed policy → patch_when_closed = 1 persisted.
 		patchHost := test.NewHost(t, ds, "activation-snapshot-patch-host", "10.0.0.4", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{patchHost.ID})))
-		patchPolicyID := createFailingPolicy(t, patchHost, true)
+		patchPolicyID := createFailingPolicy(t, patchHost, "patch_when_closed")
 		patchInstallUUID, err := ds.InsertSoftwareInstallRequest(ctx, patchHost.ID, installerID, fleet.HostSoftwareInstallOptions{
 			PolicyID: &patchPolicyID,
 		})
@@ -1577,7 +1772,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		// case; running on a separate host makes the two independent.
 		ordinaryHost := test.NewHost(t, ds, "activation-snapshot-ordinary-host", "10.0.0.6", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{ordinaryHost.ID})))
-		ordinaryPolicyID := createFailingPolicy(t, ordinaryHost, false)
+		ordinaryPolicyID := createFailingPolicy(t, ordinaryHost, "")
 		ordinaryInstallUUID, err := ds.InsertSoftwareInstallRequest(ctx, ordinaryHost.ID, installerID, fleet.HostSoftwareInstallOptions{
 			PolicyID: &ordinaryPolicyID,
 		})
@@ -1593,8 +1788,8 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	t.Run("policy deleted after activation but before result -> still classifies as skip", func(t *testing.T) {
 		host := test.NewHost(t, ds, "policy-deleted-host", "10.0.0.5", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
-		policyID := createFailingPolicy(t, host, true)
-		installUUID := insertPendingInstall(t, host, policyID)
+		policyID := createFailingPolicy(t, host, "patch_when_closed")
+		installUUID := insertPendingInstall(t, host, policyID, true)
 
 		// Delete the source policy before orbit reports the result. FK is ON
 		// DELETE SET NULL, so hsi.policy_id becomes NULL while patch_when_closed
@@ -1623,11 +1818,11 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	t.Run("many consecutive app-open runs never hit the retry cap", func(t *testing.T) {
 		host := test.NewHost(t, ds, "many-runs-host", "10.0.0.3", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
-		policyID := createFailingPolicy(t, host, true)
+		policyID := createFailingPolicy(t, host, "patch_when_closed")
 
 		// More consecutive runs than the retry cap; each is a fresh install the app-open query skips.
 		for range fleet.MaxPolicyAutomationRetries + 2 {
-			installUUID := insertPendingInstall(t, host, policyID)
+			installUUID := insertPendingInstall(t, host, policyID, true)
 			hctx := hostctx.NewContext(ctx, host)
 			require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, &fleet.HostSoftwareInstallResultPayload{
 				HostID:                    host.ID,
@@ -2524,58 +2719,12 @@ func TestEnrollOrbitEndUserAuthBypass(t *testing.T) {
 	// AllowOrbitEndUserAuthBypass config flag decides whether enrollment is
 	// blocked or allowed.
 	newSvc := func(t *testing.T, allowBypass bool) (*mock.DataStore, fleet.Service, context.Context) {
-		// mock.Store hard-codes EnrollOrbit to return (nil, nil), which would make
-		// the bypass-allowed success path panic. Use the underlying mock.DataStore so
-		// EnrollOrbitFunc is honored.
-		ds := new(mock.DataStore)
 		cfg := config.TestConfig()
 		cfg.MDM.AllowOrbitEndUserAuthBypass = allowBypass
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
-
-		// Global enroll secret (no team) with end user auth required at the app-config level.
-		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-			return &fleet.EnrollSecret{Secret: secret}, nil
-		}
-		ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*hostidentity_types.HostIdentityCertificate, error) {
-			return nil, nil
-		}
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			ac := &fleet.AppConfig{}
-			ac.MDM.EnabledAndConfigured = true
-			ac.MDM.MacOSSetup.EnableEndUserAuthentication = true
-			return ac, nil
-		}
-		// No IdP account linked and not previously enrolled: a genuine first-time enrollment.
-		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
-			return nil, nil
-		}
-		ds.HostPreviouslyOrbitEnrolledFunc = func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
-			return false, nil
-		}
-		ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
-			return &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: "ubuntu"}, nil
-		}
-		ds.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
-			return nil
-		}
-		return ds, svc, ctx
+		return newEnrollOrbitEUATestService(t, true, cfg)
 	}
 
-	hostInfo := fleet.OrbitHostInfo{
-		HardwareUUID:   "host-uuid-1",
-		HardwareSerial: "serial-1",
-		Hostname:       "host-1",
-		Platform:       "ubuntu",
-		PlatformLike:   "debian",
-	}
-
-	// noEUACtx builds a request context advertising only unrelated capabilities,
-	// simulating an agent that does not support end user auth.
-	noEUACtx := func(ctx context.Context) context.Context {
-		req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
-		req.Header.Set(fleet.CapabilitiesHeader, "foo,bar")
-		return capabilities.NewContext(ctx, req)
-	}
+	hostInfo := enrollOrbitEUATestHostInfo
 
 	t.Run("flag disabled blocks enrollment", func(t *testing.T) {
 		ds, svc, ctx := newSvc(t, false)
@@ -2598,11 +2747,6 @@ func TestEnrollOrbitEndUserAuthBypass(t *testing.T) {
 		// auth. A modern agent that advertises the capability must still go
 		// through the SSO flow even when the flag is on.
 		ds, svc, ctx := newSvc(t, true)
-		euaCtx := func(ctx context.Context) context.Context {
-			req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
-			req.Header.Set(fleet.CapabilitiesHeader, string(fleet.CapabilityEndUserAuth))
-			return capabilities.NewContext(ctx, req)
-		}
 		_, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
@@ -2624,6 +2768,245 @@ func TestEnrollOrbitEndUserAuthBypass(t *testing.T) {
 		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
 		require.False(t, ds.EnrollOrbitFuncInvoked, "the flag bypass must not fire when an EUA token is present")
 	})
+
+	// The platform is client-supplied, so a request claiming to be macOS must be
+	// gated exactly like Linux and Windows. A genuine macOS host that completed
+	// end user auth during MDM enrollment is recognized by its IdP account, not
+	// by its platform.
+	darwinHost := hostInfo
+	darwinHost.Platform = "darwin"
+	darwinHost.PlatformLike = ""
+
+	t.Run("flag disabled blocks client-claimed darwin without capability", func(t *testing.T) {
+		// macOS fleetd never advertises end_user_auth, so a real Mac and a spoofed one look the same here.
+		ds, svc, ctx := newSvc(t, false)
+		_, err := svc.EnrollOrbit(noEUACtx(ctx), darwinHost, "secret", "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
+		require.False(t, ds.EnrollOrbitFuncInvoked, "claiming darwin must not exempt a first-time enrollment from EUA")
+	})
+
+	t.Run("flag disabled blocks client-claimed darwin with capability", func(t *testing.T) {
+		ds, svc, ctx := newSvc(t, false)
+		req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
+		req.Header.Set(fleet.CapabilitiesHeader, string(fleet.CapabilityEndUserAuth))
+		_, err := svc.EnrollOrbit(capabilities.NewContext(ctx, req), darwinHost, "secret", "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
+		require.False(t, ds.EnrollOrbitFuncInvoked)
+	})
+
+	t.Run("flag disabled allows darwin with IdP account", func(t *testing.T) {
+		// An ADE-enrolled Mac has a host_mdm_idp_accounts row written during MDM enrollment.
+		ds, svc, ctx := newSvc(t, false)
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return &fleet.MDMIdPAccount{UUID: "idp-acct-1", Email: "user@example.com"}, nil
+		}
+		nodeKey, err := svc.EnrollOrbit(noEUACtx(ctx), darwinHost, "secret", "")
+		require.NoError(t, err)
+		require.NotEmpty(t, nodeKey)
+		require.True(t, ds.EnrollOrbitFuncInvoked)
+		require.False(t, ds.HostPreviouslyOrbitEnrolledFuncInvoked)
+	})
+
+	t.Run("flag disabled allows previously enrolled darwin", func(t *testing.T) {
+		ds, svc, ctx := newSvc(t, false)
+		ds.HostPreviouslyOrbitEnrolledFunc = func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
+			return true, nil
+		}
+		nodeKey, err := svc.EnrollOrbit(noEUACtx(ctx), darwinHost, "secret", "")
+		require.NoError(t, err)
+		require.NotEmpty(t, nodeKey)
+		require.True(t, ds.EnrollOrbitFuncInvoked)
+	})
+
+	t.Run("flag enabled allows darwin without capability", func(t *testing.T) {
+		// Default behavior for a Mac that enrolls fleetd before MDM is unchanged.
+		ds, svc, ctx := newSvc(t, true)
+		nodeKey, err := svc.EnrollOrbit(noEUACtx(ctx), darwinHost, "secret", "")
+		require.NoError(t, err)
+		require.NotEmpty(t, nodeKey)
+		require.True(t, ds.EnrollOrbitFuncInvoked)
+	})
+}
+
+func TestEnrollOrbitRecordsPendingEndUserAuth(t *testing.T) {
+	// The unauthenticated setup experience MDM SSO flow only accepts host UUIDs
+	// Fleet answered with END_USER_AUTH_REQUIRED, so the enroll response is what
+	// has to write -- and later clear -- that record.
+	newSvc := func(t *testing.T, euaRequired bool) (*mock.DataStore, fleet.Service, context.Context, fleet.KeyValueStore, clock.Clock) {
+		kv := newMemKeyValueStore()
+		clk := clock.NewMockClock()
+		ds, svc, ctx := newEnrollOrbitEUATestService(t, euaRequired, config.TestConfig(),
+			&TestServerOpts{KeyValueStore: kv, Clock: clk})
+		return ds, svc, ctx, kv, clk
+	}
+
+	hostInfo := enrollOrbitEUATestHostInfo
+
+	t.Run("prompting the end user records the host uuid", func(t *testing.T) {
+		_, svc, ctx, kv, clk := newSvc(t, true)
+
+		_, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
+
+		pending, err := shared_mdm.HasEndUserAuthPrompt(ctx, kv, "host-uuid-1", clk.Now())
+		require.NoError(t, err)
+		require.True(t, pending)
+	})
+
+	t.Run("a successful enrollment clears the record", func(t *testing.T) {
+		ds, svc, ctx, kv, clk := newSvc(t, true)
+
+		// Driving the 401 is setup here; that it records the prompt is the
+		// previous subtest's assertion.
+		_, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
+		require.Error(t, err)
+
+		// The end user signed in, so the link now exists and enrollment succeeds.
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return &fleet.MDMIdPAccount{UUID: "acct-uuid-1"}, nil
+		}
+		ds.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, acctUUID string) (string, error) { return acctUUID, nil }
+
+		nodeKey, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
+		require.NoError(t, err)
+		require.NotEmpty(t, nodeKey)
+
+		pending, err := shared_mdm.HasEndUserAuthPrompt(ctx, kv, "host-uuid-1", clk.Now())
+		require.NoError(t, err)
+		require.False(t, pending)
+	})
+
+	t.Run("an enrollment that was never prompted records nothing", func(t *testing.T) {
+		_, svc, ctx, kv, clk := newSvc(t, false)
+
+		nodeKey, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
+		require.NoError(t, err)
+		require.NotEmpty(t, nodeKey)
+
+		pending, err := shared_mdm.HasEndUserAuthPrompt(ctx, kv, "host-uuid-1", clk.Now())
+		require.NoError(t, err)
+		require.False(t, pending)
+	})
+
+	t.Run("a failed enroll secret records nothing", func(t *testing.T) {
+		ds, svc, ctx, kv, clk := newSvc(t, true)
+		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+			return nil, &notFoundError{}
+		}
+
+		_, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "bad-secret", "")
+		require.Error(t, err)
+
+		pending, err := shared_mdm.HasEndUserAuthPrompt(ctx, kv, "host-uuid-1", clk.Now())
+		require.NoError(t, err)
+		require.False(t, pending)
+	})
+}
+
+func TestEnrollOrbitLogsIdPAccountLink(t *testing.T) {
+	opts := &TestServerOpts{}
+	ds, svc, ctx := newEnrollOrbitEUATestService(t, true, config.TestConfig(), opts)
+
+	ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return &fleet.MDMIdPAccount{UUID: "acct-uuid-1"}, nil
+	}
+	ds.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, acctUUID string) (string, error) {
+		return "acct-uuid-0", nil
+	}
+	ds.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+		return &fleet.MDMIdPAccount{UUID: uuid, Email: uuid + "@example.com"}, nil
+	}
+	var activities []fleet.ActivityTypeBoundHostToIdPAccount
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+		if bound, ok := act.(fleet.ActivityTypeBoundHostToIdPAccount); ok {
+			activities = append(activities, bound)
+		}
+		return nil
+	}
+
+	_, err := svc.EnrollOrbit(euaCtx(ctx), enrollOrbitEUATestHostInfo, "secret", "")
+	require.NoError(t, err)
+	require.Equal(t, []fleet.ActivityTypeBoundHostToIdPAccount{{
+		HostUUID:         enrollOrbitEUATestHostInfo.HardwareUUID,
+		IdPEmail:         "acct-uuid-1@example.com",
+		ReplacedIdPEmail: "acct-uuid-0@example.com",
+	}}, activities)
+}
+
+// enrollOrbitEUATestHostInfo is a first-time Linux enrollment, the shape both
+// end-user-auth enrollment tests drive EnrollOrbit with.
+var enrollOrbitEUATestHostInfo = fleet.OrbitHostInfo{
+	HardwareUUID:      "host-uuid-1",
+	HardwareSerial:    "serial-1",
+	Hostname:          "host-1",
+	Platform:          "ubuntu",
+	PlatformLike:      "debian",
+	OsqueryIdentifier: "osquery-id-1",
+}
+
+// newEnrollOrbitEUATestService builds the service the end-user-auth enrollment
+// tests share: a valid global enroll secret, a host with no IdP account that was
+// never enrolled before (so a genuine first-time enrollment), and a datastore
+// that enrolls successfully. euaRequired sets whether the app config demands end
+// user authentication at all.
+func newEnrollOrbitEUATestService(
+	t *testing.T, euaRequired bool, cfg config.FleetConfig, opts ...*TestServerOpts,
+) (*mock.DataStore, fleet.Service, context.Context) {
+	t.Helper()
+
+	// mock.Store hard-codes EnrollOrbit to return (nil, nil), which would make
+	// the success paths panic. Use the underlying mock.DataStore so
+	// EnrollOrbitFunc is honored.
+	ds := new(mock.DataStore)
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts...)
+
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{Secret: secret}, nil
+	}
+	ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*hostidentity_types.HostIdentityCertificate, error) {
+		return nil, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		ac := &fleet.AppConfig{}
+		ac.MDM.EnabledAndConfigured = true
+		ac.MDM.MacOSSetup.EnableEndUserAuthentication = euaRequired
+		return ac, nil
+	}
+	ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, nil
+	}
+	ds.HostPreviouslyOrbitEnrolledFunc = func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
+		return false, nil
+	}
+	ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+		// Echo the requested platform so post-enrollment platform-scoped logic runs as it would in production.
+		var cfg fleet.DatastoreEnrollOrbitConfig
+		for _, opt := range opts {
+			opt(&cfg)
+		}
+		return &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: cfg.HostInfo.Platform}, nil
+	}
+	ds.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error { return nil }
+	return ds, svc, ctx
+}
+
+// noEUACtx builds a request context advertising only unrelated capabilities,
+// simulating an agent that does not support end user auth.
+func noEUACtx(ctx context.Context) context.Context {
+	req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
+	req.Header.Set(fleet.CapabilitiesHeader, "foo,bar")
+	return capabilities.NewContext(ctx, req)
+}
+
+// euaCtx advertises the end user auth capability, so the bypass escape hatch
+// does not fire and the prompt is actually returned.
+func euaCtx(ctx context.Context) context.Context {
+	req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
+	req.Header.Set(fleet.CapabilitiesHeader, string(fleet.CapabilityEndUserAuth))
+	return capabilities.NewContext(ctx, req)
 }
 
 func TestEscrowLUKSDataStatus(t *testing.T) {
@@ -2670,6 +3053,34 @@ func TestEscrowLUKSDataStatus(t *testing.T) {
 	require.False(t, ds.ReportEscrowErrorFuncInvoked)
 
 	require.Error(t, svc.EscrowLUKSData(ctx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), "no host in context")
+}
+
+func TestSaveHostScriptResultRecordsNotificationOutcomeOnDuplicate(t *testing.T) {
+	ds := new(mock.Store)
+	opts := &TestServerOpts{SkipCreateTestUsers: true}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	ds.GetHostScriptExecutionResultFunc = func(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+		return nil, newNotFoundError()
+	}
+	// a duplicate result, which the datastore ignores and reports by returning no script result
+	ds.SetHostScriptExecutionResultFunc = func(ctx context.Context, result *fleet.HostScriptResultPayload, attemptNumber *int) (*fleet.HostScriptResult, string, error) {
+		return nil, "", nil
+	}
+
+	var recordedExecutionID string
+	opts.NotificationsMock.RecordOutcomeFunc = func(_ context.Context, executionID string, _ int64, _ string) error {
+		recordedExecutionID = executionID
+		return nil
+	}
+
+	hostCtx := test.HostContext(ctx, &fleet.Host{ID: 1, Platform: "chrome"})
+	err := svc.SaveHostScriptResult(hostCtx, &fleet.HostScriptResultPayload{ExecutionID: "notify-exec-1"})
+	require.NoError(t, err)
+	// the first post can store the script result and fail before the outcome, so the outcome still
+	// has to land when orbit retries and the result comes back as a duplicate
+	require.True(t, opts.NotificationsMock.RecordOutcomeFuncInvoked)
+	require.Equal(t, "notify-exec-1", recordedExecutionID)
 }
 
 func TestEnrollOrbitIncrementsReportsHostCount(t *testing.T) {

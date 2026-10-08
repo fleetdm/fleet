@@ -10,6 +10,8 @@ import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
+import NotifyBeforePatchingDetailsModal from "components/ActivityDetails/NotifyBeforePatchingDetailsModal";
+import RotationFailedDetailsModal from "components/ActivityDetails/RotationFailedDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
@@ -166,6 +168,18 @@ const ActivityFeed = ({
     actor_full_name?: string;
     host_display_name?: string;
     request_type?: string;
+  } | null>(null);
+  const [
+    notifyBeforePatchingDetails,
+    setNotifyBeforePatchingDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    diskEncryptionKeyRotationFailedDetails,
+    setDiskEncryptionKeyRotationFailedDetails,
+  ] = useState<{
+    detail: string;
+    hostDisplayName: string;
+    createdAt?: string;
   } | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -336,11 +350,22 @@ const ActivityFeed = ({
           },
         });
         break;
+      case ActivityType.NotifiedEndUserBeforePatching:
+        setNotifyBeforePatchingDetails({ ...details });
+        break;
+      case ActivityType.FailedToRotateDiskEncryptionKey:
+        setDiskEncryptionKeyRotationFailedDetails({
+          detail: details?.detail || "",
+          hostDisplayName: details?.host_display_name || "",
+          createdAt: created_at,
+        });
+        break;
       case ActivityType.HostEnrollmentRejected:
         setEnrollmentRejectedDetails({
           hostDisplayName: details?.host_display_name,
           hostSerial: details?.host_serial,
           reason: details?.reason,
+          platform: details?.platform,
           createdAt: created_at,
         });
         break;
@@ -450,6 +475,12 @@ const ActivityFeed = ({
           onCancel={() => setPackageInstallDetails(null)}
         />
       )}
+      {notifyBeforePatchingDetails && (
+        <NotifyBeforePatchingDetailsModal
+          details={notifyBeforePatchingDetails}
+          onCancel={() => setNotifyBeforePatchingDetails(null)}
+        />
+      )}
       {scriptPackageDetails && (
         <SoftwareScriptDetailsModal
           details={scriptPackageDetails}
@@ -526,10 +557,22 @@ const ActivityFeed = ({
           onDone={() => setEnrollmentProfileFailedDetails(null)}
         />
       )}
+      {diskEncryptionKeyRotationFailedDetails && (
+        <RotationFailedDetailsModal
+          subject="disk encryption key"
+          detail={diskEncryptionKeyRotationFailedDetails.detail}
+          hostDisplayName={
+            diskEncryptionKeyRotationFailedDetails.hostDisplayName
+          }
+          createdAt={diskEncryptionKeyRotationFailedDetails.createdAt}
+          onCancel={() => setDiskEncryptionKeyRotationFailedDetails(null)}
+        />
+      )}
       {enrollmentRejectedDetails && (
         <EnrollmentAttemptDetailsModal
           hostDisplayName={enrollmentRejectedDetails.hostDisplayName}
           reason={enrollmentRejectedDetails.reason}
+          platform={enrollmentRejectedDetails.platform}
           createdAt={enrollmentRejectedDetails.createdAt}
           onDone={() => setEnrollmentRejectedDetails(null)}
         />

@@ -84,10 +84,8 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - CVE/CPE ingestion & matching
 - Vulnerability reporting
 - Conditional access
-- Certificate Authorities (CAs)
-- Certificate delivery & renewal
 - Host disk encryption
-- CIS benchmarks 
+- CIS benchmarks
 
 
 ### Apple @ Work group
@@ -107,7 +105,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - Apple setup experience
 - macOS, iOS, and iPadOS configuration & updates
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this product group is `#g-apple-at-work`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/108), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this product group is `#g-apple-at-work`.
 
 
 ### Auto Patching group
@@ -129,18 +127,26 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - End user self-service
 - Scripts
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this product group is `#g-auto-patching`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/109), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this product group is `#g-auto-patching`.
 
 
 ### Power to the PC group
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
+| Product Designer                  | Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
 | Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 | Quality Assurance                 | [Joe Grant](https://www.linkedin.com/in/thisisjoegrant/) _([@thisisjoegrant](https://github.com/thisisjoegrant))_
 | Software Engineer                 | [Matías Spinarolli](https://www.linkedin.com/in/matias-spinarolli/) _([@jbelbo](https://github.com/jbelbo))_
+
+**Areas of expertise**:
+- Windows MDM protocol & configuration
+- Windows device onboarding (Autopilot)
+- Windows setup experience
+- Certificate Authorities (CAs)
+- Certificate delivery & renewal (except Apple)
+- Windows configuration profiles
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this product group is `#g-power-to-pc`.
 
@@ -346,7 +352,7 @@ During the call, contributors (PD and EM) present all user stories that have com
 
 The purpose of the review is to familiarize the EM, TL, and QA Engineer with the user story, and provide an opportunity to ask questions, clarify requirements, and highlight potential implementation issues. The first draft of the test plan produced by the Product Designer is reviewed and revised as needed during the call. The QA Engineer is the DRI for finalizing the test plan.
 
-The purpose of the user story review is to align product, engineering, and QA on functionality and implementation details. Wireframe reviews occur daily during [design reviews](https://fleetdm.com/handbook/company/product-groups#design-reviews) where contributors are welcome to join and provide design feedback in the agenda document. However, sometimes there are design changes needed if a gap is discovered or an implementation issue is raised during user story review. If there are design changes, the user story goes back into drafting to address the gap. If there are no design changes, the story remains with the Engineering DRI to [complete the drafting process](#defining-done) before bringing to estimation. If no Engineering DRI is assigned, the ticket is assigned to the Engineering Manager.
+The purpose of the user story review is to align product, engineering, and QA on functionality and implementation details. Wireframe reviews occur daily during [design reviews](https://fleetdm.com/handbook/company/product-groups#design-reviews) where contributors are welcome to join and provide design feedback in the agenda document. However, sometimes there are design changes needed if a gap is discovered or an implementation issue is raised during user story review. If there are design changes, the user story stays in drafting to address the gap. If there are no design changes, the story is assigned to the Tech Lead to [complete the drafting process](#defining-done) before bringing to estimation. If no Engineering DRI is assigned, the ticket is assigned to the Engineering Manager.
 
 ### Release demo (every 3 weeks)
 
@@ -427,6 +433,8 @@ The website team will [periodically](https://fleetdm.com/handbook/marketing/webs
 cd website
 ./node_modules/sails/bin/sails.js run generate-merged-schema
 ```
+
+This updates both `schema/osquery_fleet_schema.json` and the copy for [Fleet's MCP](https://fleetdm.com/guides/fleet-mcp) (`cmd/fleet-mcp/osquery_fleet_schema.json`). Commit both files. The MCP needs its own copy because it builds the schema into its binary as an offline fallback for air-gapped deployments of the MCP server.
 
 > When adding a new table, make sure it does not already exist with the same name. If it does, consider changing the new table name or merge the two tables if it makes sense.
 
@@ -1176,7 +1184,7 @@ Product group boards are exclusively composed of the following types of work ite
 
 6. **Reliability issues**: These represent scaling, performance, or reliability concerns, including post-mortem action items, marked with the `reliability` label. Reliability issues are prioritized by the relevant Engineering Manager. They are used to track work that improves system stability, addresses incident follow-ups, and resolves operational risks.
 
-7. **Security issues**: These represent vulnerabilities, pen test findings, and security hardening work, marked with the `security` label. Security issues include items from penetration tests, vulnerability scans, and proactive security improvements. They are prioritized by severity and tracked alongside other work items on the product group board.
+7. **Security issues**: These represent vulnerabilities, pen test findings, and security hardening work, marked with the `security` label. Security issues include items from penetration tests, vulnerability scans, and proactive security improvements. They are prioritized by severity and tracked alongside other work items on the product group board. If there are product changes, the issue is updated to use the [user story template](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md) and proposed changes are brought to the relevant product group's design review.
 
 > Product group boards do not accommodate any other type of ticket. By strictly adhering to these work items, we maintain an organized and focused workflow that consistently adds value for our users.
 

@@ -1,6 +1,6 @@
 //go:build windows
 
-// nolint:gosec,G103 // Reason: unsafe required for Windows API calls.
+//nolint:gosec // G103: unsafe required for Windows API calls.
 package update
 
 import (
@@ -240,6 +240,14 @@ func TriggerWindowsMDMSync() error {
 		return fmt.Errorf("run deviceenroller /o %s /c: %w (output: %q)", guid, err, string(out))
 	}
 	return nil
+}
+
+// HasActiveFleetMDMEnrollment reports whether this host currently has an active Fleet Windows MDM enrollment. It answers "could
+// Fleet deliver configuration to me?", which is what callers need before asking for something Fleet can only send over the MDM
+// channel.
+func HasActiveFleetMDMEnrollment() bool {
+	_, err := fleetMDMEnrollmentGUID()
+	return err == nil
 }
 
 // fleetMDMEnrollmentGUID returns the enrollment GUID of the active Fleet Windows MDM enrollment by scanning

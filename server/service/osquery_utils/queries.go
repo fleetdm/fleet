@@ -1,6 +1,7 @@
 package osquery_utils
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -28,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -246,25 +248,25 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
-		// Fleet requires the DisplayVersion as well as the UBR (4th part of the version number) to
-		// correctly map OS vulnerabilities to hosts. The UBR is not available in the os_version table.
-		// The full version number is available in the `kernel_info` table, but there is a Win10 bug
-		// which is reporting an incorrect build number (3rd part), so we query the Windows registry for the UBR
-		// here instead.  To note, osquery 5.12.0 will have the UBR in the os_version table.
-
-		// display_version is not available in some versions of
-		// Windows (Server 2019). By including it using a JOIN it can
-		// return no rows and the query will still succeed
+		// Fleet requires the DisplayVersion as well as the UBR (4th part of the version
+		// number) to correctly map OS vulnerabilities to hosts. kernel_info.version also
+		// carries the UBR, but some Windows 10 releases misreport the build number (3rd
+		// part) there, so it is only the fallback.
+		//
+		// Windows Server 2012 and 2012 R2 predate the UBR and report no value for it, so
+		// they take that fallback. The revision is cast before it is compared because it
+		// reads back as 0 or "" on those releases, and "" must not be appended: a zero
+		// revision would make every fixed build in a security bulletin compare as newer
+		// than the host, reporting every CVE in it.
+		//
+		// display_version is not available in some versions of Windows (Server 2019). By
+		// including it using a JOIN it can return no rows and the query will still succeed.
+		Description: "Reads the update build revision (UBR) from `os_version.revision`, which requires osquery 5.12.1 or later. Windows Server 2012 and 2012 R2 have no UBR and fall back to the `kernel_info` version.",
 		Query: `
 		WITH display_version_table AS (
 			SELECT data as display_version
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-		),
-		ubr_table AS (
-			SELECT data AS ubr
-			FROM registry
-			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
 		),
 		installation_type_table AS (
 			SELECT data AS installation_type
@@ -274,15 +276,13 @@ var hostDetailQueries = map[string]DetailQuery{
 		SELECT
 			os.name,
 			COALESCE(d.display_version, '') AS display_version,
-			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
-		LEFT JOIN
-			ubr_table u
 		LEFT JOIN
 			installation_type_table it`,
 		Platforms: []string{"windows"},
@@ -706,46 +706,39 @@ var extraDetailQueries = map[string]DetailQuery{
 	"os_windows": {
 		// This query is used to populate the `operating_systems` and `host_operating_system`
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
-		// `os_version_windows` detail queries above.
-		// See above description for the `os_version_windows` detail query.
+		// `os_version_windows` detail queries above. See os_version_windows for why the
+		// UBR comes from os_version.revision and why it is cast before being compared.
 		//
-		// DisplayVersion doesn't exist on all versions of Windows (Server 2019).
-		// To prevent the query from failing in those cases, we join
-		// the values in when they exist, alternatively the column is
-		// just empty.
+		// DisplayVersion doesn't exist on all versions of Windows (Server 2019). To prevent
+		// the query from failing in those cases, we join the values in when they exist,
+		// alternatively the column is just empty.
+		Description: "Reads the update build revision (UBR) from `os_version.revision`, which requires osquery 5.12.1 or later. Windows Server 2012 and 2012 R2 have no UBR and fall back to the `kernel_info` version.",
 		Query: `
-	WITH display_version_table AS (
-		SELECT data as display_version
-		FROM registry
-		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-	),
-	ubr_table AS (
-	SELECT data AS ubr
-	FROM registry
-	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
-	),
-	installation_type_table AS (
-	SELECT data AS installation_type
-	FROM registry
-	WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
-	)
-	SELECT
-		os.name,
-		os.platform,
-		os.arch,
-		k.version as kernel_version,
-		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
-		COALESCE(d.display_version, '') AS display_version,
-		COALESCE(it.installation_type, '') AS installation_type
-	FROM
-		os_version os,
-		kernel_info k
-	LEFT JOIN
-		display_version_table d
-	LEFT JOIN
-		ubr_table u
-	LEFT JOIN
-		installation_type_table it`,
+		WITH display_version_table AS (
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		installation_type_table AS (
+			SELECT data AS installation_type
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
+		)
+		SELECT
+			os.name,
+			os.platform,
+			os.arch,
+			k.version as kernel_version,
+			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
+			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(it.installation_type, '') AS installation_type
+		FROM
+			os_version os,
+			kernel_info k
+		LEFT JOIN
+			display_version_table d
+		LEFT JOIN
+			installation_type_table it`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -1244,7 +1237,7 @@ FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 //
 // Every one of those drops the title's INSERT IGNORE and leaves the software row with no title
 // at all: invisible on the Software page, and an error logged on every check-in. Nothing
-// user-facing is lost, because the Type column shows a flat "Plugin (Adobe)" and never displays
+// user-facing is lost, because the Type column shows a flat "Adobe plugin" and never displays
 // the host application.
 var softwareAdobePlugins = DetailQuery{
 	Query: `
@@ -1300,6 +1293,32 @@ SELECT
 FROM packages`,
 	Platforms: fleet.HostLinuxOSs,
 	Discovery: discoveryTable("fleetd_pacman_packages"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
+// softwareLinuxNix collects the Nix store paths reachable from the active NixOS system
+// profile and users' Nix and Home Manager profiles, including runtime dependencies.
+// Outputs of one package (e.g. openssl-3.0.14 and openssl-3.0.14-bin) are one software
+// with several installed paths.
+//
+// Only NixOS is inventoried: the table returns no rows where Nix is installed alongside another
+// distribution's package manager, whose packages the other software queries already report.
+var softwareLinuxNix = DetailQuery{
+	Query: `
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'nix_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch,
+  store_path AS installed_path
+FROM fleetd_nix_packages`,
+	Platforms: []string{"nixos"},
+	Discovery: discoveryTable("fleetd_nix_packages"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
@@ -3062,11 +3081,11 @@ func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Ho
 	// (BYOD) enrollments (apple_mdm.AddPersonalEnrollmentToFleetURL). osquery
 	// reports that ServerURL here, so we read the flag back the same way we read
 	// the enroll reference above. Without this, the detail-query ingest would
-	// overwrite the is_personal_enrollment set by the Apple Authenticate flow.
+	// overwrite the personal enrollment type set by the Apple Authenticate flow.
 	// Must be read before RawQuery is cleared below.
-	var isPersonalEnrollment bool
-	if mdmSolutionName == fleet.WellKnownMDMFleet {
-		isPersonalEnrollment = serverURL.Query().Get(apple_mdm.FleetPersonalEnrollmentKey) == "1"
+	personalType := fleet.PersonalEnrollmentTypeNone
+	if mdmSolutionName == fleet.WellKnownMDMFleet && serverURL.Query().Get(apple_mdm.FleetPersonalEnrollmentKey) == "1" {
+		personalType = fleet.PersonalEnrollmentTypeManualProfile
 	}
 
 	// strip any query parameters from the URL
@@ -3080,7 +3099,7 @@ func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Ho
 		installedFromDep,
 		mdmSolutionName,
 		fleetEnrollRef,
-		isPersonalEnrollment,
+		personalType,
 	)
 }
 
@@ -3109,7 +3128,7 @@ func deduceMDMNameWindows(data map[string]string) string {
 func directIngestMDMWindows(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
 		// no mdm information in the registry
-		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false)
+		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	}
 	if len(rows) > 1 {
 		logger.WarnContext(ctx, fmt.Sprintf("mdm expected single result got %d",
@@ -3175,7 +3194,7 @@ func directIngestMDMWindows(ctx context.Context, logger *slog.Logger, host *flee
 		automatic,
 		mdmSolutionName,
 		"",
-		false, // isPersonalEnrollment is always false for Windows hosts
+		fleet.PersonalEnrollmentTypeNone,
 	)
 }
 
@@ -3305,12 +3324,58 @@ func directIngestDiskEncryptionKeyFileDarwin(
 		return nil
 	}
 
+	return storeDarwinDiskEncryptionKey(ctx, logger, host, ds, base64Key, decryptable)
+}
+
+func storeDarwinDiskEncryptionKey(
+	ctx context.Context,
+	logger *slog.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	base64Key string,
+	decryptable *bool,
+) error {
+	if base64Key != "" {
+		existing, err := ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "get existing disk encryption key")
+		}
+		if existing != nil && existing.Decryptable != nil && *existing.Decryptable &&
+			existing.Base64Encrypted != "" && existing.Base64Encrypted != base64Key {
+			// After a rotation, the key Fleet stored from the command reply and the
+			// on-disk FileVaultPRK.dat are separate CMS envelopes of the same key, so
+			// compare plaintext before treating the report as a new key.
+			same, err := sameDecryptedDiskEncryptionKey(ctx, ds, existing.Base64Encrypted, base64Key)
+			if err != nil {
+				logger.WarnContext(ctx, "comparing disk encryption key plaintext", "host_id", host.ID, "err", err)
+			} else if same {
+				return ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, existing.Base64Encrypted, base64Key)
+			}
+		}
+	}
+
 	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
 	if err != nil {
 		return err
 	}
 	host.DiskEncryptionKeyEscrowed = archived
 	return nil
+}
+
+func sameDecryptedDiskEncryptionKey(ctx context.Context, ds fleet.Datastore, a, b string) (bool, error) {
+	certs, key, err := assets.CACertsAndKeyForDecryption(ctx, ds)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load CA assets")
+	}
+	plainA, err := mdm.DecryptBase64CMSWithCerts(a, key, certs)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "decrypt stored key")
+	}
+	plainB, err := mdm.DecryptBase64CMSWithCerts(b, key, certs)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "decrypt reported key")
+	}
+	return len(plainA) > 0 && bytes.Equal(plainA, plainB), nil
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -3390,12 +3455,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		return nil
 	}
 
-	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
-	if err != nil {
-		return err
-	}
-	host.DiskEncryptionKeyEscrowed = archived
-	return nil
+	return storeDarwinDiskEncryptionKey(ctx, logger, host, ds, base64Key, decryptable)
 }
 
 func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
@@ -3509,7 +3569,10 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 	if len(rows) > 1 {
 		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
 	}
-	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, rows[0]["data"])
+	// Plain osquery reports the device ID too, so only an orbit node key proves fleetd is on the device.
+	// Covers edge case where plain osquery is enrolled in Fleet when end user enrolls in MDM.
+	fleetdOnDevice := host.OrbitNodeKey != nil && *host.OrbitNodeKey != ""
+	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, rows[0]["data"], fleetdOnDevice)
 	return err
 }
 
@@ -3523,7 +3586,9 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 // this same hostUUID, so the `WHERE host_uuid <> ?` guard short-circuited; (b) no row matched mdmDeviceID at all (e.g.
 // the enrollment was deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
 // rather than infer it from the boolean alone.
-func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string) (bool, error) {
+func LinkWindowsHostMDMEnrollment(
+	ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string, fleetdOnDevice bool,
+) (bool, error) {
 	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "updating windows mdm device id")
@@ -3539,6 +3604,14 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 		return updated, nil
 	}
 	device.HostUUID = hostUUID // in case the read was stale due to replication lag
+	// fleetd reporting this enrollment from the device means it enrolled without the secret minted for Fleet's fleetd install, which
+	// the installer command line left readable on the device. We delete/invalidate it.
+	if fleetdOnDevice {
+		if err := ds.DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx, device.ID); err != nil {
+			logger.ErrorContext(ctx, "failed to delete unused windows one-time enroll secrets", "err", err, "host_id", hostID)
+			ctxerr.Handle(ctx, err)
+		}
+	}
 	// Newly created hosts from user-driven enrollments are assigned the configured default fleet.
 	if err := maybeAssignWindowsEnrollmentDefaultFleet(ctx, logger, ds, hostID, device); err != nil {
 		// Best-effort. In the unlikely event of a failure, the host remains in Unassigned fleet.
@@ -4017,6 +4090,7 @@ func GetDetailQueries(
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
+		generatedMap["software_linux_fleetd_nix"] = softwareLinuxNix
 		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
 		generatedMap["software_adobe_plugins"] = softwareAdobePlugins
 		generatedMap["software_go_binaries"] = softwareGoBinaries

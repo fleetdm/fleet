@@ -1068,9 +1068,14 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v any, path string) http.Handler
 	}
 
 	limit := e.requestBodySizeLimit
+	if limit == 0 {
+		// fallback to the default max request body size ONLY if a custom value is not provided.
+		limit = platform_http.MaxRequestBodySize
+	}
+
 	if limit != -1 {
-		// Use the maximum of instance defaults and any override (if configured)
-		limit = max(limit, platform_http.MaxRequestBodySize, platform_http.EndpointRequestSizeOverrides[path])
+		// Let endpoint specific overrides expand, but always use the set max in handler.go if set.
+		limit = max(limit, platform_http.EndpointRequestSizeOverrides[path])
 	}
 	h := newServer(endp, e.MakeDecoderFn(v, limit), e.EncodeFn, e.Opts)
 	// The HTTP pre-auth middleware runs outside the kithttp.Server so it can
@@ -1089,7 +1094,16 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn
 	// returning authz check missing instead of the more relevant error. Should be addressed as part
 	// of #4406.
 	e = authzcheck.NewMiddleware().AuthzCheck()(e)
-	return kithttp.NewServer(e, decodeFn, encodeFn, opts...)
+	srv := kithttp.NewServer(e, decodeFn, encodeFn, opts...)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv.ServeHTTP(w, r)
+		// net/http only removes multipart temp files for its own *http.Request, and
+		// decoders parse the form on a copy of it. Not a kithttp finalizer, which
+		// would hide http.Flusher from the encoder.
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	})
 }
 
 func (e *CommonEndpointer[H]) StartingAtVersion(version string) *CommonEndpointer[H] {

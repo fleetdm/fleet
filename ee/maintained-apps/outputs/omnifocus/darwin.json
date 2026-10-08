@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.9.1",
+      "version": "4.9.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniFocus4';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniFocus4' AND version_compare(bundle_short_version, '4.9.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniFocus4' AND version_compare(bundle_short_version, '4.9.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.omnigroup.OmniFocus4' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.omnigroup.com/software/macOS/15/OmniFocus-4.9.1.dmg",
+      "installer_url": "https://downloads.omnigroup.com/software/macOS/15/OmniFocus-4.9.2.dmg",
       "install_script_ref": "ff7fc14c",
       "uninstall_script_ref": "7736cdd7",
-      "sha256": "a73f4e389932e1bb53e5a716c224b55025f7ddc1938e3e132123036f60d0c478",
+      "sha256": "3574f794b608f7cc9a4a504b09888be920419655514ed77af195738206030680",
       "default_categories": [
         "Productivity"
       ]

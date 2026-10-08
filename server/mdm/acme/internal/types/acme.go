@@ -47,6 +47,8 @@ type Enrollment struct {
 	HostIdentifier string     `db:"host_identifier"`
 	NotValidAfter  *time.Time `db:"not_valid_after"`
 	Revoked        bool       `db:"revoked"`
+	Purpose        string     `db:"purpose"`
+	EnrollmentID   *string    `db:"enrollment_id"`
 }
 
 // IsValid returns true if the enrollment is still valid
@@ -177,6 +179,9 @@ type Challenge struct {
 	ChallengeType       string `db:"challenge_type"`
 	Token               string `db:"token"`
 	Status              string `db:"status"`
+	// AttestedPublicKey is the DER SubjectPublicKeyInfo of the device-attest-01 leaf certificate,
+	// recorded when the challenge validates. The CSR at finalize must carry this key.
+	AttestedPublicKey []byte `db:"attested_public_key"`
 	// UpdatedAt is used as validated timestamp if the challenge is valid
 	UpdatedAt time.Time `db:"updated_at"`
 }

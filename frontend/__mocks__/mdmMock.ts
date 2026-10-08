@@ -40,6 +40,8 @@ const DEFAULT_MDM_PROFILE_DATA: IMdmProfile = {
   created_at: "2021-01-01T00:00:00Z",
   updated_at: "2021-01-01T00:00:00Z",
   checksum: "123abc",
+  self_service: false,
+  hidden: false,
 };
 
 export const createMockMdmProfile = (

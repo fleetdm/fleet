@@ -37,3 +37,12 @@ export const AllFit: Story = {
   args: { items: ["Mac", "Linux"] },
   decorators: [withFrame(360)],
 };
+
+/** Hover "+N more" — the tooltip lists 10 items and counts the rest, rather
+ * than growing past the height of the window. */
+export const ManyItems: Story = {
+  args: {
+    items: Array.from({ length: 57 }, (_, i) => `CVE-2026-${1000 + i}`),
+  },
+  decorators: [withFrame(360)],
+};
