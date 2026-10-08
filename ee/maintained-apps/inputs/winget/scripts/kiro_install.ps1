@@ -24,7 +24,7 @@ try {
 
     # Fleet's installer directory is not readable by that user.
     $stagedInstaller = Join-Path $env:PUBLIC (Split-Path $exeFilePath -Leaf)
-    Copy-Item -Path $exeFilePath -Destination $stagedInstaller -Force -ErrorAction Stop
+    Copy-Item -Path $exeFilePath -Destination $stagedInstaller -Force
 
     $installArgs = "/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /MERGETASKS=!runcode"
     if ($installArgs) {
@@ -70,6 +70,4 @@ try {
     }
 }
 
-# Exit turns a code above Int32.MaxValue, such as a task's HRESULT, into 0.
-if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
 Exit $exitCode

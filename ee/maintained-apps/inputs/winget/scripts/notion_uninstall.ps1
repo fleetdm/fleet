@@ -235,6 +235,4 @@ try {
     $exitCode = 1
 }
 
-# Exit turns a code above Int32.MaxValue, such as a task's HRESULT, into 0.
-if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
 Exit $exitCode
