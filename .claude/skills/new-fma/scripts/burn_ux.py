@@ -12,7 +12,8 @@ for a multi-GB installer:
 import struct
 import sys
 
-d = open(sys.argv[1], "rb").read()
+with open(sys.argv[1], "rb") as f:
+    d = f.read()
 pe = struct.unpack_from("<I", d, 0x3C)[0]
 nsec = struct.unpack_from("<H", d, pe + 6)[0]
 opt = struct.unpack_from("<H", d, pe + 20)[0]
@@ -30,5 +31,6 @@ if raw is None:
 stub, _, _, _, _, _, ux, _ = struct.unpack_from("<8I", d, raw + 24)
 if stub + ux > len(d):
     sys.exit(f"need the first {stub + ux} bytes; fetch a larger range")
-open(sys.argv[2], "wb").write(d[stub:stub + ux])
+with open(sys.argv[2], "wb") as f:
+    f.write(d[stub:stub + ux])
 print(f"wrote UX cabinet ({ux} bytes) to {sys.argv[2]}")

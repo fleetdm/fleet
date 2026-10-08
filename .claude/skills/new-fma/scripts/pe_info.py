@@ -9,7 +9,8 @@ import sys
 
 MACHINES = {0x14C: "x86", 0x8664: "x64", 0xAA64: "arm64"}
 
-d = open(sys.argv[1], "rb").read()
+with open(sys.argv[1], "rb") as f:
+    d = f.read()
 if d[:2] != b"MZ":
     sys.exit("not a PE file")
 pe = struct.unpack_from("<I", d, 0x3C)[0]
