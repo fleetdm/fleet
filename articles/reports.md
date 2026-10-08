@@ -89,19 +89,21 @@ The report may take several seconds to complete because Fleet has to wait for th
 
 Fleet allows you to schedule reports to run at a set interval. Scheduled reports will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. Automations can be turned off in **Advanced options** or using the bulk **Manage automations** UI.
 
-Reports run at target moments (rather than at an interval starting after the report is saved). While a host sleeps, its report schedule pauses. Here's when each interval runs, and how often it runs on a laptop that's only awake during a 9-to-5 workday:
+Reports run at target moments (rather than at an interval starting after the report is saved). On a host that never sleeps, the target moments line up with the clock in UTC. While a host sleeps, its report schedule pauses, so on a laptop the target moments shift later after each sleep.
 
-| Interval | Target moments (UTC) | Laptop awake 9 to 5 |
-|:---------|:---------------------|:--------------------|
-| Every 5 minutes | :00, :05, :10, and so on | About 96 times a workday |
-| Every 10 minutes | :00, :10, :20, and so on | About 48 times a workday |
-| Every 15 minutes | :00, :15, :30, and :45 | About 32 times a workday |
-| Every 30 minutes | :00 and :30 | About 16 times a workday |
-| Every hour | On the hour (11:00, 12:00, 13:00, and so on) | About 8 times a workday |
-| Every 6 hours | 00:00, 06:00, 12:00, and 18:00 | 4 times every 3 workdays |
-| Every 12 hours | 00:00 and 12:00 | 2 times every 3 workdays |
-| Every day | Midnight (4pm Pacific, 7pm Eastern, or 9am in Tokyo) | Once every 3 workdays |
-| Every week | Thursday at midnight (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo) | About once a month |
+Here's when each interval runs on a host that never sleeps, and on a laptop that's only awake from 9am to 5pm EST, starting on a Monday:
+
+| Interval | Host that never sleeps (UTC) | Laptop awake 9 to 5 EST |
+|:---------|:-----------------------------|:------------------------|
+| Every 5 minutes | :00, :05, :10, and so on | :00, :05, :10, and so on during the workday (about 96 times a day) |
+| Every 10 minutes | :00, :10, :20, and so on | :00, :10, :20, and so on during the workday (about 48 times a day) |
+| Every 15 minutes | :00, :15, :30, and :45 | :00, :15, :30, and :45 during the workday (about 32 times a day) |
+| Every 30 minutes | :00 and :30 | :00 and :30 during the workday (about 16 times a day) |
+| Every hour | On the hour (11:00, 12:00, 13:00, and so on) | On the hour during the workday (about 8 times a day) |
+| Every 6 hours | 00:00, 06:00, 12:00, and 18:00 | Monday 1pm, Tuesday 11am, and Wednesday 9am and 3pm, then repeats (4 times every 3 workdays) |
+| Every 12 hours | 00:00 and 12:00 | Tuesday 11am and Wednesday 3pm, then repeats (2 times every 3 workdays) |
+| Every day | Midnight (4pm Pacific, 7pm Eastern, or 9am in Tokyo) | 11am every 3 workdays (Tuesday, Friday, then the next Wednesday) |
+| Every week | Thursday at midnight (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo) | 11am every 21 workdays (about once a month) |
 | Never | Doesn't run on a schedule | Doesn't run on a schedule |
 
 Those are target moments, not exact ones. The first time a host picks up a report, Fleet nudges the interval up or down by up to 10% (configurable via `schedule_splay_percent` in [agent options](https://fleetdm.com/docs/configuration/agent-configuration)) and locks in that adjusted number for that host, so different hosts don't all check in at once. So in practice, an hourly report checks in every 54 to 66 minutes, and a weekly report checks in roughly every 6 to 8 days, consistently for that host. Want to know exactly when a specific host will check in next? Run `SELECT * FROM osquery_schedule` as a live query.
