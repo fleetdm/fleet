@@ -5134,10 +5134,12 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 	mkInstaller := func(storageID string) uint {
 		var id uint
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			// is_active=1 so installerAvailableForInstallForTeamAndTitleID
+			// resolves the title to this installer when status composition kicks in.
 			res, err := q.ExecContext(ctx,
 				`INSERT INTO software_installers
-					(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query)
-				VALUES (?, ?, '1.0', 'darwin', ?, ?, ?, '', '')`,
+					(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query, is_active)
+				VALUES (?, ?, '1.0', 'darwin', ?, ?, ?, '', '', 1)`,
 				titleID, storageID+".pkg", storageID, scriptID, scriptID)
 			if err != nil {
 				return err
@@ -5193,6 +5195,44 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
 		SoftwareInstallerIDFilter: new(installer2 + 100),
 	}, 0)
+
+	// Status composition: regression guard for the per-installer ranking fix
+	// in softwareInstallerJoin. host4 FAILED on installer1 (older) and later
+	// INSTALLED installer2. Pre-fix, software_installer_id=installer1 +
+	// software_status=installed matched host4 (the title's latest row was
+	// installer2 installed, and the EXISTS layered on any installer1 history
+	// of any status). Post-fix, the join ranks per-installer, so host4's
+	// latest installer1 row ranks failed_install and the filter excludes it.
+	host4 := mkHost(4)
+	writeInstall := func(hostID, installerID uint, exitCode int, createdAt string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_software_installs
+					(execution_id, host_id, software_title_id, software_installer_id, installer_filename, version, attempt_number, install_script_exit_code, created_at)
+				VALUES (?, ?, ?, ?, 'x.pkg', '1.0', 1, ?, ?)`,
+				uuid.NewString(), hostID, titleID, installerID, exitCode, createdAt)
+			return err
+		})
+	}
+	writeInstall(host4.ID, installer1, 1, "2024-01-01 00:00:00.000000")
+	writeInstall(host4.ID, installer2, 0, "2024-02-01 00:00:00.000000")
+	installed := fleet.SoftwareInstalled
+
+	// installer1 + status=installed: host4's latest installer1 row failed, so
+	// the per-installer ranking excludes it.
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		SoftwareTitleIDFilter:     &titleID,
+		SoftwareInstallerIDFilter: &installer1,
+		SoftwareStatusFilter:      &installed,
+	}, 0)
+
+	// installer2 + status=installed: host4's latest installer2 row succeeded.
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		SoftwareTitleIDFilter:     &titleID,
+		SoftwareInstallerIDFilter: &installer2,
+		SoftwareStatusFilter:      &installed,
+	}, 1)
+	require.Equal(t, host4.ID, hosts[0].ID)
 
 	// Multi-version App Store app title: one vpp_apps row, two vpp_apps_teams
 	// (versions), one host install per version.
