@@ -89,9 +89,16 @@ func (w *wsTransport) run() {
 		w.agent.stats.IncrementWebSocketConnects()
 		w.agent.stats.UpdateWebSocketConnected(1)
 		w.connected.Store(true)
+		// Like orbit, fetch the orbit config on connect: changes made before
+		// the server registered the connection were never notified.
+		w.agent.requestOrbitConfig("connect")
 		w.readLoop(conn)
 		w.connected.Store(false)
 		w.agent.stats.UpdateWebSocketConnected(-1)
+		select {
+		case w.agent.orbitConfigDisconnected <- struct{}{}:
+		default:
+		}
 		_ = conn.Close()
 		if w.stopped() {
 			return
@@ -138,9 +145,13 @@ func (w *wsTransport) readLoop(conn *websocket.Conn) {
 		}
 		// Unknown notification types are ignored for forward compatibility,
 		// like orbit.
-		if msg.Type == fleet.AgentWSMessageTypeDistributedRead {
+		switch msg.Type {
+		case fleet.AgentWSMessageTypeDistributedRead:
 			w.agent.stats.IncrementWebSocketNotifications()
 			w.trigger()
+		case fleet.AgentWSMessageTypeOrbitConfig:
+			w.agent.stats.IncrementWebSocketNotifications()
+			w.agent.requestOrbitConfig("nudge")
 		}
 	}
 }
@@ -289,4 +300,45 @@ func (a *agent) distributedAPIPrefix() string {
 		return "/api/osquery"
 	}
 	return "/api/v1/osquery"
+}
+
+// orbitConfigDefaultInterval is orbit's default orbit config poll interval.
+const orbitConfigDefaultInterval = 30 * time.Second
+
+// orbitConfigRequest asks runOrbitLoop to fetch the orbit config now.
+type orbitConfigRequest struct {
+	cause string    // "nudge" or "connect"
+	at    time.Time // when a nudge arrived, for the nudge→fetch latency
+}
+
+// requestOrbitConfig asks for an orbit config fetch now. Like orbit, requests
+// arriving before the pending one is served are merged into it.
+func (a *agent) requestOrbitConfig(cause string) {
+	req := orbitConfigRequest{cause: cause}
+	if cause == "nudge" {
+		req.at = time.Now()
+	}
+	select {
+	case a.orbitConfigReq <- req:
+	default:
+	}
+}
+
+// nextOrbitConfigInterval mirrors orbit's client.OrbitClient
+// nextConfigInterval: the server's fallback interval while the WebSocket is
+// connected and the config is quiet, the default interval otherwise. The
+// simulator runs scripts and installs from the notifications themselves, so a
+// quiet config is the only "no local work" signal it needs.
+func (a *agent) nextOrbitConfigInterval(cfg *fleet.OrbitConfig) time.Duration {
+	if cfg.WebSocketTransport == nil || cfg.WebSocketTransport.OrbitConfigPollInterval == nil ||
+		!cfg.Notifications.IsQuiet() {
+		return orbitConfigDefaultInterval
+	}
+	a.wsMu.Lock()
+	ws := a.ws
+	a.wsMu.Unlock()
+	if ws == nil || !ws.connected.Load() {
+		return orbitConfigDefaultInterval
+	}
+	return max(orbitConfigDefaultInterval, time.Duration(*cfg.WebSocketTransport.OrbitConfigPollInterval)*time.Second)
 }

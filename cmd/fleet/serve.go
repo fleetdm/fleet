@@ -54,10 +54,12 @@ import (
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
+	"github.com/fleetdm/fleet/v4/server/datastore/orbitconfig_notify"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -118,6 +120,9 @@ import (
 
 const (
 	liveQueryMemCacheDuration = 1 * time.Second
+	// orbitConfigHostsBatchWindow merges the per-host orbit config wake-ups
+	// fired within it into one publish: datastore writers fire one per host.
+	orbitConfigHostsBatchWindow = 100 * time.Millisecond
 )
 
 type initializer interface {
@@ -310,6 +315,27 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if redisPool == nil {
 		initFatal(errors.New("redis pool was nil after initialization"), "initialize Redis")
 		return
+	}
+
+	// Agent WebSocket transport (ADR-0011) wake-ups are published over Redis
+	// pub/sub. Created here so the datastore can notify agents of orbit config
+	// changes (see orbitConfigHostsBatchWindow).
+	var agentNotifier *pubsub.RedisAgentNotifier
+	var delayedAgentNotifier *pubsub.DelayedAgentNotifier
+	if config.WebSocket.TransportEnabled {
+		agentNotifier = pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
+		// Delay wake-ups by the TTL of the in-memory caches the notified
+		// agent's request reads, so it can't be served a snapshot predating
+		// the change (see pubsub.DelayedAgentNotifier).
+		delayedAgentNotifier = pubsub.NewDelayedAgentNotifier(agentNotifier, pubsub.AgentNotifierDelays{
+			LiveQuery:        liveQueryMemCacheDuration,
+			OrbitConfigHosts: orbitConfigHostsBatchWindow,
+			OrbitConfigScope: cached_mysql.MaxOrbitConfigInputTTL(),
+		}, logger.With("component", "agent-notifier"))
+		if config.WebSocket.OrbitConfigEnabled {
+			mds.WithOrbitConfigNotifier(delayedAgentNotifier)
+			ds = orbitconfig_notify.New(ds, delayedAgentNotifier, logger.With("component", "orbitconfig-notify"))
+		}
 	}
 
 	resultStore := pubsub.NewRedisQueryResults(
@@ -742,15 +768,35 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		agentWSHub = agentws.NewHub(logger.With("component", "agentws"),
 			config.WebSocket.PingInterval, config.WebSocket.PongTimeout)
 		agentWSHub.InstanceID = instanceID
-		agentNotifier := pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
-		// Delay live query wake-ups by the live query store's in-memory cache
-		// TTL so a notified read can't be served from a cache snapshot
-		// predating the campaign (see pubsub.DelayedAgentNotifier).
-		svc.SetAgentCheckInNotifier(pubsub.NewDelayedAgentNotifier(agentNotifier,
-			liveQueryMemCacheDuration, logger.With("component", "agent-notifier")))
+		svc.SetAgentCheckInNotifier(delayedAgentNotifier)
+
+		var onResubscribe func()
+		if config.WebSocket.OrbitConfigEnabled {
+			agentWSHub.EnableScopedNotifications(ctx, ds, config.WebSocket.CheckBatchSize, config.WebSocket.OrbitConfigSpread)
+			// Orbit config notifications published while the subscription was
+			// down are lost, and nothing else re-sends them: have every held
+			// agent fetch. Live queries and interval work are re-notified by
+			// the interval check job.
+			onResubscribe = func() {
+				agentWSHub.QueueScope(agentws.ScopedNotification{
+					MsgType: fleet.AgentWSMessageTypeOrbitConfig,
+					Reason:  fleet.AgentWSReasonResync,
+					Scope:   fleet.AgentNotificationScopeGlobal,
+				})
+			}
+		}
 		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
-			agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
-		})
+			switch {
+			case n.Scope != "":
+				agentWSHub.QueueScope(agentws.ScopedNotification{MsgType: n.Type, Reason: n.Reason, Scope: n.Scope})
+			case n.Type == fleet.AgentWSMessageTypeOrbitConfig:
+				// Paced: a write can target thousands of hosts at once (e.g. a
+				// fleet-wide Windows MDM command).
+				agentWSHub.NotifyPaced(n.Type, n.Reason, n.HostIDs)
+			default:
+				agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
+			}
+		}, onResubscribe)
 		// Each instance checks only the connections it holds, so this is a
 		// plain per-instance goroutine, not a locked cron job.
 		go (&agentws.IntervalChecker{

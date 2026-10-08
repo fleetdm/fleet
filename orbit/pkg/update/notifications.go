@@ -603,6 +603,17 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 	}
 }
 
+// NeedsFrequentPolling reports whether a PIN outcome or recovery key is held for retry on later config runs (see
+// client.FrequentPoller).
+func (w *windowsMDMBitlockerConfigReceiver) NeedsFrequentPolling() bool {
+	if !w.mu.TryLock() {
+		// Busy with an operation whose result may need retrying.
+		return true
+	}
+	defer w.mu.Unlock()
+	return w.heldPINOutcome != nil || w.pendingRecoveryKey != ""
+}
+
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
 // server set the "EnforceBitLockerEncryption" flag to true, executes the command
 // to attempt BitlockerEncryption (or not, if the device is a Windows Server).

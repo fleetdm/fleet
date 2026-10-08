@@ -104,7 +104,7 @@ sequenceDiagram
 
 The WebSocket does **not** replace any existing functionality. It acts purely as a notification channel: the server sends a short "check now" signal, and the agent then performs the same HTTP calls it always has. No query data, no config payloads, no results travel over the WebSocket. Everything that works today continues to work exactly the same way. The only difference is that the agent no longer asks on a blind timer; it asks when told to.
 
-Each "check now" signal carries a `type` field indicating which channel the agent should check. In Phase 1 the only value is `type=distributed/read`; future phases add values such as `type=orbit/config` on the same connection. It also carries a `reason` field saying what triggered it — `live-<campaign ID>`, `label`, `policy`, `detail`, or `refetch` — which is informational only, for debugging/troubleshooting (when several kinds of work are due at once, the server picks one).
+Each "check now" signal carries a `type` field indicating which channel the agent should check: `type=distributed/read` since Phase 1, and `type=orbit/config` since Phase 2; future phases add more on the same connection. It also carries a `reason` field saying what triggered it — `live-<campaign ID>`, `label`, `policy`, `detail`, or `refetch` — which is informational only, for debugging/troubleshooting (when several kinds of work are due at once, the server picks one).
 
 Because live queries, policies, labels, and host vitals (e.g. software) ingestion all share `distributed/read`, a single WebSocket nudge type covers all four. The agent does not need to know which feature triggered the nudge; it just calls `distributed/read` and the server returns whatever is due.
 
@@ -115,9 +115,18 @@ Because live queries, policies, labels, and host vitals (e.g. software) ingestio
 | Phase | Nudge `type` | Current polling | What the nudge means |
 |---|---|---|---|
 | 1 (POC) | `distributed/read` | every 10s | "there is work for you" (live queries, policies, labels, or host vitals) |
-| Future | `orbit/config` | every 30s | "your config changed" |
+| 2 | `orbit/config` | every 30s | "your orbit config changed" |
 | Future | `desktop` | every 5m | "there is something to show the user" |
 | Future | `osquery/config` | every 60s | "your osquery config changed" |
+
+### Orbit config nudges (Phase 2)
+
+Enabled with the server setting `websocket.orbit_config_enabled` (requires `websocket.transport_enabled`). The orbit config's `websocket_transport` directive then carries `orbit_config_poll_interval` (`websocket.orbit_config_poll_interval`, default 5 minutes): a connected agent whose last config asked for nothing (no flag set, no pending script or install) polls at that interval instead of every 30 seconds. With anything pending it keeps polling every 30 seconds, since many orbit features use the poll as their clock while they have work. Hosts in their first hour after enrolling osquery don't get the interval: much of the onboarding state the orbit config depends on is ingested from osquery, which doesn't nudge.
+
+- **Per-host changes** (a script, software install or uninstall activated; Windows MDM commands queued; macOS setup experience; Linux escrow, BitLocker PIN, key rotation; Windows managed account rotation; osquery enrollment) nudge the host after the writing transaction commits, from the MySQL datastore.
+- **Fleet-wide and global changes** (app config, fleet config, fleet deletion, hosts changing fleet) are nudged by a datastore decorator, only when an orbit config input actually changed. Scoped nudges are published once (`scope` = `global` or `team:<id>`), delayed by the per-instance config cache TTL (1 minute), and each instance spreads the resulting fetches over `websocket.orbit_config_spread` (default 30 seconds).
+- When the Redis subscription recovers from a failure, each instance nudges all its agents (`reason=resync`), as notifications published meanwhile are lost.
+- The agent also fetches its orbit config right after each (re)connect, and reports the fields a fallback poll found changed in the `X-Fleet-Orbit-Config-Fallback-Changes` header (counted by the `fleet.agentws.orbit_config.fallback_changes` metric). Raise the fallback interval only once that metric is near zero.
 
 ### Keepalive and agent liveness
 

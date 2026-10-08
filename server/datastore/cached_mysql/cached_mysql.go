@@ -91,6 +91,20 @@ func MaxConfigInputTTL() time.Duration {
 	)
 }
 
+// MaxOrbitConfigInputTTL is the longest default expiration among the cached
+// fleet-wide and global items that GetOrbitConfig reads. A notification
+// telling agents to fetch their orbit config after such an item changed must
+// be delayed by at least this long, or instances may still serve the stale
+// cached item.
+func MaxOrbitConfigInputTTL() time.Duration {
+	return max(
+		defaultAppConfigExpiration,
+		defaultTeamAgentOptionsExpiration,
+		defaultTeamMDMConfigExpiration,
+		defaultDefaultTeamConfigExpiration,
+	)
+}
+
 // cloneCache wraps the in memory cache with one that clones items before returning them.
 type cloneCache struct {
 	*cache.Cache
