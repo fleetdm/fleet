@@ -174,6 +174,9 @@ If Fleet already collects an AI tool as another type, such as a macOS app or an 
 | Live AI and MCP sockets | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | Open network ports for running AI tools, such as a local model server's API port. They aren't software, so they don't appear in software inventory. You can report on them with the `ai_tools` table's `sockets` type. |
 | AI models | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't collect installed model weights or which model a local runner has loaded. Only the runner app is visible, under AI desktop apps. |
 
+- Fleet marks an AI tool collected as another type by matching install paths. Windows apps whose registry entry has no install location, such as some per-user installs, aren't marked. Linux desktop apps aren't marked, because Linux packages don't report an install path.
+- On hosts running an older version of Fleet's agent, AI CLI tools from a native installer, such as Claude Code's, show no version. AI CLI tools installed with Homebrew also appear as a separate **AI CLI tool** with no version, and the Homebrew package isn't marked as an AI tool. Update Fleet's agent to fix both.
+
 ## Binaries and other
 
 | Type | Collected on | Name | Version | Vendor | Install path | Vulnerabilities | Caveats |
