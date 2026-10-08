@@ -66,9 +66,14 @@ describe("getSoftwareFiltersFromQueryParams", () => {
     ).toEqual(["macos_app"]);
   });
 
-  it("leaves the AI tools filter off without ai_tool", () => {
-    expect(getSoftwareFiltersFromQueryParams({}).aiTool).toBe(false);
-  });
+  it.each([undefined, "false", "1", "yes", "{"])(
+    "leaves the AI tools filter off for ai_tool=%s",
+    (aiTool) => {
+      expect(
+        getSoftwareFiltersFromQueryParams({ ai_tool: aiTool }).aiTool
+      ).toBe(false);
+    }
+  );
 
   it.each([
     { name: "alone", filters: { aiTool: true } },
