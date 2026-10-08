@@ -5013,7 +5013,8 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// queue an install that activates, one that waits for the release cron, and one on a host without the app in inventory
-		err = ds.InsertHostVPPSoftwareInstall(ctx, hostWithActivatedInstall.ID, app.VPPAppID, uuid.NewString(), "event", fleet.HostSoftwareInstallOptions{VPPAppTeamID: app.AppTeamID})
+		activatedCmdUUID := uuid.NewString()
+		err = ds.InsertHostVPPSoftwareInstall(ctx, hostWithActivatedInstall.ID, app.VPPAppID, activatedCmdUUID, "event", fleet.HostSoftwareInstallOptions{VPPAppTeamID: app.AppTeamID})
 		require.NoError(t, err)
 		err = ds.InsertHostVPPSoftwareInstall(ctx, hostWithUnactivatedInstall.ID, app.VPPAppID, uuid.NewString(), "event", fleet.HostSoftwareInstallOptions{VPPAppTeamID: app.AppTeamID, DeferActivation: true})
 		require.NoError(t, err)
@@ -5054,6 +5055,16 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		installedVersionByHostID, err = ds.ListHostAppStoreAppInstallVersions(ctx, app.VPPAppID, fleetID, []uint{hostWithoutApp.ID})
 		require.NoError(t, err)
 		require.Empty(t, installedVersionByHostID)
+
+		// acknowledge the host's install, then install the other version and fail the MDM command, the host should be returned with the version of its earlier install
+		createVPPAppInstallResult(t, ds, hostWithActivatedInstall, activatedCmdUUID, fleet.MDMAppleStatusAcknowledged)
+		failedCmdUUID := uuid.NewString()
+		err = ds.InsertHostVPPSoftwareInstall(ctx, hostWithActivatedInstall.ID, otherVersion.VPPAppID, failedCmdUUID, "event", fleet.HostSoftwareInstallOptions{VPPAppTeamID: otherVersion.AppTeamID})
+		require.NoError(t, err)
+		createVPPAppInstallResult(t, ds, hostWithActivatedInstall, failedCmdUUID, fleet.MDMAppleStatusError)
+		installedVersionByHostID, err = ds.ListHostAppStoreAppInstallVersions(ctx, app.VPPAppID, fleetID, nil)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]*uint{hostWithActivatedInstall.ID: new(app.AppTeamID)}, installedVersionByHostID)
 
 		// clear the install's version as a version delete does, the host should be returned with no version
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

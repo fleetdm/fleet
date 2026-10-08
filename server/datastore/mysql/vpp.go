@@ -3745,13 +3745,14 @@ ORDER BY other_vat.id
 
 func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*uint, error) {
 	hostFilter := "TRUE"
-	args := []any{appID.AdamID, appID.Platform, fleetID}
+	args := []any{appID.AdamID, appID.Platform, fleetID, fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError}
 	if len(hostIDs) > 0 {
 		hostFilter = "hvsi.host_id IN (?)"
 		args = append(args, hostIDs)
 	}
 
-	// Read the latest install of the app on each host of the fleet that still has the app in its inventory
+	// Read the latest install of the app on each host of the fleet that still has the app in its inventory. Skip failed
+	// installs since the host still has the version from the install before it.
 	stmt := fmt.Sprintf(`
 SELECT
 	latest.host_id,
@@ -3766,12 +3767,15 @@ FROM (
 	FROM
 		host_vpp_software_installs hvsi
 		JOIN hosts h ON h.id = hvsi.host_id
+		LEFT JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
 	WHERE
 		hvsi.adam_id = ? AND
 		hvsi.platform = ? AND
 		COALESCE(h.team_id, 0) = ? AND
 		hvsi.removed = 0 AND
 		hvsi.canceled = 0 AND
+		hvsi.verification_failed_at IS NULL AND
+		COALESCE(ncr.status, '') NOT IN (?, ?) AND
 		%s
 ) latest
 WHERE
