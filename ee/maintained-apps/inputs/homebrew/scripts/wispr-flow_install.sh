@@ -126,10 +126,12 @@ if [[ -z "$target_user" || "$target_user" == "root" || "$target_user" == "loginw
   # last user that logged in.
   target_user=$(defaults read /Library/Preferences/com.apple.loginwindow lastUserName 2>/dev/null)
 fi
-if [[ -n "$target_user" && "$target_user" != "root" ]] && id -u "$target_user" >/dev/null 2>&1; then
-  sudo chown -R "$target_user":staff "$APPDIR/Wispr Flow.app"
-  sudo chmod -R u+w "$APPDIR/Wispr Flow.app"
-  echo "Assigned ownership of Wispr Flow.app to '$target_user' so Wispr Flow can auto-update."
+if [[ -n "$target_user" && "$target_user" != "root" && "$target_user" != "_mbsetupuser" ]] && id -u "$target_user" >/dev/null 2>&1; then
+  if sudo chown -R "$target_user":staff "$APPDIR/Wispr Flow.app" && sudo chmod -R u+w "$APPDIR/Wispr Flow.app"; then
+    echo "Assigned ownership of Wispr Flow.app to '$target_user' so Wispr Flow can auto-update."
+  else
+    echo "Failed to assign ownership of Wispr Flow.app to '$target_user'; Wispr Flow will prompt the user to fix ownership before it can auto-update."
+  fi
 else
   echo "No logged-in (or last logged-in) user found; Wispr Flow.app stays owned by root and Wispr Flow will prompt the user to fix ownership before it can auto-update."
 fi
