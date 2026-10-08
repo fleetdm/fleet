@@ -39,7 +39,7 @@ func normalizeVersion(version string) string {
 	return strings.Join(parts, ".")
 }
 
-func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifier, appVersion, appPath string) (bool, error) {
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifier, appVersion, appPath, existsQuery string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -69,6 +69,13 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 	}
 	if appPath != "" {
 		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", appPath)
+	}
+	// Some DisplayNames contain neither the catalog name nor the
+	// unique_identifier (e.g. QGIS LTR installs as "QGIS 3.44.14 'Solothurn'"),
+	// so also match the manifest's exists query, which is how Fleet detects the
+	// app. It comes from the manifest, so it isn't run through validateSqlInput.
+	if clause := programsExistsWhereClause(existsQuery); clause != "" {
+		query += ` OR (` + clause + `)`
 	}
 	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.CombinedOutput()
