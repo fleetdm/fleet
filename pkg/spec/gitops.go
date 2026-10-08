@@ -1388,6 +1388,19 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		}
 	}
 
+	for _, c := range []struct {
+		key   string
+		value any
+	}{
+		{"enable_disk_encryption", result.Controls.EnableDiskEncryption},
+		{"enable_recovery_lock_password", result.Controls.EnableRecoveryLockPassword},
+		{"windows_require_bitlocker_pin", result.Controls.RequireBitLockerPIN},
+	} {
+		if _, ok := c.value.(bool); c.value != nil && !ok {
+			multiError = multierror.Append(multiError, fmt.Errorf("'controls.%s' must be a boolean in %s", c.key, controlsFilePath))
+		}
+	}
+
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
 		macOSSettings, err := reparseSettings[fleet.MacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "macos_settings")

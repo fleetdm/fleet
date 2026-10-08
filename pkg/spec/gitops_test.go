@@ -478,6 +478,34 @@ func TestGitOpsHostNameTemplate(t *testing.T) {
 	})
 }
 
+func TestGitOpsControlsBooleanKeys(t *testing.T) {
+	t.Parallel()
+
+	for _, key := range []string{"enable_disk_encryption", "enable_recovery_lock_password", "windows_require_bitlocker_pin"} {
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+
+			for name, value := range map[string]string{"string": `"yes-please"`, "number": "1", "map": "\n    foo: bar"} {
+				t.Run(name+" rejected", func(t *testing.T) {
+					config := getTeamConfig([]string{"controls"})
+					config += "controls:\n  " + key + ": " + value + "\n"
+					_, err := gitOpsFromString(t, config)
+					require.ErrorContains(t, err, "'controls."+key+"' must be a boolean")
+				})
+			}
+
+			for name, value := range map[string]string{"bool": "true", "null": ""} {
+				t.Run(name+" accepted", func(t *testing.T) {
+					config := getTeamConfig([]string{"controls"})
+					config += "controls:\n  " + key + ": " + value + "\n"
+					_, err := gitOpsFromString(t, config)
+					require.NoError(t, err)
+				})
+			}
+		})
+	}
+}
+
 func TestDuplicatePolicyNames(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"policies"})

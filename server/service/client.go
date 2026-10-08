@@ -2888,24 +2888,31 @@ func (c *Client) DoGitOps(
 			return nil, errors.New("controls.windows_settings.require_bitlocker_pin and controls.windows_require_bitlocker_pin cannot both be set")
 		}
 
-		enableRecoveryLockPassword := false
+		enableDiskEncryption, ok := incoming.Controls.EnableDiskEncryption.(bool)
+		if incoming.Controls.EnableDiskEncryption != nil && !ok {
+			return nil, errors.New("controls.enable_disk_encryption must be a boolean")
+		}
+		enableRecoveryLockPassword, ok := incoming.Controls.EnableRecoveryLockPassword.(bool)
+		if incoming.Controls.EnableRecoveryLockPassword != nil && !ok {
+			return nil, errors.New("controls.enable_recovery_lock_password must be a boolean")
+		}
 		requireBitLockerPIN := windowsSettings.RequireBitLockerPIN.Value
-		if incoming.Controls.EnableDiskEncryption != nil {
-			mdmAppConfig["enable_disk_encryption"] = incoming.Controls.EnableDiskEncryption.(bool)
-		}
-		if incoming.Controls.EnableRecoveryLockPassword != nil {
-			enableRecoveryLockPassword = incoming.Controls.EnableRecoveryLockPassword.(bool)
-		}
 		if incoming.Controls.RequireBitLockerPIN != nil {
-			requireBitLockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
+			requireBitLockerPIN, ok = incoming.Controls.RequireBitLockerPIN.(bool)
+			if !ok {
+				return nil, errors.New("controls.windows_require_bitlocker_pin must be a boolean")
+			}
 			mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
+		}
+		if incoming.Controls.EnableDiskEncryption != nil {
+			mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
 		}
 
 		// BitLocker PIN needs Windows encryption on; deprecated flat toggle is the fallback when the per-platform key is unset.
 		if requireBitLockerPIN {
 			windowsDiskEncryption := windowsSettings.EnableDiskEncryption.Value
 			if !windowsSettings.EnableDiskEncryption.Set && incoming.Controls.EnableDiskEncryption != nil {
-				windowsDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
+				windowsDiskEncryption = enableDiskEncryption
 			}
 			if !windowsDiskEncryption {
 				return nil, errors.New("controls.windows_settings.enable_disk_encryption must be true if controls.windows_settings.require_bitlocker_pin is true")
