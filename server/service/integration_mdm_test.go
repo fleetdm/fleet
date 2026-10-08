@@ -5449,13 +5449,16 @@ func (s *integrationMDMTestSuite) TestEULA() {
 
 func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	t := s.T()
-	// Tests after this one expect no agreement, so clean up even on failure.
-	t.Cleanup(func() {
+	clearEULAs := func() {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), "DELETE FROM eulas")
 			return err
 		})
-	})
+	}
+	// Earlier tests can leave a macOS EULA behind and this test uploads its own, while tests after it expect no
+	// agreement, so start clean and clean up even on failure.
+	clearEULAs()
+	t.Cleanup(clearEULAs)
 
 	// The terms page needs the bundled templates, which require `-tags full`.
 	defer func() {
