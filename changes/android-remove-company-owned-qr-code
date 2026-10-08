@@ -1,0 +1,1 @@
+- Removed the QR code from the "Add hosts" enrollment instructions for company-owned Android hosts, since fully-managed enrollment isn't done by scanning a code.

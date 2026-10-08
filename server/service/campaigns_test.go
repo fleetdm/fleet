@@ -29,7 +29,11 @@ func (nopLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 	return map[string]string{}, nil
 }
 
-func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
+func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) (bool, error) {
+	return true, nil
+}
+
+func (nopLiveQuery) RestoreQueryTargetForHost(name string, hostID uint) error {
 	return nil
 }
 
@@ -54,6 +58,58 @@ func (q nopLiveQuery) SetQueryResultsCount(uint, int) error {
 }
 
 func (q nopLiveQuery) DeleteQueryResultsCount(uint) error {
+	return nil
+}
+
+func (q nopLiveQuery) SetQueryReportsHostCount(int) error {
+	return nil
+}
+
+func (q nopLiveQuery) GetQueryReportsHostCount() (int, bool, error) {
+	return 0, false, nil
+}
+
+func (q nopLiveQuery) SetQueryReportsHostCountIfAbsent(int) error {
+	return nil
+}
+
+func (q nopLiveQuery) SetQueryResultsCountsIfAbsent(map[uint]int) error {
+	return nil
+}
+
+func (q nopLiveQuery) IncrQueryReportsHostCount(int) error {
+	return nil
+}
+
+func (q nopLiveQuery) MarkQueryReportsClipped(map[uint]time.Duration) error {
+	return nil
+}
+
+func (q nopLiveQuery) QueryReportsClipped([]uint) (map[uint]bool, error) {
+	return map[uint]bool{}, nil
+}
+
+func (q nopLiveQuery) ClearQueryReportsClipped([]uint) error {
+	return nil
+}
+
+func (q nopLiveQuery) RecordQueryResultsLastFetched([]uint, time.Time) error {
+	return nil
+}
+
+func (q nopLiveQuery) LoadQueryResultsLastFetched() (map[uint]time.Time, error) {
+	return map[uint]time.Time{}, nil
+}
+
+func (q nopLiveQuery) ClearProcessedQueryResultsLastFetched() error {
+	return nil
+}
+
+func (q nopLiveQuery) AcquireQueryReportWriteSlot(string, int, time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (q nopLiveQuery) ReleaseQueryReportWriteSlot(string) error {
 	return nil
 }
 

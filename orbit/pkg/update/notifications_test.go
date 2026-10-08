@@ -564,6 +564,10 @@ type mockDiskEncryptionKeySetter struct {
 	ProtectionClientError               string
 	ProtectionReportInvoked             bool
 	Capabilities                        fleet.CapabilityMap
+	GetPINDetailsImpl                   func() (pin, requestUUID string, err error)
+	GetPINDetailsCalls                  int
+	SetPINResultImpl                    func(outcome pinOutcome) error
+	PINResults                          []pinOutcome
 }
 
 func (m *mockDiskEncryptionKeySetter) GetServerCapabilities() fleet.CapabilityMap {
@@ -573,6 +577,19 @@ func (m *mockDiskEncryptionKeySetter) GetServerCapabilities() fleet.CapabilityMa
 func (m *mockDiskEncryptionKeySetter) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error {
 	m.SetOrUpdateDiskEncryptionKeyInvoked = true
 	return m.SetOrUpdateDiskEncryptionKeyImpl(diskEncryptionStatus)
+}
+
+func (m *mockDiskEncryptionKeySetter) GetDiskEncryptionPINDetails() (string, string, error) {
+	m.GetPINDetailsCalls++
+	return m.GetPINDetailsImpl()
+}
+
+func (m *mockDiskEncryptionKeySetter) SetDiskEncryptionPINResult(requestUUID string, outcome fleet.BitLockerPINRequestStatus,
+	clientError string,
+) error {
+	reported := pinOutcome{requestUUID: requestUUID, outcome: outcome, clientError: clientError}
+	m.PINResults = append(m.PINResults, reported)
+	return m.SetPINResultImpl(reported)
 }
 
 func (m *mockDiskEncryptionKeySetter) SetOrUpdateDiskEncryptionProtection(outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error {

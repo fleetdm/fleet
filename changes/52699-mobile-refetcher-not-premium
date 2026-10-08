@@ -1,0 +1,1 @@
+- Fixed an issue where iOS/iPadOS hosts on Fleet Free never received host vitals because the `apple_mdm_iphone_ipad_refetcher` and `apple_mdm_iphone_ipad_reviver` crons only ran on Fleet Premium.

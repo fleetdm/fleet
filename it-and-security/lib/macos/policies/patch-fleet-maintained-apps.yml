@@ -3,7 +3,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Google Chrome's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: google-chrome/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Google Chrome installed
@@ -20,7 +20,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Brave Browser's built-in update functionality. You can also delete Brave Browser if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: brave-browser/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Brave Browser installed
@@ -29,7 +29,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Docker Desktop's built-in update functionality. You can also delete Docker Desktop if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: docker-desktop/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Docker Desktop installed
@@ -38,7 +38,7 @@
   resolution: "Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details."
   type: patch
   fleet_maintained_app_slug: firefox/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   calendar_events_enabled: true
   labels_include_any:
@@ -48,7 +48,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Visual Studio Code's built-in update functionality. You can also delete Visual Studio Code if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: visual-studio-code/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Visual Studio Code installed
@@ -57,7 +57,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Slack's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: slack/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Slack installed
@@ -66,7 +66,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Zoom's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: zoom/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Zoom installed
@@ -99,7 +99,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Claude's built-in update functionality. You can also delete Claude if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: claude/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Claude installed
@@ -108,7 +108,7 @@
   resolution: "Download the latest version from Self-service or check for updates using AWS VPN Client's built-in update functionality. You can also delete AWS VPN Client if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: aws-vpn-client/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with AWS VPN Client installed
@@ -117,7 +117,7 @@
   resolution: "Download the latest version from Self-service or check for updates using GitHub Desktop's built-in update functionality. You can also delete GitHub Desktop if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: github/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with GitHub Desktop installed
@@ -126,7 +126,7 @@
   resolution: "Download the latest version from Self-service or check for updates using UTM's built-in update functionality. You can also delete UTM if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: utm/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with UTM installed
@@ -135,7 +135,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Postman's built-in update functionality. You can also delete Postman if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: postman/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Postman installed
@@ -144,7 +144,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Grammarly Desktop's built-in update functionality. You can also delete Grammarly Desktop if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: grammarly-desktop/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Grammarly Desktop installed
@@ -153,7 +153,7 @@
   resolution: "Download the latest version from Self-service or check for updates using iTerm2's built-in update functionality. You can also delete iTerm2 if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: iterm2/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with iTerm2 installed
@@ -162,7 +162,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Sublime Text's built-in update functionality. You can also delete Sublime Text if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: sublime-text/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Sublime Text installed
@@ -171,7 +171,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Parallels Desktop's built-in update functionality. You can also delete Parallels Desktop if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: parallels/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Parallels Desktop installed
@@ -180,7 +180,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Loom's built-in update functionality. You can also delete Loom if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: loom/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Loom installed
@@ -189,7 +189,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Spotify's built-in update functionality. You can also delete Spotify if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: spotify/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Spotify installed
@@ -198,7 +198,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Rectangle's built-in update functionality. You can also delete Rectangle if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: rectangle/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Rectangle installed
@@ -207,7 +207,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Logi Options+'s built-in update functionality. You can also delete Logi Options+ if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: logi-options+/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Logi Options+ installed
@@ -216,7 +216,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Figma's built-in update functionality. You can also delete Figma if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: figma/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Figma installed
@@ -225,7 +225,7 @@
   resolution: "Download the latest version from Self-service or check for updates using WhatsApp's built-in update functionality. You can also delete WhatsApp if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: whatsapp/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with WhatsApp installed
@@ -234,7 +234,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Android Studio's built-in update functionality. You can also delete Android Studio if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: android-studio/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Android Studio installed
@@ -243,7 +243,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Zed's built-in update functionality. You can also delete Zed if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: zed/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Zed installed
@@ -252,7 +252,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Obsidian's built-in update functionality. You can also delete Obsidian if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: obsidian/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Obsidian installed
@@ -261,7 +261,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Google Drive's built-in update functionality. You can also delete Google Drive if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: google-drive/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Google Drive installed
@@ -270,7 +270,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Cursor's built-in update functionality. You can also delete Cursor if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: cursor/darwin
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - Macs with Cursor installed

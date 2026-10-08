@@ -65,11 +65,7 @@ const User = ({
   }
 
   return (
-    <Card
-      className={classNames}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-    >
+    <Card className={classNames} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
         <CardHeader header="User" />
         <div className={`${baseClass}__header-actions`}>

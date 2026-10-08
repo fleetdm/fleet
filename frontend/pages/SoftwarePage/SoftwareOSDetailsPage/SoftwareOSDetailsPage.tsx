@@ -48,7 +48,7 @@ export const SummaryCard = ({
   countsUpdatedAt,
   teamIdForApi,
 }: ISummaryCardProps) => (
-  <Card borderRadiusSize="xxlarge" className={`${baseClass}__summary-section`}>
+  <Card className={`${baseClass}__summary-section`}>
     <SoftwareDetailsSummary
       displayName={osVersion.name}
       hostCount={osVersion.hosts_count}
@@ -82,10 +82,7 @@ export const VulnerabilitiesCard = ({
     isLinuxLike(osVersion.platform);
 
   return (
-    <Card
-      borderRadiusSize="xxlarge"
-      className={`${baseClass}__vulnerabilities-section`}
-    >
+    <Card className={`${baseClass}__vulnerabilities-section`}>
       <CardHeader header="Vulnerabilities" />
       {supportsVulns ? (
         <SoftwareVulnerabilitiesTable
@@ -119,7 +116,7 @@ export const KernelsCard = ({
   router,
   teamIdForApi,
 }: IKernelsCardProps) => (
-  <Card borderRadiusSize="xxlarge" className={`${baseClass}__summary-section`}>
+  <Card className={`${baseClass}__summary-section`}>
     <CardHeader header="Kernels" />
     <OSKernelsTable
       osName={osVersion.name_only}

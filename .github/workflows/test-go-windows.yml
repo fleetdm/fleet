@@ -63,6 +63,7 @@ jobs:
             "./orbit/pkg/bitlocker/..."
             "./orbit/pkg/keystore/..."
             "./orbit/pkg/platform/..."
+            "./orbit/pkg/profiles/..."
             "./orbit/pkg/table/ai_tools/..."
             "./orbit/pkg/table/bitlocker_key_protectors/..."
             "./orbit/pkg/table/cis_audit/..."

@@ -37,6 +37,7 @@ func TestInHouseApps(t *testing.T) {
 		{"Categories", testInHouseAppsCategories},
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayNameInHouse},
 		{"InHouseAppsCancelledOnUnenroll", testInHouseAppsCancelledOnUnenroll},
+		{"GetUnverifiedInHouseAppInstallsForHost", testGetUnverifiedInHouseAppInstallsForHost},
 		{"InHouseAppConfigCRUDFlow", testInHouseAppConfigCRUDFlow},
 		{"InHouseAppConfigSiblingRows", testInHouseAppConfigSiblingRows},
 		{"InHouseAppConfigHasChanged", testHasInHouseAppConfigurationChanged},
@@ -44,6 +45,7 @@ func TestInHouseApps(t *testing.T) {
 		{"SummaryUpcomingPerHostNoDropout", testInHouseSummaryUpcomingPerHostNoDropout},
 		{"BatchSetInHouseInstallersInstallDuringSetup", testBatchSetInHouseInstallersInstallDuringSetup},
 		{"ManifestURLUsesAppleServerURL", testInHouseAppManifestURLUsesAppleServerURL},
+		{"RemovePendingInstallsSkipsInstallWithDeletedUpcomingActivity", testRemovePendingInHouseAppInstallsSkipsInstallWithDeletedUpcomingActivity},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1863,6 +1865,49 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0, Failed: 1}, *summary)
 }
 
+func testGetUnverifiedInHouseAppInstallsForHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	iosHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "host1",
+		UUID:           "host1uuid",
+		HardwareSerial: "host1serial",
+		NodeKey:        new("host1key"),
+		Platform:       string(fleet.IOSPlatform),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iosHost, false)
+
+	inHouseAppID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		UserID:           user.ID,
+		BundleIdentifier: "com.foo",
+		Filename:         "foo.ipa",
+		StorageID:        "id1234",
+		Extension:        "ipa",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	cmdUUID := createInHouseAppInstallRequest(t, ds, iosHost.ID, inHouseAppID, titleID, user)
+	createInHouseAppInstallResult(t, ds, iosHost, cmdUUID, "Acknowledged")
+
+	// an acknowledged install that is not verified yet should be returned
+	unverified, err := ds.GetUnverifiedInHouseAppInstallsForHost(ctx, iosHost.UUID)
+	require.NoError(t, err)
+	require.Len(t, unverified, 1)
+	require.Equal(t, cmdUUID, unverified[0].InstallCommandUUID)
+
+	// cancel the install, it should no longer be returned
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `UPDATE host_in_house_software_installs SET canceled = 1 WHERE command_uuid = ?`, cmdUUID)
+		return err
+	})
+	unverified, err = ds.GetUnverifiedInHouseAppInstallsForHost(ctx, iosHost.UUID)
+	require.NoError(t, err)
+	require.Empty(t, unverified)
+}
+
 // setupTestInHouseApp inserts both iOS and iPadOS rows for the given filename
 // (insertInHouseApp creates them as a pair) and returns both IDs.
 func setupTestInHouseApp(t *testing.T, ds *Datastore, filename string) (iosID, ipadID uint) {
@@ -2295,4 +2340,66 @@ func testInHouseAppInstallPushesViaDirectActivation(t *testing.T, ds *Datastore)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &cmd2Rows, "SELECT COUNT(*) FROM nano_commands WHERE command_uuid = ?", cmd2)
 	})
+}
+
+func testRemovePendingInHouseAppInstallsSkipsInstallWithDeletedUpcomingActivity(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID, host2.ID}))
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host1, false)
+	nanoEnroll(t, ds, host2, false)
+
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team.ID,
+		UserID:           user1.ID,
+		Title:            "foo",
+		Filename:         "foo.ipa",
+		BundleIdentifier: "com.foo",
+		StorageID:        "testingtesting123",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.2.3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// queue an install on host1 and store an Error result without setting verification_failed_at, the upcoming activity should be deleted and the install row should still read as pending
+	cmdUUID1 := createInHouseAppInstallRequest(t, ds, host1.ID, installerID, titleID, user1)
+	createInHouseAppInstallResult(t, ds, host1, cmdUUID1, "Error")
+	var host1UpcomingCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &host1UpcomingCount, `SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host1.ID)
+	})
+	require.Zero(t, host1UpcomingCount)
+
+	// queue the install on host2, it should be pending
+	cmdUUID2 := createInHouseAppInstallRequest(t, ds, host2.ID, installerID, titleID, user1)
+
+	// remove the pending installs, the call should succeed, host1's install row should be left unchanged and host2's install should be canceled
+	err = ds.RemovePendingInHouseAppInstalls(ctx, installerID)
+	require.NoError(t, err)
+
+	var host2UpcomingCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &host2UpcomingCount, `SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host2.ID)
+	})
+	require.Zero(t, host2UpcomingCount)
+
+	var host2Canceled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &host2Canceled, `SELECT canceled FROM host_in_house_software_installs WHERE command_uuid = ?`, cmdUUID2)
+	})
+	require.True(t, host2Canceled)
+
+	var host1Canceled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &host1Canceled, `SELECT canceled FROM host_in_house_software_installs WHERE command_uuid = ?`, cmdUUID1)
+	})
+	require.False(t, host1Canceled)
 }

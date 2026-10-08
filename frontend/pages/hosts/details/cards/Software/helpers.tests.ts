@@ -3,7 +3,14 @@ import {
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
 
-import { compareVersions, getUiStatus, getSoftwareSubheader } from "./helpers";
+import {
+  compareVersions,
+  getUiStatus,
+  getSoftwareSubheader,
+  getHostSoftwareLocationPath,
+  getInstallerActionButtonConfig,
+  isDefaultTypeSelection,
+} from "./helpers";
 
 describe("compareVersions", () => {
   it("correctly compares patch increments", () => {
@@ -149,6 +156,29 @@ describe("getUiStatus", () => {
       // version equal to installed version
     });
     expect(getUiStatus(sw, true)).toBe("failed_install_installed");
+  });
+
+  it("returns 'skipped_install' when the install was a patch-when-closed skip, even if an update would otherwise apply", () => {
+    const sw = createMockHostSoftware({
+      status: "failed_install",
+      skipped_install: true,
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }),
+    });
+    expect(getUiStatus(sw, true)).toBe("skipped_install");
+  });
+
+  it("collapses a patch-when-closed skip back into the failed_install family when suppressed (Self-service view)", () => {
+    // With an installer version newer than the installed version, the row would
+    // otherwise degrade to failed_install_update_available for admin views;
+    // Self-service passes suppressSkippedInstall=true to keep that behavior.
+    const sw = createMockHostSoftware({
+      status: "failed_install",
+      skipped_install: true,
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }),
+    });
+    expect(getUiStatus(sw, true, null, undefined, true)).toBe(
+      "failed_install_update_available"
+    );
   });
 
   it("returns 'failed_uninstall_update_available' when failed_uninstall and update available", () => {
@@ -557,10 +587,10 @@ describe("getUiStatus", () => {
 });
 
 describe("getSoftwareSubheader", () => {
-  test("iOS device, MDM status 'On (manual - personal)', my device page", () => {
+  test("iOS device, MDM status 'On (personal)', my device page", () => {
     const result = getSoftwareSubheader({
       platform: "ios",
-      hostMdmEnrollmentStatus: "On (manual - personal)",
+      hostMdmEnrollmentStatus: "On (personal)",
       isMyDevicePage: true,
     });
     expect(result).toBe(
@@ -568,14 +598,25 @@ describe("getSoftwareSubheader", () => {
     );
   });
 
-  test("iOS device, MDM status 'On (manual - personal)', NOT my device page", () => {
+  test("iOS device, MDM status 'On (personal)', NOT my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (personal)",
+      isMyDevicePage: false,
+    });
+    expect(result).toBe(
+      "Software installed on work profile (Managed Apple Account)."
+    );
+  });
+
+  test("iOS device, MDM status 'On (manual - personal)'", () => {
     const result = getSoftwareSubheader({
       platform: "ios",
       hostMdmEnrollmentStatus: "On (manual - personal)",
       isMyDevicePage: false,
     });
     expect(result).toBe(
-      "Software installed on work profile (Managed Apple Account)."
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
     );
   });
 
@@ -635,5 +676,97 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: false,
     });
     expect(result).toBe("Software installed on this host.");
+  });
+});
+
+describe("getHostSoftwareLocationPath", () => {
+  const base = {
+    pathname: "/hosts/1/software",
+    query: "",
+    orderKey: "name",
+    orderDirection: "asc",
+    page: 0,
+  };
+  const typesParam = (path: string) =>
+    new URL(path, "http://fleet").searchParams.get("types");
+
+  it("writes a cleared selection on a macOS host as types=none", () => {
+    expect(
+      typesParam(
+        getHostSoftwareLocationPath({
+          ...base,
+          platform: "darwin",
+          filters: { types: [] },
+        })
+      )
+    ).toBe("none");
+  });
+
+  it("omits types for a cleared selection on other platforms", () => {
+    expect(
+      typesParam(
+        getHostSoftwareLocationPath({
+          ...base,
+          platform: "windows",
+          filters: { types: [] },
+        })
+      )
+    ).toBeNull();
+  });
+
+  it("writes selected types sorted", () => {
+    expect(
+      typesParam(
+        getHostSoftwareLocationPath({
+          ...base,
+          platform: "darwin",
+          filters: { types: ["macos_app", "chrome_extension"] },
+        })
+      )
+    ).toBe("chrome_extension,macos_app");
+  });
+});
+
+describe("isDefaultTypeSelection", () => {
+  it("is true for a macOS host with only macOS app selected", () => {
+    expect(isDefaultTypeSelection("darwin", { types: ["macos_app"] })).toBe(
+      true
+    );
+  });
+
+  it("is false once another type is selected", () => {
+    expect(
+      isDefaultTypeSelection("darwin", {
+        types: ["macos_app", "chrome_extension"],
+      })
+    ).toBe(false);
+  });
+
+  it("is false when the vulnerable filter is on", () => {
+    expect(
+      isDefaultTypeSelection("darwin", {
+        types: ["macos_app"],
+        vulnerable: true,
+      })
+    ).toBe(false);
+  });
+
+  it("is false when the selection was cleared", () => {
+    expect(isDefaultTypeSelection("darwin", { types: [] })).toBe(false);
+    expect(isDefaultTypeSelection("darwin", {})).toBe(false);
+  });
+
+  it("is false on other platforms", () => {
+    expect(isDefaultTypeSelection("windows", { types: ["macos_app"] })).toBe(
+      false
+    );
+  });
+});
+
+describe("getInstallerActionButtonConfig", () => {
+  it("returns 'Update' for a skipped_install row (a deferred update)", () => {
+    expect(
+      getInstallerActionButtonConfig("install", "skipped_install")
+    ).toEqual({ text: "Update", icon: "refresh" });
   });
 });

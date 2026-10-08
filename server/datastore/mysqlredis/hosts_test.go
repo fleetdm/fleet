@@ -177,7 +177,7 @@ func TestSyncEnrolledHostIDs(t *testing.T) {
 			host.ID = hostIDSeq
 			return host, nil
 		}
-		ds.CountEnrolledHostsFunc = func(ctx context.Context) (int, error) {
+		ds.CountAllHostsFunc = func(ctx context.Context) (int, error) {
 			return enrolledHostCount, nil
 		}
 		ds.EnrolledHostIDsFunc = func(ctx context.Context) ([]uint, error) {
@@ -210,7 +210,7 @@ func TestSyncEnrolledHostIDs(t *testing.T) {
 		enrolledHostCount = 3
 		err = wrappedDS.SyncEnrolledHostIDs(ctx)
 		require.NoError(t, err)
-		requireInvokedAndReset(&ds.CountEnrolledHostsFuncInvoked)
+		requireInvokedAndReset(&ds.CountAllHostsFuncInvoked)
 		require.False(t, ds.EnrolledHostIDsFuncInvoked)
 
 		// syncing with a non-matching count triggers a sync
@@ -218,7 +218,7 @@ func TestSyncEnrolledHostIDs(t *testing.T) {
 		enrolledHostIDs = []uint{h1.ID, h3.ID} // will set the redis key to those values
 		err = wrappedDS.SyncEnrolledHostIDs(ctx)
 		require.NoError(t, err)
-		requireInvokedAndReset(&ds.CountEnrolledHostsFuncInvoked)
+		requireInvokedAndReset(&ds.CountAllHostsFuncInvoked)
 		requireInvokedAndReset(&ds.EnrolledHostIDsFuncInvoked)
 
 		redisIDs, err = redigo.Strings(conn.Do("SMEMBERS", enrolledHostsSetKey))

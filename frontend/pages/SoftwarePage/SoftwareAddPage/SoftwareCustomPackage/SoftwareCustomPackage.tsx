@@ -33,11 +33,7 @@ const baseClass = "software-custom-package";
 /** Shared GitOps-mode banner for the custom-package flows. Rendered by this
  * page (single-package add) and by `PackageForm`'s multi-package Add modal. */
 export const GitOpsCustomPackageBanner = () => (
-  <InfoBanner
-    icon="info-outline"
-    iconColor="ui-fleet-black-50"
-    borderRadius="medium"
-  >
+  <InfoBanner icon="info-outline" iconColor="ui-fleet-black-50">
     Add custom packages in GitOps mode so Fleet can host your software. After
     adding, copy its SHA-256 hash into your YAML so the next GitOps workflow
     doesn&apos;t delete it.{" "}
@@ -62,7 +58,7 @@ const SoftwareCustomPackage = ({
   isSidePanelOpen,
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, config } = useContext(AppContext);
   const queryClient = useQueryClient();
   const { gitOpsModeEnabled } = useGitOpsMode("software");
 
@@ -125,6 +121,7 @@ const SoftwareCustomPackage = ({
       } = await softwareAPI.addSoftwarePackage({
         data: formData,
         teamId: currentTeamId,
+        directUpload: config?.staged_upload_available,
         onUploadProgress: (progressEvent) => {
           const progress = progressEvent.progress || 0;
           // for large uploads it seems to take a bit for the server to finalize its response so we'll keep the

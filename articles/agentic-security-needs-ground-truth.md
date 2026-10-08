@@ -88,7 +88,7 @@ FROM ai_tools
 WHERE type = 'mcp_server' AND running = 1;
 ```
 
-And where data is leaving:
+And which AI connections are open right now:
 
 ```sql
 SELECT name, endpoint

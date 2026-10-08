@@ -55,9 +55,9 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "entraConditionalAccessConfigured": true,
   "conditionalAccessBypassDisabled": false,
   "conditionalAccessEnabled": true,
-  "numHostsFleetDesktopEnabled": 999,
   "numFleetsManagedAdminAccountEnabled": 999,
   "anyFleetRecoveryLockPasswordEnabled": true,
+  "fleetDesktopSSOEnabled": false,
   "gitOpsModeEnabled": true,
   "gitOpsModeExceptions": [
     "labels",
@@ -184,9 +184,7 @@ Statistics contain no personal information about any particular device or person
 
 For Fleet Free instances, usage statistics are anonymous. The "organization" property is reported as "unknown."
 
-Sending Usage statistics from your Fleet Free instance is optional and can be disabled.
-
-Note: Usage statistics are not optional for Fleet Premium instances.
+Sending Usage statistics from your Fleet Free instance is optional and can be disabled. It cannot be disabled on Premium instances.
 
 ## Why should we enable usage statistics?
 
@@ -197,6 +195,7 @@ Every time we ship a Fleet release without usage statistics, it's like launching
 Insights about Fleet version adoption helps the team be more efficient when planning upgrade guides, release notes, and future security notices for users running vulnerable software versions.
 
 ## Disable usage statistics
+> Note: Usage statistics are not optional for Fleet Premium instances.
 
 Users with the Admin role can disable usage statistics.
 

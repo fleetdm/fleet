@@ -5,6 +5,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -1759,12 +1761,13 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	// enqueue is a single transaction, so on enqueue failure nothing was
 	// queued and the rows are removed again; if only the notification failed
 	// the command is durably queued and the rows must stay.
-	trackAndSend := func(commandType string, group deviceGroup, wrapMsg string, enqueue func() error) error {
+	trackAndSend := func(commandType, commandUUID string, group deviceGroup, wrapMsg string, enqueue func() error) error {
 		rows := make([]fleet.HostMDMCommand, 0, len(group.hostIDs))
 		for _, hostID := range group.hostIDs {
 			rows = append(rows, fleet.HostMDMCommand{
 				HostID:      hostID,
 				CommandType: commandType,
+				CommandUUID: commandUUID,
 			})
 		}
 		if err := ds.AddHostMDMCommands(ctx, rows); err != nil {
@@ -1773,7 +1776,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		err := enqueue()
 		if err != nil {
 			if _, isNotifErr := errors.AsType[*NotificationFailedError](err); !isNotifErr {
-				if rmErr := ds.RemoveHostMDMCommands(ctx, group.hostIDs, commandType); rmErr != nil {
+				if rmErr := ds.RemoveHostMDMCommands(ctx, group.hostIDs, commandType, commandUUID); rmErr != nil {
 					logger.ErrorContext(ctx, "untrack host mdm commands after enqueue failure",
 						"err", rmErr, "command_type", commandType)
 				}
@@ -1830,10 +1833,10 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 			continue
 		}
 
-		commandUUID := uuid.NewString()
-		err := trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, group,
+		commandUUID := fleet.RefetchAppsCommandUUIDPrefix + uuid.NewString()
+		err := trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, commandUUID, group,
 			"send InstalledApplicationList commands to ios and ipados devices", func() error {
-				return commander.InstalledApplicationList(ctx, group.uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, managedOnly)
+				return commander.InstalledApplicationList(ctx, group.uuids, commandUUID, managedOnly)
 			})
 		if err != nil {
 			return err
@@ -1842,10 +1845,10 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 
 	certs := groupToSend(fleet.RefetchCertsCommandUUIDPrefix)
 	if len(certs.uuids) > 0 {
-		commandUUID := uuid.NewString()
-		err := trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, certs,
+		commandUUID := fleet.RefetchCertsCommandUUIDPrefix + uuid.NewString()
+		err := trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, commandUUID, certs,
 			"send CertificateList commands to ios and ipados devices", func() error {
-				return commander.CertificateList(ctx, certs.uuids, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
+				return commander.CertificateList(ctx, certs.uuids, commandUUID)
 			})
 		if err != nil {
 			return err
@@ -1862,10 +1865,10 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 			continue
 		}
 
-		commandUUID := uuid.NewString()
-		err := trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, group,
+		commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + uuid.NewString()
+		err := trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, commandUUID, group,
 			"send DeviceInformation commands to ios and ipados devices", func() error {
-				return commander.DeviceInformation(ctx, group.uuids, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID, isPersonalEnrollment)
+				return commander.DeviceInformation(ctx, group.uuids, commandUUID, isPersonalEnrollment)
 			})
 		if err != nil {
 			return err
@@ -2838,4 +2841,64 @@ func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*f
 	}
 
 	return computedHosts
+}
+
+var AppleMDMCertificateBindingExtensionOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 63991, 1, 2}
+
+type AppleMDMCertificateBindingExtension struct {
+	Version int                       `json:"v"`
+	Purpose fleet.AppleMDMCertPurpose `json:"purpose"`
+	// UDID is only used for "ade" and "ota_phase*"
+	UDID *string `json:"udid,omitempty"`
+	// Serial is only used for "ade", "ota_phase*", "acme", and "acme_renewal"
+	Serial *string `json:"serial,omitempty"`
+	// IDPAccountUUID is only used for "adue"
+	IDPAccountUUID *string `json:"idp_account_uuid,omitempty"`
+	// EnrollmentID is only used for "renewal" and "acme_renewal" and is the device channel ID.
+	EnrollmentID *string `json:"enrollment_id,omitempty"`
+}
+
+func BuildAppleMDMCertificateBindingExtension(extension AppleMDMCertificateBindingExtension) (pkix.Extension, error) {
+	extension.Version = 1 // For now we force version 1
+
+	value, err := json.Marshal(extension)
+	if err != nil {
+		return pkix.Extension{}, err
+	}
+
+	asn1Value, err := asn1.Marshal(asn1.RawValue{Class: asn1.ClassUniversal, Tag: asn1.TagUTF8String, Bytes: value})
+	if err != nil {
+		return pkix.Extension{}, err
+	}
+
+	return pkix.Extension{
+		Id:    AppleMDMCertificateBindingExtensionOID,
+		Value: asn1Value,
+	}, nil
+}
+
+func AppleMDMSCEPCertificateSubject(newEnrollment bool) pkix.Name {
+	subject := pkix.Name{
+		Organization: []string{"Fleet"},
+		CommonName:   "Fleet Identity",
+	}
+
+	if newEnrollment {
+		subject.OrganizationalUnit = append(subject.OrganizationalUnit, FleetEnrollmentSubjectOU)
+	}
+
+	return subject
+}
+
+func AppleMDMAcmeCertificateSubject(newEnrollment bool) pkix.Name {
+	subject := pkix.Name{
+		CommonName:         "Fleet Identity",
+		OrganizationalUnit: []string{"fleet"},
+	}
+
+	if newEnrollment {
+		subject.OrganizationalUnit = append(subject.OrganizationalUnit, FleetEnrollmentSubjectOU)
+	}
+
+	return subject
 }

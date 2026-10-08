@@ -1433,6 +1433,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Empty(t, acResp.GitOpsConfig.RepositoryURL)
 	expectedMaxPackageSize := config.TestConfig().Server.MaxInstallerSizeBytes
 	assert.Equal(t, expectedMaxPackageSize, acResp.MaxSoftwarePackageSize)
+	assert.False(t, acResp.StagedUploadAvailable)
+	s.Do("POST", "/api/latest/fleet/staged_upload", createStagedUploadRequest{Target: fleet.StagedUploadTargetBootstrapPackage, Size: 1}, http.StatusPaymentRequired)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't

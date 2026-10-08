@@ -1,0 +1,1 @@
+- Improved validation of host-reported platform values used when processing OVAL and goval-dictionary vulnerability feeds.

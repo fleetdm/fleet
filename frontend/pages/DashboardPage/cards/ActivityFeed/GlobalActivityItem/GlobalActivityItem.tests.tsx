@@ -1,10 +1,11 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
 
 import { createMockActivity } from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
-import { ActivityType } from "interfaces/activity";
+import { ActivityType, IActivityDetails } from "interfaces/activity";
 
 import GlobalActivityItem from ".";
 
@@ -488,22 +489,22 @@ describe("Activity Feed", () => {
 
   it("correctly renders a changed_user_global_role type activity for a premium SSO user created by JIT provisioning", () => {
     const activity = createMockActivity({
-      actor_id: 3,
       type: ActivityType.UserChangedGlobalRole,
       details: {
-        user_id: 3,
         user_email: "jit@sso.com",
         role: "observer",
+        jit: true,
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    //  If actor_id is the same as user_id:
-    // "<user_email> was assigned the <role> for all fleets."
+    // "<user_email> was assigned the <role> role for all fleets via just-in-time (JIT) provisioning."
     expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
     expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
     expect(screen.getByText("observer")).toBeInTheDocument();
-    expect(screen.getByText(/role for all fleets./)).toBeInTheDocument();
+    expect(
+      screen.getByText(/via just-in-time \(JIT\) provisioning\./)
+    ).toBeInTheDocument();
   });
 
   it("correctly renders a changed_user_global_role type activity when changing an existing user's global role, premium", () => {
@@ -576,30 +577,49 @@ describe("Activity Feed", () => {
 
   it("correctly renders a changed_user_team_role type activity when a new SSO team user is created via JIT provisioning", () => {
     const activity = createMockActivity({
-      actor_id: 1,
       actor_full_name: "Ally Admin",
       type: ActivityType.UserChangedTeamRole,
       details: {
-        user_id: 1,
         user_email: "jit@sso.com",
         role: "maintainer",
+        team_name: "Test Team",
+        jit: true,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    // "<user_email> was assigned the <role> role for the <team_name> fleet via just-in-time (JIT) provisioning."
+    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    expect(screen.getByText(/Test Team/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/via just-in-time \(JIT\) provisioning\./)
+    ).toBeInTheDocument();
+
+    expect(screen.queryByText("Ally Admin")).toBeNull();
+    const forAllTeams = screen.queryByText("for all fleets.");
+    expect(forAllTeams).toBeNull();
+  });
+
+  it("renders passive voice without JIT suffix for changed_user_team_role when actor_id === user_id (invite flow)", () => {
+    const activity = createMockActivity({
+      actor_id: 5,
+      type: ActivityType.UserChangedTeamRole,
+      details: {
+        user_id: 5,
+        user_email: "invited@example.com",
+        role: "observer",
         team_name: "Test Team",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    // If actor_id is the same as user_id:
-    // "<user_email> was assigned the <role> role for the <team_name> fleet."
-    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText("invited@example.com")).toBeInTheDocument();
     expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
-    expect(screen.getByText("maintainer")).toBeInTheDocument();
-    expect(screen.getByText(/role for the/)).toBeInTheDocument();
-    expect(screen.getByText(/Test Team/)).toBeInTheDocument();
-    expect(screen.getByText(/fleet\./)).toBeInTheDocument();
-
-    expect(screen.queryByText("Ally Admin")).toBeNull();
-    const forAllTeams = screen.queryByText("for all fleets.");
-    expect(forAllTeams).toBeNull();
+    expect(screen.getByText("observer")).toBeInTheDocument();
+    expect(screen.getByText("Test Team")).toBeInTheDocument();
+    expect(screen.queryByText(/via just-in-time/)).toBeNull();
   });
 
   it("correctly renders a changed_user_team_role type activity when changing an existing user's team role", () => {
@@ -646,6 +666,28 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Test Team")).toBeInTheDocument();
   });
 
+  it("renders a deleted_user_team_role via JIT provisioning", () => {
+    const activity = createMockActivity({
+      actor_full_name: "Jit User",
+      type: ActivityType.UserDeletedTeamRole,
+      details: {
+        user_email: "jit@sso.com",
+        team_name: "Test Team",
+        jit: true,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    // "<user_email> was removed from the <team_name> fleet via just-in-time (JIT) provisioning."
+    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText(/was removed from the/)).toBeInTheDocument();
+    expect(screen.getByText("Test Team")).toBeInTheDocument();
+    expect(
+      screen.getByText(/via just-in-time \(JIT\) provisioning\./)
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Jit User")).toBeNull();
+  });
+
   it("renders a deleted_user_global_role type activity globally for premium users", () => {
     const activity = createMockActivity({
       type: ActivityType.UserDeletedGlobalRole,
@@ -673,6 +715,28 @@ describe("Activity Feed", () => {
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     const forAllTeams = screen.queryByText("for all fleets.");
     expect(forAllTeams).toBeNull();
+  });
+
+  it("renders a deleted_user_global_role via JIT provisioning for premium users", () => {
+    const activity = createMockActivity({
+      actor_full_name: "Jit User",
+      type: ActivityType.UserDeletedGlobalRole,
+      details: {
+        user_email: "jit@sso.com",
+        role: "maintainer",
+        jit: true,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    // "<user_email> was removed as <role> for all fleets via just-in-time (JIT) provisioning."
+    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText(/was removed as/)).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    expect(
+      screen.getByText(/via just-in-time \(JIT\) provisioning\./)
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Jit User")).toBeNull();
   });
 
   it("renders an 'edited_disk_encryption_settings' type activity for a fleet", () => {
@@ -916,6 +980,63 @@ describe("Activity Feed", () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByText("Marsh's Macbook Air")).toBeInTheDocument();
+  });
+
+  it("renders a 'rotated_disk_encryption_key' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RotatedDiskEncryptionKey,
+      details: { host_display_name: "Alex's Macbook Air" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("triggered rotation of the disk encryption key for", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alex's Macbook Air")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /show info/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a 'failed_to_rotate_disk_encryption_key' activity from Fleet with details", async () => {
+    const onDetailsClick = jest.fn();
+    const activity = createMockActivity({
+      type: ActivityType.FailedToRotateDiskEncryptionKey,
+      fleet_initiated: true,
+      created_at: "2026-01-01T00:00:00Z",
+      details: {
+        host_display_name: "Marsh's Macbook Air",
+        detail: "MDMErrorDomain (12): The password is incorrect.",
+      },
+    });
+    render(
+      <GlobalActivityItem
+        activity={activity}
+        isPremiumTier
+        onDetailsClick={onDetailsClick}
+      />
+    );
+
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(
+      screen.getByText("failed to rotate the disk encryption key for", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Marsh's Macbook Air")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /show info/i }));
+    expect(onDetailsClick).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: ActivityType.FailedToRotateDiskEncryptionKey,
+        created_at: "2026-01-01T00:00:00Z",
+        details: expect.objectContaining({
+          detail: "MDMErrorDomain (12): The password is incorrect.",
+        }),
+      })
+    );
   });
 
   it("renders an 'enabled_recovery_lock_passwords' type activity for a team", () => {
@@ -1458,6 +1579,79 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("bar")).toBeNull();
     expect(screen.queryByText("baz")).toBeNull();
     expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
+  });
+
+  describe("host_enrollment_rejected", () => {
+    const renderRejected = (
+      details: Partial<IActivityDetails>,
+      onDetailsClick = jest.fn()
+    ) =>
+      render(
+        <GlobalActivityItem
+          activity={createMockActivity({
+            type: ActivityType.HostEnrollmentRejected,
+            actor_full_name: "",
+            actor_id: 0,
+            fleet_initiated: true,
+            created_at: "2026-01-01T00:00:00Z",
+            details,
+          })}
+          isPremiumTier
+          onDetailsClick={onDetailsClick}
+        />
+      );
+
+    it("renders Fleet as the actor and names the host", () => {
+      renderRejected({
+        reason: "one_time_secret_spent",
+        host_display_name: "Anna's MacBook Pro",
+        host_serial: "C02ABC",
+      });
+      expect(screen.getByText("Fleet")).toBeInTheDocument();
+      expect(
+        screen.getByText(/rejected an enrollment for/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+    });
+
+    it("falls back to the serial number when there is no display name", () => {
+      renderRejected({
+        reason: "one_time_secret_spent",
+        host_serial: "C02ABC",
+      });
+      expect(screen.getByText("C02ABC")).toBeInTheDocument();
+      expect(
+        screen.getByText(/a host with serial number/i)
+      ).toBeInTheDocument();
+    });
+
+    it("falls back to 'a host' when there is no display name or serial", () => {
+      renderRejected({ reason: "something_new" });
+      expect(
+        screen.getByText(/rejected an enrollment for a host\./i)
+      ).toBeInTheDocument();
+    });
+
+    it("offers details and passes the reason and time to the handler", async () => {
+      const onDetailsClick = jest.fn();
+      renderRejected(
+        { reason: "one_time_secret_spent", host_display_name: "X" },
+        onDetailsClick
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: /show info/i }));
+
+      expect(onDetailsClick).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: ActivityType.HostEnrollmentRejected,
+          created_at: "2026-01-01T00:00:00Z",
+          details: expect.objectContaining({
+            reason: "one_time_secret_spent",
+            host_display_name: "X",
+          }),
+        })
+      );
+    });
   });
 
   it("renders a 'fleet_enrolled' type activity with display name and serial", () => {
@@ -2142,6 +2336,170 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/failed to install/)).toBeInTheDocument();
   });
 
+  it("shows software_display_name over software_title for installed_software", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for uninstalled_software", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UninstalledSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+        status: "uninstalled",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
+  });
+
+  it("falls back to software_title when software_display_name is absent", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        host_display_name: "Foo Host",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Firefox")).toBeInTheDocument();
+  });
+
+  it("shows software_display_name over software_title for installed_app_store_app", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Logic Pro",
+        software_display_name: "Logic Pro (approved)",
+        host_display_name: "Foo Host",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Logic Pro (approved)")).toBeInTheDocument();
+    expect(screen.queryByText("Logic Pro")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for canceled_install_software", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CanceledInstallSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for canceled_uninstall_software", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CanceledUninstallSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for canceled_install_app_store_app", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CanceledInstallAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Logic Pro",
+        software_display_name: "Logic Pro (approved)",
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Logic Pro (approved)")).toBeInTheDocument();
+    expect(screen.queryByText("Logic Pro")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for edited_app_store_app", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Logic Pro",
+        software_display_name: "Logic Pro (approved)",
+        platform: "darwin",
+        team_name: "Workstations",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Logic Pro (approved)")).toBeInTheDocument();
+    expect(screen.queryByText("Logic Pro")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for deleted_app_store_app", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Logic Pro",
+        software_display_name: "Logic Pro (approved)",
+        platform: "darwin",
+        team_name: "Workstations",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Logic Pro (approved)")).toBeInTheDocument();
+    expect(screen.queryByText("Logic Pro")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for canceled_setup_experience", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CanceledSetupExperience,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
+  });
+
   it("renders script package ran status in InstalledSoftware activity", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,
@@ -2752,6 +3110,142 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Asset tag")).toBeInTheDocument();
   });
 
+  describe("notified_end_user_before_patching activity", () => {
+    it("renders a single-app success sentence with 1 hour and a bold host + title", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: ["1Password"],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "notified end user 1 hour before patching 1Password on John's MacBook Pro."
+      );
+      // Bold: software title + host name.
+      const bolds = Array.from(container.querySelectorAll("strong")).map(
+        (el) => el.textContent
+      );
+      expect(bolds).toEqual(
+        expect.arrayContaining(["1Password", "John's MacBook Pro"])
+      );
+    });
+
+    it("renders three apps with Oxford comma", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: ["1Password", "Slack", "Docker Desktop"],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "1Password, Slack, and Docker Desktop on John's MacBook Pro."
+      );
+    });
+
+    it("truncates past four apps with ', and N more apps'", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: [
+            "1Password",
+            "Slack",
+            "Docker Desktop",
+            "Zoom",
+            "Chrome",
+          ],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "1Password, Slack, Docker Desktop, and 2 more apps"
+      );
+    });
+
+    it("lists the fourth app inline instead of using '1 more app'", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: ["1Password", "Slack", "Docker Desktop", "Zoom"],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "1Password, Slack, Docker Desktop, and Zoom"
+      );
+      expect(container.textContent).not.toMatch(/more app/);
+    });
+
+    it("renders 5 minutes for the reminder (time_before: 300)", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software_titles: ["1Password"],
+          status: "success",
+          time_before: 300,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "notified end user 5 minutes before patching"
+      );
+    });
+
+    it("renders the failed-to-notify sentence when status is failed", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "Josh's MacBook Pro",
+          software_titles: ["1Password"],
+          status: "failed",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "failed to notify end user 1 hour before patching 1Password on Josh's MacBook Pro."
+      );
+    });
+  });
+
   it("renders a canceled_mdm_command activity", () => {
     const activity = createMockActivity({
       type: ActivityType.CanceledMdmCommand,
@@ -2793,5 +3287,91 @@ describe("Activity Feed", () => {
         exact: false,
       })
     ).toBeInTheDocument();
+  });
+
+  it("renders an 'unbound_host_from_idp_account' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UnboundHostFromIdpAccount,
+      fleet_initiated: true,
+      details: { host_uuid: "host-uuid-1", idp_email: "anna@example.com" },
+    });
+    const { container } = render(
+      <GlobalActivityItem activity={activity} isPremiumTier />
+    );
+
+    expect(container).toHaveTextContent(
+      "Fleet unlinked host-uuid-1 from the identity provider account anna@example.com."
+    );
+  });
+
+  describe.each([
+    ActivityType.InstalledSoftware,
+    ActivityType.UninstalledSoftware,
+    ActivityType.InstalledAppStoreApp,
+  ])("premium-only install-details gating for %s", (type) => {
+    it("hides Show details on Fleet Free", () => {
+      const activity = createMockActivity({
+        type,
+        details: {
+          software_title: "Foo Software",
+          host_display_name: "Foo Host",
+        },
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+      expect(
+        screen.queryByRole("button", { name: /show info/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows Show details on Fleet Premium", () => {
+      const activity = createMockActivity({
+        type,
+        details: {
+          software_title: "Foo Software",
+          host_display_name: "Foo Host",
+        },
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+      expect(
+        screen.getByRole("button", { name: /show info/i })
+      ).toBeInTheDocument();
+    });
+  });
+});
+
+describe("opt-in configuration profile activities", () => {
+  const details = {
+    profile_name: "Wi-Fi",
+    host_display_name: "Foo Host",
+  };
+
+  it("renders an admin install with the actor", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledOptInConfigurationProfile,
+      details: { ...details, self_service: false },
+    });
+    const { container } = render(
+      <GlobalActivityItem activity={activity} isPremiumTier />
+    );
+    expect(screen.getByText("Test User")).toBeInTheDocument();
+    expect(container).toHaveTextContent(
+      "Test User installed the opt-in Wi-Fi profile on Foo Host."
+    );
+  });
+
+  it("renders a self-service uninstall as the end user", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UninstalledOptInConfigurationProfile,
+      details: { ...details, self_service: true },
+    });
+    const { container } = render(
+      <GlobalActivityItem activity={activity} isPremiumTier />
+    );
+    expect(screen.queryByText("Test User")).not.toBeInTheDocument();
+    expect(container).toHaveTextContent(
+      "End user uninstalled the opt-in Wi-Fi profile on Foo Host."
+    );
   });
 });

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.3.3",
+      "version": "5.3.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.krita';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.krita' AND version_compare(bundle_short_version, '5.3.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.krita' AND version_compare(bundle_short_version, '5.3.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.kde.krita' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.kde.org/stable/krita/5.3.3/krita-5.3.3-signed.dmg",
+      "installer_url": "https://download.kde.org/stable/krita/5.3.4/krita-5.3.4-signed.dmg",
       "install_script_ref": "cdb966e7",
       "uninstall_script_ref": "3947b0f0",
-      "sha256": "625e37c01cfb74094ae58353dd9d343cd389a00c33cb65d6ddf1f2f1e2bc3a19",
+      "sha256": "8e66539e38b8becfd31093a7701144c340c1789370b75e10a3703322739275d7",
       "default_categories": [
         "Productivity"
       ]

@@ -75,6 +75,8 @@ interface ISoftwareUpdateModalProps {
   software: IHostSoftware;
   onExit: () => void;
   isDeviceUser?: boolean;
+  /** Hides the Update button; modal is view-only */
+  disableUpdate?: boolean;
   /** Currently API for updating is the same as installing */
   onUpdate: (id: number) => void;
 }
@@ -83,6 +85,7 @@ const SoftwareUpdateModal = ({
   hostDisplayName,
   software,
   isDeviceUser = false,
+  disableUpdate = false,
   onExit,
   onUpdate,
 }: ISoftwareUpdateModalProps) => {
@@ -124,7 +127,7 @@ const SoftwareUpdateModal = ({
       </div>
       <ModalFooter
         primaryButtons={
-          status === "pending_install" ? (
+          status === "pending_install" || disableUpdate ? (
             <Button type="submit" onClick={onExit}>
               Close
             </Button>

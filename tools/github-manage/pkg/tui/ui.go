@@ -791,34 +791,12 @@ func (m *model) executeWorkflow() tea.Cmd {
 		}
 	case BulkMilestoneClose:
 		actions = ghapi.CreateBulkMilestoneCloseActions(selectedIssues)
-		for i, issue := range selectedIssues {
+		// Stories and bugs/sub-tasks get different actions, so build one task per action to keep
+		// task indexes aligned with the statuses AsyncManager reports.
+		for i, action := range actions {
 			m.tasks = append(m.tasks, WorkflowTask{
-				ID:          len(selectedIssues) + i,
-				Description: fmt.Sprintf("Adding #%d issue to drafting project", issue.Number),
-				Status:      TaskPending,
-				Progress:    0.0,
-			})
-		}
-		for i, issue := range selectedIssues {
-			m.tasks = append(m.tasks, WorkflowTask{
-				ID:          len(selectedIssues) + i,
-				Description: fmt.Sprintf("Adding ':product' label to #%d issue", issue.Number),
-				Status:      TaskPending,
-				Progress:    0.0,
-			})
-		}
-		for i, issue := range selectedIssues {
-			m.tasks = append(m.tasks, WorkflowTask{
-				ID:          len(selectedIssues) + i,
-				Description: fmt.Sprintf("Setting status to 'confirm and celebrate' for #%d issue", issue.Number),
-				Status:      TaskPending,
-				Progress:    0.0,
-			})
-		}
-		for i, issue := range selectedIssues {
-			m.tasks = append(m.tasks, WorkflowTask{
-				ID:          len(selectedIssues) + i,
-				Description: fmt.Sprintf("Removing ':release' label from #%d issue", issue.Number),
+				ID:          i,
+				Description: milestoneCloseTaskDescription(action),
 				Status:      TaskPending,
 				Progress:    0.0,
 			})
@@ -925,6 +903,23 @@ func (m *model) executeWorkflow() tea.Cmd {
 
 	// For all workflows, start async workflow
 	return m.executeAsyncWorkflow(actions)
+}
+
+func milestoneCloseTaskDescription(action ghapi.Action) string {
+	switch action.Type {
+	case ghapi.ATAddIssueToProject:
+		return fmt.Sprintf("Adding #%d issue to drafting project", action.Issue.Number)
+	case ghapi.ATAddLabel:
+		return fmt.Sprintf("Adding '%s' label to #%d issue", action.Label, action.Issue.Number)
+	case ghapi.ATSetStatus:
+		return fmt.Sprintf("Setting status to 'confirm and celebrate' for #%d issue", action.Issue.Number)
+	case ghapi.ATRemoveLabel:
+		return fmt.Sprintf("Removing '%s' label from #%d issue", action.Label, action.Issue.Number)
+	case ghapi.ATCloseIssue:
+		return fmt.Sprintf("Closing #%d issue", action.Issue.Number)
+	default:
+		return fmt.Sprintf("%s for #%d issue", action.Type, action.Issue.Number)
+	}
 }
 
 func (m *model) listenForAsyncStatus() tea.Cmd {

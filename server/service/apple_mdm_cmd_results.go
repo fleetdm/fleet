@@ -264,18 +264,26 @@ func NewInstalledApplicationListResultsHandler(
 					return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
 				}
 			default:
+				hostMDM, err := ds.GetHostMDMCheckinInfo(ctx, installedAppResult.HostUUID())
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get host mdm checkin info to refetch apps")
+				}
+				// BYOD devices are only queried for managed apps.
+				isBYOD := !hostMDM.InstalledFromDEP
+
 				// Track before enqueueing so a fast device ack can't race the
 				// insert and leave an orphaned row; on enqueue failure nothing
 				// was queued and the row is removed again, but it stays when
 				// only the APNs notification failed since the command is
 				// durably queued.
-				hostCmd := fleet.HostMDMCommand{HostID: hostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix}
+				cmdUUID := fleet.RefetchAppsCommandUUID()
+				hostCmd := fleet.HostMDMCommand{HostID: hostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix, CommandUUID: cmdUUID}
 				err = ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{hostCmd})
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "add host mdm commands")
 				}
 
-				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), false)
+				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, cmdUUID, isBYOD)
 				if err != nil {
 					if _, isNotifErr := errors.AsType[*apple_mdm.NotificationFailedError](err); !isNotifErr {
 						if rmErr := ds.RemoveHostMDMCommand(ctx, hostCmd); rmErr != nil {

@@ -1,4 +1,5 @@
 import classnames from "classnames";
+import { toZonedTime } from "date-fns-tz";
 import React, { useEffect, useRef, useState } from "react";
 
 import Button from "components/buttons/Button";
@@ -13,7 +14,7 @@ import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRo
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import {
-  isBYODAccountDrivenUserEnrollment,
+  isPersonalEnrollment,
   wasBYODEnrolled,
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
@@ -33,6 +34,7 @@ import {
   wrapFleetHelper,
   removeOSPrefix,
   compareVersions,
+  internationalTimeFormat,
 } from "utilities/helpers";
 
 import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
@@ -718,6 +720,14 @@ export const buildHostVitals = ({
   }
 
   if (isIosOrIpadosHost && vitalsData?.timezone) {
+    const hasValidTimezone = vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
+    const localTime = hasValidTimezone
+      ? // toZonedTime shifts the instant so its epoch value reads as the
+        // host's timezone under the system's own default-timezone formatting,
+        // letting internationalTimeFormat run unmodified/as-is elsewhere.
+        internationalTimeFormat(toZonedTime(new Date(), vitalsData.timezone))
+      : null;
+
     vitals.push({
       sortKey: "Timezone",
       element: (
@@ -725,9 +735,21 @@ export const buildHostVitals = ({
           key="timezone"
           title="Timezone"
           value={
-            <TooltipTruncatedText
-              value={vitalsData.timezone || DEFAULT_EMPTY_CELL_VALUE}
-            />
+            hasValidTimezone ? (
+              <TooltipTruncatedText
+                value={vitalsData.timezone}
+                tooltip={
+                  <>
+                    <b>Local time:</b> {localTime}
+                  </>
+                }
+                alwaysShowTooltip
+                showArrow={false}
+                tooltipPosition="bottom-start"
+              />
+            ) : (
+              DEFAULT_EMPTY_CELL_VALUE
+            )
           }
         />
       ),
@@ -795,8 +817,7 @@ const Vitals = ({
   // purpose: the cap exists because a personally-enrolled device reports few vitals
   // right now, not because of how it was once enrolled.
   const showExpandedVitals =
-    isIosOrIpadosHost &&
-    !isBYODAccountDrivenUserEnrollment(mdm?.enrollment_status ?? null);
+    isIosOrIpadosHost && !isPersonalEnrollment(mdm?.enrollment_status ?? null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(FALLBACK_COLUMN_COUNT);
@@ -836,11 +857,7 @@ const Vitals = ({
   const classNames = classnames(baseClass, className);
 
   return (
-    <Card
-      className={classNames}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-    >
+    <Card className={classNames} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
         <CardHeader header="Vitals" />
         {showExpandedVitals && toggleVitalsModal && (
