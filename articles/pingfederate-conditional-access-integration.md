@@ -59,7 +59,7 @@ Deploy a SCEP profile for your CA using `./User/` paths so the certificate lands
 2. For **Type**, select **Rest API**.
 3. For **Base URL**, enter your Fleet server URL.
 4. Add the Fleet API token from Step 1 as an `Authorization: Bearer <token>` header.
-5. For **Test Connection URL**, enter `/api/v1/fleet/me` and select **Test Connection**.
+5. For **Test Connection URL**, enter `/api/v1/fleet/hosts/identifier/<a host's UUID>` and select **Test Connection**. The API user can call this endpoint.
 6. Add these attributes:
 
 | Local attribute | JSON response attribute path |
