@@ -897,12 +897,12 @@ var _ WithMDMProfileSpecs = MacOSSettings{}
 func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
 	set := make(map[string]bool)
 
-	extractLabelField := func(parentMap map[string]interface{}, fieldName string) ([]string, error) {
+	extractLabelField := func(parentMap map[string]any, fieldName string) ([]string, error) {
 		v, ok := parentMap[fieldName]
 		if !ok || v == nil {
 			return nil, nil
 		}
-		labels, ok := v.([]interface{})
+		labels, ok := v.([]any)
 		if !ok {
 			return nil, &json.UnmarshalTypeError{
 				Value: fmt.Sprintf("%T", v),
