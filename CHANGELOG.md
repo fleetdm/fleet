@@ -1,14 +1,19 @@
 ## Fleet 4.93.0 (Oct 08, 2026)
 
 ### IT Admins
-- Added support for Android zero-touch enrollment for company-owned devices.
 - Added a "Notify before patching" option for macOS Fleet-maintained app patch policies. When the app is open, Fleet Desktop tells the end user 1 hour before the app is closed and updated, and again 5 minutes before. Requires Fleet Desktop 1.5.0.
-- Added the ability to rotate the managed local account password on Windows hosts, from Host details > Actions > Show managed account or the `POST /hosts/:id/managed_account_password/rotate` endpoint. As on macOS, viewing the password also schedules an automatic rotation about an hour later.
-- Added support for restricting Managed Apple Account sign-ins via Apple Business, using the GetToken protocol.
-- Added real online and offline status for iOS, iPadOS, and Android hosts based on MDM activity, instead of always reporting them as offline. The status is reflected on the hosts list, host details, dashboard summary, and target counts.
-- Added an online history modal on the host details page. Clicking a host's online/offline status opens a 30-day checkerboard of that host's connectivity.
+- Added support for Android zero-touch enrollment for company-owned devices.
 - Added the new Android host vitals to the Vitals card on the host details page: USB debugging enabled, passcode set, Play Protect enabled, encryption status, manufacturer, security update version, kernel version, bootloader version, software update status, security posture, carrier, phone number, IMEI, and MEID, plus the device's Android API level in a tooltip on the operating system. Phone number, carrier, IMEI, and MEID are shown only for company-owned hosts. On Android hosts the operating system no longer repeats the security patch level, which now has its own vital.
 - Added collection of the Android hardware radio identifiers (IMEI and MEID) from AMAPI status reports, returned as `imei` and `meid` by the get host endpoints for company-owned Android hosts.
+- Added the ability to rotate the managed local account password on Windows hosts, from Host details > Actions > Show managed account or the `POST /hosts/:id/managed_account_password/rotate` endpoint. As on macOS, viewing the password also schedules an automatic rotation about an hour later.
+- Added support for restricting Managed Apple Account sign-ins via Apple Business, using the GetToken protocol.
+- Raised the report cap to the number of hosts when that is higher than `report_cap`, so reports that return one result per host are never clipped.
+- Changed reports that reach the cap to keep updating results for hosts already in the report instead of pausing entirely. Only results from hosts not yet in the report are skipped.
+- Stopped storing a host's result for a report when it is larger than 512 KB. Only the fetch time is recorded.
+- Added `page`, `per_page`, `order_key`, `order_direction` and `query` parameters to `GET /api/v1/fleet/reports/:id/report`, and a `count` field to its response. Without `per_page` the endpoint still returns all results, now ordered by `last_fetched` descending.
+- Changed the report results page to paginate, sort, and search server-side instead of loading every result into the browser.
+- Added real online and offline status for iOS, iPadOS, and Android hosts based on MDM activity, instead of always reporting them as offline. The status is reflected on the hosts list, host details, dashboard summary, and target counts.
+- Added an online history modal on the host details page. Clicking a host's online/offline status opens a 30-day checkerboard of that host's connectivity.
 - Added IdP host vitals (username, full name, groups, department) on Entra-joined Windows hosts enrolled without Fleet MDM, by matching the Entra join user reported by the device to the SCIM-provisioned user. Manually set and end user authentication usernames take precedence.
 - Added the ability for users with the Technician role to clear passcodes on iOS and iPadOS hosts.
 - Added the ability to filter hosts by platform label and disk encryption status at the same time. Disk encryption status rows on Controls > OS settings now link to the host list filtered by both.
@@ -20,13 +25,13 @@
 - Added support for hosts running AMD Ryzen AI Developer Platform, a Debian-based Linux distribution.
 
 ### Security Engineers
+- Added ACME support for valid Apple Business assigned iPhones and iPads.
 - Added vulnerability detection for Go binaries in software inventory, using the Go vulnerability database (https://vuln.go.dev).
 - Added the Go module path and Go toolchain version to Go binaries in software inventory. Go binaries now show a Go icon, and their version includes the toolchain they were built with (for example, `v0.21.1 (go1.26.1)`).
 - Added multi-signal detection to the `ai_tools` fleetd table, so AI agents that aren't recognized tools (homegrown agents and CrewAI, AutoGen, or LangChain harnesses) are reported instead of being missed. Two new columns, `confidence` and `evidence`, show how certain each detection is and which signals produced it. Hosts may report more `agents` rows than before as a result.
 - Added TOML and YAML MCP config parsing to the `ai_tools` table, so MCP servers declared by Grok, Codex, Hermes, and the OpenClaw family are now reported. An MCP server that stores an `Authorization` value in its config is now flagged with the existing `plaintext_secret` risk flag.
 - Added support for end users to create their own BitLocker startup PIN from the **My device** page, so a Windows user without local admin rights can satisfy a fleet that requires one. The PIN is stored encrypted, handed to the host's agent exactly once, and cleared. Fleet never shows it back to the end user or to an admin.
 - Added the ability to limit enrollments to only automated (DEP) Apple Business device enrollments.
-- Added ACME support for valid Apple Business assigned iPhones and iPads.
 - Added the `mdm.apple_one_time_enroll_secrets` server configuration option, which uses one-time enrollment secrets delivered in the fleetd configuration profile for macOS hosts instead of shared enrollment secrets.
 - Added `signature_information` with `executable_path` and `executable_sha256` for each Mach-O executable installed by a Homebrew formula under its keg's `bin` and `sbin`, for use with Santa binary rules. Requires an updated fleetd.
 - Updated CIS Windows 10 Enterprise benchmark policies from v4.0.0 to v5.0.0.
@@ -43,11 +48,6 @@
 - Restricted custom variables (`$FLEET_SECRET_*`) in host name templates to global admins, maintainers, and GitOps users.
 - Made authorization errors consistent across the host MDM endpoints. Lock, unlock, wipe, clear passcode, Recovery Lock and managed local account password rotation, MDM command cancellation, and turning off MDM now return a `404` instead of a `403` when the target host is not in one of the caller's fleets.
 - Reduced Fleet server CPU spent on HTTP route matching. Requests are now matched by a path trie in front of the existing router, instead of testing a regular expression against each route in registration order.
-- Raised the report cap to the number of hosts when that is higher than `report_cap`, so reports that return one result per host are never clipped.
-- Changed reports that reach the cap to keep updating results for hosts already in the report instead of pausing entirely. Only results from hosts not yet in the report are skipped.
-- Stopped storing a host's result for a report when it is larger than 512 KB. Only the fetch time is recorded.
-- Added `page`, `per_page`, `order_key`, `order_direction` and `query` parameters to `GET /api/v1/fleet/reports/:id/report`, and a `count` field to its response. Without `per_page` the endpoint still returns all results, now ordered by `last_fetched` descending.
-- Changed the report results page to paginate, sort, and search server-side instead of loading every result into the browser.
 - Reduced database writer load from scheduled reports that store results: when a host's results haven't changed since they were last stored, Fleet no longer rewrites them and instead updates their "last fetched" time in batches, roughly once an hour.
 - Added the `osquery_max_concurrent_query_report_reads` (default 40 per Fleet server) and `osquery_max_concurrent_query_report_writes` (default 20 across all Fleet servers) Fleet server configuration options, which cap how many osquery log requests check against and write to stored report results at once. Requests over a cap skip storing report results instead of queueing on the database, which kept Fleet servers from running out of memory when the database was slow.
 - Reduced database lock contention on stored report results when hosts send results, when the cron removes rows over the report cap, and when reports are edited or deleted (including through GitOps). This could stall writes to the database during spikes.
