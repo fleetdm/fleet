@@ -1029,6 +1029,7 @@ spec:
   source: chrome_extensions
   extension_for: chrome
   display_name: ""
+  ai_tool: false
   browser: chrome
   versions:
   - id: 0
@@ -1055,6 +1056,7 @@ spec:
   source: deb_packages
   extension_for: ""
   display_name: ""
+  ai_tool: false
   browser: ""
   versions:
   - id: 0
@@ -1074,6 +1076,7 @@ spec:
       "source": "chrome_extensions",
       "extension_for": "chrome",
       "display_name": "",
+      "ai_tool": false,
       "browser": "chrome",
       "hosts_count": 2,
       "icon_url": null,
@@ -1111,6 +1114,7 @@ spec:
       "name": "bar",
       "source": "deb_packages",
       "display_name": "",
+      "ai_tool": false,
       "extension_for": "",
       "browser": "",
       "hosts_count": 0,
