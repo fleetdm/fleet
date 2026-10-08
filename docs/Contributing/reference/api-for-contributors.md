@@ -2239,9 +2239,9 @@ If the `name` is not already associated with an existing fleet, this API route c
 | features                                  | object | body  | The features that are applied to the hosts assigned to the specified fleet. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                       |
 | secrets                                   | array   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                               |
 | mdm                                       | object | body  | The fleet's MDM configuration options.                                                                                                                                                                                              |
-| mdm.macos_updates                         | object | body  | The OS updates macOS configuration options for Nudge.                                                                                                                                                                               |
+| mdm.macos_updates                         | object | body  | The OS updates macOS configuration options.                                                                                                                                                                               |
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
-| mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
+| mdm.macos_updates.deadline                | string | body  | The required installation date to enforce the operating system version.                                                                                                                                                   |
 | mdm.apple_settings                        | object | body  | The Apple-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to a .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.  |
 | mdm.apple_settings.assets                 | array   | body  | The list of objects consists of a `path` to a JSON asset declaration (`com.apple.asset`) file.   |
@@ -4019,37 +4019,6 @@ On Windows and Linux hosts, if any queued software has associated policies (poli
     "hello_world_linux": {
       "channel": "stable",
       "platform": "linux"
-    }
-  },
-  "nudge_config": {
-    "osVersionRequirements": [
-      {
-        "requiredInstallationDate": "2024-12-04T20:00:00Z",
-        "requiredMinimumOSVersion": "15.1.1",
-        "aboutUpdateURLs": [
-          {
-            "_language": "en",
-            "aboutUpdateURL": "https://fleetdm.com/learn-more-about/os-updates"
-          }
-        ]
-      }
-    ],
-    "userInterface": {
-      "simpleMode": true,
-      "showDeferralCount": false,
-      "updateElements": [
-        {
-          "_language": "en",
-          "actionButtonText": "Update",
-          "mainHeader": "Your device requires an update"
-        }
-      ]
-    },
-    "userExperience": {
-      "initialRefreshCycle": 86400,
-      "approachingRefreshCycle": 86400,
-      "imminentRefreshCycle": 7200,
-      "elapsedRefreshCycle": 3600
     }
   },
   "notifications": {

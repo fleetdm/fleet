@@ -73,11 +73,10 @@ GOARCH=arm64 \
 ./tools/tuf/test/main.sh
 ```
 
-To include Escrow Buddy, Nudge, or Swift Dialog on the TUF repository you can use the following variables:
+To include Escrow Buddy or Swift Dialog on the TUF repository you can use the following variables:
 ```sh
 [...]
 ESCROW_BUDDY=1 \
-NUDGE=1 \
 SWIFT_DIALOG=1 \
 [...]
 ./tools/tuf/test/main.sh

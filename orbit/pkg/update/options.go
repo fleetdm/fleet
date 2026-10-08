@@ -126,13 +126,6 @@ var (
 		},
 	}
 
-	NudgeMacOSTarget = TargetInfo{
-		Platform:             "macos",
-		Channel:              "stable",
-		TargetFile:           "nudge.app.tar.gz",
-		ExtractedExecSubPath: []string{"Nudge.app", "Contents", "MacOS", "Nudge"},
-	}
-
 	SwiftDialogMacOSTarget = TargetInfo{
 		Platform:             "macos",
 		Channel:              "stable",
