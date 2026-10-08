@@ -38,7 +38,6 @@ If you manage Fleet in the UI, you can still use the `fleet-gitops` skill to gen
    - **Policies and reports:** Add a new policy or report in the Fleet UI and paste in the SQL query.
    - **Configuration profiles:** Upload the file as a custom OS setting in the Fleet UI.
 
-> **Note:** The skill's instructions mention "this repository," but it works in any folder. The agent still validates against the same references.
 
 ## Troubleshoot
 
