@@ -147,7 +147,8 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 						SCEPChallenge: s.scepChallenge,
 						SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 						MDMURL:        s.server.URL + apple_mdm.MDMPath,
-					}, "MacBookPro16,1")
+					}, "MacBookPro16,1",
+				)
 				dupeClient.UUID = device.UUID
 				dupeClient.SerialNumber = device.SerialNumber
 				dupeClient.Model = device.Model
@@ -170,7 +171,8 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 						SCEPChallenge: s.scepChallenge,
 						SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 						MDMURL:        s.server.URL + apple_mdm.MDMPath,
-					}, "MacBookPro16,1")
+					}, "MacBookPro16,1",
+				)
 				dupeClient.UUID = device.UUID
 				dupeClient.SerialNumber = device.SerialNumber
 				dupeClient.Model = device.Model
@@ -551,7 +553,8 @@ func (s *integrationMDMTestSuite) recordWindowsHostStatus(
 		for i := range c.Cmd.Items {
 			if c.Cmd.Items[i].Data != nil {
 				c.Cmd.Items[i].Data.Content = euaTokenRe.ReplaceAllString(
-					c.Cmd.Items[i].Data.Content, `EUA_TOKEN="<redacted>"`)
+					c.Cmd.Items[i].Data.Content, `EUA_TOKEN="<redacted>"`,
+				)
 			}
 		}
 		recordedCmds = append(recordedCmds, c)
@@ -1036,52 +1039,75 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 
+	// deliveredRenewal holds the renewal profile each device received, which it later renews with
+	deliveredRenewal := map[*mdmtest.TestAppleMDMClient][]byte{}
 	checkRenewCertCommand := func(device *mdmtest.TestAppleMDMClient, enrollRef string, wantProfile string, wantManagedAppleID string) {
-		var renewCmd *mdm.Command
 		cmd, err := device.Idle()
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
 		require.Equal(t, "InstallProfile", cmd.Command.RequestType)
-		renewCmd = cmd
+		renewCmdUUID := cmd.CommandUUID
+		deliveredPayload := func(cmd *mdm.Command) []byte {
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			return fullCmd.Command.InstallProfile.Payload
+		}
+		payload := deliveredPayload(cmd)
 
-		require.NotNil(t, renewCmd)
-		var fullCmd micromdm.CommandPayload
-		require.NoError(t, plist.Unmarshal(renewCmd.Raw, &fullCmd))
+		// the stored command holds the placeholder, never a challenge
+		var stored []byte
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &stored, `SELECT command FROM nano_commands WHERE command_uuid = ?`, renewCmdUUID)
+		})
+		require.Contains(t, string(stored), fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge))
+
+		p7, err := pkcs7.Parse(payload)
+		require.NoError(t, err)
+		info, err := mdmtest.ParseEnrollmentProfile(p7.Content)
+		require.NoError(t, err)
+		deviceChannelID := device.UUID
+		if wantManagedAppleID != "" {
+			deviceChannelID = device.EnrollmentID()
+		}
+		var bound fleet.AppleSCEPChallengeInfo
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &bound, `SELECT purpose, host_uuid, hardware_serial, idp_account_uuid
+				FROM mdm_apple_scep_challenges WHERE challenge = ?`, info.SCEPChallenge)
+		})
+		require.Equal(t, fleet.AppleSCEPChallengeInfo{Purpose: fleet.AppleMDMCertPurposeSCEPRenewal, UUID: &deviceChannelID}, bound)
+
+		// deferring the command and getting it again returns the same challenge
+		cmd, err = device.NotNow(renewCmdUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+		cmd, err = device.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, renewCmdUUID, cmd.CommandUUID)
+		redelivered, err := pkcs7.Parse(deliveredPayload(cmd))
+		require.NoError(t, err)
+		redeliveredInfo, err := mdmtest.ParseEnrollmentProfile(redelivered.Content)
+		require.NoError(t, err)
+		require.Equal(t, info.SCEPChallenge, redeliveredInfo.SCEPChallenge)
 
 		if wantProfile == "" {
-			enrollProfile := s.verifyEnrollmentProfile(fullCmd.Command.InstallProfile.Payload, enrollRef, wantManagedAppleID)
-			if wantManagedAppleID != "" {
-				// we see this as byod, so we update the enrollInfo to avoid fetching the profile againt from the account_driven_enroll path, as that is not how it works.
-				// and with the new challenge based setup, does not mimic the real flow well.
-				for _, payload := range enrollProfile.PayloadContent {
-					switch payload.PayloadType {
-					case "com.apple.security.scep":
-						device.EnrollInfo.SCEPURL = payload.PayloadContent.URL
-						device.EnrollInfo.SCEPChallenge = payload.PayloadContent.Challenge
-					case "com.apple.mdm":
-						device.EnrollInfo.MDMURL = payload.ServerURL
-					}
-				}
-			}
+			s.verifyEnrollmentProfile(payload, enrollRef, wantManagedAppleID)
 		} else {
-			p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
-			require.NoError(t, err)
 			rootCA := x509.NewCertPool()
-
 			assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 				fleet.MDMAssetCACert,
 			}, nil)
 			require.NoError(t, err)
-
 			require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
 			require.NoError(t, p7.VerifyWithChain(rootCA))
-			require.Equal(t, wantProfile, string(p7.Content))
+			require.Equal(t, strings.ReplaceAll(wantProfile, fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(), info.SCEPChallenge), string(p7.Content))
 		}
+		deliveredRenewal[device] = payload
 
 		// for testing convenience, we'll acknowledge the command right away, but in practice the
 		// device completes the enroll steps (SCEP, Autheniticate, TokenUpdate) before it sends
 		// the Acknowledge for the enrollment profile command
-		cmd, err = device.Acknowledge(renewCmd.CommandUUID)
+		cmd, err = device.Acknowledge(renewCmdUUID)
 		require.NoError(t, err)
 		require.Nil(t, cmd)
 	}
@@ -1098,10 +1124,15 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Nil(t, cmd)
 
 	// set the env var, and run the cron
-	t.Setenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE", base64.StdEncoding.EncodeToString([]byte("<foo></foo>")))
+	topic, err := apple_mdm.MDMPushCertTopic(ctx, s.ds)
+	require.NoError(t, err)
+	migrationProfile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("Previous MDM", s.getConfig().MDMUrl(),
+		fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(), topic, apple_mdm.MDMAccessRightAll, false)
+	require.NoError(t, err)
+	t.Setenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE", base64.StdEncoding.EncodeToString(migrationProfile))
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
-	checkRenewCertCommand(migratedDevice, "", "<foo></foo>", "")
+	checkRenewCertCommand(migratedDevice, "", string(migrationProfile), "")
 
 	// another cron run shouldn't enqueue more commands
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
@@ -1127,17 +1158,11 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
-	// Devices renew their SCEP cert by re-keying from the pushed renewal profile, which (unlike a
-	// freshly-fetched enrollment profile) carries the static challenge and no new-enrollment Subject OU.
-	// Re-fetching the enrollment profile would mint a purpose-bound challenge and look like a fresh enrollment.
+	// Devices renew their SCEP cert with the renewal profile they were sent, using its per-host challenge.
 	for _, d := range []*mdmtest.TestAppleMDMClient{
 		manualEnrolledDevice, automaticEnrolledDevice, automaticEnrolledDeviceWithRef, migratedDevice, iPhoneMdmDevice,
 	} {
-		d.SimulateSCEPRenewal = true
-		d.EnrollInfo.SCEPChallenge = s.scepChallenge
-		require.NoError(t, d.SCEPEnroll())
-		require.NoError(t, d.Authenticate())
-		require.NoError(t, d.TokenUpdate(false))
+		require.NoError(t, d.Renew(deliveredRenewal[d]))
 	}
 
 	// no new commands are enqueued right after enrollment
@@ -1671,6 +1696,30 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		require.NoError(t, RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc))
 		require.True(t, renewalPending(hostUUID), "a SCEP renewal command should be pending after the renewal cron")
 	}
+	// pushedRenewalProfile acknowledges the device's queued commands and returns the renewal enrollment profile the
+	// cron pushed.
+	pushedRenewalProfile := func(dev *mdmtest.TestAppleMDMClient) []byte {
+		var profile []byte
+		cmd, err := dev.Idle()
+		for ; cmd != nil && err == nil; cmd, err = dev.Acknowledge(cmd.CommandUUID) {
+			if cmd.Command.RequestType != "InstallProfile" {
+				continue
+			}
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			payload := fullCmd.Command.InstallProfile.Payload
+			content := payload
+			if p7, err := pkcs7.Parse(payload); err == nil {
+				content = p7.Content
+			}
+			if _, err := mdmtest.ParseEnrollmentProfile(content); err == nil {
+				profile = payload
+			}
+		}
+		require.NoError(t, err)
+		require.NotEmpty(t, profile, "the renewal cron should have pushed a renewal profile")
+		return profile
+	}
 	lastEnrolledActivityID := func() uint {
 		return s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(), "", 0)
 	}
@@ -1710,15 +1759,8 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 
 		forcePendingRenewal(host.UUID)
 
-		// Simulate the device processing the renewal: it re-keys from a renewal profile, whose SCEP
-		// Subject carries no new-enrollment OU (verified in the server/mdm/apple unit tests), so the
-		// issued cert lacks the marker.
-		dev.EnrollInfo.SCEPSubjectOUs = nil
-		// the enrollment's dynamic challenge is single use; renewal profiles carry the static one
-		dev.EnrollInfo.SCEPChallenge = s.scepChallenge
-		require.NoError(t, dev.SCEPEnroll())
-		require.NoError(t, dev.Authenticate())
-		require.NoError(t, dev.TokenUpdate(false))
+		// the device re-keys from the renewal profile it was pushed, with its per-host challenge
+		require.NoError(t, dev.Renew(pushedRenewalProfile(dev)))
 
 		// The renewal is short-circuited: refs cleared, but NO new mdm_enrolled activity.
 		require.False(t, renewalPending(host.UUID), "renew refs should be cleared after a renewal checkin")
@@ -1792,35 +1834,12 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		// Genuine ACME renewal short-circuits: no new mdm_enrolled. The device re-keys from the renewal profile the
 		// cron pushed, whose ACME enrollment is an acme_renewal bound to this host.
 		forcePendingRenewal(host.UUID)
-		var renewalACMEURL string
-		cmd, err := dev.Idle()
-		for ; cmd != nil && err == nil; cmd, err = dev.Acknowledge(cmd.CommandUUID) {
-			if cmd.Command.RequestType != "InstallProfile" {
-				continue
-			}
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			payload := fullCmd.Command.InstallProfile.Payload
-			if p7, err := pkcs7.Parse(payload); err == nil {
-				payload = p7.Content
-			}
-			if info, err := mdmtest.ParseEnrollmentProfile(payload); err == nil && info.ACMEURL != "" {
-				renewalACMEURL = info.ACMEURL
-			}
-		}
-		require.NoError(t, err)
-		require.NotEmpty(t, renewalACMEURL, "the renewal cron should have queued an ACME renewal profile")
-		require.NoError(t, dev.UseACMEDirectory(renewalACMEURL))
-		dev.SimulateSCEPRenewal = true
-		require.NoError(t, dev.ACMEEnroll())
-		require.NoError(t, dev.Authenticate())
-		require.NoError(t, dev.TokenUpdate(false))
+		require.NoError(t, dev.Renew(pushedRenewalProfile(dev)))
 		require.False(t, renewalPending(host.UUID), "renew refs should be cleared after an ACME renewal checkin")
 		require.Equal(t, firstEnrollID, lastEnrolledActivityID(), "an ACME renewal must not emit a new mdm_enrolled activity")
 
 		// Fresh ACME re-enroll while a renewal is pending is treated as fresh: refs cleared + new mdm_enrolled.
 		forcePendingRenewal(host.UUID)
-		dev.SimulateSCEPRenewal = false
 		require.NoError(t, dev.Reenroll())
 		require.False(t, renewalPending(host.UUID), "renew refs should be cleared for a fresh ACME re-enrollment")
 		require.Greater(t, lastEnrolledActivityID(), firstEnrollID, "a fresh ACME re-enrollment must emit a new mdm_enrolled activity")

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"log/slog"
 	"strings"
 	"testing"
@@ -172,4 +173,25 @@ func TestReconcileAppleMDMABMAssets(t *testing.T) {
 		require.True(t, called)
 		require.False(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked)
 	})
+}
+
+func TestCheckSilentMigrationEnrollmentProfile(t *testing.T) {
+	const static = "static-challenge"
+	ds := new(mock.Store)
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{fleet.MDMAssetSCEPChallenge: {Value: []byte(static)}}, nil
+	}
+	check := func(t *testing.T, profile *string) string {
+		if profile != nil {
+			t.Setenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE", base64.StdEncoding.EncodeToString([]byte(*profile)))
+		}
+		var logs strings.Builder
+		checkSilentMigrationEnrollmentProfile(t.Context(), ds, slog.New(slog.NewTextHandler(&logs, nil)))
+		return logs.String()
+	}
+
+	require.Empty(t, check(t, nil))
+	require.Empty(t, check(t, new("<string>"+fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix()+"</string>")))
+	require.Empty(t, check(t, new("<string>"+static+"</string>")))
+	require.Contains(t, check(t, new("<string>other</string>")), "level=ERROR")
 }

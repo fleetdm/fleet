@@ -415,6 +415,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 	if appCfg.MDM.EnabledAndConfigured {
 		logger.InfoContext(cmd.Context(), "Apple MDM enabled")
+		checkSilentMigrationEnrollmentProfile(cmd.Context(), ds, logger)
 	}
 	if appCfg.MDM.AppleBMEnabledAndConfigured {
 		logger.InfoContext(cmd.Context(), "Apple Business enabled")

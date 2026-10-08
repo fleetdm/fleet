@@ -56,12 +56,6 @@ type TestAppleMDMClient struct {
 	// EnrollInfo holds the information necessary to enroll to an MDM server.
 	EnrollInfo AppleEnrollInfo
 
-	// SimulateSCEPRenewal, when true, makes the device omit the new-enrollment Subject OU from its SCEP
-	// CSR even if the fetched profile carries one. Real SCEP renewals re-key from a pushed renewal
-	// profile (which never carries the marker), so tests set this to exercise renewal (rather than
-	// fresh-enrollment) checkin behavior while still replaying the full re-enroll flow.
-	SimulateSCEPRenewal bool
-
 	// UserUUID is a random fake unique ID of a simulated user. Only filled in if a user enrollment
 	// is done
 	UserUUID string
@@ -423,6 +417,38 @@ func (c *TestAppleMDMClient) enrollDevice(awaitingConfiguration bool) error {
 // Re-enroll runs the MDM enroll protocol on the simulated device, but TokenUpdate is not set as AwaitingConfiguration
 func (c *TestAppleMDMClient) Reenroll() error {
 	return c.enrollDevice(false)
+}
+
+// Renew installs a renewal enrollment profile the device received in an InstallProfile command (signed or not): it
+// re-keys with the profile's SCEP challenge or ACME directory and checks in again, without fetching a new profile.
+func (c *TestAppleMDMClient) Renew(profile []byte) error {
+	if p7, err := pkcs7.Parse(profile); err == nil {
+		profile = p7.Content
+	}
+	enrollInfo, err := ParseEnrollmentProfile(profile)
+	if err != nil {
+		return fmt.Errorf("parse renewal profile: %w", err)
+	}
+	enrollInfo.RawProfile = profile
+	c.EnrollInfo = *enrollInfo
+
+	if enrollInfo.ACMEURL != "" {
+		if err := c.UseACMEDirectory(enrollInfo.ACMEURL); err != nil {
+			return err
+		}
+		if err := c.ACMEEnroll(); err != nil {
+			return fmt.Errorf("ACME enroll: %w", err)
+		}
+	} else if err := c.SCEPEnroll(); err != nil {
+		return fmt.Errorf("scep enroll: %w", err)
+	}
+	if err := c.Authenticate(); err != nil {
+		return fmt.Errorf("authenticate: %w", err)
+	}
+	if err := c.TokenUpdate(false); err != nil {
+		return fmt.Errorf("token update: %w", err)
+	}
+	return nil
 }
 
 func (c *TestAppleMDMClient) UserEnroll() error {
@@ -834,15 +860,6 @@ func (c *TestAppleMDMClient) UseACMEDirectory(directoryURL string) error {
 	return nil
 }
 
-// enrollmentSubjectOUs returns the Subject OUs to place in the device's CSR (SCEP or ACME). It honors
-// SimulateSCEPRenewal by omitting them, since a renewal profile carries no new-enrollment marker OU.
-func (c *TestAppleMDMClient) enrollmentSubjectOUs() []string {
-	if c.SimulateSCEPRenewal {
-		return nil
-	}
-	return c.EnrollInfo.SCEPSubjectOUs
-}
-
 func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *rsa.PrivateKey, error) {
 	var logger *slog.Logger
 	if c.debug {
@@ -856,7 +873,7 @@ func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *
 		Subject: pkix.Name{
 			CommonName:         cn,
 			Organization:       []string{"fleet-organization"},
-			OrganizationalUnit: c.enrollmentSubjectOUs(),
+			OrganizationalUnit: c.EnrollInfo.SCEPSubjectOUs,
 		},
 		Challenge: challenge,
 	}, logger)
@@ -948,7 +965,7 @@ func (c *TestAppleMDMClient) ACMEEnroll() error {
 		return fmt.Errorf("challenge not valid after acceptance, status: %s", challenge.Status)
 	}
 
-	encoded, err := testhelpers.GenerateCSRDERWithKey(acmeKey, c.SerialNumber, c.enrollmentSubjectOUs()...)
+	encoded, err := testhelpers.GenerateCSRDERWithKey(acmeKey, c.SerialNumber, c.EnrollInfo.SCEPSubjectOUs...)
 	if err != nil {
 		return fmt.Errorf("generate CSR DER: %w", err)
 	}

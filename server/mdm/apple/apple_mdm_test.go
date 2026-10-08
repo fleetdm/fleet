@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/micromdm/plist"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1531,4 +1532,57 @@ func TestParseAppleMDMCertificateBindingExtension(t *testing.T) {
 			require.Nil(t, binding)
 		})
 	}
+}
+
+func TestSilentMigrationRenewalProfile(t *testing.T) {
+	const static = "static/><challenge"
+	placeholder := fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge)
+	profileWith := func(challenge string) string {
+		return `<plist><dict><key>Challenge</key><string>` + challenge + `</string></dict></plist>`
+	}
+	want := profileWith(placeholder)
+
+	cases := []struct {
+		name    string
+		profile string
+	}{
+		{"variable", profileWith(fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix())},
+		{"variable with braces", profileWith(fleet.FleetVarSilentMigrationSCEPChallenge.WithBraces())},
+		{"legacy XML-escaped static challenge", profileWith("static/&gt;&lt;challenge")},
+		{"legacy raw static challenge", profileWith(static)},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := SilentMigrationRenewalProfile([]byte(c.profile), static)
+			require.NoError(t, err)
+			require.Equal(t, want, string(got))
+		})
+	}
+
+	t.Run("signed profile is unwrapped", func(t *testing.T) {
+		cert, key, err := NewSCEPCACertKey()
+		require.NoError(t, err)
+		signedData, err := pkcs7.NewSignedData([]byte(profileWith(fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix())))
+		require.NoError(t, err)
+		require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
+		signed, err := signedData.Finish()
+		require.NoError(t, err)
+
+		got, err := SilentMigrationRenewalProfile(signed, static)
+		require.NoError(t, err)
+		require.Equal(t, want, string(got))
+	})
+
+	t.Run("works without a static challenge", func(t *testing.T) {
+		got, err := SilentMigrationRenewalProfile([]byte(profileWith(fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix())), "")
+		require.NoError(t, err)
+		require.Equal(t, want, string(got))
+	})
+
+	t.Run("profile with neither is rejected", func(t *testing.T) {
+		_, err := SilentMigrationRenewalProfile([]byte(profileWith("other-challenge")), static)
+		require.Error(t, err)
+		_, err = SilentMigrationRenewalProfile([]byte(profileWith("other-challenge")), "")
+		require.Error(t, err)
+	})
 }

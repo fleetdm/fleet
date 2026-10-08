@@ -522,7 +522,7 @@ func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []st
 }
 
 // ExpandHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in the document.
-// The enrollmentID (typically UDID/host UUID) is used to look up host-specific secrets.
+// The enrollmentID is the enrollment's device channel ID (the UDID, or the EnrollmentID for ADUE).
 func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
 	// Check for host secret placeholders
 	hostSecrets := fleet.ContainsPrefixVars(document, fleet.HostSecretPrefix)
@@ -568,6 +568,12 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 				return "", ctxerr.Wrapf(ctx, err, "minting psso device registration token for host %s", enrollmentID)
 			}
 			secretValues[secretType] = token
+		case fleet.HostSecretSCEPChallenge:
+			challenge, err := ds.findOrCreateAppleSCEPRenewalChallenge(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting scep renewal challenge for enrollment %s", enrollmentID)
+			}
+			secretValues[secretType] = challenge
 		case fleet.HostSecretFileVaultKey:
 			key, err := ds.getHostDiskEncryptionKeyDecrypted(ctx, enrollmentID)
 			if err != nil {

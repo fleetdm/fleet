@@ -9,6 +9,7 @@ import (
 	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -31,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
+	"github.com/smallstep/pkcs7"
 
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
@@ -2910,6 +2912,37 @@ func ParseAppleMDMCertificateBindingExtension(cert *x509.Certificate) (*AppleMDM
 		return nil, fmt.Errorf("unsupported certificate binding version %d", binding.Version)
 	}
 	return &binding, nil
+}
+
+// SilentMigrationRenewalProfile prepares the FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE env profile for a renewal: it
+// unwraps a signed profile, since Fleet signs it at delivery, and replaces its SCEP challenge with the per-host
+// challenge placeholder. The challenge is marked with $FLEET_VAR_SILENT_MIGRATION_SCEP_CHALLENGE, or for profiles set
+// up before that variable existed, is the static challenge. It errors if the profile contains neither.
+func SilentMigrationRenewalProfile(profile []byte, staticChallenge string) ([]byte, error) {
+	if p7, err := pkcs7.Parse(profile); err == nil {
+		profile = p7.Content
+	}
+	placeholder := []byte(fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge))
+
+	searches := []string{
+		fleet.FleetVarSilentMigrationSCEPChallenge.WithBraces(),
+		fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(),
+	}
+	if staticChallenge != "" {
+		// the profile is a plist, so the static value is in it XML-escaped
+		var escaped strings.Builder
+		if err := xml.EscapeText(&escaped, []byte(staticChallenge)); err != nil {
+			return nil, fmt.Errorf("escaping static SCEP challenge: %w", err)
+		}
+		searches = append(searches, escaped.String(), staticChallenge)
+	}
+	for _, s := range searches {
+		if bytes.Contains(profile, []byte(s)) {
+			return bytes.ReplaceAll(profile, []byte(s), placeholder), nil
+		}
+	}
+	return nil, fmt.Errorf("silent migration enrollment profile contains neither %s nor the static SCEP challenge",
+		fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix())
 }
 
 func AppleMDMSCEPCertificateSubject(newEnrollment bool) pkix.Name {
