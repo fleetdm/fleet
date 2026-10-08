@@ -11360,6 +11360,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		for i := range got {
 			require.NotZero(t, got[i].ID)
 			got[i].ID = 0
+			require.NotNil(t, got[i].AITool)
+			require.False(t, *got[i].AITool)
+			got[i].AITool = nil
 
 			for j := range got[i].Versions {
 				require.NotZero(t, got[i].Versions[j].ID)
@@ -11401,6 +11404,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			require.NotZero(t, got[i].ID)
 			got[i].CountsUpdatedAt = nil
 			got[i].ID = 0
+			require.NotNil(t, got[i].AITool)
+			require.False(t, *got[i].AITool)
+			got[i].AITool = nil
 
 			for j := range got[i].Versions {
 				require.NotZero(t, got[i].Versions[j].ID)
