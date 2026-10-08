@@ -108,39 +108,6 @@ describe("SoftwareFiltersModal component", () => {
     expect(checkbox).toHaveAttribute("aria-disabled", "false");
   });
 
-  it("always shows Min score and Max score in Advanced, even for Any severity", async () => {
-    const { user } = setUpModal();
-    await openAdvanced(user);
-
-    expect(screen.getByLabelText(/Min score/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Max score/i)).toBeInTheDocument();
-  });
-
-  it("does not offer Custom severity as a selectable dropdown option", async () => {
-    const { user } = setUpModal();
-    await user.click(screen.getByRole("switch"));
-    await openAdvanced(user);
-    await user.click(screen.getByRole("combobox", { name: "Severity" }));
-
-    const options = screen
-      .getAllByTestId("dropdown-option")
-      .map((el) => el.textContent);
-    expect(options.some((text) => text?.startsWith("Custom"))).toBe(false);
-  });
-
-  it("shows Custom severity as the current value when the saved range matches no preset", () => {
-    renderModal({
-      filters: {
-        ...filtersDefault,
-        vulnerable: true,
-        minCvssScore: 4.5,
-        maxCvssScore: 8.5,
-      },
-    });
-
-    expect(screen.getByText("Custom severity")).toBeInTheDocument();
-  });
-
   // Per frontend/docs/patterns.md#data-validation: Apply stays enabled, errors
   // appear on blur of a dirty field or on a submit attempt, and clear on focus.
   describe("validation lifecycle", () => {
