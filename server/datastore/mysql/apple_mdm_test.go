@@ -14084,7 +14084,10 @@ func testMDMAppleResetEnrollmentScimLink(t *testing.T, ds *Datastore) {
 				require.Equal(t, fleet.HostDeviceMapping{Email: realUser, Source: fleet.DeviceMappingIDP}, emails[0])
 			} else {
 				// a real re-enrollment re-authenticates, so the IdP account replaces the manual mapping
-				require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, emails[0].Source)
+				require.Equal(t, fleet.HostDeviceMapping{
+					Email:  fmt.Sprintf("staging-%v@example.com", scepRenewal),
+					Source: fleet.DeviceMappingMDMIdpAccounts,
+				}, emails[0])
 			}
 		}
 	})
