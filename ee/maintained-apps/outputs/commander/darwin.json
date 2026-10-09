@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.7.1043",
+      "version": "0.7.1053",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.krzyzanowskim.Commander';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.krzyzanowskim.Commander' AND version_compare(bundle_short_version, '0.7.1043') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.krzyzanowskim.Commander' AND version_compare(bundle_short_version, '0.7.1053') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.krzyzanowskim.Commander' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.thecommander.app/release/Commander-0.7.1043.zip",
+      "installer_url": "https://download.thecommander.app/release/Commander-0.7.1053.zip",
       "install_script_ref": "a8d2b53c",
       "uninstall_script_ref": "ff9e23b4",
-      "sha256": "55205ee0d5eb52fc3dd7c73326c0630c03470d95da1ebd4dd49b168b8a0c5b87",
+      "sha256": "d2309167cb32a7b9395870de05997e5065874cb9474b2bd937baee51d2fd33a0",
       "default_categories": [
         "Productivity"
       ]

@@ -42,15 +42,21 @@ How to view a report:
 
 1. In the top navigation, select **Reports**.
 
-2. In the **Reports** table, find the report you'd like to run and select the reports's name.
+2. In the **Reports** table, find the report you'd like to run and select the report's name.
 
 3. If you want to download the report, select **Export results** to save it as a CSV.
 
-Fleet stores up to 1,000 results per report. If the count stays below this limit, Fleet updates the report each time hosts send new data.
+Fleet limits each report to as many results as you have hosts. This means a report that returns one row per host always covers your whole fleet. As long as the report stays within this limit, Fleet updates it each time hosts send new data.
 
-If the results exceed 1,000, Fleet stops updating the report. To start collecting data again, clear the stored results from the report's page. Go to **Advanced options**, uncheck **Store data**, and select **Save**. Then check **Store data** and select **Save** again.
+> If you have fewer than 1,000 hosts, Fleet stores up to 1,000 results per report.
 
-> You can change the 1,000-result limit by setting [`server_settings.report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings).
+> If you're coming from Jamf, this works like extension attributes: one value per device, covering your whole fleet.
+
+When the report is full, Fleet keeps updating hosts already in the report as long as they don't return more rows than before, but doesn't add results from other hosts. To start collecting data from all hosts again, clear the stored results from the report's page. Go to **Advanced options**, uncheck **Store data**, and select **Save**. Then check **Store data** and select **Save** again.
+
+Fleet also doesn't store a host's result if it exceeds 512 KB. Fleet records when the host last sent results, but the report shows that the host returned no data. To reduce the size of a result, return fewer columns or rows in your query.
+
+> You can change the 1,000-result minimum by setting [`server_settings.report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings).
 
 Persisting results within Fleet creates load on the database, so you'll want to monitor database load as you add queries. If needed, you can disable stored results either globally or per-report.
 
@@ -81,21 +87,15 @@ The report may take several seconds to complete because Fleet has to wait for th
 
 ## Schedule a report
 
-Fleet allows you to schedule reports to run at a set interval. By default, reports that run on a schedule will only target platforms compatible with that report. This behavior can be overridden by setting the platforms in **Advanced options** when saving a report.
+Fleet allows you to schedule reports to run at a set interval. Scheduled reports will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. Automations can be turned off in **Advanced options** or using the bulk **Manage automations** UI.
 
-To create a scheduled report, set the interval to a value other than "Never" when [creating a report](#create-a-report). If the report has already been created, select the report and then select **Edit report** to set the interval.
+While a host sleeps, its report schedule pauses. This means a laptop that's only awake 8 hours a day will run an "Every day" report every 3 days.
 
-Reports run on a fixed schedule based on the clock, not on how long a host has been online. A host has to be running Fleet at that exact moment to report in.
-
-An hourly report's target moments are on the hour, UTC (11:00, 12:00, 1:00, and so on). A weekly report's target moment is Thursday at midnight UTC (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo).
-
-Because the schedule runs on the clock rather than on how long a host has been online, a host whose off/on pattern lines up with its own check-in moment, like a laptop that's always asleep at lunch, or a desktop that's always off on weekends, can go a long time without new results even if it's online plenty otherwise.
+Reports run at target moments (rather than at an interval starting after the report is saved). An hourly report's target moments are on the hour, UTC (11:00, 12:00, 1:00, and so on). A weekly report's target moment is Thursday at midnight UTC (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo).
 
 Those are target moments, not exact ones. The first time a host picks up a report, Fleet nudges the interval up or down by up to 10% (configurable via `schedule_splay_percent` in [agent options](https://fleetdm.com/docs/configuration/agent-configuration)) and locks in that adjusted number for that host, so different hosts don't all check in at once. So in practice, an hourly report checks in every 54 to 66 minutes, and a weekly report checks in roughly every 6 to 8 days, consistently for that host. Want to know exactly when a specific host will check in next? Run `SELECT * FROM osquery_schedule` as a live query.
 
-Scheduled reports will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. Automations can be turned off in **Advanced options** or using the bulk **Manage automations** UI.
-
-How to configure automations in bulk:
+### Managing automations in bulk
 
 *Only users with the [admin role](https://fleetdm.com/docs/using-fleet/manage-access#admin) can manage report automations.*
 
@@ -105,9 +105,10 @@ How to configure automations in bulk:
 
 3. Check the box next to the queries you want to send data to your log destination, and select **Save**. (The interval that queries run at is set when a report is created.)
 
-> Note: When viewing a specific [fleet](https://fleetdm.com/docs/using-fleet/segment-hosts) in Fleet Premium, only queries that belong to the selected fleet will be listed. When configuring automations for all hosts, only global reports will be listed.
+> Note: When viewing a specific [fleet](https://fleetdm.com/docs/using-fleet/segment-hosts) in Fleet Premium, only reports that belong to the selected fleet will be listed. When configuring automations for all hosts, only global reports will be listed.
 
-### Further reading
+
+## Further reading
 
 - [REST API documentation for reports](https://fleetdm.com/docs/rest-api/rest-api#reports)
 - [Import and export queries in Fleet](https://fleetdm.com/guides/import-and-export-queries-in-fleet)

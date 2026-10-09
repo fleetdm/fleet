@@ -191,8 +191,17 @@ Respond in JSON with this data shape:
       profile: configurationProfileGenerationResult.configurationProfile,
       profileFilename: configurationProfileGenerationResult.profileFilename,
       deliveryNotes: configurationProfileGenerationResult.deliveryNotes,
-      items: configurationProfileGenerationResult.settingsEnforced
+      items: configurationProfileGenerationResult.settingsEnforced,
+      additionalProfiles: [],
     };
+
+    // Run the profile through the addAdmxInstallCommandsToWindowsProfile helper before returning it to the user.
+    if(profileType === 'csp') {
+      let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: generatedProfile.profile });
+      generatedProfile.profile = withAdmxInstalls.profile;
+      generatedProfile.additionalProfiles = withAdmxInstalls.admxInstallProfiles || [];
+      generatedProfile.deliveryNotes = _.compact([generatedProfile.deliveryNotes].concat(withAdmxInstalls.deliveryNotes)).join(' ');
+    }
 
     // If this request was from a socket, we'll broadcast a 'profileGenerated' event with the generated profile and unsubscribe the socket.
     if(this.req.isSocket){

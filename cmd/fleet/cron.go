@@ -1372,6 +1372,7 @@ func newCleanupsAndAggregationSchedule(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
+	stagedUploadStore fleet.StagedUploadStore,
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
 	notificationsSvc notifications_api.Service,
@@ -1605,6 +1606,17 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
 			return cleanupUnusedBootstrapPackagesCronJob(ctx, ds, bootstrapPackageStore, installerCleanupMaxRunTime)
+		}),
+		schedule.WithJob("cleanup_staged_uploads", func(ctx context.Context) error {
+			if stagedUploadStore == nil {
+				return nil
+			}
+			// A staging object only exists once its PUT completes, so the cutoff only
+			// has to outlast the gap between upload and finalize.
+			workCtx, cancel := context.WithTimeout(ctx, installerCleanupMaxRunTime)
+			defer cancel()
+			_, err := stagedUploadStore.Cleanup(workCtx, nil, time.Now().Add(-24*time.Hour))
+			return err
 		}),
 		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
 			return ds.CleanupHostMDMCommands(ctx)
@@ -1965,6 +1977,10 @@ func newQueryResultsCleanupSchedule(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger.With("cron", name)),
+		// Runs first so the excess cleanup's counts don't include rows about to be deleted.
+		schedule.WithJob("cleanup_stale_query_results", func(ctx context.Context) error {
+			return ds.CleanupStaleQueryResults(ctx)
+		}),
 		schedule.WithJob("cleanup_excess_query_results", func(ctx context.Context) error {
 			appConfig, err := ds.AppConfig(ctx)
 			if err != nil {
@@ -2001,6 +2017,9 @@ func newQueryResultsCleanupSchedule(
 				}
 			}
 			return nil
+		}),
+		schedule.WithJob("update_query_results_last_fetched", func(ctx context.Context) error {
+			return service.UpdateQueryResultsLastFetched(ctx, ds, liveQueryStore)
 		}),
 	)
 
@@ -2221,6 +2240,7 @@ func newWindowsMDMProfileManagerSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger *slog.Logger,
+	useOneTimeEnrollSecrets bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMWindowsProfileManager)
@@ -2235,7 +2255,7 @@ func newWindowsMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-			return service.ReconcileWindowsProfiles(ctx, ds, logger)
+			return service.ReconcileWindowsProfiles(ctx, ds, logger, useOneTimeEnrollSecrets)
 		}),
 	)
 
@@ -3109,6 +3129,18 @@ func newCleanupExpiredADUEChallengesSchedule(
 		schedule.WithJob("cleanup_expired_adue_challenges", func(ctx context.Context) error {
 			if err := ds.CleanupExpiredADUEEnrollmentChallenges(ctx); err != nil {
 				return ctxerr.Wrap(ctx, err, "cleaning up expired ADUE challenges")
+			}
+			return nil
+		}),
+		schedule.WithJob("cleanup_expired_dep_enrollment_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupExpiredMDMAppleDEPEnrollmentChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up expired automatic enrollment challenges")
+			}
+			return nil
+		}),
+		schedule.WithJob("cleanup_apple_scep_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupAppleSCEPChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up apple scep challenges")
 			}
 			return nil
 		}),

@@ -1990,6 +1990,36 @@ func listSoftwareDB(
 	return softwares, nil
 }
 
+// softwareTypeFilterSQL renders f as a parenthesized predicate over alias's source and extension_for
+// columns. It returns "" when f is empty. OR-groups are used instead of a (source, extension_for) row
+// constructor so a source without extension_for values matches all of its rows.
+func softwareTypeFilterSQL(f fleet.SoftwareTypeFilter, alias string) (string, []any) {
+	if len(f) == 0 {
+		return "", nil
+	}
+	var groups []string
+	var args, unnarrowed []any
+
+	// Sorting to make resulting SQL deterministic
+	for _, source := range slices.Sorted(maps.Keys(f)) {
+		exts := f[source]
+		if len(exts) == 0 {
+			unnarrowed = append(unnarrowed, source)
+			continue
+		}
+		groups = append(groups, fmt.Sprintf("(%[1]s.source = ? AND %[1]s.extension_for IN (%[2]s))", alias, questionMarks(len(exts))))
+		args = append(args, source)
+		for _, ext := range exts {
+			args = append(args, ext)
+		}
+	}
+	if len(unnarrowed) > 0 {
+		groups = append(groups, fmt.Sprintf("%s.source IN (%s)", alias, questionMarks(len(unnarrowed))))
+		args = append(args, unnarrowed...)
+	}
+	return "(" + strings.Join(groups, " OR ") + ")", args
+}
+
 // softwareCVE is used for left joins with cve
 //
 //
@@ -2121,7 +2151,7 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	// instead of expanding row count via outer JOIN+GROUP BY (as the goqu
 	// fallback does). The covering index scan on idx_software_host_counts_
 	// team_global_hosts_desc still drives the query; each EXISTS probe uses
-	// idx_software_cve_cve / unq_software_id_cve / idx_cve_meta_exploit /
+	// idx_software_cve_cve_created_at / unq_software_id_cve / idx_cve_meta_exploit /
 	// idx_cve_meta_cvss_score from #45415.
 	if opts.VulnerableOnly || opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
 		needsCVEMeta := opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0
@@ -2161,6 +2191,11 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 			  )
 		)`
 		args = append(args, pattern, pattern, pattern, pattern)
+	}
+
+	if filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "s"); filterSQL != "" {
+		innerSQL += ` AND EXISTS (SELECT 1 FROM software s WHERE s.id = shc.software_id AND ` + filterSQL + `)`
+		args = append(args, filterArgs...)
 	}
 
 	// software_id is the secondary key to make ordering deterministic
@@ -2464,6 +2499,10 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		)
 	}
 
+	if filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "s"); filterSQL != "" {
+		ds = ds.Where(goqu.L(filterSQL, filterArgs...))
+	}
+
 	if opts.WithHostCounts {
 		ds = ds.
 			SelectAppend(
@@ -2580,7 +2619,7 @@ func countSoftwareDB(
 
 	// For listing all software, use optimized query starting from software_host_counts
 	// Add joins only if needed for filtering
-	needsSoftwareJoin := opts.ListOptions.MatchQuery != ""
+	needsSoftwareJoin := opts.ListOptions.MatchQuery != "" || len(opts.TypeFilter) > 0
 	needsTitleJoin := opts.ListOptions.MatchQuery != "" // Join software_titles for search by title name
 	needsCVEJoin := opts.VulnerableOnly || opts.ListOptions.MatchQuery != ""
 	needsCVEMetaJoin := opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0
@@ -2593,7 +2632,8 @@ func countSoftwareDB(
 	// Use COUNT(*) when no joins are needed (faster since primary key guarantees uniqueness)
 	// Use COUNT(DISTINCT) when joins could create duplicate rows
 	countFunc := "COUNT(*)"
-	if needsSoftwareJoin || needsCVEJoin || needsTitleJoin {
+	// The software join alone matches one row per count row (primary key), so it doesn't need DISTINCT.
+	if needsCVEJoin || needsTitleJoin {
 		countFunc = "COUNT(DISTINCT shc.software_id)"
 	}
 
@@ -2656,6 +2696,11 @@ func countSoftwareDB(
 		match = likePattern(match)
 		whereClauses = append(whereClauses, "(s.name LIKE ? OR s.version LIKE ? OR scv.cve LIKE ? OR st.name LIKE ?)")
 		args = append(args, match, match, match, match)
+	}
+
+	if filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "s"); filterSQL != "" {
+		whereClauses = append(whereClauses, filterSQL)
+		args = append(args, filterArgs...)
 	}
 
 	// Add all WHERE clauses
@@ -5672,26 +5717,80 @@ func (ds *Datastore) filterHostSoftwareToMacOSApplications(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "filter macos applications")
 	}
+	pruneHostSoftwareToTitles(qualifyingTitleIDs, bySoftwareTitleID, bySoftwareID, byVPPAdamID, byInHouseID)
+	return nil
+}
+
+// pruneHostSoftwareToTitles deletes every entry whose title isn't in keep. bySoftwareID, byVPPAdamID and
+// byInHouseID are keyed by other IDs but their entries carry the title ID.
+func pruneHostSoftwareToTitles(
+	keep map[uint]struct{},
+	bySoftwareTitleID map[uint]*hostSoftware,
+	bySoftwareID map[uint]*hostSoftware,
+	byVPPAdamID map[string]*hostSoftware,
+	byInHouseID map[uint]*hostSoftware,
+) {
 	for titleID := range bySoftwareTitleID {
-		if _, ok := qualifyingTitleIDs[titleID]; !ok {
+		if _, ok := keep[titleID]; !ok {
 			delete(bySoftwareTitleID, titleID)
 		}
 	}
-	for softwareID, s := range bySoftwareID {
-		if _, ok := qualifyingTitleIDs[s.ID]; !ok {
-			delete(bySoftwareID, softwareID)
+	deleteHostSoftwareNotInTitles(bySoftwareID, keep)
+	deleteHostSoftwareNotInTitles(byVPPAdamID, keep)
+	deleteHostSoftwareNotInTitles(byInHouseID, keep)
+}
+
+// deleteHostSoftwareNotInTitles deletes the entries whose title ID isn't in keep.
+func deleteHostSoftwareNotInTitles[K comparable](m map[K]*hostSoftware, keep map[uint]struct{}) {
+	maps.DeleteFunc(m, func(_ K, s *hostSoftware) bool {
+		_, ok := keep[s.ID]
+		return !ok
+	})
+}
+
+// filterHostSoftwareByType drops every title that doesn't match the type filter. Like
+// filterHostSoftwareToMacOSApplications, it prunes the in-memory maps so the count and main queries stay
+// consistent. It matches on software_titles because available-for-install titles have no software row.
+// Maps are mutated in place.
+func (ds *Datastore) filterHostSoftwareByType(
+	ctx context.Context,
+	filter fleet.SoftwareTypeFilter,
+	bySoftwareTitleID map[uint]*hostSoftware,
+	bySoftwareID map[uint]*hostSoftware,
+	byVPPAdamID map[string]*hostSoftware,
+	byInHouseID map[uint]*hostSoftware,
+) error {
+	titleIDs := make(map[uint]struct{}, len(bySoftwareTitleID))
+	for titleID := range bySoftwareTitleID {
+		titleIDs[titleID] = struct{}{}
+	}
+	for _, m := range []map[uint]*hostSoftware{bySoftwareID, byInHouseID} {
+		for _, s := range m {
+			titleIDs[s.ID] = struct{}{}
 		}
 	}
-	for adamID, s := range byVPPAdamID {
-		if _, ok := qualifyingTitleIDs[s.ID]; !ok {
-			delete(byVPPAdamID, adamID)
+	for _, s := range byVPPAdamID {
+		titleIDs[s.ID] = struct{}{}
+	}
+
+	qualifying := make(map[uint]struct{}, len(titleIDs))
+	if len(titleIDs) > 0 {
+		filterSQL, filterArgs := softwareTypeFilterSQL(filter, "st")
+		stmt, args, err := sqlx.In(`SELECT st.id FROM software_titles st WHERE st.id IN (?) AND `+filterSQL,
+			append([]any{slices.Collect(maps.Keys(titleIDs))}, filterArgs...)...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build filter host software by type query")
+		}
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "filter host software by type")
+		}
+		for _, id := range ids {
+			qualifying[id] = struct{}{}
 		}
 	}
-	for inHouseID, s := range byInHouseID {
-		if _, ok := qualifyingTitleIDs[s.ID]; !ok {
-			delete(byInHouseID, inHouseID)
-		}
-	}
+
+	pruneHostSoftwareToTitles(qualifying, bySoftwareTitleID, bySoftwareID, byVPPAdamID, byInHouseID)
 	return nil
 }
 
@@ -6814,6 +6913,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	// uniformly across software, VPP, and in-house apps.
 	if opts.MacOSApplicationsOnly && fleet.IsMacOSPlatform(host.Platform) {
 		if err := ds.filterHostSoftwareToMacOSApplications(ctx, host.ID, bySoftwareTitleID, bySoftwareID,
+			byVPPAdamID, byInHouseID); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	if len(opts.TypeFilter) > 0 {
+		if err := ds.filterHostSoftwareByType(ctx, opts.TypeFilter, bySoftwareTitleID, bySoftwareID,
 			byVPPAdamID, byInHouseID); err != nil {
 			return nil, nil, err
 		}

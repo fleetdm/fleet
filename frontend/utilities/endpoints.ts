@@ -221,13 +221,8 @@ export default {
   DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
   HOST_NAME_TEMPLATE: `/${API_VERSION}/fleet/host_name_template`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
-  MDM_APPLE_ENROLLMENT_PROFILE: (
-    token: string,
-    ref?: string,
-    deviceinfo?: string
-  ) => {
+  MDM_APPLE_ENROLLMENT_PROFILE: (token: string, deviceinfo?: string) => {
     const query = new URLSearchParams({ token });
-    ref && query.append("enrollment_reference", ref);
     deviceinfo && query.append("deviceinfo", deviceinfo);
 
     return `/api/mdm/apple/enroll?${query}`;
@@ -245,6 +240,8 @@ export default {
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
   HOST_ENCRYPTION_KEY: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/encryption_key`,
+  HOST_ENCRYPTION_KEY_ROTATE: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/encryption_key/rotate`,
   HOST_RECOVERY_LOCK_PASSWORD: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password`,
   HOST_RECOVERY_LOCK_PASSWORD_ROTATE: (id: number) =>
@@ -299,6 +296,7 @@ export default {
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
   SOFTWARE_PACKAGE_ADD: `/${API_VERSION}/fleet/software/package`,
+  STAGED_UPLOAD: `/${API_VERSION}/fleet/staged_upload`,
   SOFTWARE_PACKAGE_TOKEN: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package/token`,
   SOFTWARE_INSTALL_RESULTS: (uuid: string) =>

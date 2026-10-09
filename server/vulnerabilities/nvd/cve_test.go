@@ -3,13 +3,16 @@ package nvd
 import (
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -20,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
+	"github.com/google/go-github/v37/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1642,4 +1646,136 @@ func TestTranslateCPEToCVESkipsStaleDeletesOnError(t *testing.T) {
 			require.Equal(t, tc.wantOSDelete, ds.DeleteOutOfDateOSVulnerabilitiesFuncInvoked)
 		})
 	}
+}
+
+func newTestGitHubClient(t *testing.T, handler http.HandlerFunc) *github.Client {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	gh := github.NewClient(srv.Client())
+	baseURL, err := url.Parse(srv.URL + "/")
+	require.NoError(t, err)
+	gh.BaseURL = baseURL
+	return gh
+}
+
+func TestFindLatestCVEReleaseTag(t *testing.T) {
+	type release struct {
+		tag   string
+		draft bool
+	}
+	drafts := func(n int) []release {
+		rs := make([]release, n)
+		for i := range rs {
+			rs[i] = release{tag: fmt.Sprintf("cve-2026091%04d", i), draft: true}
+		}
+		return rs
+	}
+	published := func(prefix string, n int) []release {
+		rs := make([]release, n)
+		for i := range rs {
+			rs[i] = release{tag: fmt.Sprintf("%s-%d", prefix, i)}
+		}
+		return rs
+	}
+	latest := release{tag: "cve-202609290800"}
+
+	// releasesServer pages through releases the way GitHub does, honoring per_page and page,
+	// and records the query of every request.
+	releasesServer := func(releases []release, queries *[]url.Values) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			// Errors are reported to the client, which fails the test through its return value.
+			if r.URL.Path != "/repos/fleetdm/vulnerabilities/releases" {
+				http.NotFound(w, r)
+				return
+			}
+			q := r.URL.Query()
+			*queries = append(*queries, q)
+			perPage, err := strconv.Atoi(q.Get("per_page"))
+			if err != nil || perPage < 1 {
+				http.Error(w, "bad per_page", http.StatusBadRequest)
+				return
+			}
+			page := 1
+			if p := q.Get("page"); p != "" {
+				if page, err = strconv.Atoi(p); err != nil || page < 1 {
+					http.Error(w, "bad page", http.StatusBadRequest)
+					return
+				}
+			}
+			start, end := min((page-1)*perPage, len(releases)), min(page*perPage, len(releases))
+			if end < len(releases) {
+				w.Header().Set("Link", fmt.Sprintf(`<http://%s%s?per_page=%d&page=%d>; rel="next"`, r.Host, r.URL.Path, perPage, page+1))
+			}
+			body := []map[string]any{}
+			for _, rel := range releases[start:end] {
+				body = append(body, map[string]any{"tag_name": rel.tag, "draft": rel.draft})
+			}
+			_ = json.NewEncoder(w).Encode(body)
+		}
+	}
+	find := func(t *testing.T, releases []release) (string, []url.Values, error) {
+		var queries []url.Values
+		gh := newTestGitHubClient(t, releasesServer(releases, &queries))
+		tag, err := findLatestCVEReleaseTag(t.Context(), gh, "fleetdm")
+		return tag, queries, err
+	}
+	// requireRequests asserts the number of requests, all using the small page size
+	// that Fleet servers use.
+	requireRequests := func(t *testing.T, queries []url.Values, n int) {
+		t.Helper()
+		require.Len(t, queries, n)
+		for _, q := range queries {
+			require.Equal(t, "10", q.Get("per_page"))
+		}
+	}
+
+	t.Run("found on first page with the same request as before", func(t *testing.T) {
+		tag, queries, err := find(t, append(drafts(2), latest))
+		require.NoError(t, err)
+		require.Equal(t, latest.tag, tag)
+		require.Len(t, queries, 1)
+		// Fleet servers make this request on every vulnerability sync, so it must not change.
+		require.Equal(t, url.Values{"per_page": {"10"}}, queries[0])
+	})
+
+	t.Run("drafts never exhaust the search", func(t *testing.T) {
+		tag, queries, err := find(t, append(drafts(250), latest))
+		require.NoError(t, err)
+		require.Equal(t, latest.tag, tag)
+		requireRequests(t, queries, 26)
+	})
+
+	t.Run("non-CVE releases before the latest CVE release", func(t *testing.T) {
+		tag, _, err := find(t, append(published("cpe", maxPublishedReleasesScanned-1), latest))
+		require.NoError(t, err)
+		require.Equal(t, latest.tag, tag)
+	})
+
+	t.Run("search stops after max published releases", func(t *testing.T) {
+		_, queries, err := find(t, append(published("cpe", maxPublishedReleasesScanned), latest))
+		require.ErrorContains(t, err, "no CVE feed found")
+		requireRequests(t, queries, maxPublishedReleasesScanned/cveReleasesPerPage)
+	})
+
+	t.Run("no CVE release at all", func(t *testing.T) {
+		_, queries, err := find(t, append(drafts(3), published("cpe", 20)...))
+		require.ErrorContains(t, err, "no CVE feed found")
+		requireRequests(t, queries, 3)
+	})
+
+	t.Run("rate limit response surfaces as RateLimitError", func(t *testing.T) {
+		reset := time.Now().Add(24 * time.Minute).Truncate(time.Second)
+		gh := newTestGitHubClient(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-RateLimit-Limit", "60")
+			w.Header().Set("X-RateLimit-Remaining", "0")
+			w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(reset.Unix(), 10))
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"message":"API rate limit exceeded for 20.184.150.249. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)","documentation_url":"https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}`))
+		})
+		_, err := findLatestCVEReleaseTag(t.Context(), gh, "fleetdm")
+		rlErr, ok := errors.AsType[*github.RateLimitError](err)
+		require.True(t, ok, "expected *github.RateLimitError, got %T: %v", err, err)
+		require.True(t, reset.Equal(rlErr.Rate.Reset.Time), "reset %s, want %s", rlErr.Rate.Reset.Time, reset)
+	})
 }

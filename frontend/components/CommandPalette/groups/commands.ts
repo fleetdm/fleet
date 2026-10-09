@@ -1,3 +1,4 @@
+import { isAnyMDMConfigured } from "interfaces/mdm";
 import paths from "router/paths";
 
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
@@ -15,6 +16,8 @@ const buildCommandsItems = (
     canWrite,
     canEditCustomVariable,
     canAddSoftware,
+    canAddConfigurationProfile,
+    config,
     isTechnician,
     isPremiumTier,
     isPrimoMode,
@@ -31,6 +34,7 @@ const buildCommandsItems = (
     hasTeamOrUnassigned,
     isGitOpsMode,
     switchesFromUnassigned,
+    switchesFromAllFleets,
     defaultDestination,
   } = derived;
 
@@ -195,6 +199,39 @@ const buildCommandsItems = (
               "device health",
             ],
           },
+          // Same gate as the profiles card's "Add profile": current-fleet
+          // admins and maintainers, once some MDM is on. Hidden in GitOps
+          // mode, where the page can't be submitted.
+          ...(canAddConfigurationProfile &&
+          !isGitOpsMode &&
+          isAnyMDMConfigured(config?.mdm)
+            ? [
+                {
+                  id: "add-profile",
+                  label: "Add profile",
+                  group: "Commands" as const,
+                  path: withTeamId(paths.CONTROLS_CUSTOM_SETTINGS_NEW),
+                  teamName: switchesFromAllFleets,
+                  keywords: [
+                    "create",
+                    "new",
+                    "upload",
+                    "configuration",
+                    "mobileconfig",
+                    "declaration",
+                    "ddm",
+                    "csp",
+                    "custom",
+                    "settings",
+                    "macos",
+                    "ios",
+                    "ipados",
+                    "windows",
+                    "android",
+                  ],
+                },
+              ]
+            : []),
           // Software add actions require Premium + a team or unassigned
           // (not "All fleets"). Each destination page renders a
           // <PremiumFeatureMessage /> in Free. Also gated on

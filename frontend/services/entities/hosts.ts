@@ -1,7 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
 import { IHostCertificate } from "interfaces/certificates";
-import { IHost, HostStatus } from "interfaces/host";
+import { IHost, HostStatus, IHostEncrpytionKeyResponse } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import {
@@ -101,6 +101,19 @@ export const HOSTS_QUERY_PARAMS = {
   SCRIPT_BATCH_EXECUTION_STATUS: "script_batch_execution_status",
   SCRIPT_BATCH_EXECUTION_ID: "script_batch_execution_id",
 } as const;
+
+// Host filters that only apply within one fleet or "No fleet": without a fleet
+// the API narrows them to "No fleet" (or rejects software_status), so they're
+// cleared on any switch to All fleets.
+export const FLEET_SCOPED_HOST_FILTER_PARAMS = [
+  HOSTS_QUERY_PARAMS.OS_SETTINGS,
+  "apple_settings",
+  "macos_settings",
+  HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
+  "macos_bootstrap_package",
+  "bootstrap_package",
+  HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
+];
 
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
   scope: "hosts";
@@ -248,6 +261,8 @@ export interface IHostSoftwareQueryParams extends QueryParams {
   max_cvss_score?: number;
   exploit?: boolean;
   macos_applications?: boolean;
+  source?: string;
+  extension_for?: string;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
@@ -671,9 +686,14 @@ export default {
     return sendRequest("GET", fullPath);
   },
 
-  getEncryptionKey: (id: number) => {
+  getEncryptionKey: (id: number): Promise<IHostEncrpytionKeyResponse> => {
     const { HOST_ENCRYPTION_KEY } = endpoints;
     return sendRequest("GET", HOST_ENCRYPTION_KEY(id));
+  },
+
+  rotateDiskEncryptionKey: (id: number): Promise<void> => {
+    const { HOST_ENCRYPTION_KEY_ROTATE } = endpoints;
+    return sendRequest("POST", HOST_ENCRYPTION_KEY_ROTATE(id));
   },
 
   getRecoveryLockPassword: (id: number) => {

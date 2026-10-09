@@ -47,9 +47,15 @@ import (
 
 const softwareInstallerTokenMaxLength = 36 // UUID length
 
-func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
+func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (_ *fleet.SoftwareInstaller, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+	if payload.StagedUploadID != "" {
+		if payload.InstallerFile, err = svc.openStagedUpload(ctx, payload.StagedUploadID); err != nil {
+			return nil, err
+		}
+		defer svc.finishStagedUpload(ctx, payload.StagedUploadID, payload.InstallerFile, &err)
 	}
 
 	if payload.AutomaticInstall {
@@ -359,9 +365,15 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 	return nil
 }
 
-func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
+func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (_ *fleet.SoftwareInstaller, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+	if payload.StagedUploadID != "" {
+		if payload.InstallerFile, err = svc.openStagedUpload(ctx, payload.StagedUploadID); err != nil {
+			return nil, err
+		}
+		defer svc.finishStagedUpload(ctx, payload.StagedUploadID, payload.InstallerFile, &err)
 	}
 
 	vc, ok := viewer.FromContext(ctx)
@@ -1323,16 +1335,22 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny, meta.LabelsIncludeAll)
 
+	var softwareDisplayName *string
+	if meta.DisplayName != "" {
+		softwareDisplayName = new(meta.DisplayName)
+	}
+
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityDeletedAppStoreApp{
-		AppStoreID:       meta.AdamID,
-		SoftwareTitle:    meta.Name,
-		TeamName:         teamName,
-		TeamID:           teamID,
-		Platform:         meta.Platform,
-		LabelsIncludeAny: actLabelsInclAny,
-		LabelsExcludeAny: actLabelsExclAny,
-		LabelsIncludeAll: actLabelsInclAll,
-		SoftwareIconURL:  meta.IconURL,
+		AppStoreID:          meta.AdamID,
+		SoftwareTitle:       meta.Name,
+		SoftwareDisplayName: softwareDisplayName,
+		TeamName:            teamName,
+		TeamID:              teamID,
+		Platform:            meta.Platform,
+		LabelsIncludeAny:    actLabelsInclAny,
+		LabelsExcludeAny:    actLabelsExclAny,
+		LabelsIncludeAll:    actLabelsInclAll,
+		SoftwareIconURL:     meta.IconURL,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}
@@ -3425,7 +3443,7 @@ func (svc *Service) softwareBatchUpload(
 		manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
 	}
 
-	var g errgroup.Group
+	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
 
 	// the reason for this struct with extra installers support is that:
@@ -3468,6 +3486,14 @@ func (svc *Service) softwareBatchUpload(
 		i, p := i, p
 
 		g.Go(func() error {
+			// A single failure fails the whole batch, so don't process (and download)
+			// the remaining payloads. With the limit of 1 above, gctx is always
+			// cancelled before the next goroutine starts; in-flight work isn't
+			// interrupted if the limit is raised.
+			if err := gctx.Err(); err != nil {
+				return err
+			}
+
 			// NOTE: cannot defer tfr.Close() here because the reader needs to be
 			// available after the goroutine completes. Instead, all temp file
 			// readers are collected in toBeClosedTFRs and will have their Close

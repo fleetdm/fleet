@@ -205,6 +205,14 @@ export const isMDMConfiguredForPlatform = (
   return false;
 };
 
+/** Whether MDM is on for at least one platform, which is what managing
+ * configuration profiles needs. */
+export const isAnyMDMConfigured = (mdmConfig: IMdmConfig | undefined) =>
+  !!mdmConfig &&
+  (mdmConfig.enabled_and_configured ||
+    mdmConfig.windows_enabled_and_configured ||
+    mdmConfig.android_enabled_and_configured);
+
 export const platformToMDMLabel = (platform: ProfilePlatform) => {
   switch (platform) {
     case "android":
@@ -230,6 +238,10 @@ export interface IMdmProfile {
   profile_uuid: string;
   team_id: number;
   name: string;
+  description?: string;
+  /** The PayloadDisplayName inside a .mobileconfig, which can differ from
+   * name once the profile is renamed. Absent for other profile types. */
+  payload_display_name?: string;
   platform: ProfilePlatform;
   identifier: string | null; // null for windows profiles
   created_at: string;
@@ -242,6 +254,10 @@ export interface IMdmProfile {
   // otherwise. Note this differs from the host details endpoint, which reports
   // the derived channel as lowercase "user"/"device" (see ProfileScope).
   scope?: PayloadScope | null;
+  /** Only ever true for .mobileconfig profiles. */
+  self_service: boolean;
+  /** Never true together with self_service. */
+  hidden: boolean;
 }
 
 /** An Apple DDM asset (com.apple.asset.*) that declarations can reference. */
@@ -337,6 +353,8 @@ export const isLinuxDiskEncryptionStatus = (
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
 export const FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME = "Fleetd configuration";
+export const FLEET_WINDOWS_ENROLL_SECRET_PROFILE_DISPLAY_NAME =
+  "Fleetd enroll secret";
 export const FLEET_RECOVERY_LOCK_PASSWORD_DISPLAY_NAME =
   "Recovery Lock password";
 export const FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID =

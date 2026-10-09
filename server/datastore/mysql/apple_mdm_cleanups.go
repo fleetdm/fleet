@@ -41,6 +41,7 @@ const nanoCommandReferenceProbes = `
 	AND NOT EXISTS (SELECT 1 FROM host_recovery_key_passwords rkp WHERE rkp.verify_command_uuid = %[1]s.command_uuid)
 	AND NOT EXISTS (SELECT 1 FROM host_managed_local_account_passwords hmlap WHERE hmlap.command_uuid = %[1]s.command_uuid)
 	AND NOT EXISTS (SELECT 1 FROM host_managed_local_account_passwords hmlap WHERE hmlap.pending_command_uuid = %[1]s.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM host_disk_encryption_keys hdek WHERE hdek.rotation_command_uuid = %[1]s.command_uuid)
 	AND NOT EXISTS (SELECT 1 FROM setup_experience_status_results sesr
 		WHERE sesr.nano_command_uuid = %[1]s.command_uuid AND sesr.status IN ('pending', 'running'))`
 

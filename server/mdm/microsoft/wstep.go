@@ -97,6 +97,8 @@ type AzureData struct {
 	TenantID   string
 	UniqueName string
 	SCP        string
+	// DeviceID is the Entra device ID from the `deviceid` claim, empty when the token has none.
+	DeviceID string
 }
 
 type manager struct {
@@ -490,12 +492,24 @@ func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, 
 		return AzureData{}, ctxerr.New(ctx, "invalid SCP claim")
 	}
 
+	// v1 access tokens carry `deviceid` by default. v2 tokens carry it only when the app registration lists it as an optional
+	// access token claim.
+	deviceIDClaim, _ := claims["deviceid"].(string)
+	if deviceIDClaim != "" {
+		deviceID, err := uuid.Parse(deviceIDClaim)
+		if err != nil {
+			return AzureData{}, ctxerr.Wrap(ctx, err, "invalid deviceid claim format")
+		}
+		deviceIDClaim = deviceID.String()
+	}
+
 	return AzureData{
 		UPN:        upnClaim,
 		TenantID:   tenantIDClaim,
 		UniqueName: uniqueNameClaim,
 		SCP:        azureSCPClaim,
 		Audience:   audience,
+		DeviceID:   deviceIDClaim,
 	}, nil
 }
 

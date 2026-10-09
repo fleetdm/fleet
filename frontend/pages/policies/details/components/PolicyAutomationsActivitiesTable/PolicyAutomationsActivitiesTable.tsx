@@ -242,6 +242,7 @@ const PolicyAutomationsActivitiesTable = ({
             {showControls && (
               <>
                 <DropdownWrapper
+                  ariaLabel="Filter by automation status"
                   name="automation-status-filter"
                   className={`${baseClass}__status-filter`}
                   options={STATUS_FILTER_OPTIONS}

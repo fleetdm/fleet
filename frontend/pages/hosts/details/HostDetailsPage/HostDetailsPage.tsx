@@ -1,10 +1,11 @@
-import { pick } from "lodash";
+import { omit, pick } from "lodash";
 import React, {
   useContext,
   useState,
   useCallback,
   useMemo,
   useEffect,
+  useRef,
 } from "react";
 import { useErrorHandler } from "react-error-boundary";
 import { useQuery, useQueryClient } from "react-query";
@@ -31,6 +32,9 @@ import {
   IVppInstallDetails,
 } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 import NotifyBeforePatchingDetailsModal from "components/ActivityDetails/NotifyBeforePatchingDetailsModal";
+import RotationFailedDetailsModal, {
+  RotationFailedSubject,
+} from "components/ActivityDetails/RotationFailedDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import BackButton from "components/BackButton";
 import CustomLink from "components/CustomLink/CustomLink";
@@ -65,8 +69,10 @@ import { IListSort } from "interfaces/list_options";
 import {
   canTriggerAPNSPing,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  isPersonalEnrollment,
 } from "interfaces/mdm";
 import {
+  HostPlatform,
   isAppleDevice,
   isMacOS,
   isAndroid,
@@ -175,7 +181,6 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import LockModal from "./modals/LockModal";
 import ManagedAccountModal from "./modals/ManagedAccountModal";
 import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
-import RotationFailedDetailsModal from "./modals/RotationFailedDetailsModal";
 import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectReportModal from "./modals/SelectReportModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -191,6 +196,45 @@ const tripleHeightCardClass = `${baseClass}__card--triple-height`;
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
+const NIXOS_PACKAGE_MANAGEMENT_LINK =
+  "https://fleetdm.com/learn-more-about/nixos-package-management";
+
+/** Returns the empty state explaining why the software library is unsupported
+ * on the host's platform, or undefined if it's supported. Android hosts don't
+ * support software installs yet. iOS/iPadOS user-enrolled (BYOD
+ * account-driven) hosts now do. */
+const getSoftwareLibraryUnsupportedState = (platform: HostPlatform) => {
+  if (isAndroid(platform)) {
+    return {
+      header: "Software library is currently not supported on this host",
+      info: (
+        <>
+          Software install is coming soon.{" "}
+          <CustomLink
+            text="Learn more"
+            url={ANDROID_SW_INSTALL_LEARN_MORE_LINK}
+            newTab
+          />
+        </>
+      ),
+    };
+  }
+  if (platform === "nixos") {
+    return {
+      info: (
+        <>
+          Installing software on NixOS hosts happens outside of Fleet.{" "}
+          <CustomLink
+            text="Learn more"
+            url={NIXOS_PACKAGE_MANAGEMENT_LINK}
+            newTab
+          />
+        </>
+      ),
+    };
+  }
+  return undefined;
+};
 
 const ACTIVITY_CARD_DATA_STALE_TIME = 5000; // 5 seconds
 
@@ -361,6 +405,8 @@ const HostDetailsPage = ({
   const [rotationFailedDetails, setRotationFailedDetails] = useState<{
     detail: string;
     hostDisplayName: string;
+    subject?: RotationFailedSubject;
+    createdAt?: string;
   } | null>(null);
 
   // React Router reuses this component when only host_id changes.
@@ -373,6 +419,13 @@ const HostDetailsPage = ({
     refetchStart?.hostId === hostIdFromURL ? refetchStart.at : null;
   const isUserRequestedRefetch =
     refetchStart?.hostId === hostIdFromURL && refetchStart.byUser;
+  // Holds the pending next-poll timer so a focus-triggered re-entry into
+  // `onSuccess` can replace it instead of stacking a second loop.
+  const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Last hostId whose refetch cycle timed out. Blocks the focus-triggered
+  // "timer just started" branch from restarting a cycle on a stale server
+  // `refetch_requested: true` after give-up.
+  const timedOutHostIdRef = useRef<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -484,6 +537,15 @@ const HostDetailsPage = ({
     hostCertificates && refetchHostCertificates();
   };
 
+  // Clears any pending next-poll timer so re-entries into onSuccess (e.g. react-query's
+  // refetchOnWindowFocus) replace the existing timer instead of stacking.
+  const clearPollingTimer = () => {
+    if (pollingTimerRef.current) {
+      clearTimeout(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+  };
+
   /**
    * Hides refetch spinner and resets refetch timer,
    * ensuring no stale timeout triggers on new requests.
@@ -491,6 +553,20 @@ const HostDetailsPage = ({
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
     setRefetchStart(null);
+    clearPollingTimer();
+  };
+
+  // Replaces any pending timer, then schedules the next poll. refetchHostDetails /
+  // refetchExtensions are bound at call time (always after mount), so the forward
+  // references are safe.
+  const scheduleNextPoll = () => {
+    clearPollingTimer();
+    pollingTimerRef.current = setTimeout(() => {
+      pollingTimerRef.current = null;
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      refetchHostDetails();
+      refetchExtensions();
+    }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
   };
 
   const {
@@ -505,6 +581,22 @@ const HostDetailsPage = ({
       retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
+        // Server flipped THIS host's refetch_requested back to false, so a prior
+        // timeout for this host is no longer "sticky". Scope the clear to the
+        // current host so navigating A (timed out) -> B -> A doesn't forget A's
+        // timeout and restart its cycle.
+        if (
+          !returnedHost.refetch_requested &&
+          timedOutHostIdRef.current === hostIdFromURL
+        ) {
+          timedOutHostIdRef.current = null;
+        }
+        // If this host's previous refetch cycle gave up and the server still reports
+        // refetch_requested: true (common with slow hosts), skip the restart path so a
+        // focus-triggered re-entry doesn't open a fresh 60s window + repeat toast.
+        const alreadyTimedOut =
+          timedOutHostIdRef.current === hostIdFromURL &&
+          refetchStartTime === null;
         // If API returns refetch_requested: true,
         // only set timer if *not* already set!
         // Pending hosts carry the flag from the moment they're created, so ignore it unless the host has enrolled and
@@ -512,7 +604,8 @@ const HostDetailsPage = ({
         // so an explicit request still gets its spinner and its feedback.
         if (
           returnedHost.refetch_requested &&
-          (hasEverEnrolled(returnedHost) || refetchStartTime !== null)
+          (hasEverEnrolled(returnedHost) || refetchStartTime !== null) &&
+          !alreadyTimedOut
         ) {
           if (!refetchStartTime) {
             setRefetchStart({
@@ -538,10 +631,7 @@ const HostDetailsPage = ({
                 returnedHost.status === "online" ||
                 isIPadOrIPhone(returnedHost.platform)
               ) {
-                setTimeout(() => {
-                  refetchHostDetails();
-                  refetchExtensions();
-                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+                scheduleNextPoll();
               } else {
                 resetHostRefetchStates();
               }
@@ -551,10 +641,7 @@ const HostDetailsPage = ({
                 returnedHost.status === "online" ||
                 isIPadOrIPhone(returnedHost.platform)
               ) {
-                setTimeout(() => {
-                  refetchHostDetails();
-                  refetchExtensions();
-                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+                scheduleNextPoll();
               } else {
                 if (shouldNotify) {
                   notify.error(
@@ -570,6 +657,7 @@ const HostDetailsPage = ({
                   `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
                 );
               }
+              timedOutHostIdRef.current = hostIdFromURL;
               resetHostRefetchStates();
             }
           }
@@ -888,15 +976,13 @@ const HostDetailsPage = ({
 
       try {
         await hostAPI.refetch(host).then(() => {
+          timedOutHostIdRef.current = null;
           setRefetchStart({
             hostId: hostIdFromURL,
             at: Date.now(),
             byUser: true,
           });
-          setTimeout(() => {
-            refetchHostDetails();
-            refetchExtensions();
-          }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+          scheduleNextPoll();
         });
       } catch (error) {
         notify.error(getErrorMessage(error, host.display_name), {
@@ -1064,6 +1150,15 @@ const HostDetailsPage = ({
               host?.display_name || details?.host_display_name || "",
           });
           break;
+        case ActivityType.FailedToRotateDiskEncryptionKey:
+          setRotationFailedDetails({
+            detail: details?.detail || "",
+            hostDisplayName:
+              host?.display_name || details?.host_display_name || "",
+            subject: "disk encryption key",
+            createdAt: created_at,
+          });
+          break;
         case ActivityType.FailedEnrollmentProfileRenewal:
           setEnrollmentProfileFailedDetails({
             command: {
@@ -1076,6 +1171,7 @@ const HostDetailsPage = ({
             hostDisplayName: host?.display_name || details?.host_display_name,
             hostSerial: details?.host_serial,
             reason: details?.reason,
+            platform: details?.platform,
             createdAt: created_at,
           });
           break;
@@ -1596,6 +1692,9 @@ const HostDetailsPage = ({
     isHostTeamMaintainer;
 
   const showSoftwareLibraryTab = isPremiumTier;
+  const softwareLibraryUnsupportedState = getSoftwareLibraryUnsupportedState(
+    host.platform
+  );
   const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
@@ -1643,22 +1742,8 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              {/* Android hosts don't support software installs yet. iOS/iPadOS
-               user-enrolled (BYOD account-driven) hosts now do. */}
-              {isAndroidHost ? (
-                <EmptyState
-                  info={
-                    <>
-                      Software install is coming soon.{" "}
-                      <CustomLink
-                        text="Learn more"
-                        url={ANDROID_SW_INSTALL_LEARN_MORE_LINK}
-                        newTab
-                      />
-                    </>
-                  }
-                  header="Software library is currently not supported on this host"
-                />
+              {softwareLibraryUnsupportedState ? (
+                <EmptyState {...softwareLibraryUnsupportedState} />
               ) : (
                 <SoftwareLibraryCard
                   id={host.id}
@@ -1669,7 +1754,11 @@ const HostDetailsPage = ({
                   isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                   router={router}
                   queryParams={{
-                    ...parseHostSoftwareQueryParams(location.query),
+                    // Types filter the Inventory tab only.
+                    ...omit(
+                      parseHostSoftwareQueryParams(location.query),
+                      "types"
+                    ),
                     available_for_install: true,
                   }}
                   pathname={location.pathname}
@@ -2102,6 +2191,13 @@ const HostDetailsPage = ({
             <DiskEncryptionKeyModal
               platform={host.platform}
               hostId={host.id}
+              canRotateKey={
+                isPremiumTier &&
+                isAdminOrMaintainer &&
+                host.mdm.encryption_key_available &&
+                !isPersonalEnrollment(host.mdm.enrollment_status)
+              }
+              isEscrowEnabled={fleetDiskEncryptionSettings.macOSEscrowEnabled}
               onCancel={() => setShowDiskEncryptionModal(false)}
             />
           )}
@@ -2121,6 +2217,8 @@ const HostDetailsPage = ({
             <RotationFailedDetailsModal
               detail={rotationFailedDetails.detail}
               hostDisplayName={rotationFailedDetails.hostDisplayName}
+              subject={rotationFailedDetails.subject}
+              createdAt={rotationFailedDetails.createdAt}
               onCancel={() => setRotationFailedDetails(null)}
             />
           )}
@@ -2286,6 +2384,7 @@ const HostDetailsPage = ({
             <EnrollmentAttemptDetailsModal
               hostDisplayName={enrollmentRejectedDetails.hostDisplayName}
               reason={enrollmentRejectedDetails.reason}
+              platform={enrollmentRejectedDetails.platform}
               createdAt={enrollmentRejectedDetails.createdAt}
               onDone={() => setEnrollmentRejectedDetails(null)}
             />
