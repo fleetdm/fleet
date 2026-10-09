@@ -1,0 +1,17 @@
+.rotation-failed-details-modal {
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  // The status message embeds the host's display name, which can be a long unbroken string. The error text below it
+  // needs nothing here: Textarea--code sets its own overflow-wrap.
+  &__status-message {
+    overflow-wrap: anywhere;
+  }
+
+  .reveal-button {
+    width: min-content;
+  }
+}

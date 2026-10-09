@@ -661,7 +661,7 @@ func waitStartup() error {
 	retryStrategy := backoff.NewExponentialBackOff()
 	retryStrategy.MaxInterval = 1 * time.Second
 
-	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}))
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}))
 
 	spin := spinner.New([]string{"|", "/", "-", "\\"}, 250*time.Millisecond)
 	spin.Start()

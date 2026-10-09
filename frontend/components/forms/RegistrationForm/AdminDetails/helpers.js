@@ -1,7 +1,8 @@
 import { size } from "lodash";
-import validateEquality from "components/forms/validators/validate_equality";
+
 import validEmail from "components/forms/validators/valid_email";
 import validPassword from "components/forms/validators/valid_password";
+import validateEquality from "components/forms/validators/validate_equality";
 
 const validate = (formData) => {
   const errors = {};

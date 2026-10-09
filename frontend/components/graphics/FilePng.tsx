@@ -1,5 +1,5 @@
-import React from "react";
 import { uniqueId } from "lodash";
+import React from "react";
 
 const FilePng = () => {
   const clipPathId = uniqueId();

@@ -2669,11 +2669,7 @@
           ]
         },
         "extensions": {
-          "description": "Extensions are the orbit managed extensions\n\ntype: `object`",
-          "type": [
-            "object",
-            "null"
-          ]
+          "description": "Extensions are the orbit managed extensions"
         },
         "orbit": {
           "$ref": "#/$defs/OrbitAgentOptions",
@@ -2693,11 +2689,7 @@
           "description": "ScriptExecutionTimeout is the maximum time in seconds that a script can run.\n\ntype: `integer`"
         },
         "update_channels": {
-          "description": "UpdateChannels holds the configured channels for fleetd components.\n\ntype: `object`",
-          "type": [
-            "object",
-            "null"
-          ]
+          "description": "UpdateChannels holds the configured channels for fleetd components."
         }
       },
       "type": [
@@ -2709,12 +2701,7 @@
       "additionalProperties": false,
       "properties": {
         "platforms": {
-          "additionalProperties": {
-            "type": [
-              "object",
-              "null"
-            ]
-          },
+          "additionalProperties": true,
           "description": "Platforms is a map from platform name to the config override.\n\ntype: `object`",
           "type": [
             "object",
@@ -2943,7 +2930,13 @@
           "$ref": "#/$defs/AppleAccountProvisioning",
           "description": "type: `AppleAccountProvisioning`"
         },
-        "apple_require_hardware_attestation": true,
+        "apple_require_hardware_attestation": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "apple_settings": {
           "$ref": "#/$defs/MacOSSettings",
           "description": "type: `MacOSSettings`"
@@ -2971,6 +2964,10 @@
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "type: `AppleOSUpdateSettings`"
         },
+        "linux_settings": {
+          "$ref": "#/$defs/LinuxSettings",
+          "description": "type: `LinuxSettings`"
+        },
         "macos_migration": true,
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
@@ -2992,6 +2989,13 @@
           "description": "type: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "only_allow_apple_business_enrollment": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -3084,13 +3088,7 @@
     "Features": {
       "additionalProperties": false,
       "properties": {
-        "additional_queries": {
-          "description": "type: `object`",
-          "type": [
-            "object",
-            "null"
-          ]
-        },
+        "additional_queries": true,
         "detail_query_overrides": {
           "additionalProperties": {
             "type": [
@@ -3144,7 +3142,7 @@
           ]
         },
         "sso_enabled": {
-          "description": "SSOEnabled records that end users should authenticate with the IdP\nconfigured in mdm.end_user_authentication, which must be set before this can\nbe enabled. Nothing enforces it yet: the setting is only persisted and\nreported.\n\ntype: `boolean`",
+          "description": "SSOEnabled requires end users to authenticate with the IdP configured in\nmdm.end_user_authentication, which must be set before this can be enabled.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -3242,11 +3240,7 @@
       "description": "GitOpsFleetSettings defines the valid keys for the top-level `settings:` section (fleet-level).",
       "properties": {
         "agent_options": {
-          "description": "AgentOptions is the options for osquery and Orbit.\n\ntype: `object`",
-          "type": [
-            "object",
-            "null"
-          ]
+          "description": "AgentOptions is the options for osquery and Orbit."
         },
         "features": {
           "$ref": "#/$defs/Features",
@@ -3307,11 +3301,7 @@
           "description": "type: `ActivityExpirySettings`"
         },
         "agent_options": {
-          "description": "AgentOptions holds osquery configuration.\n\nThis field is a pointer to avoid returning this information to non-global-admins.\n\ntype: `object`",
-          "type": [
-            "object",
-            "null"
-          ]
+          "description": "AgentOptions holds osquery configuration.\n\nThis field is a pointer to avoid returning this information to non-global-admins."
         },
         "certificate_authorities": true,
         "conditional_access": {
@@ -3454,7 +3444,7 @@
           ]
         },
         "continuous_automations_enabled": {
-          "description": "Shadows PolicySpec.ContinuousAutomationsEnabled to tell whether the key was set\nexplicitly vs. omitted, which patch_when_closed validation needs.\n\ntype: `boolean`",
+          "description": "Shadows PolicySpec.ContinuousAutomationsEnabled to tell whether the key was set\nexplicitly vs. omitted, which the patch option validation needs.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -3485,6 +3475,13 @@
           "description": "type: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "hidden": {
+          "description": "Hidden hides the policy from end users in Fleet Desktop.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -3561,6 +3558,13 @@
           "description": "Name is the name of the policy.\n\ntype: `string`",
           "type": "string"
         },
+        "notify_before_patching": {
+          "description": "NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "patch_when_closed": {
           "description": "PatchWhenClosed skips the install while the app is open, via the managed pre-install query.\n\ntype: `boolean`",
           "type": [
@@ -3601,6 +3605,13 @@
             "null"
           ]
         },
+        "resend_configuration_profile": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "resolution": {
           "description": "Resolution describes how to solve a failing policy.\n\ntype: `string`",
           "type": [
@@ -3614,6 +3625,9 @@
         },
         "script_id": {
           "description": "ScriptID is the ID of the script associated with this policy (team policies only).\nWhen editing a policy, if this is nil or 0 then the script ID is unset from the policy.\n\ntype: `integer`"
+        },
+        "software_package_id": {
+          "description": "SoftwarePackageID optionally pins the policy to a specific package under\nthe given SoftwareTitleID (team policies only). When nil the applier\nfalls back to the title's first-added package. Used by GitOps to preserve\nwhich package a policy YAML referenced when the title has multiple\ninstallers sharing a bundle identifier.\n\ntype: `integer`"
         },
         "software_title_id": {
           "description": "SoftwareTitleID is the title ID of the installer associated with this policy (team policies only).\nWhen editing a policy, if this is nil or 0 then the title ID is unset from the policy.\n\ntype: `integer`"
@@ -3870,6 +3884,39 @@
       "additionalProperties": false,
       "description": "Integrations configures the integrations with external systems.",
       "properties": {
+        "certificates_disable_host_end_user_binding": {
+          "description": "CertificatesDisableHostEndUserBinding turns off the requirement that device-authenticated\ncertificate requests match the calling host's recorded end-user identity. The binding is on by\ndefault and fails closed on a host with no recorded identity.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "certificates_idp_client_ids": {
+          "description": "CertificatesIdPClientIDs optionally constrains the client ID as well. Meaningless without URLs.\n\ntype: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "certificates_idp_introspection_urls": {
+          "description": "CertificatesIdPIntrospectionURLs allowlists the OAuth 2.0 token introspection endpoints permitted\nto vouch for certificate requests. Closed by default: while empty, no IdP credentials are\naccepted. Once populated, credentials are mandatory and the endpoint must be listed. URLs are\nstored as given and matched exactly, as Jira and Zendesk URLs are.\n\ntype: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
         "conditional_access_enabled": {
           "description": "ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for \"No team\".\n\ntype: `boolean`",
           "type": [
@@ -3998,13 +4045,7 @@
         }
       ],
       "properties": {
-        "criteria": {
-          "description": "type: `object`",
-          "type": [
-            "object",
-            "null"
-          ]
-        },
+        "criteria": true,
         "description": {
           "description": "type: `string`",
           "type": [
@@ -4062,6 +4103,23 @@
           "deprecated": true,
           "deprecationMessage": "'team_id' is deprecated, use 'fleet_id' instead",
           "description": "type: `integer`"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "LinuxSettings": {
+      "additionalProperties": false,
+      "description": "LinuxSettings contains MDM-related settings specific to Linux hosts.",
+      "properties": {
+        "enable_escrow_disk_encryption_key": {
+          "description": "EnableEscrowDiskEncryptionKey makes Fleet escrow the LUKS passphrase of\nLinux hosts.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "type": [
@@ -4196,6 +4254,10 @@
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "IPadOSUpdates defines the OS update settings for iPadOS devices.\n\ntype: `AppleOSUpdateSettings`"
         },
+        "linux_settings": {
+          "$ref": "#/$defs/LinuxSettings",
+          "description": "type: `LinuxSettings`"
+        },
         "macos_migration": {
           "$ref": "#/$defs/MacOSMigration",
           "description": "type: `MacOSMigration`"
@@ -4230,6 +4292,13 @@
             "null"
           ]
         },
+        "only_allow_apple_business_enrollment": {
+          "description": "OnlyAllowAppleBusinessEnrollment restricts Apple MDM enrollment to devices\nassigned to Fleet in Apple Business (ADE). Manual, OTA, and account-driven\n(BYOD) enrollment are blocked. When combined with AppleRequireHardwareAttestation,\nnew SCEP issuance is also blocked so only ACME-attested devices can enroll or renew.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "setup_experience": {
           "$ref": "#/$defs/MacOSSetup",
           "description": "type: `MacOSSetup`"
@@ -4247,17 +4316,17 @@
             "null"
           ]
         },
+        "windows_automatic_enrollment": {
+          "description": "WindowsAutomaticEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is\nthe source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.\n\ntype: `object`",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
         "windows_enabled_and_configured": {
           "description": "WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.\nThere is no other configuration required for Windows other than enabling\nthe support, but it is still called \"EnabledAndConfigured\" for consistency\nwith the similarly named macOS-specific fields.\n\ntype: `boolean`",
           "type": [
             "boolean",
-            "null"
-          ]
-        },
-        "windows_enrollment": {
-          "description": "WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the\nsource of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.\n\ntype: `object`",
-          "type": [
-            "object",
             "null"
           ]
         },
@@ -4295,7 +4364,7 @@
           ]
         },
         "windows_require_bitlocker_pin": {
-          "description": "type: `boolean`",
+          "description": "RequireBitLockerPIN is deprecated: use\nWindowsSettings.RequireBitLockerPIN, which it mirrors.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -4511,7 +4580,14 @@
           ]
         },
         "enable_disk_encryption": {
-          "description": "type: `boolean`",
+          "description": "EnableDiskEncryption enforces FileVault on macOS hosts.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_escrow_disk_encryption_key": {
+          "description": "EnableEscrowDiskEncryptionKey makes Fleet escrow the FileVault recovery\nkey of macOS hosts, independently of whether Fleet enforces FileVault.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -4681,9 +4757,21 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "errorMessage": "A fleet_maintained_apps entry must set slug.",
+          "errorMessage": "A fleet_maintained_apps entry must set slug (or reference a file with path/paths).",
           "required": [
             "slug"
+          ]
+        },
+        {
+          "errorMessage": "A fleet_maintained_apps entry must set slug (or reference a file with path/paths).",
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "errorMessage": "A fleet_maintained_apps entry must set slug (or reference a file with path/paths).",
+          "required": [
+            "paths"
           ]
         }
       ],
@@ -4755,6 +4843,18 @@
             "null"
           ]
         },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paths": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "post_install_script": {
           "$ref": "#/$defs/TeamSpecSoftwareAsset",
           "description": "type: `TeamSpecSoftwareAsset`"
@@ -4796,23 +4896,6 @@
           "description": "type: `string`",
           "type": [
             "string",
-            "null"
-          ]
-        }
-      },
-      "type": [
-        "object",
-        "null"
-      ]
-    },
-    "ManagedLocalAccountSettings": {
-      "additionalProperties": false,
-      "description": "ManagedLocalAccountSettings configures the hidden managed local admin account for one platform.",
-      "properties": {
-        "enabled": {
-          "description": "type: `boolean`",
-          "type": [
-            "boolean",
             "null"
           ]
         }
@@ -5676,6 +5759,10 @@
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "type: `AppleOSUpdateSettings`"
         },
+        "linux_settings": {
+          "$ref": "#/$defs/LinuxSettings",
+          "description": "type: `LinuxSettings`"
+        },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
           "deprecated": true,
@@ -5728,9 +5815,21 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "errorMessage": "An app_store_apps entry must set app_store_id.",
+          "errorMessage": "An app_store_apps entry must set app_store_id (or reference a file with path/paths).",
           "required": [
             "app_store_id"
+          ]
+        },
+        {
+          "errorMessage": "An app_store_apps entry must set app_store_id (or reference a file with path/paths).",
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "errorMessage": "An app_store_apps entry must set app_store_id (or reference a file with path/paths).",
+          "required": [
+            "paths"
           ]
         }
       ],
@@ -5824,6 +5923,18 @@
           },
           "type": [
             "array",
+            "null"
+          ]
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paths": {
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -6080,9 +6191,35 @@
             "null"
           ]
         },
-        "managed_local_account_settings": {
-          "$ref": "#/$defs/ManagedLocalAccountSettings",
-          "description": "ManagedLocalAccountSettings configures the hidden managed local admin account created by\nfleetd on Windows hosts during Autopilot/OOBE enrollment.\n\ntype: `ManagedLocalAccountSettings`"
+        "enable_create_local_admin_account": {
+          "description": "EnableManagedLocalAccount turns on the hidden managed local admin account created by\nfleetd on Windows hosts during Autopilot/OOBE enrollment.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_disk_encryption": {
+          "description": "EnableDiskEncryption enforces BitLocker on Windows hosts.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_managed_local_account": {
+          "deprecated": true,
+          "deprecationMessage": "'enable_managed_local_account' is deprecated, use 'enable_create_local_admin_account' instead",
+          "description": "EnableManagedLocalAccount turns on the hidden managed local admin account created by\nfleetd on Windows hosts during Autopilot/OOBE enrollment.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "require_bitlocker_pin": {
+          "description": "RequireBitLockerPIN requires end users on Windows hosts to set a\nBitLocker PIN. Requires EnableDiskEncryption.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "type": [

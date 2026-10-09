@@ -4,12 +4,13 @@ import React, {
   useImperativeHandle,
   useState,
 } from "react";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import PATHS from "router/paths";
+
 import CustomLink from "components/CustomLink";
 import Slider from "components/forms/fields/Slider";
-import { AppContext } from "context/app";
 import InfoBanner from "components/InfoBanner/InfoBanner";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import { IAutomationFormHandle } from "../../types";
 

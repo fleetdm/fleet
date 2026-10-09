@@ -12,7 +12,7 @@ By following these steps, you can automate the deployment of Okta Verify across 
 
 ## Step-by-step instructions
 
-### **Step 1: Install Okta Verify on your hosts**
+### Step 1: Install Okta Verify on your hosts
 
 Okta Verify can be installed:
 
@@ -21,7 +21,7 @@ Okta Verify can be installed:
 
 After installing Okta Verify on the host, the device will be registered in Okta.
 
-### **Step 2: Issue a SCEP certificate for management attestation**
+### Step 2: Issue a SCEP certificate for management attestation
 
 The next step to ensure Okta detects the device as managed is to issue a SCEP certificate.
 
@@ -116,7 +116,7 @@ The next step to ensure Okta detects the device as managed is to issue a SCEP ce
 SELECT * FROM certificates where common_name like '%managementAttestation%';
 ```
 
-### **Step 3: Configure device management in Okta**
+### Step 3: Configure device management in Okta
 
 With Okta Verify installed and an attestation certificate in place, all left is to configure Okta and the device for device management, useful links from the Okta documentation are:
 

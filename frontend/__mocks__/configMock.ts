@@ -16,6 +16,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   enabled_and_configured: true,
   android_enabled_and_configured: false,
   apple_require_hardware_attestation: false,
+  only_allow_apple_business_enrollment: false,
   macos_updates: {
     minimum_version: "",
     deadline: "",
@@ -248,6 +249,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     },
   },
   max_software_package_size: 10 * 1024 * 1024 * 1024,
+  staged_upload_available: false,
 };
 
 export const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {

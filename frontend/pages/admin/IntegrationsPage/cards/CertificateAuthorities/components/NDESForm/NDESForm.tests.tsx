@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
+import { noop } from "lodash";
+import React, { useState } from "react";
+
 import { renderWithSetup } from "test/test-utils";
 
 import NDESForm, { INDESFormData } from "./NDESForm";

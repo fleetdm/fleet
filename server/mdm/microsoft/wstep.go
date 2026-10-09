@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MicahParks/jwkset"
@@ -56,6 +57,9 @@ type CertManager interface {
 	// GetEUATokenClaims validates the given EUA token and returns the parsed claims.
 	GetEUATokenClaims(token string) (*EUATokenClaims, error)
 
+	// GetAzureAuthTokenClaims validates the given Azure AD token and returns its Fleet-relevant claims.
+	GetAzureAuthTokenClaims(ctx context.Context, token string) (AzureData, error)
+
 	// TODO: implement other methods as needed:
 	// - verify certificate-device association
 	// - certificate lifecycle management (e.g., renewal, revocation)
@@ -93,6 +97,8 @@ type AzureData struct {
 	TenantID   string
 	UniqueName string
 	SCP        string
+	// DeviceID is the Entra device ID from the `deviceid` claim, empty when the token has none.
+	DeviceID string
 }
 
 type manager struct {
@@ -107,6 +113,9 @@ type manager struct {
 	// maxSerialNumber holds the maximum serial number. The maximum value a serial number can have
 	// is 2^160. However, this could be limited further if required.
 	maxSerialNumber *big.Int
+
+	// azureJWKS lazily creates the shared JWK Set client used to verify Azure AD tokens.
+	azureJWKS func() (jwkset.Storage, error)
 }
 
 // NewCertManager returns a new CertManager instance.
@@ -131,6 +140,7 @@ func newManager(store CertStore, certPEM []byte, privKeyPEM []byte) (*manager, e
 		identityPrivateKey:  key,
 		identityFingerprint: fp,
 		maxSerialNumber:     new(big.Int).Lsh(big.NewInt(1), 128), // 2^12,
+		azureJWKS:           sync.OnceValues(newAzureJWKSClient),
 	}, nil
 }
 
@@ -338,9 +348,13 @@ func (m *manager) GetSTSAuthTokenUPNClaim(tokenStr string) (string, error) {
 
 // GetAzureAuthTokenClaims validates the given Azure AD token and returns
 // UPN, TenantID, UniqueName, DeviceID
-func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, error) {
+func (m *manager) GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, error) {
+	if m == nil {
+		return AzureData{}, ctxerr.New(ctx, "windows mdm identity keypair was not configured")
+	}
+
 	if len(tokenStr) == 0 {
-		return AzureData{}, ctxerr.New(ctx, "invalid STS token")
+		return AzureData{}, ctxerr.New(ctx, "empty Azure JWT token")
 	}
 
 	// Decode base64 token
@@ -355,19 +369,11 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 		return AzureData{}, ctxerr.New(ctx, "invalid Azure JWT format")
 	}
 
-	// Parse JWT token
-	jwksURI := "https://login.microsoftonline.com/common/discovery/v2.0/keys"
-	var token *jwt.Token
-	FLEET_DEV_AZURE_JWT_JWKS_URI := dev_mode.Env("FLEET_DEV_AZURE_JWT_JWKS_URI")
-	if FLEET_DEV_AZURE_JWT_JWKS_URI != "" {
-		jwksURI = FLEET_DEV_AZURE_JWT_JWKS_URI
-	}
-
-	keys, err := jwkset.NewDefaultHTTPClient([]string{jwksURI})
+	keys, err := m.azureJWKS()
 	if err != nil {
 		return AzureData{}, ctxerr.Wrap(ctx, err, "failed to retrieve Azure JWT signing keys")
 	}
-	token, err = jwt.Parse(string(tokenBytes), func(token *jwt.Token) (any, error) {
+	token, err := jwt.Parse(string(tokenBytes), func(token *jwt.Token) (any, error) {
 		tokenAlg, ok := token.Header["alg"]
 		if !ok {
 			return nil, errors.New("Azure JWT missing alg header")
@@ -406,6 +412,21 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 	}
 
 	return azureDataFromClaims(ctx, token.Claims.(jwt.MapClaims))
+}
+
+// newAzureJWKSClient is wrapped in sync.OnceValues so the client, and its hourly background
+// refresh goroutine, are created once per manager instead of on every token validation.
+func newAzureJWKSClient() (jwkset.Storage, error) {
+	jwksURI := "https://login.microsoftonline.com/common/discovery/v2.0/keys"
+	if devURI := dev_mode.Env("FLEET_DEV_AZURE_JWT_JWKS_URI"); devURI != "" {
+		jwksURI = devURI
+	}
+
+	jwksetClient, err := jwkset.NewDefaultHTTPClient([]string{jwksURI})
+	if err != nil {
+		return nil, fmt.Errorf("create Azure JWKS client: %w", err)
+	}
+	return jwksetClient, nil
 }
 
 // azureDataFromClaims extracts and validates the Fleet-relevant claims from an already signature-verified Azure AD JWT.
@@ -471,23 +492,43 @@ func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, 
 		return AzureData{}, ctxerr.New(ctx, "invalid SCP claim")
 	}
 
+	// v1 access tokens carry `deviceid` by default. v2 tokens carry it only when the app registration lists it as an optional
+	// access token claim.
+	deviceIDClaim, _ := claims["deviceid"].(string)
+	if deviceIDClaim != "" {
+		deviceID, err := uuid.Parse(deviceIDClaim)
+		if err != nil {
+			return AzureData{}, ctxerr.Wrap(ctx, err, "invalid deviceid claim format")
+		}
+		deviceIDClaim = deviceID.String()
+	}
+
 	return AzureData{
 		UPN:        upnClaim,
 		TenantID:   tenantIDClaim,
 		UniqueName: uniqueNameClaim,
 		SCP:        azureSCPClaim,
 		Audience:   audience,
+		DeviceID:   deviceIDClaim,
 	}, nil
 }
 
+// clientCertClockSkewAllowance backdates the issued certificate's NotBefore. It is generous on purpose: a host whose clock trails the
+// server (dual-boot RTC read as local time, a restored VM snapshot, hardware not yet synced to NTP) would otherwise reject it as not
+// yet valid. Widening it is free: NotAfter derives from the issuance time, so neither expiry nor the renewal window moves.
+const clientCertClockSkewAllowance = 24 * time.Hour
+
+// populateClientCert constructs an x509 client certificate template for Windows MDM enrollment,
+// configuring the certificate validity period derived from MDM policy settings.
 func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificate, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	certRenewalPeriodInSecsInt, err := strconv.Atoi(syncml.PolicyCertRenewalPeriodInSecs)
+	certValidityPeriodInSecsInt, err := strconv.Atoi(syncml.PolicyCertValidityPeriodInSecs)
 	if err != nil {
-		return nil, fmt.Errorf("invalid renewal time: %w", err)
+		return nil, fmt.Errorf("invalid validity time: %w", err)
 	}
 
-	notBeforeDuration := time.Now().Add(time.Duration(certRenewalPeriodInSecsInt) * -time.Second)
-	yearDuration := 365 * 24 * time.Hour
+	now := time.Now()
+	notBefore := now.Add(-clientCertClockSkewAllowance)
+	notAfter := now.Add(time.Duration(certValidityPeriodInSecsInt) * time.Second)
 
 	certSubject := pkix.Name{
 		OrganizationalUnit: []string{syncml.DocProvisioningAppProviderID},
@@ -508,8 +549,8 @@ func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificat
 		EmailAddresses:     csr.EmailAddresses,
 		DNSNames:           csr.DNSNames,
 		URIs:               csr.URIs,
-		NotBefore:          notBeforeDuration,
-		NotAfter:           notBeforeDuration.Add(yearDuration),
+		NotBefore:          notBefore,
+		NotAfter:           notAfter,
 		SerialNumber:       sn,
 		KeyUsage:           x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 

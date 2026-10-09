@@ -203,9 +203,11 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tok
 		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get in house app metadata")
 	}
 
+	// The device downloads the .ipa named here itself, so like the manifest URL that
+	// pointed it at this plist, it has to be the URL Apple devices reach Fleet on.
 	downloadURL := fmt.Sprintf(
 		"%s/api/latest/fleet/software/titles/%d/in_house_app/%s",
-		appConfig.ServerSettings.ServerURL, titleID, token,
+		appConfig.MDMUrl(), titleID, token,
 	)
 
 	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil || svc.config.S3.SoftwareInstallersSignedURL {

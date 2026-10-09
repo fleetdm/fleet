@@ -1,5 +1,7 @@
 import { Meta, StoryObj } from "@storybook/react";
+
 import Textarea from ".";
+
 import "../../index.scss";
 
 const meta: Meta<typeof Textarea> = {

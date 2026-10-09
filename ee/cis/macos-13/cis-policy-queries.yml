@@ -2715,7 +2715,12 @@ spec:
         f.path LIKE '/Library/%'
         AND f.type = 'directory'
         AND (CAST(SUBSTR(f.mode,-1) AS INTEGER) & 2) = 2
-        AND NOT ((CAST(f.mode AS INTEGER) & 01000) = 01000)
+        -- Exclude sticky-bit dirs. osquery reports mode as a 4-char
+        -- octal string like "1777" (sticky) or "0755". The first digit
+        -- encodes setuid(4)/setgid(2)/sticky(1). SQLite has no native
+        -- octal literals, so we compare the first char's integer value
+        -- to the possible sticky combinations (1, 3, 5, 7).
+        AND CAST(SUBSTR(f.mode, 1, 1) AS INTEGER) NOT IN (1, 3, 5, 7)
         AND NOT EXISTS (
           SELECT 1 FROM extended_attributes ea
           WHERE ea.path = f.path

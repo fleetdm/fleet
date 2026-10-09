@@ -1,12 +1,12 @@
 import React, { useContext, useEffect, useRef } from "react";
+import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter } from "react-router";
 
-import paths from "router/paths";
 import { AppContext } from "context/app";
 import { RoutingContext } from "context/routing";
 import useDeepEffect from "hooks/useDeepEffect";
+import paths from "router/paths";
 import authToken from "utilities/auth_token";
-import { useErrorHandler } from "react-error-boundary";
 import permissions from "utilities/permissions";
 
 interface IAppProps {

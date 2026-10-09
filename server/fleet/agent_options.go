@@ -106,11 +106,13 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		if flags.HostIdentifier != "" {
 			return fmt.Errorf(flagNotSupportedErr, "--host_identifier")
 		}
-		if flags.ExtensionsAutoload != "" {
-			return fmt.Errorf(flagNotSupportedErr, "--extensions_autoload")
-		}
 		if flags.DatabasePath != "" {
 			return fmt.Errorf(flagNotSupportedErr, "--database_path")
+		}
+		// fleetd passes its own --extensions_autoload (after --flagfile, so it wins)
+		// when the extensions option is set, which would silently ignore this one.
+		if flags.ExtensionsAutoload != "" && hasExtensions(opts.Extensions) {
+			return errors.New("The --extensions_autoload flag can't be used together with the extensions option. Please remove one of them.")
 		}
 	}
 
@@ -167,6 +169,16 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 	}
 
 	return nil
+}
+
+// hasExtensions reports whether the extensions agent option declares at least
+// one extension. Malformed JSON is reported by validateJSONAgentOptionsExtensions.
+func hasExtensions(raw json.RawMessage) bool {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return false
+	}
+	return len(m) > 0
 }
 
 func checkEmptyFields(prefix string, data json.RawMessage) error {

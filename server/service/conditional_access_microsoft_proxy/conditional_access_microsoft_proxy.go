@@ -33,7 +33,7 @@ func New(uri string, originGetter func() (string, error)) (*Proxy, error) {
 
 		originGetter: originGetter,
 
-		c: fleethttp.NewClient(),
+		c: fleethttp.NewClient(fleethttp.WithNoTimeout()),
 	}, nil
 }
 
@@ -74,7 +74,7 @@ func (p *Proxy) Get(ctx context.Context, tenantID string, secret string) (*GetRe
 	var getResponse GetResponse
 	if err := p.get(
 		"/api/v1/microsoft-compliance-partner/settings",
-		fmt.Sprintf("entraTenantId=%s&fleetServerSecret=%s", tenantID, secret),
+		url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}},
 		&getResponse,
 	); err != nil {
 		return nil, fmt.Errorf("get integration settings failed: %w", err)
@@ -93,7 +93,7 @@ func (p *Proxy) Delete(ctx context.Context, tenantID string, secret string) (*De
 	var deleteResponse DeleteResponse
 	if err := p.delete(
 		"/api/v1/microsoft-compliance-partner",
-		fmt.Sprintf("entraTenantId=%s&fleetServerSecret=%s", tenantID, secret),
+		url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}},
 		&deleteResponse,
 	); err != nil {
 		return nil, fmt.Errorf("delete integration failed: %w", err)
@@ -180,7 +180,7 @@ func (p *Proxy) GetMessageStatus(
 	var getMessageStatusResponse GetMessageStatusResponse
 	if err := p.get(
 		"/api/v1/microsoft-compliance-partner/device/message",
-		fmt.Sprintf("entraTenantId=%s&fleetServerSecret=%s&messageId=%s", tenantID, secret, messageID),
+		url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}, "messageId": {messageID}},
 		&getMessageStatusResponse,
 	); err != nil {
 		return nil, fmt.Errorf("get message status response failed: %w", err)
@@ -220,10 +220,10 @@ func (p *Proxy) post(path string, request interface{}, response interface{}) err
 	return nil
 }
 
-func (p *Proxy) get(path string, query string, response interface{}) error {
+func (p *Proxy) get(path string, query url.Values, response any) error {
 	getURL := p.uri + path
-	if query != "" {
-		getURL += "?" + url.PathEscape(query)
+	if len(query) > 0 {
+		getURL += "?" + query.Encode()
 	}
 	getRequest, err := http.NewRequest("GET", getURL, nil)
 	if err != nil {
@@ -250,10 +250,10 @@ func (p *Proxy) get(path string, query string, response interface{}) error {
 	return nil
 }
 
-func (p *Proxy) delete(path string, query string, response interface{}) error {
+func (p *Proxy) delete(path string, query url.Values, response any) error {
 	deleteURL := p.uri + path
-	if query != "" {
-		deleteURL += "?" + url.PathEscape(query)
+	if len(query) > 0 {
+		deleteURL += "?" + query.Encode()
 	}
 	deleteRequest, err := http.NewRequest("DELETE", deleteURL, nil)
 	if err != nil {

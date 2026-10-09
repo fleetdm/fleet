@@ -377,7 +377,7 @@ func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.N
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, ndesSCEP.URL); err != nil {
 		svc.logger.ErrorContext(ctx, "Failed to validate NDES SCEP URL", "err", err)
-		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sFleet couldn't find the CA at the specified URL. Please correct and try again.", errPrefix)}
 	}
 	if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, *ndesSCEP); err != nil {
 		svc.logger.ErrorContext(ctx, "Failed to validate NDES SCEP admin URL", "err", err)
@@ -405,7 +405,7 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, customSCEP.URL); err != nil {
 		svc.logger.ErrorContext(ctx, "Failed to validate custom SCEP URL", "err", err)
-		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sFleet couldn't find the CA at the specified URL. Please correct and try again.", errPrefix)}
 	}
 	return nil
 }
@@ -425,7 +425,7 @@ func (svc *Service) validateSmallstepSCEPProxy(ctx context.Context, smallstepSCE
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, smallstepSCEP.URL); err != nil {
 		svc.logger.ErrorContext(ctx, "Failed to validate Smallstep SCEP URL", "err", err)
-		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sFleet couldn't find the CA at the specified URL. Please correct and try again.", errPrefix)}
 	}
 	if err := svc.scepConfigService.ValidateSmallstepChallengeURL(ctx, *smallstepSCEP); err != nil {
 		svc.logger.ErrorContext(ctx, "Failed to validate Smallstep SCEP admin URL", "err", err)
@@ -494,7 +494,9 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 		return fleet.NewInvalidArgumentError("gitops", "certificate_authorities: batch apply is intended only for use with gitops")
 	}
 
-	if len(svc.config.Server.PrivateKey) == 0 {
+	// The private key is only needed to encrypt CA secrets, so don't require it when
+	// no CAs are configured (the common case for GitOps users without CAs).
+	if !incoming.IsEmpty() && len(svc.config.Server.PrivateKey) == 0 {
 		return &fleet.BadRequestError{Message: "Server private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key"}
 	}
 
@@ -1413,7 +1415,7 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 		}
 		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *ndesSCEP.URL); err != nil {
 			svc.logger.ErrorContext(ctx, "Failed to validate NDES SCEP URL", "err", err)
-			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sFleet couldn't find the CA at the specified URL. Please correct and try again.", errPrefix)}
 		}
 	}
 	if ndesSCEP.AdminURL != nil && *ndesSCEP.AdminURL == "" {
@@ -1488,7 +1490,7 @@ func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCE
 		}
 		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *customSCEP.URL); err != nil {
 			svc.logger.ErrorContext(ctx, "Failed to validate custom SCEP URL", "err", err)
-			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sFleet couldn't find the CA at the specified URL. Please correct and try again.", errPrefix)}
 		}
 	}
 	if customSCEP.Challenge != nil && *customSCEP.Challenge == "" {
@@ -1512,7 +1514,7 @@ func (svc *Service) validateSmallstepSCEPProxyUpdate(ctx context.Context, smalls
 		}
 		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *smallstep.URL); err != nil {
 			svc.logger.ErrorContext(ctx, "Failed to validate Smallstep SCEP URL", "err", err)
-			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sFleet couldn't find the CA at the specified URL. Please correct and try again.", errPrefix)}
 		}
 	}
 	// Call challenge URL to validate all fields are valid

@@ -1,21 +1,20 @@
 import React from "react";
 
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { dateAgo } from "utilities/date_format";
-
+import Card from "components/Card";
+import DataSet from "components/DataSet";
+import TooltipWrapper from "components/TooltipWrapper";
+import TruncatedTextList from "components/TruncatedTextList";
 import {
   SoftwareExtensionFor,
   formatSoftwareType,
+  formatSoftwareVersion,
   INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
   IHostSoftware,
   ISoftwareInstallVersion,
   SoftwareSource,
 } from "interfaces/software";
-
-import Card from "components/Card";
-import DataSet from "components/DataSet";
-import TooltipWrapper from "components/TooltipWrapper";
-import TruncatedTextList from "components/TruncatedTextList";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { dateAgo } from "utilities/date_format";
 
 const baseClass = "inventory-versions";
 
@@ -48,15 +47,14 @@ const InventoryVersion = ({
     );
 
   return (
-    <Card
-      className={`${baseClass}__version`}
-      color="grey"
-      borderRadiusSize="medium"
-    >
+    <Card className={`${baseClass}__version`} color="grey">
       <div className={`${baseClass}__row`}>
         <DataSet
           title="Version"
-          value={version.version || DEFAULT_EMPTY_CELL_VALUE}
+          value={
+            formatSoftwareVersion({ ...version, source }) ||
+            DEFAULT_EMPTY_CELL_VALUE
+          }
           textOnly
         />
         <DataSet
@@ -127,11 +125,7 @@ const InventoryVersions = ({
   if (!installedVersions || installedVersions.length === 0) {
     return (
       <div className={baseClass}>
-        <Card
-          className={`${baseClass}__version-details`}
-          color="grey"
-          borderRadiusSize="medium"
-        >
+        <Card className={`${baseClass}__version-details`} color="grey">
           <div className={`${baseClass}__row`}>
             <DataSet
               title="Type"
@@ -157,7 +151,7 @@ const InventoryVersions = ({
         {installedVersions.map((installedVersion) => {
           return (
             <InventoryVersion
-              key={installedVersion.version}
+              key={`${installedVersion.version}|${installedVersion.release}`}
               version={installedVersion}
               source={hostSoftware.source}
               bundleIdentifier={hostSoftware.bundle_identifier}

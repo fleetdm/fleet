@@ -1,10 +1,9 @@
-import React from "react";
 import { flatMap } from "lodash";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
-
 import { ISoftwareInstallVersion } from "interfaces/software";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 

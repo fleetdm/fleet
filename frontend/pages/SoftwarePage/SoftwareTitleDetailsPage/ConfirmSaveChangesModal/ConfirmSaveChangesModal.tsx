@@ -1,9 +1,8 @@
 import React from "react";
 
-import { InstallerType } from "interfaces/software";
-
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import { InstallerType } from "interfaces/software";
 
 const baseClass = "save-changes-modal";
 

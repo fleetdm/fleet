@@ -1,15 +1,15 @@
-import { IHost, IHostEndUser, IGeoLocation } from "interfaces/host";
-import { IHostMdmProfile } from "interfaces/mdm";
 import { pick } from "lodash";
 
-import { normalizeEmptyValues } from "utilities/helpers";
-import { HOST_SUMMARY_DATA } from "utilities/constants";
-import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { IHost, IHostEndUser, IGeoLocation } from "interfaces/host";
+import { IHostMdmProfile } from "interfaces/mdm";
 import {
   IHostAppStoreApp,
   IHostSoftware,
   IHostSoftwarePackage,
 } from "interfaces/software";
+import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { HOST_SUMMARY_DATA } from "utilities/constants";
+import { normalizeEmptyValues } from "utilities/helpers";
 
 const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   profile_uuid: "123-abc",
@@ -20,6 +20,8 @@ const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   detail: "This is verified",
   scope: "device",
   managed_local_account: "",
+  hidden: false,
+  self_service: false,
 };
 
 export const createMockHostMdmProfile = (

@@ -1,0 +1,9 @@
+{
+  "name": "Monotype Fonts",
+  "slug": "monotype/darwin",
+  "unique_identifier": "com.monotype.monotype-fonts",
+  "token": "monotype",
+  "installer_format": "zip",
+  "post_uninstall_scripts": ["sudo rm -rf '/Applications/Monotype Fonts'"],
+  "default_categories": ["Productivity"]
+}

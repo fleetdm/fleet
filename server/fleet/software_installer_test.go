@@ -442,6 +442,14 @@ func TestValidateTitlePackages(t *testing.T) {
 			wantErr:  "Only one of Mozilla Firefox or Mozilla Firefox ESR can be added to the same fleet",
 		},
 		{
+			name: "two Windows FMAs sharing a DisplayName title are rejected by catalog name",
+			payloads: []*UploadSoftwareInstallerPayload{
+				{Title: "Firefox Nightly", FleetMaintainedAppID: new(uint(1)), FMAName: "Mozilla Firefox Nightly"},
+				{Title: "Firefox Nightly", FleetMaintainedAppID: new(uint(2)), FMAName: "Mozilla Firefox Nightly (ARM64)"},
+			},
+			wantErr: "Only one of Mozilla Firefox Nightly or Mozilla Firefox Nightly (ARM64) can be added to the same fleet",
+		},
+		{
 			name:     "same FMA across multiple versions is allowed",
 			payloads: []*UploadSoftwareInstallerPayload{fma(1, "Mozilla Firefox"), fma(1, "Mozilla Firefox")},
 		},
@@ -472,6 +480,28 @@ func TestValidateTitlePackages(t *testing.T) {
 				return
 			}
 			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}
+
+func TestHostSoftwareInstallOptionsIsFleetInitiated(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		desc string
+		opts HostSoftwareInstallOptions
+		want bool
+	}{
+		{"user-initiated", HostSoftwareInstallOptions{}, false},
+		{"self-service", HostSoftwareInstallOptions{SelfService: true}, false},
+		{"policy automation", HostSoftwareInstallOptions{PolicyID: new(uint(1))}, true},
+		{"scheduled updates", HostSoftwareInstallOptions{ForScheduledUpdates: true}, true},
+		{"setup experience", HostSoftwareInstallOptions{ForSetupExperience: true}, true},
+		{"self-service wins over setup experience", HostSoftwareInstallOptions{ForSetupExperience: true, SelfService: true}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			require.Equal(t, c.want, c.opts.IsFleetInitiated())
 		})
 	}
 }

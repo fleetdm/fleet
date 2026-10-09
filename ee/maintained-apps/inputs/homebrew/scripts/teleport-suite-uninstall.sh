@@ -114,6 +114,7 @@ sudo rm -rf '/usr/local/bin/tctl'
 sudo rm -rf '/usr/local/bin/teleport'
 sudo rm -rf '/usr/local/bin/tsh'
 
-# Remove user data
+# Remove auto-updater client-tools caches for all users, then the console user's data
+sudo rm -rf /Users/*/.tsh/bin
 trash $LOGGED_IN_USER '~/.tsh'
 

@@ -1,5 +1,6 @@
 import { omit } from "lodash";
 import { useQuery } from "react-query";
+
 import mdmApi, {
   IGetProfilesApiParams,
   IMdmProfilesResponse,

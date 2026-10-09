@@ -36,7 +36,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Product group                              | Goal _(value for customers and/or community)_                                                                          |
 |:-------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|
 | [Orchestration](#orchestration-group)      | Increase Fleet's integration footprint. Measured by the number of configured third-party integrations. |
-| [Supply Chain](#supply-chain-group)        | Help customers secure the software and dependencies running on their fleet, reduce exposure to vulnerabilities, and ensure compliance across the device lifecycle. Measured by increase in number of software types supported (increase surface area of software inventory, including plugins, including mobile apps, surfaced -- with the goal of preventing supply chain compromises)                                            |
+| [Supply Chain](#supply-chain-group)        | Help customers secure the software and dependencies running on their fleet, reduce exposure to vulnerabilities, and ensure compliance across the device lifecycle. Measured by increase in number of [software types](https://fleetdm.com/guides/software-inventory-reference) supported (increase surface area of software inventory, including plugins, including mobile apps, surfaced -- with the goal of preventing supply chain compromises)                                            |
 | [Apple @ Work](#apple-work-group)         | Empower Apple users to fully leverage Fleet as an MDM. Measured by Apple devices enrolled with MDM turned on.                                                     |
 | [Auto Patching](#auto-patching-group)      | Reduce the amount of time before software is patched after vulnerabilities are discovered. Measured by number of policies with software automations enabled. |
 | [Power to the PC](#power-to-the-pc-group)  | Empower Windows users to fully leverage Fleet as an MDM. Measured by Windows devices enrolled with MDM turned on. |
@@ -84,10 +84,8 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - CVE/CPE ingestion & matching
 - Vulnerability reporting
 - Conditional access
-- Certificate Authorities (CAs)
-- Certificate delivery & renewal
 - Host disk encryption
-- CIS benchmarks 
+- CIS benchmarks
 
 
 ### Apple @ Work group
@@ -107,7 +105,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - Apple setup experience
 - macOS, iOS, and iPadOS configuration & updates
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this product group is `#g-apple-at-work`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/108), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this product group is `#g-apple-at-work`.
 
 
 ### Auto Patching group
@@ -129,18 +127,26 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - End user self-service
 - Scripts
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this product group is `#g-auto-patching`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/109), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this product group is `#g-auto-patching`.
 
 
 ### Power to the PC group
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
+| Product Designer                  | Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
 | Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 | Quality Assurance                 | [Joe Grant](https://www.linkedin.com/in/thisisjoegrant/) _([@thisisjoegrant](https://github.com/thisisjoegrant))_
 | Software Engineer                 | [Matías Spinarolli](https://www.linkedin.com/in/matias-spinarolli/) _([@jbelbo](https://github.com/jbelbo))_
+
+**Areas of expertise**:
+- Windows MDM protocol & configuration
+- Windows device onboarding (Autopilot)
+- Windows setup experience
+- Certificate Authorities (CAs)
+- Certificate delivery & renewal (except Apple)
+- Windows configuration profiles
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this product group is `#g-power-to-pc`.
 
@@ -152,7 +158,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Product Designer                  | [LeAnn Gove](https://www.linkedin.com/in/leann-gove-61a750142/) _([@leanngove](https://github.com/leanngove))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
-| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
+| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_ [Terry Kwok](https://www.linkedin.com/in/terry-kwok) _([@terry-kwok-code](https://github.com/terry-kwok-code))_
 | Software Engineer                 | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0BK050C3BJ), [kanban board](https://github.com/orgs/fleetdm/projects/112), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-byod) for this product group is `#g-byod`.
@@ -338,11 +344,15 @@ The product group walks the board **right-to-left**, starting at "Ready for rele
 
 ### User story reviews
 
-User story reviews [happen weekly](https://fleetdm.com/handbook/product-design#rituals) between each product group's Product Designer (PD), Engineering Manager (EM), Tech Lead (TL) and Quality Assurance (QA) Engineer. During the call, contributors (PD and EM) present all user stories that are in the "User story review" column. The PD is the DRI for completing all product checklist items before bringing to review. For [engineer-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story), the EM is the DRI for completing all engineering checklist items before bringing to review.
+User story reviews [happen weekly](https://fleetdm.com/handbook/product-design#rituals) between each product group's Product Designer (PD), Engineering Manager (EM), Tech Lead (TL) and Quality Assurance (QA) Engineer. 
+
+At least 1 business day before the call, the PD shares stories that are ready for review in the relevant product group Slack channel. This way, the QA Engineer has time to review the stories and add items to the test plan.
+
+During the call, contributors (PD and EM) present all user stories that have completed the product checklist and are ready for review. The PD is the DRI for completing all product checklist items before bringing to review. For [engineer-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story), the EM is the DRI for completing all engineering checklist items before bringing to review.
 
 The purpose of the review is to familiarize the EM, TL, and QA Engineer with the user story, and provide an opportunity to ask questions, clarify requirements, and highlight potential implementation issues. The first draft of the test plan produced by the Product Designer is reviewed and revised as needed during the call. The QA Engineer is the DRI for finalizing the test plan.
 
-The purpose of the user story review is to align product, engineering, and QA on functionality and implementation details. Wireframe reviews occur daily during [design reviews](https://fleetdm.com/handbook/company/product-groups#design-reviews) where contributors are welcome to join and provide design feedback in the agenda document. However, sometimes there are design changes needed if a gap is discovered or an implementation issue is raised during user story review. If there are design changes, the user story is moved back to the "In progress" column for additional drafting. If there are no design changes, the story remains with the Engineering DRI to [complete the drafting process](#defining-done) before bringing to estimation. If no Engineering DRI is assigned, the ticket is assigned to the Engineering Manager.
+The purpose of the user story review is to align product, engineering, and QA on functionality and implementation details. Wireframe reviews occur daily during [design reviews](https://fleetdm.com/handbook/company/product-groups#design-reviews) where contributors are welcome to join and provide design feedback in the agenda document. However, sometimes there are design changes needed if a gap is discovered or an implementation issue is raised during user story review. If there are design changes, the user story stays in drafting to address the gap. If there are no design changes, the story is assigned to the Tech Lead to [complete the drafting process](#defining-done) before bringing to estimation. If no Engineering DRI is assigned, the ticket is assigned to the Engineering Manager.
 
 ### Release demo (every 3 weeks)
 
@@ -424,6 +434,8 @@ cd website
 ./node_modules/sails/bin/sails.js run generate-merged-schema
 ```
 
+This updates both `schema/osquery_fleet_schema.json` and the copy for [Fleet's MCP](https://fleetdm.com/guides/fleet-mcp) (`cmd/fleet-mcp/osquery_fleet_schema.json`). Commit both files. The MCP needs its own copy because it builds the schema into its binary as an offline fallback for air-gapped deployments of the MCP server.
+
 > When adding a new table, make sure it does not already exist with the same name. If it does, consider changing the new table name or merge the two tables if it makes sense.
 
 > If a table is added to our ChromeOS extension but it does not exist in osquery or if it is a table added by fleetd, add a note that mentions it, as in this [example](https://github.com/fleetdm/fleet/blob/e95e075e77b683167e86d50960e3dc17045e3c44/schema/tables/mdm.yml#L2).
@@ -474,9 +486,9 @@ To successfully deliver a user story, the people working on it need to know what
 
 Every user story has a product and engineering checklist that is completed before the user story is estimated. This populates the user story with the requirements, wireframes, and test plan necessary for the product group to effectively specify, estimate, implement, and test the change. The Product Designer is the DRI for completing the product checklist, and the Engineering Manager (EM) is the DRI for completing the engineering checklist.
 
-When the Product Designer has completed the product checklist, it is moved to the "User story review" column of the drafting board and reviewed during the [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews) rituals.
+When the Product Designer has completed the product checklist, it is reviewed during the [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews) rituals.
 
-When a user story completes the review process, it is moved to the "Ready to spec" column on the drafting board and assigned to the product group's EM. The EM is responsible for completing the engineering checklist and finalizing the test plan with the QA Engineer before moving to the "Ready to estimate" column.
+When a user story completes the review process, it is assigned to the product group's EM. The EM is responsible for completing the engineering checklist and finalizing the test plan with the QA Engineer.
 
 
 #### Providing context
@@ -684,18 +696,17 @@ To make a feature request or advocate for a feature request from a customer or c
 
 New requests are [triaged daily](https://fleetdm.com/handbook/product-design#triage-new-requests) by the Head of Product Design. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
 
-> **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label, remove the `:product` label, and remove the issue from the 🦢 Drafting project.
+> **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label, remove the `:product` label, and remove the issue from the 🦢📨🎉 Product design intake & outtake project.
 
 
 ### Criteria for prioritization
 
 To prioritize a new feature, it must meet one of these criteria:
 
-1. Bug
-2. Small UX improvement (`~spiffier` label) that isn't quite a bug but it's so small that it's worthwhile
-3. Contributes to Fleet's [product maturity](https://fleetdm.com/handbook/company/product-maturity-assessment) goals for the current calendar year (`~product-maturity` label)
-4. Core: a feature that accentuates and directly assists in the core purpose of the company: to guide people out of the thicket through the gift of openness. It's what differentiates us. [How Fleet defined "core"](https://docs.google.com/document/d/1Vr0F218Acr69eAgaD38zsyUUQ3Ik9HDEAlitT911BzU/edit?tab=t.0#heading=h.axp63q5pht7).
-5. Context: a feature that customers consider mission critical for their particular buying situation. Can either be an existing customer request or a prospect request in an order form.
+- Small UX improvement that isn't quite a bug but it's so small that it's worthwhile
+- Contributes to Fleet's [company goals](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BM2) or [product maturity goals](https://fleetdm.com/handbook/company/product-groups#current-product-groups) goals for the current calendar year (`~product-maturity` label)
+- Core: a feature that accentuates and directly assists in the core purpose of the company: to guide people out of the thicket through the gift of openness. It's what differentiates us. [How Fleet defined "core"](https://docs.google.com/document/d/1Vr0F218Acr69eAgaD38zsyUUQ3Ik9HDEAlitT911BzU/edit?tab=t.0#heading=h.axp63q5pht7).
+- Context: a feature that customers consider mission critical for their particular buying situation. Can either be an existing customer request or a prospect request in an order form.
 
 Features that are core to Fleet are prioritized over context (mission critical) features. Mission critical features can be prioritized over core features only if they're a customer promise (`~customer promise` label) or a [high-priority](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) customer request (`P0`, `P1`, or `P2` label).
 
@@ -922,6 +933,27 @@ Each product group maintains two engineers assigned to incident on-call. Enginee
 #### Incident on-call responsibilities
 
 The incident on-call engineer leads the incident from acknowledgment through resolution and owns internal communication. Don't assume anyone is already aware. Mention the right people in the incident channel to pull them in: someone from CS (the reporter, if CS reported the issue), the relevant engineering manager, and any engineers or QA needed for investigation. Post regular status updates in the incident channel and keep the incident response issue up to date.
+
+**Initial triage**
+
+Start every incident with an initial triage pass before asking another engineer to investigate. Many incidents can be mitigated by following an existing runbook, and when an incident does need another engineer, the context gathered during triage helps them start immediately.
+
+Gather the following and record it in the incident channel and the incident response issue:
+
+1. The affected customer or customers, and whether each environment is managed cloud or self-hosted.
+2. The Fleet version and when the issue started.
+3. Any recent changes around that time, such as deployments, configuration changes, or database migrations.
+4. The exact error messages and relevant log excerpts, not just a summary. For managed cloud, query server and load balancer logs by following the [infrastructure runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme).
+5. The scope of impact: how many hosts or customers are affected, and whether the impact is stable or growing.
+6. Whether the issue can be reproduced.
+
+Then check these resources for a documented fix:
+
+- [Infrastructure runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme): step-by-step responses to common alerts and outages, including how to query logs.
+- [Engineering runbooks](https://fleetdm.com/handbook/engineering#runbooks): guides for specific situations engineers encounter.
+- Previous incidents in the #help-incidents channel and past postmortems, which often cover recurring symptoms and their fixes.
+
+If the runbooks don't cover the issue, or triage points to a specific product area, escalate to the relevant product group's engineering manager or an engineer with domain expertise. Escalating is the right call when it's the fastest path to resolution. Include what you've gathered and what you've ruled out so the next responder can pick up where triage left off.
 
 **Outside of business hours**
 
@@ -1152,7 +1184,7 @@ Product group boards are exclusively composed of the following types of work ite
 
 6. **Reliability issues**: These represent scaling, performance, or reliability concerns, including post-mortem action items, marked with the `reliability` label. Reliability issues are prioritized by the relevant Engineering Manager. They are used to track work that improves system stability, addresses incident follow-ups, and resolves operational risks.
 
-7. **Security issues**: These represent vulnerabilities, pen test findings, and security hardening work, marked with the `security` label. Security issues include items from penetration tests, vulnerability scans, and proactive security improvements. They are prioritized by severity and tracked alongside other work items on the product group board.
+7. **Security issues**: These represent vulnerabilities, pen test findings, and security hardening work, marked with the `security` label. Security issues include items from penetration tests, vulnerability scans, and proactive security improvements. They are prioritized by severity and tracked alongside other work items on the product group board. If there are product changes, the issue is updated to use the [user story template](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md) and proposed changes are brought to the relevant product group's design review.
 
 > Product group boards do not accommodate any other type of ticket. By strictly adhering to these work items, we maintain an organized and focused workflow that consistently adds value for our users.
 

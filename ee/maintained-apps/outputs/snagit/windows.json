@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.2.2",
+      "version": "26.4.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Snagit 2026' AND publisher = 'TechSmith Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Snagit 2026' AND publisher = 'TechSmith Corporation' AND version_compare(version, '26.2.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Snagit 2026' AND publisher = 'TechSmith Corporation' AND version_compare(version, '26.4.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'snagit.exe');"
       },
-      "installer_url": "https://download.techsmith.com/snagit/releases/2622/snagit.msi",
+      "installer_url": "https://download.techsmith.com/snagit/releases/2640/snagit.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "f47949a4",
-      "sha256": "5121847ac6766983416578856adfe41abd84aa2b7d8e246f2d1e93fcac2cf44e",
+      "sha256": "b8a8223a5674b482fd7a582d634faff81287c3efa410718ecb45f0368a256dbb",
       "default_categories": [
         "Productivity"
       ],

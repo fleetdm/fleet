@@ -1,8 +1,8 @@
 import React from "react";
 
-import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 import Icon from "components/Icon";
 import { TableSchemaPlatform } from "interfaces/osquery_table";
+import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
 interface IPLatformListItemProps {
   platform: TableSchemaPlatform;

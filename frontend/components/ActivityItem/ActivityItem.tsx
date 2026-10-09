@@ -1,6 +1,8 @@
-import React from "react";
 import classnames from "classnames";
+import { noop } from "lodash";
+import React from "react";
 
+import FeedListItem from "components/FeedListItem";
 import {
   IActivity,
   IActivityDetails,
@@ -8,10 +10,6 @@ import {
   IHostUpcomingActivity,
 } from "interfaces/activity";
 import { addGravatarUrlToResource } from "utilities/helpers";
-
-import FeedListItem from "components/FeedListItem";
-
-import { noop } from "lodash";
 
 const baseClass = "activity-item";
 

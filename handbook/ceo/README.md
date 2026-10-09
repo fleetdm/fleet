@@ -255,7 +255,7 @@ It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use
 - Click the "hotdog" menu in the right-hand corner
 <img width="264" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/86948d02-a972-42ef-9a2d-1d93f24a1780">
 - `Delete recording`
-- Search for the title of the meeting Google Drive and delete the auto-generated Google Doc containing the transcript. 
+- Search for the title of the meeting in Google Drive and delete the auto-generated Google Doc containing the transcript. 
 - Always check back to ensure the recording **and** transcript were both deleted.
 
 

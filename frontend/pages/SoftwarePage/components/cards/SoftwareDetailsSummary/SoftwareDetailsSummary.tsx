@@ -4,35 +4,31 @@ software/versions/:id > Top section
 software/os/:id > Top section
 */
 
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
+import ActionsDropdown from "components/ActionsDropdown";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataSet from "components/DataSet";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import LastUpdatedHostCount from "components/LastUpdatedHostCount";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { IDropdownOption, TooltipContent } from "interfaces/dropdownOption";
-
-import { getPathWithQueryParams, QueryParams } from "utilities/url";
-import { getGitOpsModeTipContent } from "utilities/helpers";
-import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
-
-import paths from "router/paths";
 import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
   ROLLING_ARCH_LINUX_VERSIONS,
 } from "interfaces/software";
+import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
+import paths from "router/paths";
+import { getGitOpsModeTipContent } from "utilities/helpers";
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
-import useGitOpsMode from "hooks/useGitOpsMode";
-
-import DataSet from "components/DataSet";
-import LastUpdatedHostCount from "components/LastUpdatedHostCount";
-import Button from "components/buttons/Button";
-import ActionsDropdown from "components/ActionsDropdown";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import TooltipWrapper from "components/TooltipWrapper";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import CustomLink from "components/CustomLink";
-import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
-
-import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
+import SoftwareIcon from "../../icons/SoftwareIcon";
 
 export const ACTION_EDIT_APPEARANCE = "edit_appearance";
 export const ACTION_EDIT_SOFTWARE = "edit_software";

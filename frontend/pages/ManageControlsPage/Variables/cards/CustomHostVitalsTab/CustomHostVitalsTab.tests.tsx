@@ -1,17 +1,20 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
+import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
   createMockRouter,
   baseUrl,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
 
 import CustomHostVitalsTab, {
   CUSTOM_HOST_VITALS_PAGE_SIZE,
 } from "./CustomHostVitalsTab";
+
+// Table cells also render their text in a hidden truncation tooltip.
+const CELL_TEXT = { selector: ".data-table__tooltip-truncated-text" };
 
 // The tab filters server-side, so intercept GET /custom_host_vitals and return
 // the seeded vitals matching the `query` param — by name or the derived
@@ -99,9 +102,13 @@ describe("CustomHostVitalsTab - URL-persistent search", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Department")).toBeInTheDocument();
-      expect(screen.queryByText("Asset tag")).not.toBeInTheDocument();
-      expect(screen.queryByText("Purchase date")).not.toBeInTheDocument();
+      expect(screen.getByText("Department", CELL_TEXT)).toBeInTheDocument();
+      expect(
+        screen.queryByText("Asset tag", CELL_TEXT)
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Purchase date", CELL_TEXT)
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -111,8 +118,10 @@ describe("CustomHostVitalsTab - URL-persistent search", () => {
     render(<CustomHostVitalsTab {...props} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Department")).toBeInTheDocument();
-      expect(screen.queryByText("Asset tag")).not.toBeInTheDocument();
+      expect(screen.getByText("Department", CELL_TEXT)).toBeInTheDocument();
+      expect(
+        screen.queryByText("Asset tag", CELL_TEXT)
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -121,10 +130,13 @@ describe("CustomHostVitalsTab - URL-persistent search", () => {
     render(<CustomHostVitalsTab {...props} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Asset tag")).toBeInTheDocument();
-      expect(screen.getByText("Department")).toBeInTheDocument();
-      expect(screen.getByText("Purchase date")).toBeInTheDocument();
+      expect(screen.getByText("Asset tag", CELL_TEXT)).toBeInTheDocument();
+      expect(screen.getByText("Department", CELL_TEXT)).toBeInTheDocument();
+      expect(screen.getByText("Purchase date", CELL_TEXT)).toBeInTheDocument();
     });
+    expect(
+      screen.getByRole("columnheader", { name: "Variable" })
+    ).toBeInTheDocument();
 
     const searchInput = screen.getByPlaceholderText(
       "Search by name"
@@ -199,7 +211,7 @@ describe("CustomHostVitalsTab - server-side pagination and sort", () => {
     const props = makeProps();
     const { user } = render(<CustomHostVitalsTab {...props} />);
 
-    await screen.findByText("Vital 01");
+    await screen.findByText("Vital 01", CELL_TEXT);
     const nextButton = screen.getByRole("button", { name: /next/i });
     expect(nextButton).toBeEnabled();
 
@@ -208,5 +220,61 @@ describe("CustomHostVitalsTab - server-side pagination and sort", () => {
     expect(props.router.replace).toHaveBeenCalledWith(
       expect.stringContaining("page=1")
     );
+  });
+});
+
+describe("CustomHostVitalsTab - row actions", () => {
+  beforeEach(() => {
+    mockServer.use(customHostVitalsHandler);
+  });
+
+  it("shows the copy button but not edit/delete when user cannot edit", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: { isGlobalAdmin: false, isGlobalMaintainer: false } },
+    });
+    render(<CustomHostVitalsTab {...makeProps()} />);
+    await waitFor(() => {
+      expect(screen.getByText("Asset tag", CELL_TEXT)).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("button", { name: "Copy Asset tag" })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Edit Asset tag" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete Asset tag" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps copy enabled but disables edit/delete in GitOps mode", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          config: {
+            gitops: {
+              gitops_mode_enabled: true,
+              repository_url: "https://www.a.bc",
+            },
+          },
+        },
+      },
+    });
+    render(<CustomHostVitalsTab {...makeProps()} />);
+    await waitFor(() => {
+      expect(screen.getByText("Asset tag", CELL_TEXT)).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("button", { name: "Copy Asset tag" })
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Edit Asset tag" })
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Delete Asset tag" })
+    ).toBeDisabled();
   });
 });

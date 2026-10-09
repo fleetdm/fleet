@@ -1,6 +1,6 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
 import { createMockHostPastActivity } from "__mocks__/activityMock";
 import { ActivityType } from "interfaces/activity";
@@ -77,5 +77,48 @@ describe("InstalledSoftwareActivityItem", () => {
 
     expect(screen.getByText("Fleet")).toBeInTheDocument();
     expect(screen.queryByText("Some Admin")).not.toBeInTheDocument();
+  });
+
+  it("hides the Show details button when hideShowDetails is true", () => {
+    render(
+      <InstalledSoftwareActivityItem
+        activity={createInstallActivity()}
+        tab="past"
+        onShowDetails={noop}
+        hideShowDetails
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /show info/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the software_display_name override instead of the raw software_title", () => {
+    const activity = createMockHostPastActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Fleet",
+      fleet_initiated: true,
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        software_package: "Firefox.pkg",
+        host_display_name: "Test Host",
+        source: "apps",
+        status: "installed",
+        install_uuid: "uuid-123",
+      },
+    });
+
+    render(
+      <InstalledSoftwareActivityItem
+        activity={activity}
+        tab="past"
+        onShowDetails={noop}
+      />
+    );
+
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).not.toBeInTheDocument();
   });
 });

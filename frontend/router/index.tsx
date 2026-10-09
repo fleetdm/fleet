@@ -1,5 +1,5 @@
-import React, { FC, Suspense } from "react";
 import { noop } from "lodash";
+import React, { FC, Suspense } from "react";
 import {
   QueryClient,
   QueryClientProvider,
@@ -17,43 +17,42 @@ import {
 } from "react-router";
 
 import App from "components/App";
+import EmailTokenRedirect from "components/EmailTokenRedirect";
 import Spinner from "components/Spinner";
+import AppProvider from "context/app";
+import RoutingProvider from "context/routing";
+import CoreLayout from "layouts/CoreLayout";
+import ErrorPageLayout from "layouts/ErrorPageLayout";
+import GatedLayout from "layouts/GatedLayout";
+import AccountPage from "pages/AccountPage";
+import ApiOnlyUser from "pages/ApiOnlyUser";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
-import MfaPage from "pages/MfaPage";
-import CoreLayout from "layouts/CoreLayout";
+import DeviceNotificationPage from "pages/DeviceNotificationPage";
 import DeviceUserSSOErrorPage from "pages/DeviceUserSSOErrorPage";
-import EmailTokenRedirect from "components/EmailTokenRedirect";
+import Fleet403 from "pages/errors/Fleet403";
+import Fleet404 from "pages/errors/Fleet404";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
-import GatedLayout from "layouts/GatedLayout";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
+import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
+import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
+import MfaPage from "pages/MfaPage";
 import NoAccessPage from "pages/NoAccessPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
-import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
-import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
-import ApiOnlyUser from "pages/ApiOnlyUser";
-import Fleet403 from "pages/errors/Fleet403";
-import Fleet404 from "pages/errors/Fleet404";
-import ErrorPageLayout from "layouts/ErrorPageLayout";
-import AccountPage from "pages/AccountPage";
-
 import PATHS from "router/paths";
 
-import AppProvider from "context/app";
-import RoutingProvider from "context/routing";
-
-import AuthGlobalAdminRoutes from "./components/AuthGlobalAdminRoutes";
 import AuthAnyAdminRoutes from "./components/AuthAnyAdminRoutes";
-import AuthenticatedRoutes from "./components/AuthenticatedRoutes";
-import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
-import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
-import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
 import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
 import AuthAnyMaintainerAdminTechnicianRoutes from "./components/AuthAnyMaintainerAdminTechnicianRoutes/AuthAnyMaintainerAdminTechnicianRoutes";
-import PremiumRoutes from "./components/PremiumRoutes";
+import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
+import AuthenticatedRoutes from "./components/AuthenticatedRoutes";
+import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
+import AuthGlobalAdminRoutes from "./components/AuthGlobalAdminRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
+import PremiumRoutes from "./components/PremiumRoutes";
+import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
 
 const CHUNK_RELOAD_KEY = "fleet:chunk-reload";
 
@@ -216,6 +215,12 @@ const LazyScriptBatchDetailsPage = lazyPage(
   () =>
     import(
       /* webpackChunkName: "controls" */ "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage"
+    )
+);
+const LazyProfileFormPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "controls" */ "pages/ManageControlsPage/OSSettings/cards/ConfigurationProfiles/ProfileFormPage"
     )
 );
 const LazySoftwarePage = lazyPage(
@@ -389,6 +394,12 @@ const LazyAndroidMdmPage = lazyPage(
   () =>
     import(
       /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage"
+    )
+);
+const LazyAndroidZeroTouchPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidZeroTouchPage"
     )
 );
 const LazyWindowsEnrollmentPage = lazyPage(
@@ -568,6 +579,10 @@ const routes = (
               path="integrations/mdm/android"
               component={LazyAndroidMdmPage}
             />
+            <Route
+              path="integrations/mdm/android-zero-touch"
+              component={LazyAndroidZeroTouchPage}
+            />
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect
               from="integrations/automatic-enrollment/apple"
@@ -657,6 +672,18 @@ const routes = (
             />
           </Route>
           <Route component={ExcludeInSandboxRoutes}>
+            {/* Before the controls group, whose os-settings/:section/:platform
+                route would otherwise match these. */}
+            <Route component={AuthAnyMaintainerAdminTechnicianRoutes}>
+              <Route
+                path="controls/os-settings/configuration-profiles/new"
+                component={LazyProfileFormPage}
+              />
+              <Route
+                path="controls/os-settings/configuration-profiles/:profile_uuid"
+                component={LazyProfileFormPage}
+              />
+            </Route>
             <Route
               path="controls"
               component={AuthAnyMaintainerAdminTechnicianRoutes}
@@ -805,7 +832,14 @@ const routes = (
         </Route>
       </Route>
       <Route path="device">
-        <IndexRedirect to=":device_auth_token" />
+        <IndexRedirect to={PATHS.FLEET_404} />
+        {/* Standalone toast route — kept outside the DeviceUserPage wrapper so
+        the Fleet Desktop notification window doesn't inherit the My device
+        header, nav, or chrome. */}
+        <Route
+          path=":device_auth_token/notifications/:notification_uuid"
+          component={DeviceNotificationPage}
+        />
         <Route path="sso-error" component={DeviceUserSSOErrorPage} />
         <Route component={LazyDeviceUserPage}>
           <Route path=":device_auth_token" component={LazyDeviceUserPage}>

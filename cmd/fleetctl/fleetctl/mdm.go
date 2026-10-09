@@ -38,7 +38,7 @@ func mdmRunCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "run-command",
 		Aliases: []string{"run_command"},
-		Usage:   "Run a custom MDM command on macOS, Windows, and Android hosts.",
+		Usage:   "Run a custom MDM command on Apple (macOS, iOS, iPadOS), Windows, and Android hosts.",
 		Flags: []cli.Flag{
 			contextFlag(),
 			debugFlag(),
@@ -49,7 +49,7 @@ func mdmRunCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     "payload",
-				Usage:    "A path to a file containing the raw MDM request payload (XML for macOS/Windows, JSON for Android).",
+				Usage:    "A path to a file containing the raw MDM request payload (XML for Apple/Windows, JSON for Android).",
 				Required: true,
 			},
 		},
@@ -117,7 +117,7 @@ func mdmRunCommand() *cli.Command {
 					mdmHostPlatform = "android"
 				}
 				if mdmHostPlatform != mdmPlatform && mdmPlatform != "" {
-					return errors.New(`Command can't run on hosts with different platforms. Make sure the hosts specified in the "hosts" flag are either all macOS, all Windows, or all Android hosts.`)
+					return errors.New(`Command can't run on hosts with different platforms. Make sure the hosts specified in the "hosts" flag are either all Apple, all Windows, or all Android hosts.`)
 				}
 				mdmPlatform = mdmHostPlatform
 

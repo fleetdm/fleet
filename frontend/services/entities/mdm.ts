@@ -1,3 +1,5 @@
+import { ResponseType as AxiosResponseType } from "axios";
+
 import {
   EndUserLocalAccountType,
   IBootstrapPackageAggregate,
@@ -7,16 +9,15 @@ import {
   IMdmSSOResponse,
   MdmProfileStatus,
 } from "interfaces/mdm";
-import { API_NO_TEAM_ID } from "interfaces/team";
-import { ISoftwareTitle } from "interfaces/software";
 import { SetupExperiencePlatform } from "interfaces/platform";
-
-import sendRequest from "services";
+import { ISoftwareTitle } from "interfaces/software";
+import { API_NO_TEAM_ID } from "interfaces/team";
+import sendRequest, { uploadToStorage } from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
-import { ISoftwareTitlesResponse } from "./software";
 import { PaginationParams } from "./common";
+import { ISoftwareTitlesResponse } from "./software";
 
 export interface IEulaMetadataResponse {
   name: string;
@@ -43,9 +44,14 @@ export interface IMdmProfilesResponse {
 export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
+  /** Omit to let the server derive the name from the file. */
+  name?: string;
+  description?: string;
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
+  selfService?: boolean;
+  hidden?: boolean;
 }
 
 export interface IUpdateProfileApiParams {
@@ -53,9 +59,16 @@ export interface IUpdateProfileApiParams {
   /** replacement profile contents. Omit to keep the current contents and only
    * update label targeting. */
   profile?: File;
+  /** Omit to keep the current name; a replacement file never renames. */
+  name?: string;
+  /** Omit to keep the current description; an empty string clears it. */
+  description?: string;
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
+  /** Omit to keep the current deploy mode. */
+  selfService?: boolean;
+  hidden?: boolean;
 }
 
 export interface IGetAssetsApiParams {
@@ -166,9 +179,13 @@ const mdmService = {
   uploadProfile: ({
     file,
     teamId,
+    name,
+    description,
     labelsIncludeAll,
     labelsIncludeAny,
     labelsExcludeAny,
+    selfService,
+    hidden,
   }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
 
@@ -177,6 +194,12 @@ const mdmService = {
 
     if (teamId) {
       formData.append("fleet_id", teamId.toString());
+    }
+    if (name !== undefined) {
+      formData.append("name", name);
+    }
+    if (description !== undefined) {
+      formData.append("description", description);
     }
 
     labelsIncludeAll?.forEach((label) => {
@@ -190,6 +213,13 @@ const mdmService = {
     labelsExcludeAny?.forEach((label) => {
       formData.append("labels_exclude_any", label);
     });
+
+    if (selfService !== undefined) {
+      formData.append("self_service", String(selfService));
+    }
+    if (hidden !== undefined) {
+      formData.append("hidden", String(hidden));
+    }
 
     return sendRequest("POST", MDM_PROFILES, formData);
   },
@@ -200,9 +230,13 @@ const mdmService = {
   updateProfile: ({
     profileUUID,
     profile,
+    name,
+    description,
     labelsIncludeAll,
     labelsIncludeAny,
     labelsExcludeAny,
+    selfService,
+    hidden,
   }: IUpdateProfileApiParams) => {
     const { CONFIG_PROFILE } = endpoints;
 
@@ -210,6 +244,12 @@ const mdmService = {
 
     if (profile) {
       formData.append("profile", profile);
+    }
+    if (name !== undefined) {
+      formData.append("name", name);
+    }
+    if (description !== undefined) {
+      formData.append("description", description);
     }
 
     labelsIncludeAll?.forEach((label) => {
@@ -224,15 +264,25 @@ const mdmService = {
       formData.append("labels_exclude_any", label);
     });
 
+    if (selfService !== undefined) {
+      formData.append("self_service", String(selfService));
+    }
+    if (hidden !== undefined) {
+      formData.append("hidden", String(hidden));
+    }
+
     return sendRequest("PATCH", CONFIG_PROFILE(profileUUID), formData);
   },
 
-  downloadProfile: (profileId: string) => {
+  downloadProfile: (
+    profileId: string,
+    responseType: AxiosResponseType = "json"
+  ) => {
     const { MDM_PROFILE } = endpoints;
     const path = `${MDM_PROFILE(profileId)}?${buildQueryStringFromParams({
       alt: "media",
     })}`;
-    return sendRequest("GET", path);
+    return sendRequest("GET", path, undefined, responseType);
   },
 
   deleteProfile: (profileId: string) => {
@@ -301,11 +351,23 @@ const mdmService = {
     return sendRequest("GET", MDM_BOOTSTRAP_PACKAGE_METADATA(teamId));
   },
 
-  uploadBootstrapPackage: (file: File, teamId?: number) => {
+  uploadBootstrapPackage: async (
+    file: File,
+    teamId?: number,
+    directUpload = false
+  ) => {
     const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
 
     const formData = new FormData();
-    formData.append("package", file);
+    if (directUpload) {
+      formData.append(
+        "upload_id",
+        await uploadToStorage({ target: "bootstrap_package", file, teamId })
+      );
+      formData.append("filename", file.name);
+    } else {
+      formData.append("package", file);
+    }
 
     if (teamId) {
       formData.append("fleet_id", teamId.toString());

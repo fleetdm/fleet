@@ -1,14 +1,12 @@
 import React, { useState } from "react";
 
+import { notify } from "components/ToastNotification";
+import SettingsSection from "pages/admin/components/SettingsSection";
 import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
 
-import { notify } from "components/ToastNotification";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
-
+import DeleteEulaModal from "./components/DeleteEulaModal/DeleteEulaModal";
 import EulaUploader from "./components/EulaUploader/EulaUploader";
 import UploadedEulaView from "./components/UploadedEulaView/UploadedEulaView";
-import DeleteEulaModal from "./components/DeleteEulaModal/DeleteEulaModal";
 
 const baseClass = "eula-section";
 

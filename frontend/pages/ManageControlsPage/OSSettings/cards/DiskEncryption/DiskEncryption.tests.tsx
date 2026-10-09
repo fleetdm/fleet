@@ -1,24 +1,27 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
+import React from "react";
 
-import PATHS from "router/paths";
+import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
+import createMockTeam from "__mocks__/teamMock";
 import { IMdmConfig } from "interfaces/config";
+import { ILabelSummary } from "interfaces/label";
 import { DiskEncryptionSettingsPlatform } from "interfaces/platform";
-import { getPathWithQueryParams } from "utilities/url";
+import PATHS from "router/paths";
+import { createGetConfigHandler } from "test/handlers/config-handlers";
+import {
+  createGetDiskEncryptionSummaryHandler,
+  createUpdateDiskEncryptionHandler,
+} from "test/handlers/disk-encryption-handlers";
+import { getLabelsSummaryHandler } from "test/handlers/label-handlers";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   createMockRouter,
 } from "test/test-utils";
-import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
-import createMockTeam from "__mocks__/teamMock";
-import { createGetConfigHandler } from "test/handlers/config-handlers";
-import {
-  createGetDiskEncryptionSummaryHandler,
-  createUpdateDiskEncryptionHandler,
-} from "test/handlers/disk-encryption-handlers";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import DiskEncryption from "./DiskEncryption";
 
@@ -128,6 +131,14 @@ const findPINCheckbox = () =>
   screen.findByRole("checkbox", { name: "Require BitLocker PIN" });
 
 describe("DiskEncryption", () => {
+  // the status table always requests the labels summary; a default empty
+  // response keeps tests that don't care about it from hitting unhandled
+  // requests. Tests that do care re-register the handler, which takes
+  // precedence over this one.
+  beforeEach(() => {
+    mockServer.use(getLabelsSummaryHandler([]));
+  });
+
   it("renders the premium feature message for free tier", () => {
     renderDiskEncryption({ teamId: 0, isPremiumTier: false });
 
@@ -447,33 +458,36 @@ describe("DiskEncryption", () => {
     [
       "macos",
       { enabled_and_configured: false },
-      "To make changes, first turn on Apple MDM.",
+      /You must turn on Apple MDM/,
+      `${LEARN_MORE_ABOUT_BASE_LINK}/turn-on-apple-mdm`,
     ],
     [
       "windows",
       { windows_enabled_and_configured: false },
-      "To make changes, first turn on Windows MDM.",
+      /You must turn on Windows MDM/,
+      `${LEARN_MORE_ABOUT_BASE_LINK}/setup-windows-mdm`,
     ],
   ] as const)(
-    "disables the %s tab and explains why when its MDM is turned off",
-    async (platform, mdm, tooltip) => {
+    "shows an empty state instead of the form on the %s tab when its MDM is turned off",
+    async (platform, mdm, infoText, learnMoreUrl) => {
       mockServer.use(createGetTeamHandler());
       mockServer.use(createGetDiskEncryptionSummaryHandler());
-      const { user } = renderDiskEncryption({
+      renderDiskEncryption({
         urlPlatformParam: platform,
         mdm,
+        gitOpsModeEnabled: true,
       });
 
-      const checkboxes = await screen.findAllByRole("checkbox");
-      checkboxes.forEach((checkbox) => {
-        expect(checkbox).toHaveAttribute("aria-disabled", "true");
-      });
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      expect(
+        await screen.findByText("Turn on MDM to enforce disk encryption")
+      ).toBeInTheDocument();
+      expect(screen.getByText(infoText)).toBeInTheDocument();
+      const link = screen.getByRole("link", { name: "Learn more" });
+      expect(link).toHaveAttribute("href", learnMoreUrl);
+      expect(link).toHaveAttribute("target", "_blank");
 
-      await user.hover(checkboxes[0]);
-      await waitFor(() => {
-        expect(screen.getByText(tooltip)).toBeInTheDocument();
-      });
+      expect(screen.queryByRole("checkbox")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
     }
   );
 
@@ -518,5 +532,52 @@ describe("DiskEncryption", () => {
 
     renderDiskEncryption({ urlPlatformParam: "windows" });
     expect(await screen.findByText("Verified")).toBeInTheDocument();
+  });
+
+  const BUILTIN_PLATFORM_LABELS: ILabelSummary[] = [
+    { id: 6, name: "macOS", label_type: "builtin" },
+    { id: 10, name: "MS Windows", label_type: "builtin" },
+    { id: 12, name: "All Linux", label_type: "builtin" },
+  ];
+
+  it.each([
+    ["macos", 6, { macOSEnabled: true }],
+    ["windows", 10, { windowsEnabled: true }],
+    ["linux", 12, { linuxEscrowEnabled: true }],
+  ] as const)(
+    "links a status row on the %s tab to that platform's built-in label with the status filter",
+    async (platform, labelId, teamSettings) => {
+      mockServer.use(createGetTeamHandler(teamSettings));
+      mockServer.use(createGetDiskEncryptionSummaryHandler());
+      mockServer.use(getLabelsSummaryHandler(BUILTIN_PLATFORM_LABELS));
+      const { user, router } = renderDiskEncryption({
+        urlPlatformParam: platform,
+      });
+
+      await user.click(await screen.findByText("Verified"));
+
+      expect(router.push).toHaveBeenCalledWith(
+        getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(labelId), {
+          os_settings_disk_encryption: "verified",
+          fleet_id: 1,
+        })
+      );
+    }
+  );
+
+  it("links a status row to the unfiltered hosts page when the platform label is missing", async () => {
+    mockServer.use(createGetTeamHandler({ macOSEnabled: true }));
+    mockServer.use(createGetDiskEncryptionSummaryHandler());
+    mockServer.use(getLabelsSummaryHandler([]));
+    const { user, router } = renderDiskEncryption();
+
+    await user.click(await screen.findByText("Verified"));
+
+    expect(router.push).toHaveBeenCalledWith(
+      getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+        os_settings_disk_encryption: "verified",
+        fleet_id: 1,
+      })
+    );
   });
 });

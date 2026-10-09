@@ -1,6 +1,7 @@
 import React from "react";
-import { PackageType } from "interfaces/package_type";
+
 import TooltipWrapper from "components/TooltipWrapper";
+import { PackageType } from "interfaces/package_type";
 
 type IPlatformDisplayName =
   | "macOS"

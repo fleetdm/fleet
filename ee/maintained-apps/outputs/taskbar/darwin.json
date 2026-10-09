@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.6.1",
+      "version": "1.6.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.fpfxtknjju.wbgcdolfev';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.fpfxtknjju.wbgcdolfev' AND version_compare(bundle_short_version, '1.6.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.fpfxtknjju.wbgcdolfev' AND version_compare(bundle_short_version, '1.6.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.fpfxtknjju.wbgcdolfev' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://lawand.io/wp-content/uploads/2026/05/taskbar-1.6.1.zip",
+      "installer_url": "https://lawand.io/wp-content/uploads/2026/09/taskbar-1.6.3.zip",
       "install_script_ref": "454970ba",
       "uninstall_script_ref": "6a449e87",
-      "sha256": "86cd42b1c58063f53cb7b2ab4a73d4256da120ab01b229aef7098af39a9e236b",
+      "sha256": "6754d2b90b9201685fb6bcb978c96274e626fbda91446b70ed361d29048ebb01",
       "default_categories": [
         "Productivity"
       ]

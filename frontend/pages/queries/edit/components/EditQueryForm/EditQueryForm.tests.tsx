@@ -1,18 +1,17 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import React from "react";
 
-import { screen, waitFor, within } from "@testing-library/react";
+import createMockConfig from "__mocks__/configMock";
+import createMockQuery from "__mocks__/queryMock";
+import createMockUser from "__mocks__/userMock";
+import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
   createMockRouter,
   createMockLocation,
 } from "test/test-utils";
-import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
-import userEvent from "@testing-library/user-event";
-
-import createMockQuery from "__mocks__/queryMock";
-import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
 
 import EditQueryForm from "./EditQueryForm";
 
@@ -245,7 +244,7 @@ describe("EditQueryForm - component", () => {
 
     expect(
       await screen.findByText(
-        /live reports are disabled in organization settings/i
+        /live reports are disabled in organization settings\./i
       )
     ).toBeInTheDocument();
   });

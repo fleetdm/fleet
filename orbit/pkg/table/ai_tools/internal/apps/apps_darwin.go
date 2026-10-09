@@ -3,6 +3,7 @@
 package apps
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,9 +50,9 @@ func scanApps(homesList []homes.Home) []App {
 			}
 			out = append(out, App{
 				Name:           k.name,
-				DisplayName:    firstNonEmpty(info.BundleName, strings.TrimSuffix(e.Name(), ".app")),
+				DisplayName:    cmp.Or(info.BundleName, strings.TrimSuffix(e.Name(), ".app")),
 				BundleID:       info.BundleID,
-				Version:        firstNonEmpty(info.ShortVersion, info.BundleVersion),
+				Version:        cmp.Or(info.ShortVersion, info.BundleVersion),
 				Path:           appPath,
 				PlatformSource: "applications",
 				Scope:          scope,

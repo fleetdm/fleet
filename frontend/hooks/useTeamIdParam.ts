@@ -1,6 +1,6 @@
+import { findLastIndex, sortBy, trimStart } from "lodash";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { InjectedRouter } from "react-router";
-import { findLastIndex, sortBy, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
@@ -62,7 +62,7 @@ const splitQueryStringParts = (queryString: string) =>
 const joinQueryStringParts = (parts: string[]) =>
   parts.length ? `?${parts.join("&")}` : "";
 
-const rebuildQueryStringWithTeamId = (
+export const rebuildQueryStringWithTeamId = (
   queryString: string,
   newTeamId: number,
   curTeamId: number | undefined,
@@ -522,7 +522,7 @@ export const useTeamIdParam = ({
       !!currentTeam?.id &&
       permissions.isTeamObserver(currentUser, currentTeam.id),
     isObserverPlus:
-      !!currentTeam?.id &&
+      currentTeam?.id !== undefined &&
       !!currentUser &&
       permissions.isObserverPlus(currentUser, currentTeam.id),
     teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }), // for everywhere except AppContext: fleet_id=0 for No team (same as currentTeamId), undefined for All teams

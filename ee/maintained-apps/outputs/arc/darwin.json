@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.162.0",
+      "version": "1.168.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser' AND version_compare(bundle_short_version, '1.162.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'company.thebrowser.Browser' AND a.bundle_executable != '');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser' AND version_compare(bundle_short_version, '1.168.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%/', a.bundle_identifier, '.code_sign_clone/%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = 'company.thebrowser.Browser' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://releases.arc.net/release/Arc-1.162.0-86046.zip",
+      "installer_url": "https://releases.arc.net/release/Arc-1.168.0-88413.zip",
       "install_script_ref": "cbf109ae",
       "uninstall_script_ref": "a19b04fa",
-      "sha256": "d8f4299200c16bde5c0f413976fb92397613706eb6fff855d02dcd9e9c3f1aa1",
+      "sha256": "1af32431ebbdd2c5065c8bed5f06c5c5af9bd62d01e00927782810cc5fdcb1c5",
       "default_categories": [
         "Browsers"
       ]

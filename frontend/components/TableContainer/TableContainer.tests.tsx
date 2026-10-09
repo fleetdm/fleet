@@ -1,5 +1,5 @@
-import React, { useState } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
+import React, { useState } from "react";
 
 import TableContainer, { ITableQueryData } from "./TableContainer";
 
@@ -170,5 +170,74 @@ describe("TableContainer - server-side empty page", () => {
     );
     expect(requestedPageIndexes).not.toContain(2);
     expect(requestedPageIndexes).not.toContain(1);
+  });
+});
+
+describe("TableContainer - multi-column filter no-match overlay", () => {
+  it("renders the overlay message and keeps the real header when a client filter yields zero rows", async () => {
+    render(
+      <TableContainer
+        columnConfigs={COLUMN_CONFIGS}
+        data={[{ name: "alpha" }, { name: "beta" }]}
+        isLoading={false}
+        emptyComponent={EmptyComponent}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        isClientSideFilter
+        isMultiColumnFilter
+        filters={{ name: "zzz-no-match" }}
+        defaultSortHeader="name"
+      />
+    );
+
+    expect(
+      await screen.findByText("No items match the current search criteria")
+    ).toBeInTheDocument();
+    // The real header must still render so the per-column filter inputs stay
+    // reachable — that's the whole reason isMultiColumnFilter exists.
+    expect(screen.getByText("Name")).toBeInTheDocument();
+    // The standard empty component must not fire in this path.
+    expect(screen.queryByText("No items found")).not.toBeInTheDocument();
+  });
+
+  it("does not flash the overlay on the initial empty render before data arrives", () => {
+    render(
+      <TableContainer
+        columnConfigs={COLUMN_CONFIGS}
+        data={[]}
+        isLoading={false}
+        emptyComponent={EmptyComponent}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        isClientSideFilter
+        isMultiColumnFilter
+        defaultSortHeader="name"
+      />
+    );
+
+    // Zero data with no filter applied is a pre-data state, not a no-match
+    // state. The overlay must stay hidden so it doesn't flash on first load.
+    expect(
+      screen.queryByText("No items match the current search criteria")
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not render the overlay message when isMultiColumnFilter is unset", () => {
+    render(
+      <TableContainer
+        columnConfigs={COLUMN_CONFIGS}
+        data={[]}
+        isLoading={false}
+        emptyComponent={EmptyComponent}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        defaultSortHeader="name"
+      />
+    );
+
+    expect(
+      screen.queryByText("No items match the current search criteria")
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("No items found")).toBeInTheDocument();
   });
 });

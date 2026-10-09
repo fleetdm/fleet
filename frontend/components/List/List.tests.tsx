@@ -1,6 +1,7 @@
 // components/__tests__/List.test.tsx
-import React from "react";
+
 import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
 
 import List, { IListProps } from "./List";
 

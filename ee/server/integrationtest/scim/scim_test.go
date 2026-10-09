@@ -30,7 +30,7 @@ func TestSCIM(t *testing.T) {
 		{"Users", testUsersBasicCRUD},
 		{"Groups", testGroupsBasicCRUD},
 		{"CreateUser", testCreateUser},
-		{"CreateUserAssociatesAllMatchingHosts", testCreateUserAssociatesAllMatchingHosts},
+		{"HostIdPAssociationAndRename", testHostIdPAssociationAndRename},
 		{"CreateGroup", testCreateGroup},
 		{"UpdateUser", testUpdateUser},
 		{"DeactivationDeprovisionsMutatedUser", testDeactivationDeprovisionsMutatedUser},
@@ -43,6 +43,7 @@ func TestSCIM(t *testing.T) {
 		{"PatchGroupAttributes", testPatchGroupAttributes},
 		{"PatchGroupMembers", testPatchGroupMembers},
 		{"NestedGroups", testNestedGroups},
+		{"UnknownGroupMembers", testUnknownGroupMembers},
 		{"UsersPagination", testUsersPagination},
 		{"GroupsPagination", testGroupsPagination},
 		{"UsersAndGroups", testUsersAndGroups},
@@ -1264,7 +1265,7 @@ func testCreateUser(t *testing.T, s *Suite) {
 // API, that provisioning a user links every host whose MDM IdP account matches the
 // user — not just the first. This is the integration-level counterpart to the
 // datastore regression test for the multi-host reverse-linker fix.
-func testCreateUserAssociatesAllMatchingHosts(t *testing.T, s *Suite) {
+func testHostIdPAssociationAndRename(t *testing.T, s *Suite) {
 	ctx := t.Context()
 
 	// Two hosts belonging to the same person, both authenticated via the same IdP account.
@@ -1277,6 +1278,7 @@ func testCreateUserAssociatesAllMatchingHosts(t *testing.T, s *Suite) {
 		mysqltest.TruncateTables(t, s.DS,
 			"host_mdm_idp_accounts",
 			"mdm_idp_accounts",
+			"host_emails",
 			"host_seen_times",
 			"host_display_names",
 			"hosts",
@@ -1290,8 +1292,10 @@ func testCreateUserAssociatesAllMatchingHosts(t *testing.T, s *Suite) {
 		Fullname: "SCIM Multi",
 		Email:    userName,
 	}))
-	require.NoError(t, s.DS.AssociateHostMDMIdPAccount(ctx, host1.UUID, idpUUID))
-	require.NoError(t, s.DS.AssociateHostMDMIdPAccount(ctx, host2.UUID, idpUUID))
+	_, err := s.DS.AssociateHostMDMIdPAccount(ctx, host1.UUID, idpUUID)
+	require.NoError(t, err)
+	_, err = s.DS.AssociateHostMDMIdPAccount(ctx, host2.UUID, idpUUID)
+	require.NoError(t, err)
 
 	// Provision the user through the SCIM API, as an IdP would.
 	createPayload := map[string]any{
@@ -1306,8 +1310,11 @@ func testCreateUserAssociatesAllMatchingHosts(t *testing.T, s *Suite) {
 		},
 		"active": true,
 	}
-	var createResp map[string]any
+	var createResp struct {
+		ID string `json:"id"`
+	}
 	s.DoJSON(t, "POST", scimPath("/Users"), createPayload, http.StatusCreated, &createResp)
+	require.NotEmpty(t, createResp.ID)
 
 	// Both hosts must expose the user's IdP host vitals through the host detail API.
 	for _, hostID := range []uint{host1.ID, host2.ID} {
@@ -1321,6 +1328,92 @@ func testCreateUserAssociatesAllMatchingHosts(t *testing.T, s *Suite) {
 		assert.Equal(t, userName, resp.Host.EndUsers[0].IdpUserName, "host %d idp_username", hostID)
 		assert.Equal(t, "SCIM Multi", resp.Host.EndUsers[0].IdpFullName, "host %d idp_full_name", hostID)
 	}
+
+	// Every surface that reports the host's IdP identity must give the same answer:
+	// the single-host endpoints, the hosts list, and host search.
+	requireHostsReport := func(t *testing.T, want string) {
+		t.Helper()
+		for _, hostID := range []uint{host1.ID, host2.ID} {
+			var detail struct {
+				Host struct {
+					EndUsers []fleet.HostEndUser `json:"end_users"`
+				} `json:"host"`
+			}
+			s.DoJSON(t, "GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &detail)
+			require.Len(t, detail.Host.EndUsers, 1, "host %d", hostID)
+			assert.Equal(t, want, detail.Host.EndUsers[0].IdpUserName, "host %d GET /hosts/:id", hostID)
+
+			var mapping struct {
+				DeviceMapping []fleet.HostDeviceMapping `json:"device_mapping"`
+			}
+			s.DoJSON(t, "GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hostID), nil, http.StatusOK, &mapping)
+			require.Len(t, mapping.DeviceMapping, 1, "host %d", hostID)
+			assert.Equal(t, want, mapping.DeviceMapping[0].Email, "host %d GET /hosts/:id/device_mapping", hostID)
+			assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mapping.DeviceMapping[0].Source, "host %d", hostID)
+		}
+
+		var list struct {
+			Hosts []struct {
+				ID            uint             `json:"id"`
+				DeviceMapping *json.RawMessage `json:"device_mapping"`
+			} `json:"hosts"`
+		}
+		s.DoJSON(t, "GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &list, "device_mapping", "true")
+		var seen int
+		for _, h := range list.Hosts {
+			if h.ID != host1.ID && h.ID != host2.ID {
+				continue
+			}
+			seen++
+			require.NotNil(t, h.DeviceMapping, "host %d device_mapping", h.ID)
+			var mapped []fleet.HostDeviceMapping
+			require.NoError(t, json.Unmarshal(*h.DeviceMapping, &mapped))
+			require.Len(t, mapped, 1, "host %d", h.ID)
+			assert.Equal(t, want, mapped[0].Email, "host %d GET /hosts device_mapping", h.ID)
+		}
+		require.Equal(t, 2, seen, "both hosts should be listed")
+
+		var search struct {
+			Hosts []struct {
+				ID uint `json:"id"`
+			} `json:"hosts"`
+		}
+		s.DoJSON(t, "GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &search, "query", want)
+		require.Len(t, search.Hosts, 2, "both hosts should be searchable by %q", want)
+	}
+
+	requireHostsReport(t, userName)
+
+	// An IdP rename has to reach the device mapping, or GET /hosts and
+	// GET /hosts/:id report different identities for the same host. Okta sends a
+	// PUT, Entra sends a PATCH; both must land.
+	const putName = "scim.multi.put@example.com"
+	createPayload["userName"] = putName
+	createPayload["emails"] = []map[string]any{{"value": putName, "type": "work", "primary": true}}
+	var putResp map[string]any
+	s.DoJSON(t, "PUT", scimPath("/Users/"+createResp.ID), createPayload, http.StatusOK, &putResp)
+	assert.Equal(t, putName, putResp["userName"])
+	requireHostsReport(t, putName)
+
+	const patchName = "scim.multi.patch@example.com"
+	var patchResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+createResp.ID), map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "userName", "value": patchName},
+		},
+	}, http.StatusOK, &patchResp)
+	assert.Equal(t, patchName, patchResp["userName"])
+	requireHostsReport(t, patchName)
+
+	// and the pre-rename address stops matching anything
+	var stale struct {
+		Hosts []struct {
+			ID uint `json:"id"`
+		} `json:"hosts"`
+	}
+	s.DoJSON(t, "GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &stale, "query", userName)
+	require.Empty(t, stale.Hosts, "hosts still searchable by the pre-rename address")
 }
 
 func testUpdateUser(t *testing.T, s *Suite) {
@@ -4520,7 +4613,27 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 
 		var errorResp map[string]interface{}
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), nonExistentMemberPayload, http.StatusBadRequest, &errorResp)
+		require.Equal(t, "Bad Request. Invalid parameter provided in request: 4294967295.", errorResp["detail"])
+	})
+
+	t.Run("Non-existent member ID in a replace", func(t *testing.T) {
+		errorResp := patchGroup(t, s, groupID, http.StatusBadRequest, map[string]any{
+			"op":    "replace",
+			"path":  "members",
+			"value": []map[string]any{{"value": "4294967295"}},
+		})
 		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for non-existent member ID")
+	})
+
+	t.Run("Patched attributes are persisted", func(t *testing.T) {
+		patchGroup(t, s, groupID, http.StatusOK,
+			map[string]any{"op": "replace", "path": "displayName", "value": "Persisted Group Name"},
+			map[string]any{"op": "replace", "path": "externalId", "value": "persisted-external-id"},
+		)
+
+		got := getGroup(t, s, groupID)
+		assert.Equal(t, "Persisted Group Name", got["displayName"], "displayName should be persisted")
+		assert.Equal(t, "persisted-external-id", got["externalId"], "externalId should be persisted")
 	})
 }
 
@@ -4854,10 +4967,139 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should have 1 member")
 	})
+
+	t.Run("Member changes are persisted and leave other members alone", func(t *testing.T) {
+		member := func(id string) map[string]any { return map[string]any{"value": id} }
+
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "replace", "path": "members",
+			"value": []map[string]any{member(userIDs[0]), member(userIDs[1])},
+		})
+		require.ElementsMatch(t, []string{userIDs[0], userIDs[1]}, groupMemberValues(t, s, groupID),
+			"replace should be persisted")
+
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "add", "path": "members", "value": []map[string]any{member(userIDs[2])},
+		})
+		require.ElementsMatch(t, userIDs, groupMemberValues(t, s, groupID),
+			"adding a member must not drop the members the request never mentioned")
+
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "replace", "path": "displayName", "value": "Renamed Patch Members Group",
+		})
+		require.ElementsMatch(t, userIDs, groupMemberValues(t, s, groupID),
+			"a displayName-only patch must not touch membership")
+	})
+
+	t.Run("Unfiltered remove with a value removes only the named member", func(t *testing.T) {
+		member := func(id string) map[string]any { return map[string]any{"value": id} }
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "replace", "path": "members",
+			"value": []map[string]any{member(userIDs[0]), member(userIDs[1]), member(userIDs[2])},
+		})
+
+		// The form Entra ID sends to remove a single member.
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "remove", "path": "members",
+			"value": []map[string]any{member(userIDs[0])},
+		})
+		require.ElementsMatch(t, []string{userIDs[1], userIDs[2]}, groupMemberValues(t, s, groupID),
+			"removing one member must not remove the others")
+	})
+}
+
+func patchGroup(t *testing.T, s *Suite, groupID string, expectedStatus int, ops ...map[string]any) map[string]any {
+	t.Helper()
+	var resp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), map[string]any{
+		"schemas":    []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": ops,
+	}, expectedStatus, &resp)
+	return resp
+}
+
+func getGroup(t *testing.T, s *Suite, groupID string) map[string]any {
+	t.Helper()
+	var resp map[string]any
+	s.DoJSON(t, "GET", scimPath("/Groups/"+groupID), nil, http.StatusOK, &resp)
+	return resp
+}
+
+func groupMemberValues(t *testing.T, s *Suite, groupID string) []string {
+	t.Helper()
+	raw, _ := getGroup(t, s, groupID)["members"].([]any)
+	values := make([]string, 0, len(raw))
+	for _, m := range raw {
+		member, ok := m.(map[string]any)
+		require.True(t, ok, "member should be an object")
+		values = append(values, member["value"].(string))
+	}
+	return values
 }
 
 func scimPath(suffix string) string {
 	paths := []string{"/api/v1/fleet/scim", "/api/latest/fleet/scim"}
 	prefix := paths[time.Now().UnixNano()%int64(len(paths))]
 	return prefix + suffix
+}
+
+func testUnknownGroupMembers(t *testing.T, s *Suite) {
+	userID, _ := createTestUser(t, s, "unknown-members-user@example.com")
+	otherUserID, _ := createTestUser(t, s, "unknown-members-other@example.com")
+	const unknownUserID = "4294967295"
+	const unknownGroupID = "group-4294967295"
+
+	memberValues := func(group map[string]any) []string {
+		members, _ := group["members"].([]any)
+		values := make([]string, 0, len(members))
+		for _, m := range members {
+			values = append(values, m.(map[string]any)["value"].(string))
+		}
+		return values
+	}
+	groupPayload := func(displayName string, memberIDs ...string) map[string]any {
+		members := make([]map[string]any, 0, len(memberIDs))
+		for _, id := range memberIDs {
+			members = append(members, map[string]any{"value": id})
+		}
+		return map[string]any{
+			"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+			"displayName": displayName,
+			"members":     members,
+		}
+	}
+
+	t.Run("POST skips unknown members and stores the valid ones", func(t *testing.T) {
+		var resp map[string]any
+		s.DoJSON(t, "POST", scimPath("/Groups"), groupPayload("Unknown members POST", userID, unknownUserID, unknownGroupID),
+			http.StatusCreated, &resp)
+		require.Equal(t, []string{userID}, memberValues(resp))
+		require.Equal(t, []string{userID}, memberValues(getGroup(t, s, resp["id"].(string))))
+	})
+
+	groupID, _ := createTestGroup(t, s, "Unknown members PATCH", []string{userID})
+
+	t.Run("PATCH add skips an unknown member and adds the valid one", func(t *testing.T) {
+		resp := patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op":    "add",
+			"path":  "members",
+			"value": []map[string]any{{"value": otherUserID}, {"value": unknownUserID}},
+		})
+		require.ElementsMatch(t, []string{userID, otherUserID}, memberValues(resp))
+		require.ElementsMatch(t, []string{userID, otherUserID}, memberValues(getGroup(t, s, groupID)))
+	})
+
+	t.Run("PUT skips unknown members and stores the valid ones", func(t *testing.T) {
+		var resp map[string]any
+		s.DoJSON(t, "PUT", scimPath("/Groups/"+groupID), groupPayload("Unknown members PUT", otherUserID, unknownUserID),
+			http.StatusOK, &resp)
+		require.Equal(t, []string{otherUserID}, memberValues(resp))
+		require.Equal(t, []string{otherUserID}, memberValues(getGroup(t, s, groupID)))
+	})
+
+	t.Run("PUT to a missing group with only unknown members is a not found", func(t *testing.T) {
+		var resp map[string]any
+		s.DoJSON(t, "PUT", scimPath("/Groups/group-4294967295"), groupPayload("Missing group", unknownUserID),
+			http.StatusNotFound, &resp)
+	})
 }

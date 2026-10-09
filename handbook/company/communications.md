@@ -94,7 +94,7 @@ Fleet is successful because of our customers and community, and those relationsh
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 | Fleet-maintained apps                | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it#team)_</sup></sub>
 | Apple Enterprise integrations        | <sup><sub>_[George Karr](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
-| [Usage statistics](https://docs.google.com/spreadsheets/d/1ZcWXIShQyhHNXdaJ927_ykHcPk6DuZQewfk4egbM0bw/edit?gid=889119618#gid=889119618)                     | <sup><sub>_See [🌦️ SVP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
+| [Usage statistics](https://docs.google.com/spreadsheets/d/1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI/edit)                     | <sup><sub>_See [🌦️ SVP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 
 ## Meetings
 
@@ -245,6 +245,11 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - _(Confidential - for Fleet eyes only)_     
 - **"¶":** _(E-group - Direct reports to the CEO)_
 - **"¶¶":** _(Classified - CEO, Executive Assistant, Head of People, and GTM Systems Architect)_
+
+
+### Sharing Google Docs externally
+
+When sharing access to a Google Doc outside of the company, first prefix the name of the Google Doc with `[shared externally to the company] `. This makes it easier for others to notice when a doc is shared externally as they open it up, and easier to notice when something is shared externally which no longer should be (for example, after a consultant is no longer working with the company and should no longer have access).
 
 
 ## Company database
@@ -441,12 +446,14 @@ Toast does NOT notify people about:
 
 Fleet prefixes all GitHub labels with special characters or words to organize and categorize GitHub issues.
 
-| Prefix            | Label type  | Examples                            |
-|:------------------|:------------|:------------------------------------|
-| `:`               | Verb        | `:dev`, `:research`, `:design`
-| `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
-| `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `customer-leo`, `customer-sagittarius`
-| `#g-`             | Group issue | _An issue requesting something from a group at Fleet, such that it will be seen and processed on their kanban board within 1 business day._
+| Prefix            | Label type  | Color       | Examples                            |
+|:------------------|:------------|:------------|:------------------------------------|
+| `:`               | Verb        | -           | `:dev`, `:research`, `:design`
+| `~`               | Adjective   | -           | `~blocked`, `~frontend`, `~backend`
+| `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `#bfd4f2` | `customer-leo`, `customer-sagittarius`
+| `prospect-`       | [Prospect request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `#e8e8e8` | `prospect-takakura`, `prospect-nishiyama`
+| `partner-`        | Partner request | `#fef2c0` | `partner-atira`, `partner-pommard`
+| `#g-`             | Group issue | `#0052cc`   | _An issue requesting something from a group at Fleet, such that it will be seen and processed on their kanban board within 1 business day._
 
 Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
@@ -689,6 +696,8 @@ Fleet provides laptops and software licenses for core team members to use while 
 As soon as an offer is accepted, IT & Enablement will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company. If you are in need of additional equipment for any reason, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md) with IT & Enablement. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 
 - **Tracking equipment:** All company-owned devices are tracked in Fleet's ["🍽️ Dogfood" instance](https://dogfood.fleetdm.com/dashboard). When a device is purchased, it's automatically enrolled in dogfood.
+
+- **Checking the warehouse:** To see which devices in the Fleet IT warehouse are ready to ship, and what each warehouse status means, see [check warehouse inventory](https://fleetdm.com/handbook/it#check-warehouse-inventory).
 
 - **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of IT. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
 

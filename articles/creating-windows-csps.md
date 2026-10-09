@@ -4,7 +4,7 @@ Deploying Windows configurations profiles (aka Configuration Service Providers (
 
 This guide will help you understand the building blocks to crafting CSPs of varying complexity – from simple payloads to more complex ones that involve modification of ADMX underpinnings.
 
-> In Fleet, Windows CSPs are called [**Custom OS settings**](https://fleetdm.com/guides/custom-os-settings).
+> In Fleet, Windows CSPs are called ["configuration profiles**](https://fleetdm.com/guides/custom-os-settings).
 
 ## ADMX
 
@@ -178,23 +178,26 @@ Where:
 The ADMX file content goes inside a CDATA block in the `<Data>` element. Here's the configuration profile XML:
 
 ```xml
-<Add>
+<Replace>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
-      <Type>text/plain</Type>
     </Meta>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/MSEdge/Policy/EdgeAdmxFile</LocURI>
     </Target>
-    <Data><![CDATA[<policyDefinitions revision="1.0" schemaVersion="1.0">
-      ... paste the contents of msedge.admx here ...
-    </policyDefinitions>]]></Data>
+    <Data><![CDATA[<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitions revision="1.0" schemaVersion="1.0">
+  ... paste the rest of msedge.admx here ...
+</policyDefinitions>
+]]></Data>
   </Item>
-</Add>
+</Replace>
 ```
 
-> The ADMX file can be large (Edge's is thousands of lines). That's expected — you're uploading the entire policy definition file so the device knows how to interpret the policies you'll configure in step 3.
+> Paste the entire ADMX file, starting with its `<?xml ...?>` declaration. Keep the declaration on the same line as `<![CDATA[`, with no line break or spaces in between.
+
+> The ADMX file can be large (Edge's is thousands of lines). That's expected — you're pasting the entire policy definition file so the host knows how to interpret the policies you'll configure in step 3.
 
 ### Step 3: Configure policies from the ingested ADMX
 
@@ -227,22 +230,23 @@ For example, to configure an Edge policy after ingesting with `AppName` = `MSEdg
 
 ### Putting it together with Fleet
 
-In Fleet, both the ADMX ingestion and the policy configuration go in the same configuration profile XML file. The ingestion `<Add>` block should come **before** any `<Replace>` blocks that reference the ingested policies:
+In Fleet, both the ADMX ingestion and the policy configuration go in the same configuration profile XML file. The ingestion `<Replace>` block should come **before** any `<Replace>` blocks that reference the ingested policies. If you split policies from the same ADMX across multiple profiles, include the ADMX ingestion block in each profile:
 
 ```xml
 <!-- Step 1: Ingest the ADMX template -->
-<Add>
+<Replace>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
-      <Type>text/plain</Type>
     </Meta>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/MSEdge/Policy/EdgeAdmxFile</LocURI>
     </Target>
-    <Data><![CDATA[... full ADMX file content ...]]></Data>
+    <Data><![CDATA[<?xml version="1.0" encoding="utf-8"?>
+... rest of the ADMX file content ...
+]]></Data>
   </Item>
-</Add>
+</Replace>
 
 <!-- Step 2: Configure policies using the ingested template -->
 <Replace>
@@ -261,6 +265,7 @@ In Fleet, both the ADMX ingestion and the policy configuration go in the same co
 ### Tips for ADMX ingestion
 
 - **Finding the category path**: Open the `.admx` file and look at the `<categories>` section and the `<parentCategory>` references on the policy you want to configure. Walk the hierarchy and join with `~`.
+- **Keep `<?xml ...?>` on the same line as `<![CDATA[`**: A line break or spaces between them cause ADMXInstall to fail with `status 500`.
 - **The `~Policy~` separator is required**: The LocURI always includes `~Policy~` between the `{AppName}` and the category path.
 - **Ingestion only needs to happen once**: After the ADMX is ingested, the device remembers it. Fleet will re-send the profile on each check-in, but the device handles this gracefully.
 - **Registry key restrictions**: Windows blocks custom ADMX policies from writing to most `Software\Microsoft` and `Software\Policies\Microsoft` registry locations, with [specific exceptions](https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration) for apps like Edge, Office, and OneDrive.
@@ -275,11 +280,11 @@ Intune uses Windows [CSPs](https://learn.microsoft.com/en-us/windows/client-mana
 > For example, querying the `EnableFirewall` policy yields:  
 >
 > ```powershell
-> NodeUri       : ./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall
-> ExpectedValue : -1
+> NodeUri: ./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall
+> ExpectedValue: -1
 >
-> NodeUri       : ./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall
-> ExpectedValue : -1
+> NodeUri: ./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall
+> ExpectedValue: -1
 > ```
 >
 > In these edge cases, you’ll need to verify the actual runtime state (e.g. via `Get‑NetFirewallProfile`) to ensure whether the setting is active.

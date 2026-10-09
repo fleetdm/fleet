@@ -1,10 +1,11 @@
 import { isEqual } from "lodash";
 
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import { IFormErrors } from "hooks/useFormValidation";
 import { IApiError } from "interfaces/errors";
 import { IInvite } from "interfaces/invite";
 import { IUser, IUpdateUserFormData } from "interfaces/user";
-import { IFormErrors } from "hooks/useFormValidation";
+
 import { IUserFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<

@@ -1,41 +1,34 @@
 import React, { useCallback, useContext, useRef, useState } from "react";
-
 import { useQuery } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
 
-import { AppContext } from "context/app";
-import { notify } from "components/ToastNotification";
-
-import { IMdmProfile } from "interfaces/mdm";
-import { getErrorReason } from "interfaces/errors";
-
-import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
-
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
-import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import Pagination from "components/Pagination";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-
-import Pagination from "components/Pagination";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { IMdmProfile, isAnyMDMConfigured } from "interfaces/mdm";
+import PATHS from "router/paths";
+import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
+import { getPathWithQueryParams } from "utilities/url";
 
 import UploadList from "../../../../../components/UploadList";
-
-import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
-import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
-import EditProfileModal from "./components/EditProfileModal";
-import ProfileListItem from "./components/ProfileListItem";
-import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
-import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
-import AssetsTab from "./components/AssetsTab";
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
+
+import AssetsTab from "./components/AssetsTab";
+import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
+import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
+import ProfileListItem from "./components/ProfileListItem";
+import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
 
 const PROFILES_PER_PAGE = 10;
 
@@ -72,13 +65,8 @@ const ConfigurationProfiles = ({
   // gated to global admins only (AuthGlobalAdminRoutes).
   const canTurnOnMdm = !!isGlobalAdmin;
 
-  const mdmEnabled =
-    config?.mdm.enabled_and_configured ||
-    config?.mdm.windows_enabled_and_configured ||
-    config?.mdm.android_enabled_and_configured;
+  const mdmEnabled = isAnyMDMConfigured(config?.mdm);
 
-  const [showAddProfileModal, setShowAddProfileModal] = useState(false);
-  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
   const [
     showConfigProfileStatusModal,
@@ -121,26 +109,17 @@ const ConfigurationProfiles = ({
   const profiles = profilesData?.profiles;
   const meta = profilesData?.meta;
 
-  const onUploadProfile = () => {
-    refetchProfiles();
-    onMutation();
-  };
-
   const onCancelInfo = () => {
     selectedProfile.current = null;
     setShowConfigProfileStatusModal(false);
   };
 
-  const onCancelEdit = () => {
-    selectedProfile.current = null;
-    setShowEditProfileModal(false);
-  };
-
-  const onUpdateProfile = () => {
-    selectedProfile.current = null;
-    setShowEditProfileModal(false);
-    refetchProfiles();
-    onMutation();
+  // Add and edit are full pages; keep the fleet so they come back here.
+  const fleetQuery = { fleet_id: isPremiumTier ? currentTeamId : undefined };
+  const onClickAdd = () => {
+    router.push(
+      getPathWithQueryParams(PATHS.CONTROLS_CUSTOM_SETTINGS_NEW, fleetQuery)
+    );
   };
 
   const onCancelDelete = () => {
@@ -201,8 +180,12 @@ const ConfigurationProfiles = ({
   };
 
   const onClickEdit = (profile: IMdmProfile) => {
-    selectedProfile.current = profile;
-    setShowEditProfileModal(true);
+    router.push(
+      getPathWithQueryParams(
+        PATHS.CONTROLS_CUSTOM_SETTINGS_EDIT(profile.profile_uuid),
+        fleetQuery
+      )
+    );
   };
 
   const onClickDelete = (profile: IMdmProfile) => {
@@ -233,10 +216,7 @@ const ConfigurationProfiles = ({
             canAddConfigurationProfile ? (
               <GitOpsModeTooltipWrapper
                 renderChildren={(disableChildren) => (
-                  <Button
-                    disabled={disableChildren}
-                    onClick={() => setShowAddProfileModal(true)}
-                  >
+                  <Button disabled={disableChildren} onClick={onClickAdd}>
                     Add profile
                   </Button>
                 )}
@@ -321,7 +301,7 @@ const ConfigurationProfiles = ({
                       <Button
                         variant="secondary"
                         size="small"
-                        onClick={() => setShowAddProfileModal(true)}
+                        onClick={onClickAdd}
                         disabled={disableChildren}
                         icon="plus"
                       >
@@ -358,23 +338,6 @@ const ConfigurationProfiles = ({
           </TabPanel>
         </Tabs>
       </TabNav>
-      {showAddProfileModal && (
-        <AddProfileModal
-          currentTeamId={currentTeamId}
-          isPremiumTier={!!isPremiumTier}
-          onUpload={onUploadProfile}
-          setShowModal={setShowAddProfileModal}
-        />
-      )}
-      {showEditProfileModal && selectedProfile.current && (
-        <EditProfileModal
-          profile={selectedProfile.current}
-          currentTeamId={currentTeamId}
-          isPremiumTier={!!isPremiumTier}
-          onUpdate={onUpdateProfile}
-          onCancel={onCancelEdit}
-        />
-      )}
       {showDeleteProfileModal && selectedProfile.current && (
         <DeleteProfileModal
           profileName={selectedProfile.current.name}
@@ -389,6 +352,7 @@ const ConfigurationProfiles = ({
           teamId={currentTeamId}
           name={selectedProfile.current.name}
           uuid={selectedProfile.current.profile_uuid}
+          platform={selectedProfile.current.platform}
           onClickResend={(hostCount) => {
             selectedStatusHostCount.current = hostCount;
             setShowConfigProfileStatusModal(false);

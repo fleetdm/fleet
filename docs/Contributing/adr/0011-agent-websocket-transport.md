@@ -69,7 +69,7 @@ The `distributed/read` endpoint is not just for live queries. Four distinct feat
 | **Labels** | `distributed/read` | LabelUpdateInterval has elapsed (~1 hour) |
 | **Host vitals** (detail queries, which include software) | `distributed/read` | DetailUpdateInterval has elapsed (~1 hour) |
 
-The agent polls `distributed/read` every 10 seconds. The server decides what to include based on these intervals. In steady state, most polls return empty because no live query is active and the hourly intervals have not elapsed. See [Understanding host vitals](../product-groups/orchestration/understanding-host-vitals.md) for the full list of queries delivered this way.
+The agent polls `distributed/read` every 10 seconds. The server decides what to include based on these intervals. In steady state, most polls return empty because no live query is active and the hourly intervals have not elapsed. See [Understanding host vitals](../host-vitals/understanding-host-vitals.md) for the full list of queries delivered this way.
 
 > **Scheduled queries (reports)** use a different channel: they are delivered via `/api/osquery/config` as part of the osquery pack configuration.
 

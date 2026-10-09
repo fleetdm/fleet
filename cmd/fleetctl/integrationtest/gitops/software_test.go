@@ -937,6 +937,299 @@ software:
 	assert.Contains(t, buf.String(), fmt.Sprintf(fleetctl.ReapplyingTeamForVPPAppsMsg, newTeamName))
 }
 
+// TestGitOpsVPPMissingTeamKeepsExistingAssignments covers issue #51687: when the VPP
+// config references a team that doesn't exist yet, the interim config applied before
+// teams are created must keep every assignment to an existing team. Previously the
+// whole VPP section was held back, which the server received as an empty list and
+// answered by clearing ALL token/team assignments — a run that failed before the
+// end-of-run re-apply (e.g. on an unrelated error) left them wiped permanently.
+func TestGitOpsVPPMissingTeamKeepsExistingAssignments(t *testing.T) {
+	testing_utils.StartAndServeVPPServer(t)
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+	renewDate := time.Now().Add(24 * time.Hour)
+	token, err := test.CreateVPPTokenEncoded(renewDate, "fleet", "ca")
+	require.NoError(t, err)
+
+	existingTeamName := "Existing Team"
+	newTeamName := "New Team"
+
+	existingTeam := &fleet.Team{ID: 42, Name: existingTeamName}
+	savedTeams[existingTeamName] = &existingTeam
+
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return []fleet.VPPAppResponse{}, nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
+	}
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
+	}
+
+	// The token is already assigned to the existing team before the run.
+	vppToken := &fleet.VPPTokenDB{
+		ID:          1,
+		OrgName:     "Fleet",
+		Location:    "Earth",
+		RenewDate:   renewDate,
+		Token:       string(token),
+		Teams:       []fleet.TeamTuple{{ID: existingTeam.ID, Name: existingTeamName}},
+		CountryCode: "us",
+	}
+	tokensByTeams := map[uint]*fleet.VPPTokenDB{existingTeam.ID: vppToken}
+	var updateCalls [][]uint
+	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
+		updateCalls = append(updateCalls, teams)
+		for _, teamID := range teams {
+			tokensByTeams[teamID] = vppToken
+		}
+		return vppToken, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{vppToken}, nil
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+		if teamID == nil {
+			return vppToken, nil
+		}
+		token, ok := tokensByTeams[*teamID]
+		if !ok {
+			return nil, sql.ErrNoRows
+		}
+		return token, nil
+	}
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+		return nil
+	}
+	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+		return nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+
+	globalCfg := fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+org_settings:
+  mdm:
+    volume_purchasing_program:
+      - location: Earth
+        teams:
+          - %q
+          - %q
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "FLEET_GLOBAL_ENROLL_SECRET"
+`, existingTeamName, newTeamName)
+
+	teamCfg := func(name string) string {
+		return fmt.Sprintf(`
+name: %q
+team_settings:
+  secrets:
+    - secret: "%s-secret"
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: true
+    host_expiry_window: 30
+agent_options:
+controls:
+policies:
+queries:
+software:
+`, name, name)
+	}
+
+	tmpDir := t.TempDir()
+	globalFile := filepath.Join(tmpDir, "default.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalCfg), 0o644))
+	existingTeamFile := filepath.Join(tmpDir, "existing-team.yml")
+	require.NoError(t, os.WriteFile(existingTeamFile, []byte(teamCfg(existingTeamName)), 0o644))
+	newTeamFile := filepath.Join(tmpDir, "new-team.yml")
+	require.NoError(t, os.WriteFile(newTeamFile, []byte(teamCfg(newTeamName)), 0o644))
+
+	_, err = fleetctltest.RunAppNoChecks([]string{
+		"gitops", "-f", globalFile, "-f", existingTeamFile, "-f", newTeamFile,
+	})
+	require.NoError(t, err)
+
+	// The existing team's assignment must be present in every write; a write without
+	// it means the run had a window (or a permanent state, if interrupted) with the
+	// assignment lost.
+	require.True(t, ds.UpdateVPPTokenTeamsFuncInvoked)
+	for i, call := range updateCalls {
+		assert.Contains(t, call, existingTeam.ID,
+			"UpdateVPPTokenTeams call %d dropped the existing team's assignment", i)
+	}
+}
+
+// TestGitOpsABMMissingTeamKeepsExistingAssignments is the apple_business analog of
+// TestGitOpsVPPMissingTeamKeepsExistingAssignments (issue #51687): when an ABM entry
+// references a team that doesn't exist yet, the interim config must keep every
+// default-fleet assignment that points at an existing team. Previously the section was
+// held back, reached the server as an empty list, and cleared every token's defaults.
+func TestGitOpsABMMissingTeamKeepsExistingAssignments(t *testing.T) {
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	existingTeamName := "Existing Team"
+	newTeamName := "New Team"
+
+	existingTeam := &fleet.Team{ID: 42, Name: existingTeamName}
+	savedTeams[existingTeamName] = &existingTeam
+
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return []fleet.VPPAppResponse{}, nil
+	}
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
+	}
+	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+		return nil
+	}
+	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+		return nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return 1, nil
+	}
+	// Fresh copies per call: validateABMAssignments mutates the returned tokens. Token 1
+	// ("Fleet ABM") already points every platform default at the existing team before the
+	// run; token 2 is the newly added one whose default fleet is created in this run.
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{
+			{
+				ID:                  1,
+				OrganizationName:    "Fleet ABM",
+				MacOSDefaultTeamID:  new(existingTeam.ID),
+				IOSDefaultTeamID:    new(existingTeam.ID),
+				IPadOSDefaultTeamID: new(existingTeam.ID),
+				BYODDefaultTeamID:   new(existingTeam.ID),
+			},
+			{ID: 2, OrganizationName: "Other ABM"},
+		}, nil
+	}
+	type abmSave struct {
+		org                      string
+		macos, ios, ipados, byod *uint
+	}
+	var saveCalls []abmSave
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		saveCalls = append(saveCalls, abmSave{
+			org:    tok.OrganizationName,
+			macos:  tok.MacOSDefaultTeamID,
+			ios:    tok.IOSDefaultTeamID,
+			ipados: tok.IPadOSDefaultTeamID,
+			byod:   tok.BYODDefaultTeamID,
+		})
+		return nil
+	}
+
+	// Fleet ABM keeps the existing team on every platform; Other ABM points at the
+	// not-yet-created team, which is what triggers the interim strip/filter path.
+	globalCfg := fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+org_settings:
+  mdm:
+    apple_business:
+      - organization_name: Fleet ABM
+        macos_fleet: %q
+        ios_fleet: %q
+        ipados_fleet: %q
+        byod_fleet: %q
+      - organization_name: Other ABM
+        macos_fleet: %q
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "FLEET_GLOBAL_ENROLL_SECRET"
+`, existingTeamName, existingTeamName, existingTeamName, existingTeamName, newTeamName)
+
+	teamCfg := func(name string) string {
+		return fmt.Sprintf(`
+name: %q
+team_settings:
+  secrets:
+    - secret: "%s-secret"
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: true
+    host_expiry_window: 30
+agent_options:
+controls:
+policies:
+queries:
+software:
+`, name, name)
+	}
+
+	tmpDir := t.TempDir()
+	globalFile := filepath.Join(tmpDir, "default.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalCfg), 0o644))
+	existingTeamFile := filepath.Join(tmpDir, "existing-team.yml")
+	require.NoError(t, os.WriteFile(existingTeamFile, []byte(teamCfg(existingTeamName)), 0o644))
+	newTeamFile := filepath.Join(tmpDir, "new-team.yml")
+	require.NoError(t, os.WriteFile(newTeamFile, []byte(teamCfg(newTeamName)), 0o644))
+
+	_, err := fleetctltest.RunAppNoChecks([]string{
+		"gitops", "-f", globalFile, "-f", existingTeamFile, "-f", newTeamFile,
+	})
+	require.NoError(t, err)
+
+	// Fleet ABM's defaults (all the existing team) must survive every save; a save with
+	// any of them nil means the run had a window — or a permanent state, if interrupted —
+	// with that platform's assignment lost.
+	require.True(t, ds.SaveABMTokenFuncInvoked)
+	var fleetABMSaves int
+	for i, call := range saveCalls {
+		if call.org != "Fleet ABM" {
+			continue
+		}
+		fleetABMSaves++
+		for _, d := range []struct {
+			name string
+			id   *uint
+		}{{"macOS", call.macos}, {"iOS", call.ios}, {"iPadOS", call.ipados}, {"BYOD", call.byod}} {
+			if assert.NotNil(t, d.id, "SaveABMToken call %d dropped Fleet ABM's %s default fleet", i, d.name) {
+				assert.Equal(t, existingTeam.ID, *d.id, "SaveABMToken call %d changed Fleet ABM's %s default fleet", i, d.name)
+			}
+		}
+	}
+	require.NotZero(t, fleetABMSaves, "expected at least one SaveABMToken call for Fleet ABM")
+}
+
 // TestGitOpsNewTeamVPPSharedWithUnsuppliedExistingTeam covers issue #44444: adding
 // a NEW team that shares a VPP token with an EXISTING team must succeed even when
 // the existing team's config file is NOT supplied in the same run. Detecting a

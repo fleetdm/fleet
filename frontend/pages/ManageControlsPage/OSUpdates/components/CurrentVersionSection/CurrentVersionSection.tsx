@@ -1,22 +1,21 @@
+import { AxiosError } from "axios";
 import React from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 import { InjectedRouter } from "react-router";
 
+import DataError from "components/DataError";
+import LastUpdatedText from "components/LastUpdatedText";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import {
   getOSVersions,
   IOSVersionsResponse,
 } from "services/entities/operating_systems";
 
-import LastUpdatedText from "components/LastUpdatedText";
-import SectionHeader from "components/SectionHeader";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-
-import OSVersionTable from "../OSVersionTable";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 import OSVersionsEmptyState from "../OSVersionsEmptyState";
+import OSVersionTable from "../OSVersionTable";
 
 /** This overrides the `platform` attribute on IOperatingSystemVersion so that only our filtered platforms (currently
  * "darwin" and "windows") values are included */

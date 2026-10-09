@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.6.5.3",
+      "version": "1.6.5.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Lenovo Dock Manager %' AND publisher = 'Lenovo';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Lenovo Dock Manager %' AND publisher = 'Lenovo' AND version_compare(version, '1.6.5.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Lenovo Dock Manager %' AND publisher = 'Lenovo' AND version_compare(version, '1.6.5.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dockmgr.exe');"
       },
-      "installer_url": "https://download.lenovo.com/consumer/options/dockmanagersetup_1.6.5.3.exe",
+      "installer_url": "https://download.lenovo.com/consumer/options/dockmanager_1.6.5.4_setup.exe",
       "install_script_ref": "82f10c96",
       "uninstall_script_ref": "021699c4",
-      "sha256": "347f74c51c9b06e2c009ef4a399d23f8e4d8e0b610bcac669c7500d6e8a6090c",
+      "sha256": "757e98bbedaa3b5cb2494597a36eed346cd389bb8d42b7973c0dca29741d3cb5",
       "default_categories": [
         "Productivity"
       ]

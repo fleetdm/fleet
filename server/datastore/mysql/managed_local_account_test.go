@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,6 +35,9 @@ func TestManagedLocalAccount(t *testing.T) {
 		{"GetByPendingCommandUUID", testManagedLocalAccountGetByPendingCommandUUID},
 		{"Escrow", testManagedLocalAccountEscrow},
 		{"SoftDeleteOnReenrollment", testManagedLocalAccountSoftDeleteOnReenrollment},
+		{"WindowsRotation", testManagedLocalAccountWindowsRotation},
+		{"PlatformPasswordAvailability", testManagedLocalAccountPlatformPasswordAvailability},
+		{"GetWindowsForAutoRotation", testManagedLocalAccountGetWindowsForAutoRotation},
 	}
 
 	for _, c := range cases {
@@ -575,7 +579,8 @@ func testManagedLocalAccountGetByPendingCommandUUID(t *testing.T, ds *Datastore)
 // testManagedLocalAccountEscrow walks the Windows escrow lifecycle
 func testManagedLocalAccountEscrow(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	hostUUID := "win-escrow-host"
+	// A real host row, so the failure case gets Windows handling rather than the stricter default.
+	hostUUID := newWindowsHostWithEnrollment(t, ds, "win-escrow-host")
 
 	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
 
@@ -589,8 +594,7 @@ func testManagedLocalAccountEscrow(t *testing.T, ds *Datastore) {
 	assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
 	assert.True(t, status.PasswordAvailable)
 
-	// Escrow leaves account_uuid unset, which is what keeps Windows rows out of the rotation cron.
-	// That the cron skips such rows is covered by GetForAutoRotation's no-account_uuid case.
+	// Escrow leaves account_uuid unset, which is why Windows rows have their own auto-rotation query.
 	accountUUID, err := ds.GetManagedLocalAccountUUID(ctx, hostUUID)
 	require.NoError(t, err)
 	assert.Nil(t, accountUUID)
@@ -609,7 +613,8 @@ func testManagedLocalAccountEscrow(t *testing.T, ds *Datastore) {
 	require.NotNil(t, status.Status)
 	assert.Equal(t, string(fleet.MDMDeliveryFailed), *status.Status)
 	assert.Equal(t, "password reset failed", status.Detail)
-	assert.False(t, status.PasswordAvailable)
+	// On Windows the password stays readable after a failure: the host kept it, so it still works.
+	assert.True(t, status.PasswordAvailable)
 
 	got, err = ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
 	require.NoError(t, err)
@@ -682,4 +687,280 @@ func testManagedLocalAccountSoftDeleteOnReenrollment(t *testing.T, ds *Datastore
 	assert.Equal(t, "policy rejected", status.Detail)
 	assert.False(t, status.PasswordAvailable, "a failed row must not offer its password")
 	assertPasswordRetained()
+}
+
+// newWindowsHostWithEnrollment creates a Windows host and its MDM enrollment row and returns the host UUID. The
+// enrollment carries the request flag; the host row supplies the platform.
+func newWindowsHostWithEnrollment(t *testing.T, ds *Datastore, name string) string {
+	ctx := t.Context()
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      name,
+		OsqueryHostID: new("osquery-" + name),
+		NodeKey:       new("node-key-" + name),
+		UUID:          "uuid-" + name,
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         "enrolled",
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          name,
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		HostUUID:               h.UUID,
+	}))
+	return h.UUID
+}
+
+// rotationRequested reads the flag the orbit config check-in gates the re-provision notification on.
+func rotationRequested(t *testing.T, ds *Datastore, hostUUID string) bool {
+	var requested bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &requested,
+			`SELECT managed_local_account_rotation_requested FROM mdm_windows_enrollments
+			 WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`, hostUUID)
+	})
+	return requested
+}
+
+func testManagedLocalAccountWindowsRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("requests a rotation and clears the timer", func(t *testing.T) {
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-1")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+		// Arm the view timer so we can prove Initiate spends it.
+		_, err := ds.MarkManagedLocalAccountPasswordViewed(ctx, hostUUID)
+		require.NoError(t, err)
+
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID))
+
+		assert.True(t, rotationRequested(t, ds, hostUUID))
+		status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), *status.Status)
+		assert.True(t, status.PendingRotation, "an outstanding request must read as pending to the UI")
+		assert.Nil(t, status.AutoRotateAt, "the timer is spent once the device has been asked")
+	})
+
+	t.Run("rejects a second request while one is outstanding", func(t *testing.T) {
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-2")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID))
+
+		err := ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, fleet.ErrManagedLocalAccountRotationPending)
+	})
+
+	t.Run("clearing the request reports whether one was outstanding", func(t *testing.T) {
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-3")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+
+		// Nothing outstanding yet: this is how the escrow endpoint tells a creation from a rotation.
+		cleared, err := ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, hostUUID)
+		require.NoError(t, err)
+		assert.False(t, cleared)
+
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID))
+		cleared, err = ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, hostUUID)
+		require.NoError(t, err)
+		assert.True(t, cleared)
+		assert.False(t, rotationRequested(t, ds, hostUUID))
+	})
+
+	t.Run("a host with no Windows MDM enrollment cannot be asked", func(t *testing.T) {
+		ctx := t.Context()
+		hostUUID := "win-rot-no-enrollment"
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+
+		err := ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID)
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("a row with no password is not eligible", func(t *testing.T) {
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-4")
+		// A creation that failed before ever producing a password.
+		require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "could not create account"))
+
+		err := ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, fleet.ErrManagedLocalAccountNotEligible)
+	})
+
+	t.Run("a failed rotation can be retried, and clears the stale error", func(t *testing.T) {
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-5")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID))
+
+		// The device reports it could not set the new password.
+		require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "NERR_PasswordTooShort"))
+		_, err := ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, hostUUID)
+		require.NoError(t, err)
+
+		// Windows keeps a failed row's password readable, so the admin can ask again.
+		status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+		require.NoError(t, err)
+		assert.True(t, status.PasswordAvailable, "a failed rotation left the working password in place")
+		assert.Equal(t, "NERR_PasswordTooShort", status.Detail)
+
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID),
+			"a previous failure must not block a fresh request")
+		status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+		require.NoError(t, err)
+		assert.Empty(t, status.Detail, "the stale reason is cleared once a new rotation is under way")
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), *status.Status)
+	})
+
+	t.Run("auto-rotation re-checks due and failed on the writer", func(t *testing.T) {
+		// The cron selects from the replica; the row may have changed by the time it initiates.
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-6")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+
+		err := ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, hostUUID)
+		require.ErrorIs(t, err, fleet.ErrManagedLocalAccountNotEligible, "no timer armed")
+		assert.False(t, rotationRequested(t, ds, hostUUID))
+
+		setAutoRotateAt(t, ds, hostUUID, time.Now().Add(time.Hour))
+		err = ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, hostUUID)
+		require.ErrorIs(t, err, fleet.ErrManagedLocalAccountNotEligible, "timer not due yet")
+		assert.False(t, rotationRequested(t, ds, hostUUID))
+
+		setAutoRotateAt(t, ds, hostUUID, time.Now().Add(-time.Minute))
+		require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "policy rejected the password"))
+		err = ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, hostUUID)
+		require.ErrorIs(t, err, fleet.ErrManagedLocalAccountNotEligible, "failed rows are not retried unasked")
+		assert.False(t, rotationRequested(t, ds, hostUUID))
+
+		// The manual path still accepts the same failed row.
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID))
+		assert.True(t, rotationRequested(t, ds, hostUUID))
+		_, err = ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, hostUUID)
+		require.NoError(t, err)
+
+		// Due, not failed: the cron path goes through.
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-2"))
+		setAutoRotateAt(t, ds, hostUUID, time.Now().Add(-time.Minute))
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, hostUUID))
+		assert.True(t, rotationRequested(t, ds, hostUUID))
+	})
+}
+
+func testManagedLocalAccountPlatformPasswordAvailability(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("windows keeps a failed row's password available", func(t *testing.T) {
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-avail")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+		require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "policy rejected the password"))
+
+		status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+		require.NoError(t, err)
+		assert.True(t, status.PasswordAvailable)
+	})
+
+	t.Run("macos still hides a failed row", func(t *testing.T) {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "mac-avail",
+			OsqueryHostID: new("osquery-mac-avail"),
+			NodeKey:       new("node-key-mac-avail"),
+			UUID:          "uuid-mac-avail",
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		require.NoError(t, ds.SaveHostManagedLocalAccount(ctx, h.UUID, "MAC-PASS-1", "cmd-mac-avail"))
+		require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, h.UUID, "acct-mac-avail"))
+		require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, h.UUID, "MAC-PASS-2", "cmd-mac-avail-2"))
+		require.NoError(t, ds.FailManagedLocalAccountRotation(ctx, h.UUID, "cmd-mac-avail-2", "device returned Error"))
+
+		status, err := ds.GetHostManagedLocalAccountStatus(ctx, h.UUID)
+		require.NoError(t, err)
+		assert.False(t, status.PasswordAvailable, "macOS behaviour is unchanged; a separate story covers it")
+	})
+
+	t.Run("a row with no host falls through to the stricter handling", func(t *testing.T) {
+		hostUUID := "orphan-avail"
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "PASS-1"))
+		require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "boom"))
+
+		status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+		require.NoError(t, err, "a missing hosts row must not hide the account row entirely")
+		assert.False(t, status.PasswordAvailable)
+	})
+}
+
+func testManagedLocalAccountGetWindowsForAutoRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Eligible: elapsed timer, password present, enrolled, nothing outstanding.
+	eligible := newWindowsHostWithEnrollment(t, ds, "win-auto-1")
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, eligible, "WIN-PASS-1"))
+	setAutoRotateAt(t, ds, eligible, time.Now().Add(-time.Minute))
+
+	// Not due yet.
+	notDue := newWindowsHostWithEnrollment(t, ds, "win-auto-2")
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, notDue, "WIN-PASS-1"))
+	setAutoRotateAt(t, ds, notDue, time.Now().Add(time.Hour))
+
+	// Failed rows are left alone: the cron must not retry a standing cause every tick.
+	failed := newWindowsHostWithEnrollment(t, ds, "win-auto-3")
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, failed, "WIN-PASS-1"))
+	setAutoRotateAt(t, ds, failed, time.Now().Add(-time.Minute))
+	require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, failed, "policy rejected the password"))
+
+	// Already asked.
+	outstanding := newWindowsHostWithEnrollment(t, ds, "win-auto-4")
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, outstanding, "WIN-PASS-1"))
+	setAutoRotateAt(t, ds, outstanding, time.Now().Add(-time.Minute))
+	require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, outstanding))
+	setAutoRotateAt(t, ds, outstanding, time.Now().Add(-time.Minute))
+
+	// A macOS row with an elapsed timer belongs to the Apple query, not this one.
+	macH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "mac-auto",
+		OsqueryHostID: new("osquery-mac-auto"),
+		NodeKey:       new("node-key-mac-auto"),
+		UUID:          "uuid-mac-auto",
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostManagedLocalAccount(ctx, macH.UUID, "MAC-PASS-1", "cmd-mac-auto"))
+	setAutoRotateAt(t, ds, macH.UUID, time.Now().Add(-time.Minute))
+
+	rows, err := ds.GetWindowsManagedLocalAccountsForAutoRotation(ctx)
+	require.NoError(t, err)
+
+	// Membership rather than an exact set: the subtests share one datastore, so asserting the whole result would
+	// couple this to whatever rows the others leave behind.
+	got := make(map[string]struct{}, len(rows))
+	for _, r := range rows {
+		got[r.HostUUID] = struct{}{}
+	}
+	_, hasEligible := got[eligible]
+	_, hasNotDue := got[notDue]
+	_, hasFailed := got[failed]
+	_, hasOutstanding := got[outstanding]
+	_, hasMac := got[macH.UUID]
+	assert.True(t, hasEligible, "due host should be returned")
+	assert.False(t, hasNotDue, "host whose timer has not elapsed should not be returned")
+	assert.False(t, hasFailed, "failed host should not be returned")
+	assert.False(t, hasOutstanding, "host with a rotation already requested should not be returned")
+	assert.False(t, hasMac, "macOS host belongs to the Apple query")
+}
+
+// setAutoRotateAt moves a row's rotation deadline so the cron query can be exercised without waiting on the view timer.
+func setAutoRotateAt(t *testing.T, ds *Datastore, hostUUID string, at time.Time) {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(),
+			`UPDATE host_managed_local_account_passwords SET auto_rotate_at = ?, initiated_by_fleet = 1 WHERE host_uuid = ?`,
+			at, hostUUID)
+		return err
+	})
 }

@@ -1,8 +1,8 @@
 import React from "react";
 
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Card from "components/Card";
 import Button from "components/buttons/Button";
+import Card from "components/Card";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "add-cert-card";
 

@@ -43,7 +43,7 @@ func (s *BaseSuite) DoRaw(t *testing.T, verb string, path string, rawBytes []byt
 func (s *BaseSuite) DoRawWithHeaders(
 	t *testing.T, verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
 ) *http.Response {
-	opts := []fleethttp.ClientOpt{}
+	opts := []fleethttp.ClientOpt{fleethttp.WithNoTimeout()}
 	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
 		opts = append(opts, fleethttp.WithFollowRedir(false))
 	}

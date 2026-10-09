@@ -409,6 +409,29 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 	}
 }
 
+func TestAppConfigCopyIdPIntrospection(t *testing.T) {
+	c := &AppConfig{}
+	c.Integrations.CertificatesIdPIntrospectionURLs = optjson.SetSlice([]string{"https://company.okta.com/oauth2/v1/introspect"})
+	c.Integrations.CertificatesIdPClientIDs = optjson.SetSlice([]string{"abc"})
+
+	clone := c.Copy()
+	require.NotNil(t, clone)
+	require.Equal(t, c.Integrations.CertificatesIdPIntrospectionURLs, clone.Integrations.CertificatesIdPIntrospectionURLs)
+	require.Equal(t, c.Integrations.CertificatesIdPClientIDs, clone.Integrations.CertificatesIdPClientIDs)
+
+	// A shallow copy aliases the backing arrays and surfaces as an intermittent race, not a clean failure.
+	c.Integrations.CertificatesIdPIntrospectionURLs.Value[0] = "https://other.example.com/introspect"
+	c.Integrations.CertificatesIdPClientIDs.Value[0] = "mutated"
+	require.Equal(t, []string{"https://company.okta.com/oauth2/v1/introspect"}, clone.Integrations.CertificatesIdPIntrospectionURLs.Value)
+	require.Equal(t, []string{"abc"}, clone.Integrations.CertificatesIdPClientIDs.Value)
+
+	// An unset list stays unset rather than becoming an empty one.
+	unset := (&AppConfig{}).Copy()
+	require.NotNil(t, unset)
+	require.False(t, unset.Integrations.CertificatesIdPIntrospectionURLs.Set)
+	require.Nil(t, unset.Integrations.CertificatesIdPIntrospectionURLs.Value)
+}
+
 func TestFeaturesCopy(t *testing.T) {
 	t.Run("nil receiver", func(t *testing.T) {
 		var f *Features
@@ -1324,6 +1347,106 @@ func TestFleetDesktopBrowserUrl(t *testing.T) {
 			base, err := appConfig.FleetDesktopBrowserUrl()
 			require.NoError(t, err)
 			require.Equal(t, c.want, base.JoinPath("/device/abc123").String())
+		})
+	}
+}
+
+func TestGetEffectiveQueryReportCap(t *testing.T) {
+	cases := []struct {
+		configCap int
+		hostCount int
+		want      int
+	}{
+		{0, 0, DefaultMaxQueryReportRows},
+		{0, 500, DefaultMaxQueryReportRows},
+		{0, 1000, DefaultMaxQueryReportRows},
+		{0, 1001, 1001},
+		{0, 100_000, 100_000},
+		{5000, 100, 5000},
+		{5000, 6000, 6000},
+	}
+	for _, c := range cases {
+		s := ServerSettings{QueryReportCap: c.configCap}
+		require.Equal(t, c.want, s.GetEffectiveQueryReportCap(c.hostCount), "cap=%d hosts=%d", c.configCap, c.hostCount)
+	}
+}
+
+func TestMacOSSettingsFromMapCustomSettings(t *testing.T) {
+	// fleet specs arrive as a map, so every spec field has to be copied here
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [
+		{"path": "a", "name": "Wi-Fi", "description": "Office network", "labels_include_any": ["L1"]},
+		{"path": "b"},
+		"c"
+	]}`), &raw))
+
+	var s MacOSSettings
+	set, err := s.FromMap(raw)
+	require.NoError(t, err)
+	require.True(t, set["custom_settings"])
+	require.Equal(t, []MDMProfileSpec{
+		{Path: "a", Name: "Wi-Fi", Description: "Office network", LabelsIncludeAny: []string{"L1"}},
+		{Path: "b"},
+		{Path: "c"},
+	}, s.CustomSettings)
+
+	// null is the same as omitted, but any other non-string is rejected
+	require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [
+		{"path": "a", "name": null, "description": null},
+		{"path": null},
+		{}
+	]}`), &raw))
+	_, err = s.FromMap(raw)
+	require.NoError(t, err)
+	require.Equal(t, []MDMProfileSpec{{Path: "a"}, {}, {}}, s.CustomSettings)
+
+	for _, tc := range []struct{ field, value string }{
+		{"description", `123`},
+		{"description", `{"a": "b"}`},
+		{"name", `true`},
+		{"name", `["x"]`},
+		{"path", `123`},
+		{"path", `true`},
+		{"path", `["x"]`},
+	} {
+		require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [{"path": "a", "`+
+			tc.field+`": `+tc.value+`}]}`), &raw))
+		_, err = s.FromMap(raw)
+		require.ErrorContains(t, err, "macos_settings.custom_settings."+tc.field+" of type string", tc.value)
+	}
+}
+
+func TestMacOSSettingsFromMapCustomSettingsLabels(t *testing.T) {
+	for _, field := range []string{"labels", "labels_include_all", "labels_include_any", "labels_exclude_any"} {
+		t.Run(field, func(t *testing.T) {
+			for _, value := range []string{`"Engineering"`, `123`, `{}`, `[1, "Engineering"]`, `["Engineering", false]`, `[null]`} {
+				t.Run(value, func(t *testing.T) {
+					var raw map[string]any
+					require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [{"path": "a", "`+field+`": `+value+`}]}`), &raw))
+					s := MacOSSettings{CustomSettings: []MDMProfileSpec{{Path: "existing"}}}
+					_, err := s.FromMap(raw)
+					var typeErr *json.UnmarshalTypeError
+					require.ErrorAs(t, err, &typeErr)
+					require.Equal(t, "macos_settings.custom_settings."+field, typeErr.Field)
+					require.Equal(t, []MDMProfileSpec{{Path: "existing"}}, s.CustomSettings)
+				})
+			}
+			for _, value := range []string{`null`, `[]`, `["Engineering", "Sales"]`} {
+				t.Run(value, func(t *testing.T) {
+					input := `{"custom_settings": [{"path": "a", "` + field + `": ` + value + `}]}`
+					var raw map[string]any
+					require.NoError(t, json.Unmarshal([]byte(input), &raw))
+					var want, got MacOSSettings
+					require.NoError(t, json.Unmarshal([]byte(input), &want))
+					if value == `[]` {
+						want.CustomSettings = []MDMProfileSpec{{Path: "a"}}
+					}
+					_, err := got.FromMap(raw)
+					require.NoError(t, err)
+					require.Len(t, got.CustomSettings, 1)
+					require.Equal(t, want.CustomSettings, got.CustomSettings)
+				})
+			}
 		})
 	}
 }

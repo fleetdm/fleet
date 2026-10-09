@@ -1,12 +1,11 @@
-import React, { ReactNode, useRef, useState } from "react";
 import classnames from "classnames";
+import React, { ReactNode, useRef, useState } from "react";
 
-import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
-
-import Tag from "components/Tag";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 interface IFilterPillProps {
   label: string;

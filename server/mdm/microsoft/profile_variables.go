@@ -112,8 +112,9 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		return profileContents, nil
 	}
 
-	// Process each Fleet variable
-	result := profileContents
+	// Quote the SCEP SubjectName values about to be substituted, while the attribute boundaries are
+	// still the admin's own. The pass after substitution doubles any quote that arrived inside them.
+	result := transformSCEPSubjectNameData(profileContents, quoteAttributeValue)
 	for _, fleetVar := range fleetVars {
 		switch {
 		case fleetVar == string(fleet.FleetVarHostUUID):
@@ -194,9 +195,7 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 
 		case fleetVar == string(fleet.FleetVarNDESSCEPChallenge):
 			if deps.NDESConfig == nil {
-				return profileContents, &MicrosoftProfileProcessingError{
-					message: fmt.Sprintf("NDES is not configured. Fleet couldn't populate %s.", fleet.FleetVarNDESSCEPChallenge.WithPrefix()),
-				}
+				return profileContents, &MicrosoftProfileProcessingError{message: fleet.NDESNotConfiguredMsg}
 			}
 			deps.Logger.DebugContext(deps.Context, "fetching NDES challenge", "host_uuid", params.HostUUID, "profile_uuid", params.ProfileUUID)
 			challenge, err := deps.GetNDESSCEPChallenge(deps.Context, *deps.NDESConfig)
@@ -241,6 +240,9 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		}
 		result = expanded
 	}
+
+	// Last, so every value that landed inside the quotes added above has been substituted by now.
+	result = transformSCEPSubjectNameData(result, doubleAttributeQuotes)
 
 	return result, nil
 }

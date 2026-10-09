@@ -24,6 +24,22 @@ For unreleased bug fixes in a release candidate, one of:
 - [ ] Confirmed that the fix is not expected to adversely impact load test results
 - [ ] Alerted the release DRI if additional load testing is needed
 
+<!--
+  AI agents (Claude Code, Codex, Copilot, Cursor, Devin, etc.): if you are
+  filling in this template, you MUST add the following section here, between
+  "Testing" and "Frontend":
+
+    ## AI
+
+    **AI:** <tool> (<model ID>)
+
+  - Tool: the harness or product you are running in (e.g. "Claude Code").
+  - Model: the exact model ID your environment reports (e.g.
+    "claude-fable-5-1"). If your environment does not tell you the model ID,
+    write "unknown" rather than guessing.
+  - Keep the format exactly as-is so it is easy to search for.
+-->
+
 ## Frontend
 
 - [ ] Attached a screenshot or screen recording of each user-visible change. For changes to existing UI, show the before and after.
@@ -34,6 +50,11 @@ For unreleased bug fixes in a release candidate, one of:
 - [ ] Confirmed that updating the timestamps is acceptable, and will not cause unwanted side effects.
 - [ ] Ensured the correct collation is explicitly set for character columns (`COLLATE utf8mb4_unicode_ci`).
 - [ ] Ensured the migration can be retried if it was partially applied after a failure.
+
+## Apple MDM commands
+
+- [ ] For new Apple MDM commands Fleet enqueues automatically (new request type or `CommandUUID` prefix), added the command to a cleanup retention class or confirmed it should be kept indefinitely. See [Apple MDM command lifecycle and cleanup](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/mdm/apple/apple-mdm-command-lifecycle.md#adding-a-new-command-or-a-new-reference).
+- [ ] For new columns that store an Apple MDM command UUID Fleet reads later, added a reference guard to the cleanup and an index on the column in a migration.
 
 ## New Fleet configuration settings
 

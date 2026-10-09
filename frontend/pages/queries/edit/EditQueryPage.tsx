@@ -1,42 +1,41 @@
-import React, { useState, useEffect, useContext } from "react";
-import { useQuery, useQueryClient } from "react-query";
-import { useErrorHandler } from "react-error-boundary";
-import { InjectedRouter, Params } from "react-router/lib/Router";
 import { Location } from "history";
-import PATHS from "router/paths";
+import React, { useState, useEffect, useContext } from "react";
+import { useErrorHandler } from "react-error-boundary";
+import { useQuery, useQueryClient } from "react-query";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 
+import BackButton from "components/BackButton";
+import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner";
+import MainContent from "components/MainContent";
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import SidePanelContent from "components/SidePanelContent";
+import SidePanelPage from "components/SidePanelPage";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import useTeamIdParam from "hooks/useTeamIdParam";
-
-import debounce from "utilities/debounce";
-import deepDifference from "utilities/deep_difference";
-import { getPathWithQueryParams } from "utilities/url";
+import { IConfig } from "interfaces/config";
+import { getErrorReason } from "interfaces/errors";
+import {
+  IGetQueryResponse,
+  ICreateQueryFormData,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import queryAPI from "services/entities/queries";
+import statusAPI from "services/entities/status";
 import {
   DEFAULT_QUERY,
   DOCUMENT_TITLE_SUFFIX,
   INVALID_PLATFORMS_FLASH_MESSAGE,
   INVALID_PLATFORMS_REASON,
 } from "utilities/constants";
-import configAPI from "services/entities/config";
-import queryAPI from "services/entities/queries";
-import statusAPI from "services/entities/status";
-import {
-  IGetQueryResponse,
-  ICreateQueryFormData,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
-import { IConfig } from "interfaces/config";
-import { getErrorReason } from "interfaces/errors";
+import debounce from "utilities/debounce";
+import deepDifference from "utilities/deep_difference";
+import { getPathWithQueryParams } from "utilities/url";
 
-import QuerySidePanel from "components/side_panels/QuerySidePanel";
-import MainContent from "components/MainContent";
-import SidePanelPage from "components/SidePanelPage";
-import SidePanelContent from "components/SidePanelContent";
-import CustomLink from "components/CustomLink";
-import BackButton from "components/BackButton";
-import InfoBanner from "components/InfoBanner";
-import { notify } from "components/ToastNotification";
 import EditQueryForm from "./components/EditQueryForm";
 
 interface IEditQueryPageProps {

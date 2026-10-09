@@ -12,16 +12,5 @@ export const PLATFORM_DROPDOWN_OPTIONS = [
   { label: "Android", value: "android", path: paths.DASHBOARD_ANDROID },
 ] as const;
 
-/** Selected platform value mapped to built in label name */
-export const PLATFORM_NAME_TO_LABEL_NAME = {
-  darwin: "macOS",
-  windows: "MS Windows",
-  linux: "All Linux",
-  chrome: "chrome",
-  ios: "iOS",
-  ipados: "iPadOS",
-  android: "Android",
-} as const;
-
 /** Premium feature, Gb must be set between 1-100 */
 export const LOW_DISK_SPACE_GB = 32;

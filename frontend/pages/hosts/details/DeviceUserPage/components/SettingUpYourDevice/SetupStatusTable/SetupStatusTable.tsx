@@ -1,9 +1,8 @@
 import React from "react";
 
-import { ISetupStep } from "interfaces/setup";
-
-import TableContainer from "components/TableContainer";
 import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
+import { ISetupStep } from "interfaces/setup";
 
 import generateColumnConfigs from "./SetupStatusTableConfig";
 

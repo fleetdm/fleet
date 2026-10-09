@@ -466,6 +466,15 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 				}
 			}
 
+			// an explicit name replaces the derived one, for every type; the
+			// server stores it trimmed, so match that here
+			if profile.Name != "" {
+				name = strings.TrimSpace(profile.Name)
+				if name == "" {
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Profile name can't be empty.")
+				}
+			}
+
 			// check for duplicate names across all profiles
 			if _, isDuplicate := extByName[name]; isDuplicate {
 				return nil, errors.New(fmtDuplicateNameErrMsg(name))
@@ -484,14 +493,26 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 				}
 			}
 
+			// Mirrors validateProfileDeployFlags so the error names the file;
+			// the server still enforces these and the license.
+			if profile.SelfService && (platform != "macos" || ext == ".json") {
+				return nil, fmt.Errorf("%s: %s", prefixErrMsg, SelfServiceUnsupportedProfileErrorMsg)
+			}
+			if profile.SelfService && profile.Hidden {
+				return nil, fmt.Errorf("%s: %s", prefixErrMsg, "hidden requires self_service to be false.")
+			}
+
 			result = append(result, fleet.MDMProfileBatchPayload{
 				Name:             name,
+				Description:      profile.Description,
 				Contents:         fileContents,
 				Labels:           profile.Labels,
 				LabelsIncludeAll: profile.LabelsIncludeAll,
 				LabelsIncludeAny: profile.LabelsIncludeAny,
 				LabelsExcludeAny: profile.LabelsExcludeAny,
 				Activation:       activationContents,
+				SelfService:      profile.SelfService,
+				Hidden:           profile.Hidden,
 			})
 
 		}
@@ -1149,7 +1170,11 @@ func (c *Client) ApplyGroup(
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
 					switch {
 					case b != nil:
-						if err := c.uploadMacOSSetupAssistant(b, &tmID, filepath.Base(tmMacSetup[tmName].MacOSSetupAssistant.Value)); err != nil {
+						var setupAsstName string
+						if ms := tmMacSetup[tmName]; ms != nil {
+							setupAsstName = filepath.Base(ms.MacOSSetupAssistant.Value)
+						}
+						if err := c.uploadMacOSSetupAssistant(b, &tmID, setupAsstName); err != nil {
 							if strings.Contains(err.Error(), "Couldn't add") {
 								// Then the error should look something like this:
 								// "Couldn't add. CONFIG_NAME_INVALID"
@@ -1687,6 +1712,12 @@ func legacyExtractAppCfgCustomSettings(mmdm map[string]interface{}, platformKey 
 			// extract the Path field
 			if path, ok := m["path"].(string); ok {
 				profSpec.Path = path
+			}
+			if name, ok := m["name"].(string); ok {
+				profSpec.Name = name
+			}
+			if description, ok := m["description"].(string); ok {
+				profSpec.Description = description
 			}
 
 			// at this stage we extract and return all supported label fields, the
@@ -2381,6 +2412,15 @@ func (c *Client) DoGitOps(
 		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
 			integrations.(map[string]interface{})["conditional_access_enabled"] = false
 		}
+		if idpURLs, ok := integrations.(map[string]any)["certificates_idp_introspection_urls"]; !ok || idpURLs == nil {
+			integrations.(map[string]any)["certificates_idp_introspection_urls"] = []any{}
+		}
+		if idpClientIDs, ok := integrations.(map[string]any)["certificates_idp_client_ids"]; !ok || idpClientIDs == nil {
+			integrations.(map[string]any)["certificates_idp_client_ids"] = []any{}
+		}
+		if requireHostEndUserBinding, ok := integrations.(map[string]any)["certificates_disable_host_end_user_binding"]; !ok || requireHostEndUserBinding == nil {
+			integrations.(map[string]any)["certificates_disable_host_end_user_binding"] = false
+		}
 		// ensure that legacy certificate authorities are not set in integrations
 		if _, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; ok {
 			return nil, errors.New("org_settings.integrations.ndes_scep_proxy is not supported, please use org_settings.certificate_authorities.ndes_scep_proxy instead")
@@ -2510,6 +2550,11 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["apple_require_hardware_attestation"] = incoming.Controls.AppleRequireHardwareAttestation
 		if incoming.Controls.AppleRequireHardwareAttestation == nil {
 			mdmAppConfig["apple_require_hardware_attestation"] = false
+		}
+
+		mdmAppConfig["only_allow_apple_business_enrollment"] = incoming.Controls.OnlyAllowAppleBusinessEnrollment
+		if incoming.Controls.OnlyAllowAppleBusinessEnrollment == nil {
+			mdmAppConfig["only_allow_apple_business_enrollment"] = false
 		}
 
 		mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
@@ -2843,24 +2888,31 @@ func (c *Client) DoGitOps(
 			return nil, errors.New("controls.windows_settings.require_bitlocker_pin and controls.windows_require_bitlocker_pin cannot both be set")
 		}
 
-		enableRecoveryLockPassword := false
+		enableDiskEncryption, ok := incoming.Controls.EnableDiskEncryption.(bool)
+		if incoming.Controls.EnableDiskEncryption != nil && !ok {
+			return nil, errors.New("controls.enable_disk_encryption must be a boolean")
+		}
+		enableRecoveryLockPassword, ok := incoming.Controls.EnableRecoveryLockPassword.(bool)
+		if incoming.Controls.EnableRecoveryLockPassword != nil && !ok {
+			return nil, errors.New("controls.enable_recovery_lock_password must be a boolean")
+		}
 		requireBitLockerPIN := windowsSettings.RequireBitLockerPIN.Value
-		if incoming.Controls.EnableDiskEncryption != nil {
-			mdmAppConfig["enable_disk_encryption"] = incoming.Controls.EnableDiskEncryption.(bool)
-		}
-		if incoming.Controls.EnableRecoveryLockPassword != nil {
-			enableRecoveryLockPassword = incoming.Controls.EnableRecoveryLockPassword.(bool)
-		}
 		if incoming.Controls.RequireBitLockerPIN != nil {
-			requireBitLockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
+			requireBitLockerPIN, ok = incoming.Controls.RequireBitLockerPIN.(bool)
+			if !ok {
+				return nil, errors.New("controls.windows_require_bitlocker_pin must be a boolean")
+			}
 			mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
+		}
+		if incoming.Controls.EnableDiskEncryption != nil {
+			mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
 		}
 
 		// BitLocker PIN needs Windows encryption on; deprecated flat toggle is the fallback when the per-platform key is unset.
 		if requireBitLockerPIN {
 			windowsDiskEncryption := windowsSettings.EnableDiskEncryption.Value
 			if !windowsSettings.EnableDiskEncryption.Set && incoming.Controls.EnableDiskEncryption != nil {
-				windowsDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
+				windowsDiskEncryption = enableDiskEncryption
 			}
 			if !windowsDiskEncryption {
 				return nil, errors.New("controls.windows_settings.enable_disk_encryption must be true if controls.windows_settings.require_bitlocker_pin is true")

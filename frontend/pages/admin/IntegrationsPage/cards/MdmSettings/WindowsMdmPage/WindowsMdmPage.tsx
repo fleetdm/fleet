@@ -2,21 +2,20 @@ import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { SingleValue } from "react-select-5";
 
-import PATHS from "router/paths";
-import configAPI from "services/entities/config";
-import { AppContext } from "context/app";
-
-import MainContent from "components/MainContent/MainContent";
-import Button from "components/buttons/Button";
 import BackButton from "components/BackButton";
-import Slider from "components/forms/fields/Slider";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import Slider from "components/forms/fields/Slider";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import CustomLink from "components/CustomLink";
+import MainContent from "components/MainContent/MainContent";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
 
 import { getErrorMessage } from "./helpers";
 
@@ -48,7 +47,7 @@ const useSetWindowsMdm = ({
           enable_turn_on_windows_mdm_manually:
             enableMdm && !turnOnProgrammatically,
           windows_enabled_and_configured: enableMdm,
-          // Migration only applies when MDM is on and enrollment is programmatic (the checkbox is hidden otherwise), so
+          // Migration only applies when MDM is on and enrollment is programmatic (the checkbox is disabled otherwise), so
           // derive the value to avoid re-saving a stale "enabled" state.
           windows_migration_enabled:
             enableMdm && turnOnProgrammatically && enableAutoMigration,
@@ -158,7 +157,8 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
       }
       helpText={
         <>
-          New hosts enrolled into MDM are automatically assigned to this fleet.{" "}
+          New hosts that turn on MDM before installing Fleet&apos;s agent are
+          assigned to this fleet.{" "}
           <CustomLink
             text="Learn more"
             url="https://fleetdm.com/learn-more-about/windows-default-fleet"
@@ -214,25 +214,15 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
             />
           )}
           {isPremiumTier && (
-            <div className={`${baseClass}__section`}>
-              <h2 className={`${baseClass}__section-title`}>
-                User driven enrollment
-              </h2>
-              {defaultFleetDropdown}
-            </div>
+            <Checkbox
+              disabled={!turnOnProgrammatically || !mdmOn || gitOpsModeEnabled}
+              value={autoMigration}
+              onChange={onChangeAutoMigration}
+            >
+              Automatically migrate hosts connected to another MDM solution
+            </Checkbox>
           )}
-          {isPremiumTier && turnOnProgrammatically && (
-            <div className={`${baseClass}__section`}>
-              <h2 className={`${baseClass}__section-title`}>Migration</h2>
-              <Checkbox
-                disabled={!mdmOn || gitOpsModeEnabled}
-                value={autoMigration}
-                onChange={onChangeAutoMigration}
-              >
-                Automatically migrate hosts connected to another MDM solution
-              </Checkbox>
-            </div>
-          )}
+          {isPremiumTier && defaultFleetDropdown}
           <GitOpsModeTooltipWrapper
             tipOffset={8}
             renderChildren={(disableChildren) => (

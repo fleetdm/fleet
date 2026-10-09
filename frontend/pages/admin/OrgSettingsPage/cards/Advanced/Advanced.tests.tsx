@@ -1,8 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import Advanced from "./Advanced";
 
@@ -126,5 +126,17 @@ describe("Advanced settings — Activity & data retention", () => {
     ).not.toBeInTheDocument();
     const payload = handleSubmit.mock.calls[0][0];
     expect(payload.features.historical_data.uptime).toBe(true);
+  });
+});
+
+describe("Advanced settings — Host lifecycle", () => {
+  it("disables the host expiry window until host expiry is enabled", async () => {
+    const { user } = renderAdvanced();
+
+    expect(screen.getByLabelText("Host expiry window")).toBeDisabled();
+
+    await user.click(screen.getByText("Host expiry"));
+
+    expect(screen.getByLabelText("Host expiry window")).toBeEnabled();
   });
 });

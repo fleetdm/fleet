@@ -3772,7 +3772,7 @@ spec:
         deadline_days: abc
         grace_period_days: 1
 `,
-			wantErr: `400 Bad Request: invalid value type: expected int but got string`,
+			wantErr: `400 Bad Request: invalid value type at 'specs.0.mdm.windows_updates.deadline_days': expected int but got string`,
 		},
 		{
 			desc: "windows_updates.grace_period_days not a number",
@@ -3787,7 +3787,7 @@ spec:
         deadline_days: 1
         grace_period_days: true
 `,
-			wantErr: `400 Bad Request: invalid value type: expected int but got bool`,
+			wantErr: `400 Bad Request: invalid value type at 'specs.0.mdm.windows_updates.grace_period_days': expected int but got bool`,
 		},
 		{
 			desc: "windows_updates valid",
@@ -4203,6 +4203,56 @@ spec:
         enable_disk_encryption: 123
 `,
 			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`,
+		},
+		{
+			desc: "team custom_settings invalid path",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: team1
+    mdm:
+      apple_settings:
+        custom_settings:
+          - path: 123
+`,
+			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
+			wantErr:    `400 Bad Request: invalid value type at 'macos_settings.custom_settings.path': expected string but got float64`,
+		},
+		{
+			desc: "team custom_settings invalid labels",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: team1
+    mdm:
+      apple_settings:
+        custom_settings:
+          - path: a
+            labels: Engineering
+`,
+			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
+			wantErr:    `400 Bad Request: invalid value type at 'macos_settings.custom_settings.labels': expected array of strings but got string`,
+		},
+		{
+			desc: "team custom_settings invalid label element",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: team1
+    mdm:
+      apple_settings:
+        custom_settings:
+          - path: a
+            labels_include_any: [1, Engineering]
+`,
+			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
+			wantErr:    `400 Bad Request: invalid value type at 'macos_settings.custom_settings.labels_include_any': expected string but got float64`,
 		},
 		{
 			desc: "team config macos_settings.enable_disk_encryption true",

@@ -1,9 +1,10 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
-import AceEditor from "react-ace";
 import classnames from "classnames";
+import PropTypes from "prop-types";
+import React, { Component } from "react";
+import AceEditor from "react-ace";
 
 import "ace-builds/src-noconflict/mode-yaml";
+import "utilities/ace_theme";
 
 const baseClass = "yaml-ace";
 

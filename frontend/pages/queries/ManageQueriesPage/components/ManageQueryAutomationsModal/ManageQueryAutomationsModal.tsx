@@ -1,20 +1,18 @@
 import React, { useState, useEffect, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
 
-import { AppContext } from "context/app";
-
-import { IQueryKeyQueriesLoadAll } from "interfaces/schedulable_query";
-import { LogDestination } from "interfaces/config";
-import queriesAPI, { IQueriesResponse } from "services/entities/queries";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox/Checkbox";
-import QueryFrequencyIndicator from "components/QueryFrequencyIndicator/QueryFrequencyIndicator";
-import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
+import Modal from "components/Modal";
+import QueryFrequencyIndicator from "components/QueryFrequencyIndicator/QueryFrequencyIndicator";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { AppContext } from "context/app";
+import { LogDestination } from "interfaces/config";
+import { IQueryKeyQueriesLoadAll } from "interfaces/schedulable_query";
+import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 
 export interface IQueryAutomationsSubmitData {
   newAutomatedQueryIds: number[];

@@ -1,7 +1,9 @@
-import React from "react";
 import { screen, render } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import React from "react";
+
 import { ISoftwareInstallPolicyUI } from "interfaces/software";
+import { renderWithSetup } from "test/test-utils";
+
 import InstallerPoliciesTable from "./InstallerPoliciesTable";
 
 describe("InstallerPoliciesTable", () => {

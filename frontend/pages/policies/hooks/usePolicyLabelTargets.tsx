@@ -1,19 +1,19 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
-import { AppContext } from "context/app";
 import {
   ILabelConfig,
   ITargetLabelSelectorProps,
   LabelTargetMode,
   TargetType,
 } from "components/TargetLabelSelector";
+import { AppContext } from "context/app";
+import { ILabelPolicy, ILabelSummary } from "interfaces/label";
 import labelsAPI, {
   getCustomLabels,
   listNamesFromSelectedLabels,
   ILabelsSummaryResponse,
 } from "services/entities/labels";
-import { ILabelPolicy, ILabelSummary } from "interfaces/label";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 type LabelSelection = Record<string, boolean>;

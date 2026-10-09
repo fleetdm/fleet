@@ -259,6 +259,9 @@ func (lr *LuksRunner) showInfo(title, text string) {
 
 type KeyEscrower interface {
 	SendLinuxKeyEscrowResponse(LuksResponse) error
+	// SendLinuxKeyEscrowStatus reports progress on an escrow request (see
+	// fleet.LinuxEscrowStatus*).
+	SendLinuxKeyEscrowStatus(status string) error
 	// GetServerCapabilities returns the capabilities the Fleet server most
 	// recently advertised via the X-Fleet-Capabilities header. Used to gate
 	// the snapd/TPM-backed FDE recovery-key escrow path on servers that
@@ -322,6 +325,15 @@ func New(escrower KeyEscrower) *LuksRunner {
 	return &LuksRunner{
 		escrower: escrower,
 	}
+}
+
+// reportFailure posts a client error so the request does not linger in flight and the admin sees
+// why. Works on every server version.
+func (lr *LuksRunner) reportFailure(err error) error {
+	if sendErr := lr.escrower.SendLinuxKeyEscrowResponse(LuksResponse{Err: err.Error()}); sendErr != nil {
+		log.Debug().Err(sendErr).Msg("failed to report LUKS escrow failure")
+	}
+	return err
 }
 
 func extractJSON(input []byte) ([]byte, error) {

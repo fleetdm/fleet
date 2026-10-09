@@ -4,7 +4,7 @@ A mock of Apple's push notification service (APNs) for load testing Fleet's Appl
 
 Instances are interchangeable: they coordinate through Redis, so Fleet can push to any of them and it reaches whichever holds the device's stream. Redis is required.
 
-See [the design doc](../../docs/Contributing/product-groups/mdm/apple-apns-mock.md) for how it fits into load testing.
+See [the design doc](../../docs/Contributing/mdm/apple/apple-apns-mock.md) for how it fits into load testing.
 
 ### Relevant documentation
 - [Sending notifications to APNs](https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns)
@@ -25,6 +25,8 @@ go run ./cmd/apple-apns-mock --listen :8378 --redis-address 127.0.0.1:6379
 | `--write-timeout` | `10s` | deadline for a single SSE write. A device that stops reading is disconnected instead of pinning its token. `0` disables. |
 | `--redis-address` | — | host:port of the shared Redis. Required. |
 | `--redis-username` / `--redis-password` / `--redis-database` / `--redis-use-tls` | — | Redis credentials and TLS |
+| `--redis-max-open-conns` | `256` | maximum Redis connections per instance. Each push uses one briefly, so raise it for large bursts. |
+| `--redis-conn-wait-timeout` | `5s` | how long a Redis call waits for a free connection when all are in use. `0` fails at once with `connection pool exhausted`, which the push endpoint answers with `503`. |
 | `--redis-key-prefix` | `apns:` | namespaces every key and the channel. Give concurrent load tests different prefixes. |
 | `--node-id` | hostname-pid | identifies this instance in cluster stats |
 | `--stats-interval` | `5s` | how often this instance publishes its counters |
@@ -115,7 +117,7 @@ connect at any instance GETDEL <prefix>pending:<token>, then announce ownership
 
 Keys used: `<prefix>pending:<token>`, `<prefix>stats:<node-id>`, `<prefix>seq`, and the `<prefix>push` channel. A push that has already expired (`apns-expiration: 0`) is never stored: its payload rides inline in the announcement. If Redis is unreachable a push is answered `503 ServiceUnavailable` rather than silently dropped.
 
-Why it is shaped this way — the store-before-announce ordering, the `GETDEL` claim, the sequence number on ownership announcements — is in [the design doc](../../docs/Contributing/product-groups/mdm/apple-apns-mock.md#routing-between-instances).
+Why it is shaped this way — the store-before-announce ordering, the `GETDEL` claim, the sequence number on ownership announcements — is in [the design doc](../../docs/Contributing/mdm/apple/apple-apns-mock.md#routing-between-instances).
 
 ## Tests
 

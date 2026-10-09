@@ -77,6 +77,15 @@ cleanup_backup_files() {
   done
 }
 
+remove_stale_updater_bundles() {
+  local root
+  for root in / /Users/*; do
+    local updater_dir="${root%/}/Library/Application Support/Microsoft/EdgeUpdater"
+    [ -d "$updater_dir" ] || continue
+    find "$updater_dir" -type d -name "Microsoft Edge.app" -prune -exec sudo rm -rf {} + 2>/dev/null || true
+  done
+}
+
 # copy to the applications folder
 quit_application 'com.microsoft.edgemac'
 
@@ -100,10 +109,9 @@ fi
 if [ -d "$APPDIR/Microsoft Edge.app" ]; then
 	# Installation successful - ensure no backup files remain
 	cleanup_backup_files
+	remove_stale_updater_bundles
 	echo "Installation verified"
 else
 	echo "Installation failed"
 	exit 1
 fi
-
-

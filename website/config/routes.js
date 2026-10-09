@@ -301,7 +301,6 @@ module.exports.routes = {
     }
   },// handles /engineering/foo
 
-
   'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',// Meta title and description set in view action
@@ -494,7 +493,7 @@ module.exports.routes = {
   'GET /software-catalog': {
     action: 'docs/view-app-library',
     locals: {
-      pageTitleForMeta: 'Software',
+      pageTitleForMeta: 'Apps',
       pageDescriptionForMeta: 'Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.',
     }
   },
@@ -686,6 +685,30 @@ module.exports.routes = {
 
   'GET /configuration-generator': {
     action: 'view-configuration-generator'
+  },
+
+  'GET /arch-linux-management': {
+    action: 'view-arch-linux-management',
+    locals: {
+      pageTitleForMeta: 'Arch Linux management',
+      pageDescriptionForMeta: 'Manage Linux devices with full visibility and control. Automate patching, monitor compliance, and unify Linux, macOS, and Windows in one place.',
+    }
+  },
+
+  'GET /omarchy': {
+    action: 'view-omarchy',
+    locals: {
+      pageTitleForMeta: 'Omarchy management',
+      pageDescriptionForMeta: 'Manage Omarchy like you manage macOS and Windows. Give employees the distro they want without losing compliance and control.',
+    }
+  },
+
+  'GET /europe': {
+    action: 'view-europe',
+    locals: {
+      pageTitleForMeta: 'Device management for Europe',
+      pageDescriptionForMeta: 'Keep device data in the EU. Manage Windows, macOS, Linux, and mobile devices from one independent platform.',
+    }
   },
 
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
@@ -959,7 +982,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/downgrading-fleet': (req, res) => { return res.redirect(301, '/guides/downgrade-fleet'); },
   'GET /docs/using-fleet/enroll-chromebooks': (req, res) => { return res.redirect(301, '/guides/chrome-os'); },
   'GET /docs/using-fleet/audit-logs': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md'); },
-  'GET /docs/using-fleet/understanding-host-vitals': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md'); },
+  'GET /docs/using-fleet/understanding-host-vitals': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/host-vitals/understanding-host-vitals.md'); },
   'GET /docs/using-fleet/standard-query-library': (req, res) => { return res.redirect(301, '/guides/report-library'); },
   'GET /docs/using-fleet/mdm-commands': (req, res) => { return res.redirect(301, '/guides/mdm-commands'); },
   'GET /docs/using-fleet/log-destinations': (req, res) => { return res.redirect(301, '/guides/log-destinations'); },
@@ -978,6 +1001,7 @@ module.exports.routes = {
       return res.redirect('/software-catalog/' + req.param('appIdentifier'));
     }
   },
+  'GET /pdfs/fleet-leave-behind-deck.pdf': '/pdfs/fleet-ai-device-management-patching-and-governance-for-every-os.pdf',
   // Release note article redirects.
   'GET /releases/fleet-3.10.0': '/releases/fleet-3-10-0',
   'GET /releases/fleet-3.12.0': '/releases/fleet-3-12-0',
@@ -1206,6 +1230,7 @@ module.exports.routes = {
   'GET /gitops-workshops': '/workshops',
   'GET /guides/seamless-mdm-migration': '/support',
   'GET /visibility-and-reporting': '/endpoint-governance',
+  'GET /guides/software-inventory': '/guides/software-inventory-reference',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -1226,6 +1251,7 @@ module.exports.routes = {
   'GET /company/contact': '/contact',
   'GET /legal': '/legal/terms',
   'GET /terms': '/legal/terms',
+  'GET /legal/dpa': 'https://drive.google.com/file/d/1COccvlNJzxqxqZj0Q7ZXGV64REo6WUXT/view?usp=sharing',// Fleet Data Processing Addendum, referenced in Section 12.2 of the subscription terms.
   'GET /handbook/security/github': '/handbook/security#git-hub-security',
   'GET /slack': '/support',// Note: This redirect is used on error pages and email templates in the Fleet UI.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
@@ -1338,6 +1364,7 @@ module.exports.routes = {
   'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
   'GET /learn-more-about/installing-fleetctl': '/guides/fleetctl#installing-fleetctl',
   'GET /learn-more-about/mdm-disk-encryption': '/guides/enforce-disk-encryption',
+  'GET /learn-more-about/disk-encryption-key': '/guides/enforce-disk-encryption#use-disk-encryption-key-to-login',
   'GET /learn-more-about/encrypt-linux-device': '/guides/linux-disk-encryption-end-user',
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
   'GET /learn-more-about/end-user-license-agreement': '/guides/setup-experience#end-user-license-agreement-eula',
@@ -1356,6 +1383,7 @@ module.exports.routes = {
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
+  'GET /learn-more-about/sign-bootstrap-package': '/guides/setup-experience#step-2-sign-the-package',
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
   'GET /learn-more-about/self-service-software-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/rest-api#request-certificate',
@@ -1386,6 +1414,7 @@ module.exports.routes = {
   'GET /learn-more-about/disable-entra-conditional-access': '/guides/entra-conditional-access-integration#disable',
   'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
   'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id',
+  'GET /learn-more-about/connect-microsoft-graph': '/guides/windows-mdm-setup#connect-fleet-to-microsoft-graph',
   'GET /learn-more-about/macos-configuration-profiles-same-scope': '/guides/custom-os-settings#upgrading-to-4-71-0',
   'GET /learn-more-about/configuration-profiles-user-channel': '/guides/custom-os-settings#upgrading-to-4-71-0',
   'GET /learn-more-about/disable-okta-conditional-access': '/guides/okta-conditional-access-integration#disabling-okta-conditional-access',
@@ -1411,7 +1440,8 @@ module.exports.routes = {
   'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',
   'GET /learn-more-about/self-service-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
-  'GET /learn-more-about/configuration-profile-assets': '/articles/custom-os-settings#apple-declarations-ddm',
+  'GET /learn-more-about/configuration-profile-assets': '/guides/custom-os-settings#assets-code-com-apple-asset-code',
+  'GET /learn-more-about/android-encryption-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#EncryptionStatus',
   'GET /learn-more-about/release-devices': 'https://developer.apple.com/documentation/devicemanagement/disown-devices',
   'GET /learn-more-about/mdm-enrollment': '/guides/windows-mdm-setup#manual-enrollment',
   'GET /learn-more-about/windows-default-fleet': '/guides/windows-mdm-setup#set-a-default-fleet-for-new-hosts',
@@ -1420,10 +1450,15 @@ module.exports.routes = {
   'GET /learn-more-about/security-posture': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#DevicePosture',
   'GET /learn-more-about/software-update-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#SystemUpdateInfo',
   'GET /learn-more-about/ddm-activations': '/guides/custom-os-settings#apple-declarations-ddm',
-  'GET /learn-more-about/linux-disk-encryption': '/guides/enforce-disk-encryption#enforce-disk-encryption-on-linux',
+  'GET /learn-more-about/linux-disk-encryption': '/guides/enforce-disk-encryption#escrow-disk-encryption-key-on-linux',
   'GET /learn-more-about/removal-behavior': '/guides/custom-os-settings#removal-behavior',
   'GET /learn-more-about/android-manual-sync': '/guides/how-to-manually-sync-an-android-device',
   'GET /learn-more-about/policy-automation-resend-configuration-profile': '/guides/policy-automation-resend-configuration-profile',
+  'GET /learn-more-about/device-attestation': '/guides/what-is-device-attestation',
+  'GET /learn-more-about/patching-end-user-experience': '/guides/patching-end-user-experience',
+  'GET /learn-more-about/default-ab-token': '/guides/apple-mdm-setup#restrict-apple-account-sign-in-managed-apple-accounts',
+  'GET /learn-more-about/deleting-a-host': '/guides/enroll-hosts#delete-a-host',
+  'GET /learn-more-about/nixos-package-management': 'https://nixos.org/manual/nixos/stable/#sec-package-management',
 
   // Sitemap
   // =============================================================================================================
@@ -1528,6 +1563,7 @@ module.exports.routes = {
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
   'POST /api/v1/deliver-webinar-access-request': { action: 'deliver-webinar-access-request' },
   'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
+  'POST /api/v1/admin/deliver-newsletter-emails': { action: 'admin/deliver-newsletter-emails' },
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ║║║║║  ╠╦╝║ ║╚═╗║ ║╠╣  ║   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗

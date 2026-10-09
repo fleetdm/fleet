@@ -68,7 +68,8 @@ type Options struct {
 	// DisableSetupExperience disables setup experience for Linux hosts
 	DisableSetupExperience bool
 	// BypassEndUserAuth configures fleetd to skip end-user authentication during enrollment by not
-	// advertising the end-user auth capability to the Fleet server.
+	// advertising the end-user auth capability to the Fleet server. On Windows it sets the default of the
+	// BYPASS_END_USER_AUTH MSI property, which can be overridden at install time.
 	BypassEndUserAuth bool
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string
@@ -138,6 +139,9 @@ type Options struct {
 	// OsqueryDB is the directory to use for the osquery database.
 	// If not set, then the default is `$ORBIT_ROOT_DIR/osquery.db`.
 	OsqueryDB string
+	// CPUQuota is the systemd CPUQuota percentage applied to the orbit service
+	// (Linux only). Zero means the default of 20%.
+	CPUQuota uint
 	// Architecture that the package is being built for. (amd64, arm64)
 	Architecture string
 	// TUF platform name. windows, windows-arm64, linux, linux-arm64, darwin
@@ -194,6 +198,7 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		return nil, fmt.Errorf("failed to create local metadata store: %w", err)
 	}
 	updateOpt.LocalStore = localStore
+	updateOpt.SkipCrossArchExecCheck = true
 
 	updater, err := update.NewUpdater(updateOpt)
 	if err != nil {

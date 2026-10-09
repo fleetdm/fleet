@@ -1,19 +1,18 @@
+import { max } from "lodash";
 import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
-import { max } from "lodash";
-
-import paths from "router/paths";
-import { AppContext } from "context/app";
-import usersAPI from "services/entities/users";
-import logoAPI from "services/entities/logo";
-import authToken from "utilities/auth_token";
-
-import { notify } from "components/ToastNotification";
-import type { IRegistrationFormData } from "interfaces/registration_form_data";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
 import RegistrationForm from "components/forms/RegistrationForm";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
+import paths from "router/paths";
+import logoAPI from "services/entities/logo";
+import usersAPI from "services/entities/users";
+import authToken from "utilities/auth_token";
+
 // @ts-ignore
 import Breadcrumbs from "./Breadcrumbs";
 

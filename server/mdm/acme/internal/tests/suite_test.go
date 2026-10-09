@@ -2,9 +2,9 @@ package tests
 
 import (
 	"bytes"
-	"context"
 	"crypto/ecdsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -39,6 +39,10 @@ type integrationTestSuite struct {
 
 	attestCA    *x509.Certificate
 	attestCAKey *ecdsa.PrivateKey
+
+	// signedTemplate is the last certificate template the service asked the signer to sign: the subject it
+	// passed, with its callback applied.
+	signedTemplate *x509.Certificate
 }
 
 // setupIntegrationTest creates a new test suite with a real database and HTTP server.
@@ -53,10 +57,18 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	rootPool := x509.NewCertPool()
 	rootPool.AddCert(cert)
 
+	suite := &integrationTestSuite{}
+
 	// Create mocks
 	providers := newMockDataProviders(
 		"https://example.com", // will update with actual test server URL after it is started
-		acme.CSRSignerFunc(func(ctx context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
+		acme.CSRSignerFunc(func(csr *x509.CertificateRequest, subject pkix.Name, callback func(*x509.Certificate)) (*x509.Certificate, error) {
+			tmpl := &x509.Certificate{Subject: subject}
+			if callback != nil {
+				callback(tmpl)
+			}
+			suite.signedTemplate = tmpl
+
 			res, err := tdb.DB.DB.Exec(`INSERT INTO identity_serials () VALUES ()`) // insert a row to get an auto-incremented ID for the cert serial number
 			require.NoError(t, err)
 			serialID, err := res.LastInsertId()
@@ -86,13 +98,12 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	t.Cleanup(server.Close)
 	providers.serverURL = server.URL
 
-	return &integrationTestSuite{
-		TestDB:      tdb,
-		ds:          ds,
-		server:      server,
-		attestCA:    cert,
-		attestCAKey: key,
-	}
+	suite.TestDB = tdb
+	suite.ds = ds
+	suite.server = server
+	suite.attestCA = cert
+	suite.attestCAKey = key
+	return suite
 }
 
 // truncateTables clears all test data between tests.
@@ -282,7 +293,14 @@ func (s *integrationTestSuite) createOrderForGet(t *testing.T, enroll *types.Enr
 // authorization, returning: privateKey, accountURL, challengeURL, challengeToken, nonce.
 func (s *integrationTestSuite) createOrderForChallenge(t *testing.T, enroll *types.Enrollment) (privateKey *ecdsa.PrivateKey, accountURL, challengeURL, challengeToken, nonce string) {
 	t.Helper()
-	privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
+	privateKey, accountURL, _, challengeURL, challengeToken, nonce = s.createOrderAndChallenge(t, enroll)
+	return privateKey, accountURL, challengeURL, challengeToken, nonce
+}
+
+// createOrderAndChallenge is like createOrderForChallenge but also returns the order.
+func (s *integrationTestSuite) createOrderAndChallenge(t *testing.T, enroll *types.Enrollment) (privateKey *ecdsa.PrivateKey, accountURL string, orderResp *types.OrderResponse, challengeURL, challengeToken, nonce string) {
+	t.Helper()
+	privateKey, accountURL, orderResp, nonce = s.createOrderForGet(t, enroll)
 
 	require.Len(t, orderResp.Authorizations, 1)
 	authURL := orderResp.Authorizations[0]
@@ -293,7 +311,7 @@ func (s *integrationTestSuite) createOrderForChallenge(t *testing.T, enroll *typ
 	challenge := authResp.Challenges[0]
 	nonce = resp.Header.Get("Replay-Nonce")
 	require.NotEmpty(t, nonce)
-	return privateKey, accountURL, challenge.URL, challenge.Token, nonce
+	return privateKey, accountURL, orderResp, challenge.URL, challenge.Token, nonce
 }
 
 // getOrderURL returns the full URL for the get order endpoint.
@@ -437,15 +455,21 @@ func (s *integrationTestSuite) createOrderForFinalize(t *testing.T) (enroll *typ
 }
 
 // makeOrderReady transitions the order's authorization and challenge to valid and the order to ready via direct DB updates.
-func (s *integrationTestSuite) makeOrderReady(t *testing.T, orderID uint) {
+// It records an attested device key on the challenge and returns it for signing the CSR.
+func (s *integrationTestSuite) makeOrderReady(t *testing.T, orderID uint) *ecdsa.PrivateKey {
 	t.Helper()
 	ctx := t.Context()
-	_, err := s.DB.ExecContext(ctx, `UPDATE acme_challenges SET status = 'valid' WHERE acme_authorization_id IN (SELECT id FROM acme_authorizations WHERE acme_order_id = ?)`, orderID)
+	deviceKey, err := testhelpers.GenerateTestKey()
+	require.NoError(t, err)
+	attestedKey, err := x509.MarshalPKIXPublicKey(&deviceKey.PublicKey)
+	require.NoError(t, err)
+	_, err = s.DB.ExecContext(ctx, `UPDATE acme_challenges SET status = 'valid', attested_public_key = ? WHERE acme_authorization_id IN (SELECT id FROM acme_authorizations WHERE acme_order_id = ?)`, attestedKey, orderID)
 	require.NoError(t, err)
 	_, err = s.DB.ExecContext(ctx, `UPDATE acme_authorizations SET status = 'valid' WHERE acme_order_id = ?`, orderID)
 	require.NoError(t, err)
 	_, err = s.DB.ExecContext(ctx, `UPDATE acme_orders SET status = 'ready' WHERE id = ?`, orderID)
 	require.NoError(t, err)
+	return deviceKey
 }
 
 func (s *integrationTestSuite) getAuthorization(t *testing.T, authUrl string, jwsBody []byte) (*api_http.GetAuthorizationResponse, *types.ACMEError, *http.Response) {

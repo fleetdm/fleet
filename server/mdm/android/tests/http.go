@@ -42,7 +42,7 @@ func (ts *WithServer) DoRaw(verb string, path string, rawBytes []byte, expectedS
 func (ts *WithServer) DoRawWithHeaders(
 	verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
 ) *http.Response {
-	opts := []fleethttp.ClientOpt{}
+	opts := []fleethttp.ClientOpt{fleethttp.WithNoTimeout()}
 	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
 		opts = append(opts, fleethttp.WithFollowRedir(false))
 	}

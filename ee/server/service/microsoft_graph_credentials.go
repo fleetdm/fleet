@@ -18,8 +18,8 @@ const maxMicrosoftGraphCredentials = 1
 
 // ListMicrosoftGraphCredentials returns the stored credentials with their per-tenant sync status. Client secrets are
 // never decrypted on this path.
-func (svc *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+func (svc *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MicrosoftGraphCredential{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -36,7 +36,7 @@ func (svc *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet
 // sync. Unchanged credentials are skipped entirely: re-applying an identical GitOps config makes no network call,
 // performs no write, and emits no activity.
 func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming []fleet.MicrosoftGraphCredential, dryRun bool) error {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MicrosoftGraphCredential{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 

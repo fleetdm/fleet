@@ -213,7 +213,7 @@ Every department organizes their work into [team-based kanban boards](https://gi
 
 ## Why route cross-functional taskings through the team's manager?
 
-At Fleet, taskings that span departments (an OKR, an event, a piece of content, anything that needs another team's involvement) go to that team's manager first, even if you already know who you want to do it. The manager owns their team's priorities and workload, so they need to know what's on it. If they don't, they can't prioritize the work, and they can't hold anyone accountable for delivering it.
+At Fleet, taskings that span departments (an OKR, an event, a piece of content, anything that needs another team's involvement) go to that team's manager, even if you already know who you want to do it. The manager owns their team's priorities and workload, so they need to know what's on it. If they don't, they can't prioritize the work, and they can't hold anyone accountable for delivering it.
 
 
 ## Why agile?
@@ -354,6 +354,13 @@ Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.
 - **Community-first.**  We go to conferences.  We write docs.  We are participants, not sponsors.  We don't write spammy articles and landing pages. We want people who choose Fleet to be successful, whether they are paying customers or not.  We are not pushy.  We are only as commercial as we have to be to help people out.
 - **Be genuine.**  No puffery. No impressive-sounding words.  We are [🟣 open and outsider friendly](https://fleetdm.com/handbook/company#openness).  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [🔵 fair to competitors](https://fleetdm.com/handbook/company#objectivity).
 - **Step up.** We look at the [🟠 big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
+
+
+## Why short emails?
+
+Short emails that stick to a single ask tend to get better responses, since everyone's inbox is already overwhelming. When an email bundles in more than one link or question, it's easy to put off, leave marked as unread, and start to feel more like homework than something to act quickly on. 
+
+Learn more in this [confidential whiteboard](https://docs.google.com/document/d/1MPj4WPFPr5u91IuL-RBhFlv12HCNfJnXAcoTTfLVCFk/edit?tab=t.0).
 
 
 ## Why work with customer X?

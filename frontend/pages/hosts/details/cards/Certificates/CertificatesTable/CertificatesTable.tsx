@@ -1,15 +1,14 @@
 import React, { useCallback } from "react";
 import { Row } from "react-table";
 
+import CustomLink from "components/CustomLink";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import { IHostCertificate } from "interfaces/certificates";
-import { IGetHostCertificatesResponse } from "services/entities/hosts";
 import { IListSort } from "interfaces/list_options";
 import { HostPlatform } from "interfaces/platform";
-
-import TableContainer from "components/TableContainer";
-import CustomLink from "components/CustomLink";
-import TableCount from "components/TableContainer/TableCount";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
+import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 import generateTableConfig from "./CertificatesTableConfig";
 

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.5.262",
+      "version": "3.5.343",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.clickup.desktop-app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.clickup.desktop-app' AND version_compare(bundle_short_version, '3.5.262') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.clickup.desktop-app' AND version_compare(bundle_short_version, '3.5.343') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.clickup.desktop-app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp%203.5.262%20-%20Build%20260717dcrpwg7m0-arm64.dmg",
+      "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp%203.5.343%20-%20Build%20260922khmj5cgny-arm64.dmg",
       "install_script_ref": "4b26d157",
       "uninstall_script_ref": "f272dcb6",
-      "sha256": "76168f07eeddcab9f0ab967e1c2be6f0a6a0450625ca1369835f6ceb8d4e2a01",
+      "sha256": "ea5f405274a4b8369ad91f234a689f633fbcd42395bb0c58def562f661b85804",
       "default_categories": [
         "Productivity"
       ]

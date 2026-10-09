@@ -1,12 +1,14 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import { noop } from "lodash";
+import React from "react";
+
+import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import {
   IDeviceSoftwareWithUiStatus,
   IHostSoftwareUiStatus,
 } from "interfaces/software";
+import { createCustomRenderer } from "test/test-utils";
+
 import UpdatesCard from "./UpdatesCard";
 
 describe("UpdatesCard", () => {

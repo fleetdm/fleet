@@ -5,6 +5,10 @@ parasails.registerPage('configuration-generator', {
   data: {
     generatedOutput: ``,
     parsedItemsInProfile: [],
+    anticipatedItemsInProfile: [],
+    anticipatedName: undefined,
+    anticipatedDescription: undefined,
+    showLoadingOverlay: false,
     deliveryNotes: undefined,
     formData: {
       profileType: 'ddm'
@@ -22,8 +26,15 @@ parasails.registerPage('configuration-generator', {
     syncing: false,
     // Server error state
     cloudError: '',
+    cloudErrorExplanation: undefined,
     filenameOfGeneratedProfile: undefined,
     hasGeneratedProfile: false,
+    // A Windows profile for a third-party app embeds the app's ADMX template, which is hundreds of KB of
+    // XML the admin did not ask to read.  The editor shows a placeholder for each one, and the download
+    // puts the template back.
+    admxTemplatesByPlaceholder: {},
+    // Install-only profiles, when the templates are too large to share a file with the policies.
+    additionalProfiles: [],
     // Filename and mimetype to fall back on when the generated profile doesn't come with a filename.
     downloadInfoByProfileType: {
       ddm: { filename: 'ddm-command.json', mimeType: 'application/json' },
@@ -41,7 +52,6 @@ parasails.registerPage('configuration-generator', {
     //…
   },
   mounted: async function() {
-    this._setUpAceEditor();
     //…
   },
 
@@ -50,7 +60,14 @@ parasails.registerPage('configuration-generator', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     handleSubmittingForm: async function() {
+      console.time('Profile generation');
+      this._resetGeneratedProfile();
       this.syncing = true;
+      this.hasGeneratedProfile = true;
+      this.showLoadingOverlay = true;
+      this.$nextTick(()=>{
+        this._setUpAceEditor();
+      });
       io.socket.request({
         method: 'post',
         url: '/api/v1/get-llm-generated-configuration-profile',
@@ -64,26 +81,57 @@ parasails.registerPage('configuration-generator', {
       }, (unusedData, jwr)=>{
         // The generated profile arrives as a broadcast, not as this response, so the only thing
         // worth reading here is a failure -- without it, a rejected request spins forever.
+        console.timeEnd('Profile generation');
         if(jwr.statusCode >= 300) {
           this._onProfileGenerationError({error: jwr.statusCode});
         }
       });
       // Detach first, so that retrying after an error doesn't leave duplicate listeners attached.
+      io.socket.off('settingsPreview', this._onSettingsPreview);
       io.socket.off('profileGenerated', this._onProfileGenerated);
       io.socket.off('error', this._onProfileGenerationError);
+      io.socket.on('settingsPreview', this._onSettingsPreview);
       io.socket.on('profileGenerated', this._onProfileGenerated);
       io.socket.on('error', this._onProfileGenerationError);
     },
+    _resetGeneratedProfile: function() {
+      this.generatedOutput = '';
+      this.parsedItemsInProfile = [];
+      this.anticipatedItemsInProfile = [];
+      this.deliveryNotes = undefined;
+      this.filenameOfGeneratedProfile = undefined;
+      this.cloudErrorExplanation = undefined;
+      this.hideEditButton = false;
+      this.admxTemplatesByPlaceholder = {};
+      this.additionalProfiles = [];
+    },
+    _onSettingsPreview: function(response) {
+      if(!this.syncing) {
+        return;
+      }
+      this.anticipatedItemsInProfile = response.settings;
+      this.anticipatedName = response.name;
+      this.anticipatedDescription = response.description;
+      this.showLoadingOverlay = false;
+      io.socket.off('settingsPreview', this._onSettingsPreview);
+    },
     _onProfileGenerated: function(response) {
-      this.generatedOutput = response.result.profile;
+      console.log('Profile generated!: ', response);
+      let profileForEditor = this._collapseAdmxTemplates(response.result.profile);
+      this.generatedOutput = profileForEditor;
+      this.additionalProfiles = response.result.additionalProfiles || [];
+      this.showLoadingOverlay = false;
+      this.anticipatedItemsInProfile = [];
       this.filenameOfGeneratedProfile = response.result.profileFilename;
       this.deliveryNotes = response.result.deliveryNotes;
       this.parsedItemsInProfile = response.result.items;
       this.hasGeneratedProfile = true;
-      ace.edit('editor').setValue(response.result.profile);
+      let editor = ace.edit('editor');
+      editor.setValue(profileForEditor, -1);
+      editor.resize(true);
       this.modal = '';
       this.syncing = false;
-      // Disable the socket event listener after we display the results.
+      io.socket.off('settingsPreview', this._onSettingsPreview);
       io.socket.off('profileGenerated', this._onProfileGenerated);
     },
     _onProfileGenerationError: function(response) {
@@ -92,8 +140,14 @@ parasails.registerPage('configuration-generator', {
         // response to the request that started it.  Whichever lands first wins.
         return;
       }
+      if(response.reason) {
+        this.cloudErrorExplanation = response.reason;
+      }
       this.cloudError = response.error;
       this.syncing = false;
+      this.showLoadingOverlay = false;
+      this.anticipatedItemsInProfile = [];
+      io.socket.off('settingsPreview', this._onSettingsPreview);
       io.socket.off('error', this._onProfileGenerationError);
     },
     closeModal: async function() {
@@ -108,12 +162,32 @@ parasails.registerPage('configuration-generator', {
     },
     clickDownloadResult: function() {
       let downloadInfo = this.downloadInfoByProfileType[this.formData.profileType];
-      let exportUrl = URL.createObjectURL(new Blob([this.generatedOutput], { type: downloadInfo.mimeType }));
+      let profileToDownload = this.generatedOutput;
+      for (let placeholder of Object.keys(this.admxTemplatesByPlaceholder)) {
+        profileToDownload = profileToDownload.split(placeholder).join(this.admxTemplatesByPlaceholder[placeholder]);
+      }
+      this._downloadFile(profileToDownload, this.filenameOfGeneratedProfile ? this.filenameOfGeneratedProfile : downloadInfo.filename, downloadInfo.mimeType);
+    },
+    clickDownloadAdditionalProfile: function(additionalProfile) {
+      this._downloadFile(additionalProfile.profile, additionalProfile.filename, this.downloadInfoByProfileType.csp.mimeType);
+    },
+    _downloadFile: function(contents, filename, mimeType) {
+      let exportUrl = URL.createObjectURL(new Blob([contents], { type: mimeType }));
       let exportDownloadLink = document.createElement('a');
       exportDownloadLink.href = exportUrl;
-      exportDownloadLink.download = this.filenameOfGeneratedProfile ? this.filenameOfGeneratedProfile : downloadInfo.filename;
+      exportDownloadLink.download = filename;
       exportDownloadLink.click();
       URL.revokeObjectURL(exportUrl);
+    },
+    _collapseAdmxTemplates: function(profile) {
+      let admxTemplatesByPlaceholder = {};
+      let collapsedProfile = String(profile).replace(/<!\[CDATA\[\s*(?:<\?xml[^>]*\?>\s*)?<policyDefinitions[\s\S]*?\]\]>/g, (cdataSection)=>{
+        let placeholder = `<![CDATA[ADMX template #${Object.keys(admxTemplatesByPlaceholder).length + 1} (${Math.round(cdataSection.length / 1024)} KB), included when you download this profile]]>`;
+        admxTemplatesByPlaceholder[placeholder] = cdataSection;
+        return placeholder;
+      });
+      this.admxTemplatesByPlaceholder = admxTemplatesByPlaceholder;
+      return collapsedProfile;
     },
     clickEditGeneratedOutput: function() {
       var editor = ace.edit('editor');
@@ -128,7 +202,10 @@ parasails.registerPage('configuration-generator', {
         minLines: this.minLines ? this.minLines : 20 ,
         maxLines:  this.maxLines ? this.maxLines : 40 ,
       });
+      editor.setValue('', -1);
       editor.setReadOnly(true);
+      editor.renderer.$fontMetrics.checkForSizeChanges();
+      editor.resize(true);
     },
   }
 });

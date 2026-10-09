@@ -1,12 +1,12 @@
-import React, { ReactNode, KeyboardEvent, useEffect, useRef } from "react";
 import classnames from "classnames";
 import { noop, pick } from "lodash";
+import React, { ReactNode, KeyboardEvent, useEffect, useRef } from "react";
 
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 const baseClass = "fleet-checkbox";
 
@@ -20,6 +20,8 @@ interface ICheckboxPropsBase {
   /** disabled displays a greyed out non-editable field */
   disabled?: boolean;
   name?: string;
+  /** Accessible name for the checkbox; defaults to `name`. */
+  ariaLabel?: string;
   onBlur?: (event: React.FocusEvent<HTMLDivElement>) => void;
   value?: boolean;
   wrapperClassName?: string;
@@ -60,6 +62,7 @@ const Checkbox = (props: ICheckboxProps) => {
     readOnly = false,
     disabled = false,
     name,
+    ariaLabel,
     onChange = noop,
     onBlur = noop,
     value = false,
@@ -192,7 +195,7 @@ const Checkbox = (props: ICheckboxProps) => {
         />
         <div
           role="checkbox"
-          aria-label={name}
+          aria-label={ariaLabel ?? name}
           aria-checked={indeterminate ? "mixed" : value ?? undefined}
           aria-readonly={readOnly}
           aria-disabled={disabled}

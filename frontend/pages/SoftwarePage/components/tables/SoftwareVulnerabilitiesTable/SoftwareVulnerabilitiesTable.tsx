@@ -3,21 +3,21 @@
  software/os/:id > Vulnerabilities table
  */
 
-import React, { useContext, useMemo } from "react";
 import classnames from "classnames";
+import React, { useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
-import PATHS from "router/paths";
 
-import { AppContext } from "context/app";
-import { ISoftwareVulnerability } from "interfaces/software";
-import { CONTACT_FLEET_LINK } from "utilities/constants";
-import { DisplayPlatform } from "interfaces/platform";
-import { getPathWithQueryParams } from "utilities/url";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
+import { AppContext } from "context/app";
+import { DisplayPlatform } from "interfaces/platform";
+import { ISoftwareVulnerability } from "interfaces/software";
+import PATHS from "router/paths";
+import { CONTACT_FLEET_LINK } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import generateTableConfig from "./SoftwareVulnerabilitiesTableConfig";
 

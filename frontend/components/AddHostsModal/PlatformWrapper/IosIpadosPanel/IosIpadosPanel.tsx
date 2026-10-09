@@ -1,12 +1,12 @@
 import React, { useContext, useState } from "react";
 
+import { renderAppleManualEnrollmentDisabled } from "components/AddHostsModal/helpers";
 import CustomLink from "components/CustomLink";
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { getPathWithQueryParams } from "utilities/url";
-
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import EnrollQrCode from "../EnrollQrCode";
 
@@ -16,9 +16,13 @@ const baseClass = "ios-ipados-panel";
 
 interface IosIpadosPanelProps {
   enrollSecret: string;
+  isManualAppleEnrollmentsBlocked: boolean;
 }
 
-const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
+const IosIpadosPanel = ({
+  enrollSecret,
+  isManualAppleEnrollmentsBlocked,
+}: IosIpadosPanelProps) => {
   const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
 
   // Default to "Personal (BYOD)" per #23242 design.
@@ -27,6 +31,10 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
   );
 
   if (!config) return null;
+
+  if (isManualAppleEnrollmentsBlocked) {
+    return renderAppleManualEnrollmentDisabled("iOS & iPadOS");
+  }
 
   if (!isMacMdmEnabledAndConfigured) {
     return (
@@ -70,9 +78,6 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
             onChange={() => setEnrollmentType("companyOwned")}
           />
         </fieldset>
-        <h3 className="platform-wrapper__panel-heading">
-          Enrollment instructions
-        </h3>
         <InputField
           label="Share this link with your end users:"
           enableCopy
@@ -80,6 +85,7 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
           inputWrapperClass={`${baseClass}__enroll-link`}
           name="enroll-link"
           value={url}
+          helpText="This link must be opened in Safari. If opened in another browser, end users will have to sign in again using Safari."
         />
         <EnrollQrCode url={url} />
       </form>

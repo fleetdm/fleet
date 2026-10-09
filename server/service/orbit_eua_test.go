@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -183,6 +184,26 @@ func TestProcessWindowsEUAToken(t *testing.T) {
 		require.True(t, ds.GetMDMIdPAccountByEmailFuncInvoked, "should still fetch idp account even when enrollment has host_uuid")
 	})
 
+	t.Run("a datastore failure returns a generic OrbitError without the underlying detail", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc := newTestServiceWithWSTEP(t, ds)
+		token := makeToken(t, svc, testUPN, testDeviceID)
+
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return nil, fmt.Errorf("idp_accounts read failed: %w", context.DeadlineExceeded)
+		}
+
+		_, _, _, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, token)
+		require.Error(t, err)
+		// same OrbitError shape as every other EnrollOrbit failure, with a generic
+		// message; the underlying error stays on the log line, not in the response
+		var orbitErr fleet.OrbitError
+		require.ErrorAs(t, err, &orbitErr)
+		require.Equal(t, "getting windows mdm enrollment for EUA token", orbitErr.Message)
+		require.NotContains(t, orbitErr.Message, "idp_accounts")
+		require.NotEqual(t, "END_USER_AUTH_REQUIRED", orbitErr.Message)
+	})
+
 	t.Run("invalid token falls back to END_USER_AUTH_REQUIRED", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := newTestServiceWithWSTEP(t, ds)
@@ -351,6 +372,10 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		inner.MDMWindowsClaimEnrolledActivityFunc = func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error) {
 			return true, nil
 		}
+		// No incumbent holds the host by default; the conflict subtest overrides this.
+		inner.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(ctx context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
+			return false, "", nil
+		}
 		return svc, ds, serverOpts
 	}
 
@@ -404,6 +429,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc = func(ctx context.Context, serial string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return device, nil
 		}
+		ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
 		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) (bool, error) {
 			require.Equal(t, "host-uuid-1", hostUUID)
 			require.Equal(t, "device-1", deviceID)
@@ -436,6 +462,10 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 			return nil, nil
 		}
+		ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc = func(ctx context.Context, enrollmentID uint) error {
+			require.EqualValues(t, 1, enrollmentID)
+			return nil
+		}
 
 		var enrolledActivity *fleet.ActivityTypeMDMEnrolled
 		serverOpts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
@@ -449,6 +479,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, nodeKey)
 		require.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+		require.True(t, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked, "orbit enrolling proves fleetd runs on the device")
 		require.True(t, ds.AddHostsToTeamFuncInvoked, "default fleet must be assigned before EnrollOrbit returns")
 		require.NotNil(t, assignedTeamID)
 		require.Equal(t, defaultTeamID, *assignedTeamID)
@@ -461,5 +492,28 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		require.NotNil(t, enrolledActivity.HostSerial)
 		require.Equal(t, testSerial, *enrolledActivity.HostSerial)
 		require.Equal(t, fleet.MDMPlatformMicrosoft, enrolledActivity.MDMPlatform)
+	})
+
+	t.Run("unlinked enrollment claims a host held by other hardware: refused", func(t *testing.T) {
+		svc, ds, _ := newSvc(t)
+		// The serial on the unlinked enrollment was asserted by that device over OMA-DM. If the host it names already
+		// belongs to different hardware, this reverse-link must not hand the host over.
+		ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc = func(ctx context.Context, serial string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				ID: 1, MDMDeviceID: "device-1", MDMHardwareID: "claimant-hardware-id", MDMEnrollUserID: "user@example.com",
+			}, nil
+		}
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(ctx context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
+			require.Equal(t, "host-uuid-1", hostUUID)
+			require.Equal(t, "claimant-hardware-id", mdmHardwareID)
+			return true, "incumbent-hardware-id", nil
+		}
+
+		nodeKey, err := svc.EnrollOrbit(t.Context(), hostInfo, "secret", "")
+		require.NoError(t, err, "orbit enrollment itself must still succeed; only the reverse-link is refused")
+		require.NotEmpty(t, nodeKey)
+		require.True(t, ds.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked)
+		require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, "the host must not be relinked to the claimant")
+		require.False(t, ds.AddHostsToTeamFuncInvoked, "a refused link must not carry the default fleet with it")
 	})
 }

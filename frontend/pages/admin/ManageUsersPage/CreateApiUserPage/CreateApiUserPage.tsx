@@ -1,20 +1,20 @@
 import React, { useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { ITeam } from "interfaces/team";
-import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import usersAPI from "services/entities/users";
+import { InjectedRouter } from "react-router";
 
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { ITeam } from "interfaces/team";
+import PATHS from "router/paths";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import usersAPI from "services/entities/users";
+
+import ApiKeyDisplay from "../components/ApiKeyDisplay";
 import ApiUserForm from "../components/ApiUserForm";
 import { IApiUserFormData } from "../components/ApiUserForm/ApiUserForm";
-import ApiKeyDisplay from "../components/ApiKeyDisplay";
 
 const baseClass = "create-api-user-page";
 

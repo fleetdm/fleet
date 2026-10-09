@@ -96,7 +96,8 @@ func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBat
 	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
 		query.Add("assume_enabled", strconv.FormatBool(opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value))
 	}
-	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, query.Encode())
+	err = c.authenticatedRequestWithQuery(map[string]any{"profiles": profiles}, verb, path, nil, query.Encode())
+	return rewrapProfileBatchNameErr(err, profiles)
 }
 
 // applyDDMAssets sets the complete desired set of Apple DDM assets for the

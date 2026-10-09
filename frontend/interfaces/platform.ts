@@ -121,6 +121,7 @@ export const HOST_LINUX_PLATFORMS = [
   "coreos", // CoreOS Container Linux
   "cachyos", // CachyOS (Arch-based)
   "omarchy", // Omarchy (Arch-based)
+  "amd-ryzen-ai-developer-platform", // AMD Ryzen AI Developer Platform (Debian-based)
 ] as const;
 
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
@@ -151,11 +152,19 @@ export const isAppleDevice = (platform = "") => {
   );
 };
 
-export const isWindows = (platform: string | HostPlatform) =>
-  platform === "windows";
+// Accept both the single-value host platform (`"windows"`, `"darwin"`,
+// `"macos"`) and the comma-joined `CommaSeparatedPlatformString` from
+// policies (`"darwin,linux"`) so the same predicate works at the wire
+// boundary for patch policies without a second helper. `undefined` is
+// allowed so callers with `string | undefined` don't need to `?? ""`.
+export const isWindows = (platform: string | HostPlatform | undefined) =>
+  !!platform && platform.split(",").includes("windows");
 
-export const isMacOS = (platform: string | HostPlatform) =>
-  ["darwin", "macos"].includes(platform);
+export const isMacOS = (platform: string | HostPlatform | undefined) => {
+  if (!platform) return false;
+  const parts = platform.split(",");
+  return parts.includes("darwin") || parts.includes("macos");
+};
 
 export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);

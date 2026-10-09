@@ -53,6 +53,13 @@ As a consequence, Fleet Desktop will issue a new token if the current token is:
 
 This change is imperceptible to users, as clicking on the "My device" tray item always uses a valid token. If a user visits an address with an expired token, they will get a message instructing them to click on the tray item again.
 
+**Single Sign-On (SSO)**
+
+Fleet can be configured to require an end user to authenticate via SSO to view the "My Device" page. 
+
+To require SSO to view the "My Device" page, click on your profile in the top right and select **Settings**.
+On the settings page, go to **Organization Settings > Fleet Desktop > End user authentication**.
+
 ## Advanced
 
 ### Hide the menu bar icon on macOS
@@ -128,6 +135,26 @@ SELECT 1 FROM plist WHERE
 Then, add connect hide script to this policy via [policy automations](https://fleetdm.com/guides/policy-automation-run-script). 
 
 Fleet's agent (fleetd) upgrades won't re-show the menu bar icon, because upgrades don't touch the plist the script updates.
+
+
+### Single sign-on (SSO) for Fleet-Desktop-token-authenticated routes
+
+_Available in Fleet Premium_
+
+Fleet Desktop's API routes authenticate with a per-device token, not your Fleet API token. Turning on [`fleet_desktop.sso_enabled`](https://fleetdm.com/docs/configuration/yaml-files#fleet-desktop) adds a second requirement: signing in through your IdP.
+
+See the [Fleet-desktop-token-authenticated routes reference](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#fleet-desktop-token-authenticated-routes) for how the session requirement, error responses, and exemptions (including during [setup experience](https://fleetdm.com/guides/setup-experience)) work.
+
+
+### How iOS/iPadOS hosts authenticate
+
+iOS and iPadOS hosts don't run a Fleet Desktop app. Instead, end users reach a self-service page through a [Web Clip configuration profile](https://fleetdm.com/guides/software-self-service#deploy-self-service-on-ios-and-ipados). Fleet authenticates the request via host UUID in the URL.
+
+This UUID-based authentication only works for iOS and iPadOS hosts and is supported for all [device-authenticated API routes](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#device-authenticated-routes) except the following (neither of which applies to iOS/iPadOS hosts):
+- [Reporting an agent error](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#report-an-agent-error)
+- [Download device's MDM manual enrollment profile](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#download-devices-mdm-manual-enrollment-profile)
+
+Because iOS and iPadOS hosts authenticate by UUID, Fleet also strips identifying details, like hardware serial and configuration profile data, from the [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token) response for those hosts.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">

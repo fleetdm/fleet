@@ -1,7 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import React from "react";
+
 import PATHS from "router/paths";
+import { renderWithSetup } from "test/test-utils";
 
 import LinkCell from "./LinkCell";
 

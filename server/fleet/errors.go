@@ -28,12 +28,15 @@ var (
 	AppleOSVersionUnsupportedMessage             = "The minimum version isn't supported by Apple."
 	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
 	CantDeleteHostUnverifiedABMMessage           = "Couldn't delete host. Fleet couldn't reach Apple Business to check whether this host is still assigned. Please try again."
+	MyDeviceURLUnsupportedPlatformMessage        = "The My device page is only supported for macOS, Windows, Linux, and iOS/iPadOS hosts."
+	MyDeviceURLNotEnrolledMessage                = "The My device page isn't available until this host enrolls in MDM."
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
 	CantClearPasscodePersonalHostsMessage        = "Unlock token is not available for this device. Unable to issue ClearPasscode command."
+	CantClearPasscodeAccessRightsMessage         = "Clear passcode permissions are disabled for this host. Unable to issue ClearPasscode command."
 	CantLockManualIOSIpadOSHostsMessage          = "Couldn't lock. This command isn't available for manually enrolled iOS/iPadOS hosts."
 	CantDisableDiskEncryptionIfPINRequiredErrMsg = "Couldn't disable disk encryption, you need to disable the BitLocker PIN requirement first."
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
@@ -519,11 +522,22 @@ func (e OrbitError) IsClientError() bool {
 	return code >= 400 && code < 500
 }
 
+// OrbitIDPAuthRequiredMessage is matched verbatim by fleetd to decide it must
+// open the IdP sign-in window, so it must not change.
+const OrbitIDPAuthRequiredMessage = "END_USER_AUTH_REQUIRED"
+
 func NewOrbitIDPAuthRequiredError() *OrbitError {
 	return &OrbitError{
-		Message: "END_USER_AUTH_REQUIRED",
+		Message: OrbitIDPAuthRequiredMessage,
 		code:    http.StatusUnauthorized,
 	}
+}
+
+// IsOrbitIDPAuthRequired reports whether err is the response EnrollOrbit
+// returns when the device's end user must authenticate before enrolling.
+func IsOrbitIDPAuthRequired(err error) bool {
+	orbitErr, ok := errors.AsType[*OrbitError](err)
+	return ok && orbitErr.Message == OrbitIDPAuthRequiredMessage
 }
 
 // Messages that may be surfaced by the server or the fleetctl client.
@@ -569,6 +583,12 @@ const (
 
 	// Invalid list options combinations
 	FilterTitlesByPlatformNeedsTeamIdErrMsg = "The 'platform' and 'team_id' parameters must be used together to filter the software available for install."
+
+	softwareTypeFilterDocsURL                   = "https://fleetdm.com/docs/rest-api/rest-api#list-software"
+	InvalidSoftwareSourceErrMsg                 = "Invalid source: %q isn't a valid source. See the options: " + softwareTypeFilterDocsURL
+	InvalidSoftwareExtensionForErrMsg           = "Invalid extension_for: %q isn't a valid browser or IDE. See the options: " + softwareTypeFilterDocsURL
+	SoftwareExtensionForRequiresSourceErrMsg    = "extension_for requires source. Specify a browser or IDE extension source, like source=chrome_extensions&extension_for=brave."
+	SoftwareExtensionForSourceNotSelectedErrMsg = "%q is a %q value, but source doesn't include %[2]q."
 )
 
 // Error message variables
@@ -597,6 +617,36 @@ func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
 
+// CertificateAuthorityTransientError is the 503 for a certificate request the CA could not
+// serve for a reason expected to clear on its own, such as no response or an HTTP 5xx.
+// Retry-After tells callers such as curl --retry when to try again.
+type CertificateAuthorityTransientError struct {
+	Message           string
+	RetryAfterSeconds int
+}
+
+func (e CertificateAuthorityTransientError) Error() string { return e.Message }
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e CertificateAuthorityTransientError) StatusCode() int { return http.StatusServiceUnavailable }
+
+// RetryAfter implements platform_http.ErrWithRetryAfter.
+func (e CertificateAuthorityTransientError) RetryAfter() int { return e.RetryAfterSeconds }
+
+// LinuxEscrowInFlightError is the 409 for a LUKS escrow request refused because fleetd is already
+// handling one. Retry-After is how long until that state expires if fleetd sends nothing further.
+type LinuxEscrowInFlightError struct {
+	RetryAfterSeconds int
+}
+
+func (e LinuxEscrowInFlightError) Error() string { return LinuxEscrowInFlightMessage }
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e LinuxEscrowInFlightError) StatusCode() int { return http.StatusConflict }
+
+// RetryAfter implements platform_http.ErrWithRetryAfter.
+func (e LinuxEscrowInFlightError) RetryAfter() int { return e.RetryAfterSeconds }
+
 // IsConflict implements the conflict interface for middleware compatibility
 func (e ConflictError) IsConflict() bool {
 	return true
@@ -617,3 +667,25 @@ type VPPIconAvailable struct {
 func (e *VPPIconAvailable) Error() string {
 	return fmt.Sprintf("VPP icon available at: %s", e.IconURL)
 }
+
+// ABOnlyEnrollmentForbiddenError is returned by device-facing enrollment
+// endpoints when only Apple Business enrollment is allowed.
+type ABOnlyEnrollmentForbiddenError struct {
+	ErrorWithUUID
+	InternalErr error
+}
+
+func (e *ABOnlyEnrollmentForbiddenError) Error() string {
+	return "Manual enrollment is not available. Only devices assigned through Apple Business can enroll. Please contact your IT administrator."
+}
+
+func (e *ABOnlyEnrollmentForbiddenError) StatusCode() int { return http.StatusForbidden }
+
+func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
+	if e.InternalErr != nil {
+		return e.InternalErr.Error()
+	}
+	return ""
+}
+
+const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."

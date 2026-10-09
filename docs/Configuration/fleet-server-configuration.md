@@ -815,6 +815,20 @@ server:
   allow_private_network_integrations: true
 ```
 
+### server_allow_request_certificate_any_idp
+
+Turns off the identity checks on the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API. When set, requests authenticated with an HTTP signature don't have to name the end user recorded for the host, and IdP credentials are accepted for any introspection endpoint, not only those listed in `integrations.certificates_idp_introspection_urls`.
+
+This restores the behavior of Fleet versions that predate these checks. Use it while you migrate, then configure the `integrations.certificates_*` settings and turn it off.
+
+- Default value: `false`
+- Environment variable: `FLEET_SERVER_ALLOW_REQUEST_CERTIFICATE_ANY_IDP`
+- Config file format:
+```yaml
+server:
+  allow_request_certificate_any_idp: true
+```
+
 ### server_force_h2c
 
 Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 support is only negotiated if the Go webserver
@@ -863,7 +877,7 @@ Only one of `server_private_key_arn` or `server_private_key` can be set.
 If set, Fleet reads the private key from AWS Secrets Manager instead of directly from `server_private_key`.
 
 - Default value: `""`
-- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_ARN`
 - Config file format:
   ```yaml
   server:
@@ -887,7 +901,7 @@ Optionally, when using Identity and Access Management (IAM) authentication, this
 Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `server_private_key_arn` and `server_private_key_sts_assume_role_arn`.
 
 - Default value: `""`
-- Environment variable: `FLEET_SERVER_PRIVATE_KEY_EXTERNAL_ID`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_EXTERNAL_ID`
 - Config file format:
   ```yaml
   server:
@@ -918,6 +932,41 @@ Enable this to significantly reduce the outbound bandwidth from the Fleet server
   ```yaml
   server:
     gzip_responses: true
+  ```
+
+### fleet_server_enable_csp
+
+When set to `1` or `true`, the Fleet server adds a `Content-Security-Policy` header to responses for the Fleet UI, API, and static assets. The policy restricts where the browser can load scripts, styles, images, fonts, and network connections from.
+
+The policy allows resources from the Fleet server, images from `www.gravatar.com` and any HTTPS origin (for custom logos), and WebSocket connections. Inline scripts and styles are allowed only when they carry a per-response nonce that the server injects into the UI.
+
+This is only supported as an environment variable.
+
+- Default value: not set (no `Content-Security-Policy` header is sent)
+- Environment variable: `FLEET_SERVER_ENABLE_CSP`
+
+### server_script_results_retention (Fleet 4.92.2+)
+
+Minimum time since a script run recorded its result before Fleet's hourly cleanup deletes it. Runs still waiting on a host are kept, as are runs a host lock, wipe, unlock, setup experience, software uninstall, or batch run depends on. Set to 0 to disable the cleanup.
+
+- Default value: 720h
+- Environment variable: `FLEET_SERVER_SCRIPT_RESULTS_RETENTION`
+- Config file format:
+  ```yaml
+  server:
+    script_results_retention: 720h
+  ```
+
+### server_software_install_results_retention (Fleet 4.92.2+)
+
+Minimum time since a software install or uninstall finished before Fleet's hourly cleanup deletes its record. Records a host is still working on are kept, as are records setup experience depends on and the most recent install and uninstall per host and package. Set to 0 to disable the cleanup.
+
+- Default value: 720h
+- Environment variable: `FLEET_SERVER_SOFTWARE_INSTALL_RESULTS_RETENTION`
+- Config file format:
+  ```yaml
+  server:
+    software_install_results_retention: 720h
   ```
 
 ## Auth
@@ -1371,6 +1420,30 @@ The minimum time difference between the software's "last opened at" timestamp re
     min_software_last_opened_at_diff: 4h
   ```
 
+### osquery_max_concurrent_query_report_reads
+
+The maximum number of osquery log requests that each Fleet server checks against stored report results at the same time. Fleet reads a host's stored results from the database (the read replica, if configured) so it can skip writing results that haven't changed. When a server is at the limit, it skips storing report results for the request instead of waiting on the database. The host sends fresh results on the report's next run. Results still go to the log destination for reports with automations on. Set it to 0 to remove the limit.
+
+- Default value: 40
+- Environment variable: `FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_READS`
+- Config file format:
+  ```yaml
+  osquery:
+    max_concurrent_query_report_reads: 80
+  ```
+
+### osquery_max_concurrent_query_report_writes
+
+The maximum number of osquery log requests, across all Fleet servers, that write changed report results to the database at the same time. Unlike `osquery_max_concurrent_query_report_reads`, this limit is shared through Redis, so it doesn't change when you add or remove Fleet servers. Results that haven't changed don't count toward it. When the limit is reached, Fleet skips storing the request's changed report results instead of waiting on the database. The host sends fresh results on the report's next run. Results still go to the log destination for reports with automations on. If Redis can't be reached, each Fleet server allows up to 2 writes at a time instead. Set it to 0 to remove the limit.
+
+- Default value: 20
+- Environment variable: `FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_WRITES`
+- Config file format:
+  ```yaml
+  osquery:
+    max_concurrent_query_report_writes: 40
+  ```
+
 ### osquery_max_log_write_body_size
 
 Maximum HTTP request body size accepted by `/api/osquery/log`. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default (10MiB).
@@ -1399,6 +1472,22 @@ This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fal
     max_distributed_write_body_size: 10MiB
   ```
 
+### osquery_config_in_memory_cache
+
+Caches the scheduled-report section of the osquery config in memory, so that Fleet doesn't rebuild it from the database on every config check-in. Disabled by default.
+
+When enabled, the cache holds that section for one minute, keyed by fleet (team) and the `server_settings.query_reports_disabled` setting, which reduces database reads on config check-ins. It covers only the `packs` key of the response; the rest of the config is rebuilt on every check-in. It's also used only where it can't change what a host receives: hosts with 2017 packs, and fleets with label-scoped reports (whose configs differ per host), always build from the database.
+
+When disabled, every check-in builds that section from the database.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE`
+- Config file format:
+  ```yaml
+  osquery:
+    config_in_memory_cache: true
+  ```
+
 ### osquery_allow_body_auth_fallback
 
 Selects how osquery requests are authenticated.
@@ -1413,6 +1502,40 @@ When `false`, the `Authorization: NodeKey` header is required and the body's `no
   ```yaml
   osquery:
     allow_body_auth_fallback: false
+  ```
+
+### osquery_config_etags
+
+Enables conditional osquery config requests on `/api/osquery/config`. Disabled by default.
+
+When enabled, an agent that sends an `"etag"` field in its config request body receives the config with an `"etag"` key added, and the minimal `{"etag":"ok"}` body when its etag matches the current config. Agents that don't send the field are unaffected either way.
+
+Setting this to `false` is the escape hatch that disables the feature entirely: the request's etag field is ignored, every response is the full config with no `"etag"` key — byte-identical to the behavior before this feature existed for every agent — and no ETag store I/O happens. This is broader than `osquery_redis_config_etags` below, which only disables the Redis short circuit while leaving conditional requests active.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_CONFIG_ETAGS`
+- Config file format:
+  ```yaml
+  osquery:
+    config_etags: false
+  ```
+
+### osquery_redis_config_etags
+
+Enables the Redis-backed ETag short circuit for the osquery config endpoint (`/api/osquery/config`). Disabled by default.
+
+When enabled, Fleet stores config ETags in Redis. When an agent's config request body carries an `"etag"` field matching the stored validator, Fleet answers with the minimal `{"etag":"ok"}` body directly from Redis **without building the config** — skipping that request's database reads entirely. Fleets (teams) whose config is uniform share one ETag per fleet and platform; fleets with label-scoped reports (whose configs are host-specific) use isolated per-host ETags that are invalidated whenever a host's label results are recorded. Qualifying changes (agent options, features, report schedules, label deletion, 2017 packs, fleet/team changes) invalidate the stored ETags immediately; a short "write fence" window after each change keeps Fleet's in-memory caches from repopulating Redis with stale data.
+
+The short circuit is automatically bypassed — falling back to a normal full config build — when the deployment has user-created 2017 packs, when the agent sends no (or an empty) etag, or on any Redis error (the feature fails open and can never block config delivery). Requires Redis; has no effect without it. It also requires `osquery_config_etags` (above): when that is `false`, this option is forced off with a startup warning, and no config ETag Redis traffic occurs at all. Agents that don't send the `"etag"` field receive the config exactly as before this feature existed, with no etag in the response.
+
+When disabled, every config request takes the full-build path, identical to the behavior before this feature existed — use this to A/B test the feature or to rule it out when debugging config delivery.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_REDIS_CONFIG_ETAGS`
+- Config file format:
+  ```yaml
+  osquery:
+    redis_config_etags: false
   ```
 
 ## External activity audit logging
@@ -2561,6 +2684,8 @@ Timeout for NATS publish operations. Valid time units are `s`, `m`, `h`.
 
 Fleet can send osquery logs directly to Splunk via the [HTTP Event Collector (HEC)](https://docs.splunk.com/Documentation/Splunk/latest/Data/UsetheHTTPEventCollector) endpoint.
 
+> Fleet doesn't validate `splunk_url` or `splunk_token` at startup. If either is wrong, errors appear in the Fleet server logs when Fleet tries to send logs to Splunk.
+
 ### splunk_url
 
 This flag only has effect if one of the following is true:
@@ -3665,6 +3790,64 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
     apple_dep_sync_periodicity: 10m
   ```
 
+### mdm.apple_command_cleanup_short_retention
+
+How long Fleet keeps completed Apple MDM commands that it generates on a recurring schedule before deleting them from the command queue. This covers refetch commands (`REFETCH-*`), device name updates (`DEVNAME-*`), App Store (VPP) install verification commands (`VERIFY-VPP-INSTALLS-*`), and `DeclarativeManagement` sync commands. Fleet also uses this window to purge inactive commands, such as a profile install superseded by a newer one or commands cleared when a host re-enrolled.
+
+Fleet only deletes a command after the host responds with a final status (`Acknowledged`, `Error`, or `CommandFormatError`) or it has been marked inactive and would never be sent. Deleted commands no longer appear in the host's MDM commands list.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 24h
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_short_retention: 48h
+  ```
+
+### mdm.apple_command_cleanup_standard_retention
+
+How long Fleet keeps other completed Apple MDM commands before deleting them from the command queue. This covers profile installs and removals (`InstallProfile`, `RemoveProfile`), app installs (`InstallApplication`, `InstallEnterpriseApplication`), `DeviceConfigured`, `DeviceLocation`, recovery lock commands (`SetRecoveryLock`, `VerifyRecoveryLock`), `SetAutoAdminPassword`, and inventory commands run manually through the API (`DeviceInformation`, `InstalledApplicationList`, `CertificateList`, `ProfileList`, `SecurityInfo`, `UserList`).
+
+Fleet never deletes commands it needs to determine a host's state, such as `DeviceLock`, `EraseDevice`, `EnableLostMode`, `DisableLostMode`, and `AccountConfiguration`, or any command type not listed above. Fleet also keeps a command past this window while it's referenced by a host's current profiles, bootstrap package, pending app installations, recovery lock or managed local account rotation, or Enrollment Profile renewal.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_standard_retention: 2160h
+  ```
+
+### mdm.apple_command_cleanup_max_row_deletions_per_run
+
+The maximum number of Apple MDM command queue entries Fleet deletes each time the cleanup runs. The cleanup runs hourly. Each entry is one command sent to one host, along with that host's result.
+
+Raise this value to clear a large backlog faster, at the cost of more database load per run. Set to `0` to stop deleting queue entries.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_ROW_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_row_deletions_per_run: 5000
+  ```
+
+### mdm.apple_command_cleanup_max_command_deletions_per_run
+
+The maximum number of Apple MDM commands Fleet deletes each time the cleanup runs. A command is the payload shared by every host it was sent to. Fleet deletes a command only after no host's queue entry or result refers to it, and only after it's more than 24 hours old. Set to `0` to stop deleting commands.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_COMMAND_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_command_deletions_per_run: 5000
+  ```
+
 ### mdm.windows_wstep_identity_cert_bytes
 
 The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM-encoded.
@@ -3693,6 +3876,20 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----BEGIN RSA PRIVATE KEY-----
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
+  ```
+
+### mdm.windows_enrollment_retention
+
+How long Fleet keeps a Windows MDM enrollment that is orphaned or superseded before the hourly cleanup deletes it, along with its queued commands, command results, and stored responses. An enrollment is orphaned when its host has been deleted from Fleet and the device hasn't re-enrolled, and superseded when the same host has a newer enrollment. The window starts when the host is deleted or the enrollment was last updated, whichever is later.
+
+Enrollments are kept after a host is deleted so that a device that's still online relinks to a new host record when fleetd re-enrolls it. If you use host expiry, a device that stays offline for longer than the expiry window plus this value has to be unenrolled and re-enrolled manually. Set it to `0` to disable the cleanup.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_WINDOWS_ENROLLMENT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    windows_enrollment_retention: 336h
   ```
 
 ### mdm.sso_rate_limit_per_minute
@@ -3754,6 +3951,8 @@ For Windows, allows users to add custom Windows profiles for BitLocker.
 
 > Enabling this option may cause conflicts between your custom disk encryption configuration profiles and the profiles Fleet manages under the hood when [Fleet's disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) is enabled.
 
+See the [Custom disk encryption profiles guide](https://fleetdm.com/guides/custom-disk-encryption-profiles) for step-by-step instructions.
+
 - Default value: `false`
 - Environment variable: `FLEET_MDM_ENABLE_CUSTOM_DISK_ENCRYPTION`
 - Config file format:
@@ -3800,9 +3999,11 @@ You can remove an activation you already added, whether or not this setting is t
 
 ### mdm.allow_orbit_end_user_auth_bypass
 
-When a team requires [end user authentication](https://fleetdm.com/guides/end-user-authentication), Fleet gates Linux and Windows Orbit enrollment on end user authentication. `fleetd`/Orbit versions that predate end user authentication support cannot complete that flow, and installers built with `fleetctl package --bypass-end-user-auth` intentionally skip it.
+When a fleet requires [end user authentication](https://fleetdm.com/guides/end-user-authentication), Fleet gates Orbit enrollment on end user authentication. `fleetd`/Orbit versions that predate end user authentication support cannot complete that flow, installers built with `fleetctl package --bypass-end-user-auth` intentionally skip it, and on macOS end user authentication normally happens during automatic (ADE) MDM enrollment rather than during `fleetd` enrollment.
 
-By default (`true`), Fleet allows those hosts to enroll into a team that requires end user authentication without completing it. Set this to `false` to strictly enforce end user authentication for all Orbit enrollments — hosts that do not complete end user authentication (including `--bypass-end-user-auth` installers and pre-end-user-auth agents) are then blocked.
+By default (`true`), Fleet allows those hosts to enroll into a fleet that requires end user authentication without completing it. Because the enrollment request's platform and capabilities are supplied by the client, anyone holding an enroll secret can craft a request that enrolls a host without end user authentication while this setting is `true`.
+
+Set this to `false` to strictly enforce end user authentication for all Orbit enrollments on every platform. A host is then only enrolled if Fleet has a record that end user authentication was completed for it (for example, the IdP account linked during macOS ADE enrollment or the Windows end-user-auth token), or if it previously enrolled. Hosts that do not complete end user authentication, including `--bypass-end-user-auth` installers, pre-end-user-auth agents, and macOS hosts that install `fleetd` before turning on MDM, are blocked with `END_USER_AUTH_REQUIRED`. On Linux and Windows, `fleetd` prompts the end user to sign in with the IdP. On macOS, `fleetd` doesn't support IdP sign-in, so the host can't enroll until it enrolls in MDM through automatic enrollment (ADE) or manual enrollment, which require IdP sign-in.
 
 Hosts that already enrolled before end user authentication was enabled are always allowed to re-enroll regardless of this setting. Windows hosts that present a valid end-user-auth token from MDM enrollment always complete end user authentication regardless of this setting.
 
@@ -3812,6 +4013,24 @@ Hosts that already enrolled before end user authentication was enabled are alway
   ```yaml
   mdm:
     allow_orbit_end_user_auth_bypass: false
+  ```
+
+### mdm.apple_one_time_enroll_secrets
+
+When enabled, Fleet delivers a one-time, device-scoped enroll secret to each macOS host enrolled in Fleet MDM instead of a global or fleet-level enroll secret. The secret is embedded in the "Fleetd configuration" profile and is bound to the host's hardware UUID and serial number. Orbit and osquery can each use it once.
+
+A host that needs to re-enroll, for example after its node key has been deleted or its local orbit installation corrupted, needs a new one-time enroll secret. To issue one, resend the "Fleetd configuration" profile from the host's **Controls** tab. End users can't resend this profile from the **My device** page when this setting is enabled.
+
+Fleet also denies enrollment attempts that use a global or fleet-level enroll secret for a macOS host that is enrolled in Fleet MDM or assigned to Fleet in Apple Business. Denied attempts are recorded as `host_enrollment_rejected` activities.
+
+This setting requires that every Mac enrolled in Fleet MDM runs fleetd installed by Fleet MDM, so it reads the enroll secret from the "Fleetd configuration" profile. Macs running a fleetd package built with a global or fleet-level enroll secret won't be able to re-enroll.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_APPLE_ONE_TIME_ENROLL_SECRETS`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_one_time_enroll_secrets: true
   ```
 
 ### fleet_allow_bootstrap_package_during_migration

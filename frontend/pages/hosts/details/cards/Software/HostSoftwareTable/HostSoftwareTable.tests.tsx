@@ -1,14 +1,15 @@
-import React from "react";
-import { screen, fireEvent } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import { screen } from "@testing-library/react";
 import { noop } from "lodash";
-import { HostPlatform } from "interfaces/platform";
+import React from "react";
 
-import createMockUser from "__mocks__/userMock";
 import {
   createMockGetHostSoftwareResponse,
   createMockHostSoftware,
 } from "__mocks__/hostMock";
+import createMockUser from "__mocks__/userMock";
+import { HostPlatform } from "interfaces/platform";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
 import HostSoftwareTable from "./HostSoftwareTable";
 
 const mockRouter = createMockRouter();
@@ -34,7 +35,7 @@ describe("HostSoftwareTable", () => {
     searchQuery: "",
     page: 0,
     pagePath: "/hosts/1/software",
-    vulnFilters: {},
+    filters: {},
     onAddFiltersClick: noop,
     onShowInventoryVersions: noop,
   };
@@ -94,17 +95,10 @@ describe("HostSoftwareTable", () => {
     expect(searchInput).not.toBeDisabled();
   });
 
-  it("renders custom filter button when filters are applied", () => {
-    renderWithContext({
-      vulnFilters: { vulnerable: true },
-    });
-    expect(screen.getByRole("button", { name: /filter/i })).toBeInTheDocument();
-  });
-
   it("renders VulnsNotSupported when vulns filter applied and platform is iPad/iPhone", () => {
     renderWithContext({
       platform: "ipados",
-      vulnFilters: { vulnerable: true },
+      filters: { vulnerable: true },
       data: createMockGetHostSoftwareResponse({
         count: 0,
         software: [],
@@ -127,63 +121,153 @@ describe("HostSoftwareTable", () => {
     expect(screen.getByText("No software found")).toBeInTheDocument();
   });
 
-  it("renders the /Applications filter for macOS hosts with the filter on by default", () => {
+  it("renders Show helpers off when only top-level applications are shown", () => {
     renderWithContext({
       platform: "darwin",
       macosApplicationsFilter: true,
     });
 
-    // The selected option label is shown in the dropdown
-    expect(screen.getByText("Applications")).toBeInTheDocument();
+    expect(
+      screen.getByRole("switch", { name: "Show helpers" })
+    ).toHaveAttribute("aria-checked", "false");
   });
 
-  it("shows 'Full inventory' selected when the /Applications filter is off", () => {
+  it("renders Show helpers on when the /Applications filter is off", () => {
     renderWithContext({
       platform: "darwin",
       macosApplicationsFilter: false,
     });
 
-    expect(screen.getByText("Full inventory")).toBeInTheDocument();
+    expect(
+      screen.getByRole("switch", { name: "Show helpers" })
+    ).toHaveAttribute("aria-checked", "true");
   });
 
-  it("does not render the /Applications filter for non-macOS hosts", () => {
+  it("does not render Show helpers when the /Applications filter doesn't apply", () => {
     renderWithContext({
-      platform: "windows",
+      platform: "darwin",
+      macosApplicationsFilter: undefined,
     });
 
-    expect(screen.queryByText("Applications")).not.toBeInTheDocument();
-    expect(screen.queryByText("Full inventory")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("switch", { name: "Show helpers" })
+    ).not.toBeInTheDocument();
   });
 
-  it("renders the /Applications filter on the My device page for macOS hosts", () => {
+  it("writes macos_applications=false when Show helpers is turned on", async () => {
+    const router = createMockRouter({ replace: jest.fn() });
+    const { user } = renderWithContext({
+      router,
+      platform: "darwin",
+      macosApplicationsFilter: true,
+      filters: { types: ["macos_app"] },
+    });
+
+    await user.click(screen.getByRole("switch", { name: "Show helpers" }));
+
+    expect(router.replace).toHaveBeenCalledWith(
+      expect.stringContaining("macos_applications=false")
+    );
+    expect(router.replace).toHaveBeenCalledWith(
+      expect.stringContaining("types=macos_app")
+    );
+  });
+
+  it("places the controls in order: Show helpers, filters button, search", () => {
     renderWithContext({
       platform: "darwin",
       macosApplicationsFilter: true,
       isMyDevicePage: true,
     });
 
-    expect(screen.getByText("Applications")).toBeInTheDocument();
+    const toggle = screen.getByRole("switch", { name: "Show helpers" });
+    const button = screen.getByRole("button", { name: "Add filters" });
+    const search = screen.getByPlaceholderText(/search by name/i);
+    const nodes = Array.from(document.body.querySelectorAll("*"));
+    expect(nodes.indexOf(toggle)).toBeLessThan(nodes.indexOf(button));
+    expect(nodes.indexOf(button)).toBeLessThan(nodes.indexOf(search));
   });
 
-  it("appends macos_applications to the URL on pagination when the filter is set", () => {
-    const router = createMockRouter();
+  it("labels the filters button Filtered when a type is selected", () => {
+    renderWithContext({ filters: { types: ["windows_app"] } });
+
+    expect(
+      screen.getByRole("button", { name: "Filtered" })
+    ).toBeInTheDocument();
+  });
+
+  it("shows the filtered empty state when a type matches nothing", () => {
     renderWithContext({
+      filters: { types: ["windows_app"] },
+      data: createMockGetHostSoftwareResponse({ count: 0, software: [] }),
+    });
+
+    expect(
+      screen.getByText(/no items match the current search criteria/i)
+    ).toBeInTheDocument();
+  });
+
+  it("shows the no-software empty state under the macOS default with controls enabled", () => {
+    renderWithContext({
+      platform: "darwin",
+      macosApplicationsFilter: true,
+      filters: { types: ["macos_app"] },
+      data: createMockGetHostSoftwareResponse({ count: 0, software: [] }),
+    });
+
+    expect(screen.getByText("No software found")).toBeInTheDocument();
+    // The modal is the only way to widen the selection, so it stays reachable.
+    expect(screen.getByRole("button", { name: "Filtered" })).toBeEnabled();
+    expect(
+      screen.getByRole("switch", { name: "Show helpers" })
+    ).toBeInTheDocument();
+  });
+
+  it("shows the filtered empty state when types beyond the macOS default match nothing", () => {
+    renderWithContext({
+      platform: "darwin",
+      macosApplicationsFilter: true,
+      filters: { types: ["macos_app", "chrome_extension"] },
+      data: createMockGetHostSoftwareResponse({ count: 0, software: [] }),
+    });
+
+    expect(
+      screen.getByText(/no items match the current search criteria/i)
+    ).toBeInTheDocument();
+  });
+
+  it("shows the filtered empty state when the vulnerable filter joins the macOS default", () => {
+    renderWithContext({
+      platform: "darwin",
+      macosApplicationsFilter: true,
+      filters: { types: ["macos_app"], vulnerable: true },
+      data: createMockGetHostSoftwareResponse({ count: 0, software: [] }),
+    });
+
+    expect(
+      screen.getByText(/no items match the current search criteria/i)
+    ).toBeInTheDocument();
+  });
+
+  it("appends macos_applications to the URL on pagination when the filter is set", async () => {
+    const router = createMockRouter();
+    const { user } = renderWithContext({
       router,
       platform: "darwin",
       macosApplicationsFilter: true,
       data: fullPageWithNextResults,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await user.click(screen.getByRole("button", { name: /next/i }));
 
     expect(router.replace).toHaveBeenCalledWith(
       expect.stringContaining("macos_applications=true")
     );
   });
 
-  it("appends macos_applications to the URL on pagination on the My device page", () => {
+  it("appends macos_applications to the URL on pagination on the My device page", async () => {
     const router = createMockRouter();
-    renderWithContext({
+    const { user } = renderWithContext({
       router,
       platform: "darwin",
       macosApplicationsFilter: true,
@@ -191,16 +275,16 @@ describe("HostSoftwareTable", () => {
       data: fullPageWithNextResults,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await user.click(screen.getByRole("button", { name: /next/i }));
 
     expect(router.replace).toHaveBeenCalledWith(
       expect.stringContaining("macos_applications=true")
     );
   });
 
-  it("does not append macos_applications to the URL on pagination when the filter is undefined (non-macOS host)", () => {
+  it("does not append macos_applications to the URL on pagination when the filter is undefined (non-macOS host)", async () => {
     const router = createMockRouter();
-    renderWithContext({
+    const { user } = renderWithContext({
       router,
       platform: "windows",
       // Non-macOS platforms leave the filter undefined since it doesn't apply.
@@ -208,11 +292,42 @@ describe("HostSoftwareTable", () => {
       data: fullPageWithNextResults,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await user.click(screen.getByRole("button", { name: /next/i }));
 
     expect(router.replace).toHaveBeenCalledTimes(1);
     expect(router.replace).not.toHaveBeenCalledWith(
       expect.stringContaining("macos_applications")
+    );
+  });
+
+  it("keeps a cleared macOS selection as types=none on pagination", async () => {
+    const router = createMockRouter();
+    const { user } = renderWithContext({
+      router,
+      platform: "darwin",
+      filters: { types: [] },
+      data: fullPageWithNextResults,
+    });
+
+    await user.click(screen.getByRole("button", { name: /next/i }));
+
+    expect(router.replace).toHaveBeenCalledWith(
+      expect.stringContaining("types=none")
+    );
+  });
+
+  it("keeps the selected types in the URL on pagination", async () => {
+    const router = createMockRouter();
+    const { user } = renderWithContext({
+      router,
+      filters: { types: ["windows_app"] },
+      data: fullPageWithNextResults,
+    });
+
+    await user.click(screen.getByRole("button", { name: /next/i }));
+
+    expect(router.replace).toHaveBeenCalledWith(
+      expect.stringContaining("types=windows_app")
     );
   });
 });

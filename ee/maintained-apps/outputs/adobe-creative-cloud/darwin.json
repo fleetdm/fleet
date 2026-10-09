@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.10.0.252.3",
+      "version": "6.10.0.252.41",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.acc.AdobeCreativeCloud';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.acc.AdobeCreativeCloud' AND version_compare(bundle_short_version, '6.10.0.252.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.acc.AdobeCreativeCloud' AND version_compare(bundle_short_version, '6.10.0.252.41') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.adobe.acc.AdobeCreativeCloud' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://ccmdls.adobe.com/AdobeProducts/StandaloneBuilds/ACCC/ESD/6.10.0/252.3/macarm64/ACCCx6_10_0_252_3.dmg",
+      "installer_url": "https://ccmdls.adobe.com/AdobeProducts/StandaloneBuilds/ACCC/ESD/6.10.0/252.41/macarm64/ACCCx6_10_0_252_41.dmg",
       "install_script_ref": "2aa2127c",
       "uninstall_script_ref": "05acae65",
-      "sha256": "d02fc307e32b583c0552fbbca87cfe40b098f2fc707a12b033dff726091a21d6",
+      "sha256": "5115a16e2ecddade5d37e50fc55721521f92882bf3796ff0fa6fc345719801f7",
       "default_categories": [
         "Productivity"
       ]

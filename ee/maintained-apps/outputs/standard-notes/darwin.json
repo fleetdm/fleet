@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.202.0",
+      "version": "3.202.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.standardnotes.standardnotes';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.standardnotes.standardnotes' AND version_compare(bundle_short_version, '3.202.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.standardnotes.standardnotes' AND version_compare(bundle_short_version, '3.202.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.standardnotes.standardnotes' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/standardnotes/app/releases/download/%40standardnotes%2Fdesktop%403.202.0/standard-notes-3.202.0-mac-arm64.zip",
+      "installer_url": "https://github.com/standardnotes/app/releases/download/%40standardnotes%2Fdesktop%403.202.7/standard-notes-3.202.7-mac-arm64.zip",
       "install_script_ref": "ebbcc8bc",
       "uninstall_script_ref": "39ef2ea9",
-      "sha256": "13c6e69c20954dfde5b7063b824dee4cb6eaf521450378f3e615405e284a26b7",
+      "sha256": "cf665e59f197896bef22d52c8a75cf3c80bb24e3fefbde90ba6798a166f5b8a7",
       "default_categories": [
         "Security"
       ]

@@ -1,14 +1,12 @@
-import React from "react";
 import { noop } from "lodash";
+import React from "react";
 
-import { ICommand } from "interfaces/command";
-import commandsAPI from "services/entities/command";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { ICommand } from "interfaces/command";
 import CommandItem from "pages/hosts/details/cards/Activity/CommandItem/CommandItem";
+import commandsAPI from "services/entities/command";
 
 const baseClass = "cancel-command-modal";
 

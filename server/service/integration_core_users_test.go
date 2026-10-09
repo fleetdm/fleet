@@ -42,7 +42,7 @@ func (s *integrationTestSuite) TestDoubleUserCreationErrors() {
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
 	respSecond := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusConflict)
 
-	assertBodyContains(t, respSecond, `Error 1062`)
+	assertBodyContains(t, respSecond, "Duplicate entry")
 }
 
 func (s *integrationTestSuite) TestUserWithoutRoleErrors() {

@@ -1,15 +1,18 @@
 /** software/os/:id */
 
-import React, { useCallback, useContext, useState } from "react";
-import { useQuery } from "react-query";
-import { useErrorHandler } from "react-error-boundary";
-import { InjectedRouter, RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
+import React, { useCallback, useContext, useState } from "react";
+import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
+import { InjectedRouter, RouteComponentProps } from "react-router";
 
-import useTeamIdParam from "hooks/useTeamIdParam";
-
+import Card from "components/Card";
+import CardHeader from "components/CardHeader";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import TeamsHeader from "components/TeamsHeader";
 import { AppContext } from "context/app";
-
+import useTeamIdParam from "hooks/useTeamIdParam";
 import { ignoreAxiosError } from "interfaces/errors";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import {
@@ -17,28 +20,20 @@ import {
   Platform,
   VULN_SUPPORTED_PLATFORMS,
 } from "interfaces/platform";
-
 import osVersionsAPI, {
   IOSVersionResponse,
   IGetOsVersionQueryKey,
 } from "services/entities/operating_systems";
-
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   PLATFORM_DISPLAY_NAMES,
 } from "utilities/constants";
 
-import Spinner from "components/Spinner";
-import MainContent from "components/MainContent";
-import TeamsHeader from "components/TeamsHeader";
-import Card from "components/Card";
-import CardHeader from "components/CardHeader";
-
-import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
-import SoftwareVulnerabilitiesTable from "../components/tables/SoftwareVulnerabilitiesTable";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
-import { VulnsNotSupported } from "../components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
 import OSKernelsTable from "../components/tables/OSKernelsTable";
+import SoftwareVulnerabilitiesTable from "../components/tables/SoftwareVulnerabilitiesTable";
+import { VulnsNotSupported } from "../components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 
 const baseClass = "software-os-details-page";
 
@@ -53,7 +48,7 @@ export const SummaryCard = ({
   countsUpdatedAt,
   teamIdForApi,
 }: ISummaryCardProps) => (
-  <Card borderRadiusSize="xxlarge" className={`${baseClass}__summary-section`}>
+  <Card className={`${baseClass}__summary-section`}>
     <SoftwareDetailsSummary
       displayName={osVersion.name}
       hostCount={osVersion.hosts_count}
@@ -87,10 +82,7 @@ export const VulnerabilitiesCard = ({
     isLinuxLike(osVersion.platform);
 
   return (
-    <Card
-      borderRadiusSize="xxlarge"
-      className={`${baseClass}__vulnerabilities-section`}
-    >
+    <Card className={`${baseClass}__vulnerabilities-section`}>
       <CardHeader header="Vulnerabilities" />
       {supportsVulns ? (
         <SoftwareVulnerabilitiesTable
@@ -124,7 +116,7 @@ export const KernelsCard = ({
   router,
   teamIdForApi,
 }: IKernelsCardProps) => (
-  <Card borderRadiusSize="xxlarge" className={`${baseClass}__summary-section`}>
+  <Card className={`${baseClass}__summary-section`}>
     <CardHeader header="Kernels" />
     <OSKernelsTable
       osName={osVersion.name_only}
