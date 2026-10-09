@@ -16266,7 +16266,7 @@ Body: <blob>
 
 _Available in Fleet Premium._
 
-Install software (package or app store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
+Install software (package, app store app, or Google Play Store app) on a macOS, iOS, iPadOS, Windows, Linux (Ubuntu), or Android host. Software title must have a `software_package` or `app_store_app` to be installed.
 
 Package installs time out after 1 hour.
 
