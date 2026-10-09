@@ -71,6 +71,8 @@ export const getEnrollmentRejectedReasonText = (
     case "one_time_secret_identifier_mismatch":
       // Told entirely in the modal headline; there is no body text.
       return null;
+    case "host_identity_cert_required":
+      return "The enrollment wasn't signed with this host's identity certificate. Another device may have tried to enroll as this host.";
     default:
       return "The enroll secret presented was not valid for this host.";
   }

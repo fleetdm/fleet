@@ -15,6 +15,7 @@ It also embeds the **Fleet Platform SSO (PSSO) extension** (`FleetPSSOExtension.
 - **Automatic token refresh** handles hourly token rotation transparently
 - **Loading screen** with Fleet logo while the portal loads
 - **File download support** for `.mobileconfig` profiles and other files served by Fleet
+- **MDM enrollment in a sheet** over the device page, so end users can always get back to it
 - **Dark/light mode** respects the user's system appearance
 - **`fleet://` URL scheme** for deep linking to Self-service, Policies, triggering refetches, and Update/Install all
 - **Works with or without MDM** — reads the Fleet URL from the fleetd configuration profile, or from the orbit launchd plist on Macs that aren't MDM-enrolled
@@ -51,11 +52,20 @@ The device token in `/opt/orbit/identifier` rotates every hour. Fleet Desktop ha
 - On HTTP 401/403 errors or error page detection, the app immediately checks for a new token and retries (up to 3 attempts with 5-second delays)
 - Token refreshes are invisible to the user — the page silently reloads with the new token
 
+### MDM enrollment
+
+**Turn on MDM** on the device page opens Fleet's enrollment page (`{server}/enroll`) in a sheet over the device page instead of replacing it:
+
+- **Close** (or Esc) dismisses the sheet; the device page stays loaded underneath
+- The sheet tightens the page's spacing and sizes itself to the content so every step is visible without scrolling. In a short window it extends below the window, staying on screen
+- When end-user authentication is required, the IdP sign-in runs inside the sheet
+- After the enrollment profile downloads, the sheet stays open so the remaining steps (installing the profile in System Settings) stay visible
+
 ### File Downloads
 
 When Fleet serves downloadable content (e.g., MDM enrollment profiles):
 
-- `.mobileconfig` files are downloaded and automatically opened for installation
+- `.mobileconfig` files are downloaded and automatically opened for installation. Outside the enrollment sheet, the app then returns to the device page
 - All other file types (`.pkg`, `.dmg`, `.zip`, etc.) are saved to `~/Downloads`
 
 ### Security
@@ -120,6 +130,7 @@ apps/fleet-desktop-macos/
 │   ├── FleetDesktopApp.swift        # App delegate, main menu, entry point
 │   ├── FleetService.swift           # Config reading, token management, refresh timer
 │   ├── BrowserWindow.swift          # WKWebView window, loading overlay, downloads
+│   ├── EnrollmentSheet.swift        # Sheet that shows Fleet's MDM enrollment page
 │   ├── Info.plist                   # App bundle metadata
 │   ├── FleetDesktop.entitlements     # Host-app entitlements (managed associated domains)
 │   ├── AppIcon.icns                 # App icon

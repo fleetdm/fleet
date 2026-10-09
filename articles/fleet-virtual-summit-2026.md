@@ -22,11 +22,11 @@ Engineering teams version-control production infrastructure, review changes in p
   <tbody>
     <tr>
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-adam-anklewicz-100x100@2x.jpeg" alt="Adam Anklewicz" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
-      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/ankle/">Adam Anklewicz</a></strong>, Treeline, Platform Architect</p></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/ankle/">Adam Anklewicz</a></strong>, Thumbtack, Manager of IT Systems Engineering</p></td>
     </tr>
     <tr>
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-brock-walters-100x100@2x.jpeg" alt="Brock Walters" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
-      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/brock-walters-247a2990/">Brock Walters</a></strong>, Thumbtack, Manager of IT Systems Engineering</p></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/brock-walters-247a2990/">Brock Walters</a></strong>, Treeline, Platform Architect</p></td>
     </tr>
     <tr>
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-viktor-filipsson-100x100@2x.jpeg" alt="Viktor Filipsson" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>

@@ -3335,6 +3335,21 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders an 'unbound_host_from_idp_account' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UnboundHostFromIdpAccount,
+      fleet_initiated: true,
+      details: { host_uuid: "host-uuid-1", idp_email: "anna@example.com" },
+    });
+    const { container } = render(
+      <GlobalActivityItem activity={activity} isPremiumTier />
+    );
+
+    expect(container).toHaveTextContent(
+      "Fleet unlinked host-uuid-1 from the identity provider account anna@example.com."
+    );
+  });
+
   describe.each([
     ActivityType.InstalledSoftware,
     ActivityType.UninstalledSoftware,

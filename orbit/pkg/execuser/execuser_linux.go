@@ -18,6 +18,23 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// NixOS keeps the setuid sudo outside the store, in a directory that is not on
+// the minimal PATH systemd gives services, so it is resolved by its fixed path.
+var (
+	nixosMarkerFile = "/etc/NIXOS"
+	nixosSudoPath   = "/run/wrappers/bin/sudo"
+)
+
+func sudoCommand() string {
+	if _, err := os.Stat(nixosMarkerFile); err != nil {
+		return "sudo"
+	}
+	if _, err := os.Stat(nixosSudoPath); err != nil {
+		return "sudo"
+	}
+	return nixosSudoPath
+}
+
 // base command to setup an exec.Cmd using `runuser`
 func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 	if opts.user == "" {
@@ -28,14 +45,6 @@ func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("get args: %w", err)
 	}
-
-	env = append(env,
-		// Append the packaged libayatana-appindicator3 libraries path to LD_LIBRARY_PATH.
-		//
-		// Fleet Desktop doesn't use libayatana-appindicator3 since 1.18.3, but we need to
-		// keep this to support older versions of Fleet Desktop.
-		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
-	)
 
 	for _, nv := range opts.env {
 		env = append(env, fmt.Sprintf("%s=%s", nv[0], nv[1]))
@@ -60,7 +69,7 @@ func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 	args = append(args, cmdArgs...)
 
 	// Use sudo to run the command as the login user.
-	args = append([]string{"sudo"}, args...)
+	args = append([]string{sudoCommand()}, args...)
 
 	// If a timeout is set, prefix the command with "timeout".
 	if opts.timeout > 0 {

@@ -2116,6 +2116,7 @@ func checkLabelHostIssues(
 
 func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	enableMacOSDiskEncryptionForTest(t, ds, nil)
 
 	// seed hosts
 	var hosts []*fleet.Host

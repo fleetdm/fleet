@@ -2268,6 +2268,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		{HostUUID: "H057-UU1D-1337", Name: "NAME-13", ProfileUUID: "a" + uuid.NewString(), CommandUUID: "CMD-UU1D-13", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove, Detail: "Error removing profile"},
 	}
 
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 		if hostUUID == "H057-UU1D-1337" {
 			return expected, nil
@@ -3545,12 +3548,17 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 	)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
+	var activities []fleet.ActivityDetails
 	svc := MDMAppleCheckinAndCommandService{
 		notificationsSvc: &mock.MockNotificationsService{},
 		ds:               ds,
 		mdmLifecycle:     mdmLifecycle,
 		commander:        cmdr,
 		logger:           slog.New(slog.DiscardHandler),
+		newActivityFn: func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+			activities = append(activities, act)
+			return nil
+		},
 	}
 
 	const (
@@ -3636,7 +3644,7 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 			require.Equal(t, "idp-uuid", uuid)
 			return &fleet.MDMIdPAccount{UUID: "idp-uuid", Email: "bearer.user@example.com"}, nil
 		}
-		ds.AssociateHostMDMIdPAccountFunc = func(context.Context, string, string) error { return nil }
+		ds.AssociateHostMDMIdPAccountFunc = func(context.Context, string, string) (string, error) { return "", nil }
 		ds.SetHostManagedAppleIDFuncInvoked = false
 		var gotMAID string
 		ds.SetHostManagedAppleIDFunc = func(_ context.Context, _ uint, managedAppleID string) error {
@@ -3659,6 +3667,10 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.SetHostManagedAppleIDFuncInvoked)
 		require.Equal(t, "bearer.user@example.com", gotMAID)
+		require.Equal(t, []fleet.ActivityDetails{fleet.ActivityTypeBoundHostToIdPAccount{
+			HostUUID: enrollID,
+			IdPEmail: "bearer.user@example.com",
+		}}, activities)
 	})
 
 	t.Run("UserEnrollmentDevice without IDP account clears managed_apple_id", func(t *testing.T) {
@@ -6540,8 +6552,73 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 				) {
 					return map[string]error{}, errors.New("foo")
 				}
+				t.Cleanup(func() {
+					require.False(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked)
+					require.False(t, appleStore.RetrievePushInfoFuncInvoked)
+				})
 			},
 			expectedError: true,
+		},
+		{
+			name: "push fails for one host still marks every host",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1"}, {HostUUID: "hostUUID2"}}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+					return map[string]error{}, nil
+				}
+				var markedHosts []string
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					for _, a := range assocs {
+						markedHosts = append(markedHosts, a.HostUUID)
+					}
+					return nil
+				}
+				// hostUUID2 has no push token, so its push fails.
+				appleStore.RetrievePushInfoFunc = func(ctx context.Context, targets []string) (map[string]*mdm.Push, error) {
+					return map[string]*mdm.Push{
+						"hostUUID1": {PushMagic: "magic", Token: []byte("token"), Topic: "topic"},
+					}, nil
+				}
+				t.Cleanup(func() {
+					require.True(t, appleStore.EnqueueCommandFuncInvoked)
+					require.True(t, appleStore.RetrievePushInfoFuncInvoked)
+					require.ElementsMatch(t, []string{"hostUUID1", "hostUUID2"}, markedHosts)
+				})
+			},
+			expectedError: false,
+		},
+		{
+			name: "unusable push certificate still marks hosts in every group",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{
+						{HostUUID: "hostUUID1"},
+						{HostUUID: "hostUUID2", EnrollmentType: "User Enrollment (Device)"},
+					}, nil
+				}
+				ds.GetMDMIdPAccountsByHostUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string]*fleet.MDMIdPAccount, error) {
+					return map[string]*fleet.MDMIdPAccount{"hostUUID2": {Email: "user2@example.com"}}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+					return map[string]error{}, nil
+				}
+				var markedHosts []string
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					for _, a := range assocs {
+						markedHosts = append(markedHosts, a.HostUUID)
+					}
+					return nil
+				}
+				appleStore.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+					return nil, "", errors.New("push certificate expired")
+				}
+				t.Cleanup(func() {
+					require.ElementsMatch(t, []string{"hostUUID1", "hostUUID2"}, markedHosts)
+				})
+			},
+			expectedError: false,
 		},
 		{
 			// Hosts without an enroll reference that share the same enrollment
@@ -11911,4 +11988,46 @@ func TestRotateFileVaultKeyResultIgnoredCases(t *testing.T) {
 func TestRefetchCleanupRetentionOrDefault(t *testing.T) {
 	require.Equal(t, 30*24*time.Hour, refetchCleanupRetentionOrDefault(0), "disabled short tier keeps the previous 30-day reach")
 	require.Equal(t, 6*time.Hour, refetchCleanupRetentionOrDefault(6*time.Hour))
+}
+
+func TestReconcileMDMAppleEnrollRefLogsCommittedRemoval(t *testing.T) {
+	ds := new(mock.DataStore)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	ds.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+		return &fleet.MDMIdPAccount{UUID: uuid, Email: uuid + "@example.com"}, nil
+	}
+	var activities []activity_api.ActivityDetails
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+		activities = append(activities, act)
+		return nil
+	}
+	machineInfo := &fleet.MDMAppleMachineInfo{UDID: "host-uuid-1", Serial: "serial-1"}
+	lookupErr := errors.New("legacy enroll ref lookup failed")
+
+	t.Run("removal committed before the error is still logged", func(t *testing.T) {
+		activities = nil
+		ds.ReconcileMDMAppleEnrollRefFunc = func(ctx context.Context, enrollRef string, mi *fleet.MDMAppleMachineInfo) (string, string, error) {
+			return "", "acct-1", lookupErr
+		}
+
+		_, err := svc.ReconcileMDMAppleEnrollRef(ctx, "", machineInfo)
+		require.ErrorIs(t, err, lookupErr)
+		require.Equal(t, []activity_api.ActivityDetails{fleet.ActivityTypeUnboundHostFromIdPAccount{
+			HostUUID: "host-uuid-1",
+			IdPEmail: "acct-1@example.com",
+		}}, activities)
+	})
+
+	t.Run("rolled back link is not logged", func(t *testing.T) {
+		activities = nil
+		ds.ReconcileMDMAppleEnrollRefFunc = func(ctx context.Context, enrollRef string, mi *fleet.MDMAppleMachineInfo) (string, string, error) {
+			return "", "", lookupErr
+		}
+
+		_, err := svc.ReconcileMDMAppleEnrollRef(ctx, "acct-2", machineInfo)
+		require.ErrorIs(t, err, lookupErr)
+		require.Empty(t, activities)
+	})
 }

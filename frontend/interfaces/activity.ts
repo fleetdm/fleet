@@ -175,6 +175,7 @@ export enum ActivityType {
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
   CreatedDiskEncryptionPIN = "created_disk_encryption_pin",
   BoundHostToIdpAccount = "bound_host_to_idp_account",
+  UnboundHostFromIdpAccount = "unbound_host_from_idp_account",
   RefusedHostIdpAccountChange = "refused_host_idp_account_change",
   CreatedCustomVariable = "created_custom_variable",
   UpdatedCustomVariable = "updated_custom_variable",
@@ -236,6 +237,7 @@ export type EnrollmentRejectedReason =
   | "one_time_secret_spent"
   | "one_time_secret_identifier_mismatch"
   | "shared_secret_for_mdm_managed_host"
+  | "host_identity_cert_required"
   | "end_user_authentication_required";
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -637,6 +639,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Failed to rotate disk encryption key",
   [ActivityType.CreatedDiskEncryptionPIN]: "Created disk encryption PIN",
   bound_host_to_idp_account: "Bound host to IdP account",
+  unbound_host_from_idp_account: "Unbound host from IdP account",
   refused_host_idp_account_change: "Refused host IdP account change",
   created_custom_variable: "Created custom variable",
   updated_custom_variable: "Updated custom variable",

@@ -1905,3 +1905,58 @@ func TestLabelActivities(t *testing.T) {
 		require.Nil(t, got.FleetID)
 	})
 }
+
+func TestLabelFieldLengthValidation(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+		lbl.ID = 1
+		return lbl, nil
+	}
+	ds.LabelFunc = func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{ID: lid, Name: "existing", LabelMembershipType: fleet.LabelMembershipTypeDynamic}, nil, nil
+	}
+	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		return nil
+	}
+
+	tooLong := strings.Repeat("a", 256)
+	const descErr = "description may not exceed 255 characters"
+	nameErr := `label "` + strings.Repeat("a", 40) + `..." name may not exceed 255 characters`
+
+	t.Run("NewLabel", func(t *testing.T) {
+		ds.NewLabelFuncInvoked = false
+		_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: "l", Query: "SELECT 1", Description: tooLong})
+		require.ErrorContains(t, err, descErr)
+		_, _, err = svc.NewLabel(ctx, fleet.LabelPayload{Name: tooLong, Query: "SELECT 1"})
+		require.ErrorContains(t, err, nameErr)
+		require.False(t, ds.NewLabelFuncInvoked)
+
+		// varchar(255) counts characters, so 255 two-byte characters fit.
+		_, _, err = svc.NewLabel(ctx, fleet.LabelPayload{Name: "l", Query: "SELECT 1", Description: strings.Repeat("é", 255)})
+		require.NoError(t, err)
+	})
+
+	t.Run("ModifyLabel", func(t *testing.T) {
+		ds.SaveLabelFuncInvoked = false
+		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{Description: &tooLong})
+		require.ErrorContains(t, err, descErr)
+		_, _, err = svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{Name: &tooLong})
+		require.ErrorContains(t, err, nameErr)
+		require.False(t, ds.SaveLabelFuncInvoked)
+	})
+
+	t.Run("ApplyLabelSpecs", func(t *testing.T) {
+		ds.ApplyLabelSpecsWithAuthorFuncInvoked = false
+		err := svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: "l", Query: "SELECT 1", Description: tooLong}}, nil, nil)
+		require.ErrorContains(t, err, descErr)
+		err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: tooLong, Query: "SELECT 1"}}, nil, nil)
+		require.ErrorContains(t, err, nameErr)
+		require.False(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
+	})
+}
