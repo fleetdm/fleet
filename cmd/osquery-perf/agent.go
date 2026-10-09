@@ -73,6 +73,10 @@ var (
 	rhel9KernelsFS embed.FS
 	//go:embed rhel_10-kernels.json
 	rhel10KernelsFS embed.FS
+	// Package name to epoch, taken from the epoch-prefixed fixed versions in Red Hat's OSV data
+	// for the rpm_packages names in the software library (which has no epoch column).
+	//go:embed rhel_rpm-epochs.json
+	rhelRPMEpochsFS embed.FS
 	//go:embed windows_11-software.json.bz2
 	windowsSoftwareFS embed.FS
 	//go:embed macos_26x-software.json.bz2
@@ -87,6 +91,7 @@ var (
 	rhel8Kernels                       []map[string]string
 	rhel9Kernels                       []map[string]string
 	rhel10Kernels                      []map[string]string
+	rhelRPMEpochs                      map[string]uint32
 
 	// softwareDBRPM caches a one-time filtered slice of softwareDB.Ubuntu where
 	// Source == "rpm_packages", reused by RHEL agents.
@@ -252,9 +257,24 @@ func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32) []map[st
 		if s.Release != nil {
 			m["release"] = *s.Release
 		}
+		if epoch, ok := rhelRPMEpochs[s.Name]; ok {
+			m["epoch"] = strconv.FormatUint(uint64(epoch), 10)
+		}
 		results = append(results, m)
 	}
 	return results
+}
+
+func loadRPMEpochs(fs embed.FS, path string) map[string]uint32 {
+	data, err := fs.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+	var epochs map[string]uint32
+	if err := json.Unmarshal(data, &epochs); err != nil {
+		panic(err)
+	}
+	return epochs
 }
 
 // loadRPMKernelList reads a JSON array of objects with name/version/release
@@ -306,6 +326,7 @@ func init() {
 	rhel8Kernels = loadRPMKernelList(rhel8KernelsFS, "rhel_8-kernels.json")
 	rhel9Kernels = loadRPMKernelList(rhel9KernelsFS, "rhel_9-kernels.json")
 	rhel10Kernels = loadRPMKernelList(rhel10KernelsFS, "rhel_10-kernels.json")
+	rhelRPMEpochs = loadRPMEpochs(rhelRPMEpochsFS, "rhel_rpm-epochs.json")
 }
 
 type nodeKeyManager struct {
