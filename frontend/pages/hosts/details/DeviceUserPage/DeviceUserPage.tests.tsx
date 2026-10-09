@@ -482,12 +482,19 @@ describe("Device User Page", () => {
         devicePolicy(2, "Hidden policy A"),
         devicePolicy(3, "Hidden policy B"),
       ];
+      let releaseHiddenResponse!: () => void;
+      const hiddenResponseGate = new Promise<void>((resolve) => {
+        releaseHiddenResponse = resolve;
+      });
       mockServer.use(
-        http.get(baseUrl("/device/:token"), ({ request }) => {
+        http.get(baseUrl("/device/:token"), async ({ request }) => {
           requestedUrls.push(request.url);
           const includeHidden = request.url.includes(
             "include_hidden_policies=true"
           );
+          if (includeHidden) {
+            await hiddenResponseGate;
+          }
           return HttpResponse.json({
             ...response,
             host: {
@@ -532,6 +539,10 @@ describe("Device User Page", () => {
           )
         ).toBe(true);
       });
+      expect(screen.getAllByText("Visible policy").length).toBeGreaterThan(0);
+      expect(policiesTab).toHaveTextContent(/Policies\s*1$/);
+
+      releaseHiddenResponse();
       await waitFor(() => {
         expect(policiesTab).toHaveTextContent(/Policies\s*3$/);
       });

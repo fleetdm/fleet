@@ -1972,17 +1972,18 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			null_team_type
 	) VALUES `
 	stmtValues := `(?, ?, ?)`
-	// Delete all apps, and associated policy automations, associated with a token if we change its team
+	// Delete the token's apps, and their policy automations, on the fleets the token is no longer assigned to
 	stmtRemovePolicyAutomations := `UPDATE policies p
-		JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id AND vat.vpp_token_id = ?
+		JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id AND vat.vpp_token_id = ? %s
 		SET vpp_apps_teams_id = NULL`
-	stmtDeleteApps := `DELETE FROM vpp_apps_teams WHERE vpp_token_id = ? %s`
+	stmtDeleteApps := `DELETE vat FROM vpp_apps_teams vat WHERE vat.vpp_token_id = ? %s`
 
 	var teamsFilter string
 	if len(teams) > 0 {
-		teamsFilter = "AND global_or_team_id NOT IN (?)"
+		teamsFilter = "AND vat.global_or_team_id NOT IN (?)"
 	}
 
+	stmtRemovePolicyAutomations = fmt.Sprintf(stmtRemovePolicyAutomations, teamsFilter)
 	stmtDeleteApps = fmt.Sprintf(stmtDeleteApps, teamsFilter)
 
 	var values string
@@ -2028,23 +2029,31 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			return ctxerr.Wrap(ctx, err, "vpp token null team check")
 		}
 
-		if _, err := tx.ExecContext(ctx, stmtRemovePolicyAutomations, id); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting old vpp team apps policy automations")
-		}
-
-		delArgs := []any{id}
-		if len(teams) > 0 {
-			inStmt, inArgs, err := sqlx.In(stmtDeleteApps, id, teams)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "building IN statement for deleting old vpp apps teams associations")
+		// Skip deleting apps when the token moves to all fleets, every fleet still has access to them
+		if teams == nil || len(teams) > 0 {
+			// Expand into local copies so a retried transaction expands the original statements again
+			removePolicyAutomationsStmt := stmtRemovePolicyAutomations
+			deleteAppsStmt := stmtDeleteApps
+			delArgs := []any{id}
+			if len(teams) > 0 {
+				var err error
+				removePolicyAutomationsStmt, _, err = sqlx.In(stmtRemovePolicyAutomations, id, teams)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building IN statement for removing old vpp team apps policy automations")
+				}
+				deleteAppsStmt, delArgs, err = sqlx.In(stmtDeleteApps, id, teams)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building IN statement for deleting old vpp apps teams associations")
+				}
 			}
 
-			stmtDeleteApps = inStmt
-			delArgs = inArgs
-		}
+			if _, err := tx.ExecContext(ctx, removePolicyAutomationsStmt, delArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "deleting old vpp team apps policy automations")
+			}
 
-		if _, err := tx.ExecContext(ctx, stmtDeleteApps, delArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting old vpp team apps associations")
+			if _, err := tx.ExecContext(ctx, deleteAppsStmt, delArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "deleting old vpp team apps associations")
+			}
 		}
 
 		if _, err := tx.ExecContext(ctx, stmtRemove, id); err != nil {

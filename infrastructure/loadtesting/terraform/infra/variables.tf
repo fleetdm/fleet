@@ -71,6 +71,17 @@ variable "redis_instance_count" {
   }
 }
 
+variable "redis_max_open_conns" {
+  description = "Max open Redis connections per Fleet container, also used as max idle. With no conn wait timeout, requests fail with \"connection pool exhausted\" once the pool is full."
+  type        = number
+  default     = 500
+
+  validation {
+    condition     = var.redis_max_open_conns > 0
+    error_message = "var.redis_max_open_conns must be greater than 0 (it also sets max idle conns, and 0 idle conns means a new Redis connection per command)."
+  }
+}
+
 # Optional Valkey support. Defaults keep Redis 7.1. For Valkey, set all three, e.g.:
 #   -var=redis_engine=valkey -var=redis_engine_version=8.0 -var=redis_parameter_group_family=valkey8
 variable "redis_engine" {

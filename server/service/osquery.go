@@ -118,6 +118,10 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		}
 	}
 
+	if !host.SupportsOsquery() {
+		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+	}
+
 	// Update the "seen" time used to calculate online status. These updates are
 	// batched for MySQL performance reasons. Because this is done
 	// asynchronously, it is possible for the server to shut down before
