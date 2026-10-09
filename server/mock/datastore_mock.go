@@ -1142,6 +1142,8 @@ type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayloa
 
 type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error)
 
+type RotateMDMAppleAutomaticEnrollmentTokenFunc func(ctx context.Context, newToken string, gracePeriod time.Duration, profileUpdateJob *fleet.Job) (previousTokenExpiresAt *time.Time, err error)
+
 type GetMDMAppleEnrollmentProfileByTypeFunc func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error)
 
 type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
@@ -1593,6 +1595,8 @@ type MDMWindowsSaveResponseFunc func(ctx context.Context, enrolledDevice *fleet.
 type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
 type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
+
+type MDMWindowsClearDeletedHostTeamFunc func(ctx context.Context, mdmDeviceID string) error
 
 type SetMDMWindowsAwaitingConfigurationFunc func(ctx context.Context, mdmDeviceID string, expectFrom fleet.WindowsMDMAwaitingConfiguration, to fleet.WindowsMDMAwaitingConfiguration) (bool, error)
 
@@ -4244,6 +4248,9 @@ type DataStore struct {
 	GetMDMAppleEnrollmentProfileByTokenFunc        GetMDMAppleEnrollmentProfileByTokenFunc
 	GetMDMAppleEnrollmentProfileByTokenFuncInvoked bool
 
+	RotateMDMAppleAutomaticEnrollmentTokenFunc        RotateMDMAppleAutomaticEnrollmentTokenFunc
+	RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked bool
+
 	GetMDMAppleEnrollmentProfileByTypeFunc        GetMDMAppleEnrollmentProfileByTypeFunc
 	GetMDMAppleEnrollmentProfileByTypeFuncInvoked bool
 
@@ -4921,6 +4928,9 @@ type DataStore struct {
 
 	UpdateMDMWindowsEnrollmentsHostUUIDFunc        UpdateMDMWindowsEnrollmentsHostUUIDFunc
 	UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
+
+	MDMWindowsClearDeletedHostTeamFunc        MDMWindowsClearDeletedHostTeamFunc
+	MDMWindowsClearDeletedHostTeamFuncInvoked bool
 
 	SetMDMWindowsAwaitingConfigurationFunc        SetMDMWindowsAwaitingConfigurationFunc
 	SetMDMWindowsAwaitingConfigurationFuncInvoked bool
@@ -10296,6 +10306,13 @@ func (s *DataStore) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	return s.GetMDMAppleEnrollmentProfileByTokenFunc(ctx, token)
 }
 
+func (s *DataStore) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, newToken string, gracePeriod time.Duration, profileUpdateJob *fleet.Job) (previousTokenExpiresAt *time.Time, err error) {
+	s.mu.Lock()
+	s.RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.RotateMDMAppleAutomaticEnrollmentTokenFunc(ctx, newToken, gracePeriod, profileUpdateJob)
+}
+
 func (s *DataStore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
 	s.mu.Lock()
 	s.GetMDMAppleEnrollmentProfileByTypeFuncInvoked = true
@@ -11876,6 +11893,13 @@ func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hos
 	s.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateMDMWindowsEnrollmentsHostUUIDFunc(ctx, hostUUID, mdmDeviceID)
+}
+
+func (s *DataStore) MDMWindowsClearDeletedHostTeam(ctx context.Context, mdmDeviceID string) error {
+	s.mu.Lock()
+	s.MDMWindowsClearDeletedHostTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsClearDeletedHostTeamFunc(ctx, mdmDeviceID)
 }
 
 func (s *DataStore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom fleet.WindowsMDMAwaitingConfiguration, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {

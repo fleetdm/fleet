@@ -2,6 +2,7 @@ package browserext
 
 import (
 	"archive/zip"
+	"cmp"
 	"encoding/json"
 	"io"
 	"os"
@@ -80,7 +81,7 @@ func collectGeckoProfile(profilePath, browser, profileName string, h homes.Home)
 			Engine:       "gecko",
 			Profile:      profileName,
 			ID:           a.ID,
-			Name:         firstNonEmpty(a.DefaultLocale.Name, a.ID),
+			Name:         cmp.Or(a.DefaultLocale.Name, a.ID),
 			Version:      a.Version,
 			Path:         xpi,
 			Category:     cat,
@@ -157,7 +158,7 @@ func geckoProfiles(root, home string) []geckoProfile {
 			// profiles.ini is user-writable; a relative Path containing ".." or an
 			// absolute Path could point outside the user's home. Contain it so the
 			// root scanner is not steered at an arbitrary location.
-			if !underHome(home, p) {
+			if !fsutil.PathWithin(home, p) {
 				return
 			}
 			out = append(out, geckoProfile{name: filepath.Base(p), path: p})
