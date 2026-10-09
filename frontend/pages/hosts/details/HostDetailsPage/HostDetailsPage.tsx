@@ -1754,11 +1754,11 @@ const HostDetailsPage = ({
                   isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                   router={router}
                   queryParams={{
-                    // Types filter the Inventory tab only.
-                    ...omit(
-                      parseHostSoftwareQueryParams(location.query),
-                      "types"
-                    ),
+                    // Types and AI tools filter the Inventory tab only.
+                    ...omit(parseHostSoftwareQueryParams(location.query), [
+                      "types",
+                      "ai_tool",
+                    ]),
                     available_for_install: true,
                   }}
                   pathname={location.pathname}

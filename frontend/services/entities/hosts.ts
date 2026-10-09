@@ -263,6 +263,7 @@ export interface IHostSoftwareQueryParams extends QueryParams {
   macos_applications?: boolean;
   source?: string;
   extension_for?: string;
+  ai_tool?: boolean;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
