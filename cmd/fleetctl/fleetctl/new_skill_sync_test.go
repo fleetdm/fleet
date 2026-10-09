@@ -6,17 +6,21 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 // The fleet-gitops skill that `fleetctl new` scaffolds into customer repos is a
-// copy of the one in this repo's .claude/skills. Customers only ever see the
-// template copy, so a change to one that isn't mirrored to the other is a bug.
+// copy of the one in this repo's .claude/skills, placed at .agents/skills (the
+// cross-agent location Codex, Cursor, Copilot, Gemini CLI, and Kilo read), with
+// a thin .claude/skills entry so Claude Code finds it too. Customers only ever
+// see the template copy, so a change to one that isn't mirrored is a bug.
 func TestNewFleetGitopsSkillMatchesRepoSkill(t *testing.T) {
 	repoSkill := filepath.Join("..", "..", "..", ".claude", "skills", "fleet-gitops")
-	templateSkill := filepath.Join("templates", "new", ".claude", "skills", "fleet-gitops")
+	templateSkill := filepath.Join("templates", "new", ".agents", "skills", "fleet-gitops")
+	claudeShim := filepath.Join("templates", "new", ".claude", "skills", "fleet-gitops")
 
 	repoFiles := skillFiles(t, repoSkill)
 	templateFiles := skillFiles(t, templateSkill)
@@ -26,6 +30,30 @@ func TestNewFleetGitopsSkillMatchesRepoSkill(t *testing.T) {
 		require.Equal(t, string(content), string(templateFiles[rel]),
 			"%s differs between %s and %s; copy the repo skill over the template", rel, repoSkill, templateSkill)
 	}
+
+	// The shim must trigger like the real skill (same name and description) and
+	// hand off to it rather than carrying its own copy of the instructions.
+	shimFiles := skillFiles(t, claudeShim)
+	require.Equal(t, []string{"SKILL.md"}, slices.Sorted(maps.Keys(shimFiles)), "%s should hold only a SKILL.md that points at .agents/skills", claudeShim)
+	shim := string(shimFiles["SKILL.md"])
+	canonical := string(repoFiles["SKILL.md"])
+	for _, key := range []string{"name:", "description:", "allowed-tools:"} {
+		require.Equal(t, frontmatterLine(t, canonical, key), frontmatterLine(t, shim, key), "shim frontmatter %q differs from the skill's", key)
+	}
+	require.Contains(t, shim, ".agents/skills/fleet-gitops/SKILL.md")
+}
+
+func frontmatterLine(t *testing.T, skill, key string) string {
+	t.Helper()
+	parts := strings.SplitN(skill, "\n---\n", 2)
+	require.Len(t, parts, 2, "SKILL.md has no closing frontmatter delimiter")
+	for _, line := range strings.Split(parts[0], "\n") {
+		if strings.HasPrefix(line, key) {
+			return line
+		}
+	}
+	t.Fatalf("frontmatter has no %q line", key)
+	return ""
 }
 
 func skillFiles(t *testing.T, root string) map[string][]byte {

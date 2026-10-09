@@ -275,7 +275,8 @@ def resolve_refs(ctx, src, entry, what="entry"):
         else:
             matches = sorted(m for m in glob.glob(str(base / g)) if Path(m).is_file())
             if not matches:
-                ctx.warn(src, f"{what}: paths glob {g} matches no files")
+                # fleetctl accepts an empty glob; scaffolded repos rely on it for folders that aren't populated yet.
+                ctx.info(src, f"{what}: paths glob {g} matches no files yet")
             out.extend(Path(m).resolve() for m in matches)
             ctx.referenced.update(Path(m).resolve() for m in matches)
     return out
@@ -293,7 +294,8 @@ def report_unreferenced(ctx):
         if not f.is_file() or f.suffix.lower() not in ARTIFACT_EXTS or f.resolve() in config or f.resolve() in ctx.referenced:
             continue
         parts = set(f.relative_to(ctx.root).parts[:-1])
-        if any(part in (".git", "node_modules", ".github", ".claude", ".contour") for part in parts):
+        # Tool and VCS directories (.git, .github, .agents, .claude, .cursor, .contour, ...) hold their own scripts.
+        if any(part.startswith(".") or part == "node_modules" for part in parts):
             continue
         if not parts & ARTIFACT_DIRS:
             continue
