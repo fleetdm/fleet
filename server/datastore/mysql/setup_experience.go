@@ -379,9 +379,9 @@ AND %s`
 
 	var stmtSoftwareCombined string
 	if len(softwareUnionParts) > 0 {
-		// A title can now hold several packages, and more than one can be flagged for setup. Queue only
-		// the first-added (smallest installer_id) package per title so setup doesn't double-queue; labels
-		// don't apply during setup. VPP apps are single-package per title, so they pass through untouched.
+		// A title can now have several packages or App Store app versions, and more than one can be flagged
+		// for setup. Queue only the first-added (smallest installer_id, then smallest vpp_app_team_id) package
+		// or version per title so setup doesn't double-queue; labels don't apply during setup.
 		stmtSoftwareCombined = fmt.Sprintf(`
 INSERT INTO setup_experience_status_results (
 	host_uuid,
@@ -395,12 +395,12 @@ INSERT INTO setup_experience_status_results (
 SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, in_house_app_id, policy_gated FROM (
 	SELECT combined.*, ROW_NUMBER() OVER (
 		PARTITION BY software_title_id
-		ORDER BY (software_installer_id IS NULL), software_installer_id ASC
+		ORDER BY (software_installer_id IS NULL), software_installer_id ASC, vpp_app_team_id ASC
 	) AS first_added_rank FROM (
 		%s
 	) AS combined
 ) AS deduped
-WHERE software_installer_id IS NULL OR first_added_rank = 1
+WHERE (software_installer_id IS NULL AND vpp_app_team_id IS NULL) OR first_added_rank = 1
 ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, in_house_app_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
 	}
 
@@ -874,6 +874,7 @@ SELECT
 	sesr.policy_gated,
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
+	vat.name AS vpp_app_version_name,
 	ses.script_content_id,
 	COALESCE(si.title_id, va.title_id, iha.title_id) AS software_title_id,
 	COALESCE(

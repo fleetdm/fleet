@@ -193,9 +193,44 @@ export interface IAppStoreApp {
   labels_include_all: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
-  /** Typed as string but Android configs arrive as a parsed object at runtime
-   * (backend sends json.RawMessage which Axios auto-parses). */
-  configuration?: string;
+  /** iOS/iPadOS: XML plist string. Android: parsed JSON object (BE sends
+   * json.RawMessage which Axios auto-parses). */
+  configuration?: string | Record<string, unknown>;
+}
+
+/** One App Store app version on a software title. iOS/iPadOS/Android titles
+ * can have multiple versions in creation order; each carries its own name,
+ * configuration, labels, auto-update window, and status counts. macOS VPP
+ * and in-house .ipa titles have a single entry. See title_detail
+ * `app_store_apps` in rest-api.md.
+ *
+ * `name` here is the admin-provided version name (e.g. "Production"), not the
+ * title name — a semantic distinction from `IAppStoreApp.name`. */
+export interface IAppStoreAppVersion {
+  /** Version id. Used to target this version in PATCH/DELETE requests. */
+  id: number;
+  /** Admin-provided version name, unique per title per fleet. */
+  name: string;
+  app_store_id: string;
+  platform: typeof HOST_APPLE_PLATFORMS[number] | "android";
+  /** Latest Store version. All versions on a title share this value. */
+  version: string;
+  status: ISoftwareAppStoreAppStatus;
+  self_service: boolean;
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_include_all: ILabelSoftwareTitle[] | null;
+  labels_exclude_any: ILabelSoftwareTitle[] | null;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string | null;
+  auto_update_window_end?: string | null;
+  /** Determines first-added precedence when a host is in scope for more than one version. */
+  created_at: string;
+  categories?: SoftwareCategory[] | null;
+  display_name?: string;
+  /** iOS/iPadOS: XML plist string. Android: parsed JSON object (BE sends
+   * json.RawMessage which Axios auto-parses). */
+  configuration?: string | Record<string, unknown>;
 }
 
 /**
@@ -228,6 +263,10 @@ export interface ISoftwareTitle {
    * `null` when the title has no custom packages. */
   packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
+  /** All App Store app versions on this title, in `created_at` order.
+   * `null` when the title has no App Store app. See
+   * [[ISoftwareTitleDetails.app_store_apps]]. */
+  app_store_apps: IAppStoreAppVersion[] | null;
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
@@ -250,6 +289,12 @@ export interface ISoftwareTitleDetails {
    * convenience alias to `packages[0]`. */
   packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
+  /** All App Store app versions on this title, in `created_at` order
+   * (first-added precedence). `null` when the title has no App Store app.
+   * iOS/iPadOS/Android titles may have up to 10 versions; macOS VPP has at
+   * most one entry. When present, treat as the source of truth;
+   * `app_store_app` is a convenience alias to `app_store_apps[0]`. */
+  app_store_apps: IAppStoreAppVersion[] | null;
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
   hosts_count: number;
@@ -833,6 +878,9 @@ export const SCRIPT_PACKAGE_SOURCES = [
  * the backend limit changes. */
 export const MAX_PACKAGES_PER_TITLE = 10;
 
+/** Mirrors the backend cap on App Store app versions per title per fleet. */
+export const MAX_APP_STORE_APP_VERSIONS_PER_TITLE = 10;
+
 /** Sources that don't map cleanly to versions or hosts in software inventory.
  * UI behavior for these sources:
  * - Never shows “Update available” (no version to compare against the package version).
@@ -1087,6 +1135,10 @@ export interface IHostAppStoreApp {
   last_install: IAppLastInstall | null;
   categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  /** Id of the admin version this host received; null when none delivered. Backend emits as `version_id` on `SoftwarePackageOrApp`. */
+  version_id?: number | null;
+  /** Admin version label (e.g. "Production"). */
+  version_name?: string | null;
 }
 
 export interface IHostSoftware {

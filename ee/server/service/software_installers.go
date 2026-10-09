@@ -1222,7 +1222,7 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 	return false, nil, nil
 }
 
-func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error {
+func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint, appStoreAppVersionID *uint) error {
 	if teamID == nil {
 		return fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
@@ -1235,7 +1235,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 
 	// metaInstaller is fully hydrated (incl. the title-level icon) which the per-package reads below lack.
 	metaInstaller, errInstaller := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
-	metaVPP, errVPP := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	versionsVPP, errVPP := svc.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, *teamID, titleID)
 	metaInHouse, errInHouse := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 
 	switch {
@@ -1265,6 +1265,15 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", *installerID)
 	}
 
+	if appStoreAppVersionID != nil {
+		for _, version := range versionsVPP {
+			if version.VPPAppsTeamsID == *appStoreAppVersionID {
+				return svc.deleteAppStoreAppVersions(ctx, teamID, versionsVPP, []*fleet.VPPAppStoreApp{version})
+			}
+		}
+		return ctxerr.Wrapf(ctx, &notFoundError{}, "app store app version %d does not belong to this title and team", *appStoreAppVersionID)
+	}
+
 	switch {
 	case metaInstaller != nil:
 		// Delete every package on the title. FMA titles keep one active row, so this
@@ -1281,8 +1290,8 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 			}
 		}
 		return nil
-	case metaVPP != nil:
-		return svc.deleteVPPApp(ctx, teamID, metaVPP)
+	case len(versionsVPP) > 0:
+		return svc.deleteAppStoreAppVersions(ctx, teamID, versionsVPP, versionsVPP)
 	case metaInHouse != nil:
 		return svc.deleteSoftwareInstaller(ctx, metaInHouse)
 	}
@@ -1295,33 +1304,30 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		return fleet.ErrNoContext
 	}
 
-	var androidHostsUUIDToPolicyID map[string]string
-	if meta.Platform == fleet.AndroidPlatform {
-		// if this is an Android app we're deleting, collect the host uuids that should have it removed
-		// (as we uninstall Android apps on delete). We can't do this in the worker as it will be too late,
-		// the vpp_apps_teams entry will have been deleted.
-		hosts, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, meta.VPPAppsTeamsID)
+	// GetAppStoreAppVersionsByTeamAndTitleID (the batch caller) doesn't populate
+	// Configuration on the hydrated versions; fetch it before the DeleteVPPAppFromTeam
+	// clears the row so the activity payload carries the config bytes. Apps
+	// without a stored configuration return NotFound — tolerate that and emit
+	// an omitempty-nil Configuration on the activity.
+	cfg, cfgErr := svc.ds.GetVPPAppConfiguration(ctx, meta.VPPAppsTeamsID)
+	if cfgErr != nil && !fleet.IsNotFound(cfgErr) {
+		return ctxerr.Wrap(ctx, cfgErr, "getting VPP app configuration for delete activity")
+	}
+	// iOS / iPadOS store the plist as raw XML bytes; wrap in a JSON string so
+	// the activity's json.RawMessage field holds valid JSON (same pattern as
+	// the edit response at ee/server/service/vpp.go). Android configs are
+	// already JSON and pass through.
+	if len(cfg) > 0 && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
+		wrapped, err := json.Marshal(string(cfg))
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope")
+			return ctxerr.Wrap(ctx, err, "wrapping configuration for delete activity")
 		}
-		androidHostsUUIDToPolicyID = hosts
+		cfg = wrapped
 	}
 
-	if err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.VPPAppID); err != nil {
+	err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.VPPAppID, &meta.VPPAppsTeamsID)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting VPP app")
-	}
-
-	// if this is an android app, remove the self-service app from the managed Google Play store
-	// and uninstall it from the hosts.
-	if meta.Platform == fleet.AndroidPlatform && len(androidHostsUUIDToPolicyID) > 0 {
-		enterprise, err := svc.ds.GetEnterprise(ctx)
-		if err != nil {
-			return &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
-		}
-		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger, meta.VPPAppID.AdamID, androidHostsUUIDToPolicyID, enterprise.Name(), svc.config.MDM.AndroidBatchSize)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "enqueuing job to make android app unavailable")
-		}
 	}
 
 	var teamName *string
@@ -1351,6 +1357,8 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		LabelsExcludeAny:    actLabelsExclAny,
 		LabelsIncludeAll:    actLabelsInclAll,
 		SoftwareIconURL:     meta.IconURL,
+		VersionName:         meta.VersionName,
+		Configuration:       cfg,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}
@@ -1859,30 +1867,24 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	// associates the asset via clientUserIds (#44004), and emits an
 	// InstallApplication command without ChangeManagementState (#44005).
 
-	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
+	vppApp, anyVersions, err := svc.resolveFirstAddedInScopeAppStoreApp(ctx, host, softwareTitleID, nil)
 	if err != nil {
-		// if we couldn't find an installer or a VPP app, return a bad
-		// request error
-		if fleet.IsNotFound(err) {
-			return &fleet.BadRequestError{
-				Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
-				InternalErr: ctxerr.WrapWithData(
-					ctx, err, "couldn't find an installer or VPP app for software title",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
-				),
-			}
+		return err
+	}
+
+	// if we couldn't find an installer or a VPP app, return a bad
+	// request error
+	if !anyVersions {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
+			InternalErr: ctxerr.NewWithData(
+				ctx, "couldn't find an installer or VPP app for software title",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+			),
 		}
-
-		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
 	}
 
-	// check the label scoping for this VPP app and host
-	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "checking label scoping during vpp software install attempt")
-	}
-
-	if !scoped {
+	if vppApp == nil {
 		return &fleet.BadRequestError{
 			Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
 		}
@@ -2063,6 +2065,11 @@ func (svc *Service) InstallInHouseAppForSetupExperience(ctx context.Context, hos
 }
 
 func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+	opts.VPPAppTeamID = vppApp.AppTeamID
+	if opts.ForConfigurationResend {
+		opts.DeferActivation = svc.config.Activity.FleetInitiatedReleasePerMinute > 0
+	}
+
 	// Pre-flight: resolve the managed app configuration's Fleet variables for
 	// this host BEFORE anything irreversible (reserving a VPP license, enqueuing
 	// the command). iOS/iPadOS only — macOS VPP installs drop the configuration.
@@ -2072,7 +2079,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	// is visible in the activity feed and Install Details modal. Doing this
 	// before AssociateAssets also avoids leaking a VPP license.
 	if vppApp.Platform == fleet.IOSPlatform || vppApp.Platform == fleet.IPadOSPlatform {
-		cfg, err := svc.ds.GetVPPAppConfiguration(ctx, vppApp.Platform, vppApp.AdamID, ptr.ValOrZero(host.TeamID))
+		cfg, err := svc.ds.GetVPPAppConfiguration(ctx, vppApp.AppTeamID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return "", ctxerr.Wrap(ctx, err, "get vpp app configuration for pre-flight check")
 		}
@@ -4404,7 +4411,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 	}, nil
 }
 
-func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+func (svc *Service) selfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint, hostVersionByTitleID map[uint]*fleet.HostAppStoreAppVersion) error {
 	// User-enrolled (BYOD) iOS/iPadOS hosts are no longer blocked from
 	// self-service. The downstream VPP install flow handles user-scoped
 	// licensing via clientUserIds. End-to-end success still depends on the
@@ -4469,14 +4476,20 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
 	}
 
-	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
+	vppApp, anyVersions, err := svc.resolveFirstAddedInScopeAppStoreApp(ctx, host, softwareTitleID, hostVersionByTitleID)
 	if err != nil {
-		// if we couldn't find an installer or a VPP app, try an in-house app
-		if fleet.IsNotFound(err) {
-			return svc.selfServiceInstallInHouseApp(ctx, host, softwareTitleID)
-		}
+		return err
+	}
 
-		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
+	// if we couldn't find an installer or a VPP app, try an in-house app
+	if !anyVersions {
+		return svc.selfServiceInstallInHouseApp(ctx, host, softwareTitleID)
+	}
+
+	if vppApp == nil {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install. This software is not available for this host.",
+		}
 	}
 
 	if !vppApp.SelfService {
@@ -4486,17 +4499,6 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 				ctx, "software title not available through self-service",
 				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
 			),
-		}
-	}
-
-	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "checking vpp label scoping during software install attempt")
-	}
-
-	if !scoped {
-		return &fleet.BadRequestError{
-			Message: "Couldn't install. This software is not available for this host.",
 		}
 	}
 
@@ -4516,11 +4518,16 @@ func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, hos
 		return ctxerr.Wrap(ctx, err, "get software titles for install all")
 	}
 
+	hostVersionByTitleID, err := svc.ds.ListHostAppStoreAppVersions(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host app store app versions for install all")
+	}
+
 	// Queue individual install activities for each title. If any errors occurred while
 	// queuing this title we log them and continue to the next software title.
 	var queuedCount uint
 	for _, title := range titles {
-		if err := svc.SelfServiceInstallSoftwareTitle(ctx, host, title.ID); err != nil {
+		if err := svc.selfServiceInstallSoftwareTitle(ctx, host, title.ID, hostVersionByTitleID); err != nil {
 			svc.logger.ErrorContext(ctx, "enqueuing software install", "title_id", title.ID, "err", err)
 			continue
 		}
@@ -4939,4 +4946,113 @@ func (svc *Service) resetInstallAttemptsForInstallers(ctx context.Context, insta
 	if err := svc.installAttemptCounter.ResetInstallerAttempts(ctx, installerIDs); err != nil {
 		svc.logger.ErrorContext(ctx, "failed to reset policy automation install attempts for updated installers", "software_installer_ids", installerIDs, "err", err)
 	}
+}
+
+func (svc *Service) resolveFirstAddedInScopeAppStoreApp(ctx context.Context, host *fleet.Host, titleID uint, hostVersionByTitleID map[uint]*fleet.HostAppStoreAppVersion) (vppApp *fleet.VPPApp, anyVersions bool, err error) {
+	if hostVersionByTitleID == nil {
+		hostVersionByTitleID, err = svc.ds.ListHostAppStoreAppVersions(ctx, host)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "listing App Store app versions for install precedence")
+		}
+	}
+	hostVersion, ok := hostVersionByTitleID[titleID]
+	if !ok {
+		return nil, false, nil
+	}
+	if !hostVersion.InScope {
+		return nil, true, nil
+	}
+
+	vppApp, err = svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, titleID, hostVersion.VPPAppTeamID)
+	if err != nil {
+		return nil, true, ctxerr.Wrap(ctx, err, "get App Store app version")
+	}
+	return vppApp, true, nil
+}
+
+func (svc *Service) deleteAppStoreAppVersions(ctx context.Context, teamID *uint, versions []*fleet.VPPAppStoreApp, versionsToDelete []*fleet.VPPAppStoreApp) error {
+	versionIDsToDelete := make(map[uint]struct{}, len(versionsToDelete))
+	for _, version := range versionsToDelete {
+		versionIDsToDelete[version.VPPAppsTeamsID] = struct{}{}
+	}
+
+	// Collect the Android hosts before the delete, the worker can't read the scope of a deleted version
+	androidHostsToUninstall := make(map[string]string)
+	androidHostsByNextVersionID := make(map[uint]map[string]string)
+	if versions[0].Platform == fleet.AndroidPlatform {
+		// Walk the versions in id order, the first version that includes a host is its version
+		seenHosts := make(map[string]struct{})
+		for _, version := range versions {
+			hosts, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, version.VPPAppsTeamsID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope")
+			}
+			_, deletingVersion := versionIDsToDelete[version.VPPAppsTeamsID]
+			for hostUUID, policyID := range hosts {
+				_, seen := seenHosts[hostUUID]
+				if !seen {
+					seenHosts[hostUUID] = struct{}{}
+					// Uninstall the app from a host whose version is deleted, unless a later version that isn't deleted includes it
+					if deletingVersion {
+						androidHostsToUninstall[hostUUID] = policyID
+					}
+					continue
+				}
+
+				// Send the configuration of the first remaining version that includes a host whose version is deleted
+				_, waitingForNextVersion := androidHostsToUninstall[hostUUID]
+				if !waitingForNextVersion || deletingVersion {
+					continue
+				}
+				delete(androidHostsToUninstall, hostUUID)
+				if androidHostsByNextVersionID[version.VPPAppsTeamsID] == nil {
+					androidHostsByNextVersionID[version.VPPAppsTeamsID] = make(map[string]string)
+				}
+				androidHostsByNextVersionID[version.VPPAppsTeamsID][hostUUID] = policyID
+			}
+		}
+	}
+
+	for _, version := range versionsToDelete {
+		err := svc.deleteVPPApp(ctx, teamID, version)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Re-send the app to iOS and iPadOS hosts whose version is deleted and that are in scope for a remaining version,
+	// the delete cleared the version of their installs. Queue nothing when every version is deleted, deleting an
+	// iOS or iPadOS app never removes it from hosts.
+	if (versions[0].Platform == fleet.IOSPlatform || versions[0].Platform == fleet.IPadOSPlatform) && len(versionsToDelete) < len(versions) {
+		err := worker.QueueResendVPPAppConfigurationJob(ctx, svc.ds, svc.logger, versions[0].VPPAppID, ptr.ValOrZero(teamID), nil, false, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing job to resend vpp app configuration")
+		}
+	}
+
+	if len(androidHostsToUninstall) == 0 && len(androidHostsByNextVersionID) == 0 {
+		return nil
+	}
+
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+	}
+	if len(androidHostsToUninstall) > 0 {
+		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger, versions[0].AdamID, androidHostsToUninstall, enterprise.Name(), svc.config.MDM.AndroidBatchSize)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing job to make android app unavailable")
+		}
+	}
+	for nextVersionID, movedHosts := range androidHostsByNextVersionID {
+		err = worker.QueueMakeAndroidAppAvailableForHostsJob(ctx, svc.ds, versions[0].AdamID, nextVersionID, movedHosts, enterprise.Name(), svc.config.MDM.AndroidBatchSize)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing job to send the next version's configuration")
+		}
+	}
+	return nil
+}
+
+func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+	return svc.selfServiceInstallSoftwareTitle(ctx, host, softwareTitleID, nil)
 }
