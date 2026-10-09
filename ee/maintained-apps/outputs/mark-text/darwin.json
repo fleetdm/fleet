@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.19.1",
+      "version": "0.21.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.marktext.marktext';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.marktext.marktext' AND version_compare(bundle_short_version, '0.19.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.marktext.marktext' AND version_compare(bundle_short_version, '0.21.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.github.marktext.marktext' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/marktext/marktext/releases/download/v0.19.1/marktext-mac-arm64-0.19.1.dmg",
+      "installer_url": "https://github.com/marktext/marktext/releases/download/v0.21.1/marktext-mac-arm64-0.21.1.dmg",
       "install_script_ref": "1260c83f",
       "uninstall_script_ref": "835c30a8",
-      "sha256": "f5a8630b4ec14f7bf1120a7a17a1ed397430d30c57f2c6c2c6a39410417f66ce",
+      "sha256": "329f608bbfc93d7bda33b6c570495d4d3aeffd33f5ed040ff764d1737189362c",
       "default_categories": [
         "Productivity"
       ]

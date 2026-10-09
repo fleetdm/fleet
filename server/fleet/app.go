@@ -378,6 +378,12 @@ func (c DiskEncryptionConfig) MacOSEnforceOnly() bool {
 	return c.MacOSEnabled && !c.MacOSEscrowEnabled
 }
 
+// MacOSFileVaultOff reports whether neither macOS setting is on, so the fleet
+// delivers no FileVault profile and one a host still has is awaiting removal.
+func (c DiskEncryptionConfig) MacOSFileVaultOff() bool {
+	return !c.MacOSEnabled && !c.MacOSEscrowEnabled
+}
+
 // MacOSDiskEncryptionSettingsPayload is the macos_settings object accepted by
 // POST /disk_encryption. Nil fields mean "don't change".
 type MacOSDiskEncryptionSettingsPayload struct {
@@ -891,16 +897,48 @@ var _ WithMDMProfileSpecs = MacOSSettings{}
 func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
 	set := make(map[string]bool)
 
-	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
-		var ret []string
-		if labels, ok := parentMap[fieldName].([]interface{}); ok {
-			for _, label := range labels {
-				if strLabel, ok := label.(string); ok {
-					ret = append(ret, strLabel)
-				}
+	extractLabelField := func(parentMap map[string]any, fieldName string) ([]string, error) {
+		v, ok := parentMap[fieldName]
+		if !ok || v == nil {
+			return nil, nil
+		}
+		labels, ok := v.([]any)
+		if !ok {
+			return nil, &json.UnmarshalTypeError{
+				Value: fmt.Sprintf("%T", v),
+				Type:  reflect.TypeFor[[]string](),
+				Field: "macos_settings.custom_settings." + fieldName,
 			}
 		}
-		return ret
+		var ret []string
+		for _, label := range labels {
+			strLabel, ok := label.(string)
+			if !ok {
+				return nil, &json.UnmarshalTypeError{
+					Value: fmt.Sprintf("%T", label),
+					Type:  reflect.TypeFor[string](),
+					Field: "macos_settings.custom_settings." + fieldName,
+				}
+			}
+			ret = append(ret, strLabel)
+		}
+		return ret, nil
+	}
+
+	extractStringField := func(parentMap map[string]any, fieldName string) (string, error) {
+		v, ok := parentMap[fieldName]
+		if !ok || v == nil {
+			return "", nil
+		}
+		str, ok := v.(string)
+		if !ok {
+			return "", &json.UnmarshalTypeError{
+				Value: fmt.Sprintf("%T", v),
+				Type:  reflect.TypeFor[string](),
+				Field: "macos_settings.custom_settings." + fieldName,
+			}
+		}
+		return str, nil
 	}
 
 	if v, ok := m["custom_settings"]; ok {
@@ -912,15 +950,29 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			for _, v := range vals {
 				if m, ok := v.(map[string]interface{}); ok {
 					var spec MDMProfileSpec
-					// extract the Path field
-					if path, ok := m["path"].(string); ok {
-						spec.Path = path
+					var err error
+					if spec.Path, err = extractStringField(m, "path"); err != nil {
+						return nil, err
+					}
+					if spec.Name, err = extractStringField(m, "name"); err != nil {
+						return nil, err
+					}
+					if spec.Description, err = extractStringField(m, "description"); err != nil {
+						return nil, err
 					}
 
-					spec.Labels = extractLabelField(m, "labels")
-					spec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
-					spec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
-					spec.LabelsIncludeAny = extractLabelField(m, "labels_include_any")
+					if spec.Labels, err = extractLabelField(m, "labels"); err != nil {
+						return nil, err
+					}
+					if spec.LabelsIncludeAll, err = extractLabelField(m, "labels_include_all"); err != nil {
+						return nil, err
+					}
+					if spec.LabelsExcludeAny, err = extractLabelField(m, "labels_exclude_any"); err != nil {
+						return nil, err
+					}
+					if spec.LabelsIncludeAny, err = extractLabelField(m, "labels_include_any"); err != nil {
+						return nil, err
+					}
 
 					csSpecs = append(csSpecs, spec)
 				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
@@ -1434,6 +1486,7 @@ type enrichedAppConfigFields struct {
 	Logging                *Logging               `json:"logging,omitempty"`
 	Email                  *EmailConfig           `json:"email,omitempty"`
 	MaxSoftwarePackageSize int64                  `json:"max_software_package_size"`
+	StagedUploadAvailable  bool                   `json:"staged_upload_available"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -2328,6 +2381,8 @@ type AuthSettings struct {
 	// MDMAppleOneTimeEnrollSecrets mirrors the mdm.apple_one_time_enroll_secrets
 	// server configuration.
 	MDMAppleOneTimeEnrollSecrets bool `json:"mdm_apple_one_time_enroll_secrets,omitempty"`
+	// MDMWindowsOneTimeEnrollSecrets mirrors the mdm.windows_one_time_enroll_secrets server configuration.
+	MDMWindowsOneTimeEnrollSecrets bool `json:"mdm_windows_one_time_enroll_secrets,omitempty"`
 }
 
 // LicenseInfo contains information about the Fleet license.

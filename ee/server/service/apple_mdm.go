@@ -765,12 +765,24 @@ func (svc *Service) handleInstallSelfServiceConfigurationProfile(ctx context.Con
 			Message: "Self-service configuration profiles are only supported on macOS",
 		}
 	}
+	if connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet MDM")
+	} else if !connected {
+		return "", &fleet.BadRequestError{Message: "Host does not have MDM turned on."}
+	}
 
 	if optedIn, err := svc.ds.HasHostMDMProfileOptIn(ctx, host.UUID, profileUUID); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "checking host MDM profile opt-in")
 	} else if optedIn {
 		return "", &fleet.ConflictError{
 			Message: "This profile is already installed or installing for this host.",
+		}
+	}
+	if hp, err := svc.hostSelfServiceProfileRow(ctx, host.UUID, profileUUID); err != nil {
+		return "", err
+	} else if hp != nil && hp.OperationType == fleet.MDMOperationTypeRemove && hp.Status != nil && *hp.Status == fleet.MDMDeliveryPending {
+		return "", &fleet.ConflictError{
+			Message: "This profile is being removed from this host. Try again once it's removed.",
 		}
 	}
 
@@ -854,6 +866,14 @@ func (svc *Service) handleUninstallSelfServiceConfigurationProfile(ctx context.C
 			"This profile is not installed for this host.",
 		)
 	}
+	// An install still in flight would land after the removal and leave the profile on the device.
+	if hp, err := svc.hostSelfServiceProfileRow(ctx, host.UUID, profileUUID); err != nil {
+		return "", err
+	} else if hp != nil && (hp.OperationType == fleet.MDMOperationTypeRemove || hp.Status == nil || *hp.Status == fleet.MDMDeliveryPending) {
+		return "", &fleet.ConflictError{
+			Message: "This profile is still being installed or removed on this host. Try again once it's finished.",
+		}
+	}
 
 	profile, err := svc.ds.GetAppleProfileForReconcile(ctx, host.EffectiveTeamID(), profileUUID)
 	if err != nil {
@@ -896,4 +916,19 @@ func (svc *Service) handleUninstallSelfServiceConfigurationProfile(ctx context.C
 	}
 
 	return profile.ProfileName, nil
+}
+
+// hostSelfServiceProfileRow returns the host's profile row as the host details show it (a NULL status reads as pending),
+// or nil if the profile isn't on the host.
+func (svc *Service) hostSelfServiceProfileRow(ctx context.Context, hostUUID, profileUUID string) (*fleet.HostMDMAppleProfile, error) {
+	profs, err := svc.ds.GetHostMDMAppleProfiles(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host MDM Apple profiles")
+	}
+	for _, p := range profs {
+		if p.ProfileUUID == profileUUID {
+			return &p, nil
+		}
+	}
+	return nil, nil
 }

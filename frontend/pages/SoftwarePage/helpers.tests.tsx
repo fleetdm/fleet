@@ -22,6 +22,7 @@ import {
   getDefaultAutoUpdateFromVersions,
   getDisplayedSoftwareName,
   routeVersionNameError,
+  getSoftwareListName,
 } from "./helpers";
 
 jest.mock("components/ToastNotification", () => ({
@@ -32,6 +33,20 @@ jest.mock("components/ToastNotification", () => ({
     dismiss: jest.fn(),
   },
 }));
+
+it("keeps custom software names while identifying script filenames", () => {
+  const title = createMockSoftwareTitle({
+    name: "hello",
+    display_name: "Setup script",
+    source: "py_packages",
+    software_package: createMockSoftwarePackage({ name: "hello.py" }),
+  });
+
+  expect(getSoftwareListName(title)).toBe("Setup script (hello.py)");
+  expect(getSoftwareListName({ ...title, source: "pkg_packages" })).toBe(
+    "Setup script"
+  );
+});
 
 describe("getSelfServiceTooltip", () => {
   it("returns Play Store tooltip content when isAndroidPlayStoreApp is true", () => {

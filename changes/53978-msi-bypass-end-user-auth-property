@@ -1,0 +1,1 @@
+- Added a `BYPASS_END_USER_AUTH` property to the Windows MSI built by `fleetctl package`, so end-user authentication can be skipped at install time (for example `msiexec /i fleetd-base.msi BYPASS_END_USER_AUTH=true`) instead of baking in the `--bypass-end-user-auth` flag. Requires fleetd v1.60.0 or higher.

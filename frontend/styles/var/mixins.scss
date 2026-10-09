@@ -499,6 +499,36 @@ $max-width: 2560px;
   background-color: $core-fleet-white; // area below gradient — transitionable
 }
 
+// Bordered, scrollable list of checkbox rows with a status line for loading,
+// error, and no-match states. Used by the Software filters modal's Types picker
+// and the dashboard chart filter's host and CVE pickers.
+@mixin scrollable-checkbox-list($max-height) {
+  max-height: $max-height;
+  overflow-y: auto;
+  border: 1px solid $ui-fleet-black-10;
+  border-radius: $border-radius;
+}
+
+@mixin scrollable-checkbox-list-row {
+  padding: $pad-small $pad-medium;
+  border-bottom: 1px solid $ui-fleet-black-10;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .fleet-checkbox {
+    margin: 0;
+  }
+}
+
+@mixin scrollable-checkbox-list-status {
+  padding: $pad-medium;
+  text-align: center;
+  font-size: $x-small;
+  color: $ui-fleet-black-50;
+}
+
 // Shared styling for a search input rendered inside a dropdown menu (icon on
 // the left, 36px tall, Fleet-black-10 border). Used by FleetsDropdown,
 // CategoryFilter, and ActivityTypeDropdown.

@@ -62,16 +62,17 @@ type DetailsForSoftwareIconActivity struct {
 	// reflects the first-added version by design — icon-edit activities fire
 	// title-wide rather than per-version, so a single representative label is
 	// surfaced. Empty for installer- or in-house-app-only titles.
-	VersionName      string                     `db:"version_name"`
-	VPPIconUrl       *string                    `db:"vpp_icon_url"`
-	SoftwareTitle    string                     `db:"software_title"`
-	Filename         *string                    `db:"filename"`
-	TeamName         *string                    `db:"team_name"`
-	TeamID           uint                       `db:"team_id"`
-	SelfService      bool                       `db:"self_service"`
-	SoftwareTitleID  uint                       `db:"software_title_id"`
-	Platform         *InstallableDevicePlatform `json:"platform"`
-	LabelsIncludeAny []ActivitySoftwareLabel    `db:"-"`
-	LabelsExcludeAny []ActivitySoftwareLabel    `db:"-"`
-	LabelsIncludeAll []ActivitySoftwareLabel    `db:"-"`
+	VersionName         string                     `db:"version_name"`
+	VPPIconUrl          *string                    `db:"vpp_icon_url"`
+	SoftwareTitle       string                     `db:"software_title"`
+	SoftwareDisplayName string                     `db:"software_display_name"`
+	Filename            *string                    `db:"filename"`
+	TeamName            *string                    `db:"team_name"`
+	TeamID              uint                       `db:"team_id"`
+	SelfService         bool                       `db:"self_service"`
+	SoftwareTitleID     uint                       `db:"software_title_id"`
+	Platform            *InstallableDevicePlatform `json:"platform"`
+	LabelsIncludeAny    []ActivitySoftwareLabel    `db:"-"`
+	LabelsExcludeAny    []ActivitySoftwareLabel    `db:"-"`
+	LabelsIncludeAll    []ActivitySoftwareLabel    `db:"-"`
 }

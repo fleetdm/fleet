@@ -256,6 +256,13 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	}
 	ds.setTimesToNonZero(host)
 
+	// Use the device's report time so a delayed or retried Pub/Sub delivery doesn't push the
+	// missing and expiry clocks later. ENROLLMENT payloads can omit it.
+	seenTime := time.Now().UTC()
+	if !host.DetailUpdatedAt.Equal(common_mysql.GetDefaultNonZeroTime()) {
+		seenTime = host.DetailUpdatedAt.UTC() //nolint:nilaway // IsValid above rejects a nil host
+	}
+
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update Android host get app config")
@@ -276,7 +283,10 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			cpu_type = :cpu_type,
 			hardware_model = :hardware_model,
 			hardware_vendor = :hardware_vendor,
-			uuid = :uuid
+			uuid = :uuid,
+			-- a re-enrolling device keeps its row, so the enrollment time is refreshed here,
+			-- as EnrollHost does for osquery hosts. A plain status report leaves it alone.
+			last_enrolled_at = IF(:from_enroll, NOW(), last_enrolled_at)
 		WHERE id = :id
 		`
 		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
@@ -294,9 +304,23 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			"hardware_model":    host.HardwareModel,
 			"hardware_vendor":   host.HardwareVendor,
 			"uuid":              host.UUID,
+			"from_enroll":       fromEnroll,
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android host")
+		}
+
+		// An Android host never checks in through osquery, so the AMAPI status reports that
+		// drive this update are the only evidence Fleet has heard from the device. Without a
+		// host_seen_times row the host reads as last seen when its row was created.
+		// The stale-message check runs before this and is recorded after, so an older report
+		// processed concurrently can commit last; never move the seen time backwards.
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE seen_time = GREATEST(COALESCE(seen_time, VALUES(seen_time)), VALUES(seen_time))`,
+			host.Host.ID, seenTime,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "update Android host seen time")
 		}
 
 		// Keep android_devices.team_id in sync so the team survives host deletion.
@@ -611,9 +635,10 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 // BulkSetAndroidHostsUnenrolled sets all android hosts to unenrolled (for when
 // Android MDM is turned off for all Fleet).
 func (ds *Datastore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
+	// installed_from_dep is also cleared because Android has no DEP/ABM equivalent (no "Pending" state).
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_mdm
-	SET server_url = '', mdm_id = NULL, enrolled = 0
+	SET server_url = '', mdm_id = NULL, enrolled = 0, installed_from_dep = 0
 	WHERE host_id IN (
 		SELECT id FROM hosts WHERE platform = 'android'
 	)`)
@@ -843,8 +868,8 @@ func (ds *Datastore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MD
 	profileUUID := fleet.MDMAndroidProfileUUIDPrefix + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
-    mdm_android_configuration_profiles (profile_uuid, team_id, name, description, raw_json, uploaded_at)
-(SELECT ?, ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
+    mdm_android_configuration_profiles (profile_uuid, team_id, name, description, raw_json, hidden, uploaded_at)
+(SELECT ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
@@ -860,7 +885,7 @@ INSERT INTO
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.Description, cp.RawJSON, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.Description, cp.RawJSON, cp.Hidden, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):
@@ -927,11 +952,12 @@ INSERT INTO
 		Description: cp.Description,
 		RawJSON:     cp.RawJSON,
 		TeamID:      cp.TeamID,
+		Hidden:      cp.Hidden,
 	}, nil
 }
 
 func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error) {
-	stmt := `SELECT profile_uuid, team_id, name, description, raw_json, auto_increment, created_at, uploaded_at FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`
+	stmt := `SELECT profile_uuid, team_id, name, description, raw_json, auto_increment, hidden, created_at, uploaded_at FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`
 	var profile fleet.MDMAndroidConfigProfile
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, profileUUID)
 	if err != nil {
@@ -966,26 +992,43 @@ func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID
 }
 
 // UpdateMDMAndroidConfigProfile updates an existing profile's contents (if
-// cp.RawJSON is non-empty) and/or label targeting in place. cp.Name must
-// match the existing profile's -- name is an Android profile's only
-// identity, so it never changes on this path.
+// cp.RawJSON is non-empty), name, description and/or label targeting in
+// place, keyed by cp.ProfileUUID so a rename keeps the same row.
 func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
+	var teamID uint
+	if cp.TeamID != nil {
+		teamID = *cp.TeamID
+	}
+
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
 			Name        string `db:"name"`
 			Description string `db:"description"`
+			Hidden      bool   `db:"hidden"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT name, description FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT name, description, hidden FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
 			}
 			return ctxerr.Wrap(ctx, err, "get existing android config profile")
 		}
-		if existing.Name != cp.Name {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: "The new profile's name must match the existing profile's name.",
+		if cp.Name == "" {
+			cp.Name = existing.Name
+		}
+
+		nameChanged := existing.Name != cp.Name
+		nameGuard := ""
+		var nameGuardArgs []any
+		if nameChanged {
+			nameGuard, nameGuardArgs = profileRenameGuard(androidProfileNameTables.profileTable, cp.Name, teamID)
+		}
+		nameExists := func() error {
+			return ctxerr.Wrap(ctx, &existsError{
+				ResourceType: "MDMAndroidConfigProfile.Name",
+				Identifier:   cp.Name,
+				TeamID:       cp.TeamID,
 			})
 		}
 
@@ -995,12 +1038,19 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			// the pre-update raw_json (SET evaluates left to right), and the
 			// parameter must be CAST to JSON -- a json column never equals a
 			// bare string.
-			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(raw_json = CAST(? AS JSON), uploaded_at, CURRENT_TIMESTAMP()), raw_json = ?, description = ? WHERE profile_uuid = ? AND name = ?`
-			res, err := tx.ExecContext(ctx, stmt, cp.RawJSON, cp.RawJSON, cp.Description, cp.ProfileUUID, cp.Name)
+			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(raw_json = CAST(? AS JSON), uploaded_at, CURRENT_TIMESTAMP()), raw_json = ?, name = ?, description = ?, hidden = ? WHERE profile_uuid = ?` + nameGuard
+			args := append([]any{cp.RawJSON, cp.RawJSON, cp.Name, cp.Description, cp.Hidden, cp.ProfileUUID}, nameGuardArgs...)
+			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
+				if IsDuplicate(err) {
+					return nameExists()
+				}
 				return ctxerr.Wrap(ctx, err, "updating android mdm config profile contents")
 			}
 			if aff, _ := res.RowsAffected(); aff == 0 {
+				if nameChanged {
+					return nameExists()
+				}
 				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
 			}
 
@@ -1013,16 +1063,24 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			}, "android", false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating android profile variable associations")
 			}
-		} else if existing.Description != cp.Description {
-			// Description is not part of the checksum, so it is written without
-			// touching uploaded_at.
-			res, err := tx.ExecContext(ctx,
-				`UPDATE mdm_android_configuration_profiles SET description = ? WHERE profile_uuid = ?`,
-				cp.Description, cp.ProfileUUID)
+		} else if nameChanged || existing.Description != cp.Description || existing.Hidden != cp.Hidden {
+			// Name, description and hidden are not part of the checksum, so they
+			// are written without touching uploaded_at.
+			stmt := `UPDATE mdm_android_configuration_profiles SET name = ?, description = ?, hidden = ? WHERE profile_uuid = ?` + nameGuard
+			args := append([]any{cp.Name, cp.Description, cp.Hidden, cp.ProfileUUID}, nameGuardArgs...)
+			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "updating android mdm config profile description")
+				if IsDuplicate(err) {
+					return nameExists()
+				}
+				return ctxerr.Wrap(ctx, err, "updating android mdm config profile metadata")
 			}
+			// A rename blocked by the guard matches no row; the profile
+			// existed at the SELECT above.
 			if aff, _ := res.RowsAffected(); aff == 0 {
+				if nameChanged {
+					return nameExists()
+				}
 				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
 			}
 		}
@@ -1069,6 +1127,9 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 
 func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, androidProfileNameTables, "p.profile_uuid = ?", profileUUID); err != nil {
+			return err
+		}
 		stmt := `DELETE FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`
 		res, err := tx.ExecContext(ctx, stmt, profileUUID)
 		if err != nil {
@@ -1949,6 +2010,52 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context, cursor st
 	return toApplyProfiles, toRemoveProfiles, err
 }
 
+// ResetMDMAndroidHostProfilesForRedelivery marks every profile install of the host as
+// needing to be sent again (creating the rows of applicable profiles it has none for) and
+// drops its pending removals. It is used after the host's policy was replaced by one without
+// any profile settings.
+func (ds *Datastore) ResetMDMAndroidHostProfilesForRedelivery(ctx context.Context, hostUUID string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE host_mdm_android_profiles
+			SET
+				status = NULL,
+				detail = '',
+				policy_request_uuid = NULL,
+				device_request_uuid = NULL,
+				request_fail_count = 0,
+				included_in_policy_version = NULL,
+				can_reverify = 0,
+				-- always bumped, even when the row already looked reset, so that
+				-- BulkUpsertMDMAndroidHostProfilesUnlessResetSince can tell it was reset
+				updated_at = CURRENT_TIMESTAMP(6)
+			WHERE host_uuid = ? AND operation_type = ?`,
+			hostUUID, fleet.MDMOperationTypeInstall); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset android host profile installs")
+		}
+		// The replaced policy no longer holds these settings, so the removal is done.
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM host_mdm_android_profiles WHERE host_uuid = ? AND operation_type = ?`,
+			hostUUID, fleet.MDMOperationTypeRemove); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete android host profile removals")
+		}
+		// A host that was never sent its profiles (e.g. newly enrolled) has no rows to reset,
+		// so a reconciler already sending them would record them as delivered in the replaced
+		// policy. Create the rows as reset so that write is discarded too.
+		insertMissingStmt := fmt.Sprintf(`
+			INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid, profile_name, operation_type, status, detail)
+			SELECT ds.host_uuid, ds.profile_uuid, ds.name, ?, NULL, ''
+			FROM ( %s ) ds
+			ON DUPLICATE KEY UPDATE host_uuid = host_mdm_android_profiles.host_uuid`,
+			fmt.Sprintf(androidApplicableProfilesQuery, "h.uuid = ?", "h.uuid = ?", "h.uuid = ?", "h.uuid = ?", "h.uuid = ?", "h.uuid = ?"))
+		if _, err := tx.ExecContext(ctx, insertMissingStmt,
+			fleet.MDMOperationTypeInstall, hostUUID, hostUUID, hostUUID, hostUUID, hostUUID, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert missing android host profiles")
+		}
+		return nil
+	})
+}
+
 func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {
 	if len(uuids) == 0 {
 		return nil, nil
@@ -1989,22 +2096,51 @@ func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []
 }
 
 func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
-	return ds.bulkUpsertMDMAndroidHostProfiles(ctx, payload, false)
+	return ds.bulkUpsertMDMAndroidHostProfiles(ctx, payload, false, nil)
 }
 
-// bulkUpsertMDMAndroidHostProfiles upserts host/profile rows.
-func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, preserveExistingDetail bool) error {
+// GetMDMAndroidProfilesWriteTime returns the primary's current time at microsecond
+// precision, comparable to host_mdm_android_profiles.updated_at.
+func (ds *Datastore) GetMDMAndroidProfilesWriteTime(ctx context.Context) (time.Time, error) {
+	var now time.Time
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &now, `SELECT NOW(6)`); err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "get android profiles write time")
+	}
+	return now, nil
+}
+
+func (ds *Datastore) BulkUpsertMDMAndroidHostProfilesUnlessResetSince(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, since time.Time) error {
+	return ds.bulkUpsertMDMAndroidHostProfiles(ctx, payload, false, &since)
+}
+
+// bulkUpsertMDMAndroidHostProfiles upserts host/profile rows. When unlessResetSince is set,
+// existing rows that were reset for redelivery (status NULL) at or after that time are left
+// as-is, so a writer working from state read before the reset cannot undo it.
+func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, preserveExistingDetail bool, unlessResetSince *time.Time) error {
 	if len(payload) == 0 {
 		return nil
 	}
 
-	detailUpdate := "detail = VALUES(detail),"
-	if preserveExistingDetail {
-		// detail intentionally omitted from the ON DUPLICATE KEY UPDATE clause:
-		// the reconciler owns this field and may carry a forward-looking message
-		// (e.g. "Waiting for certificate ..." on withheld ONC profiles) that
-		// must survive this state reset.
-		detailUpdate = ""
+	// detail is omitted when preserving it: the reconciler owns this field and may carry a
+	// forward-looking message (e.g. "Waiting for certificate ..." on withheld ONC profiles)
+	// that must survive this state reset.
+	updatedColumns := []string{"status", "operation_type"}
+	if !preserveExistingDetail {
+		updatedColumns = append(updatedColumns, "detail")
+	}
+	updatedColumns = append(updatedColumns, "profile_name", "policy_request_uuid", "device_request_uuid",
+		"request_fail_count", "included_in_policy_version", "checksum", "can_reverify")
+
+	var updateAssignments []string
+	var updateArgs []any
+	for _, col := range updatedColumns {
+		if unlessResetSince == nil {
+			updateAssignments = append(updateAssignments, fmt.Sprintf("%s = VALUES(%s)", col, col))
+			continue
+		}
+		updateAssignments = append(updateAssignments,
+			fmt.Sprintf("%s = IF(status IS NULL AND updated_at >= ?, %s, VALUES(%s))", col, col, col))
+		updateArgs = append(updateArgs, *unlessResetSince)
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
@@ -2026,18 +2162,10 @@ func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 			)
 			VALUES %s
 			ON DUPLICATE KEY UPDATE
-				status = VALUES(status),
-				operation_type = VALUES(operation_type),
 				%s
-				profile_name = VALUES(profile_name),
-				policy_request_uuid = VALUES(policy_request_uuid),
-				device_request_uuid = VALUES(device_request_uuid),
-				request_fail_count = VALUES(request_fail_count),
-				included_in_policy_version = VALUES(included_in_policy_version),
-				checksum = VALUES(checksum),
-				can_reverify = VALUES(can_reverify)
-`, strings.TrimSuffix(valuePart, ","), detailUpdate,
+`, strings.TrimSuffix(valuePart, ","), strings.Join(updateAssignments, ",\n\t\t\t\t"),
 		)
+		args = slices.Concat(args, updateArgs)
 
 		// Taken from BulkUpsertMDMAppleHostProfiles: We need to run with retry
 		// due to deadlocks. The INSERT/ON DUPLICATE KEY UPDATE pattern is prone
@@ -2088,7 +2216,9 @@ func (ds *Datastore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID str
 		`
 SELECT
 	hmap.profile_uuid,
-	hmap.profile_name AS name,
+	-- the profile's name, since the host's copy isn't updated on a rename;
+	-- the copy is only read once the profile is deleted, which refreshes it
+	COALESCE(macp.name, hmap.profile_name) AS name,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
 	-- profile is effectively pending. This is consistent with all our
@@ -2156,6 +2286,9 @@ func (ds *Datastore) deleteAllAndroidProfiles(ctx context.Context, tx sqlx.ExtCo
 	var teamID uint
 	if tmID != nil {
 		teamID = *tmID
+	}
+	if err := snapshotProfileNamesForDeletionDB(ctx, tx, androidProfileNameTables, "p.team_id = ?", teamID); err != nil {
+		return 0, err
 	}
 	res, err := tx.ExecContext(ctx, `DELETE FROM mdm_android_configuration_profiles WHERE team_id = ?`, teamID)
 	if err != nil {
@@ -2230,6 +2363,9 @@ WHERE
   profile_uuid IN (?)
 `
 	if len(deletedProfileUUIDs) > 0 {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, androidProfileNameTables, "p.profile_uuid IN (?)", deletedProfileUUIDs); err != nil {
+			return false, err
+		}
 		var result sql.Result
 		stmt, args, err = sqlx.In(deleteProfilesNotInList, deletedProfileUUIDs)
 		if err != nil {
@@ -2257,17 +2393,19 @@ WHERE
 		name,
 		description,
 		raw_json,
+		hidden,
 		uploaded_at
-	) VALUES (CONCAT('` + fleet.MDMAndroidProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, CURRENT_TIMESTAMP(6))
+	) VALUES (CONCAT('` + fleet.MDMAndroidProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6))
 	ON DUPLICATE KEY UPDATE
 		description = VALUES(description),
+		hidden = VALUES(hidden),
 		raw_json = VALUES(raw_json),
 		name = VALUES(name),
 		uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6))
 `
 	for _, p := range profiles {
 		var res sql.Result
-		if res, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profileTeamID, p.Name, p.Description, p.RawJSON); err != nil {
+		if res, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profileTeamID, p.Name, p.Description, p.RawJSON, p.Hidden); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "insert or update profile")
 		}
 
@@ -2413,7 +2551,7 @@ func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 		}
 	}
 
-	if err := ds.bulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert, true); err != nil {
+	if err := ds.bulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert, true, nil); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "bulk reset android host profiles to pending")
 	}
 
@@ -2491,7 +2629,8 @@ SELECT
 	hvsi.host_id,
 	hvsi.adam_id,
 	hvsi.command_uuid,
-	hvsi.associated_event_id
+	hvsi.associated_event_id,
+	hvsi.created_at
 FROM
 	host_vpp_software_installs hvsi
 	INNER JOIN hosts h ON hvsi.host_id = h.id

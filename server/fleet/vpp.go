@@ -250,11 +250,12 @@ type HostVPPSoftwareInstallLite struct {
 // are always null and self-service is always false, while platform is
 // always android.
 type HostAndroidVPPSoftwareInstall struct {
-	HostID            uint   `db:"host_id"`
-	AdamID            string `db:"adam_id"`             // for Android, this is the e.g. com.chrome application ID
-	CommandUUID       string `db:"command_uuid"`        // uuid of the corresponding android_policy_request row
-	AssociatedEventID string `db:"associated_event_id"` // for Android (for the current setup-experience-only approach), we overload this field to store the Android policy version ID
-	VPPAppTeamID      uint   `db:"vpp_app_team_id"`
+	HostID            uint       `db:"host_id"`
+	AdamID            string     `db:"adam_id"`             // for Android, this is the e.g. com.chrome application ID
+	CommandUUID       string     `db:"command_uuid"`        // uuid of the corresponding android_policy_request row
+	AssociatedEventID string     `db:"associated_event_id"` // for Android (for the current setup-experience-only approach), we overload this field to store the Android policy version ID
+	VPPAppTeamID      uint       `db:"vpp_app_team_id"`
+	CreatedAt         *time.Time `db:"created_at"` // read-only, the column is nullable
 }
 
 const (

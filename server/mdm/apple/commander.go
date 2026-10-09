@@ -954,6 +954,37 @@ func (svc *MDMAppleCommander) RotateRecoveryLock(ctx context.Context, hostUUIDs 
 	return nil
 }
 
+// RotateFileVaultKey enqueues a rotation of a macOS host's FileVault personal
+// recovery key. The current key travels as a host secret placeholder expanded at
+// delivery, so the plaintext never lands in nano_commands.
+//
+// replyCertDER must be the Apple MDM CA certificate. Apple documents
+// ReplyEncryptionCertificate as optional, but macOS fails the command without it.
+// The reply is what lets Fleet store the new key as soon as the host acknowledges.
+func (svc *MDMAppleCommander) RotateFileVaultKey(ctx context.Context, hostUUID, cmdUUID string, replyCertDER []byte) error {
+	cmdPayload := commandPayload{
+		CommandUUID: cmdUUID,
+		Command: map[string]any{
+			"RequestType": fleet.RotateFileVaultKeyCmdName,
+			"KeyType":     "personal",
+			"FileVaultUnlock": map[string]any{
+				"Password": fleet.HostSecretPlaceholder(fleet.HostSecretFileVaultKey),
+			},
+			"ReplyEncryptionCertificate": replyCertDER,
+		},
+	}
+	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshalling RotateFileVaultKey payload")
+	}
+
+	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, string(rawBytes)); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing RotateFileVaultKey command")
+	}
+
+	return nil
+}
+
 // NotificationFailedError reports a failure in the APNs notification stage of
 // enqueueAndNotify. The command was durably enqueued before the push was
 // attempted, so affected devices will still receive it at their next MDM

@@ -8,8 +8,10 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -81,6 +83,7 @@ func TestTransport(t *testing.T) {
 			}
 			assert.NotNil(t, tr.Proxy)
 			assert.NotNil(t, tr.DialContext)
+			assert.Zero(t, tr.ResponseHeaderTimeout)
 		})
 	}
 }
@@ -560,5 +563,157 @@ func TestClientTimeoutBehavior(t *testing.T) {
 			t.Fatalf("request should still be in flight, got %v", err)
 		case <-time.After(300 * time.Millisecond):
 		}
+	})
+}
+
+func TestClientResponseHeaderTimeout(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(300 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	})
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	tlsSrv := httptest.NewTLSServer(handler)
+	t.Cleanup(tlsSrv.Close)
+	tlsOpt := WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}) //nolint:gosec // test server
+
+	for _, c := range []struct {
+		name    string
+		url     string
+		opts    []ClientOpt
+		wantErr bool
+	}{
+		{"no option waits", srv.URL, nil, false},
+		{"option aborts", srv.URL, []ClientOpt{WithResponseHeaderTimeout(100 * time.Millisecond)}, true},
+		{"option aborts with TLS config", tlsSrv.URL, []ClientOpt{tlsOpt, WithResponseHeaderTimeout(100 * time.Millisecond)}, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			resp, err := NewClient(append(c.opts, WithNoTimeout())...).Get(c.url)
+			if c.wantErr {
+				require.ErrorContains(t, err, "timeout awaiting response headers")
+				return
+			}
+			require.NoError(t, err)
+			resp.Body.Close()
+		})
+	}
+}
+
+func TestNewGithubClientAuthorization(t *testing.T) {
+	var mu sync.Mutex
+	gotAuth := map[string]string{}
+	record := func(name string, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		gotAuth[name] = r.Header.Get("Authorization")
+	}
+
+	mirror := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record("mirror", r)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(mirror.Close)
+	api := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/redirect" {
+			record("api redirect", r)
+			http.Redirect(w, r, mirror.URL+"/asset", http.StatusFound)
+			return
+		}
+		record("api", r)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(api.Close)
+	plainAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record("plain api", r)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(plainAPI.Close)
+
+	// NewClient builds on http.DefaultTransport, so swap in one that trusts the
+	// test servers' certificate (all httptest TLS servers share it).
+	origTransport := http.DefaultTransport
+	http.DefaultTransport = api.Client().Transport
+	t.Cleanup(func() { http.DefaultTransport = origTransport })
+
+	// Stand the test server in for api.github.com.
+	setAPIHost := func(t *testing.T, rawURL string) {
+		u, err := url.Parse(rawURL)
+		require.NoError(t, err)
+		origHost := githubAPIHost
+		githubAPIHost = u.Host
+		t.Cleanup(func() { githubAPIHost = origHost })
+	}
+	setAPIHost(t, api.URL)
+
+	cases := []struct {
+		name         string
+		testToken    string
+		fleetToken   string
+		expectedAuth string
+	}{
+		{name: "no token", expectedAuth: ""},
+		{name: "test token", testToken: "test-tok", expectedAuth: "Bearer test-tok"},
+		{name: "fleet token", fleetToken: "fleet-tok", expectedAuth: "Bearer fleet-tok"},
+		{name: "test token wins", testToken: "test-tok", fleetToken: "fleet-tok", expectedAuth: "Bearer test-tok"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv("NETWORK_TEST_GITHUB_TOKEN", c.testToken)
+			t.Setenv("FLEET_VULNERABILITIES_GITHUB_TOKEN", c.fleetToken)
+			// Ambient GitHub variables must never be picked up.
+			t.Setenv("GITHUB_TOKEN", "ambient-github-token")
+			t.Setenv("GH_TOKEN", "ambient-gh-token")
+			mu.Lock()
+			clear(gotAuth)
+			mu.Unlock()
+
+			cli := NewGithubClient()
+			for _, u := range []string{api.URL, mirror.URL, api.URL + "/redirect"} {
+				resp, err := cli.Get(u)
+				require.NoError(t, err)
+				require.NoError(t, resp.Body.Close())
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			require.Equal(t, map[string]string{
+				"api":          c.expectedAuth,
+				"api redirect": c.expectedAuth,
+				// The token must never leave the GitHub API host, directly or via a redirect.
+				"mirror": "",
+			}, gotAuth)
+		})
+	}
+
+	t.Run("plain HTTP to the API host", func(t *testing.T) {
+		t.Setenv("FLEET_VULNERABILITIES_GITHUB_TOKEN", "fleet-tok")
+		setAPIHost(t, plainAPI.URL)
+		mu.Lock()
+		clear(gotAuth)
+		mu.Unlock()
+
+		resp, err := NewGithubClient().Get(plainAPI.URL)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+
+		mu.Lock()
+		defer mu.Unlock()
+		// The token must never be sent in plaintext.
+		require.Equal(t, map[string]string{"plain api": ""}, gotAuth)
+	})
+
+	t.Run("request without headers", func(t *testing.T) {
+		var gotAuth string
+		base := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			gotAuth = r.Header.Get("Authorization")
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody, Request: r}, nil
+		})
+		req := &http.Request{Method: http.MethodGet, URL: &url.URL{Scheme: "https", Host: githubAPIHost, Path: "/"}}
+
+		resp, err := (&githubTokenTransport{token: "tok", base: base}).RoundTrip(req)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		require.Equal(t, "Bearer tok", gotAuth)
+		require.Nil(t, req.Header, "the caller's request must not be modified")
 	})
 }

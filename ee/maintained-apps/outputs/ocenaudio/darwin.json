@@ -1,13 +1,13 @@
 {
   "versions": [
     {
-      "version": "3.21.0",
+      "version": "3.22.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ocenaudio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ocenaudio' AND version_compare(bundle_short_version, '3.21.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ocenaudio' AND version_compare(bundle_short_version, '3.22.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.ocenaudio' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.ocenaudio.com/downloads/index.php/ocenaudio_universal.dmg",
+      "installer_url": "https://www.ocenaudio.com/downloads/index.php/ocenaudio_universal.dmg?",
       "install_script_ref": "4cced93a",
       "uninstall_script_ref": "4a4117bb",
       "sha256": "no_check",

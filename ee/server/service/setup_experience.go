@@ -382,10 +382,19 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 				if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
 					return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install failure")
 				}
+				var softwareDisplayName *string
+				if sw.SoftwareTitleID != nil {
+					dn, dnErr := svc.ds.GetSoftwareTitleDisplayName(ctx, host.TeamID, *sw.SoftwareTitleID)
+					if dnErr != nil {
+						svc.logger.WarnContext(ctx, "failed to look up software display name for VPP install failure activity", "err", dnErr)
+					}
+					softwareDisplayName = dn
+				}
 				failActivity := fleet.ActivityInstalledAppStoreApp{
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					SoftwareTitle:       sw.Name,
+					SoftwareDisplayName: softwareDisplayName,
 					AppStoreID:          ptr.ValOrZero(sw.VPPAppAdamID),
 					Status:              string(fleet.SoftwareInstallFailed),
 					HostPlatform:        host.Platform,
@@ -464,7 +473,8 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 }
 
 // advancePolicyGatedSetupExperienceItem drives a policy-gated Windows/Linux setup-experience software item. The item's installer
-// can be gated by several policies (all those whose install-software automation points at it); they gate as a set: the install is
+// can be gated by several policies (all non-patch policies whose install-software automation points at it; a patch policy passes
+// when the app is absent, so it can't gate); they gate as a set: the install is
 // skipped only if EVERY in-scope gating policy passes, and run if ANY of them fails (the app is missing or outdated for at least
 // one gate). A failing gate installs through the normal setup-experience path so the install inherits the setup-experience retry
 // count and RequireAllSoftwareWindows handling. The item is held running until enough fresh (this-enrollment) results arrive, or

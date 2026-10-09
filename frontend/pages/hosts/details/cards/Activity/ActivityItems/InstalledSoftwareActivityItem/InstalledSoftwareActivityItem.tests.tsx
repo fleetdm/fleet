@@ -183,4 +183,32 @@ describe("InstalledSoftwareActivityItem", () => {
       expect(screen.queryByText(/\(Default version\)/)).not.toBeInTheDocument();
     });
   });
+
+  it("shows the software_display_name override instead of the raw software_title", () => {
+    const activity = createMockHostPastActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Fleet",
+      fleet_initiated: true,
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        software_package: "Firefox.pkg",
+        host_display_name: "Test Host",
+        source: "apps",
+        status: "installed",
+        install_uuid: "uuid-123",
+      },
+    });
+
+    render(
+      <InstalledSoftwareActivityItem
+        activity={activity}
+        tab="past"
+        onShowDetails={noop}
+      />
+    );
+
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).not.toBeInTheDocument();
+  });
 });

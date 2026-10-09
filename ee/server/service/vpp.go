@@ -1557,26 +1557,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
-	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
-
-	displayNameVal := ptr.ValOrZero(payload.DisplayName)
-
-	act := fleet.ActivityEditedAppStoreApp{
-		TeamName:            &teamName,
-		TeamID:              teamID,
-		SelfService:         selfServiceVal,
-		SoftwareTitleID:     titleID,
-		SoftwareTitle:       meta.Name,
-		AppStoreID:          meta.AdamID,
-		Platform:            meta.Platform,
-		LabelsIncludeAny:    actLabelsInclAny,
-		LabelsExcludeAny:    actLabelsExclAny,
-		LabelsIncludeAll:    actLabelsInclAll,
-		SoftwareIconURL:     meta.IconURL,
-		SoftwareDisplayName: displayNameVal,
-		Configuration:       payload.Configuration,
-	}
-
 	// Read the edited version again so the response and the activity show its stored values
 	updatedVersions, err := svc.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, ptr.ValOrZero(teamID), titleID)
 	if err != nil {
@@ -1590,6 +1570,24 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 	if updatedAppMeta == nil {
 		return nil, nil, ctxerr.Wrapf(ctx, &notFoundError{}, "app store app version %d was not found after the update", meta.VPPAppsTeamsID)
+	}
+
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
+
+	act := fleet.ActivityEditedAppStoreApp{
+		TeamName:            &teamName,
+		TeamID:              teamID,
+		SelfService:         selfServiceVal,
+		SoftwareTitleID:     titleID,
+		SoftwareTitle:       meta.Name,
+		AppStoreID:          meta.AdamID,
+		Platform:            meta.Platform,
+		LabelsIncludeAny:    actLabelsInclAny,
+		LabelsExcludeAny:    actLabelsExclAny,
+		LabelsIncludeAll:    actLabelsInclAll,
+		SoftwareIconURL:     meta.IconURL,
+		SoftwareDisplayName: updatedAppMeta.DisplayName,
+		Configuration:       payload.Configuration,
 	}
 
 	act.VersionName = updatedAppMeta.VersionName

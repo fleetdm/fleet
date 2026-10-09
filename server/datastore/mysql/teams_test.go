@@ -45,6 +45,7 @@ func TestTeams(t *testing.T) {
 		{"TeamIDsWithSetupExperienceIdPEnabled", testTeamIDsWithSetupExperienceIdPEnabled},
 		{"DefaultTeamConfig", testDefaultTeamConfig},
 		{"TeamLitesByIDs", testTeamLitesByIDs},
+		{"DeleteTeamCancelsSoftwareInstalls", testDeleteTeamCancelsSoftwareInstalls},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1250,4 +1251,101 @@ func testTeamLitesByIDs(t *testing.T, ds *Datastore) {
 	webhook := liteB.Config.WebhookSettings.HostActivitiesWebhook
 	require.NotNil(t, webhook)
 	require.Equal(t, "https://example.com/hook", webhook.DestinationURL)
+}
+
+func testDeleteTeamCancelsSoftwareInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	newInstaller := func(name string, teamID *uint) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(name), t.TempDir)
+		require.NoError(t, err)
+		id, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:   "install",
+			UninstallScript: "uninstall",
+			InstallerFile:   tfr,
+			StorageID:       name,
+			Filename:        name,
+			Title:           name,
+			Source:          "apps",
+			Platform:        "darwin",
+			TeamID:          teamID,
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return id
+	}
+	installerID := newInstaller("ins1", &team.ID)
+
+	hostA := test.NewHost(t, ds, "hostA", "1", "hostAkey", "hostAuuid", time.Now(), test.WithTeamID(team.ID))
+	hostB := test.NewHost(t, ds, "hostB", "2", "hostBkey", "hostBuuid", time.Now(), test.WithTeamID(team.ID))
+	hostC := test.NewHost(t, ds, "hostC", "3", "hostCkey", "hostCuuid", time.Now(), test.WithTeamID(team.ID))
+
+	// host A: an in-flight install, a queued install, then a script
+	inFlightA, err := ds.InsertSoftwareInstallRequest(ctx, hostA.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	queuedA, err := ds.InsertSoftwareInstallRequest(ctx, hostA.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	scriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hostA.ID, ScriptContents: "echo", UserID: &user.ID, SyncRequest: true,
+	})
+	require.NoError(t, err)
+	// host B: an in-flight uninstall
+	uninstallB := uuid.NewString()
+	require.NoError(t, ds.InsertSoftwareUninstallRequest(ctx, uninstallB, hostB.ID, installerID, false))
+	// host C: an in-flight setup experience install
+	setupC, err := ds.InsertSoftwareInstallRequest(ctx, hostC.ID, installerID, fleet.HostSoftwareInstallOptions{ForSetupExperience: true})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO setup_experience_status_results
+			(host_uuid, name, status, software_installer_id, host_software_installs_execution_id)
+			VALUES (?, 'ins1', 'running', ?, ?)`, hostC.UUID, installerID, setupC)
+		return err
+	})
+
+	checkUpcomingActivities(t, ds, hostA, inFlightA, queuedA, scriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hostB, uninstallB)
+	checkUpcomingActivities(t, ds, hostC, setupC)
+
+	require.NoError(t, ds.DeleteTeam(ctx, team.ID))
+
+	checkUpcomingActivities(t, ds, hostA, scriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hostB)
+	checkUpcomingActivities(t, ds, hostC)
+
+	var rows []struct {
+		ExecutionID string `db:"execution_id"`
+		Status      string `db:"status"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rows, `SELECT execution_id, status FROM host_software_installs`)
+	})
+	statuses := map[string]string{}
+	for _, r := range rows {
+		statuses[r.ExecutionID] = r.Status
+	}
+	require.Equal(t, map[string]string{
+		inFlightA:  "canceled_install",
+		uninstallB: "canceled_uninstall",
+		setupC:     "canceled_install",
+	}, statuses)
+
+	for _, h := range []*fleet.Host{hostA, hostB, hostC} {
+		got, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		require.Nil(t, got.TeamID)
+	}
+
+	// The FK blocks deleting an installer that a queued install still references.
+	globalInstallerID := newInstaller("ins2", nil)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, hostA.ID, globalInstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, globalInstallerID)
+		require.True(t, isMySQLForeignKey(err), "got %v", err)
+		return nil
+	})
 }

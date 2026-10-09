@@ -1,9 +1,8 @@
 {
   "name": "Avast Secure Browser",
-  "unique_identifier": "com.avast.AvastSecureBrowser",
+  "unique_identifier": "com.avast.browser",
   "token": "avast-secure-browser",
   "installer_format": "dmg",
   "slug": "avast-secure-browser/darwin",
-  "default_categories": ["Browsers"],
-  "frozen": true
+  "default_categories": ["Browsers"]
 }

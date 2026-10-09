@@ -209,18 +209,19 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 			versionName = fleet.DefaultAppStoreAppVersionName
 		}
 		if err := svc.NewActivity(ctx, user, fleet.ActivityEditedAppStoreApp{
-			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
-			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
-			AppStoreID:       *activityDetailsForSoftwareTitleIcon.AdamID,
-			TeamName:         activityDetailsForSoftwareTitleIcon.TeamName,
-			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
-			Platform:         *activityDetailsForSoftwareTitleIcon.Platform,
-			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
-			SoftwareIconURL:  &iconUrl,
-			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
-			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
-			LabelsIncludeAll: activityDetailsForSoftwareTitleIcon.LabelsIncludeAll,
-			VersionName:      versionName,
+			SoftwareTitle:       activityDetailsForSoftwareTitleIcon.SoftwareTitle,
+			SoftwareDisplayName: activityDetailsForSoftwareTitleIcon.SoftwareDisplayName,
+			SoftwareTitleID:     activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
+			AppStoreID:          *activityDetailsForSoftwareTitleIcon.AdamID,
+			TeamName:            activityDetailsForSoftwareTitleIcon.TeamName,
+			TeamID:              &activityDetailsForSoftwareTitleIcon.TeamID,
+			Platform:            *activityDetailsForSoftwareTitleIcon.Platform,
+			SelfService:         activityDetailsForSoftwareTitleIcon.SelfService,
+			SoftwareIconURL:     &iconUrl,
+			LabelsIncludeAny:    activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
+			LabelsExcludeAny:    activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
+			LabelsIncludeAll:    activityDetailsForSoftwareTitleIcon.LabelsIncludeAll,
+			VersionName:         versionName,
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating activity for software title icon")
 		}
@@ -230,16 +231,17 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 
 	if activityDetailsForSoftwareTitleIcon.SoftwareInstallerID != nil {
 		if err := svc.NewActivity(ctx, user, fleet.ActivityTypeEditedSoftware{
-			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
-			SoftwarePackage:  activityDetailsForSoftwareTitleIcon.Filename,
-			TeamName:         activityDetailsForSoftwareTitleIcon.TeamName,
-			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
-			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
-			SoftwareIconURL:  &iconUrl,
-			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
-			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
-			LabelsIncludeAll: activityDetailsForSoftwareTitleIcon.LabelsIncludeAll,
-			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
+			SoftwareTitle:       activityDetailsForSoftwareTitleIcon.SoftwareTitle,
+			SoftwareDisplayName: activityDetailsForSoftwareTitleIcon.SoftwareDisplayName,
+			SoftwarePackage:     activityDetailsForSoftwareTitleIcon.Filename,
+			TeamName:            activityDetailsForSoftwareTitleIcon.TeamName,
+			TeamID:              &activityDetailsForSoftwareTitleIcon.TeamID,
+			SelfService:         activityDetailsForSoftwareTitleIcon.SelfService,
+			SoftwareIconURL:     &iconUrl,
+			LabelsIncludeAny:    activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
+			LabelsExcludeAny:    activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
+			LabelsIncludeAll:    activityDetailsForSoftwareTitleIcon.LabelsIncludeAll,
+			SoftwareTitleID:     activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating activity for software title icon")
 		}
@@ -249,16 +251,17 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 
 	if activityDetailsForSoftwareTitleIcon.InHouseAppID != nil {
 		if err := svc.NewActivity(ctx, user, fleet.ActivityTypeEditedSoftware{
-			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
-			SoftwarePackage:  activityDetailsForSoftwareTitleIcon.Filename,
-			TeamName:         activityDetailsForSoftwareTitleIcon.TeamName,
-			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
-			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
-			SoftwareIconURL:  &iconUrl,
-			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
-			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
-			LabelsIncludeAll: activityDetailsForSoftwareTitleIcon.LabelsIncludeAll,
-			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
+			SoftwareTitle:       activityDetailsForSoftwareTitleIcon.SoftwareTitle,
+			SoftwareDisplayName: activityDetailsForSoftwareTitleIcon.SoftwareDisplayName,
+			SoftwarePackage:     activityDetailsForSoftwareTitleIcon.Filename,
+			TeamName:            activityDetailsForSoftwareTitleIcon.TeamName,
+			TeamID:              &activityDetailsForSoftwareTitleIcon.TeamID,
+			SelfService:         activityDetailsForSoftwareTitleIcon.SelfService,
+			SoftwareIconURL:     &iconUrl,
+			LabelsIncludeAny:    activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
+			LabelsExcludeAny:    activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
+			LabelsIncludeAll:    activityDetailsForSoftwareTitleIcon.LabelsIncludeAll,
+			SoftwareTitleID:     activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating activity for software title icon")
 		}

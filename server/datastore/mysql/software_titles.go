@@ -363,21 +363,21 @@ func (ds *Datastore) listSoftwareTitlesOptimized(
 
 	dbReader := ds.reader(ctx)
 
-	listSQL := buildOptimizedListSoftwareTitlesSQL(opt)
-	countSQL := countSoftwareTitlesOptimized(opt)
+	listSQL, listArgs := buildOptimizedListSoftwareTitlesSQL(opt)
+	countSQL, countArgs := countSoftwareTitlesOptimized(opt)
 
 	// Run list and count queries in parallel.
 	var softwareList []*softwareTitleWithInstallerFields
 	var counts int
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		if err := sqlx.SelectContext(gCtx, dbReader, &softwareList, listSQL); err != nil {
+		if err := sqlx.SelectContext(gCtx, dbReader, &softwareList, listSQL, listArgs...); err != nil {
 			return ctxerr.Wrap(gCtx, err, "optimized select software titles")
 		}
 		return nil
 	})
 	g.Go(func() error {
-		if err := sqlx.GetContext(gCtx, dbReader, &counts, countSQL); err != nil {
+		if err := sqlx.GetContext(gCtx, dbReader, &counts, countSQL, countArgs...); err != nil {
 			return ctxerr.Wrap(gCtx, err, "optimized count software titles")
 		}
 		return nil
@@ -831,6 +831,9 @@ WHERE
 		{{if and (hasTeamID $) $.PackageName}}
 		  {{$additionalWhere = printf "%s AND EXISTS (SELECT 1 FROM software_installers si2 WHERE si2.title_id = st.id AND si2.global_or_team_id = %d AND si2.is_active = TRUE AND si2.filename = ?)" $additionalWhere (teamID $)}}
 		{{end}}
+		{{with $typeFilter := typeFilter}}
+		  {{$additionalWhere = printf "%s AND %s" $additionalWhere $typeFilter}}
+		{{end}}
 		{{$additionalWhere}}
 	{{end}}
 	-- If teamID is set, defaults to "a software installer, in-house app or VPP app exists", and see next condition.
@@ -930,7 +933,11 @@ GROUP BY
 		args = append(args, opt.PackageName)
 	}
 
+	typeFilterSQL, typeFilterArgs := softwareTypeFilterSQL(opt.TypeFilter, "st")
+	args = append(args, typeFilterArgs...)
+
 	t, err := template.New("stm").Funcs(map[string]any{
+		"typeFilter": func() string { return typeFilterSQL },
 		"yesNo": func(b bool, yes string, no string) string {
 			if b {
 				return yes
@@ -979,7 +986,7 @@ GROUP BY
 // software_titles_host_counts to filter by team, then joins software_titles for the correct
 // secondary sort (name, source, extension_for), and paginates. Phase 2 (outer query)
 // enriches only the ~20 paginated IDs with installer/VPP/in-house details.
-func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) string {
+func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) (string, []any) {
 	hasTeamID := opts.TeamID != nil
 	teamID := uint(0)
 	if hasTeamID {
@@ -1005,6 +1012,8 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		perPage++
 	}
 
+	hostCountsTypeFilter, installerOnlyTypeFilter, args := optimizedTitlesTypeFilterSQL(opts)
+
 	// Build the inner query: find paginated title IDs sorted by (hosts_count, software_title_id).
 	// The secondary sort uses software_title_id (not name) for performance so that the entire ORDER BY is satisfied
 	// by the covering index (team_id, global_stats, hosts_count, software_title_id) without a filesort.
@@ -1017,9 +1026,9 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		innerSQL = fmt.Sprintf(`
 			SELECT sthc.software_title_id, sthc.hosts_count
 			FROM software_titles_host_counts sthc
-			WHERE sthc.team_id = 0 AND sthc.global_stats = 1
+			WHERE sthc.team_id = 0 AND sthc.global_stats = 1%[3]s
 			ORDER BY sthc.hosts_count %[1]s, sthc.software_title_id %[1]s
-			LIMIT %[2]d`, direction, perPage)
+			LIMIT %[2]d`, direction, perPage, hostCountsTypeFilter)
 		if offset > 0 {
 			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
 		}
@@ -1033,7 +1042,7 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			FROM (
 				(SELECT sthc.software_title_id, sthc.hosts_count
 				FROM software_titles_host_counts sthc
-				WHERE sthc.team_id = %[1]d AND sthc.global_stats = 0)
+				WHERE sthc.team_id = %[1]d AND sthc.global_stats = 0%[4]s)
 
 				UNION ALL
 
@@ -1051,10 +1060,10 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 				) AS t
 				LEFT JOIN software_titles_host_counts sthc
 					ON sthc.software_title_id = t.title_id AND sthc.team_id = %[1]d AND sthc.global_stats = 0
-				WHERE sthc.software_title_id IS NULL)
+				WHERE sthc.software_title_id IS NULL%[5]s)
 			) AS combined
 			ORDER BY combined.hosts_count %[2]s, combined.software_title_id %[2]s
-			LIMIT %[3]d`, teamID, direction, perPage)
+			LIMIT %[3]d`, teamID, direction, perPage, hostCountsTypeFilter, installerOnlyTypeFilter)
 		if offset > 0 {
 			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
 		}
@@ -1131,28 +1140,61 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		ORDER BY top.hosts_count %[1]s, top.software_title_id %[1]s`,
 		direction)
 
-	return outerSQL
+	return outerSQL, args
+}
+
+// optimizedTitlesTypeFilterSQL renders the type filter as EXISTS subqueries for the optimized titles
+// queries: one on the host counts arm (sthc) and one on the installer-only arm (t). MySQL rewrites
+// the EXISTS as a semi-join driven from software_titles: no index starts with source, so it scans
+// idx_sw_titles, joins the matching titles to the host counts by primary key, and sorts them before
+// applying the LIMIT. A filtered request therefore costs about one scan of the titles index instead of
+// the index-ordered scan that stops at the LIMIT; an index on (source, extension_for) would let it
+// seek instead. EXPLAIN ANALYZE of the all-fleets list with source=apps on 200k titles (10% apps):
+//
+//	-> Limit: 21 row(s)
+//	    -> Sort: sthc.hosts_count DESC, sthc.software_title_id DESC, limit input to 21 row(s) per chunk
+//	        -> Nested loop inner join                                 (rows=19897)
+//	            -> Filter: (st.source = 'apps')                       (rows=19897)
+//	                -> Covering index scan on st using idx_sw_titles  (rows=200000)
+//	            -> Single-row index lookup on sthc using PRIMARY      (loops=19897)
+//
+// args cover the host counts arm, plus the installer-only arm when a team is set.
+func optimizedTitlesTypeFilterSQL(opts fleet.SoftwareTitleListOptions) (hostCounts, installerOnly string, args []any) {
+	filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "st")
+	if filterSQL == "" {
+		return "", "", nil
+	}
+	hostCounts = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = sthc.software_title_id AND " + filterSQL + ")"
+	installerOnly = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = t.title_id AND " + filterSQL + ")"
+	args = filterArgs
+	if opts.TeamID != nil {
+		args = slices.Concat(filterArgs, filterArgs)
+	}
+	return hostCounts, installerOnly, args
 }
 
 // countSoftwareTitlesOptimized builds a dedicated count query that avoids the expensive
 // full-query-wrapping approach. It counts titles with host counts via a simple index scan,
 // and when a team is specified, adds the count of installer-only titles (small set).
-func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) string {
+func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) (string, []any) {
 	hasTeamID := opts.TeamID != nil
 	teamID := uint(0)
 	if hasTeamID {
 		teamID = *opts.TeamID
 	}
 
+	hostCountsTypeFilter, installerOnlyTypeFilter, args := optimizedTitlesTypeFilterSQL(opts)
+
 	if !hasTeamID {
 		// All teams: only count titles with host counts.
-		return `SELECT COUNT(*) FROM software_titles_host_counts WHERE team_id = 0 AND global_stats = 1`
+		return `SELECT COUNT(*) FROM software_titles_host_counts sthc WHERE sthc.team_id = 0 AND sthc.global_stats = 1` +
+			hostCountsTypeFilter, args
 	}
 
 	// Specific team: count of host-count titles + count of installer-only titles.
 	return fmt.Sprintf(`
 		SELECT
-			(SELECT COUNT(*) FROM software_titles_host_counts WHERE team_id = %[1]d AND global_stats = 0)
+			(SELECT COUNT(*) FROM software_titles_host_counts sthc WHERE sthc.team_id = %[1]d AND sthc.global_stats = 0%[2]s)
 			+
 			(SELECT COUNT(DISTINCT t.title_id) FROM (
 				SELECT si.title_id FROM software_installers si
@@ -1167,8 +1209,8 @@ func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) string {
 			) AS t
 			LEFT JOIN software_titles_host_counts sthc
 				ON sthc.software_title_id = t.title_id AND sthc.team_id = %[1]d AND sthc.global_stats = 0
-			WHERE sthc.software_title_id IS NULL)
-		AS total_count`, teamID)
+			WHERE sthc.software_title_id IS NULL%[3]s)
+		AS total_count`, teamID, hostCountsTypeFilter, installerOnlyTypeFilter), args
 }
 
 // GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app

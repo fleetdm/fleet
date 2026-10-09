@@ -2890,6 +2890,10 @@ func testActivateDeletedInstallerShowsPlaceholder(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(ctx).ExecContext(ctx, siuaStmt, activityID, installerID)
 	require.NoError(t, err)
 
+	// The FK used to null the reference on delete; it now restricts, so null it first.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE software_install_upcoming_activities SET software_installer_id = NULL WHERE upcoming_activity_id = ?`, activityID)
+	require.NoError(t, err)
+
 	deleteStmt := `DELETE FROM software_installers WHERE id = ?`
 	_, err = ds.writer(ctx).ExecContext(ctx, deleteStmt, installerID)
 	require.NoError(t, err)

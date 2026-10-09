@@ -831,7 +831,7 @@ func ValidGlobalRole(role string) bool {
 // ValidateRole returns nil if the global and team roles combination is a valid
 // one within fleet, or a fleet Error otherwise.
 func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
-	if globalRole == nil || *globalRole == "" {
+	if globalRole == nil {
 		if len(teamUsers) == 0 {
 			return NewError(ErrNoRoleNeeded, "either global role or fleet role needs to be defined")
 		}

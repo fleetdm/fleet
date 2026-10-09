@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -27,23 +28,25 @@ func main() {
 		log.Fatal("--api-token and --url are required.")
 	}
 
+	logger := slog.Default()
 	client := newMicroMDMClient(*apiToken, *url)
 
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		ctx := request.Context()
 		body, err := io.ReadAll(request.Body)
 		if err != nil {
-			slog.With("error", err).Error("reading request body")
+			logger.With("error", err).ErrorContext(ctx, "reading request body")
 			writer.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if len(body) == 0 {
-			slog.Error("empty request body")
+			logger.ErrorContext(ctx, "empty request body")
 			writer.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		slog.With("raw_body", string(body)).Debug("got request")
+		logger.With("raw_body", string(body)).DebugContext(ctx, "got request")
 
 		var deviceInfo struct {
 			Host struct {
@@ -51,22 +54,23 @@ func main() {
 			} `json:"host"`
 		}
 		if err := json.Unmarshal(body, &deviceInfo); err != nil {
-			slog.With("device_uuid", deviceInfo.Host.UUID, "error", err).Error("failed to unmarshal request body")
+			logger.With("device_uuid", deviceInfo.Host.UUID, "error", err).ErrorContext(ctx, "failed to unmarshal request body")
 			writer.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		slog.With("device_uuid", deviceInfo.Host.UUID).Info("attempting to unenroll from MicroMDM")
+		logger.With("device_uuid", deviceInfo.Host.UUID).InfoContext(ctx, "attempting to unenroll from MicroMDM")
 		if err := client.unmanageDevice(deviceInfo.Host.UUID); err != nil {
-			slog.With("device_uuid", deviceInfo.Host.UUID, "error", err).Error("failed to unenroll device")
+			logger.With("device_uuid", deviceInfo.Host.UUID, "error", err).ErrorContext(ctx, "failed to unenroll device")
 			writer.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		slog.With("device_uuid", deviceInfo.Host.UUID).Info("device unenrolled")
+		logger.With("device_uuid", deviceInfo.Host.UUID).InfoContext(ctx, "device unenrolled")
 	})
 
-	slog.With("address", fmt.Sprintf("http://localhost:%s", *port)).Info("server running")
+	ctx := context.Background()
+	logger.With("address", fmt.Sprintf("http://localhost:%s", *port)).InfoContext(ctx, "server running")
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%s", *port),
 		ReadHeaderTimeout: 3 * time.Second,

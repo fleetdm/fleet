@@ -7,6 +7,7 @@ import {
   getInstallUninstallStatusPredicatePassive,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 
@@ -34,13 +35,15 @@ const InstalledSoftwareActivityItem = ({
   const { actor_full_name: actorName, details } = activity;
   const {
     self_service,
-    software_title: title,
+    software_title,
+    software_display_name,
     source,
     from_setup_experience,
     from_auto_update,
     host_platform: hostPlatform,
     version_name: versionName,
   } = details;
+  const title = getDisplayedSoftwareName(software_title, software_display_name);
   const status =
     details.status === "failed" ? "failed_uninstall" : details.status;
   const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
