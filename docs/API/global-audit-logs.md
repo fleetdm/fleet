@@ -4,7 +4,7 @@ Fleet logs activities.
 
 To see activities in Fleet, select the Fleet icon in the top navigation and see the **Activity** section.
 
-This page includes a list of activities. To only receive activities linked to a specific fleet's hosts, see [Host audit logs](./host-audit-logs.md).
+This page includes a list of activities. To only receive activities linked to a specific fleet's hosts, see [Host audit logs](https://fleetdm.com/docs/api/host-audit-logs).
 
 ## created_pack
 

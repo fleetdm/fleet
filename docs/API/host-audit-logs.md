@@ -6,7 +6,7 @@ Fleet can send a webhook request every time an activity linked to one of a fleet
 
 To see a host's activities in the Fleet UI, go to the host's details page and select **Activity > Past**.
 
-This webhook sends the same payload format as [Global audit logs](./global-audit-logs.md), filtered to activities linked to the fleet's hosts. This page lists those activity types and their fields.
+This webhook sends the same payload format as [Global audit logs](https://fleetdm.com/docs/api/global-audit-logs), filtered to activities linked to the fleet's hosts. This page lists those activity types and their fields.
 
 ## Configure
 
