@@ -505,7 +505,6 @@ import Houdahspot from "./png/Houdahspot.png";
 import HpEasyAdmin from "./png/HpEasyAdmin.png";
 import HpPrimeVirtualCalculator from "./png/HpPrimeVirtualCalculator.png";
 import Hubstaff from "./png/Hubstaff.png";
-import Huly from "./png/Huly.png";
 import Hwmonitor from "./png/Hwmonitor.png";
 import Hyper from "./png/Hyper.png";
 import Hyperkey from "./png/Hyperkey.png";
@@ -606,7 +605,6 @@ import Lookaway from "./png/Lookaway.png";
 import Loom from "./png/Loom.png";
 import Loop from "./png/Loop.png";
 import Loopback from "./png/Loopback.png";
-import LoRain from "./png/LoRain.png";
 import Losslesscut from "./png/Losslesscut.png";
 import LowProfile from "./png/LowProfile.png";
 import LuLu from "./png/LuLu.png";
@@ -720,7 +718,6 @@ import Nordlayer from "./png/Nordlayer.png";
 import Nordpass from "./png/Nordpass.png";
 import NordVpn from "./png/NordVpn.png";
 import NosqlWorkbench from "./png/NosqlWorkbench.png";
-import Notchnook from "./png/Notchnook.png";
 import Notepadexe from "./png/Notepadexe.png";
 import Notepad from "./png/NotepadPlusPlus.png";
 import Notesnook from "./png/Notesnook.png";
@@ -1677,7 +1674,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "hp easy admin": HpEasyAdmin,
   "hp prime virtual calculator": HpPrimeVirtualCalculator,
   hubstaff: Hubstaff,
-  huly: Huly,
   hwmonitor: Hwmonitor,
   hyper: Hyper,
   hyperkey: Hyperkey,
@@ -1769,7 +1765,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   linearmouse: Linearmouse,
   "lingon x": LingonX,
   "little snitch": LittleSnitch,
-  "lo-rain": LoRain,
   local: Local,
   localsend: Localsend,
   locationsimulator: Locationsimulator,
@@ -1906,7 +1901,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nordvpn: NordVpn,
   "nosql workbench": NosqlWorkbench,
   "nota gyazo gif": Gyazo,
-  notchnook: Notchnook,
   "notepad++": Notepad,
   "notepad.exe": Notepadexe,
   notesnook: Notesnook,
