@@ -207,7 +207,7 @@ If [Windows one-time enroll secrets](https://fleetdm.com/docs/configuration/flee
 
 With one-time enroll secrets enabled, a re-imaged Windows device, or one disconnected from MDM, can't enroll with a fleetd package built with a global or fleet-level enroll secret, even after you delete its host. To re-enroll it, turn on MDM again with Windows Autopilot, Microsoft Entra, or **Settings > Accounts > Access work or school**. Or delete its host, wait for `mdm.windows_enrollment_retention` (30 days by default), and then install the package.
 
-If [macOS one-time enroll secrets](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) are enabled, deleting a macOS host that has MDM turned on also deletes its one-time enroll secret, so the host can't re-enroll on its own:
+If [macOS one-time enroll secrets](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) are enabled, deleting a macOS host that has MDM turned on also deletes its one-time enroll secret. What happens next depends on how the host was enrolled:
 
 - AB hosts show up as **Pending**. To re-enroll, wipe the host or run `sudo profiles renew -type enrollment`.
 - Other Macs don't show up. To re-enroll, reinstall fleetd.
