@@ -41,6 +41,8 @@ If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>
 
 > Profiles that use IdP variables will trigger a resend when the IdP user is removed from the host, but will fail sending a new profile due to missing variables, leaving the old one on the device. Once the host has a new IdP user it will be resent again with fresh values.
 
+> The host vital and IdP variables listed above (except `$FLEET_VAR_HOST_UUID` platform restrictions) are also accepted in the DigiCert CA fields `certificate_common_name`, `certificate_seat_id`, and `certificate_user_principal_names` in `org_settings.certificate_authorities.digicert[]` (Apple hosts only). The legacy `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` is also accepted for backwards compatibility. When these values change, or when the CA fields are edited, Fleet reissues the certificate.
+
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="marko-lisica">
