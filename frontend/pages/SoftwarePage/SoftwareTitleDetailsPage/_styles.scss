@@ -46,11 +46,28 @@
     width: 100%;
   }
 
+  // Wraps the inline store SVG so border-radius clips it. .software-icon's
+  // border-radius lands on the <svg> element, but <svg>'s default overflow
+  // is visible, so paths inside paint past the rounded box.
+  &__app-versions-header-icon {
+    border-radius: 4px;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+  }
+
   // When the header sits above the accordion list, flatten the list's top
-  // corners so the two visually fuse as one bordered container.
+  // corners so the two visually fuse as one bordered container. Also flatten
+  // the first accordion header's top corners so it reads as a continuation
+  // of the versioned-apps header rather than its own rounded container.
   &__app-versions-header + .library-item-accordion-list {
     border-top-left-radius: 0;
     border-top-right-radius: 0;
+
+    .library-item-accordion:first-child .library-item-accordion__header {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
   }
 
   // Groups the name + version so they align on the text baseline (the
@@ -63,6 +80,7 @@
   }
 
   &__app-versions-header-name {
+    font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
   }

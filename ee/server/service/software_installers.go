@@ -1292,6 +1292,27 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		return fleet.ErrNoContext
 	}
 
+	// GetAppStoreAppVersionsByTeamAndTitleID (the batch caller) doesn't populate
+	// Configuration on the hydrated versions; fetch it before the DeleteVPPAppFromTeam
+	// clears the row so the activity payload carries the config bytes. Apps
+	// without a stored configuration return NotFound — tolerate that and emit
+	// an omitempty-nil Configuration on the activity.
+	cfg, cfgErr := svc.ds.GetVPPAppConfiguration(ctx, meta.VPPAppsTeamsID)
+	if cfgErr != nil && !fleet.IsNotFound(cfgErr) {
+		return ctxerr.Wrap(ctx, cfgErr, "getting VPP app configuration for delete activity")
+	}
+	// iOS / iPadOS store the plist as raw XML bytes; wrap in a JSON string so
+	// the activity's json.RawMessage field holds valid JSON (same pattern as
+	// the edit response at ee/server/service/vpp.go). Android configs are
+	// already JSON and pass through.
+	if len(cfg) > 0 && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
+		wrapped, err := json.Marshal(string(cfg))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "wrapping configuration for delete activity")
+		}
+		cfg = wrapped
+	}
+
 	err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.VPPAppID, &meta.VPPAppsTeamsID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting VPP app")
@@ -1319,6 +1340,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		LabelsIncludeAll: actLabelsInclAll,
 		SoftwareIconURL:  meta.IconURL,
 		VersionName:      meta.VersionName,
+		Configuration:    cfg,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}

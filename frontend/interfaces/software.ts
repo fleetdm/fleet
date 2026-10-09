@@ -727,6 +727,10 @@ export interface IHostAppStoreApp {
   last_install: IAppLastInstall | null;
   categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  /** Id of the admin version this host received; null when none delivered. Backend emits as `version_id` on `SoftwarePackageOrApp`. */
+  version_id?: number | null;
+  /** Admin version label (e.g. "Production"). */
+  version_name?: string | null;
 }
 
 export interface IHostSoftware {
