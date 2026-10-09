@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -881,33 +880,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			return fleet.OrbitConfig{}, err
 		}
 
-		var nudgeConfig *fleet.NudgeConfig
-		if appConfig.MDM.EnabledAndConfigured &&
-			mdmConfig != nil &&
-			host.IsOsqueryEnrolled() &&
-			isConnectedToFleetMDM &&
-			mdmConfig.MacOSUpdates.Configured() {
-
-			hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
-			if errors.Is(err, sql.ErrNoRows) {
-				// host os has not been collected yet (no details query)
-				hostOS = &fleet.OperatingSystem{}
-			} else if err != nil {
-				return fleet.OrbitConfig{}, err
-			}
-			requiresNudge, err := hostOS.RequiresNudge()
-			if err != nil {
-				return fleet.OrbitConfig{}, err
-			}
-
-			if requiresNudge {
-				nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
-				if err != nil {
-					return fleet.OrbitConfig{}, err
-				}
-			}
-		}
-
 		err = svc.setDiskEncryptionNotifications(
 			ctx,
 			&notifs,
@@ -945,7 +917,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			Flags:              mergedFlags,
 			Extensions:         extensionsFiltered,
 			Notifications:      notifs,
-			NudgeConfig:        nudgeConfig,
 			UpdateChannels:     updateChannels,
 			DebugLogging:       debugLogging,
 			WebSocketTransport: wsTransport,
@@ -963,31 +934,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
 	if err != nil {
 		return fleet.OrbitConfig{}, err
-	}
-
-	var nudgeConfig *fleet.NudgeConfig
-	if appConfig.MDM.EnabledAndConfigured &&
-		isConnectedToFleetMDM &&
-		host.IsOsqueryEnrolled() &&
-		appConfig.MDM.MacOSUpdates.Configured() {
-		hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
-		if errors.Is(err, sql.ErrNoRows) {
-			// host os has not been collected yet (no details query)
-			hostOS = &fleet.OperatingSystem{}
-		} else if err != nil {
-			return fleet.OrbitConfig{}, err
-		}
-		requiresNudge, err := hostOS.RequiresNudge()
-		if err != nil {
-			return fleet.OrbitConfig{}, err
-		}
-
-		if requiresNudge {
-			nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
-			if err != nil {
-				return fleet.OrbitConfig{}, err
-			}
-		}
 	}
 
 	err = svc.setDiskEncryptionNotifications(
@@ -1027,7 +973,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		Flags:              mergedFlags,
 		Extensions:         extensionsFiltered,
 		Notifications:      notifs,
-		NudgeConfig:        nudgeConfig,
 		UpdateChannels:     updateChannels,
 		DebugLogging:       debugLogging,
 		WebSocketTransport: wsTransport,

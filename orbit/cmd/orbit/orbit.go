@@ -1496,10 +1496,6 @@ func orbitAction(c *cli.Context) error {
 	case "darwin":
 		orbitClient.RegisterConfigReceiver(update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(
 			orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL))
-		const nudgeLaunchInterval = 30 * time.Minute
-		orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
-			UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
-		}))
 		setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, deviceClient, c.String("root-dir"), trw)
 		// Use the legacy UI if the server indicates so via capabilities.
 		setupExperiencer.UseLegacyUI = !orbitClient.GetServerCapabilities().Has(fleet.CapabilityMacOSWebSetupExperience)

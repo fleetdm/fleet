@@ -185,22 +185,6 @@ For iOS/iPadOS hosts, set a minimum version and deadline. New iOS/iPadOS hosts w
 
 > Rarely, even without OS updates configured, macOS, iOS and iPadOS hosts enrolling via ADE may automatically update during enrollment. This happens when Apple determines the OS version the host is running has a critical bug that may impair MDM enrollment or management. This behavior cannot be controlled by Fleet.
 
-<!--
-
-### macOS (below version 14.0)
-
-End users are encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
-
-![Nudge window](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
-
-|                                      | > 1 day before deadline | < 1 day before deadline | Past deadline         |
-| ------------------------------------ | ----------------------- | ----------------------- | --------------------- |
-| Nudge window frequency               | Once a day at 8pm GMT   | Once every 2 hours      | Immediately on login  |
-| End user can defer                   | ✅                      | ✅                      | ❌                    |
-| Nudge window is dismissible          | ✅                      | ✅                      | ❌                    |
-
--->
-
 ## Windows
 
 End users are encouraged to update Windows via the native Windows dialog.
