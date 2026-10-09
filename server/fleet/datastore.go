@@ -558,6 +558,10 @@ type Datastore interface {
 	// count soft-deleted.
 	SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error)
 
+	// CleanupSoftDeletedHostCertificates hard-deletes host_certificates rows soft-deleted before olderThan, along with their
+	// host_certificate_sources rows. Returns the count deleted.
+	CleanupSoftDeletedHostCertificates(ctx context.Context, olderThan time.Time) (int64, error)
+
 	// ProfileHasACMEPayloadForCommand returns the host/profile gating data
 	// needed to decide whether an InstallProfile ack should trigger a
 	// CertificateList refetch: host platform, profile UUID, whether the
