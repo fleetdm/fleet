@@ -30,7 +30,7 @@ const { TEST_CASES, checkExpectations } = require('../configuration-profile-gene
 
 // Overridable because the interesting question is usually whether a cheaper model can still pass
 // these, and the answer changes with every model release.  Same default as the script.
-const BASE_MODEL = process.env.BASE_MODEL || 'claude-haiku-4-5';
+const BASE_MODEL = process.env.BASE_MODEL || 'claude-haiku-5-5';
 
 // Optional effort level, passed straight through to the prompt helper.  The action sets `low` on its
 // Sonnet call, and the latency budget below only means something when measured at the effort production

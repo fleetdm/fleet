@@ -70,7 +70,19 @@ module.exports = {
       'Do not include ```json, ```, or any markdown formatting.'+
       'Do not include any explanation or text before or after the JSON.'+
       'Your entire response must be valid JSON.';
-    let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'claude-haiku-4-5', true, systemPromptForQueryGeneration)
+    // Claude Haiku 5.5 has safety classifiers but no server-side fallback, so a declined filtration is
+    // retried on Claude Sonnet 5.5, which does have one.
+    let filteredTables = await sails.helpers.flow.build(async ()=>{
+      let filtrationResult = await sails.helpers.ai.prompt.with({prompt: schemaFiltrationPrompt, baseModel: 'claude-haiku-5-5', expectJson: true, systemPrompt: systemPromptForQueryGeneration})
+      .tolerate('refused', (refusal)=>{
+        sails.log.warn(`Claude Haiku 5.5 declined to filter the osquery schema for a question (refusal details: ${require('util').inspect(refusal, {depth: 3})}).  Retrying on Claude Sonnet 5.5.`);
+        return undefined;
+      });
+      if(filtrationResult === undefined) {
+        filtrationResult = await sails.helpers.ai.prompt.with({prompt: schemaFiltrationPrompt, baseModel: 'claude-sonnet-5-5', expectJson: true, systemPrompt: systemPromptForQueryGeneration, effort: 'low'});
+      }
+      return filtrationResult;
+    })
     .intercept((err)=>{
       sails.log.warn(`When trying to get a subset of tables to use to generate a query for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
       if(this.req.isSocket){

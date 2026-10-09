@@ -61,7 +61,7 @@ module.exports = {
       let draftPromise = await sails.helpers.ai.prompt.with({
         systemPrompt: systemPrompt,
         prompt: configurationProfilePrompt,
-        baseModel: 'claude-haiku-4-5',
+        baseModel: 'claude-haiku-5-5',
         expectJson: true,
       })
       .tolerate((err)=>{
@@ -109,7 +109,7 @@ Respond in JSON with this data shape:
     \`\`\`
     ${naturalLanguageInstructions}
     \`\`\``,
-      baseModel: 'claude-haiku-4-5',
+      baseModel: 'claude-haiku-5-5',
       expectJson: true,
     })
     .tolerate((err)=>{

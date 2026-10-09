@@ -15,9 +15,9 @@ Examples:
   sails run test-llm-generated-configuration-profile --profileType=csp --naturalLanguageInstructions="Require a device password"
   sails run test-llm-generated-configuration-profile
   sails run test-llm-generated-configuration-profile --profileType=mobileconfig --verbose
-  sails run test-llm-generated-configuration-profile --profileType=csp --baseModel=claude-haiku-4-5
+  sails run test-llm-generated-configuration-profile --profileType=csp --baseModel=claude-haiku-5-5
   sails run test-llm-generated-configuration-profile --profileType=csp --baseModel=claude-sonnet-5-5 --effort=low
-  sails run test-llm-generated-configuration-profile --profileType=ddm --baseModel=claude-haiku-4-5 --validateWithContour
+  sails run test-llm-generated-configuration-profile --profileType=ddm --baseModel=claude-haiku-5-5 --validateWithContour
   sails run test-llm-generated-configuration-profile --profileType=ddm --naturalLanguageInstructions="Defer minor updates by 30 days" --parallelTests=5
   sails run test-llm-generated-configuration-profile --caseId=ddm-defer-minor-updates --parallelTests=5
   sails run test-llm-generated-configuration-profile --profileType=csp --parallelTests=5`,
@@ -38,7 +38,7 @@ Examples:
 
     baseModel: {
       type: 'string',
-      defaultsTo: 'claude-haiku-4-5',
+      defaultsTo: 'claude-haiku-5-5',
       description: 'The model to generate with.'
     },
 
