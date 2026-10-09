@@ -47,7 +47,7 @@ func frontmatterLine(t *testing.T, skill, key string) string {
 	t.Helper()
 	parts := strings.SplitN(skill, "\n---\n", 2)
 	require.Len(t, parts, 2, "SKILL.md has no closing frontmatter delimiter")
-	for _, line := range strings.Split(parts[0], "\n") {
+	for line := range strings.SplitSeq(parts[0], "\n") {
 		if strings.HasPrefix(line, key) {
 			return line
 		}
