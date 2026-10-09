@@ -1407,12 +1407,12 @@ func TestValidateMarkdownEULA(t *testing.T) {
 		{"too large", "terms.md", strings.Repeat("Clause.\n", 70_000), "The file must be 512 KB or smaller."},
 		{"not utf-8", "terms.md", "\xff\xfeA", "The file must be UTF-8 text."},
 		{"line too long", "terms.md", strings.Repeat("a", 9000), "The file has a line longer than 8 KB. Split long paragraphs into shorter lines and upload again."},
-		{"nested too deep", "terms.md", strings.Repeat("> ", 40) + "Clause\n", "The file nests lists or quotes too deeply."},
+		{"nested too deep", "terms.md", strings.Repeat("> ", 40) + "Clause\n", "The file nests lists, quotes or HTML too deeply."},
 		{"tables too large", "terms.md", table, "The file's tables have more than 10,000 cells in total."},
 		{"rendered too large", "terms.md", strings.Repeat(strings.Repeat("`<` ", 2_000)+"\n", 64), "The file is too large to show. Make it shorter and upload again."},
 		{"too many lines", "terms.md", strings.Repeat("a\n", 10_001), "The file has more than 10,000 lines."},
 		{"too much formatting", "terms.md", strings.Repeat("**a** ", 600) + "\n", "The file has too much formatting in one paragraph or list. Add blank lines between paragraphs and upload again."},
-		{"html", "terms.md", "<div>\nClause 4.\n</div>\n", "The file contains HTML. Convert it to markdown and upload again."},
+		{"html", "terms.md", "<div>\nClause 4.\n</div>\n", "The file contains HTML other than tables and text styles. Convert it to markdown and upload again."},
 		{"nothing to show", "terms.md", "<!-- draft -->\n", "The file has no text to show."},
 	}
 	for _, tc := range cases {
