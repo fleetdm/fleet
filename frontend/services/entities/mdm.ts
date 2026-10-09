@@ -417,6 +417,25 @@ const mdmService = {
     return sendRequest("GET", MDM_EULA(token));
   },
 
+  getWindowsEULAMetadata: () => {
+    const { MDM_WINDOWS_EULA_METADATA } = endpoints;
+    return sendRequest("GET", MDM_WINDOWS_EULA_METADATA);
+  },
+
+  uploadWindowsEULA: (file: File) => {
+    const { MDM_WINDOWS_EULA_UPLOAD } = endpoints;
+
+    const formData = new FormData();
+    formData.append("windows_eula", file);
+
+    return sendRequest("POST", MDM_WINDOWS_EULA_UPLOAD, formData);
+  },
+
+  deleteWindowsEULA: (token: string) => {
+    const { MDM_WINDOWS_EULA } = endpoints;
+    return sendRequest("DELETE", MDM_WINDOWS_EULA(token));
+  },
+
   updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, {
