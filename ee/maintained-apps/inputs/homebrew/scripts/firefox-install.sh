@@ -1,21 +1,16 @@
 #!/bin/bash
 
-# Firefox updates itself in place as the logged-in user. A root-owned bundle
-# without group write access makes Firefox prompt for its privileged helper tool
-# on every update, so this script applies the ownership and permissions that
-# Mozilla's own .pkg installer uses: root:admin and group-writable.
+# Applies the ownership and permissions of Mozilla's .pkg installer (root:admin,
+# group-writable) so Firefox can update itself without prompting for its helper tool.
 
-# variables
 APPDIR="/Applications/"
 TMPDIR=$(dirname "$(realpath "$INSTALLER_PATH")")
-# functions
 
 quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
   local timeout_duration=10
 
-  # check if the application is running
   local app_running
   app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
@@ -31,13 +26,11 @@ quit_and_track_application() {
     return
   fi
 
-  # App was running, mark it for relaunch
   eval "export $var_name=1"
   echo "Application '$bundle_id' was running; will relaunch after installation."
 
   echo "Quitting application '$bundle_id'..."
 
-  # try to quit the application within the timeout period
   local quit_success=false
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
@@ -62,7 +55,6 @@ relaunch_application() {
   local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
   local was_running
 
-  # Check if the app was running before installation
   eval "was_running=\$$var_name"
   if [[ "$was_running" != "1" ]]; then
     return
@@ -77,11 +69,7 @@ relaunch_application() {
 
   echo "Relaunching application '$bundle_id'..."
 
-  # Launch the app in the logged-in user's GUI session. Apps launched by root
-  # won't register with the user's Dock/GUI, so run 'open' as the console user.
-  # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
-  # and GUI session — 'sudo -u' alone doesn't do this, which can cause
-  # LSOpenURLsWithRole() failures even when 'open' exits 0.
+  # 'sudo -u' alone doesn't join the user's GUI session, so 'open' can fail silently.
   local open_status=0
   if [[ $EUID -eq 0 ]]; then
     local console_uid
@@ -99,19 +87,15 @@ relaunch_application() {
 }
 
 
-# extract contents
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
 sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
 hdiutil detach "$MOUNT_POINT" || true
-# copy to the applications folder
 quit_and_track_application 'org.mozilla.firefox'
 if [ -d "$APPDIR/Firefox.app" ]; then
 	sudo mv "$APPDIR/Firefox.app" "$TMPDIR/Firefox.app.bkp" || exit $?
 fi
 if ! sudo cp -R "$TMPDIR/Firefox.app" "$APPDIR"; then
-	# remove the partial copy so a failed install isn't inventoried as the new
-	# version, then restore the previous version if there was one
 	sudo rm -rf "$APPDIR/Firefox.app"
 	if [ -d "$TMPDIR/Firefox.app.bkp" ]; then
 		sudo mv "$TMPDIR/Firefox.app.bkp" "$APPDIR/Firefox.app"
