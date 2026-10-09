@@ -1238,6 +1238,17 @@ type Service interface {
 	// MDMAppleDelete EULA removes an EULA entry.
 	MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error
 
+	// MDMCreateWindowsEULA adds the terms shown to end users during Windows Entra enrollment, as a
+	// markdown file.
+	MDMCreateWindowsEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
+	// MDMGetWindowsEULAMetadata returns metadata about the Windows EULA.
+	MDMGetWindowsEULAMetadata(ctx context.Context) (*MDMEULA, error)
+	// MDMGetWindowsEULABytes returns the Windows EULA markdown matching the token. Unlike the macOS
+	// EULA this is not fetched by devices, so it requires an authenticated user.
+	MDMGetWindowsEULABytes(ctx context.Context, token string) (*MDMEULA, error)
+	// MDMDeleteWindowsEULA removes the Windows EULA.
+	MDMDeleteWindowsEULA(ctx context.Context, token string, dryRun bool) error
+
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
 	// Get the MDM Apple Setup Assistant for the provided team or no team.

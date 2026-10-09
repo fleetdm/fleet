@@ -949,6 +949,22 @@ func (a ActivityTypeAddedBootstrapPackage) ActivityName() string {
 	return "added_bootstrap_package"
 }
 
+type ActivityTypeAddedEndUserAgreement struct {
+	Platform MDMEULAPlatform `json:"platform"`
+}
+
+func (a ActivityTypeAddedEndUserAgreement) ActivityName() string {
+	return "added_end_user_agreement"
+}
+
+type ActivityTypeDeletedEndUserAgreement struct {
+	Platform MDMEULAPlatform `json:"platform"`
+}
+
+func (a ActivityTypeDeletedEndUserAgreement) ActivityName() string {
+	return "deleted_end_user_agreement"
+}
+
 type ActivityTypeDeletedBootstrapPackage struct {
 	BootstrapPackageName string  `json:"bootstrap_package_name"`
 	TeamID               *uint   `json:"team_id" renameto:"fleet_id"`

@@ -222,16 +222,16 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
 		return "", nil
 	}
-	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 		return &fleet.MDMEULA{}, nil
 	}
-	ds.MDMGetEULABytesFunc = func(ctx context.Context, platform, token string) (*fleet.MDMEULA, error) {
+	ds.MDMGetEULABytesFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) (*fleet.MDMEULA, error) {
 		return &fleet.MDMEULA{}, nil
 	}
 	ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
 		return nil
 	}
-	ds.MDMDeleteEULAFunc = func(ctx context.Context, platform, token string) error {
+	ds.MDMDeleteEULAFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
 		return nil
 	}
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {

@@ -14,13 +14,16 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/markdown"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -632,6 +635,12 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSee
 	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
+	if name = fleet.SanitizeEULAFileName(name); name == "" {
+		name = fleet.MDMEULADefaultDarwinFileName
+	}
+	if utf8.RuneCountInString(name) > fleet.MaxEULAFileNameLength {
+		return &fleet.BadRequestError{Message: "The file name must be 255 characters or fewer."}
+	}
 
 	if err := file.CheckPDF(f); err != nil {
 		if errors.Is(err, file.ErrInvalidType) {
@@ -674,6 +683,11 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSee
 		return ctxerr.Wrap(ctx, err, "inserting EULA")
 	}
 
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx),
+		fleet.ActivityTypeAddedEndUserAgreement{Platform: fleet.MDMEULAPlatformDarwin}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for added end user agreement")
+	}
+
 	return nil
 }
 
@@ -698,6 +712,11 @@ func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool
 		return ctxerr.Wrap(ctx, err, "deleting EULA")
 	}
 
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedEndUserAgreement{Platform: fleet.MDMEULAPlatformDarwin}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for deleted end user agreement")
+	}
+
 	return nil
 }
 
@@ -706,9 +725,126 @@ func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, err
 		return nil, err
 	}
 
+	// The per-instance cache is for the enrollment pages, which read this on
+	// every request; admin and GitOps reads are rare and skip it.
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
 	eula, err := svc.ds.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatformDarwin)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting EULA metadata")
+	}
+
+	return eula, nil
+}
+
+func (svc *Service) MDMCreateWindowsEULA(ctx context.Context, name string, f io.ReadSeeker, dryRun bool) error {
+	windowsEULA := &fleet.MDMEULA{Platform: fleet.MDMEULAPlatformWindows}
+	if err := svc.authz.Authorize(ctx, windowsEULA, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	content, err := io.ReadAll(f)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading Windows EULA bytes")
+	}
+
+	name = fleet.SanitizeEULAFileName(name)
+	if err := validateMarkdownEULA(name, content); err != nil {
+		return err
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	hash := sha256.New()
+	_, _ = hash.Write(content)
+
+	windowsEULA.Name = name
+	windowsEULA.Token = uuid.New().String()
+	windowsEULA.Sha256 = hash.Sum(nil)
+	windowsEULA.Bytes = content
+
+	if err := svc.ds.MDMInsertEULA(ctx, windowsEULA); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting Windows EULA")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx),
+		fleet.ActivityTypeAddedEndUserAgreement{Platform: fleet.MDMEULAPlatformWindows}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for added end user agreement")
+	}
+
+	return nil
+}
+
+// validateMarkdownEULA accepts what the Windows terms page can show in full.
+// Markdown has no magic bytes, so the extension stands in for a type check.
+func validateMarkdownEULA(name string, content []byte) error {
+	if !strings.EqualFold(filepath.Ext(name), ".md") {
+		return &fleet.BadRequestError{Message: "The file must be a markdown (.md) file."}
+	}
+	if utf8.RuneCountInString(name) > fleet.MaxEULAFileNameLength {
+		return &fleet.BadRequestError{Message: "The file name must be 255 characters or fewer."}
+	}
+	if len(bytes.TrimSpace(content)) == 0 {
+		return &fleet.BadRequestError{Message: "The file is empty."}
+	}
+
+	err := markdown.ValidateTerms(content)
+	var termsErr *markdown.TermsError
+	switch {
+	case err == nil:
+		return nil
+	case errors.As(err, &termsErr):
+		return &fleet.BadRequestError{Message: termsErr.Message, InternalErr: err}
+	default:
+		return &fleet.BadRequestError{Message: "The file couldn't be read as markdown.", InternalErr: err}
+	}
+}
+
+func (svc *Service) MDMGetWindowsEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{Platform: fleet.MDMEULAPlatformWindows}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	eula, err := svc.ds.MDMGetEULABytes(ctx, fleet.MDMEULAPlatformWindows, token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting Windows EULA")
+	}
+	return eula, nil
+}
+
+func (svc *Service) MDMDeleteWindowsEULA(ctx context.Context, token string, dryRun bool) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{Platform: fleet.MDMEULAPlatformWindows}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	if err := svc.ds.MDMDeleteEULA(ctx, fleet.MDMEULAPlatformWindows, token); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting Windows EULA")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedEndUserAgreement{Platform: fleet.MDMEULAPlatformWindows}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for deleted end user agreement")
+	}
+
+	return nil
+}
+
+func (svc *Service) MDMGetWindowsEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{Platform: fleet.MDMEULAPlatformWindows}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	// The per-instance cache is for the terms page, which reads this on every
+	// request; admin and GitOps reads are rare and skip it.
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
+	eula, err := svc.ds.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatformWindows)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting Windows EULA metadata")
 	}
 
 	return eula, nil

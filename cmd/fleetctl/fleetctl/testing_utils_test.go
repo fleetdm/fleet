@@ -137,11 +137,11 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error {
 		return nil
 	}
-	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 		return nil, &gitopsTestNotFoundError{}
 	}
 	ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error { return nil }
-	ds.MDMDeleteEULAFunc = func(ctx context.Context, platform, token string) error { return nil }
+	ds.MDMDeleteEULAFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error { return nil }
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}

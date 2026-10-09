@@ -1308,8 +1308,11 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
 	}
 
+	data := windowsTOSTemplateData{RedirectURL: redirectUri, ClientData: reqID}
+	data.Content = svc.customWindowsTOSContent(ctx)
+
 	var htmlBuf bytes.Buffer
-	err = tmpl.Execute(&htmlBuf, map[string]string{"RedirectURL": redirectUri, "ClientData": reqID})
+	err = tmpl.Execute(&htmlBuf, data)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "executing TOS template content")
 	}

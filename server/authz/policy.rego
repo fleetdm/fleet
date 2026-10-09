@@ -1235,16 +1235,16 @@ allow {
   action == write
 }
 
-# Global admins can read, write, and list MDM apple eula information.
+# Global admins can read, write, and list the EULA of every platform.
 allow {
-  object.type == "mdm_apple_eula"
+  object.type == "mdm_eula"
   subject.global_role == admin
   action == [read, write, list][_]
 }
 
-# Global gitops can read and write the EULA.
+# Global gitops can read and write the EULA of every platform.
 allow {
-  object.type == "mdm_apple_eula"
+  object.type == "mdm_eula"
   subject.global_role == gitops
   action == [read, write][_]
 }

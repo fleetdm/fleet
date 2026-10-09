@@ -675,6 +675,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// endpoints using `neMDM` below in this file.
 	mdmConfiguredMiddleware := mdmconfigured.NewMDMConfigMiddleware(svc)
 	mdmAppleMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	mdmWindowsMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 
 	// Deprecated: POST /mdm/apple/enqueue is now deprecated, replaced by the
 	// platform-agnostic POST /mdm/commands/run. It is still supported
@@ -805,6 +806,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/setup/eula/metadata", getMDMEULAMetadataEndpoint, getMDMEULAMetadataRequest{})
 	// Deprecated: DELETE /mdm/apple/setup/eula/:token is now deprecated, replaced by the platform agnostic /mdm/setup/eula/:token
 	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/setup/eula/{token}", deleteMDMEULAEndpoint, deleteMDMEULARequest{})
+
+	// Windows end user agreement. The download is user authenticated: Fleet renders this document
+	// into the enrollment page itself, so no device ever fetches it by token the way macOS devices
+	// fetch the PDF.
+	mdmWindowsMW.WithRequestBodySizeLimit(fleet.MaxWindowsEULARequestSize).POST("/api/_version_/fleet/setup_experience/windows_eula", createMDMWindowsEULAEndpoint, createMDMWindowsEULARequest{})
+	mdmWindowsMW.GET("/api/_version_/fleet/setup_experience/windows_eula/metadata", getMDMWindowsEULAMetadataEndpoint, getMDMWindowsEULAMetadataRequest{})
+	mdmWindowsMW.GET("/api/_version_/fleet/setup_experience/windows_eula/{token}", getMDMWindowsEULAEndpoint, getMDMWindowsEULARequest{})
+	mdmWindowsMW.DELETE("/api/_version_/fleet/setup_experience/windows_eula/{token}", deleteMDMWindowsEULAEndpoint, deleteMDMWindowsEULARequest{})
 
 	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})

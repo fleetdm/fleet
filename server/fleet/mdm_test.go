@@ -991,3 +991,23 @@ func TestPayloadDisplayNameFromMobileconfig(t *testing.T) {
 	require.Empty(t, fleet.PayloadDisplayNameFromMobileconfig([]byte("<plist/>")))
 	require.Empty(t, fleet.PayloadDisplayNameFromMobileconfig(nil))
 }
+
+func TestSanitizeEULAFileName(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ in, want string }{
+		{"terms.md", "terms.md"},
+		{"../../terms.md", "terms.md"},
+		{`..\..\Startup\run.pdf`, "run.pdf"},
+		{"a/", ""},
+		{"..", ""},
+		{".", ""},
+		{"a/..", ""},
+		{"", ""},
+		{" terms.md\t", "terms.md"},
+		{"ter\x00ms\r\n.md", "terms.md"},
+		{"terms\u202edm.exe", "termsdm.exe"},
+	} {
+		require.Equal(t, tc.want, fleet.SanitizeEULAFileName(tc.in), "%q", tc.in)
+	}
+}
