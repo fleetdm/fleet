@@ -331,7 +331,9 @@ const SoftwareTitleDetailsPage = ({
         <LibraryItemAccordion
           filename={appStore.name}
           version={appStore.latest_version}
-          addedAt={appStore.created_at}
+          // Apple App Store apps' version updates automatically, so the time the
+          // app was added to Fleet reads as the time this version was added.
+          addedAt={isAndroidPlayStoreApp ? appStore.created_at : undefined}
           installerType="app-store"
           androidPlayStoreId={
             isAndroidPlayStoreApp ? appStore.app_store_id : undefined
