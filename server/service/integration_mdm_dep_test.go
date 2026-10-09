@@ -2347,7 +2347,6 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 	latestMacOSVersion := "14.6.1" // this is the latest version in our test data (see ../mdm/apple/gdmf/testdata/gdmf.json)
 	deadline := "2023-12-31"
-	scepChallenge := "scepcha/><llenge"
 	scepURL := s.server.URL + "/mdm/apple/scep"
 	mdmURL := s.server.URL + "/mdm/apple/mdm"
 
@@ -2494,6 +2493,9 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 				return fmt.Errorf("parse enrollment profile: %w", err)
 			}
 			require.NotNil(t, enrollInfo)
+			// the challenge is minted per device, so only check that one was issued
+			require.NotEmpty(t, enrollInfo.SCEPChallenge)
+			enrollInfo.SCEPChallenge = ""
 			require.Equal(t, expectEnrollInfo, enrollInfo)
 
 			return nil
@@ -2744,7 +2746,6 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
 					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
-							SCEPChallenge:  scepChallenge,
 							SCEPURL:        scepURL,
 							MDMURL:         mdmURL,
 							SCEPSubjectOUs: []string{apple_mdm.FleetEnrollmentSubjectOU},
@@ -2791,7 +2792,6 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
 					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
-							SCEPChallenge:  "scepcha/><llenge",
 							SCEPURL:        s.server.URL + "/mdm/apple/scep",
 							MDMURL:         s.server.URL + "/mdm/apple/mdm",
 							SCEPSubjectOUs: []string{apple_mdm.FleetEnrollmentSubjectOU},

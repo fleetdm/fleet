@@ -2037,6 +2037,25 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 	var previousAcctUUID string
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		previousAcctUUID = ""
+
+		// createHostFromMDMDB rewrites the UUID of the host matching the serial, so don't let a device take over
+		// a host that's still enrolled under another UUID.
+		var enrolledUUID string
+		switch err := sqlx.GetContext(ctx, tx, &enrolledUUID, `
+			SELECT h.uuid FROM hosts h
+			JOIN nano_enrollments ne ON ne.device_id = h.uuid AND ne.enabled = 1
+			WHERE h.hardware_serial = ? AND h.uuid != ?
+			LIMIT 1`, deviceInfo.Serial, deviceInfo.UDID); {
+		case err == nil:
+			ds.logger.InfoContext(ctx, "refusing OTA enrollment: serial is enrolled under another UUID",
+				"serial", deviceInfo.Serial, "claimed_uuid", deviceInfo.UDID, "enrolled_uuid", enrolledUUID)
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{
+				Message: "This device's serial number belongs to a host that's already enrolled. Delete the host or turn off MDM, then try again.",
+			})
+		case !errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, err, "checking for an enrolled host with the same serial")
+		}
+
 		toInsert := []hostToCreateFromMDM{
 			{
 				HardwareSerial: deviceInfo.Serial,
@@ -9511,6 +9530,24 @@ SET operation_type = ?, status = NULL, detail = '', retries = 0
 WHERE host_uuid = ? AND profile_uuid = ?`,
 		fleet.MDMOperationTypeRemove, hostUUID, profileUUID)
 	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile removal")
+}
+
+func (ds *Datastore) NewAppleSCEPChallenge(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error) {
+	if ttl <= 0 {
+		return "", ctxerr.New(ctx, "challenge ttl must be greater than zero")
+	}
+	challenge, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating apple scep challenge")
+	}
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO mdm_apple_scep_challenges
+		(challenge, purpose, host_uuid, hardware_serial, idp_account_uuid, expires_at)
+		VALUES (?, ?, ?, ?, ?, NOW(6) + INTERVAL ? MICROSECOND)`,
+		challenge, info.Purpose, info.UUID, info.Serial, info.IDPAccountUUID, ttl.Microseconds())
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "insert apple scep challenge")
+	}
+	return string(challenge), nil
 }
 
 func (ds *Datastore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error) {

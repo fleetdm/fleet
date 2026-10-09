@@ -54,6 +54,7 @@ func TestMDMApple(t *testing.T) {
 		{"ConsumeADUEEnrollmentChallenge", testConsumeADUEEnrollmentChallenge},
 		{"CleanupExpiredADUEEnrollmentChallenges", testCleanupExpiredADUEEnrollmentChallenges},
 		{"MDMAppleDEPEnrollmentChallenges", testMDMAppleDEPEnrollmentChallenges},
+		{"NewAppleSCEPChallenge", testNewAppleSCEPChallenge},
 		{"ConsumeAppleSCEPChallenge", testConsumeAppleSCEPChallenge},
 		{"SetAppleSCEPChallengeIssuedCert", testSetAppleSCEPChallengeIssuedCert},
 		{"CleanupAppleSCEPChallenges", testCleanupAppleSCEPChallenges},
@@ -134,6 +135,7 @@ func TestMDMApple(t *testing.T) {
 		{"HostMDMCommandsUUID", testHostMDMCommandsUUID},
 		{"CleanupHostMDMCommandsQueueAware", testCleanupHostMDMCommandsQueueAware},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
+		{"IngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial", testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping", testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
 		{"MDMManagedDigicertCertificates", testMDMManagedDigicertCertificates},
@@ -10719,6 +10721,74 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, wantSerials, gotSerials)
 }
 
+func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	enrolled, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "enrolled",
+		OsqueryHostID:  new("enrolled"),
+		NodeKey:        new("enrolled"),
+		UUID:           "enrolled-uuid",
+		HardwareSerial: "enrolled-serial",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, enrolled, false)
+
+	// a different UUID claiming the enrolled host's serial is refused, and the host keeps its UUID
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: enrolled.HardwareSerial, UDID: "new-uuid", Product: "MacBook Pro",
+	})
+	var conflict *fleet.ConflictError
+	require.ErrorAs(t, err, &conflict)
+	host, err := ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	require.Equal(t, enrolled.UUID, host.UUID)
+
+	// the enrolled device itself can re-enroll
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: enrolled.HardwareSerial, UDID: enrolled.UUID, Product: "MacBook Pro",
+	})
+	require.NoError(t, err)
+
+	// once MDM is turned off, the serial can be claimed by a new UUID
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE device_id = ?`, enrolled.UUID)
+		return err
+	})
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: enrolled.HardwareSerial, UDID: "new-uuid", Product: "MacBook Pro",
+	})
+	require.NoError(t, err)
+	host, err = ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	require.Equal(t, "new-uuid", host.UUID)
+
+	// so can the serial of a deleted host
+	deleted, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "deleted",
+		OsqueryHostID:  new("deleted"),
+		NodeKey:        new("deleted"),
+		UUID:           "deleted-uuid",
+		HardwareSerial: "deleted-serial",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, deleted, false)
+	require.NoError(t, ds.DeleteHost(ctx, deleted.ID))
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: deleted.HardwareSerial, UDID: "replacement-uuid", Product: "MacBook Pro",
+	})
+	require.NoError(t, err)
+
+	// and a device that was never enrolled
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: "never-enrolled-serial", UDID: "never-enrolled-uuid", Product: "MacBook Pro",
+	})
+	require.NoError(t, err)
+}
+
 func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	createBuiltinLabels(t, ds)
@@ -14417,6 +14487,39 @@ func insertAppleSCEPChallenge(t *testing.T, ds *Datastore, challenge string, pur
 			int64(expiresOffset/time.Second), consumed, consumed)
 		return err
 	})
+}
+
+func testNewAppleSCEPChallenge(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	_, err := ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{Purpose: fleet.AppleMDMCertPurposeADE}, 0)
+	require.Error(t, err)
+
+	device := fleet.AppleSCEPChallengeInfo{Purpose: fleet.AppleMDMCertPurposeADE, UUID: new("udid"), Serial: new("serial")}
+	first, err := ds.NewAppleSCEPChallenge(ctx, device, time.Hour)
+	require.NoError(t, err)
+	second, err := ds.NewAppleSCEPChallenge(ctx, device, time.Hour)
+	require.NoError(t, err)
+	require.NotEmpty(t, first)
+	require.NotEqual(t, first, second)
+
+	var secondsLeft int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &secondsLeft,
+			`SELECT TIMESTAMPDIFF(SECOND, NOW(6), expires_at) FROM mdm_apple_scep_challenges WHERE challenge = ?`, first)
+	})
+	require.InDelta(t, time.Hour.Seconds(), secondsLeft, 5)
+
+	info, err := ds.ConsumeAppleSCEPChallenge(ctx, first)
+	require.NoError(t, err)
+	require.Equal(t, device, *info)
+
+	adue := fleet.AppleSCEPChallengeInfo{Purpose: fleet.AppleMDMCertPurposeADUE, IDPAccountUUID: new("idp-account")}
+	challenge, err := ds.NewAppleSCEPChallenge(ctx, adue, time.Hour)
+	require.NoError(t, err)
+	info, err = ds.ConsumeAppleSCEPChallenge(ctx, challenge)
+	require.NoError(t, err)
+	require.Equal(t, adue, *info)
 }
 
 func testConsumeAppleSCEPChallenge(t *testing.T, ds *Datastore) {

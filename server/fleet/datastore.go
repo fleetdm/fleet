@@ -4430,6 +4430,8 @@ type Datastore interface {
 	// QueueHostMDMAppleProfileRemoval marks the host's profile row as a pending removal (NULL status), or deletes it
 	// if the install was never sent. It is a no-op if the host has no row for the profile.
 	QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUID, profileUUID string) error
+	// NewAppleSCEPChallenge creates a single-use SCEP challenge bound to info that expires after ttl, and returns it.
+	NewAppleSCEPChallenge(ctx context.Context, info AppleSCEPChallengeInfo, ttl time.Duration) (string, error)
 	// ConsumeAppleSCEPChallenge marks the given SCEP challenge as consumed and returns its associated info if found.
 	ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*AppleSCEPChallengeInfo, error)
 	// SetAppleSCEPChallengeIssuedCert records the issued certificate serial number for the given SCEP challenge.

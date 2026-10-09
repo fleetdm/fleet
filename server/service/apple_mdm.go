@@ -3124,7 +3124,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 			// do not allow falling through to SCEP when it's blocked via both require acme and only AB enrollments.
 			return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
 		}
-		enrollProf, err = svc.generateMDMAppleSCEPEnrollProfile(ctx, appConfig.OrgInfo.OrgName, mdmURL, topic)
+		enrollProf, err = svc.generateMDMAppleSCEPEnrollProfile(ctx, machineInfo, appConfig.OrgInfo.OrgName, mdmURL, topic)
 	}
 
 	if err != nil {
@@ -3273,18 +3273,20 @@ func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardw
 	return b, nil
 }
 
-func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgName string, mdmURL string, topic string) ([]byte, error) {
-	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetSCEPChallenge,
-	}, nil)
+func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo, orgName string, mdmURL string, topic string) ([]byte, error) {
+	challenge, err := svc.ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{
+		Purpose: fleet.AppleMDMCertPurposeADE,
+		UUID:    &machineInfo.UDID,
+		Serial:  &machineInfo.Serial,
+	}, fleet.AppleSCEPEnrollmentChallengeTTL)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleSCEPEnrollProfile: loading SCEP challenge from the database")
+		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleSCEPEnrollProfile: creating SCEP challenge")
 	}
 
 	enrollProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		orgName,
 		mdmURL,
-		string(assets[fleet.MDMAssetSCEPChallenge].Value),
+		challenge,
 		topic,
 		apple_mdm.MDMAccessRightAll,
 		true, // fresh enrollment
@@ -9431,14 +9433,6 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, ctxerr.Wrap(ctx, err, "validating enroll secret")
 	}
 
-	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetSCEPChallenge,
-	}, nil)
-	if err != nil {
-		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
-	}
-	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
-
 	mdmURL := appCfg.MDMUrl()
 
 	// if the root signer was issued by Apple's CA, it means we're in the
@@ -9447,6 +9441,15 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		scepURL, err := apple_mdm.ResolveAppleSCEPURL(mdmURL)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "resolve Apple SCEP url")
+		}
+
+		scepChallenge, err := svc.ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{
+			Purpose: fleet.AppleMDMCertPurposeOTAPhaseOne,
+			UUID:    &deviceInfo.UDID,
+			Serial:  &deviceInfo.Serial,
+		}, fleet.AppleSCEPEnrollmentChallengeTTL)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "creating OTA phase 1 SCEP challenge")
 		}
 
 		var buf bytes.Buffer
@@ -9469,6 +9472,23 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, authz.ForbiddenWithInternal(fmt.Sprintf("payload signed with invalid certificate: %s", err), nil, nil, nil)
 	}
 
+	// Phase-2 DeviceInfo is signed by a Fleet certificate, so the device could claim any identity in it. The
+	// phase-1 binding was minted from Apple-signed MachineInfo, so it's the only identity to trust here.
+	binding, err := apple_mdm.ParseAppleMDMCertificateBindingExtension(rootSigner)
+	if err != nil {
+		return nil, authz.ForbiddenWithInternal(fmt.Sprintf("invalid certificate binding: %s", err), nil, nil, nil)
+	}
+	if binding == nil || binding.Purpose != fleet.AppleMDMCertPurposeOTAPhaseOne {
+		return nil, authz.ForbiddenWithInternal("payload signer is not an OTA phase 1 certificate", nil, nil, nil)
+	}
+	if binding.UDID == nil || binding.Serial == nil || *binding.UDID == "" || *binding.Serial == "" ||
+		*binding.UDID != deviceInfo.UDID || *binding.Serial != deviceInfo.Serial {
+		svc.logger.InfoContext(ctx, "rejecting OTA phase 2: device info does not match phase 1 binding",
+			"claimed_udid", deviceInfo.UDID, "claimed_serial", deviceInfo.Serial,
+			"bound_udid", binding.UDID, "bound_serial", binding.Serial)
+		return nil, authz.ForbiddenWithInternal("device info does not match OTA phase 1 binding", nil, nil, nil)
+	}
+
 	topic, err := apple_mdm.MDMPushCertTopic(ctx, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
@@ -9480,18 +9500,6 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	enrollMDMURL, err := apple_mdm.AddPersonalEnrollmentToFleetURL(mdmURL, personal)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building MDM URL with personal enrollment flag for OTA")
-	}
-	accessRights := apple_mdm.AppleEnrollmentAccessRights(personal)
-	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
-		appCfg.OrgInfo.OrgName,
-		enrollMDMURL,
-		string(assets[fleet.MDMAssetSCEPChallenge].Value),
-		topic,
-		accessRights,
-		true, // fresh enrollment
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
 	}
 
 	var idpUUID string
@@ -9537,6 +9545,26 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 	// at this point we know the device can be enrolled, so we respond with
 	// a signed enrollment profile
+	scepChallenge, err := svc.ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{
+		Purpose: fleet.AppleMDMCertPurposeOTAPhaseTwo,
+		UUID:    binding.UDID,
+		Serial:  binding.Serial,
+	}, fleet.AppleSCEPEnrollmentChallengeTTL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating OTA phase 2 SCEP challenge")
+	}
+	accessRights := apple_mdm.AppleEnrollmentAccessRights(personal)
+	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+		appCfg.OrgInfo.OrgName,
+		enrollMDMURL,
+		scepChallenge,
+		topic,
+		accessRights,
+		true, // fresh enrollment
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
+	}
 	signed, err := mdmcrypto.Sign(ctx, enrollmentProf, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
