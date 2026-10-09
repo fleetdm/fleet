@@ -1,0 +1,41 @@
+{
+    "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.30/MicrosoftTeams.schema.json",
+    "manifestVersion": "1.30",
+    "version": "1.0.0",
+    "id": "${{TEAMS_APP_ID}}",
+    "developer": {
+        "name": "Fleet Device Management",
+        "websiteUrl": "https://fleetdm.com",
+        "privacyUrl": "https://fleetdm.com/legal/privacy",
+        "termsOfUseUrl": "https://fleetdm.com/legal/terms"
+    },
+    "name": {
+        "short": "Fleet",
+        "full": "Fleet"
+    },
+    "description": {
+        "short": "Ask about your Fleet environment or request changes in plain English",
+        "full": "Ask questions about your Fleet environment or request configuration changes in plain English. The bot queries live Fleet data and opens draft GitHub pull requests with the necessary GitOps YAML changes."
+    },
+    "icons": {
+        "color": "color.png",
+        "outline": "outline.png"
+    },
+    "accentColor": "#009A7D",
+    "bots": [
+        {
+            "botId": "${{TEAMS_APP_ID}}",
+            "scopes": [
+                "personal",
+                "team",
+                "groupChat"
+            ],
+            "supportsFiles": false,
+            "isNotificationOnly": false
+        }
+    ],
+    "permissions": [
+        "identity"
+    ],
+    "validDomains": []
+}
