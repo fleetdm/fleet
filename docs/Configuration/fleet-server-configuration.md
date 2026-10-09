@@ -969,6 +969,18 @@ Minimum time since a software install or uninstall finished before Fleet's hourl
     software_install_results_retention: 720h
   ```
 
+### server_deleted_host_certificates_retention (Fleet 4.94.0+)
+
+Minimum time since a certificate was removed from a host before Fleet's hourly cleanup permanently deletes Fleet's record of it. Certificates still on a host are never deleted. Set to 0 to disable the cleanup.
+
+- Default value: 720h
+- Environment variable: `FLEET_SERVER_DELETED_HOST_CERTIFICATES_RETENTION`
+- Config file format:
+  ```yaml
+  server:
+    deleted_host_certificates_retention: 720h
+  ```
+
 ## Auth
 
 ### auth_sso_session_validity_period
