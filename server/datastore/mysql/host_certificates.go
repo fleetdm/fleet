@@ -990,53 +990,75 @@ func (ds *Datastore) CleanupSoftDeletedHostCertificates(ctx context.Context, old
 	return cleanupSoftDeletedHostCertsDB(ctx, ds, olderThan, batchSize, maxBatches)
 }
 
-// cleanupSoftDeletedHostCertsDB selects ids, then deletes them by primary key. A range DELETE on deleted_at would
-// next-key lock the gap just above the deleted_at IS NULL entries of idx_host_certs_origin_deleted, which is where
-// every newly ingested cert row is inserted, stalling ingestion for the length of the delete. The origin list lets
-// that index serve the select without a dedicated deleted_at index. The select runs on the primary so a lagging
-// replica can't hand back ids that are already gone; there is no cursor because each batch removes what it selected.
+// cleanupSoftDeletedHostCertsDB selects ids on the replica, then deletes them by primary key. Each origin is walked with a
+// (deleted_at, id) cursor in idx_host_certs_origin_deleted order, so every batch reads only its own index entries and a lagging
+// replica that still returns already-deleted rows can't make the loop select them again. The DELETE re-checks deleted_at, so stale
+// replica data can't remove a live cert.
 func cleanupSoftDeletedHostCertsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
-	const selectStmt = `
-SELECT id FROM host_certificates
-WHERE origin IN (?) AND deleted_at < ?
+	const (
+		firstSelectStmt = `
+SELECT id, deleted_at FROM host_certificates
+WHERE origin = ? AND deleted_at < ?
+ORDER BY deleted_at, id
 LIMIT ?`
-	// host_certificate_sources rows go with their certificate via ON DELETE CASCADE.
-	const deleteStmt = `DELETE FROM host_certificates WHERE id IN (?) AND deleted_at < ?`
-	origins := []fleet.HostCertificateOrigin{fleet.HostCertificateOriginOsquery, fleet.HostCertificateOriginMDM}
+		nextSelectStmt = `
+SELECT id, deleted_at FROM host_certificates
+WHERE origin = ? AND deleted_at < ? AND (deleted_at > ? OR (deleted_at = ? AND id > ?))
+ORDER BY deleted_at, id
+LIMIT ?`
+		// host_certificate_sources rows go with their certificate via ON DELETE CASCADE.
+		deleteStmt = `DELETE FROM host_certificates WHERE id IN (?) AND deleted_at < ?`
+	)
+	type softDeletedCert struct {
+		ID        uint      `db:"id"`
+		DeletedAt time.Time `db:"deleted_at"`
+	}
 
 	var totalDeleted int64
-	exhausted := true
-	for range maxBatches {
-		stmt, args, err := sqlx.In(selectStmt, origins, olderThan, batchSize)
-		if err != nil {
-			return totalDeleted, ctxerr.Wrap(ctx, err, "build select soft-deleted host certificates")
+	batches := 0
+	for _, origin := range []fleet.HostCertificateOrigin{fleet.HostCertificateOriginOsquery, fleet.HostCertificateOriginMDM} {
+		var cursor *softDeletedCert
+		for {
+			if batches == maxBatches {
+				ds.logger.WarnContext(ctx, "cleanup soft-deleted host certificates hit its batch cap, any remaining rows are cleaned on the next run",
+					"deleted", totalDeleted, "max_batches", maxBatches)
+				return totalDeleted, nil
+			}
+			var certs []softDeletedCert
+			var err error
+			if cursor == nil {
+				err = sqlx.SelectContext(ctx, ds.reader(ctx), &certs, firstSelectStmt, origin, olderThan, batchSize)
+			} else {
+				err = sqlx.SelectContext(ctx, ds.reader(ctx), &certs, nextSelectStmt,
+					origin, olderThan, cursor.DeletedAt, cursor.DeletedAt, cursor.ID, batchSize)
+			}
+			if err != nil {
+				return totalDeleted, ctxerr.Wrap(ctx, err, "select soft-deleted host certificates")
+			}
+			if len(certs) == 0 {
+				break
+			}
+			batches++
+			cursor = &certs[len(certs)-1]
+
+			ids := make([]uint, 0, len(certs))
+			for _, c := range certs {
+				ids = append(ids, c.ID)
+			}
+			stmt, args, err := sqlx.In(deleteStmt, ids, olderThan)
+			if err != nil {
+				return totalDeleted, ctxerr.Wrap(ctx, err, "build delete soft-deleted host certificates")
+			}
+			res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+			if err != nil {
+				return totalDeleted, ctxerr.Wrap(ctx, err, "delete soft-deleted host certificates")
+			}
+			n, _ := res.RowsAffected()
+			totalDeleted += n
+			if len(certs) < batchSize {
+				break
+			}
 		}
-		var ids []uint
-		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &ids, stmt, args...); err != nil {
-			return totalDeleted, ctxerr.Wrap(ctx, err, "select soft-deleted host certificates")
-		}
-		if len(ids) == 0 {
-			exhausted = false
-			break
-		}
-		stmt, args, err = sqlx.In(deleteStmt, ids, olderThan)
-		if err != nil {
-			return totalDeleted, ctxerr.Wrap(ctx, err, "build delete soft-deleted host certificates")
-		}
-		res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
-		if err != nil {
-			return totalDeleted, ctxerr.Wrap(ctx, err, "delete soft-deleted host certificates")
-		}
-		n, _ := res.RowsAffected()
-		totalDeleted += n
-		if len(ids) < batchSize {
-			exhausted = false
-			break
-		}
-	}
-	if exhausted {
-		ds.logger.WarnContext(ctx, "cleanup soft-deleted host certificates hit its batch cap, any remaining rows are cleaned on the next run",
-			"deleted", totalDeleted, "max_batches", maxBatches)
 	}
 	return totalDeleted, nil
 }

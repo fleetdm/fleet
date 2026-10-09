@@ -18,6 +18,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -1766,6 +1767,67 @@ func testCleanupSoftDeletedHostCertificates(t *testing.T, ds *Datastore) {
 		require.Equal(t, 1, sourceCountForHost(host))
 		require.Zero(t, orphanedSourceCount())
 	})
+}
+
+func TestCleanupHostCertsReplicaLag(t *testing.T) {
+	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
+	ds := CreateMySQLDSWithOptions(t, opts)
+	ctx := t.Context()
+	now := time.Now().UTC()
+	cutoff := now.Add(-30 * 24 * time.Hour)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		OsqueryHostID:   new("replica-lag-osq"),
+		NodeKey:         new("replica-lag-nk"),
+		UUID:            "replica-lag-uuid",
+		Hostname:        "replica-lag",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	var certs []*fleet.HostCertificateRecord
+	for _, cn := range []string{"first", "second", "third", "live"} {
+		certs = append(certs, mkTestCertRecord(t, host.ID, cn, fleet.SystemHostCertificate, ""))
+	}
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, nil))
+	// Distinct deleted_at values pin the cursor order to first, second, third.
+	for i, cn := range []string{"first", "second", "third"} {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_certificates SET deleted_at = ? WHERE host_id = ? AND common_name = ?`,
+				now.Add(-60*24*time.Hour).Add(time.Duration(i)*time.Second), host.ID, cn)
+			return err
+		})
+	}
+	primaryCommonNames := func() []string {
+		var names []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &names, `SELECT common_name FROM host_certificates WHERE host_id = ? ORDER BY common_name`, host.ID)
+		})
+		return names
+	}
+
+	// Soft-deletes the replica hasn't seen yet wait for a later run.
+	count, err := cleanupSoftDeletedHostCertsDB(ctx, ds, cutoff, 2, 2)
+	require.NoError(t, err)
+	require.Zero(t, count)
+	require.Equal(t, []string{"first", "live", "second", "third"}, primaryCommonNames())
+
+	opts.RunReplication()
+
+	// A previous run's deletes that haven't replicated yet: the replica still returns these rows.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_certificates WHERE host_id = ? AND common_name IN ('first', 'second')`, host.ID)
+		return err
+	})
+
+	// The cursor moves past the stale first batch instead of re-selecting it, so the second batch reaches the remaining row.
+	count, err = cleanupSoftDeletedHostCertsDB(ctx, ds, cutoff, 2, 2)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, count)
+	require.Equal(t, []string{"live"}, primaryCommonNames())
 }
 
 // mkTestCertRecord builds a HostCertificateRecord for hostID with a random serial, valid from an hour ago to 24 hours

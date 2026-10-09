@@ -1821,8 +1821,7 @@ func cleanupHostScriptResultsCronJob(ctx context.Context, ds fleet.Datastore, lo
 	return nil
 }
 
-// cleanupHostCertificatesCronJob is disabled by a non-positive retention, the
-// documented off switch for server.deleted_host_certificates_retention.
+// cleanupHostCertificatesCronJob is disabled by a non-positive retention
 func cleanupHostCertificatesCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
 	if retention <= 0 {
 		return nil
