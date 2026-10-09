@@ -52,7 +52,7 @@ Jamf Pro limits DDM configurations to blueprints which are only available in the
 
 Software deployment and patching work differently across these three solutions. 
 
-Fleet combines software deployment with built-in vulnerability detection, identifying CVEs across all platforms and enabling policy-based automatic remediation when vulnerable software is detected. Fleet installs App Store apps and offers a [catalog](https://fleetdm.com/software-catalog) of over 1,250 Fleet-maintained apps. Fleet keeps these apps up to date automatically, and IT admins can pin an app to a specific version or roll back if a new release causes problems.
+Fleet combines software deployment with built-in vulnerability detection, identifying CVEs across all platforms and enabling policy-based automatic remediation when vulnerable software is detected. Fleet installs App Store apps and offers a [catalog](https://fleetdm.com/software-catalog) of over 1,400 Fleet-maintained apps. Fleet keeps these apps up to date automatically, and IT admins can pin an app to a specific version or roll back if a new release causes problems.
 
 Jamf Pro handles Apps and Books deployment for Apple devices through Apple Business integration. Jamf Pro includes App Installers for easy deployment.
 
