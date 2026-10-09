@@ -93,6 +93,8 @@ func format(platform string, major string, minor string) string {
 			return "debian_11"
 		case "06":
 			return "debian_12"
+		case "07":
+			return "debian_13"
 		}
 	}
 	if platform == "ubuntu" {

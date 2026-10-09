@@ -62,6 +62,7 @@ func TestOvalPlatform(t *testing.T) {
 			{"parrot", "Parrot OS 5.3", "debian_11"},
 			{"parrot", "Parrot OS 6.0", "debian_12"},
 			{"parrot", "Parrot OS 6.4.2", "debian_12"},
+			{"parrot", "Parrot Security 7.3", "debian_13"},
 			{"parrot", "Parrot OS 99.0", "parrot_99"},
 		}
 
