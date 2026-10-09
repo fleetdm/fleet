@@ -535,7 +535,7 @@ var termsPolicy = func() *bluemonday.Policy {
 		"h1", "h2", "h3", "h4", "h5", "h6",
 		"ul", "ol", "li",
 		"strong", "em", "b", "i", "u", "del", "s", "sub", "sup", "code", "pre", "blockquote",
-		"table", "caption", "colgroup", "col", "thead", "tbody", "tfoot", "tr", "th", "td",
+		"table", "caption", "thead", "tbody", "tfoot", "tr", "th", "td",
 	)
 	p.AllowAttrs("align").Matching(regexp.MustCompile(`^(left|center|right)$`)).OnElements("th", "td")
 	p.AllowAttrs("colspan", "rowspan").Matching(spanValue).OnElements("th", "td")
@@ -566,7 +566,8 @@ const (
 
 // allowedChild is the HTML content model, narrowed to what the terms page
 // shows. a and span are dropped keeping their text and img becomes its alt
-// text, as markdown links and images do.
+// text, as markdown links and images do; colgroup and col only carry widths,
+// which aren't kept, so they're dropped too.
 func allowedChild(parent, child string) bool {
 	_, phrasing := phrasingTags[child]
 	phrasing = phrasing || child == "br" || child == "a" || child == "span" || child == "img"
@@ -581,7 +582,9 @@ func allowedChild(parent, child string) bool {
 		return child == "th" || child == "td"
 	case "ul", "ol":
 		return child == "li"
-	case "", "li", "th", "td":
+	case "":
+		return phrasing || child == "table"
+	case "li", "th", "td":
 		return phrasing || child == "p" || child == "ul" || child == "ol" || child == "table"
 	default: // p, caption and phrasing elements
 		return phrasing
@@ -592,9 +595,10 @@ var spanValue = regexp.MustCompile(`^([1-9][0-9]?|100)$`)
 
 // rewriteHTMLBlock rebuilds an HTML block from its tokens, or reports why it
 // can't be shown. Every element must be allowed where it is and closed in
-// order; only th and td keep attributes. area is the grid cells its table cells
-// cover, charged to the same budget as markdown tables.
-func rewriteHTMLBlock(block string) (out string, area int, err error) {
+// order; only th and td keep attributes. cells is what its tables cost against
+// the same budget as markdown tables: each cell the grid area it covers, and
+// each row or other part of a table one.
+func rewriteHTMLBlock(block string) (out string, cells int, err error) {
 	var b strings.Builder
 	open := make([]string, 0, maxHTMLNesting)
 	z := xhtml.NewTokenizer(strings.NewReader(block))
@@ -608,14 +612,14 @@ func rewriteHTMLBlock(block string) (out string, area int, err error) {
 		case xhtml.ErrorToken:
 			// Raw bytes left over are a tag cut off by the end of the block.
 			if !errors.Is(z.Err(), io.EOF) || len(z.Raw()) > 0 || len(open) > 0 {
-				return "", area, ErrContainsHTML
+				return "", cells, ErrContainsHTML
 			}
-			return b.String(), area, nil
+			return b.String(), cells, nil
 		case xhtml.TextToken:
 			text := strings.ReplaceAll(string(z.Text()), "\x00", "\ufffd")
 			// Text goes where text-level tags do; loose in a table, the browser moves it.
 			if strings.TrimSpace(text) != "" && !allowedChild(parent, "b") {
-				return "", area, ErrContainsHTML
+				return "", cells, ErrContainsHTML
 			}
 			b.WriteString(xhtml.EscapeString(text))
 		case xhtml.StartTagToken, xhtml.SelfClosingTagToken:
@@ -623,7 +627,7 @@ func rewriteHTMLBlock(block string) (out string, area int, err error) {
 			tag := string(name)
 			void := tag == "br" || tag == "col" || tag == "img"
 			if !allowedChild(parent, tag) || (tt == xhtml.SelfClosingTagToken && !void) {
-				return "", area, ErrContainsHTML
+				return "", cells, ErrContainsHTML
 			}
 			attrs := map[string]string{}
 			for hasAttr {
@@ -632,7 +636,7 @@ func rewriteHTMLBlock(block string) (out string, area int, err error) {
 				attrs[string(key)] = string(val)
 			}
 			switch tag {
-			case "a", "span":
+			case "a", "span", "colgroup", "col":
 			case "img":
 				b.WriteString(xhtml.EscapeString(attrs["alt"]))
 			case "th", "td":
@@ -650,13 +654,16 @@ func rewriteHTMLBlock(block string) (out string, area int, err error) {
 					b.WriteString(` rowspan="` + v + `"`)
 				}
 				b.WriteString(">")
-				area += colspan * rowspan
+				cells += colspan * rowspan
+			case "table", "caption", "thead", "tbody", "tfoot", "tr":
+				b.WriteString("<" + tag + ">")
+				cells++
 			default:
 				b.WriteString("<" + tag + ">")
 			}
 			if !void {
 				if len(open) == maxHTMLNesting {
-					return "", area, ErrNestedTooDeep
+					return "", cells, ErrNestedTooDeep
 				}
 				open = append(open, tag)
 			}
@@ -664,14 +671,14 @@ func rewriteHTMLBlock(block string) (out string, area int, err error) {
 			name, _ := z.TagName()
 			tag := string(name)
 			if parent != tag {
-				return "", area, ErrContainsHTML
+				return "", cells, ErrContainsHTML
 			}
 			open = open[:len(open)-1]
-			if tag != "a" && tag != "span" {
+			if tag != "a" && tag != "span" && tag != "colgroup" {
 				b.WriteString("</" + tag + ">")
 			}
 		default: // comments, CDATA, processing instructions, doctypes
-			return "", area, ErrContainsHTML
+			return "", cells, ErrContainsHTML
 		}
 	}
 }
@@ -739,9 +746,9 @@ func (rawHTMLTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 			return ast.WalkContinue, nil
 		}
 		block := htmlBlockSource(b, source)
-		out, area, err := rewriteHTMLBlock(block)
+		out, cells, err := rewriteHTMLBlock(block)
 		used, _ := pc.Get(tableCellsKey).(int)
-		pc.Set(tableCellsKey, used+area)
+		pc.Set(tableCellsKey, used+cells)
 		switch {
 		case err == nil:
 			b.SetAttributeString(keptHTMLAttr, out)

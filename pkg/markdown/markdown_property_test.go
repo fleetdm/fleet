@@ -55,7 +55,7 @@ var allowedElements = func() map[string]struct{} {
 	set := map[string]struct{}{}
 	for _, e := range []string{
 		"p", "br", "hr", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "strong", "em", "b", "i", "u", "del", "s",
-		"sub", "sup", "code", "pre", "blockquote", "table", "caption", "colgroup", "col", "thead", "tbody", "tfoot", "tr",
+		"sub", "sup", "code", "pre", "blockquote", "table", "caption", "thead", "tbody", "tfoot", "tr",
 		"th", "td", "input",
 	} {
 		set[e] = struct{}{}

@@ -50,7 +50,7 @@ func TestRenderTerms(t *testing.T) {
 				"<th>Item</th>\n<th colspan=\"2\">Coverage</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td rowspan=\"2\">Laptop</td>\n" +
 				"<td>Hardware</td>\n</tr>\n<tr>\n<td>Software</td>\n</tr>\n</tbody>\n</table>\n",
 			contains: []string{"<table>", `<th colspan="2">Coverage</th>`, `<td rowspan="2">Laptop</td>`, "<td>Software</td>", "</table>"},
-			excludes: []string{"style"},
+			excludes: []string{"style", "<col"},
 		},
 		{
 			name:     "html table cells keep only safe spans",
@@ -202,9 +202,9 @@ func TestRewrittenHTMLPassesThePolicy(t *testing.T) {
 	block := `<table><caption><b>c</b></caption><colgroup><col></colgroup><thead><tr><th align="left" colspan="2">h</th></tr></thead>` +
 		`<tbody><tr><td rowspan="2"><p><i>i</i> <u>u</u> <s>s</s> <em>em</em> <strong>st</strong> <del>d</del> <code>c</code> ` +
 		`<sub>2</sub> <sup>2</sup><br></p><ul><li>a</li></ul><ol><li>b</li></ol></td></tr></tbody><tfoot><tr><td>f</td></tr></tfoot></table>`
-	out, area, err := rewriteHTMLBlock(block)
+	out, cells, err := rewriteHTMLBlock(block)
 	require.NoError(t, err)
-	require.Equal(t, 5, area)
+	require.Equal(t, 13, cells)
 	require.Equal(t, out, termsPolicy.Sanitize(out))
 }
 
@@ -299,9 +299,13 @@ func TestValidateTerms(t *testing.T) {
 		{"html block with text", "# Terms\n\n<div>\nClause 4 applies.\n</div>\n", ErrContainsHTML},
 		{"html table", "<table><tr><td>Clause</td></tr></table>\n", nil},
 		{"html table with a tag outside the allowlist", "<table><tr><td><div>Clause</div></td></tr></table>\n", ErrContainsHTML},
-		{"html and markdown cells share the budget", htmlTable(5_000) + "\n" + termsTable(100, 50), ErrTableTooLarge},
-		{"html and markdown cells at the budget", htmlTable(4_900) + "\n" + termsTable(100, 50), nil},
-		{"html nested too deeply", strings.Repeat("<ul><li>", 20) + "Clause" + strings.Repeat("</li></ul>", 20) + "\n", ErrNestedTooDeep},
+		// 4,354 cells in 545 rows and the table itself, plus 5,100 markdown cells.
+		{"html and markdown tables at the budget", htmlTable(4_354) + "\n" + termsTable(100, 50), nil},
+		{"html and markdown tables share the budget", htmlTable(4_355) + "\n" + termsTable(100, 50), ErrTableTooLarge},
+		{"empty rows count toward the budget", "<table>\n" + strings.Repeat(strings.Repeat("<tr></tr>", 800)+"\n", 13) + "</table>\n<u>x</u>\n", ErrTableTooLarge},
+		{"html outside tables and text styles", "<p>Clause 4</p>\n", ErrContainsHTML},
+		{"an html list", "<ul><li>Clause 4</li></ul>\n", ErrContainsHTML},
+		{"html nested too deeply", strings.Repeat("<table><tr><td>", 11) + "Clause" + strings.Repeat("</td></tr></table>", 11) + "\n", ErrNestedTooDeep},
 		{"spans count toward the cell budget", "<table><tr>" + strings.Repeat(`<td colspan="100" rowspan="100">x</td>`, 2) + "</tr></table>\n", ErrTableTooLarge},
 		{"a link in an html table cell", "<table><tr><td><a href=\"https://x.example\">policy</a></td></tr></table>\n", nil},
 		{"cdata block", "<![CDATA[ a > b ]]> Clause\n", ErrContainsHTML},
@@ -309,12 +313,12 @@ func TestValidateTerms(t *testing.T) {
 		{"declaration block", "<!ELEMENT x>Clause\n", ErrContainsHTML},
 		{"comment in an html block", "<p>Clause 1<!--\n\n# Clause 2\n", ErrContainsHTML},
 		{"tag cut off by a blank line", "<p>Clause 1 <b x=\"\n\n# Clause 2\n\nend\" tail\n", ErrContainsHTML},
-		{"tag cut off after a closed element", "<p>Clause 1</p> <b x=\"\n\nmore\n", ErrContainsHTML},
+		{"tag cut off after a closed element", "<table><tr><td>Clause 1</td></tr></table> <b x=\"\n\nmore\n", ErrContainsHTML},
 		{"escaping past the rendered limit", strings.Repeat(strings.Repeat("'", 8_000)+"\n\n", 60), ErrRenderedTooLarge},
 		{"text loose in a table", "<table>Clause<tr><td>x</td></tr></table>\n", ErrContainsHTML},
 		{"table left open", "<table><tr><td>Clause 1</td></tr>\n\n# Clause 2\n", ErrContainsHTML},
-		{"misnested tags", "<p><b>Clause</p></b>\n", ErrContainsHTML},
-		{"block inside a paragraph", "<p>Clause <ul><li>x</li></ul></p>\n", ErrContainsHTML},
+		{"misnested tags", "<table><tr><td><b>Clause</td></b></tr></table>\n", ErrContainsHTML},
+		{"block inside a paragraph", "<table><tr><td><p>Clause <ul><li>x</li></ul></p></td></tr></table>\n", ErrContainsHTML},
 		{"nothing to read", "[](https://example.com)\n", ErrNoVisibleText},
 		{"only a comment", "<!-- draft -->\n", ErrNoVisibleText},
 		{"only invisible characters", "\u200b\u2060\n", ErrNoVisibleText},
