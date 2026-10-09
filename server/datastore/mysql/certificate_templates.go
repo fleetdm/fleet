@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/crypto"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -128,7 +129,7 @@ func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id u
 	// Only include challenges if status is "delivered"
 	if template.Status == fleet.CertificateTemplateDelivered {
 		if template.SCEPChallengeEncrypted != nil {
-			decryptedChallenge, err := decrypt(template.SCEPChallengeEncrypted, ds.serverPrivateKey)
+			decryptedChallenge, err := crypto.DecryptAESGCM(template.SCEPChallengeEncrypted, ds.serverPrivateKey)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "decrypting scep challenge")
 			}

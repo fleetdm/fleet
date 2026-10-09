@@ -1344,10 +1344,11 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
 	assert.NoError(t, err)
 
-	// errored update should have cleared automation
+	// add no team to the token, the automation on team2 should be kept
 	t2Policy, err = ds.Policy(ctx, t2Policy.ID)
 	assert.NoError(t, err)
-	assert.Nil(t, t2Policy.VPPAppsTeamsID)
+	require.NotNil(t, t2Policy.VPPAppsTeamsID)
+	assert.Equal(t, t2meta.VPPAppsTeamsID, *t2Policy.VPPAppsTeamsID)
 
 	toks, err = ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
@@ -1358,6 +1359,43 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Len(t, tokTeams.Teams, 2)
 	assert.Contains(t, tokTeams.Teams, fleet.TeamTuple{ID: team2.ID, Name: team2.Name})
 	assert.Contains(t, tokTeams.Teams, fleet.TeamTuple{ID: 0, Name: fleet.TeamNameNoTeam})
+
+	// add an app with an automation to no team
+	noTeamApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform,
+	}, nil)
+	require.NoError(t, err)
+	noTeamMeta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, new(uint(0)), noTeamApp.TitleID)
+	require.NoError(t, err)
+	noTeamPolicy, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, nil, fleet.PolicyPayload{
+		Name:           "p2",
+		Query:          "SELECT 1;",
+		VPPAppsTeamsID: &noTeamMeta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
+
+	// remove team2 from the token, the automation on team2 should be cleared and the automation on no team kept
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{0})
+	require.NoError(t, err)
+	t2Policy, err = ds.Policy(ctx, t2Policy.ID)
+	require.NoError(t, err)
+	require.Nil(t, t2Policy.VPPAppsTeamsID)
+	noTeamPolicy, err = ds.Policy(ctx, noTeamPolicy.ID)
+	require.NoError(t, err)
+	require.NotNil(t, noTeamPolicy.VPPAppsTeamsID)
+	require.Equal(t, noTeamMeta.VPPAppsTeamsID, *noTeamPolicy.VPPAppsTeamsID)
+
+	// remove no team from the token, the automation on no team should be cleared
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID})
+	require.NoError(t, err)
+	noTeamPolicy, err = ds.Policy(ctx, noTeamPolicy.ID)
+	require.NoError(t, err)
+	require.Nil(t, noTeamPolicy.VPPAppsTeamsID)
+
+	// add team2 and no team back to the token for the checks below
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
+	require.NoError(t, err)
 
 	tokBadConstraint, err := ds.InsertVPPToken(ctx, dataToken5)
 	assert.NoError(t, err)

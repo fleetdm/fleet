@@ -1,0 +1,2 @@
+- Fixed GitOps and UI VPP token fleet assignment changes deleting VPP apps and policy install automations on fleets that should stay unchanged.
+- Fixed `fleetctl generate-gitops` not adding any fleets under `volume_purchasing_program` when a VPP token is assigned to all fleets.

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "90.0.81181",
+      "version": "90.0.82050",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.sonos.macController2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sonos.macController2' AND version_compare(bundle_version, '90.0.81181') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sonos.macController2' AND version_compare(bundle_version, '90.0.82050') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.sonos.macController2' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://update-software.sonos.com/software/7GphjB3HVD/Sonos_90.0-81181.dmg",
+      "installer_url": "https://update-software.sonos.com/software/vHbjDs9q4X/Sonos_90.0-82050.dmg",
       "install_script_ref": "91cbf6f9",
       "uninstall_script_ref": "91eaa24a",
-      "sha256": "f4c49635cb06cf615c2b3bebd35fbf3e3abeb7a38dbc4c5519784070c0dcdc3b",
+      "sha256": "5da3db3feec9f2b46dbe9c06d9c36dbca5e14aa79081247fb1ddd3d94f921189",
       "default_categories": [
         "Productivity"
       ]

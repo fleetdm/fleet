@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.77.0",
+      "version": "3.80.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.frontapp.Front';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.frontapp.Front' AND version_compare(bundle_short_version, '3.77.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.frontapp.Front' AND version_compare(bundle_short_version, '3.80.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.frontapp.Front' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.frontapp.com/desktop/builds/3.77.0/Front-3.77.0-arm64.zip",
+      "installer_url": "https://dl.frontapp.com/desktop/builds/3.80.0/Front-3.80.0-arm64.zip",
       "install_script_ref": "4c2f6469",
       "uninstall_script_ref": "e3bc7035",
-      "sha256": "e8fb367c9746626f08afe7a7d0f40fb458097d028281daa1b65d3ba29d2f6af8",
+      "sha256": "487cda7295c171021eedda939e0873ef63944516731e3fb58a86c83ea7eef4c2",
       "default_categories": [
         "Communication"
       ]
