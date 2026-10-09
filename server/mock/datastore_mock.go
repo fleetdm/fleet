@@ -382,6 +382,8 @@ type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, hostUUID 
 
 type SoftDeleteMDMHostCertificatesForUnenrolledHostsFunc func(ctx context.Context) (int64, error)
 
+type CleanupSoftDeletedHostCertificatesFunc func(ctx context.Context, olderThan time.Time) (int64, error)
+
 type ProfileHasACMEPayloadForCommandFunc func(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error)
 
 type OktaCACleanupTargetForInstallCommandFunc func(ctx context.Context, hostUUID string, commandUUID string) (fleet.OktaCACleanupTarget, bool, error)
@@ -3105,6 +3107,9 @@ type DataStore struct {
 
 	SoftDeleteMDMHostCertificatesForUnenrolledHostsFunc        SoftDeleteMDMHostCertificatesForUnenrolledHostsFunc
 	SoftDeleteMDMHostCertificatesForUnenrolledHostsFuncInvoked bool
+
+	CleanupSoftDeletedHostCertificatesFunc        CleanupSoftDeletedHostCertificatesFunc
+	CleanupSoftDeletedHostCertificatesFuncInvoked bool
 
 	ProfileHasACMEPayloadForCommandFunc        ProfileHasACMEPayloadForCommandFunc
 	ProfileHasACMEPayloadForCommandFuncInvoked bool
@@ -7639,6 +7644,13 @@ func (s *DataStore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.
 	s.SoftDeleteMDMHostCertificatesForUnenrolledHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.SoftDeleteMDMHostCertificatesForUnenrolledHostsFunc(ctx)
+}
+
+func (s *DataStore) CleanupSoftDeletedHostCertificates(ctx context.Context, olderThan time.Time) (int64, error) {
+	s.mu.Lock()
+	s.CleanupSoftDeletedHostCertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupSoftDeletedHostCertificatesFunc(ctx, olderThan)
 }
 
 func (s *DataStore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error) {

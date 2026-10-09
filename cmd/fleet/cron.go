@@ -1658,6 +1658,18 @@ func newCleanupsAndAggregationSchedule(
 			}
 			return nil
 		}),
+		// After the unenrolled sweep above. Nothing reads soft-deleted certs, so the retention only keeps them around for debugging.
+		schedule.WithJob("cleanup_host_certificates", func(ctx context.Context) error {
+			const retention = 30 * 24 * time.Hour
+			count, err := ds.CleanupSoftDeletedHostCertificates(ctx, time.Now().Add(-retention).UTC())
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				logger.InfoContext(ctx, "cleaned up soft-deleted host certificates", "count", count)
+			}
+			return nil
+		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
 		}),

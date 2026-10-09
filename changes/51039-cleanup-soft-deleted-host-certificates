@@ -1,0 +1,1 @@
+- Added a cleanup job that permanently deletes host certificates that were removed from hosts more than 30 days ago, so the `host_certificates` and `host_certificate_sources` tables no longer grow indefinitely.

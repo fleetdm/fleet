@@ -46,6 +46,7 @@ func TestHostCertificates(t *testing.T) {
 		{"Truncate long certificate fields", testTruncateLongCertificateFields},
 		{"Count matches main query", testListHostCertificatesCountMatches},
 		{"Sweep mdm certs for unenrolled hosts", testSoftDeleteMDMHostCertificatesForUnenrolledHosts},
+		{"Cleanup soft-deleted certs", testCleanupSoftDeletedHostCertificates},
 		{"Windows proxied SCEP profile verification", testWindowsSCEPProfileVerification},
 	}
 	for _, c := range cases {
@@ -1652,6 +1653,119 @@ func testUpdateHostCertificatesPreciseSourceWrites(t *testing.T, ds *Datastore) 
 	require.Equal(t, systemRowID, after[0].ID, "unchanged system source row must keep its primary key")
 	require.Equal(t, "system", after[0].Source)
 	require.Equal(t, "bob", after[1].Username, "alice's source row should be replaced by bob's")
+}
+
+func testCleanupSoftDeletedHostCertificates(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	now := time.Now().UTC()
+	cutoff := now.Add(-30 * 24 * time.Hour)
+	expired := now.Add(-60 * 24 * time.Hour)
+	recent := now.Add(-24 * time.Hour)
+
+	newHost := func(name string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: now,
+			LabelUpdatedAt:  now,
+			PolicyUpdatedAt: now,
+			SeenTime:        now,
+			OsqueryHostID:   new("cleanup-osq-" + name),
+			NodeKey:         new("cleanup-nk-" + name),
+			UUID:            "cleanup-uuid-" + name,
+			Hostname:        "cleanup-" + name,
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		return h
+	}
+	ingest := func(host *fleet.Host, origin fleet.HostCertificateOrigin, commonNames ...string) {
+		var certs []*fleet.HostCertificateRecord
+		for _, cn := range commonNames {
+			certs = append(certs, mkTestCertRecord(t, host.ID, cn, fleet.SystemHostCertificate, ""))
+		}
+		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, origin, nil))
+	}
+	setDeletedAt := func(host *fleet.Host, deletedAt time.Time, commonNames ...string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt, args, err := sqlx.In(`UPDATE host_certificates SET deleted_at = ? WHERE host_id = ? AND common_name IN (?)`,
+				deletedAt, host.ID, commonNames)
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+	commonNamesForHost := func(host *fleet.Host) []string {
+		var names []string
+		require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &names,
+			`SELECT common_name FROM host_certificates WHERE host_id = ? ORDER BY common_name`, host.ID))
+		return names
+	}
+	sourceCountForHost := func(host *fleet.Host) int {
+		var count int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count, `
+			SELECT COUNT(*) FROM host_certificate_sources hcs
+			JOIN host_certificates hc ON hc.id = hcs.host_certificate_id
+			WHERE hc.host_id = ?`, host.ID))
+		return count
+	}
+	orphanedSourceCount := func() int {
+		var count int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count, `
+			SELECT COUNT(*) FROM host_certificate_sources hcs
+			LEFT JOIN host_certificates hc ON hc.id = hcs.host_certificate_id
+			WHERE hc.id IS NULL`))
+		return count
+	}
+
+	t.Run("deletes only certs soft-deleted before the cutoff", func(t *testing.T) {
+		osqueryHost := newHost("osquery")
+		ingest(osqueryHost, fleet.HostCertificateOriginOsquery, "live", "expired", "recent")
+		setDeletedAt(osqueryHost, expired, "expired")
+		setDeletedAt(osqueryHost, recent, "recent")
+
+		mdmHost := newHost("mdm")
+		ingest(mdmHost, fleet.HostCertificateOriginMDM, "mdm-live", "mdm-expired")
+		setDeletedAt(mdmHost, expired, "mdm-expired")
+
+		require.Equal(t, 3, sourceCountForHost(osqueryHost))
+		require.Equal(t, 2, sourceCountForHost(mdmHost))
+
+		count, err := ds.CleanupSoftDeletedHostCertificates(ctx, cutoff)
+		require.NoError(t, err)
+		require.EqualValues(t, 2, count)
+
+		require.Equal(t, []string{"live", "recent"}, commonNamesForHost(osqueryHost))
+		require.Equal(t, []string{"mdm-live"}, commonNamesForHost(mdmHost))
+		require.Equal(t, 2, sourceCountForHost(osqueryHost))
+		require.Equal(t, 1, sourceCountForHost(mdmHost))
+		require.Zero(t, orphanedSourceCount())
+
+		certs, _, err := ds.ListHostCertificates(ctx, osqueryHost.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, certs, 1)
+		require.Equal(t, "live", certs[0].CommonName)
+
+		count, err = ds.CleanupSoftDeletedHostCertificates(ctx, cutoff)
+		require.NoError(t, err)
+		require.Zero(t, count)
+	})
+
+	t.Run("resumes on the next run after hitting the batch cap", func(t *testing.T) {
+		host := newHost("batched")
+		ingest(host, fleet.HostCertificateOriginOsquery, "batched-a", "batched-b", "batched-c", "batched-live")
+		setDeletedAt(host, expired, "batched-a", "batched-b", "batched-c")
+
+		const batchSize, maxBatches = 2, 1
+		for _, wantDeleted := range []int64{2, 1, 0} {
+			count, err := cleanupSoftDeletedHostCertsDB(ctx, ds, cutoff, batchSize, maxBatches)
+			require.NoError(t, err)
+			require.Equal(t, wantDeleted, count)
+		}
+		require.Equal(t, []string{"batched-live"}, commonNamesForHost(host))
+		require.Equal(t, 1, sourceCountForHost(host))
+		require.Zero(t, orphanedSourceCount())
+	})
 }
 
 // mkTestCertRecord builds a HostCertificateRecord for hostID with a random serial, valid from an hour ago to 24 hours
