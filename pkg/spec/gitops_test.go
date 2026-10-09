@@ -1516,7 +1516,7 @@ secrets:
 		assert.Equal(t, filepath.Join(tmpDir, "assets/light.png"), orgInfo["org_logo_path_light_mode"])
 	})
 
-	t.Run("end_user_license_agreement resolves relative to nested file", func(t *testing.T) {
+	t.Run("EULA paths resolve relative to nested file", func(t *testing.T) {
 		gitops, tmpDir := setup(t, `
 server_settings:
   server_url: https://fleet.example.com
@@ -1525,10 +1525,12 @@ org_info:
   org_name: Test Org
 mdm:
   end_user_license_agreement: ../docs/eula.pdf
+  windows_eula: ../docs/terms.md
 secrets:
 `)
 		mdm := gitops.OrgSettings["mdm"].(map[string]any)
 		assert.Equal(t, filepath.Join(tmpDir, "docs/eula.pdf"), mdm["end_user_license_agreement"])
+		assert.Equal(t, filepath.Join(tmpDir, "docs/terms.md"), mdm["windows_eula"])
 	})
 
 	t.Run("absolute paths in nested file are untouched", func(t *testing.T) {

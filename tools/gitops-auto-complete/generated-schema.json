@@ -4356,6 +4356,7 @@
             "null"
           ]
         },
+        "windows_eula": true,
         "windows_migration_enabled": {
           "description": "type: `boolean`",
           "type": [

@@ -6163,10 +6163,12 @@ func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
 	require.False(t, appConfig.Integrations.ConditionalAccessEnabled.Value)
 }
 
-func TestGitOpsEULASetting(t *testing.T) {
-	createGlobalGitOpsConfig := func(mdm string) string {
-		return fmt.Sprintf(`
+// eulaGitOpsConfig is a global GitOps file whose org_settings.mdm has the given setting. controls is one line under
+// controls, or empty.
+func eulaGitOpsConfig(controls, mdm string) string {
+	return fmt.Sprintf(`
 controls:
+  %s
 queries:
 policies:
 agent_options:
@@ -6180,8 +6182,18 @@ org_settings:
     - secret: "global"
   mdm:
     %s
-`, mdm)
-	}
+`, controls, mdm)
+}
+
+// writeGitOpsFile writes cfg as a GitOps file in dir, where paths relative to it resolve, and returns its path.
+func writeGitOpsFile(t *testing.T, dir, cfg string) string {
+	t.Helper()
+	path := filepath.Join(dir, "global.yml")
+	require.NoError(t, os.WriteFile(path, []byte(cfg), 0o600))
+	return path
+}
+
+func TestGitOpsEULASetting(t *testing.T) {
 
 	// Create a temporary PDF file
 	pdfContent := []byte("%PDF-1\npdf-test")
@@ -6210,7 +6222,7 @@ org_settings:
 	}{
 		{
 			name: "valid pdf file (no existing EULA uploaded)",
-			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
+			cfg:  eulaGitOpsConfig("", fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
@@ -6229,7 +6241,7 @@ org_settings:
 		},
 		{
 			name: "relative path to working dir to pdf file (no existing EULA uploaded)",
-			cfg:  createGlobalGitOpsConfig(`end_user_license_agreement: "./testdata/gitops/tiny_eula.pdf"`),
+			cfg:  eulaGitOpsConfig("", `end_user_license_agreement: "./testdata/gitops/tiny_eula.pdf"`),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
@@ -6250,7 +6262,7 @@ org_settings:
 		},
 		{
 			name: "relative path to yaml file to pdf file (no existing EULA uploaded)",
-			cfg:  createGlobalGitOpsConfig(`end_user_license_agreement: "./lib/eula.pdf"`),
+			cfg:  eulaGitOpsConfig("", `end_user_license_agreement: "./lib/eula.pdf"`),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				err := os.Mkdir(filepath.Join(dir, "lib"), 0o755)
 				require.NoError(t, err)
@@ -6278,7 +6290,7 @@ org_settings:
 		},
 		{
 			name: "valid new pdf file (different EULA already uploaded)",
-			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
+			cfg:  eulaGitOpsConfig("", fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{
@@ -6302,7 +6314,7 @@ org_settings:
 		},
 		{
 			name: "no EULA specified (no existing EULA uploaded)",
-			cfg:  createGlobalGitOpsConfig(""),
+			cfg:  eulaGitOpsConfig("", ""),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
@@ -6323,7 +6335,7 @@ org_settings:
 		},
 		{
 			name: "deleting existing EULA",
-			cfg:  createGlobalGitOpsConfig(""),
+			cfg:  eulaGitOpsConfig("", ""),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{
@@ -6345,7 +6357,7 @@ org_settings:
 		},
 		{
 			name: "not a PDF file",
-			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
+			cfg:  eulaGitOpsConfig("", fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
@@ -6359,8 +6371,27 @@ org_settings:
 			},
 		},
 		{
+			// The server validates the new file before the old one is deleted, so
+			// a rejected file leaves the existing EULA in place.
+			name: "not a PDF file replacing an existing EULA keeps it",
+			cfg:  eulaGitOpsConfig("", fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
+					return &fleet.MDMEULA{Name: "eula.pdf", Token: "test-token", Sha256: []byte("other")}, nil
+				}
+			},
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				require.ErrorContains(t, err, "invalid file type")
+				assert.False(t, ds.MDMDeleteEULAFuncInvoked)
+			},
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				require.ErrorContains(t, err, "invalid file type")
+				assert.False(t, ds.MDMDeleteEULAFuncInvoked)
+			},
+		},
+		{
 			name: "uploading the same EULA again",
-			cfg:  createGlobalGitOpsConfig(""),
+			cfg:  eulaGitOpsConfig("", ""),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					hash := sha256.Sum256(pdfContent) // Simulate same EULA
@@ -6396,26 +6427,284 @@ org_settings:
 				return nil
 			}
 
-			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = tmpFile.WriteString(tt.cfg)
-			require.NoError(t, err)
+			dir := t.TempDir()
+			cfgPath := writeGitOpsFile(t, dir, tt.cfg)
 
 			// these mocks are defined in the individual test cases
-			tt.mockSetup(t, ds, filepath.Dir(tmpFile.Name()))
+			tt.mockSetup(t, ds, dir)
 
 			// Dry run
-			out, err := runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+			out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath, "--dry-run"})
 			tt.dryRunAssertion(t, ds, out.String(), err)
 			if t.Failed() {
 				t.FailNow()
 			}
 
 			// Real run
-			out, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+			out, err = runAppNoChecks([]string{"gitops", "-f", cfgPath})
 			tt.realRunAssertion(t, ds, out.String(), err)
 		})
 	}
+}
+
+func TestGitOpsWindowsEULASetting(t *testing.T) {
+	writeFile := func(t *testing.T, dir, name string, content []byte) string {
+		t.Helper()
+		p := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(p, content, 0o600))
+		return p
+	}
+
+	mdContent := []byte("# Terms\n\nAccept these to continue.\n")
+	mdHash := sha256.Sum256(mdContent)
+
+	cases := []struct {
+		name            string
+		windowsOnServer bool
+		windowsInFile   bool
+		// mdmSetting is the windows_eula line; "%s" is replaced by the markdown path
+		mdmSetting     string
+		useNonMarkdown bool
+		missingFile    bool
+		directory      bool
+		content        string
+		existing       *fleet.MDMEULA
+		wantDryOut     string
+		wantRealOut    string
+		wantErr        string
+		wantInsert     bool
+		wantDelete     bool
+	}{
+		{
+			name:            "new file with windows mdm on",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting:  `windows_eula: "%s"`,
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+			wantInsert:  true,
+		},
+		{
+			name:            "relative path",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting:  `windows_eula: "./terms.md"`,
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+			wantInsert:  true,
+		},
+		{
+			name:            "same file already uploaded is a no-op",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting:  `windows_eula: "%s"`,
+			existing:    &fleet.MDMEULA{Name: "terms.md", Token: "existing", Sha256: mdHash[:], Platform: fleet.MDMEULAPlatformWindows},
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+		},
+		{
+			name:            "same content under a new name is replaced",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting:  `windows_eula: "%s"`,
+			existing:    &fleet.MDMEULA{Name: "old.md", Token: "existing", Sha256: mdHash[:], Platform: fleet.MDMEULAPlatformWindows},
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+			wantInsert:  true,
+			wantDelete:  true,
+		},
+		{
+			name:            "changed content under the same name is replaced",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting:  `windows_eula: "%s"`,
+			existing:    &fleet.MDMEULA{Name: "terms.md", Token: "existing", Sha256: []byte("other"), Platform: fleet.MDMEULAPlatformWindows},
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+			wantInsert:  true,
+			wantDelete:  true,
+		},
+		{
+			// Read as "no agreement", this would delete the one on the server.
+			name:            "a value that isn't a path fails without deleting",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting: `windows_eula: 123`,
+			existing:   &fleet.MDMEULA{Name: "terms.md", Token: "existing", Sha256: mdHash[:], Platform: fleet.MDMEULAPlatformWindows},
+			wantErr:    "windows_eula: must be the path to a markdown file",
+		},
+		{
+			name:            "absent key deletes the existing agreement",
+			windowsOnServer: true, windowsInFile: true,
+			existing:    &fleet.MDMEULA{Name: "old.md", Token: "existing", Sha256: []byte("other"), Platform: fleet.MDMEULAPlatformWindows},
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+			wantDelete:  true,
+		},
+		{
+			name:            "not a markdown file fails",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting:     `windows_eula: "%s"`,
+			useNonMarkdown: true,
+			wantErr:        "must be a markdown (.md) file",
+		},
+		{
+			// The run that turns Windows MDM on applies the agreement after the
+			// controls, and a dry run reports it without touching the endpoints.
+			name:            "file turns windows mdm on",
+			windowsOnServer: false, windowsInFile: true,
+			mdmSetting:  `windows_eula: "%s"`,
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+			wantInsert:  true,
+		},
+		{
+			// Checked before anything is applied, so the run can't turn Windows
+			// MDM on and then fail on the agreement.
+			name:            "missing file fails before applying the config",
+			windowsOnServer: false, windowsInFile: true,
+			mdmSetting:  `windows_eula: "%s"`,
+			missingFile: true,
+			wantErr:     "no such file or directory",
+		},
+		{
+			name:            "html that would be dropped fails before applying the config",
+			windowsOnServer: false, windowsInFile: true,
+			mdmSetting: `windows_eula: "%s"`,
+			content:    "# Terms\n\n<div>\nClause 4 applies.\n</div>\n",
+			wantErr:    "contains HTML",
+		},
+		{
+			name:            "a directory fails before applying the config",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting: `windows_eula: "%s"`,
+			directory:  true,
+			wantErr:    "is not a regular file",
+		},
+		{
+			name:            "a blank file fails before applying the config",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting: `windows_eula: "%s"`,
+			content:    " \n\t\n",
+			wantErr:    "is empty",
+		},
+		{
+			name:            "file over 512 KB fails before applying the config",
+			windowsOnServer: false, windowsInFile: true,
+			mdmSetting: `windows_eula: "%s"`,
+			content:    strings.Repeat("Clause.\n", 70_000),
+			wantErr:    "is larger than 512 KB",
+		},
+		{
+			name:            "windows mdm off is reported, not applied",
+			windowsOnServer: false, windowsInFile: false,
+			mdmSetting:  `windows_eula: "%s"`,
+			wantDryOut:  "[!] skipping windows_eula: requires Windows MDM to be turned on",
+			wantRealOut: "[!] skipping windows_eula: requires Windows MDM to be turned on",
+		},
+		{
+			name:            "file turns windows mdm off",
+			windowsOnServer: true, windowsInFile: false,
+			mdmSetting:  `windows_eula: "%s"`,
+			wantDryOut:  "[!] skipping windows_eula: requires Windows MDM to be turned on",
+			wantRealOut: "[!] skipping windows_eula: requires Windows MDM to be turned on",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds, savedAppConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+			(*savedAppConfig).MDM.WindowsEnabledAndConfigured = tt.windowsOnServer
+
+			dir := t.TempDir()
+			content := mdContent
+			if tt.content != "" {
+				content = []byte(tt.content)
+			}
+			mdPath := writeFile(t, dir, "terms.md", content)
+			if tt.useNonMarkdown {
+				mdPath = writeFile(t, dir, "terms.txt", mdContent)
+			}
+			if tt.missingFile {
+				mdPath = filepath.Join(dir, "missing.md")
+			}
+			if tt.directory {
+				mdPath = filepath.Join(dir, "folder.md")
+				require.NoError(t, os.Mkdir(mdPath, 0o700))
+			}
+			setting := tt.mdmSetting
+			if strings.Contains(setting, "%s") {
+				setting = fmt.Sprintf(setting, mdPath)
+			}
+			cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig(fmt.Sprintf("windows_enabled_and_configured: %t", tt.windowsInFile), setting))
+
+			// Turning Windows MDM off through the config cleans up profiles, which
+			// the shared gitops mocks do not cover.
+			ds.CleanupAllHostMDMProfilesForPlatformFunc = func(ctx context.Context, platform string) error { return nil }
+
+			var inserted, deleted []string
+			ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
+				if platform == fleet.MDMEULAPlatformWindows && tt.existing != nil {
+					return tt.existing, nil
+				}
+				return nil, &notFoundError{}
+			}
+			ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
+				inserted = append(inserted, string(eula.Platform)+":"+eula.Name)
+				return nil
+			}
+			ds.MDMDeleteEULAFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
+				deleted = append(deleted, string(platform)+":"+token)
+				return nil
+			}
+
+			// dry run never writes
+			out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath, "--dry-run"})
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err, out.String())
+				assert.Contains(t, out.String(), tt.wantDryOut)
+			}
+			assert.Empty(t, inserted, "dry run must not upload")
+			assert.Empty(t, deleted, "dry run must not delete")
+
+			out, err = runAppNoChecks([]string{"gitops", "-f", cfgPath})
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				assert.Empty(t, inserted)
+				assert.Empty(t, deleted)
+				assert.False(t, ds.SaveAppConfigFuncInvoked, "config must not be applied")
+				return
+			}
+			require.NoError(t, err, out.String())
+			assert.Contains(t, out.String(), tt.wantRealOut)
+			if tt.wantInsert {
+				require.Equal(t, []string{string(fleet.MDMEULAPlatformWindows) + ":terms.md"}, inserted)
+			} else {
+				assert.Empty(t, inserted)
+			}
+			if tt.wantDelete {
+				require.Equal(t, []string{string(fleet.MDMEULAPlatformWindows) + ":existing"}, deleted)
+			} else {
+				assert.Empty(t, deleted)
+			}
+		})
+	}
+}
+
+func TestGitOpsWindowsEULAFreeTierWarns(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       &fleet.LicenseInfo{Tier: fleet.TierFree},
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+
+	dir := t.TempDir()
+	mdPath := filepath.Join(dir, "terms.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte("# Terms\n"), 0o600))
+	cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig("windows_enabled_and_configured: false", fmt.Sprintf(`windows_eula: "%s"`, mdPath)))
+
+	out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath})
+	require.NoError(t, err, out.String())
+	assert.False(t, ds.MDMInsertEULAFuncInvoked)
+	assert.Contains(t, out.String(), "[!] skipping windows_eula: requires Fleet Premium")
 }
 
 // setupAndroidCertificatesTestMocks sets up common mocks for Android certificate GitOps tests
