@@ -7,9 +7,9 @@ on:
       - "website/profile-generator/**"
       - "website/api/helpers/get-configuration-profile-generator-configuration.js"
 
-# This allows a subsequently queued workflow run to interrupt previous runs
+# TEMPORARY (model/effort sweep): keyed on the commit so a push doesn't cancel a sweep in flight.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}-${{ github.sha }}
   cancel-in-progress: true
 
 defaults:
@@ -26,12 +26,20 @@ env:
 
 jobs:
   build:
-    name: Test profile generator
+    # TEMPORARY (model/effort sweep): one job per model/effort pair, all in parallel.
+    name: Test profile generator (${{ matrix.config.model }} @ ${{ matrix.config.effort }})
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         node-version: [20.x]
+        config:
+          - { model: claude-haiku-5-5, effort: low }
+          - { model: claude-haiku-5-5, effort: medium }
+          - { model: claude-sonnet-5-5, effort: low }
+          - { model: claude-sonnet-5-5, effort: medium }
+          - { model: claude-opus-5-5, effort: low }
 
     steps:
       - name: Harden Runner
@@ -67,3 +75,5 @@ jobs:
       - run: cd website/ && npm run test-profile-generator
         env:
           sails_custom__anthropicSecret: ${{ secrets.ANTHROPIC_TOKEN_FOR_PROFILE_GENERATOR_TESTS }}
+          BASE_MODEL: ${{ matrix.config.model }}
+          EFFORT: ${{ matrix.config.effort }}
