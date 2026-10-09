@@ -307,7 +307,6 @@ Reference: https://fleetdm.com/pricing
 - [ ] OS settings
 - [ ] Disk encryption
 - [ ] OS updates
-- [ ] Android
 - [ ] Fleet Free
 
 <table>
@@ -388,15 +387,141 @@ Reference: https://fleetdm.com/pricing
 </tr>
 
 <tr>
-<td>Android</td>
-<td>Verify enrollment, profiles, & software installs.</td>
+<td>Fleet Free</td>
+<td>Verify that product group features behave correctly on Fleet Free.</td>
 <td>
 
-1. Verify BYOD enrollment.
-2. Verify Profiles are delivered to host and applied.
-3. Verify apps install.
-4. Verify certificate delivery.
-5. Verify `Unenroll`.
+Run basic checks for the product group area while using a Fleet Free license.
+
+- Features documented as Free work normally:
+   - Host enrollment
+   - Windows MDM
+   - Configuration profile delivery
+- Premium features are correctly restricted or hidden:
+   - Automatic MDM migration
+   - Disk encryption
+   - OS updates
+- No UI, API, or workflow errors occur when using Free-only functionality.
+
+Reference: https://fleetdm.com/pricing
+
+</td>
+</tr>
+
+</table>
+
+### BYOD
+
+**Progress**
+- [ ] BYOD enrollment
+- [ ] Company-owned enrollment
+- [ ] OS settings
+- [ ] Certificates
+- [ ] Setup experience & zero-touch enrollment
+- [ ] Software
+- [ ] Lock, Unenroll, Wipe, & Clear passcode
+- [ ] Custom MDM commands
+- [ ] Fleet Free
+
+<table>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
+
+<tr>
+<td>BYOD enrollment</td>
+<td>Verify work profile enrollment on a personally-owned Android host.</td>
+<td>
+
+1. From **Add hosts > Android**, select "Personal (BYOD)" and enroll a host using the enrollment link or QR code.
+2. With end user authentication turned on for the fleet, verify IdP authentication is required and that the "Enroll" button only appears after successful authentication.
+3. Verify the host appears in Fleet in the expected fleet, with the display name, hardware model, serial, and OS version populated.
+
+</td>
+</tr>
+
+<tr>
+<td>Company-owned enrollment</td>
+<td>Verify fully-managed (company-owned) Android enrollment.</td>
+<td>
+
+1. Factory reset an Android host.
+2. From **Add hosts > Android**, select "Company-owned (fully-managed)" and enroll the host by scanning the QR code during device setup.
+3. Verify the host appears in Fleet in the expected fleet with host vitals populated.
+4. Verify Wipe is available for the host.
+
+</td>
+</tr>
+
+<tr>
+<td>OS settings</td>
+<td>Verify Android configuration profile functionality.</td>
+<td>
+
+1. Verify Android profiles (.json) upload/download/edit/delete.
+2. Verify profiles are delivered to the host and applied, and that OS settings status is accurate on the Host details page.
+
+</td>
+</tr>
+
+<tr>
+<td>Certificates</td>
+<td>Verify Android certificate delivery.</td>
+<td>
+
+1. Configure a custom SCEP CA and add an Android certificate that uses it.
+2. Verify the certificate reports success under **Controls > OS settings**.
+3. Verify the certificate is present in the Fleet app on the device.
+4. Verify the certificate grants access to the resource it was issued for.
+5. Verify able to re-send a certificate to a host.
+
+</td>
+</tr>
+
+<tr>
+<td>Setup experience & zero-touch enrollment</td>
+<td>Verify setup experience software is delivered on BYOD and zero-touch enrollment.</td>
+<td>
+
+1. Configure End user authentication and add Play Store apps set to install during setup experience.
+2. Enroll a BYOD host and verify IdP authentication succeeds and that setup experience software installs automatically, with no end user action.
+3. Enroll a zero-touch host by factory resetting it and connecting it to a network. Verify it enrolls to the **Unassigned** fleet as company-owned with IdP authentication skipped, and that setup experience software still installs.
+4. Verify the installed software appears in each host's software inventory and the installs display in the Activity feed.
+
+</td>
+</tr>
+
+<tr>
+<td>Software</td>
+<td>Verify Android software library and installs.</td>
+<td>
+
+1. Verify Play Store apps can be added and deleted.
+2. Verify a newly added app appears in managed Google Play on the device and can be installed by the end user.
+3. Verify the installed app appears in the host's software inventory.
+
+</td>
+</tr>
+
+<tr>
+<td>Lock, Unenroll, Wipe, & Clear passcode</td>
+<td>Verify host actions on Android hosts.</td>
+<td>
+
+1. Verify Lock and Clear passcode on a BYOD host.
+2. Verify Lock and Clear passcode on a company-owned host.
+3. Verify Wipe on a company-owned host, and that Wipe is not offered for BYOD hosts.
+4. Verify `Unenroll` on a BYOD host removes the work profile only and leaves personal data intact.
+5. Verify the actions display correctly in the Activity feed.
+
+</td>
+</tr>
+
+<tr>
+<td>Custom MDM commands</td>
+<td>Verify custom Android MDM commands.</td>
+<td>
+
+1. Verify able to run a custom Android MDM command from the CLI.
+2. Verify able to list commands and view command results.
 
 </td>
 </tr>
@@ -409,14 +534,16 @@ Reference: https://fleetdm.com/pricing
 Run basic checks for the product group area while using a Fleet Free license.
 
 - Features documented as Free work normally:
-   - Host enrollment
-   - Windows MDM
    - Android MDM
+   - BYOD and company-owned enrollment
    - Configuration profile delivery
+   - Wipe for company-owned hosts
 - Premium features are correctly restricted or hidden:
-   - Automatic MDM migration
-   - Disk encryption
-   - OS updates
+   - Zero-touch enrollment
+   - Certificates
+   - Setup experience
+   - Add software
+   - Lock
 - No UI, API, or workflow errors occur when using Free-only functionality.
 
 Reference: https://fleetdm.com/pricing
