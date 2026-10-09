@@ -42,28 +42,7 @@ software:
 
 The LaunchAgent opens Nudge on a schedule, so end users see the reminder even if they never open Nudge themselves.
 
-1. Save this post-install script as `nudge-postinstall.sh`. It loads the LaunchAgent right after install, without waiting for the next login.
-
-```bash
-#!/bin/bash
-
-PLIST_PATH="/Library/LaunchAgents/com.github.macadmins.Nudge.plist"
-LABEL="com.github.macadmins.Nudge"
-
-if [[ ! -f "$PLIST_PATH" ]]; then
-    echo "Error: LaunchAgent plist not found at $PLIST_PATH"
-    exit 1
-fi
-
-/usr/sbin/chown root:wheel "$PLIST_PATH"
-/bin/chmod 644 "$PLIST_PATH"
-
-if /bin/launchctl list | /usr/bin/grep -q "$LABEL"; then
-    /bin/launchctl unload "$PLIST_PATH" 2>/dev/null
-fi
-
-/bin/launchctl load "$PLIST_PATH" || exit 1
-```
+1. Download the [post-install script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/nudge-postinstall.sh) (`nudge-postinstall.sh`). It loads the LaunchAgent right after install, without waiting for the next login.
 
 2. Go to **Software > Add software > Custom package** and upload the Nudge LaunchAgent package.
 3. Under **Advanced options**, paste the script into **Post-install script**.
@@ -86,83 +65,9 @@ software:
 
 ## Step 3: Configure Nudge with a profile
 
-Nudge reads its settings from a configuration profile. The example below requires Macs to install the latest minor update for their major version. Nudge gets the latest versions from the [SOFA feed](https://sofa.macadmins.io/) and sets the deadline based on each update's release date, so you don't have to update the profile for every macOS release. The profile also lets Nudge run as a background task without end users turning it off.
+Nudge reads its settings from a configuration profile. The example profile requires Macs to install the latest minor update for their major version. Nudge gets the latest versions from the [SOFA feed](https://sofa.macadmins.io/) and sets the deadline based on each update's release date, so you don't have to update the profile for every macOS release. The profile also lets Nudge run as a background task without end users turning it off.
 
-1. Save the profile as `nudge.mobileconfig`. Replace each `REPLACE-WITH-UUID` with a unique value from `uuidgen`.
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array>
-		<dict>
-			<key>PayloadDisplayName</key>
-			<string>Nudge Preferences</string>
-			<key>PayloadIdentifier</key>
-			<string>com.example.nudge.preferences</string>
-			<key>PayloadType</key>
-			<string>com.github.macadmins.Nudge</string>
-			<key>PayloadUUID</key>
-			<string>REPLACE-WITH-UUID</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
-			<key>optionalFeatures</key>
-			<dict>
-				<key>utilizeSOFAFeed</key>
-				<true/>
-			</dict>
-			<key>osVersionRequirements</key>
-			<array>
-				<dict>
-					<key>requiredMinimumOSVersion</key>
-					<string>latest-minor</string>
-				</dict>
-			</array>
-			<key>userInterface</key>
-			<dict>
-				<key>simpleMode</key>
-				<true/>
-			</dict>
-		</dict>
-		<dict>
-			<key>PayloadDisplayName</key>
-			<string>Allow Nudge background tasks</string>
-			<key>PayloadIdentifier</key>
-			<string>com.example.nudge.servicemanagement</string>
-			<key>PayloadType</key>
-			<string>com.apple.servicemanagement</string>
-			<key>PayloadUUID</key>
-			<string>REPLACE-WITH-UUID</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
-			<key>Rules</key>
-			<array>
-				<dict>
-					<key>RuleType</key>
-					<string>BundleIdentifier</string>
-					<key>RuleValue</key>
-					<string>com.github.macadmins.Nudge</string>
-				</dict>
-			</array>
-		</dict>
-	</array>
-	<key>PayloadDisplayName</key>
-	<string>Nudge settings</string>
-	<key>PayloadIdentifier</key>
-	<string>com.example.nudge</string>
-	<key>PayloadScope</key>
-	<string>System</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>REPLACE-WITH-UUID</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-</dict>
-</plist>
-```
+1. Download the [Nudge profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/nudge.mobileconfig) (`nudge.mobileconfig`). Replace each `REPLACE-WITH-UUID` with a unique value from `uuidgen`.
 
 2. Go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
 3. Upload `nudge.mobileconfig`.
