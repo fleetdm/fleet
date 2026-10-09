@@ -53,6 +53,12 @@ func TestRenderTerms(t *testing.T) {
 			excludes: []string{"style", "<col"},
 		},
 		{
+			name:     "alignment pandoc writes as a style",
+			src:      "<table><tr><th style=\"text-align: center;\">A</th><td style=\"color: red; TEXT-ALIGN:right\">B</td><td style=\"text-align: justify;\">C</td></tr></table>\n",
+			contains: []string{`<th align="center">A</th>`, `<td align="right">B</td>`, "<td>C</td>"},
+			excludes: []string{"style", "color"},
+		},
+		{
 			name:     "html table cells keep only safe spans",
 			src:      "<table><tr><td onclick=\"x()\" class=\"c\" colspan=\"1000\" rowspan=\"0\">a</td></tr></table>\n",
 			contains: []string{"<td>a</td>"},
@@ -303,6 +309,8 @@ func TestValidateTerms(t *testing.T) {
 		{"html and markdown tables at the budget", htmlTable(4_354) + "\n" + termsTable(100, 50), nil},
 		{"html and markdown tables share the budget", htmlTable(4_355) + "\n" + termsTable(100, 50), ErrTableTooLarge},
 		{"empty rows count toward the budget", "<table>\n" + strings.Repeat(strings.Repeat("<tr></tr>", 800)+"\n", 13) + "</table>\n<u>x</u>\n", ErrTableTooLarge},
+		{"text right after an html table", "<table><tr><td>a</td></tr></table>\nSome **bold** text.\n", ErrTextAfterHTML},
+		{"text after an html table and a blank line", "<table><tr><td>a</td></tr></table>\n\nSome **bold** text.\n", nil},
 		{"html outside tables and text styles", "<p>Clause 4</p>\n", ErrContainsHTML},
 		{"an html list", "<ul><li>Clause 4</li></ul>\n", ErrContainsHTML},
 		{"html nested too deeply", strings.Repeat("<table><tr><td>", 11) + "Clause" + strings.Repeat("</td></tr></table>", 11) + "\n", ErrNestedTooDeep},

@@ -121,6 +121,12 @@ var (
 		"contains HTML other than tables and text styles, which isn't shown; convert it to markdown",
 		"The file contains HTML other than tables and text styles. Convert it to markdown and upload again.",
 	}
+	// ErrTextAfterHTML means text follows HTML without a blank line between
+	// them, which makes it part of the HTML block, so its markdown isn't read.
+	ErrTextAfterHTML = &TermsError{
+		"has text right after HTML, which isn't read as markdown; add a blank line after the HTML",
+		"The file has text right after HTML. Add a blank line after the HTML and upload again.",
+	}
 	// ErrNoVisibleText means the rendered page would have nothing to read.
 	ErrNoVisibleText = &TermsError{"has no text to show", "The file has no text to show."}
 )
@@ -591,7 +597,10 @@ func allowedChild(parent, child string) bool {
 	}
 }
 
-var spanValue = regexp.MustCompile(`^([1-9][0-9]?|100)$`)
+var (
+	spanValue = regexp.MustCompile(`^([1-9][0-9]?|100)$`)
+	textAlign = regexp.MustCompile(`(?i)(?:^|;)\s*text-align\s*:\s*(left|center|right)\s*(?:;|$)`)
+)
 
 // rewriteHTMLBlock rebuilds an HTML block from its tokens, or reports why it
 // can't be shown. Every element must be allowed where it is and closed in
@@ -617,9 +626,15 @@ func rewriteHTMLBlock(block string) (out string, cells int, err error) {
 			return b.String(), cells, nil
 		case xhtml.TextToken:
 			text := strings.ReplaceAll(string(z.Text()), "\x00", "\ufffd")
-			// Text goes where text-level tags do; loose in a table, the browser moves it.
-			if strings.TrimSpace(text) != "" && !allowedChild(parent, "b") {
-				return "", cells, ErrContainsHTML
+			if strings.TrimSpace(text) != "" {
+				switch {
+				case parent == "":
+					// Every block opens with a tag, so this is a line after it.
+					return "", cells, ErrTextAfterHTML
+				case !allowedChild(parent, "b"):
+					// Text goes where text-level tags do; loose in a table, the browser moves it.
+					return "", cells, ErrContainsHTML
+				}
 			}
 			b.WriteString(xhtml.EscapeString(text))
 		case xhtml.StartTagToken, xhtml.SelfClosingTagToken:
@@ -642,8 +657,13 @@ func rewriteHTMLBlock(block string) (out string, cells int, err error) {
 			case "th", "td":
 				colspan, rowspan := 1, 1
 				b.WriteString("<" + tag)
-				if a := attrs["align"]; a == "left" || a == "center" || a == "right" {
-					b.WriteString(` align="` + a + `"`)
+				align := attrs["align"]
+				// pandoc writes a column's alignment as a style.
+				if m := textAlign.FindStringSubmatch(attrs["style"]); m != nil {
+					align = strings.ToLower(m[1])
+				}
+				if align == "left" || align == "center" || align == "right" {
+					b.WriteString(` align="` + align + `"`)
 				}
 				if v := attrs["colspan"]; spanValue.MatchString(v) {
 					colspan, _ = strconv.Atoi(v)
