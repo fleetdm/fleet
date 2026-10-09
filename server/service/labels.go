@@ -106,6 +106,9 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	}); err != nil {
 		return nil, nil, err
 	}
+	if err := fleet.ValidateLabelFieldLengths(label.Name, label.Description); err != nil {
+		return nil, nil, err
+	}
 
 	if reserved, ok := fleet.IsReservedLabelName(label.Name); ok {
 		return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", reserved))
@@ -273,6 +276,9 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	}
 	if payload.Description != nil {
 		label.Description = *payload.Description
+	}
+	if err := fleet.ValidateLabelFieldLengths(label.Name, label.Description); err != nil {
+		return nil, nil, err
 	}
 
 	hostIDs := payload.HostIDs
@@ -693,6 +699,9 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	for _, spec := range specs {
 		// Validate mutually exclusive field combinations per label membership type
 		if err := fleet.ValidateLabelMembershipFields(spec); err != nil {
+			return err.WithStatus(http.StatusUnprocessableEntity)
+		}
+		if err := fleet.ValidateLabelFieldLengths(spec.Name, spec.Description); err != nil {
 			return err.WithStatus(http.StatusUnprocessableEntity)
 		}
 		// Validate host vitals criteria structurally (unknown vital, missing

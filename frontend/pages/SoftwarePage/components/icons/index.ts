@@ -23,6 +23,7 @@ import Excel from "./Excel";
 import Extension from "./Extension";
 import Falcon from "./Falcon";
 import Figma from "./Figma";
+import GoBinary from "./GoBinary";
 import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
@@ -37,7 +38,6 @@ import SevenZip from "./png/7Zip.png";
 import EightXEightWork from "./png/8X8Work.png";
 import ABetterFinderRename from "./png/ABetterFinderRename.png";
 import AbletonLive12Suite from "./png/AbletonLive12Suite.png";
-import Abstract from "./png/Abstract.png";
 import Acorn from "./png/Acorn.png";
 import Activedock from "./png/Activedock.png";
 import Activitywatch from "./png/Activitywatch.png";
@@ -408,6 +408,7 @@ import Flexoptix from "./png/Flexoptix.png";
 import Flexwhere from "./png/Flexwhere.png";
 import Fluid from "./png/Fluid.png";
 import FluxApp from "./png/FluxApp.png";
+import Flycut from "./png/Flycut.png";
 import FocusriteControl2 from "./png/FocusriteControl2.png";
 import Folx from "./png/Folx.png";
 import Fontbase from "./png/Fontbase.png";
@@ -503,7 +504,6 @@ import Houdahspot from "./png/Houdahspot.png";
 import HpEasyAdmin from "./png/HpEasyAdmin.png";
 import HpPrimeVirtualCalculator from "./png/HpPrimeVirtualCalculator.png";
 import Hubstaff from "./png/Hubstaff.png";
-import Huly from "./png/Huly.png";
 import Hwmonitor from "./png/Hwmonitor.png";
 import Hyper from "./png/Hyper.png";
 import Hyperkey from "./png/Hyperkey.png";
@@ -569,6 +569,7 @@ import KeyboardMaestro from "./png/KeyboardMaestro.png";
 import Keycastr from "./png/Keycastr.png";
 import Keyclu from "./png/Keyclu.png";
 import KeystoreExplorer from "./png/KeystoreExplorer.png";
+import KiCad from "./png/KiCad.png";
 import Kiro from "./png/Kiro.png";
 import KiroCli from "./png/KiroCli.png";
 import Kitty from "./png/Kitty.png";
@@ -584,6 +585,7 @@ import LastWindowQuits from "./png/LastWindowQuits.png";
 import Latest from "./png/Latest.png";
 import Launchbar from "./png/Launchbar.png";
 import LenovoDockManager from "./png/LenovoDockManager.png";
+import LenovoSuhelper from "./png/LenovoSuhelper.png";
 import LenovoSystemUpdate from "./png/LenovoSystemUpdate.png";
 import Lens from "./png/Lens.png";
 import LibreOffice from "./png/LibreOffice.png";
@@ -603,7 +605,6 @@ import Lookaway from "./png/Lookaway.png";
 import Loom from "./png/Loom.png";
 import Loop from "./png/Loop.png";
 import Loopback from "./png/Loopback.png";
-import LoRain from "./png/LoRain.png";
 import Losslesscut from "./png/Losslesscut.png";
 import LowProfile from "./png/LowProfile.png";
 import LuLu from "./png/LuLu.png";
@@ -717,7 +718,6 @@ import Nordlayer from "./png/Nordlayer.png";
 import Nordpass from "./png/Nordpass.png";
 import NordVpn from "./png/NordVpn.png";
 import NosqlWorkbench from "./png/NosqlWorkbench.png";
-import Notchnook from "./png/Notchnook.png";
 import Notepadexe from "./png/Notepadexe.png";
 import Notepad from "./png/NotepadPlusPlus.png";
 import Notesnook from "./png/Notesnook.png";
@@ -732,6 +732,7 @@ import Nudge from "./png/Nudge.png";
 import Numi from "./png/Numi.png";
 import Nvda from "./png/Nvda.png";
 import NvidiaGeforceNow from "./png/NvidiaGeforceNow.png";
+import NvidiaSync from "./png/NvidiaSync.png";
 import Obs from "./png/Obs.png";
 import Obsidian from "./png/Obsidian.png";
 import Ocenaudio from "./png/Ocenaudio.png";
@@ -765,6 +766,8 @@ import Opera from "./png/Opera.png";
 import OptimusPlayer from "./png/OptimusPlayer.png";
 import OrbStack from "./png/OrbStack.png";
 import OrigamiStudio from "./png/OrigamiStudio.png";
+import Orion from "./png/Orion.png";
+import Outset from "./png/Outset.png";
 import P4V from "./png/P4V.png";
 import Pacifist from "./png/Pacifist.png";
 import PaintDotNet from "./png/PaintDotNet.png";
@@ -886,6 +889,7 @@ import Rocket from "./png/Rocket.png";
 import RocketChat from "./png/RocketChat.png";
 import RocketmanChoicesPackager from "./png/RocketmanChoicesPackager.png";
 import RocketTypist from "./png/RocketTypist.png";
+import Rowel from "./png/Rowel.png";
 import RoyalTsx from "./png/RoyalTsx.png";
 import Rstudio from "./png/Rstudio.png";
 import Rsyncui from "./png/Rsyncui.png";
@@ -1080,6 +1084,7 @@ import Viz from "./png/Viz.png";
 import Vlc from "./png/Vlc.png";
 import VncViewer from "./png/VncViewer.png";
 import Voiceink from "./png/Voiceink.png";
+import Vorssaint from "./png/Vorssaint.png";
 import VpnTracker365 from "./png/VpnTracker365.png";
 import VsCodium from "./png/VsCodium.png";
 import Vuescan from "./png/Vuescan.png";
@@ -1100,6 +1105,7 @@ import Whatroute from "./png/Whatroute.png";
 import Whisky from "./png/Whisky.png";
 import Whispering from "./png/Whispering.png";
 import Wifiman from "./png/Wifiman.png";
+import WillowVoice from "./png/WillowVoice.png";
 import Windirstat from "./png/Windirstat.png";
 import Windowkeys from "./png/Windowkeys.png";
 import WindowsApp from "./png/WindowsApp.png";
@@ -1176,7 +1182,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "8x8 work": EightXEightWork,
   "a better finder rename": ABetterFinderRename,
   "ableton live suite": AbletonLive12Suite,
-  abstract: Abstract,
   acorn: Acorn,
   activedock: Activedock,
   activitywatch: Activitywatch,
@@ -1574,6 +1579,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "flexoptix app": Flexoptix,
   flexwhere: Flexwhere,
   fluid: Fluid,
+  flycut: Flycut,
   "focusrite control 2": FocusriteControl2,
   folx: Folx,
   fontbase: Fontbase,
@@ -1668,7 +1674,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "hp easy admin": HpEasyAdmin,
   "hp prime virtual calculator": HpPrimeVirtualCalculator,
   hubstaff: Hubstaff,
-  huly: Huly,
   hwmonitor: Hwmonitor,
   hyper: Hyper,
   hyperkey: Hyperkey,
@@ -1736,6 +1741,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   keycastr: Keycastr,
   keyclu: Keyclu,
   "keystore explorer": KeystoreExplorer,
+  kicad: KiCad,
   kiro: Kiro,
   "kiro cli": KiroCli,
   kitty: Kitty,
@@ -1751,6 +1757,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   latest: Latest,
   launchbar: Launchbar,
   "lenovo dock manager": LenovoDockManager,
+  "lenovo suhelper": LenovoSuhelper,
   "lenovo system update": LenovoSystemUpdate,
   lens: Lens,
   libreoffice: LibreOffice,
@@ -1759,7 +1766,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   linearmouse: Linearmouse,
   "lingon x": LingonX,
   "little snitch": LittleSnitch,
-  "lo-rain": LoRain,
   local: Local,
   localsend: Localsend,
   locationsimulator: Locationsimulator,
@@ -1896,7 +1902,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nordvpn: NordVpn,
   "nosql workbench": NosqlWorkbench,
   "nota gyazo gif": Gyazo,
-  notchnook: Notchnook,
   "notepad++": Notepad,
   "notepad.exe": Notepadexe,
   notesnook: Notesnook,
@@ -1911,6 +1916,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   numi: Numi,
   nvda: Nvda,
   "nvidia geforce now": NvidiaGeforceNow,
+  "nvidia sync": NvidiaSync,
   obs: Obs,
   obsidian: Obsidian,
   ocenaudio: Ocenaudio,
@@ -1945,6 +1951,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "optimus player": OptimusPlayer,
   orbstack: OrbStack,
   "origami studio": OrigamiStudio,
+  orion: Orion,
+  outset: Outset,
   p4v: P4V,
   pacifist: Pacifist,
   package: Package,
@@ -2027,6 +2035,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "qspace pro": QspacePro,
   quip: Quip,
   qview: Qview,
+  "r for macos": R,
   "r for windows": R,
   "radio silence": RadioSilence,
   "raindrop.io": Raindropio,
@@ -2068,6 +2077,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "rocket typist": RocketTypist,
   "rocket.chat": RocketChat,
   "rocketman choices packager": RocketmanChoicesPackager,
+  rowel: Rowel,
   "royal tsx": RoyalTsx,
   rstudio: Rstudio,
   rsyncui: Rsyncui,
@@ -2271,6 +2281,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "vnc server": RealVncServer,
   "vnc viewer": VncViewer,
   voiceink: Voiceink,
+  vorssaint: Vorssaint,
   "vpn tracker 365": VpnTracker365,
   vscodium: VsCodium,
   vuescan: Vuescan,
@@ -2294,6 +2305,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   whisky: Whisky,
   whispering: Whispering,
   "wifiman desktop": Wifiman,
+  "willow voice": WillowVoice,
   windirstat: Windirstat,
   windowkeys: Windowkeys,
   "windows app": WindowsApp,
@@ -2336,6 +2348,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   zettlr: Zettlr,
   zight: Zight,
+  "zoom for government": Zoom,
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
@@ -2385,6 +2398,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   vscode_extensions: Extension,
   jetbrains_plugins: Extension,
   adobe_plugins: AdobePlugin,
+  go_binaries: GoBinary,
 } as const;
 
 /**
@@ -2416,11 +2430,11 @@ const matchStrictNameSourceToIcon = ({
  * Sources whose own icon wins over any name match, strict or loose, because their names
  * collide with the application they extend. An Adobe plugin named "Adobe Creative Cloud
  * Libraries" is a plugin, not Creative Cloud, and one named "Zoom" is a plugin, not Zoom,
- * so showing the other application's icon would misrepresent the row. Other extension
- * sources keep matching on name first, so e.g. a VSCode extension named "Docker" still
- * gets the Docker icon.
+ * so showing the other application's icon would misrepresent the row; a Go binary named
+ * "zoom" is the same case. Other extension sources keep matching on name first, so e.g.
+ * a VSCode extension named "Docker" still gets the Docker icon.
  */
-const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins"];
+const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins", "go_binaries"];
 
 /**
  * This returns the icon component for a given software name and source. If a strict match is found,

@@ -45,6 +45,10 @@ const getInstallerProps = (title: ISoftwareTitle) => {
     isIosOrIpadosApp: isIpadOrIphoneSoftwareSource(title.source),
     isAndroidPlayStoreApp:
       !!title.app_store_app && title.source === "android_apps",
+    isAppStoreApp: !!title.app_store_app,
+    autoUpdateEnabled: title.auto_update_enabled,
+    autoUpdateWindowStart: title.auto_update_window_start,
+    autoUpdateWindowEnd: title.auto_update_window_end,
   };
 };
 
@@ -135,7 +139,11 @@ const SoftwarePicker = ({
   return (
     <Command.Group className={`${baseClass}__group`}>
       {titles.map((title) => {
-        const label = getDisplayedSoftwareName(title.name, title.display_name);
+        const label = getDisplayedSoftwareName(
+          title.name,
+          title.display_name,
+          title.bundle_identifier
+        );
         const typeLabel = formatSoftwareType(title);
         const installerProps = getInstallerProps(title);
         return (

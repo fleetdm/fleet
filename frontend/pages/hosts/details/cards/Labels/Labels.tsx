@@ -39,11 +39,7 @@ const Labels = ({
     });
 
   return (
-    <Card
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      className={classNames}
-    >
+    <Card paddingSize="xlarge" className={classNames}>
       <CardHeader header="Labels" />
       {labelItems.length === 0 ? (
         <p className="info-flex__item">

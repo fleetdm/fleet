@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -92,7 +93,9 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	}
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 
-	// setup IdP so that AccountConfiguration profile is sent after DEP enrollment
+	// Configure the IdP, but leave end user authentication off for "No team":
+	// these devices enroll with the automatic enrollment token, which Fleet
+	// refuses for hosts in fleets that require end user authentication.
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
@@ -100,25 +103,10 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 					"entity_id": "https://localhost:8080",
 					"idp_name": "SimpleSAML",
 					"metadata_url": "%s"
-				},
-				"macos_setup": {
-					"enable_end_user_authentication": true
 				}
 			}
 		}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
-	t.Cleanup(func() {
-		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"mdm": {
-				"macos_setup": {
-					"enable_end_user_authentication": false
-				}
-			}
-		}`), http.StatusOK, &acResp)
-	})
-
-	// TODO(mna): how/where to pass an enroll_reference so that
-	// runPostDEPEnrollment sends an AccountConfiguration command?
 
 	// add a global profile
 	globalProfile := mobileconfigForTest("N1", "I1")
@@ -1452,7 +1440,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
 
 	// report MDM info via osquery
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, eHost.ID, false, true, s.server.URL, true, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, eHost.ID, false, true, s.server.URL, true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 	checkListHostDEPError(eHost.HardwareSerial, "On (automatic)", false)
 
 	// transfer to "no team", we assign a DEP profile to the device
@@ -2757,6 +2745,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 		t.Run("sso enabled", func(t *testing.T) {
 			setEnableEndUserAuth(true, nil)
+			t.Cleanup(func() { setEnableEndUserAuth(false, nil) })
 
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
@@ -2805,6 +2794,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 		t.Run("sso enabled", func(t *testing.T) {
 			setEnableEndUserAuth(true, &team.ID)
+			t.Cleanup(func() { setEnableEndUserAuth(false, &team.ID) })
 
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
@@ -3717,6 +3707,363 @@ func (s *integrationMDMTestSuite) TestGetDefaultDEPProfile() {
 			require.NoError(t, s.ds.DeleteTeam(context.Background(), defaultDEPTeam.ID))
 		})
 	})
+}
+
+func (s *integrationMDMTestSuite) TestRotateAutomaticEnrollmentToken() {
+	t := s.T()
+	ctx := t.Context()
+	s.enableABM(t.Name())
+	s.setSkipWorkerJobs(t)
+	// machine info blobs in this test are signed with a throwaway cert, not an
+	// Apple device identity
+	apple_mdm.SetMachineInfoVerificationForTest(t, false)
+	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+
+	var definedProfileURLs []string
+	var mu sync.Mutex
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/profile":
+			var prof godep.Profile
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&prof))
+			mu.Lock()
+			definedProfileURLs = append(definedProfileURLs, prof.URL)
+			mu.Unlock()
+			assert.NoError(t, json.NewEncoder(w).Encode(godep.ProfileResponse{ProfileUUID: uuid.NewString()}))
+		case "/profile/devices":
+			var req profileAssignmentReq
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			resp := godep.ProfileResponse{ProfileUUID: req.ProfileUUID, Devices: map[string]string{}}
+			for _, d := range req.Devices {
+				resp.Devices[d] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(resp))
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	const rotatePath = "/api/latest/fleet/enrollment_profiles/automatic/rotate_token"
+	rotate := func(body string, wantStatus int) rotateMDMAppleAutomaticEnrollmentTokenResponse {
+		t.Helper()
+		res := s.DoRaw("POST", rotatePath, []byte(body), wantStatus)
+		defer res.Body.Close()
+		raw, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		var resp rotateMDMAppleAutomaticEnrollmentTokenResponse
+		if wantStatus == http.StatusOK {
+			require.NoError(t, json.Unmarshal(raw, &resp))
+			require.Contains(t, string(raw), `"previous_token_expires_at"`)
+			var row struct {
+				Token         string  `db:"token"`
+				PreviousToken *string `db:"previous_token"`
+			}
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &row, `SELECT token, previous_token FROM mdm_apple_enrollment_profiles WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+			})
+			require.NotContains(t, string(raw), row.Token)
+			if row.PreviousToken != nil {
+				require.NotContains(t, string(raw), *row.PreviousToken)
+			}
+		}
+		return resp
+	}
+
+	// no automatic enrollment profile yet
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM mdm_apple_enrollment_profiles WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		return err
+	})
+	rotate(`{}`, http.StatusNotFound)
+	require.NoError(t, depSvc.RunAssigner(ctx))
+
+	// grace period out of range
+	rotate(`{"grace_period_hours": 721}`, http.StatusUnprocessableEntity)
+	rotate(`{"grace_period_hours": -1}`, http.StatusUnprocessableEntity)
+
+	// only global admins can rotate
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	newUser := func(globalRole string, teamRole string) fleet.User {
+		u := fleet.User{
+			Name:  t.Name() + globalRole + teamRole,
+			Email: fmt.Sprintf("rotate-%s%s-%s@example.com", globalRole, teamRole, uuid.NewString()[:8]),
+		}
+		if globalRole != "" {
+			u.GlobalRole = new(globalRole)
+		} else {
+			u.Teams = []fleet.UserTeam{{Team: *team, Role: teamRole}}
+		}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(ctx, &u)
+		require.NoError(t, err)
+		return u
+	}
+	var forbidden []fleet.User
+	for _, role := range []string{fleet.RoleMaintainer, fleet.RoleObserver, fleet.RoleObserverPlus, fleet.RoleTechnician, fleet.RoleGitOps} {
+		forbidden = append(forbidden, newUser(role, ""))
+	}
+	for _, role := range []string{fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserver} {
+		forbidden = append(forbidden, newUser("", role))
+	}
+	for _, u := range forbidden {
+		t.Run("forbidden for "+u.Name, func(t *testing.T) {
+			s.setTokenForTest(t, u.Email, test.GoodPassword)
+			rotate(`{}`, http.StatusForbidden)
+		})
+	}
+
+	// an ABM-assigned device downloads its profile with the tokens
+	abmTok, err := s.ds.GetABMTokenByOrgName(ctx, t.Name())
+	require.NoError(t, err)
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "rotate-dep-host",
+		HardwareSerial: mdmtest.RandSerialNumber(),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host}, abmTok.ID, nil))
+	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{Serial: host.HardwareSerial, UDID: host.UUID})
+	require.NoError(t, err)
+	requireEnrolls := func(token string, ok bool) {
+		t.Helper()
+		if ok {
+			s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{token: token, diParam: di})
+			return
+		}
+		s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, "token", token, "deviceinfo", di)
+	}
+	updateAllProfilesJobs := func() int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM jobs WHERE name = 'macos_setup_assistant' AND state = 'queued' AND args->>'$.task' = 'update_all_profiles'`)
+		})
+		return n
+	}
+
+	currentToken := func() string {
+		var token string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &token, `SELECT token FROM mdm_apple_enrollment_profiles WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		})
+		return token
+	}
+
+	token0 := currentToken()
+	requireEnrolls(token0, true)
+	jobsBefore := updateAllProfilesJobs()
+
+	// default grace period
+	resp := rotate(`{}`, http.StatusOK)
+	require.NotNil(t, resp.PreviousTokenExpiresAt)
+	require.WithinDuration(t, time.Now().Add(24*time.Hour), *resp.PreviousTokenExpiresAt, time.Minute)
+	require.Equal(t, jobsBefore+1, updateAllProfilesJobs())
+	token1 := currentToken()
+	require.NotEqual(t, token0, token1)
+	requireEnrolls(token1, true)
+	requireEnrolls(token0, true)
+
+	// the previous token stops working once its grace period ends
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_enrollment_profiles SET previous_token_expires_at = NOW(6) - INTERVAL 1 SECOND WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		return err
+	})
+	requireEnrolls(token0, false)
+	requireEnrolls(token1, true)
+
+	// rotating twice during a grace period keeps only the latest previous token
+	resp = rotate(`{"grace_period_hours": 1}`, http.StatusOK)
+	require.WithinDuration(t, time.Now().Add(time.Hour), *resp.PreviousTokenExpiresAt, time.Minute)
+	token2 := currentToken()
+	rotate(`{"grace_period_hours": 720}`, http.StatusOK)
+	token3 := currentToken()
+	requireEnrolls(token3, true)
+	requireEnrolls(token2, true)
+	requireEnrolls(token1, false)
+
+	// no grace period revokes the previous token immediately
+	resp = rotate(`{"grace_period_hours": 0}`, http.StatusOK)
+	require.Nil(t, resp.PreviousTokenExpiresAt)
+	token4 := currentToken()
+	requireEnrolls(token4, true)
+	requireEnrolls(token3, false)
+
+	// the queued job re-defines the profiles with the new token
+	mu.Lock()
+	definedProfileURLs = nil
+	mu.Unlock()
+	s.runWorkerUntilDone()
+	mu.Lock()
+	defer mu.Unlock()
+	require.NotEmpty(t, definedProfileURLs)
+	for _, u := range definedProfileURLs {
+		require.Contains(t, u, "token="+token4)
+	}
+}
+
+func (s *integrationMDMTestSuite) TestAutomaticEnrollmentTokenRefusedWithEndUserAuth() {
+	t := s.T()
+	ctx := t.Context()
+	abmTok := s.enableABM(t.Name())
+	s.setSkipWorkerJobs(t)
+	// machine info blobs in this test are signed with a throwaway cert, not an
+	// Apple device identity
+	apple_mdm.SetMachineInfoVerificationForTest(t, false)
+
+	staticToken := func() string {
+		var token string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &token, `SELECT COALESCE(MAX(token), '') FROM mdm_apple_enrollment_profiles WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		})
+		return token
+	}
+	if staticToken() == "" {
+		require.NoError(t, apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger).CreateDefaultAutomaticProfile(ctx))
+	}
+
+	euaTeam, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:   t.Name() + " eua",
+		Config: fleet.TeamConfig{MDM: fleet.TeamMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}},
+	})
+	require.NoError(t, err)
+	otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " other"})
+	require.NoError(t, err)
+
+	newDEPHost := func(teamID *uint, platform, product string) (*fleet.Host, string) {
+		t.Helper()
+		host, err := s.ds.NewHost(ctx, &fleet.Host{
+			Hostname:       "eua-dep-host-" + uuid.NewString()[:8],
+			HardwareSerial: mdmtest.RandSerialNumber(),
+			UUID:           uuid.NewString(),
+			Platform:       platform,
+			TeamID:         teamID,
+		})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host}, abmTok.ID, nil))
+		di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{Serial: host.HardwareSerial, UDID: host.UUID, Product: product})
+		require.NoError(t, err)
+		return host, di
+	}
+	enroll := func(token, di string, ok bool) {
+		t.Helper()
+		if ok {
+			s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{token: token, diParam: di})
+			return
+		}
+		res := s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, "token", token, "deviceinfo", di)
+		require.Contains(t, extractServerErrorText(res.Body), "Authentication failed")
+	}
+	const rejectedActivity = "host_enrollment_rejected"
+	requireRejection := func(host *fleet.Host) {
+		t.Helper()
+		s.lastHostActivityMatches(host.ID, rejectedActivity, fmt.Sprintf(`{
+			"host_id": %d,
+			"host_display_name": %q,
+			"host_serial": %q,
+			"host_uuid": %q,
+			"platform": %q,
+			"enrollment_plane": "apple_mdm",
+			"reason": "end_user_authentication_required"
+		}`, host.ID, host.DisplayName(), host.HardwareSerial, host.UUID, host.Platform), 0)
+		require.Equal(t, 1, s.countHostActivitiesOfType(host.ID, rejectedActivity))
+	}
+
+	token := staticToken()
+
+	// a host in a fleet with end user authentication is refused, once per 12 hours
+	euaHost, euaDI := newDEPHost(&euaTeam.ID, "darwin", "Mac15,7")
+	enroll(token, euaDI, false)
+	requireRejection(euaHost)
+	enroll(token, euaDI, false)
+	requireRejection(euaHost)
+
+	// the one-time token from end user authentication still works
+	idpAcct := &fleet.MDMIdPAccount{Username: "eua-user", Email: "eua-user-" + uuid.NewString()[:8] + "@example.com"}
+	require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, idpAcct))
+	idpAcct, err = s.ds.GetMDMIdPAccountByEmail(ctx, idpAcct.Email)
+	require.NoError(t, err)
+	challenge, err := s.ds.InsertMDMAppleDEPEnrollmentChallenge(ctx, idpAcct.UUID, euaHost.HardwareSerial, euaHost.UUID, time.Hour)
+	require.NoError(t, err)
+	enroll(challenge, euaDI, true)
+
+	// a host in a fleet without end user authentication is accepted, until it
+	// moves to a fleet with it
+	otherHost, otherDI := newDEPHost(&otherTeam.ID, "darwin", "Mac15,7")
+	enroll(token, otherDI, true)
+	require.Zero(t, s.countHostActivitiesOfType(otherHost.ID, rejectedActivity))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&euaTeam.ID, []uint{otherHost.ID})))
+	enroll(token, otherDI, false)
+	requireRejection(otherHost)
+
+	// iPads are refused too
+	ipadHost, ipadDI := newDEPHost(&euaTeam.ID, "ipados", "iPad13,1")
+	enroll(token, ipadDI, false)
+	requireRejection(ipadHost)
+
+	// "No team" with end user authentication
+	noTeamHost, noTeamDI := newDEPHost(nil, "darwin", "Mac15,7")
+	enroll(token, noTeamDI, true)
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origCfg := appCfg.Copy()
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.SaveAppConfig(context.Background(), origCfg))
+	})
+	appCfg.MDM.MacOSSetup.EnableEndUserAuthentication = true
+	require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+	enroll(token, noTeamDI, false)
+	requireRejection(noTeamHost)
+
+	// the previous token is refused the same way during its grace period
+	s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic/rotate_token", json.RawMessage(`{}`), http.StatusOK)
+	_, stillOtherDI := newDEPHost(&otherTeam.ID, "darwin", "Mac15,7")
+	enroll(token, stillOtherDI, true)
+	prevTokenHost, prevTokenDI := newDEPHost(&euaTeam.ID, "darwin", "Mac15,7")
+	enroll(token, prevTokenDI, false)
+	requireRejection(prevTokenHost)
+	token = staticToken()
+
+	// a deleted host falls back to the AB token's default fleet for its platform
+	deletedHost, deletedDI := newDEPHost(&otherTeam.ID, "darwin", "Mac15,7")
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM hosts WHERE id = ?`, deletedHost.ID)
+		return err
+	})
+	setMacOSDefaultTeam := func(teamID *uint) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), `UPDATE abm_tokens SET macos_default_team_id = ? WHERE id = ?`, teamID, abmTok.ID)
+			return err
+		})
+	}
+	t.Cleanup(func() { setMacOSDefaultTeam(nil) })
+	setMacOSDefaultTeam(&otherTeam.ID)
+	enroll(token, deletedDI, true)
+	setMacOSDefaultTeam(&euaTeam.ID)
+	rejectionsBefore := s.countActivitiesOfType(rejectedActivity)
+	enroll(token, deletedDI, false)
+	require.Equal(t, rejectionsBefore+1, s.countActivitiesOfType(rejectedActivity))
+	s.lastActivityOfTypeMatches(rejectedActivity, fmt.Sprintf(`{
+		"host_id": null,
+		"host_display_name": "",
+		"host_serial": %q,
+		"host_uuid": %q,
+		"platform": "darwin",
+		"enrollment_plane": "apple_mdm",
+		"reason": "end_user_authentication_required"
+	}`, deletedHost.HardwareSerial, deletedHost.UUID), 0)
+
+	// other refusals record no activity
+	rejectionsBefore = s.countActivitiesOfType(rejectedActivity)
+	freshEUAHost, freshEUADI := newDEPHost(&euaTeam.ID, "darwin", "Mac15,7")
+	enroll("not-a-token", freshEUADI, false)
+	unassignedDI, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{Serial: mdmtest.RandSerialNumber(), UDID: uuid.NewString(), Product: "Mac15,7"})
+	require.NoError(t, err)
+	enroll(token, unassignedDI, false)
+	require.Equal(t, rejectionsBefore, s.countActivitiesOfType(rejectedActivity))
+	require.Zero(t, s.countHostActivitiesOfType(freshEUAHost.ID, rejectedActivity))
 }
 
 // TestDEPSyncCursorPersistedAfterSuccessfulSync verifies the end-to-end happy

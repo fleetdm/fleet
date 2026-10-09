@@ -51,8 +51,8 @@ describe("EditSoftwareModal — multi-package title", () => {
   });
 
   // Regression: a patch-when-closed installer must treat the pre-install query
-  // as Fleet-managed even when the caller doesn't pass patchWhenClosed — the
-  // modal derives it from the installer's own patch policy. Otherwise the
+  // as Fleet-managed even when the caller doesn't pass preInstallQueryLocked —
+  // the modal derives it from the installer's own patch policy. Otherwise the
   // pre-install query is sent on save and the backend rejects unrelated edits
   // (e.g. toggling self-service).
   it("treats the pre-install query as Fleet-managed when the installer's patch policy is patch-when-closed", async () => {
@@ -62,6 +62,51 @@ describe("EditSoftwareModal — multi-package title", () => {
           id: 5,
           name: "GlobalProtect up to date",
           patch_when_closed: true,
+          continuous_automations_enabled: true,
+        },
+      }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Advanced options" }));
+
+    expect(
+      screen.getByText(
+        /Pre-install query won't run when install is triggered via self-service/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("treats the pre-install query as Fleet-managed when the installer's patch policy is notify-before-patching on macOS", async () => {
+    const { user } = renderModal({
+      source: "apps", // maps to darwin
+      softwareInstaller: createMockSoftwarePackage({
+        patch_policy: {
+          id: 6,
+          name: "GlobalProtect up to date",
+          patch_when_closed: false,
+          notify_before_patching: true,
+          continuous_automations_enabled: true,
+        },
+      }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Advanced options" }));
+
+    expect(
+      screen.getByText(
+        /Pre-install query won't run when install is triggered via self-service/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("locks the pre-install query when notify-before-patching is set", async () => {
+    const { user } = renderModal({
+      softwareInstaller: createMockSoftwarePackage({
+        patch_policy: {
+          id: 7,
+          name: "GlobalProtect up to date",
+          patch_when_closed: false,
+          notify_before_patching: true,
           continuous_automations_enabled: true,
         },
       }),

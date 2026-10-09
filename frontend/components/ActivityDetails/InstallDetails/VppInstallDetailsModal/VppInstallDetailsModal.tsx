@@ -17,7 +17,12 @@ import Spinner from "components/Spinner/Spinner";
 import Textarea from "components/Textarea";
 import TooltipWrapper from "components/TooltipWrapper";
 import { ICommandResult } from "interfaces/command";
-import { isAndroid, isAppleDevice, isMacOS } from "interfaces/platform";
+import {
+  isAndroid,
+  isAppleDevice,
+  isIPadOrIPhone,
+  isMacOS,
+} from "interfaces/platform";
 import {
   IHostSoftware,
   SoftwareInstallUninstallStatus,
@@ -29,6 +34,7 @@ import commandAPI, {
 import deviceUserAPI, {
   IGetVppInstallCommandResultsResponse,
 } from "services/entities/device_user";
+import decodeBase64Utf8 from "utilities/base64";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
 import { secondsToDhms } from "utilities/helpers";
@@ -37,7 +43,6 @@ import {
   getInstallDetailsStatusPredicate,
   INSTALL_DETAILS_STATUS_ICONS,
 } from "../constants";
-import decodeBase64Utf8 from "../helpers";
 
 interface IGetStatusMessageProps {
   isMyDevicePage?: boolean;
@@ -70,6 +75,8 @@ interface IGetStatusMessageProps {
   /** True when the install was a self-service request. Renders the actor as
    *  "End user". */
   selfService?: boolean;
+  /** True when an iOS/iPadOS install failed with MDM Error 1407 */
+  isUserAlreadyPromptedError?: boolean;
 }
 
 export const getStatusMessage = ({
@@ -88,6 +95,7 @@ export const getStatusMessage = ({
   actorFullName,
   fleetInitiated,
   selfService,
+  isUserAlreadyPromptedError = false,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
   const formattedVerifyTimeout = secondsToDhms(vppVerifyTimeoutSeconds || 600);
@@ -158,6 +166,13 @@ export const getStatusMessage = ({
     );
   }
 
+  let actor = "Fleet";
+  if (selfService) {
+    actor = "End user";
+  } else if (!fleetInitiated && actorFullName) {
+    actor = actorFullName;
+  }
+
   // Fleet failed the install BEFORE sending it to the device (e.g. the
   // managed app configuration references a Fleet variable that can't be
   // resolved for this host). The backend records this with a failure reason
@@ -166,12 +181,6 @@ export const getStatusMessage = ({
   // ("<Actor> failed to install <App> on <Host>.") and leave the reason text
   // to the Details section the modal renders below.
   if (displayStatus === "failed_install" && failureReason) {
-    let actor = "Fleet";
-    if (selfService) {
-      actor = "End user";
-    } else if (!fleetInitiated && actorFullName) {
-      actor = actorFullName;
-    }
     return (
       <>
         <b>{actor}</b> failed to install <b>{appName}</b>
@@ -215,6 +224,15 @@ export const getStatusMessage = ({
         The MDM command (request) to install <b>{appName}</b>
         {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
         installation has not been verified. Please re-attempt this installation.
+      </>
+    );
+  }
+
+  if (displayStatus === "failed_install" && isUserAlreadyPromptedError) {
+    return (
+      <>
+        <b>{actor}</b> failed to install <b>{appName}</b>
+        {!isMyDevicePage && <> on {formattedHost}</>}.
       </>
     );
   }
@@ -464,6 +482,14 @@ export const VppInstallDetailsModal = ({
   const isManuallyInstalled =
     displayStatus === "installed" && !commandUpdatedAt; // using same condition as in getStatusMessage
 
+  const platform = hostSoftware?.app_store_app?.platform || detailsPlatform;
+  const isUserAlreadyPromptedError =
+    displayStatus === "failed_install" &&
+    isIPadOrIPhone(platform || "") &&
+    /<key>ErrorCode<\/key>\s*<integer>1407<\/integer>/.test(
+      vppCommandResult?.result || ""
+    );
+
   // Use success icon when we show “is installed”
   const iconName =
     overrideFailedMessageWithInstalledMessage || isManuallyInstalled
@@ -484,7 +510,6 @@ export const VppInstallDetailsModal = ({
   // messaging for the "NotNow" status, which otherwise would be treated as "pending".
   const isMDMStatusNotNow = vppCommandResult?.status === "NotNow";
   const isMDMStatusAcknowledged = vppCommandResult?.status === "Acknowledged";
-  const platform = hostSoftware?.app_store_app?.platform || detailsPlatform;
   const vppVerifyTimeoutSeconds = Number(
     vppCommandResult?.results_metadata?.vpp_verify_timeout_seconds
   );
@@ -527,6 +552,7 @@ export const VppInstallDetailsModal = ({
     actorFullName,
     fleetInitiated,
     selfService,
+    isUserAlreadyPromptedError,
   });
 
   const renderInstallDetailsSection = () => {
@@ -633,6 +659,12 @@ export const VppInstallDetailsModal = ({
           iconName={iconName}
           message={<span>{statusMessage}</span>}
         />
+        {isUserAlreadyPromptedError && (
+          <div>
+            For hosts in Single App Mode, temporarily disable that mode to
+            install the update.
+          </div>
+        )}
         {isVerificationTimedOut && (
           <p>
             If the install finishes later, Fleet will update the status when the

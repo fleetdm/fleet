@@ -27,6 +27,7 @@ import { IVersionPinFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage
 import sendRequest, {
   sendRequestWithHeaders,
   sendRequestWithProgressAndHeaders,
+  uploadToStorage,
 } from "services";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
 import endpoints from "utilities/endpoints";
@@ -50,6 +51,10 @@ export interface ISoftwareApiParams {
   max_cvss_score?: number;
   min_cvss_score?: number;
   exploit?: boolean;
+  /** Comma-separated software sources. */
+  source?: string;
+  /** Comma-separated extension_for values, each narrowing its own source. */
+  extension_for?: string;
   availableForInstall?: boolean;
   packagesOnly?: boolean;
   selfService?: boolean;
@@ -274,13 +279,35 @@ const handleDisplayNameForm = (
   formData.append("display_name", data.displayName || "");
 };
 
+const appendPackageFile = async (
+  formData: FormData,
+  file: File,
+  teamId: number | undefined,
+  directUpload: boolean | undefined,
+  onUploadProgress?: (progressEvent: AxiosProgressEvent) => void,
+  signal?: AbortSignal
+) => {
+  if (!directUpload) {
+    formData.append("software", file);
+    return;
+  }
+  const uploadId = await uploadToStorage({
+    target: "software_package",
+    file,
+    teamId,
+    onUploadProgress,
+    signal,
+  });
+  formData.append("upload_id", uploadId);
+  formData.append("filename", file.name);
+};
+
 const handleEditPackageForm = (
   data: IEditPackageFormData,
   formData: FormData,
   orignalPackage: ISoftwarePackage,
   omitPreInstallQuery = false
 ) => {
-  data.software && formData.append("software", data.software);
   formData.append("self_service", data.selfService.toString());
   // Base64 encode script fields to bypass WAF rules that block script patterns
   formData.append(
@@ -506,13 +533,14 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addSoftwarePackage: ({
+  addSoftwarePackage: async ({
     data,
     teamId,
     softwareTitleId,
     timeout,
     onUploadProgress,
     signal,
+    directUpload,
   }: {
     data: IPackageFormData;
     teamId?: number;
@@ -522,6 +550,7 @@ export default {
     timeout?: number;
     onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
     signal?: AbortSignal;
+    directUpload?: boolean;
   }) => {
     const { SOFTWARE_PACKAGE_ADD } = endpoints;
 
@@ -530,7 +559,14 @@ export default {
     }
 
     const formData = new FormData();
-    formData.append("software", data.software);
+    await appendPackageFile(
+      formData,
+      data.software,
+      teamId,
+      directUpload,
+      onUploadProgress,
+      signal
+    );
     softwareTitleId !== undefined &&
       formData.append("software_title_id", softwareTitleId.toString());
     formData.append("self_service", data.selfService.toString());
@@ -586,12 +622,14 @@ export default {
       customHeaders: { [SCRIPTS_ENCODED_HEADER]: "base64" },
       timeout,
       skipParseError: true,
-      onUploadProgress,
+      onUploadProgress: formData.has("upload_id")
+        ? undefined
+        : onUploadProgress,
       signal,
     });
   },
 
-  editSoftwarePackage: ({
+  editSoftwarePackage: async ({
     data,
     orignalPackage,
     softwareId,
@@ -601,6 +639,7 @@ export default {
     onUploadProgress,
     signal,
     omitPreInstallQuery,
+    directUpload,
   }: {
     data:
       | IEditPackageFormData
@@ -617,6 +656,7 @@ export default {
     onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
     signal?: AbortSignal;
     omitPreInstallQuery?: boolean;
+    directUpload?: boolean;
   }) => {
     const { EDIT_SOFTWARE_PACKAGE } = endpoints;
     const formData = new FormData();
@@ -640,12 +680,23 @@ export default {
         throw new Error("originalPackage is required for EditPackageFormData");
       }
       // Handles primary Edit Package form
+      const packageData = data as IEditPackageFormData;
       handleEditPackageForm(
-        data as IEditPackageFormData,
+        packageData,
         formData,
         orignalPackage,
         omitPreInstallQuery
       );
+      if (packageData.software) {
+        await appendPackageFile(
+          formData,
+          packageData.software,
+          teamId,
+          directUpload,
+          onUploadProgress,
+          signal
+        );
+      }
     }
 
     return sendRequestWithProgressAndHeaders({
@@ -655,7 +706,9 @@ export default {
       customHeaders: { [SCRIPTS_ENCODED_HEADER]: "base64" },
       timeout,
       skipParseError: true,
-      onUploadProgress,
+      onUploadProgress: formData.has("upload_id")
+        ? undefined
+        : onUploadProgress,
       signal,
     });
   },

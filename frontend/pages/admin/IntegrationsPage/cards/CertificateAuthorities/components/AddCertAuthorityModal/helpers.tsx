@@ -214,6 +214,8 @@ const INVALID_CHALLENGE_ERROR =
   "Invalid challenge. Please correct and try again.";
 const INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR =
   "Invalid challenge URL or credentials. Please correct and try again.";
+const CA_NOT_FOUND_ERROR =
+  "Fleet couldn't find the CA at the specified URL. Please correct and try again.";
 
 /**
  * Matches the server's URL errors, which name the CA type inside the message (e.g. "Invalid
@@ -256,6 +258,8 @@ export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
     message = INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR;
   } else if (reason.includes("invalid challenge")) {
     message = INVALID_CHALLENGE_ERROR;
+  } else if (reason.includes("couldn't find the ca at the specified url")) {
+    message = CA_NOT_FOUND_ERROR;
   } else if (invalidUrlMatch) {
     message = `${invalidUrlMatch[0]} Please correct and try again.`;
   } else if (

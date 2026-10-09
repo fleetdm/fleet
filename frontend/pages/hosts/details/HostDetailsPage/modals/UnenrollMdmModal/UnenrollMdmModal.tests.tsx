@@ -1,7 +1,6 @@
 import { screen } from "@testing-library/react";
 import React from "react";
 
-import { MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN } from "interfaces/mdm";
 import { createCustomRenderer } from "test/test-utils";
 
 import UnenrollMdmModal from "./UnenrollMdmModal";
@@ -21,17 +20,12 @@ describe("UnenrollMdmModal", () => {
     jest.resetAllMocks();
   });
 
-  // Manual BYOD and account-driven hosts share the "On (manual - personal)"
-  // status, so the status alone must not decide which instructions to show.
-  // Following the account-driven steps on a manual BYOD device fails with
-  // "Your Apple Account does not support the expected services". See #50868.
   it("shows enrollment link instructions for a manual BYOD host", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <UnenrollMdmModal
         {...MOCK_PROPS}
         enrollmentStatus="On (manual - personal)"
-        lastMdmEnrollmentType="Device"
       />
     );
 
@@ -43,14 +37,10 @@ describe("UnenrollMdmModal", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows sign-in instructions for an account-driven host", () => {
+  it("shows sign-in instructions for an account-driven enrolled host", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
-      <UnenrollMdmModal
-        {...MOCK_PROPS}
-        enrollmentStatus="On (manual - personal)"
-        lastMdmEnrollmentType={MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN}
-      />
+      <UnenrollMdmModal {...MOCK_PROPS} enrollmentStatus="On (personal)" />
     );
 
     expect(
@@ -61,14 +51,22 @@ describe("UnenrollMdmModal", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows no BYOD re-enroll instructions for a company-owned manual host", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<UnenrollMdmModal {...MOCK_PROPS} enrollmentStatus="On (manual)" />);
+
+    expect(
+      screen.queryByText(/Hosts > Add hosts > iOS\/iPadOS/i)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Sign in to Work or School Account/i)
+    ).not.toBeInTheDocument();
+  });
+
   it("shows Apple Business instructions for an automatically enrolled host", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
-      <UnenrollMdmModal
-        {...MOCK_PROPS}
-        enrollmentStatus="On (automatic)"
-        lastMdmEnrollmentType="Device"
-      />
+      <UnenrollMdmModal {...MOCK_PROPS} enrollmentStatus="On (automatic)" />
     );
 
     expect(
@@ -89,7 +87,6 @@ describe("UnenrollMdmModal", () => {
               onlyAllowAppleBusinessEnrollment
               depAssignedToFleet={false}
               enrollmentStatus="On (manual)"
-              lastMdmEnrollmentType="Device"
             />
           );
 
@@ -106,7 +103,6 @@ describe("UnenrollMdmModal", () => {
               onlyAllowAppleBusinessEnrollment
               depAssignedToFleet={false}
               enrollmentStatus="On (company-owned)"
-              lastMdmEnrollmentType="Device"
             />
           );
 
@@ -130,7 +126,6 @@ describe("UnenrollMdmModal", () => {
               onlyAllowAppleBusinessEnrollment
               depAssignedToFleet
               enrollmentStatus="On (manual)"
-              lastMdmEnrollmentType="Device"
             />
           );
 
@@ -152,7 +147,6 @@ describe("UnenrollMdmModal", () => {
               onlyAllowAppleBusinessEnrollment
               depAssignedToFleet
               enrollmentStatus="On (automatic)"
-              lastMdmEnrollmentType="Device"
             />
           );
 

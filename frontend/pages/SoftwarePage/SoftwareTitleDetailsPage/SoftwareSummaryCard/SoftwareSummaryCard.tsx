@@ -1,6 +1,6 @@
 /** software/titles/:id > First section */
 
-import React, { useContext, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 
 import Card from "components/Card";
@@ -20,6 +20,7 @@ import {
   mergePolicies,
 } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
 import { pluralize } from "utilities/strings/stringUtils";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -87,9 +88,28 @@ const SoftwareSummaryCard = ({
   ] = useState(false);
   const [showPoliciesModal, setShowPoliciesModal] = useState(false);
 
+  // Team-scoped fields on the response (chips, dropdown, installer modals)
+  // come from whichever team the backend picks on nil teamID — hide them
+  // under "All fleets" rather than mislabel one team's state as an aggregate.
+  const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
+
+  // Command palette lets the user switch fleets while a modal is open. The
+  // modal unmounts because `softwareInstallerOnTeam` flips false on scope
+  // change, but its `show*Modal` state persists and would remount the modal
+  // on the next specific-fleet scope. Reset on team change so it can't.
+  useEffect(() => {
+    setShowEditIconModal(false);
+    setShowEditSoftwareModal(false);
+    setShowDeployModal(false);
+    setShowEditConfigurationModal(false);
+    setShowEditAutoUpdateConfigModal(false);
+    setShowPoliciesModal(false);
+  }, [teamId]);
+
   const softwareDisplayName = getDisplayedSoftwareName(
     softwareTitle.name,
-    softwareTitle.display_name
+    softwareTitle.display_name,
+    softwareTitle.bundle_identifier
   );
 
   // Pre-compute meta-derived values via optional chaining so the hooks below
@@ -98,6 +118,8 @@ const SoftwareSummaryCard = ({
   const isFleetMaintainedApp = !!installerResult?.meta.isFleetMaintainedApp;
   const isAndroidPlayStoreApp = !!installerResult?.meta.isAndroidPlayStoreApp;
   const isCustomPackage = !!installerResult?.meta.isCustomPackage;
+  const isIosOrIpadosApp = !!installerResult?.meta.isIosOrIpadosApp;
+  const canManageSoftware = !!installerResult?.meta.canManageSoftware;
 
   // Depend on the optional-chained sources directly so the memo's cache hits
   // when both are nullish — `?? []` would mint a fresh array literal each
@@ -147,23 +169,46 @@ const SoftwareSummaryCard = ({
   // because a Fleet-maintained app uploaded as a custom package still counts
   // as FMA; Apple VPP precedes Play Store so cross-platform store titles label
   // by their dominant source; Custom package is the catch-all fallback.
-  const installerKindLabel = ([
-    [isFleetMaintainedApp, "Fleet-maintained"],
-    [isAppleVpp, "App Store (VPP)"],
-    [isAndroidPlayStoreApp, "Play Store"],
-    [isCustomPackage, customPackageChipLabel],
-  ] as const).find(([flag]) => flag)?.[1];
+  // Hidden on "All fleets": the kind derives from the backend's arbitrary-team
+  // installer pick, so it's not a reliable aggregate fact either.
+  const installerKindLabel = hasValidTeamId
+    ? ([
+        [isFleetMaintainedApp, "Fleet-maintained"],
+        [isAppleVpp, "App Store (VPP)"],
+        [isAndroidPlayStoreApp, "Play Store"],
+        [isCustomPackage, customPackageChipLabel],
+      ] as const).find(([flag]) => flag)?.[1]
+    : undefined;
 
   // Titles that can hold multiple custom packages move Self-service and
   // Auto-install/Patch indicators down to per-row icons on the Library
   // accordion. The title-level chips would be misleading when one package
   // is self-service and another isn't. FMA and iOS in-house .ipa keep the
   // chips since they're single-package — the flag is owned by the page.
-  const showSelfServiceChip = isSelfService && !canActivateMultiplePackages;
-  const showAutoInstallChip = hasLinkedPolicies && !canActivateMultiplePackages;
+  // Self-service / Auto install / Patch / Auto updates are per-team config.
+  // On "All fleets" the backend returns state from an arbitrary team, so hide
+  // the chips rather than mislabel it as an all-fleets fact.
+  const showSelfServiceChip =
+    hasValidTeamId && isSelfService && !canActivateMultiplePackages;
+  const showAutoInstallChip =
+    hasValidTeamId && hasLinkedPolicies && !canActivateMultiplePackages;
+  // Gates on `app_store_app` directly since `isAppleVpp` flips false when
+  // a co-existing custom package hides the VPP installer.
+  const showAutoUpdateChip =
+    hasValidTeamId &&
+    !!softwareTitle.app_store_app &&
+    isIosOrIpadosApp &&
+    !!softwareTitle.auto_update_enabled &&
+    !!softwareTitle.auto_update_window_start &&
+    !!softwareTitle.auto_update_window_end;
+  const canEditAutoUpdateConfig =
+    !!softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
 
   const showHeaderPills =
-    !!installerKindLabel || showSelfServiceChip || showAutoInstallChip;
+    !!installerKindLabel ||
+    showSelfServiceChip ||
+    showAutoInstallChip ||
+    showAutoUpdateChip;
 
   const headerPills = useMemo(() => {
     if (!showHeaderPills) {
@@ -180,6 +225,7 @@ const SoftwareSummaryCard = ({
               isIpadOrIphoneSoftwareSource(softwareTitle.source),
               isAndroidSoftwareSource(softwareTitle.source)
             )}
+            tooltipTextBalanced={false}
           />
         )}
         {showAutoInstallChip && (
@@ -206,6 +252,30 @@ const SoftwareSummaryCard = ({
             )}
           />
         )}
+        {showAutoUpdateChip && (
+          <Chip
+            icon="refresh"
+            text="Auto updates"
+            onClick={
+              canEditAutoUpdateConfig
+                ? () => setShowEditAutoUpdateConfigModal(true)
+                : undefined
+            }
+            tooltip={
+              <>
+                Between{" "}
+                {internationalTimeOnlyFormat(
+                  softwareTitle.auto_update_window_start ?? ""
+                )}{" "}
+                and{" "}
+                {internationalTimeOnlyFormat(
+                  softwareTitle.auto_update_window_end ?? ""
+                )}{" "}
+                (host local time).
+              </>
+            }
+          />
+        )}
       </>
     );
   }, [
@@ -216,6 +286,10 @@ const SoftwareSummaryCard = ({
     isPatchPolicyOnly,
     mergedPolicies,
     softwareTitle.source,
+    showAutoUpdateChip,
+    canEditAutoUpdateConfig,
+    softwareTitle.auto_update_window_start,
+    softwareTitle.auto_update_window_end,
     router,
     teamId,
   ]);
@@ -231,7 +305,7 @@ const SoftwareSummaryCard = ({
   if (!installerResult) {
     return (
       <>
-        <Card borderRadiusSize="xxlarge" className={baseClass}>
+        <Card className={baseClass}>
           <SoftwareDetailsSummary
             displayName={softwareDisplayName}
             type={formatSoftwareType(softwareTitle)}
@@ -251,12 +325,7 @@ const SoftwareSummaryCard = ({
     );
   }
 
-  const {
-    softwareInstaller,
-    isIosOrIpadosApp,
-    isAndroidPlayStoreWebApp,
-    canManageSoftware,
-  } = installerResult.meta;
+  const { softwareInstaller, isAndroidPlayStoreWebApp } = installerResult.meta;
 
   const canEditAppearance = canManageSoftware;
   const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
@@ -269,12 +338,7 @@ const SoftwareSummaryCard = ({
   /** Versions / pin is a Premium-only Fleet-maintained app feature */
   const canManageVersions =
     canManageSoftware && isFleetMaintainedApp && !!isPremiumTier;
-  /** Installer modals require a specific team; hidden from "All Teams" */
-  const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
   const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
-
-  const canEditAutoUpdateConfig =
-    softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
@@ -285,7 +349,7 @@ const SoftwareSummaryCard = ({
 
   return (
     <>
-      <Card borderRadiusSize="xxlarge" className={baseClass}>
+      <Card className={baseClass}>
         <SoftwareDetailsSummary
           displayName={softwareDisplayName}
           type={formatSoftwareType(softwareTitle)}
@@ -300,7 +364,7 @@ const SoftwareSummaryCard = ({
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
           iconUploadedAt={iconUploadedAt}
-          canManageSoftware={canManageSoftware}
+          canManageSoftware={canManageSoftware && hasValidTeamId}
           onClickEditAppearance={
             canEditAppearance ? onClickEditAppearance : undefined
           }
@@ -363,7 +427,7 @@ const SoftwareSummaryCard = ({
           displayName={softwareDisplayName}
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
-          patchWhenClosed={
+          preInstallQueryLocked={
             softwareTitle.software_package?.patch_policy?.patch_when_closed
           }
         />

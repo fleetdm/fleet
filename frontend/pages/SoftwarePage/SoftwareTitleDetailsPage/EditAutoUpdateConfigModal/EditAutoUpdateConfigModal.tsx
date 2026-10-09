@@ -190,7 +190,7 @@ const EditAutoUpdateConfigModal = ({
     (formValidation.windowLength?.message ? "Latest start time" : undefined);
 
   const updateWindowLabel = formValidation.windowLength?.message || (
-    <>Update window (host&rsquo;s local time)</>
+    <>Update window (host local time)</>
   );
   const updateWindowLabelClass = classnames("form-field__label", {
     "form-field__label--error": !!formValidation.windowLength?.message,
@@ -200,7 +200,7 @@ const EditAutoUpdateConfigModal = ({
     <Modal className={baseClass} title="Schedule auto updates" onExit={onExit}>
       <div className={formClassNames}>
         <div className={`${formClass}__form-frame`}>
-          <Card paddingSize="medium" borderRadiusSize="medium">
+          <Card paddingSize="medium">
             <div className={`${formClass}__auto-update-config`}>
               <div className={`form-field`}>
                 <div className="form-field__label">Auto updates</div>
@@ -268,7 +268,7 @@ const EditAutoUpdateConfigModal = ({
               )}
             </div>
           </Card>
-          <Card paddingSize="medium" borderRadiusSize="medium">
+          <Card paddingSize="medium">
             <div className={`${formClass}__target`}>
               <div className="form-field__label">Target</div>
               <div>{targetDescription}</div>

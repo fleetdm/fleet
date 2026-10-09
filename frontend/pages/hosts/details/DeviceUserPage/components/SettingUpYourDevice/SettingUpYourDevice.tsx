@@ -84,7 +84,7 @@ const SettingUpYourDevice = ({
 
   return (
     <div className={`${baseClass} main-content device-user`}>
-      <Card borderRadiusSize="xxlarge" paddingSize="xlarge">
+      <Card paddingSize="xlarge">
         <div className={`${baseClass}__header`}>
           <h2>{title}</h2>
           {!failedSoftware && platform !== "darwin" && (

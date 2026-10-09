@@ -328,6 +328,9 @@ describe("FleetsDropdown - component", () => {
       // SelectContainer, react-select would treat it as "select the
       // highlighted option," and onChange would fire in parallel with the
       // Add fleet navigation.
+      //
+      // In a real browser Enter on a focused <button> fires keydown then a
+      // native click; jsdom doesn't dispatch that click, so we simulate both.
       const onChange = jest.fn();
       const user = userEvent.setup();
       renderWithAppContext(
@@ -342,6 +345,7 @@ describe("FleetsDropdown - component", () => {
       await user.click(getTrigger(/Fleet 1/));
       const addButton = screen.getByRole("button", { name: /add fleet/i });
       fireEvent.keyDown(addButton, { key: "Enter" });
+      fireEvent.click(addButton);
 
       // Navigation fired.
       expect(mockPush).toHaveBeenCalledWith("/settings/fleets?create_fleet=1");

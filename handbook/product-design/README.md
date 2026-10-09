@@ -36,12 +36,16 @@ Fleet's roadmap flows in this order (from highest to lowest fidelity):
 
 The Head of Product Design is responsible for going through the inbox on the [🦢 Product design intake & outtake board](https://github.com/orgs/fleetdm/projects/67) and adding the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label.
 
-Once labeled, each Product Designer (PD) is responsible for reviewing the inbox and deciding whether each new request contributes to their [product group's goal](https://fleetdm.com/handbook/company/product-groups#current-product-groups). If yes, the PD adds the `~product-maturity` label so the request is reviewed at the next [unpacking the why](#unpacking-the-why) call. If a request meets a different [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization), the PD removes the issue from the drafting board and either prioritizes a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) to bring through [drafting](https://fleetdm.com/handbook/company/product-groups#drafting), or adds the issue to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board.
+Once labeled, each Product Designer (PD) reviews the inbox and triages every new labeled request:
+
+- **Contributes to [company goals](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BM2) or a [product group's goal](https://fleetdm.com/handbook/company/product-groups#current-product-groups):** add the `~product-maturity` label for review at the next [unpacking the why](#unpacking-the-why) call.
+- **Meets another [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization):** remove the issue from the intake & outtake board and either prioritize a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) for immediate [drafting](https://fleetdm.com/handbook/company/product-groups#drafting) or add it to the [release planning project](https://github.com/orgs/fleetdm/projects/87) for later. Then add the issue to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board.
+- **Not going to work on it:** move the issue to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board and off the intake & outtake board.
 
 
 ### Unpacking the why
 
-During this call, the relevant product group's Product Designer (PD) and a former IT admin review all requests tagged with the `~product-maturity` label (applied during [triage](#triage-new-requests)) to synthesize why users are making each request (i.e. what problem they're trying to solve). Afterward, one or more user stories are filed and added to the [release planning project](https://github.com/orgs/fleetdm/projects/87).
+During this call, the relevant product group's Product Designer (PD) and a former IT admin review all requests tagged with the `~product-maturity` label (applied during [triage](#triage-new-requests)) to synthesize why users are making each request (i.e. what problem they're trying to solve). During the call, one or more user stories are filed and added to the [release planning project](https://github.com/orgs/fleetdm/projects/87). Next, remove the request from the intake & outtake board and add it to the feature fest board.
 
 If a customer or prospect request is missing a Gong snippet or requires additional information to understand the "why", the PD will @mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) board.
 

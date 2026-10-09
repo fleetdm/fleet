@@ -64,9 +64,15 @@ export default {
     return sendRequest("GET", path);
   },
 
-  reset: (id: number): Promise<void> => {
+  reset: (id: number, hostId?: number): Promise<void> => {
     const { POLICY_RESET } = endpoints;
+    const path =
+      hostId === undefined
+        ? POLICY_RESET(id)
+        : `${POLICY_RESET(id)}?${buildQueryStringFromParams({
+            host_id: hostId,
+          })}`;
 
-    return sendRequest("POST", POLICY_RESET(id));
+    return sendRequest("POST", path);
   },
 };

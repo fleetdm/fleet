@@ -340,6 +340,9 @@ func TestDeleteHostVerifiesAppleBusinessAssignment(t *testing.T) {
 		err := env.svc.DeleteHost(env.ctx, 1)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fleet.CantDeleteHostUnverifiedABMMessage)
+		// the internal Apple failure stays in the logs; gluing it onto the
+		// admin-facing refusal produced "Please try again.: <internals>"
+		require.NotContains(t, err.Error(), ".: ")
 		require.False(t, env.ds.DeleteHostFuncInvoked, "nothing may be deleted when Apple can't be reached")
 
 		// An upstream Apple failure is not the caller's fault, so it must not come
@@ -444,6 +447,9 @@ func TestDeleteHostsSkipsHostsAppleCouldNotVerify(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), fleet.CantDeleteHostUnverifiedABMMessage)
 	require.Contains(t, err.Error(), serials[unverifiedHost])
+	// the internal Apple failure stays in the logs, not the admin-facing message
+	require.NotContains(t, err.Error(), "apple reported a failed device lookup")
+	require.NotContains(t, err.Error(), ".: ")
 
 	require.ElementsMatch(t, []uint{releasedHost, assignedHost}, deleted,
 		"the rest of the batch must still be deleted")

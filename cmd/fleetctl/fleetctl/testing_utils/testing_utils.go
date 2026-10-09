@@ -631,6 +631,12 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 		return nil
 	}
+	ds.SetABMTokenDefaultFunc = func(ctx context.Context, tokenID uint) error {
+		return nil
+	}
+	ds.ClearABMTokenDefaultFunc = func(ctx context.Context) error {
+		return nil
+	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{}, nil
 	}

@@ -269,8 +269,10 @@ type Service interface {
 	// configuration and only supports a subset of the features (eg: we
 	// don't want to allow IdP initiated authentications)
 	// When initiated from Orbit, the hostUUID is used to link the SSO
-	// session to a specific host.
-	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+	// session to a specific host. deviceInfo is the parsed deviceinfo of the
+	// device that started automatic enrollment, and is required for the
+	// mdm_sso initiator.
+	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string, deviceInfo *MDMAppleMachineInfo) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 	// InitSSOCallback handles the IdP SAMLResponse and ensures the credentials are valid.
 	// The sessionID is used to identify the SSO session and samlResponse is the raw SAMLResponse.
@@ -397,13 +399,17 @@ type Service interface {
 	// included in the results. The inherited count is only meaningful when mergeInherited is true.
 	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*Query, int, int, *PaginationMetadata, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
-	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to.
+	// GetQueryReportResults returns the stored results of a query for hosts the requestor has access
+	// to, along with the total count of matching rows. Pagination metadata is returned only when
+	// opts.PerPage is set.
 	// Returns a boolean indicating whether the report is clipped.
-	GetQueryReportResults(ctx context.Context, id uint, teamID *uint) ([]HostQueryResultRow, bool, error)
+	GetQueryReportResults(ctx context.Context, id uint, teamID *uint, opts ListOptions) (results []HostQueryResultRow, count int, meta *PaginationMetadata, reportClipped bool, err error)
 	// GetHostQueryReportResults returns all stored results of a query for a specific host
 	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []HostQueryReportResult, lastFetched *time.Time, err error)
-	// QueryReportIsClipped returns true if the number of query report rows exceeds the maximum
-	QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
+	// QueryReportIsClipped returns true if a host's results for the report were recently rejected
+	// because storing them would have exceeded the effective report cap (see
+	// ServerSettings.GetEffectiveQueryReportCap). Merely reaching the cap does not clip a report.
+	QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error)
 	// ListHostReports returns the reports/queries associated with the given host, filtered,
 	// sorted, and paginated according to opts.
 	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) (rows []*HostReport, total int, metadata *PaginationMetadata, err error)
@@ -512,7 +518,7 @@ type Service interface {
 	// ListDevicePolicies lists all policies for the given host in their
 	// device-safe representation (which excludes the policy author's identity
 	// and the raw SQL query), including passing / failing responses.
-	ListDevicePolicies(ctx context.Context, host *Host) ([]*DevicePolicy, error)
+	ListDevicePolicies(ctx context.Context, host *Host, includeHidden bool) ([]*DevicePolicy, error)
 
 	// BypassConditionalAccess lets a host skip conditional access checks for one check
 	BypassConditionalAccess(ctx context.Context, host *Host) error
@@ -530,7 +536,7 @@ type Service interface {
 	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
-	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
+	HostEncryptionKey(ctx context.Context, id uint, archivedFallbackToSerial bool) (*HostDiskEncryptionKey, error)
 	// EscrowLUKSData stores a LUKS key or a client error. A non-empty status instead records orbit's
 	// progress: prompting and escrowing keep the request in flight, canceled and timed_out end it.
 	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error
@@ -599,6 +605,8 @@ type Service interface {
 	SandboxEnabled() bool
 	// MaxInstallerSizeBytes returns the configured maximum size for software installer uploads.
 	MaxInstallerSizeBytes() int64
+	// StagedUploadAvailable reports whether clients can upload packages straight to object storage.
+	StagedUploadAvailable(ctx context.Context) bool
 	AppConfigUrls(ctx context.Context) (urls *AppConfigUrls, err error)
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
@@ -622,6 +630,10 @@ type Service interface {
 
 	// PartnershipsConfig returns Fleet partnership-specific configuration
 	PartnershipsConfig(ctx context.Context) (*Partnerships, error)
+
+	// AuthSettings returns the read-only authentication settings sourced from
+	// the server configuration, or nil when none is enabled.
+	AuthSettings(ctx context.Context) (*AuthSettings, error)
 
 	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
 	LoggingConfig(ctx context.Context) (*Logging, error)
@@ -730,6 +742,9 @@ type Service interface {
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
+
+	// SetNotificationsService sets the notifications bounded context service for write operations.
+	SetNotificationsService(notificationsSvc NotificationsWriteService)
 
 	// SetActivityService sets the activity bounded context service for write operations.
 	// This should be called after service creation to inject the activity service dependency.
@@ -1006,11 +1021,12 @@ type Service interface {
 	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, DEPDeviceErrorType, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
-	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleConfigProfile, error)
+	// selfService makes the profile opt-in; hidden hides it from end users. Both are premium.
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, name string, description string, selfService, hidden bool) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
 	// activation is an optional custom activation declaration to attach to the
 	// declaration; nil or empty means Fleet generates the activation.
-	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte) (*MDMAppleDeclaration, error)
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte, description string, selfService, hidden bool) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
@@ -1047,11 +1063,15 @@ type Service interface {
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// AuthenticateMDMAppleDEPEnrollment validates an automatic (DEP) enrollment
-	// request: the token must match the automatic enrollment profile and the
-	// device's serial must currently be DEP-assigned to Fleet.
-	AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *MDMAppleMachineInfo) error
+	// request: the token must be either the automatic enrollment profile's token,
+	// or an unused one-time challenge issued to this device after end user
+	// authentication, which it consumes. The device's serial must currently be
+	// DEP-assigned to Fleet. It returns the MDM IdP account the challenge was
+	// issued for, or an empty string for the automatic enrollment profile's token.
+	AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *MDMAppleMachineInfo) (idpAccountUUID string, err error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
+	// The request must have been authenticated with AuthenticateMDMAppleDEPEnrollment first.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *MDMAppleMachineInfo) (profile []byte, err error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple account-driven user enrollment profile for a given enrollment reference.
@@ -1071,9 +1091,6 @@ type Service interface {
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
-
-	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
 	// ListMDMAppleCommands returns a list of MDM Apple commands corresponding to
 	// the specified options.
@@ -1123,6 +1140,11 @@ type Service interface {
 
 	// UpdateABMTokenTeams updates the default macOS, iOS, iPadOS, and BYOD team IDs for a given ABM token.
 	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*ABMToken, error)
+
+	// SetABMTokenDefault marks the given ABM token as the default one used to
+	// sign GetToken responses for devices not enrolled through ABM, or unsets
+	// it so no token is the default. isDefault is required; nil is rejected.
+	SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault *bool) (*ABMToken, error)
 
 	// DeleteABMToken deletes the given ABM token.
 	DeleteABMToken(ctx context.Context, tokenID uint) error
@@ -1191,7 +1213,8 @@ type Service interface {
 	// skipped so the error can be raised to the user.
 	VerifyAnyMDMConfigured(ctx context.Context) error
 
-	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
+	// MDMAppleUploadBootstrapPackage stores pkg, or the staged upload when stagedUploadID is set.
+	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, stagedUploadID string, teamID uint, dryRun bool) error
 
 	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
 
@@ -1223,6 +1246,12 @@ type Service interface {
 	GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error)
 	// Delete the MDM Apple Setup Assistant for the provided team or no team.
 	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
+	// RotateMDMAppleAutomaticEnrollmentToken replaces the automatic enrollment token and
+	// re-registers every fleet's automatic enrollment profile with Apple. The previous token keeps
+	// working for gracePeriodHours (DefaultAutomaticEnrollmentTokenGracePeriodHours if nil), or
+	// stops working immediately if it's 0. It returns when the previous token stops working, or
+	// nil if it already has.
+	RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, gracePeriodHours *int) (previousTokenExpiresAt *time.Time, err error)
 
 	// HasCustomSetupAssistantConfigurationWebURL checks if the team/global
 	// config has a custom setup assistant defined, and if the JSON content
@@ -1242,6 +1271,14 @@ type Service interface {
 	// TriggerLinuxDiskEncryptionEscrow queues a LUKS escrow request. It queues nothing and returns a
 	// LinuxEscrowInFlightError while fleetd is handling an earlier one.
 	TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *Host) error
+
+	// SubmitBitLockerPIN accepts a BitLocker startup PIN the end user typed on their My device page and queues it, encrypted, for the
+	// host's agent to apply. Device-authenticated.
+	SubmitBitLockerPIN(ctx context.Context, host *Host, pin string) error
+
+	// BitLockerPINStateForDevice reports whether this host's fleetd can apply an end-user-chosen BitLocker PIN, and where any
+	// submission stands, so the My device page knows which modal to show and what to poll for.
+	BitLockerPINStateForDevice(ctx context.Context, host *Host) (fleetdCanSetPIN bool, request *HostBitLockerPINRequest, err error)
 
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
@@ -1284,7 +1321,7 @@ type Service interface {
 	SignMDMMicrosoftClientCSR(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error)
 
 	// GetMDMWindowsManagementResponse returns a valid SyncML response message
-	GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *SyncML, reqCerts []*x509.Certificate) (*SyncML, error)
+	GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *SyncML) (*SyncML, error)
 
 	// GetMDMWindowsTOSContent returns TOS content
 	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)
@@ -1306,6 +1343,13 @@ type Service interface {
 	// protection on a host that was encrypted but unprotected.
 	SetOrUpdateDiskEncryptionProtection(ctx context.Context, outcome DiskEncryptionProtectionOutcome, clientError string) error
 
+	// GetBitLockerPINForHost hands the agent the startup PIN the end user submitted. It can only succeed once per
+	// submission: the PIN is cleared as it is read.
+	GetBitLockerPINForHost(ctx context.Context) (pin string, requestUUID string, err error)
+
+	// SetBitLockerPINOutcome records whether the agent managed to apply the PIN it collected.
+	SetBitLockerPINOutcome(ctx context.Context, requestUUID string, outcome BitLockerPINRequestStatus, clientError string) error
+
 	// GetMDMWindowsConfigProfile retrieves the specified configuration profile.
 	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)
 
@@ -1318,7 +1362,7 @@ type Service interface {
 
 	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
 	// the specified team.
-	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, description string, selfService, hidden bool) (*MDMWindowsConfigProfile, error)
 
 	// NewMDMUnsupportedConfigProfile is called when a profile with an
 	// unsupported extension is uploaded.
@@ -1341,7 +1385,11 @@ type Service interface {
 	// profileName is the uploaded file's name without its extension, empty when
 	// the request carried no file. Unused by Apple .mobileconfig, which is named
 	// by the PayloadDisplayName in its content.
-	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error
+	//
+	// A nil selfService or hidden keeps the stored value. selfService is only
+	// valid for .mobileconfig; flipping it on opts in every host that already
+	// has the profile.
+	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string, selfService, hidden *bool) error
 
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
 	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
@@ -1369,7 +1417,7 @@ type Service interface {
 	// Android MDM
 
 	// NewMDMAndroidConfigProfile creates a new Android configuration profile
-	NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAndroidConfigProfile, error)
+	NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, description string, selfService, hidden bool) (*MDMAndroidConfigProfile, error)
 
 	// DeleteMDMAndroidConfigProfile deletes the specified Android profile.
 	DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error
@@ -1489,6 +1537,9 @@ type Service interface {
 	// an existing recovery lock password.
 	RotateRecoveryLockPassword(ctx context.Context, hostID uint) error
 
+	// RotateDiskEncryptionKey enqueues a FileVault recovery key rotation for a macOS host.
+	RotateDiskEncryptionKey(ctx context.Context, hostID uint) error
+
 	// GetHostManagedAccountPassword retrieves and decrypts the managed local account
 	// password for the given host ID. Available whenever the row has a stored password
 	// and status is not 'failed' (the row's status may be 'pending' due to a recent view).
@@ -1504,6 +1555,9 @@ type Service interface {
 	// Software installers
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (*SoftwareInstaller, error)
+	// CreateStagedUpload returns a presigned URL a client uploads a package of the given size to, for
+	// registering it later with the target's add or edit endpoint.
+	CreateStagedUpload(ctx context.Context, target StagedUploadTarget, teamID uint, size int64) (*StagedUpload, error)
 	UpdateSoftwareInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload) (*SoftwareInstaller, error)
 	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error
 	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint, installerID *uint) (string, error)
@@ -1725,6 +1779,13 @@ type Service interface {
 	// SendAPNSPing sends a ping to the specified host via APNS. Only valid for Apple hosts.
 	SendAPNSPing(ctx context.Context, hostID uint) error
 	DeviceSendAPNSPing(ctx context.Context, host *Host) error
+
+	// InstallSelfServiceConfigurationProfile opts-in to the specified self-service configuration profile on the host.
+	InstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error
+	// UninstallSelfServiceConfigurationProfile opts-out of the specified self-service configuration profile on the host.
+	UninstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error
+	DeviceInstallSelfServiceConfigurationProfile(ctx context.Context, host *Host, profileUUID string) error
+	DeviceUninstallSelfServiceConfigurationProfile(ctx context.Context, host *Host, profileUUID string) error
 }
 
 type KeyValueStore interface {

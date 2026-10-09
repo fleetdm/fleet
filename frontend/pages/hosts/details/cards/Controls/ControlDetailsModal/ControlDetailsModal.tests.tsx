@@ -231,15 +231,13 @@ describe("ControlDetailsModal", () => {
       ).toBeInTheDocument();
     });
 
-    it("hides the Resend action when the page doesn't allow resending", () => {
+    it("disables the Resend action when the user can't resend", () => {
       renderModal({
         control: failedWindowsProfile,
         canResendProfiles: false,
       });
 
-      expect(
-        screen.queryByRole("button", { name: /Resend/ })
-      ).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Resend/ })).toBeDisabled();
     });
 
     it("closes the modal after a successful resend", async () => {

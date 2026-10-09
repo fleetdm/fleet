@@ -1,3 +1,9 @@
+## fleetd-chrome 1.3.6 (Oct 02, 2026)
+
+* Fixed ChromeOS `system_info` queries and policies failing with "Not allowed" errors when the Google admin `EnterpriseHardwarePlatformAPIEnabled` policy is disabled.
+
+* Fixed vulnerabilities in development dependencies.
+
 ## fleetd-chrome 1.3.5 (Jan 27, 2026)
 
 * Updated Lodash dependency version to resolve vulnerabilities.

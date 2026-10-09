@@ -12,8 +12,7 @@ import {
   Tooltip,
 } from "recharts";
 
-import { ILabelSummary } from "interfaces/label";
-import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
+import { getBuiltinPlatformLabelId, ILabelSummary } from "interfaces/label";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -189,16 +188,9 @@ const HostsEnrolledCard = ({
     percent: totalHostCount ? (counts[platform] / totalHostCount) * 100 : 0,
   }));
 
-  // Given a platform, find the corresponding built-in label ID for linking to the
-  // hosts list.
-  const getLabelId = (platform: PlatformKey): number | undefined => {
-    const labelName = PLATFORM_NAME_TO_LABEL_NAME[platform];
-    return builtInLabels?.find((l) => l.name === labelName)?.id;
-  };
-
   const navigateToPlatform = (platform: PlatformKey, count: number) => {
     if (!count) return;
-    const labelId = getLabelId(platform);
+    const labelId = getBuiltinPlatformLabelId(builtInLabels, platform);
     if (labelId === undefined) return;
     router.push(
       getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(labelId), {
@@ -221,7 +213,9 @@ const HostsEnrolledCard = ({
   const isTickClickable = (index: number) => {
     const datum = data[index];
     if (!datum || !datum.count) return false;
-    return getLabelId(datum.platform) !== undefined;
+    return (
+      getBuiltinPlatformLabelId(builtInLabels, datum.platform) !== undefined
+    );
   };
 
   // Mirror CheckerboardViz's wide-mode detection so the bar chart's plot area

@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -99,7 +101,8 @@ type Software struct {
 	BundleIdentifier string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
-	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons)
+	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons),
+	// the Adobe plugin bundle id (adobe_plugins), or the Go module path (go_binaries).
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
@@ -107,7 +110,8 @@ type Software struct {
 	Browser string `json:"browser"`
 
 	// Release is the version of the OS this software was released on
-	// (e.g. "30.el7" for a CentOS package).
+	// (e.g. "30.el7" for a CentOS package), or the Go toolchain version for go_binaries
+	// (e.g. "go1.26.1").
 	Release string `json:"release,omitempty" db:"release"`
 	// Vendor is the supplier of the software (e.g. "CentOS").
 	Vendor string `json:"vendor,omitempty" db:"vendor"`
@@ -173,6 +177,15 @@ func (s *Software) populateBrowserField() {
 	}
 }
 
+// marshalExtensionID hides the Go module path stored in extension_id for go_binaries: it
+// exists only for vulnerability detection, which reads it from the database.
+func marshalExtensionID(source, extensionID string) string {
+	if source == "go_binaries" {
+		return ""
+	}
+	return extensionID
+}
+
 // MarshalJSON populates the browser field for backwards compatibility then calls the typical
 // MarshalJSON implementation
 func (s *Software) MarshalJSON() ([]byte, error) {
@@ -180,10 +193,12 @@ func (s *Software) MarshalJSON() ([]byte, error) {
 	type Alias Software
 	return json.Marshal(&struct {
 		*Alias
-		LastOpenedAt any `json:"last_opened_at,omitempty"`
+		LastOpenedAt any    `json:"last_opened_at,omitempty"`
+		ExtensionID  string `json:"extension_id,omitempty"`
 	}{
 		Alias:        (*Alias)(s),
 		LastOpenedAt: marshalLastOpenedAt(s.Source, s.LastOpenedAt),
+		ExtensionID:  marshalExtensionID(s.Source, s.ExtensionID),
 	})
 }
 
@@ -270,6 +285,7 @@ type VulnerableSoftware struct {
 	Name              string  `json:"name" db:"name"`
 	Version           string  `json:"version" db:"version"`
 	Source            string  `json:"source" db:"source"`
+	Release           string  `json:"release,omitempty" db:"release"`
 	ExtensionFor      string  `json:"extension_for" db:"extension_for"`
 	GenerateCPE       string  `json:"generated_cpe" db:"generated_cpe"`
 	HostsCount        int     `json:"hosts_count,omitempty" db:"hosts_count"`
@@ -277,10 +293,34 @@ type VulnerableSoftware struct {
 }
 
 type VulnSoftwareFilter struct {
-	HostID      *uint
-	Name        string // LIKE filter
-	Source      string // exact match
-	KernelsOnly bool   // filter to kernel packages only (for RHEL goval-dictionary scanning)
+	HostID *uint
+	Name   string // LIKE filter
+	// Sources restricts the results to these sources, or to every source when empty. Package
+	// scanners set it so a binary that happens to share a distro package's name is never
+	// compared as one.
+	Sources     []string
+	KernelsOnly bool // filter to kernel packages only (for RHEL goval-dictionary scanning)
+}
+
+// Validate reports whether the filter is well formed.
+func (f VulnSoftwareFilter) Validate() error {
+	return ValidateSoftwareSources(f.Sources)
+}
+
+// ValidateSoftwareSources checks that a list of software sources is well formed: no empty
+// entry, and no source listed twice. An empty list is valid and means "every source".
+func ValidateSoftwareSources(sources []string) error {
+	seen := make(map[string]struct{}, len(sources))
+	for _, source := range sources {
+		if source == "" {
+			return errors.New("empty software source")
+		}
+		if _, ok := seen[source]; ok {
+			return fmt.Errorf("duplicate software source %q", source)
+		}
+		seen[source] = struct{}{}
+	}
+	return nil
 }
 
 type SliceString []string
@@ -305,6 +345,8 @@ type SoftwareVersion struct {
 	ID uint `db:"id" json:"id"`
 	// Version is the version string we grab for this specific software.
 	Version string `db:"version" json:"version"`
+	// Release is the software's release; see Software.Release.
+	Release string `db:"release" json:"release,omitempty"`
 	// Vulnerabilities is the list of CVE names for vulnerabilities found for this version.
 	Vulnerabilities *SliceString `db:"vulnerabilities" json:"vulnerabilities"`
 	// HostsCount is the number of hosts that use this software version.
@@ -574,6 +616,97 @@ type SoftwareTitleListResult struct {
 	SoftwareAutoUpdateConfig
 }
 
+// softwareTypeFilterSources maps every source accepted by the `source` filter to the `extension_for`
+// values accepted for it.
+// IMPORTANT: When updating this, also make sure to update SOFTWARE_TYPE_VARIANTS in frontend code.
+var softwareTypeFilterSources = map[string][]string{
+	"adobe_plugins":       nil,
+	"android_apps":        nil,
+	"apps":                nil,
+	"chocolatey_packages": nil,
+	"deb_packages":        nil,
+	"go_binaries":         nil,
+	"homebrew_packages":   nil,
+	"ie_extensions":       nil,
+	"ios_apps":            nil,
+	"ipados_apps":         nil,
+	"nix_packages":        nil,
+	"npm_packages":        nil,
+	"pacman_packages":     nil,
+	"pkg_packages":        nil,
+	"portage_packages":    nil,
+	"programs":            nil,
+	"ps1_packages":        nil,
+	"py_packages":         nil,
+	"python_packages":     nil,
+	"rpm_packages":        nil,
+	"safari_extensions":   nil,
+	"sh_packages":         nil,
+	"tgz_packages":        nil,
+	"chrome_extensions":   {"chrome", "chromium", "brave", "edge", "edge_beta", "opera", "yandex"},
+	"firefox_addons":      {"firefox"},
+	"vscode_extensions":   {"vscode", "vscode_insiders", "vscodium", "vscodium_insiders", "cursor", "windsurf", "trae"},
+	"jetbrains_plugins": {
+		"clion", "datagrip", "goland", "intellij_idea", "intellij_idea_community_edition", "phpstorm", "pycharm",
+		"pycharm_community_edition", "resharper", "rider", "rubymine", "rust_rov", "webstorm",
+	},
+}
+
+// softwareTypeFilterSourceByExtensionFor maps each accepted extension_for value back to its source. It
+// panics at startup if a value is listed under two sources, which would make the lookup ambiguous.
+var softwareTypeFilterSourceByExtensionFor = func() map[string]string {
+	bySource := make(map[string]string)
+	for source, exts := range softwareTypeFilterSources {
+		for _, ext := range exts {
+			if other, ok := bySource[ext]; ok {
+				panic(fmt.Sprintf("extension_for %q is listed under both %q and %q", ext, other, source))
+			}
+			bySource[ext] = source
+		}
+	}
+	return bySource
+}()
+
+// SoftwareTypeFilter is the validated form of the `source` and `extension_for` query parameters. It
+// maps each selected source to the extension_for values that narrow it; a source with no values
+// matches all of its rows.
+type SoftwareTypeFilter map[string][]string
+
+// ParseSoftwareTypeFilter validates the comma-separated `source` and `extension_for` query
+// parameters, trimming spaces and ignoring empty values. It returns nil when neither selects anything.
+// Values are checked against the allowlist before they're kept, so the result stays bounded whatever
+// the input size.
+func ParseSoftwareTypeFilter(source, extensionFor string) (SoftwareTypeFilter, error) {
+	filter := make(SoftwareTypeFilter)
+	for _, s := range str.ParseStringList(source) {
+		if _, ok := softwareTypeFilterSources[s]; !ok {
+			return nil, NewInvalidArgumentError("source", fmt.Sprintf(InvalidSoftwareSourceErrMsg, s))
+		}
+		filter[s] = nil
+	}
+
+	for _, ext := range str.ParseStringList(extensionFor) {
+		if len(filter) == 0 {
+			return nil, NewInvalidArgumentError("extension_for", SoftwareExtensionForRequiresSourceErrMsg)
+		}
+		extSource, ok := softwareTypeFilterSourceByExtensionFor[ext]
+		if !ok {
+			return nil, NewInvalidArgumentError("extension_for", fmt.Sprintf(InvalidSoftwareExtensionForErrMsg, ext))
+		}
+		if _, ok := filter[extSource]; !ok {
+			return nil, NewInvalidArgumentError("extension_for", fmt.Sprintf(SoftwareExtensionForSourceNotSelectedErrMsg, ext, extSource))
+		}
+		if !slices.Contains(filter[extSource], ext) {
+			filter[extSource] = append(filter[extSource], ext)
+		}
+	}
+
+	if len(filter) == 0 {
+		return nil, nil
+	}
+	return filter, nil
+}
+
 type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`
@@ -589,6 +722,11 @@ type SoftwareTitleListOptions struct {
 	Platform            string  `query:"platform,optional"`
 	HashSHA256          string  `query:"hash_sha256,optional"`
 	PackageName         string  `query:"package_name,optional"`
+	Source              string  `query:"source,optional"`
+	ExtensionFor        string  `query:"extension_for,optional"`
+
+	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
+	TypeFilter SoftwareTypeFilter
 
 	// ForSetupExperience is an internal flag set when listing software via the
 	// setup experience endpoint, so that it filters out any software available
@@ -627,6 +765,12 @@ type HostSoftwareTitleListOptions struct {
 	// top level of the macOS /Applications folder. Ignored for non-macOS hosts.
 	MacOSApplicationsOnly bool `query:"macos_applications,optional"`
 
+	Source       string `query:"source,optional"`
+	ExtensionFor string `query:"extension_for,optional"`
+
+	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
+	TypeFilter SoftwareTypeFilter
+
 	// Non-MDM-enabled hosts cannot install VPP apps
 	IsMDMEnrolled bool
 }
@@ -659,11 +803,13 @@ func (hse *HostSoftwareEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		*Alias
 		LastOpenedAt             any                        `json:"last_opened_at,omitempty"`
+		ExtensionID              string                     `json:"extension_id,omitempty"`
 		InstalledPaths           []string                   `json:"installed_paths"`
 		PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
 	}{
 		Alias:                    (*Alias)(&hse.Software),
 		LastOpenedAt:             marshalLastOpenedAt(hse.Source, hse.LastOpenedAt),
+		ExtensionID:              marshalExtensionID(hse.Source, hse.ExtensionID),
 		InstalledPaths:           hse.InstalledPaths,
 		PathSignatureInformation: hse.PathSignatureInformation,
 	})
@@ -729,6 +875,11 @@ type SoftwareListOptions struct {
 	KnownExploit                bool    `query:"exploit,optional"`
 	MinimumCVSS                 float64 `query:"min_cvss_score,optional"`
 	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
+	Source                      string  `query:"source,optional"`
+	ExtensionFor                string  `query:"extension_for,optional"`
+
+	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
+	TypeFilter SoftwareTypeFilter
 
 	// WithHostCounts indicates that the list of software should include the
 	// counts of hosts per software, and include only those software that have

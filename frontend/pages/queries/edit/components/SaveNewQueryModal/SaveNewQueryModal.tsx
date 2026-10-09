@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -255,7 +256,17 @@ const SaveNewQueryModal = ({
           value={selectedFrequency}
           label="Interval"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-          helpText="This is how often your report collects data."
+          helpText={
+            <>
+              Counts time the host is awake. Hosts that sleep will report after
+              longer intervals of calendar time.{" "}
+              <CustomLink
+                url="https://fleetdm.com/guides/reports#schedule-a-report"
+                text="Learn more"
+                newTab
+              />
+            </>
+          }
         />
         <Checkbox
           name="observerCanRun"

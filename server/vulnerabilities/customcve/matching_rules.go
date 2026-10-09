@@ -31,6 +31,15 @@ type CVEMatchingRule struct {
 
 type CVEMatchingRules []CVEMatchingRule
 
+// sources returns the rule's source filter. A rule with no SourceMatch matches software from
+// every source, which the filter expresses as no sources rather than as an empty one.
+func (r CVEMatchingRule) sources() []string {
+	if r.SourceMatch == "" {
+		return nil
+	}
+	return []string{r.SourceMatch}
+}
+
 // getCVEMatchingRules returns a list of custom rules for matching software with CVEs
 // Currently only supporting CVEMatchingRules, but can be extended to support other types.
 // Append new rules here.
@@ -93,8 +102,8 @@ func getCVEMatchingRules() CVEMatchingRules {
 func (r CVEMatchingRule) match(ctx context.Context, ds fleet.Datastore) ([]fleet.SoftwareVulnerability, error) {
 	var vulns []fleet.SoftwareVulnerability
 	filter := fleet.VulnSoftwareFilter{
-		Name:   r.NameLikeMatch,
-		Source: r.SourceMatch,
+		Name:    r.NameLikeMatch,
+		Sources: r.sources(),
 	}
 	software, err := ds.ListSoftwareForVulnDetection(ctx, filter)
 	if err != nil {
