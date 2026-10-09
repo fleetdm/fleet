@@ -27,7 +27,7 @@ env:
 jobs:
   build:
     # TEMPORARY (model/effort sweep): one job per model/effort pair, all in parallel.
-    name: Test profile generator (${{ matrix.config.model }} @ ${{ matrix.config.effort }})
+    name: Test profile generator (${{ matrix.config.model }} @ ${{ matrix.config.effort }}, sample ${{ matrix.config.sample }})
     runs-on: ubuntu-latest
 
     strategy:
@@ -35,11 +35,8 @@ jobs:
       matrix:
         node-version: [20.x]
         config:
-          - { model: claude-haiku-5-5, effort: low }
-          - { model: claude-haiku-5-5, effort: medium }
-          - { model: claude-sonnet-5-5, effort: low }
-          - { model: claude-sonnet-5-5, effort: medium }
-          - { model: claude-opus-5-5, effort: low }
+          - { model: claude-sonnet-5-5, effort: low, sample: 2 }
+          - { model: claude-sonnet-5-5, effort: low, sample: 3 }
 
     steps:
       - name: Harden Runner
