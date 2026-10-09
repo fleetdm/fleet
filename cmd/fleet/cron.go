@@ -1977,6 +1977,10 @@ func newQueryResultsCleanupSchedule(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger.With("cron", name)),
+		// Runs first so the excess cleanup's counts don't include rows about to be deleted.
+		schedule.WithJob("cleanup_stale_query_results", func(ctx context.Context) error {
+			return ds.CleanupStaleQueryResults(ctx)
+		}),
 		schedule.WithJob("cleanup_excess_query_results", func(ctx context.Context) error {
 			appConfig, err := ds.AppConfig(ctx)
 			if err != nil {
@@ -3131,6 +3135,12 @@ func newCleanupExpiredADUEChallengesSchedule(
 		schedule.WithJob("cleanup_expired_dep_enrollment_challenges", func(ctx context.Context) error {
 			if err := ds.CleanupExpiredMDMAppleDEPEnrollmentChallenges(ctx); err != nil {
 				return ctxerr.Wrap(ctx, err, "cleaning up expired automatic enrollment challenges")
+			}
+			return nil
+		}),
+		schedule.WithJob("cleanup_apple_scep_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupAppleSCEPChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up apple scep challenges")
 			}
 			return nil
 		}),

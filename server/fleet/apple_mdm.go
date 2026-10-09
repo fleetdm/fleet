@@ -22,6 +22,14 @@ import (
 
 const ADUEEnrollmentChallengeExpiration = 1 * time.Hour
 
+// DefaultAutomaticEnrollmentTokenGracePeriodHours and
+// MaxAutomaticEnrollmentTokenGracePeriodHours bound how long the previous
+// automatic enrollment token keeps working after a rotation.
+const (
+	DefaultAutomaticEnrollmentTokenGracePeriodHours = 24
+	MaxAutomaticEnrollmentTokenGracePeriodHours     = 720
+)
+
 // MDMAppleDEPEnrollmentChallengeExpiration is how long the one-time token
 // handed out after end user authentication during automatic enrollment (ADE)
 // stays valid.
@@ -2180,3 +2188,22 @@ const (
 	TokenSourceDefault       = "default"
 	TokenSourceDEPAssignment = "dep_assignment"
 )
+
+type AppleMDMCertPurpose string
+
+const (
+	AppleMDMCertPurposeADE         AppleMDMCertPurpose = "ade"
+	AppleMDMCertPurposeOTAPhaseOne AppleMDMCertPurpose = "ota_phase1"
+	AppleMDMCertPurposeOTAPhaseTwo AppleMDMCertPurpose = "ota_phase2"
+	AppleMDMCertPurposeADUE        AppleMDMCertPurpose = "adue"
+	AppleMDMCertPurposeSCEPRenewal AppleMDMCertPurpose = "renewal"
+	AppleMDMCertPurposeACME        AppleMDMCertPurpose = "acme"
+	AppleMDMCertPurposeACMERenewal AppleMDMCertPurpose = "acme_renewal"
+)
+
+type AppleSCEPChallengeInfo struct {
+	Purpose        AppleMDMCertPurpose `db:"purpose"`
+	UUID           *string             `db:"host_uuid"`
+	Serial         *string             `db:"hardware_serial"`
+	IDPAccountUUID *string             `db:"idp_account_uuid"`
+}

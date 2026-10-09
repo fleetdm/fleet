@@ -47,6 +47,8 @@ func TestNewBasicFileStructure(t *testing.T) {
 			".github/fleet-gitops/action.yml",
 			".gitlab-ci.yml",
 			"README.md",
+			"CLAUDE.md",
+			".claude/skills/fleet-gitops/SKILL.md",
 			"fleets/workstations.yml",
 			"labels/apple-silicon-macos-hosts.yml",
 			"platforms/macos/policies/all-software-updates-installed.yml",

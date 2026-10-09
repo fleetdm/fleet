@@ -28,6 +28,9 @@ type TestWindowsMDMClient struct {
 	DeviceID string
 	// HardwareID identifies a device.
 	HardwareID string
+	// EntraDeviceID is the Entra device ID signed into the access token of an automatic (Entra) enrollment. Empty omits the
+	// deviceid claim.
+	EntraDeviceID string
 	// NotInOOBE indicates whether the enrollment is happening outside of the OOBE(Out Of Box Experience).
 	// NotInOOBE true basically means the enrollment happened post-setup(i.e. settings->Work or School Account)
 	// False means the enrollment is happening during OOBE/autopilot.
@@ -128,6 +131,7 @@ func newTestMDMClient(serverURL string, enrollmentType fleet.WindowsMDMEnrollmen
 		enrollmentType:  enrollmentType,
 		TokenIdentifier: tokenIdentifier,
 		HardwareID:      uuid.NewString(),
+		EntraDeviceID:   uuid.NewString(),
 	}
 	c.loginStatus = string(fleet.WindowsMDMLoginStatusUser)
 	for _, fn := range opts {
@@ -744,6 +748,9 @@ func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType
 			"scp":         "mdm_delegation",
 			"iss":         "https://sts.windows.net/" + c.entraTenantID + "/",
 			"aud":         c.fleetServerURL,
+		}
+		if c.EntraDeviceID != "" {
+			(*claims)["deviceid"] = c.EntraDeviceID
 		}
 		if c.jwtSigningKey == nil || c.jwtSigningKeyID == "" {
 			return "", "", errors.New("jwt signing key is not set")
