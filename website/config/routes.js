@@ -1462,6 +1462,7 @@ module.exports.routes = {
   'GET /learn-more-about/deleting-a-host': '/guides/enroll-hosts#delete-a-host',
   'GET /learn-more-about/enrollment-troubleshooting': '/guides/enroll-hosts#debugging',
   'GET /learn-more-about/nixos-package-management': 'https://nixos.org/manual/nixos/stable/#sec-package-management',
+  'GET /learn-more-about/google-play-automatic-app-updates': 'https://support.google.com/googleplay/answer/113412?hl=en',
 
   // Sitemap
   // =============================================================================================================
