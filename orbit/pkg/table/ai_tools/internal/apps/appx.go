@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"cmp"
 	"encoding/xml"
 	"os"
 	"path/filepath"
@@ -159,7 +160,7 @@ func scanAppxDirs(c *appCollector, installRoot string, userPkgDirs []string) {
 		}
 		c.add(appCandidate{
 			MatchTokens: []string{pkg.Name, appxLiteral(man.Properties.DisplayName)},
-			DisplayName: firstNonEmpty(appxLiteral(man.Properties.DisplayName), pkg.Name),
+			DisplayName: cmp.Or(appxLiteral(man.Properties.DisplayName), pkg.Name),
 			Vendor:      appxVendor(man.Properties.PublisherDisplayName, man.Identity.Publisher),
 			Version:     pkg.Version,
 			Path:        dir,

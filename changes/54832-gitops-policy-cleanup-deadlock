@@ -1,2 +1,0 @@
-- Fixed `fleetctl gitops` failing with `Error 1213: Deadlock found` on instances with many hosts and policies. Re-applying unchanged policies no longer cleans up their membership, the orphaned membership cleanup no longer locks every membership row of a policy, and the post-apply cleanup now retries on deadlocks.
-- When async host processing is enabled for policy membership, fixed hosts keeping results for policies no longer in scope for them (for example, after leaving a policy's label), which inflated their failing policy counts.

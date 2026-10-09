@@ -1785,8 +1785,16 @@ type Datastore interface {
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
 
-	// GetMDMAppleEnrollmentProfileByToken loads the enrollment profile from its secret token.
+	// GetMDMAppleEnrollmentProfileByToken loads the enrollment profile from its secret token, or
+	// from its previous token until that expires.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*MDMAppleEnrollmentProfile, error)
+
+	// RotateMDMAppleAutomaticEnrollmentToken replaces the automatic enrollment profile's token with
+	// newToken. The current token becomes the previous token, valid for gracePeriod, or is
+	// discarded if gracePeriod is 0. profileUpdateJob is queued in the same transaction. It returns
+	// when the previous token expires, or nil if it was discarded, and a not found error if there is
+	// no automatic enrollment profile with a token.
+	RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, newToken string, gracePeriod time.Duration, profileUpdateJob *Job) (previousTokenExpiresAt *time.Time, err error)
 
 	// GetMDMAppleEnrollmentProfileByType loads the enrollment profile from its type (e.g. manual, automatic).
 	GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ MDMAppleEnrollmentType) (*MDMAppleEnrollmentProfile, error)
@@ -2681,6 +2689,9 @@ type Datastore interface {
 	// WindowsHostLiteByHardwareSerial returns a HostLite for the Windows host whose hardware_serial matches the given serial.
 	WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*HostLite, error)
 
+	// WindowsHostLiteByUUID returns a HostLite for the Windows host with the given UUID, the lowest id if several share it.
+	WindowsHostLiteByUUID(ctx context.Context, hostUUID string) (*HostLite, error)
+
 	// MDMWindowsSaveUnlinkedEnrollmentHardwareSerial stores the SMBIOS serial reported over OMA-DM (DevDetail) on a still-unlinked
 	// Windows MDM enrollment, so the orbit enrollment path can reverse-link the enrollment once the host record exists.
 	MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.Context, mdmDeviceID string, hardwareSerial string) error
@@ -2697,6 +2708,10 @@ type Datastore interface {
 	// MDMWindowsClaimEnrolledActivity claims the right to record the mdm_enrolled activity for the given Windows MDM
 	// enrollment, returning true for the first caller only.
 	MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
+
+	// MDMWindowsSetEnrollmentFleetdPresent records that fleetd was seen present for the given Windows MDM enrollment, if it is still
+	// linked to hostUUID and that host still exists.
+	MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, enrollmentID uint, hostUUID string) error
 
 	// MDMWindowsReleaseEnrolledActivityClaim releases a claim taken with the given timestamp, so an enrollment whose
 	// activity could not be recorded is retried on a later session rather than left silently unannounced.
@@ -2753,8 +2768,12 @@ type Datastore interface {
 	// GetMDMWindowsCommands returns the results of command
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
-	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
+	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID. It returns true when the host UUID
+	// changed, or when the enrollment's host was deleted and this is its first link since.
 	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
+
+	// MDMWindowsClearDeletedHostTeam clears the deleted host marker of the device's enrollments.
+	MDMWindowsClearDeletedHostTeam(ctx context.Context, mdmDeviceID string) error
 
 	// SetMDMWindowsAwaitingConfiguration performs a compare-and-swap update on the
 	// awaiting_configuration status for a Windows MDM enrollment identified by

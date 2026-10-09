@@ -54,6 +54,7 @@ func TestMDMApple(t *testing.T) {
 		{"ConsumeADUEEnrollmentChallenge", testConsumeADUEEnrollmentChallenge},
 		{"CleanupExpiredADUEEnrollmentChallenges", testCleanupExpiredADUEEnrollmentChallenges},
 		{"MDMAppleDEPEnrollmentChallenges", testMDMAppleDEPEnrollmentChallenges},
+		{"RotateMDMAppleAutomaticEnrollmentToken", testRotateMDMAppleAutomaticEnrollmentToken},
 		{"ConsumeAppleSCEPChallenge", testConsumeAppleSCEPChallenge},
 		{"SetAppleSCEPChallengeIssuedCert", testSetAppleSCEPChallengeIssuedCert},
 		{"CleanupAppleSCEPChallenges", testCleanupAppleSCEPChallenges},
@@ -14424,6 +14425,132 @@ func testMDMAppleDEPEnrollmentChallenges(t *testing.T, ds *Datastore) {
 		_, err = ds.GetMDMAppleDEPEnrollmentChallenge(ctx, challenge)
 		require.True(t, fleet.IsNotFound(err))
 	})
+}
+
+func testRotateMDMAppleAutomaticEnrollmentToken(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	const jobName = "test_profile_update"
+	newJob := func() *fleet.Job {
+		args := json.RawMessage(`{"task":"update_all_profiles"}`)
+		return &fleet.Job{Name: jobName, Args: &args, State: fleet.JobStateQueued}
+	}
+	queuedJobs := func() int {
+		t.Helper()
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM jobs WHERE name = ?`, jobName)
+		})
+		return n
+	}
+
+	// a failed rotation queues no job
+	_, err := ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", time.Hour, newJob())
+	require.True(t, fleet.IsNotFound(err), err)
+	require.Zero(t, queuedJobs())
+
+	_, err = ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Token: "token-0",
+		Type:  fleet.MDMAppleEnrollmentTypeAutomatic,
+	})
+	require.NoError(t, err)
+	manual, err := ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Token: "manual-token",
+		Type:  fleet.MDMAppleEnrollmentTypeManual,
+	})
+	require.NoError(t, err)
+
+	requireTokenValid := func(token string, valid bool) {
+		t.Helper()
+		prof, err := ds.GetMDMAppleEnrollmentProfileByToken(ctx, token)
+		if !valid {
+			require.True(t, fleet.IsNotFound(err), "token %s: %v", token, err)
+			return
+		}
+		require.NoError(t, err, "token %s", token)
+		require.Equal(t, fleet.MDMAppleEnrollmentTypeAutomatic, prof.Type)
+	}
+	previousToken := func() (*string, *time.Time) {
+		var row struct {
+			PreviousToken          *string    `db:"previous_token"`
+			PreviousTokenExpiresAt *time.Time `db:"previous_token_expires_at"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `SELECT previous_token, previous_token_expires_at FROM mdm_apple_enrollment_profiles WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		})
+		return row.PreviousToken, row.PreviousTokenExpiresAt
+	}
+
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "", time.Hour, newJob())
+	require.Error(t, err)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", -time.Hour, newJob())
+	require.Error(t, err)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", time.Hour, nil)
+	require.Error(t, err)
+	require.Zero(t, queuedJobs())
+	requireTokenValid("token-0", true)
+
+	// rotate with a grace period
+	expiresAt, err := ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", 24*time.Hour, newJob())
+	require.NoError(t, err)
+	require.Equal(t, 1, queuedJobs())
+	require.NotNil(t, expiresAt)
+	require.WithinDuration(t, time.Now().Add(24*time.Hour), *expiresAt, time.Minute)
+	prev, prevExpiresAt := previousToken()
+	require.NotNil(t, prev)
+	require.NotNil(t, prevExpiresAt)
+	require.Equal(t, "token-0", *prev)
+	require.Equal(t, *expiresAt, *prevExpiresAt)
+	requireTokenValid("token-1", true)
+	requireTokenValid("token-0", true)
+	// binary collation still applies to the previous token
+	requireTokenValid("TOKEN-0", false)
+
+	// the manual profile's token is untouched
+	gotManual, err := ds.GetMDMAppleEnrollmentProfileByToken(ctx, "manual-token")
+	require.NoError(t, err)
+	require.Equal(t, manual.Type, gotManual.Type)
+
+	// the previous token stops working once it expires
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_enrollment_profiles SET previous_token_expires_at = NOW(6) - INTERVAL 1 SECOND WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		return err
+	})
+	requireTokenValid("token-0", false)
+	requireTokenValid("token-1", true)
+
+	// rotating again during a grace period replaces the previous token
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-2", 24*time.Hour, newJob())
+	require.NoError(t, err)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-3", 24*time.Hour, newJob())
+	require.NoError(t, err)
+	requireTokenValid("token-3", true)
+	requireTokenValid("token-2", true)
+	requireTokenValid("token-1", false)
+
+	// no grace period revokes the previous token immediately
+	expiresAt, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-4", 0, newJob())
+	require.NoError(t, err)
+	require.Nil(t, expiresAt)
+	prev, prevExpiresAt = previousToken()
+	require.Nil(t, prev)
+	require.Nil(t, prevExpiresAt)
+	requireTokenValid("token-4", true)
+	requireTokenValid("token-3", false)
+
+	// re-creating the automatic profile leaves the previous token alone
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-5", time.Hour, newJob())
+	require.NoError(t, err)
+	_, err = ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Token: "token-6",
+		Type:  fleet.MDMAppleEnrollmentTypeAutomatic,
+	})
+	require.NoError(t, err)
+	prev, _ = previousToken()
+	require.NotNil(t, prev)
+	require.Equal(t, "token-4", *prev)
+	requireTokenValid("token-6", true)
+	requireTokenValid("token-4", true)
 }
 
 // insertAppleSCEPChallenge inserts a row whose expires_at and consumed_at are offsets from the DB's NOW(6),

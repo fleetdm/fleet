@@ -2312,7 +2312,8 @@ func recordDeletedWindowsHostFleetsDB(ctx context.Context, tx sqlx.ExtContext, h
 	for _, teamID := range slices.Sorted(maps.Keys(uuidsByTeam)) {
 		for uuids := range slices.Chunk(uuidsByTeam[teamID], 5000) {
 			stmt, args, err := sqlx.In(`
-				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ? WHERE host_uuid IN (?)`,
+				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ?, fleetd_present_at = NULL
+				WHERE host_uuid IN (?)`,
 				teamID, uuids)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build record of deleted windows hosts' fleets")
