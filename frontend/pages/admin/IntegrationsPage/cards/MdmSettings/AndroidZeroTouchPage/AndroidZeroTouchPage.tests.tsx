@@ -22,7 +22,19 @@ const CONFIGURED_APP_CONTEXT = {
 };
 
 const getNameField = () => screen.getByRole("textbox", { name: "Name" });
-const getFleetPicker = (name: RegExp) => screen.getByRole("button", { name });
+const getFleetPicker = () =>
+  screen.getByRole("combobox", {
+    name: "Pick the fleet that Android hosts will automatically enroll into",
+  });
+const getFleetOptions = () => screen.getAllByTestId("dropdown-option");
+const selectFleet = async (name: string) => {
+  await userEvent.click(getFleetPicker());
+  const option = getFleetOptions().find((el) => el.textContent === name);
+  if (!option) {
+    throw new Error(`No fleet option named "${name}"`);
+  }
+  await userEvent.click(option);
+};
 
 describe("AndroidZeroTouchPage", () => {
   afterEach(() => {
@@ -108,7 +120,7 @@ describe("AndroidZeroTouchPage", () => {
 
     expect(screen.getByText("Android zero-touch")).toBeVisible();
     expect(screen.getByText(/Android zero-touch portal/)).toBeVisible();
-    expect(getFleetPicker(/Unassigned/)).toBeEnabled();
+    expect(getFleetPicker()).toBeEnabled();
     expect(getNameField()).toHaveValue("Unassigned");
     expect(screen.getByText(/use this name and pick/)).toBeVisible();
     expect(screen.queryByText(/coming soon/i)).toBeNull();
@@ -143,7 +155,7 @@ describe("AndroidZeroTouchPage", () => {
       screen.getByRole("button", { name: "Copy DPC extras" })
     ).toBeDisabled();
     expect(getNameField()).toHaveValue("Unassigned");
-    expect(getFleetPicker(/Unassigned/)).toBeEnabled();
+    expect(getFleetPicker()).toBeEnabled();
   });
 
   test("switching fleets requests that fleet's DPC extras and updates the name", async () => {
@@ -164,8 +176,14 @@ describe("AndroidZeroTouchPage", () => {
 
     await screen.findByText(/token-for-fleet-0/);
 
-    await userEvent.click(getFleetPicker(/Unassigned/));
-    await userEvent.click(screen.getByText("Workstations"));
+    await userEvent.click(getFleetPicker());
+    expect(getFleetOptions().map((el) => el.textContent)).toEqual([
+      "Unassigned",
+      "Workstations",
+    ]);
+    await userEvent.keyboard("{Escape}");
+
+    await selectFleet("Workstations");
 
     await screen.findByText(/token-for-fleet-1/);
     expect(getConfig).toHaveBeenLastCalledWith(1);
@@ -205,21 +223,19 @@ describe("AndroidZeroTouchPage", () => {
     );
 
     await screen.findByText(/unassigned-1/);
-    await userEvent.click(getFleetPicker(/Unassigned/));
-    await userEvent.click(screen.getByText("Workstations"));
+    await selectFleet("Workstations");
     await screen.findByText(/workstations/);
 
-    await userEvent.click(getFleetPicker(/Workstations/));
-    await userEvent.click(screen.getByText("Unassigned"));
+    await selectFleet("Unassigned");
 
     expect(await screen.findByTestId("spinner")).toBeVisible();
     expect(screen.queryByText(/unassigned-1/)).toBeNull();
-    expect(getFleetPicker(/Unassigned/)).toBeDisabled();
+    expect(getFleetPicker()).toBeDisabled();
     expect(getConfig).toHaveBeenCalledTimes(3);
 
     resolveRefetch({ token: "unassigned-2" });
     await screen.findByText(/unassigned-2/);
-    expect(getFleetPicker(/Unassigned/)).toBeEnabled();
+    expect(getFleetPicker()).toBeEnabled();
   });
 
   test("shows the error without retrying when the server fails", async () => {
@@ -238,7 +254,7 @@ describe("AndroidZeroTouchPage", () => {
 
     expect(await screen.findByText(/gone wrong/i)).toBeVisible();
     expect(getConfig).toHaveBeenCalledTimes(1);
-    expect(getFleetPicker(/Unassigned/)).toBeEnabled();
+    expect(getFleetPicker()).toBeEnabled();
   });
 
   test("disables the fleet picker and copy buttons while the request is pending", async () => {
@@ -256,7 +272,7 @@ describe("AndroidZeroTouchPage", () => {
     render(<AndroidZeroTouchPage />);
 
     expect(await screen.findByTestId("spinner")).toBeVisible();
-    expect(getFleetPicker(/Unassigned/)).toBeDisabled();
+    expect(getFleetPicker()).toBeDisabled();
     expect(screen.getByRole("button", { name: "Copy name" })).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Copy DPC extras" })

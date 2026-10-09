@@ -18,6 +18,11 @@
     font-size: $x-small;
   }
 
+  // The select fills its container, so give it a width to sit inline.
+  &__fleet-dropdown {
+    width: 340px;
+  }
+
   &__field {
     width: 100%;
     max-width: 640px;

@@ -1,12 +1,15 @@
 import { AxiosError } from "axios";
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
+import { SingleValue } from "react-select-5";
 
 import BackButton from "components/BackButton";
 import CopyButton from "components/buttons/CopyButton";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
-import FleetsDropdown from "components/FleetsDropdown";
+import DropdownWrapper, {
+  CustomOptionType,
+} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import InputField from "components/forms/fields/InputField";
 import MainContent from "components/MainContent";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -38,6 +41,20 @@ const AndroidZeroTouchPage = () => {
   const selectedFleetName =
     availableTeams?.find((fleet) => fleet.id === selectedFleetId)?.name ??
     APP_CONTEXT_NO_TEAM_SUMMARY.name;
+
+  const fleetOptions: CustomOptionType[] = [
+    {
+      label: APP_CONTEXT_NO_TEAM_SUMMARY.name,
+      value: String(APP_CONTEXT_NO_TEAM_ID),
+    },
+    ...(availableTeams ?? [])
+      .filter((fleet) => fleet.id > 0)
+      .map((fleet) => ({ label: fleet.name, value: String(fleet.id) })),
+  ];
+
+  const onChangeFleet = (option: SingleValue<CustomOptionType>) => {
+    setSelectedFleetId(Number(option?.value ?? APP_CONTEXT_NO_TEAM_ID));
+  };
 
   // `isPremiumTier` is undefined until the config request resolves, and the
   // route renders as soon as `currentUser` is set. Without this the paywall
@@ -120,14 +137,14 @@ const AndroidZeroTouchPage = () => {
           <span>
             Pick the fleet that Android hosts will automatically enroll into:
           </span>
-          <FleetsDropdown
-            asFormField
-            currentUserFleets={availableTeams || []}
-            selectedFleetId={selectedFleetId}
-            includeAllFleets={false}
-            includeUnassigned
+          <DropdownWrapper
+            name="android-zero-touch-fleet"
+            ariaLabel="Pick the fleet that Android hosts will automatically enroll into"
+            wrapperClassname={`${baseClass}__fleet-dropdown`}
+            options={fleetOptions}
+            value={String(selectedFleetId)}
+            onChange={onChangeFleet}
             isDisabled={isFetching}
-            onChange={setSelectedFleetId}
           />
         </div>
         <div className={`${baseClass}__field`}>
