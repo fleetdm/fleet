@@ -845,7 +845,7 @@
       "name": "Avast Secure Browser",
       "slug": "avast-secure-browser/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.avast.AvastSecureBrowser",
+      "unique_identifier": "com.avast.browser",
       "description": "Avast Secure Browser is a web browser focusing on privacy."
     },
     {
