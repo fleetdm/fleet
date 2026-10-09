@@ -890,7 +890,7 @@ export const NO_VERSION_TOOLTIP_BY_SOURCE: Partial<
   Record<SoftwareSource, string>
 > = {
   mcp_servers:
-    "MCP servers don't have versions. They update on the fly, locally or remotely.",
+    "Fleet doesn't detect MCP server versions yet. Most MCP servers run with npx or uvx, which pick the version at launch unless it's pinned.",
   ai_skills: "AI skills are markdown files, so they don't have versions.",
 };
 

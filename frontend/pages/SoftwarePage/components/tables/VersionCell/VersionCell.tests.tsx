@@ -25,7 +25,7 @@ describe("VersionCell", () => {
     {
       source: "mcp_servers",
       tip:
-        "MCP servers don't have versions. They update on the fly, locally or remotely.",
+        "Fleet doesn't detect MCP server versions yet. Most MCP servers run with npx or uvx, which pick the version at launch unless it's pinned.",
     },
     {
       source: "ai_skills",
