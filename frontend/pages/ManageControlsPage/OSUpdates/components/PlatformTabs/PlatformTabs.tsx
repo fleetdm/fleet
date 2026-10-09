@@ -233,7 +233,11 @@ const PlatformTabs = ({
               appleMdmEmptyState("iOS")
             )}
           </TabPanel>
-          <TabPanel className={`${baseClass}__tab-panel`}>
+          <TabPanel
+            className={`${baseClass}__tab-panel${
+              isAppleMdmEnabled ? "" : "--empty"
+            }`}
+          >
             {isAppleMdmEnabled ? (
               <>
                 <AppleOSTargetForm
