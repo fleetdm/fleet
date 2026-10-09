@@ -32095,9 +32095,11 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("1password/darwin"), RollbackVersion: "^1"}}, TeamName: teamName},
-			http.StatusNotFound, &resp,
+			http.StatusAccepted, &resp,
 			"team_name", teamName, "team_id", "0",
 		)
+		message := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, teamName, resp.RequestUUID)
+		require.Contains(t, message, "specified major version is not available")
 	})
 }
 

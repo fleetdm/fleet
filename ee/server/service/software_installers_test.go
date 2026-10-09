@@ -3057,8 +3057,6 @@ func TestBatchSetSoftwareInstallersSkipsURLValidationForScriptPackages(t *testin
 }
 
 func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
-	t.Parallel()
-
 	const (
 		teamID         = uint(1)
 		cachedHash     = "1111111111111111111111111111111111111111111111111111111111111111"
@@ -3134,14 +3132,33 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
-
 			var downloads atomic.Int32
 			installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				downloads.Add(1)
 				_, _ = w.Write([]byte(installerBytes))
 			}))
 			t.Cleanup(installerSrv.Close)
+
+			manifestSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				manifest := ma.FMAManifestFile{
+					Versions: []*ma.FMAManifestApp{{
+						Version:            "1.0",
+						Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+						InstallerURL:       installerSrv.URL + "/zoom.pkg",
+						SHA256:             c.manifestHash,
+						InstallScriptRef:   "installscript",
+						UninstallScriptRef: "uninstallscript",
+					}},
+					Refs: map[string]string{
+						"installscript":   "echo install",
+						"uninstallscript": "echo uninstall",
+					},
+				}
+				_ = json.NewEncoder(w).Encode(manifest)
+			}))
+			t.Cleanup(manifestSrv.Close)
+			dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestSrv.URL, t)
+			dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestSrv.URL, t)
 
 			ds := new(mock.Store)
 			ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
@@ -3181,21 +3198,13 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 
 			payload := &fleet.SoftwareInstallerPayload{
 				Slug: new("zoom/darwin"),
-				URL:  installerSrv.URL + "/zoom.pkg",
 				MaintainedApp: &fleet.MaintainedApp{
 					ID:               7,
 					Name:             "Zoom",
+					Slug:             "zoom/darwin",
 					Platform:         "darwin",
 					UniqueIdentifier: "us.zoom.xos",
-					Version:          "1.0",
-					InstallerURL:     installerSrv.URL + "/zoom.pkg",
-					SHA256:           c.manifestHash,
-					InstallScript:    "echo install",
-					UninstallScript:  "echo uninstall",
 				},
-			}
-			if c.manifestHash != noCheckHash {
-				payload.SHA256 = c.manifestHash
 			}
 
 			svc.softwareBatchUpload("req-uuid", new(teamID), 1, []*fleet.SoftwareInstallerPayload{payload}, false)
