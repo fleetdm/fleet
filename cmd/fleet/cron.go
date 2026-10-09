@@ -1658,17 +1658,9 @@ func newCleanupsAndAggregationSchedule(
 			}
 			return nil
 		}),
-		// After the unenrolled sweep above. Nothing reads soft-deleted certs, so the retention only keeps them around for debugging.
+		// After the unenrolled sweep above, so the certs it soft-deletes start aging in the same tick.
 		schedule.WithJob("cleanup_host_certificates", func(ctx context.Context) error {
-			const retention = 30 * 24 * time.Hour
-			count, err := ds.CleanupSoftDeletedHostCertificates(ctx, time.Now().Add(-retention).UTC())
-			if err != nil {
-				return err
-			}
-			if count > 0 {
-				logger.InfoContext(ctx, "cleaned up soft-deleted host certificates", "count", count)
-			}
-			return nil
+			return cleanupHostCertificatesCronJob(ctx, ds, logger, config.Server.DeletedHostCertificatesRetention)
 		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
@@ -1825,6 +1817,25 @@ func cleanupHostScriptResultsCronJob(ctx context.Context, ds fleet.Datastore, lo
 	}
 	if deleted > 0 {
 		logger.InfoContext(ctx, "cleaned up host script results", "deleted", deleted)
+	}
+	return nil
+}
+
+// cleanupHostCertificatesCronJob is disabled by a non-positive retention, the
+// documented off switch for server.deleted_host_certificates_retention.
+func cleanupHostCertificatesCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupSoftDeletedHostCertificates(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup soft-deleted host certificates failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up soft-deleted host certificates", "deleted", deleted)
 	}
 	return nil
 }
