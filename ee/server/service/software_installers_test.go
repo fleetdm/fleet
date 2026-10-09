@@ -642,7 +642,9 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		}, nil
 	}
 	payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin")}
-	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	err = svc.maintainedAppFromSlug(context.Background(), &payload, nil)
+	require.NoError(t, err)
+	err = svc.softwareInstallerPayloadFromMaintainedApp(context.Background(), &payload, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, payload.URL)
 	assert.Equal(t, onePasswordSHA, payload.SHA256)
@@ -660,7 +662,9 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		}, nil
 	}
 	payload = fleet.SoftwareInstallerPayload{Slug: ptr.String("google-chrome/darwin")}
-	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	err = svc.maintainedAppFromSlug(context.Background(), &payload, nil)
+	require.NoError(t, err)
+	err = svc.softwareInstallerPayloadFromMaintainedApp(context.Background(), &payload, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, payload.URL)
 	assert.Empty(t, payload.SHA256)
@@ -669,9 +673,10 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	assert.True(t, payload.FleetMaintained)
 
 	payload = fleet.SoftwareInstallerPayload{URL: "https://fleetdm.com"}
-	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	err = svc.maintainedAppFromSlug(context.Background(), &payload, nil)
 	require.NoError(t, err)
 	assert.Nil(t, payload.Slug)
+	assert.Nil(t, payload.MaintainedApp)
 	assert.Equal(t, "https://fleetdm.com", payload.URL)
 	assert.Empty(t, payload.SHA256)
 	assert.Empty(t, payload.InstallScript)
@@ -729,11 +734,13 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	for _, vt := range versionPinValidationTests {
 		t.Run(vt.name, func(t *testing.T) {
 			payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin"), RollbackVersion: vt.version}
-			err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+			err = svc.maintainedAppFromSlug(context.Background(), &payload, nil)
 			if vt.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, vt.wantErr)
 			} else {
+				require.NoError(t, err)
+				err = svc.softwareInstallerPayloadFromMaintainedApp(context.Background(), &payload, nil)
 				require.NoError(t, err)
 				// RollbackVersion must be left as the user typed it, including a caret, so the pin expression
 				// survives downstream and is persisted to software_title_team_pins.

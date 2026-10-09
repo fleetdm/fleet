@@ -2986,18 +2986,17 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	}
 
 	var allScripts []string
-	var categoryNames []string
 
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
 		if payload.Slug != nil && *payload.Slug != "" {
-			err := svc.softwareInstallerPayloadFromSlug(ctx, payload, teamID)
+			err := svc.maintainedAppFromSlug(ctx, payload, teamID)
 			if err != nil {
-				return "", ctxerr.Wrap(ctx, err, "getting fleet maintained software installer payload from slug")
+				return "", ctxerr.Wrap(ctx, err, "getting fleet maintained app from slug")
 			}
 		}
 
-		if payload.URL == "" && payload.SHA256 == "" {
+		if payload.MaintainedApp == nil && payload.URL == "" && payload.SHA256 == "" {
 			return "", fleet.NewInvalidArgumentError(
 				"software",
 				"Couldn't edit software. One or more software packages is missing url or hash_sha256 fields.",
@@ -3044,12 +3043,6 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		if err := trimAndValidateCategories(ctx, payload.Categories.Value); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "validating software categories")
 		}
-		categoryNames = append(categoryNames, payload.Categories.Value...)
-	}
-
-	categories, err := svc.batchAddSelfServiceCategories(ctx, teamID, categoryNames, dryRun)
-	if err != nil {
-		return "", err
 	}
 
 	if !dryRun {
@@ -3070,14 +3063,6 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	requestUUID := uuid.NewString()
 	if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime); err != nil {
 		return "", ctxerr.Wrapf(ctx, err, "failed to set key as %s", batchSetProcessing)
-	}
-
-	categoriesJSON, err := json.Marshal(categories)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "marshal self-service categories result")
-	}
-	if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareCategoriesSuffix, string(categoriesJSON), 10*time.Minute); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "failed to set self-service categories result")
 	}
 
 	svc.logger.InfoContext(
@@ -3105,7 +3090,7 @@ var (
 	errVersionNotFound      = errors.New("specified version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.")
 )
 
-func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payload *fleet.SoftwareInstallerPayload, teamID *uint) error {
+func (svc *Service) maintainedAppFromSlug(ctx context.Context, payload *fleet.SoftwareInstallerPayload, teamID *uint) error {
 	slug := payload.Slug
 	if slug == nil || *slug == "" {
 		return nil
@@ -3127,6 +3112,17 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	}
 
 	payload.RollbackVersion = strings.TrimSpace(payload.RollbackVersion)
+	_, _, err = parsePinnedVersion(ctx, payload.RollbackVersion)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
+	}
+
+	payload.MaintainedApp = app
+	return nil
+}
+
+func (svc *Service) softwareInstallerPayloadFromMaintainedApp(ctx context.Context, payload *fleet.SoftwareInstallerPayload, teamID *uint) error {
+	app := payload.MaintainedApp
 	majorVersionString, usesCaret, err := parsePinnedVersion(ctx, payload.RollbackVersion)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
@@ -3201,7 +3197,6 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		payload.UninstallScript = app.UninstallScript
 	}
 	payload.FleetMaintained = true
-	payload.MaintainedApp = app
 	if !payload.Categories.Set {
 		payload.Categories = optjson.SetSlice(app.Categories)
 	}
@@ -3441,6 +3436,34 @@ func (svc *Service) softwareBatchUpload(
 			return
 		}
 		manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+	}
+
+	var categoryNames []string
+	for _, payload := range payloads {
+		if payload.MaintainedApp != nil {
+			err := svc.softwareInstallerPayloadFromMaintainedApp(ctx, payload, teamID)
+			if err != nil {
+				batchErr = err
+				return
+			}
+		}
+		categoryNames = append(categoryNames, payload.Categories.Value...)
+	}
+
+	batchCategories, err := svc.batchAddSelfServiceCategories(ctx, teamID, categoryNames, dryRun)
+	if err != nil {
+		batchErr = err
+		return
+	}
+	categoriesJSON, err := json.Marshal(batchCategories)
+	if err != nil {
+		batchErr = ctxerr.Wrap(ctx, err, "marshal self-service categories result")
+		return
+	}
+	err = svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareCategoriesSuffix, string(categoriesJSON), 10*time.Minute)
+	if err != nil {
+		batchErr = ctxerr.Wrap(ctx, err, "failed to set self-service categories result")
+		return
 	}
 
 	g, gctx := errgroup.WithContext(ctx)
