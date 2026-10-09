@@ -24970,86 +24970,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 	}
 }
 
-func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerFMAManifestFetchedAfterResponse() {
-	t := s.T()
-	ctx := t.Context()
-
-	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
-	require.NoError(t, err)
-
-	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		file, err := os.Open(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
-		require.NoError(t, err)
-		defer file.Close()
-		w.Header().Set("Content-Type", "application/application/x-newton-compatible-pkg")
-		_, err = io.Copy(w, file)
-		require.NoError(t, err)
-	}))
-	t.Cleanup(installerServer.Close)
-
-	// Serve each manifest only after the test releases it, and fail the fetch if no release comes within 5s
-	manifestReleases := make(chan struct{}, 1)
-	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		select {
-		case <-manifestReleases:
-		case <-time.After(5 * time.Second):
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		manifest := ma.FMAManifestFile{
-			Versions: []*ma.FMAManifestApp{{
-				Version:           "6.0",
-				Queries:           ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
-				InstallerURL:      installerServer.URL + "/fma.pkg",
-				SHA256:            "no_check",
-				DefaultCategories: []string{"Productivity"},
-			}},
-		}
-		require.NoError(t, json.NewEncoder(w).Encode(manifest))
-	}))
-	t.Cleanup(manifestServer.Close)
-	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
-	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestServer.URL, t)
-
-	maintainedApp, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:             "1Password",
-		Slug:             "1password/darwin",
-		Platform:         "darwin",
-		UniqueIdentifier: "com.1password.1password",
-	})
-	require.NoError(t, err)
-
-	testCases := []struct {
-		name     string
-		teamName string
-	}{
-		{
-			name:     "batch for a fleet responds before the manifest is served and reports the manifest category",
-			teamName: team.Name,
-		},
-		{
-			name:     "batch for unassigned responds before the manifest is served and reports the manifest category",
-			teamName: "",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// send the batch with the manifest still held back, the POST should respond
-			var batchResponse batchSetSoftwareInstallersResponse
-			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{
-				Software: []*fleet.SoftwareInstallerPayload{{Slug: &maintainedApp.Slug, SelfService: true}},
-			}, http.StatusAccepted, &batchResponse, "team_name", tc.teamName)
-
-			// release the manifest, the batch should complete with the manifest category
-			manifestReleases <- struct{}{}
-			batchResult := waitBatchSetSoftwareInstallers(t, &s.withServer, tc.teamName, batchResponse.RequestUUID)
-			require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, batchResult.Status, batchResult.Message)
-			require.Len(t, batchResult.Packages, 1)
-			require.Equal(t, []string{"🖥️ Productivity"}, batchResult.Categories)
-		})
-	}
-}
-
 type mockedConditionalAccessMicrosoftProxy struct {
 	createResponse *conditional_access_microsoft_proxy.CreateResponse
 	getResponse    *conditional_access_microsoft_proxy.GetResponse
@@ -38102,4 +38022,84 @@ func (s *integrationEnterpriseTestSuite) TestStagedUploadUnavailable() {
 
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{StagedUploadID: uuid.NewString(), Filename: "ruby.deb"},
 		http.StatusBadRequest, "Direct upload isn't available")
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerFMAManifestFetchedAfterResponse() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file, err := os.Open(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
+		require.NoError(t, err)
+		defer file.Close()
+		w.Header().Set("Content-Type", "application/application/x-newton-compatible-pkg")
+		_, err = io.Copy(w, file)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(installerServer.Close)
+
+	// Serve each manifest only after the test releases it, and fail the fetch if no release comes within 5s
+	manifestReleases := make(chan struct{}, 1)
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-manifestReleases:
+		case <-time.After(5 * time.Second):
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		manifest := ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:           "6.0",
+				Queries:           ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:      installerServer.URL + "/fma.pkg",
+				SHA256:            "no_check",
+				DefaultCategories: []string{"Productivity"},
+			}},
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(manifest))
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestServer.URL, t)
+
+	maintainedApp, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "1Password",
+		Slug:             "1password/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.1password.1password",
+	})
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name     string
+		teamName string
+	}{
+		{
+			name:     "batch for a fleet responds before the manifest is served and reports the manifest category",
+			teamName: team.Name,
+		},
+		{
+			name:     "batch for unassigned responds before the manifest is served and reports the manifest category",
+			teamName: "",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// send the batch with the manifest still held back, the POST should respond
+			var batchResponse batchSetSoftwareInstallersResponse
+			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{
+				Software: []*fleet.SoftwareInstallerPayload{{Slug: &maintainedApp.Slug, SelfService: true}},
+			}, http.StatusAccepted, &batchResponse, "team_name", tc.teamName)
+
+			// release the manifest, the batch should complete with the manifest category
+			manifestReleases <- struct{}{}
+			batchResult := waitBatchSetSoftwareInstallers(t, &s.withServer, tc.teamName, batchResponse.RequestUUID)
+			require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, batchResult.Status, batchResult.Message)
+			require.Len(t, batchResult.Packages, 1)
+			require.Equal(t, []string{"🖥️ Productivity"}, batchResult.Categories)
+		})
+	}
 }
