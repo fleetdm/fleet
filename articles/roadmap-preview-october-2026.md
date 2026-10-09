@@ -2,7 +2,7 @@
 
 <!-- TODO: Embed the walkthrough video after the HoIT review.
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/VIDEO_ID" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/iNmb6T380ho?si=rRjSKJiFXU-z37XY" allowfullscreen></iframe>
 </div>
 -->
 
