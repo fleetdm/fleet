@@ -1286,6 +1286,8 @@ org_settings:
 - `certificate_user_principal_names` is the certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). Accepts the same Fleet variables as `certificate_common_name`.
 - `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert. Accepts the same Fleet variables as `certificate_common_name`.
 
+When `certificate_common_name`, `certificate_user_principal_names`, or `certificate_seat_id` is edited, certificates are reissued to every host that has a certificate from this CA, across all fleets. Certificates are also reissued when a host's IdP variable value changes.
+
 Can only be configured for "All fleets" (`org_settings`).
 
 #### ndes_scep_proxy
