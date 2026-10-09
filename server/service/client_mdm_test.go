@@ -5,9 +5,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/beevik/etree"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -162,5 +166,108 @@ func TestUploadBootstrapPackageIfNeededStagesBeforeDelete(t *testing.T) {
 			require.Error(t, err)
 			require.NotContains(t, calls, "DELETE /api/latest/fleet/mdm/bootstrap/3")
 		}
+	}
+}
+
+func TestGitOpsWindowsEULARetriesWhileWindowsMDMSettles(t *testing.T) {
+	interval, attempts := windowsMDMSettleInterval, windowsMDMSettleAttempts
+	windowsMDMSettleInterval, windowsMDMSettleAttempts = time.Millisecond, 3
+	t.Cleanup(func() { windowsMDMSettleInterval, windowsMDMSettleAttempts = interval, attempts })
+
+	mdPath := filepath.Join(t.TempDir(), "terms.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte("# Terms\n"), 0o600))
+
+	const (
+		getMeta = "GET /api/latest/fleet/setup_experience/windows_eula/metadata"
+		upload  = "POST /api/latest/fleet/setup_experience/windows_eula"
+		remove  = "DELETE /api/latest/fleet/setup_experience/windows_eula/tok"
+	)
+	cases := []struct {
+		name        string
+		mdmOnBefore bool
+		path        string
+		existing    bool
+		refuse      map[string]int // request -> how many times it's refused
+		reason      string
+		wantCalls   []string
+		wantErr     string
+	}{
+		{
+			name: "turned on by this run, refused until the config settles", path: mdPath,
+			refuse: map[string]int{getMeta: 2}, reason: fleet.WindowsMDMNotConfiguredMessage,
+			wantCalls: []string{getMeta, getMeta, getMeta, upload},
+		},
+		{
+			// Each attempt starts over, so a request refused midway is safe to retry.
+			name: "refused after the first request", path: mdPath,
+			refuse: map[string]int{upload: 1}, reason: fleet.WindowsMDMNotConfiguredMessage,
+			wantCalls: []string{getMeta, upload, getMeta, upload},
+		},
+		{
+			name: "deleting is retried too", existing: true,
+			refuse: map[string]int{getMeta: 1}, reason: fleet.WindowsMDMNotConfiguredMessage,
+			wantCalls: []string{getMeta, getMeta, remove},
+		},
+		{
+			name: "turned on by this run, refused for good", path: mdPath,
+			refuse: map[string]int{getMeta: 99}, reason: fleet.WindowsMDMNotConfiguredMessage,
+			wantCalls: []string{getMeta, getMeta, getMeta}, wantErr: "Windows MDM isn't turned on",
+		},
+		{
+			name: "already on, not retried", mdmOnBefore: true, path: mdPath,
+			refuse: map[string]int{getMeta: 99}, reason: fleet.WindowsMDMNotConfiguredMessage,
+			wantCalls: []string{getMeta}, wantErr: "Windows MDM isn't turned on",
+		},
+		{
+			name: "other errors are not retried", path: mdPath,
+			refuse: map[string]int{getMeta: 99}, reason: "forbidden",
+			wantCalls: []string{getMeta}, wantErr: "forbidden",
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls []string
+			refused := map[string]int{}
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				call := r.Method + " " + r.URL.Path
+				calls = append(calls, call)
+				if refused[call] < tt.refuse[call] {
+					refused[call]++
+					w.WriteHeader(http.StatusBadRequest)
+					_ = json.NewEncoder(w).Encode(map[string]any{"message": "Bad request", "errors": []map[string]string{{"name": "base", "reason": tt.reason}}})
+					return
+				}
+				switch call {
+				case getMeta:
+					if !tt.existing {
+						w.WriteHeader(http.StatusNotFound)
+						_, _ = w.Write([]byte(`{"message": "Resource Not Found"}`))
+						return
+					}
+					_ = json.NewEncoder(w).Encode(map[string]any{"name": "old.md", "token": "tok"})
+				case upload, remove:
+					_, _ = w.Write([]byte("{}"))
+				default:
+					t.Errorf("unexpected request %s", call)
+				}
+			}))
+			defer srv.Close()
+			client, err := NewClient(srv.URL, true, "", "")
+			require.NoError(t, err)
+			client.SetToken("test-token")
+
+			appConfig := &fleet.EnrichedAppConfig{}
+			appConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+			appConfig.MDM.WindowsEnabledAndConfigured = tt.mdmOnBefore
+			assumptions := &fleet.TeamSpecsDryRunAssumptions{WindowsEnabledAndConfigured: optjson.SetBool(true)}
+
+			err = client.doGitOpsWindowsEULA(tt.path, appConfig, assumptions, "", false, func(string, ...any) {})
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tt.wantCalls, calls)
+		})
 	}
 }
