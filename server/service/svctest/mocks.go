@@ -3,6 +3,7 @@ package svctest
 import (
 	"context"
 	"crypto/x509"
+	"crypto/x509/pkix"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
@@ -39,6 +40,6 @@ type acmeCSRSigner struct {
 	signer *depot.Signer
 }
 
-func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	return a.signer.Signx509CSR(csr)
+func (a *acmeCSRSigner) SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(*x509.Certificate)) (*x509.Certificate, error) {
+	return a.signer.SignX509CSRWithCallback(csr, subject, callback)
 }

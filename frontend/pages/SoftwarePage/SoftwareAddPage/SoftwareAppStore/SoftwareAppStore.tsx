@@ -50,6 +50,7 @@ const SoftwareAppStore = ({
 
   const renderDropdown = () => (
     <DropdownWrapper
+      ariaLabel="Select platform"
       name="platform"
       label="Platform"
       onChange={onDestinationChange}

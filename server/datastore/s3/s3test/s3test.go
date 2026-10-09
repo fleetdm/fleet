@@ -50,6 +50,16 @@ func SetupSoftwareTitleIconStore(tb testing.TB, bucket, prefix string) *s3.Softw
 	return setupStore(tb, bucket, prefix, s3.NewSoftwareTitleIconStore)
 }
 
+// SetupStagedUploadStore returns a *s3.StagedUploadStore with presigning
+// enabled, backed by the local test bucket, and registers cleanup to drop the
+// bucket when the test finishes.
+func SetupStagedUploadStore(tb testing.TB, bucket, prefix string) *s3.StagedUploadStore {
+	return setupStore(tb, bucket, prefix, func(cfg config.S3Config) (*s3.StagedUploadStore, error) {
+		cfg.SoftwareInstallersSignedURL = true
+		return s3.NewStagedUploadStore(cfg)
+	})
+}
+
 // testStore is the small surface s3test needs from a store, satisfied via
 // method promotion by SoftwareInstallerStore, BootstrapPackageStore, and
 // SoftwareTitleIconStore (each embeds *commonFileStore, which embeds

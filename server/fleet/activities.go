@@ -477,9 +477,10 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 }
 
 // ActivityTypeHostEnrollmentRejected is recorded when an orbit or osquery
-// enrollment is refused by the one-time enroll secret rules. Emission is
-// rate-limited per host and reason by the service layer, since a stuck agent
-// retries every few minutes.
+// enrollment is refused by the enroll secret or host identity certificate rules,
+// or an automatic (ADE) enrollment is refused because the host's fleet requires
+// end user authentication. Emission is rate-limited per host and reason by the
+// service layer, since a stuck device retries every few minutes.
 type ActivityTypeHostEnrollmentRejected struct {
 	HostID          *uint  `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -2120,11 +2121,11 @@ func (a ActivityTypeHostBypassedConditionalAccess) ActivityName() string {
 	return "host_bypassed_conditional_access"
 }
 
-// ActivityTypeBoundHostToIdPAccount records the host <-> IdP account link an
-// MDM SSO sign-in created.
+// ActivityTypeBoundHostToIdPAccount records a new or changed host <-> IdP
+// account link.
 type ActivityTypeBoundHostToIdPAccount struct {
 	HostUUID string `json:"host_uuid"`
-	// IdPEmail is the account that signed in and was not linked.
+	// IdPEmail is the account the host is now linked to.
 	IdPEmail string `json:"idp_email"`
 	// ReplacedIdPEmail is the account the host was bound to beforehand, empty
 	// when it had no binding.
@@ -2136,6 +2137,22 @@ func (a ActivityTypeBoundHostToIdPAccount) ActivityName() string {
 }
 
 func (a ActivityTypeBoundHostToIdPAccount) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeUnboundHostFromIdPAccount records the removal of a host's IdP
+// account link.
+type ActivityTypeUnboundHostFromIdPAccount struct {
+	HostUUID string `json:"host_uuid"`
+	// IdPEmail is the account the host was linked to.
+	IdPEmail string `json:"idp_email"`
+}
+
+func (a ActivityTypeUnboundHostFromIdPAccount) ActivityName() string {
+	return "unbound_host_from_idp_account"
+}
+
+func (a ActivityTypeUnboundHostFromIdPAccount) WasFromAutomation() bool {
 	return true
 }
 

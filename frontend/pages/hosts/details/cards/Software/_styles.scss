@@ -20,38 +20,15 @@
   }
 
   .host-software-table {
-    // When the macOS /Applications dropdown is shown, lay the controls out as
-    // dropdown, filters button, search (right-most). Keep the search a fixed
-    // size rather than stretching, and push the group to the end of the line.
-    &--with-applications-filter {
-      .top-shift-header {
-        .table-container__search {
-          flex: 0 0 auto;
-          width: auto;
-        }
-
-        .host-software-table__software-filter {
-          margin-left: auto;
-        }
-      }
-    }
-
-    &__software-filter {
-      min-width: 240px;
-      width: 240px; // Override .form-field 100%
-    }
-
-    &__filters {
-      display: flex;
-      align-items: center;
-
-      .children-wrapper {
-        gap: $pad-small;
-      }
-    }
-
     .table-container__search-input .input-with-icon {
       min-width: 305px; // Fit placeholder text
+    }
+
+    // The Show helpers slider sits inline beside the filters button and search.
+    .table-container .form-field--slider {
+      width: auto; // Override .form-field 100%
+      align-self: center;
+      white-space: nowrap;
     }
 
     .data-table-block {
@@ -66,7 +43,6 @@
           .name__cell {
             max-width: 250px;
           }
-
         }
       }
 

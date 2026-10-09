@@ -1,0 +1,8 @@
+{
+  "name": "Outset",
+  "slug": "outset/darwin",
+  "unique_identifier": "io.macadmins.Outset",
+  "token": "outset",
+  "installer_format": "pkg",
+  "default_categories": ["Utilities"]
+}

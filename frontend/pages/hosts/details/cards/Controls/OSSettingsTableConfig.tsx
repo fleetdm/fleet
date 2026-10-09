@@ -2,7 +2,7 @@ import React from "react";
 import { Column, Row } from "react-table";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
@@ -203,10 +203,13 @@ const generateTableConfig = ({
       id: "details",
       accessor: "detail",
       disableSortBy: true,
-      // TextCell defaults to `w250`, which would cap the cell at 202px.
-      // Truncation lives on the cell in _styles.scss instead.
       Cell: (cellProps: ITableStringCellProps) => {
-        return <TextCell value={cellProps.cell.value} className="" />;
+        return (
+          <TooltipTruncatedTextCell
+            value={cellProps.cell.value}
+            tooltipBreakOnWord
+          />
+        );
       },
     },
     {

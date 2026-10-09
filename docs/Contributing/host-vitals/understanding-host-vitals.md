@@ -890,6 +890,30 @@ SELECT
 FROM cached_users CROSS JOIN firefox_addons USING (uid);
 ```
 
+## software_linux_fleetd_nix
+
+- Platforms: nixos
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'fleetd_nix_packages'
+```
+
+- Query:
+```sql
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'nix_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch,
+  store_path AS installed_path
+FROM fleetd_nix_packages
+```
+
 ## software_linux_fleetd_pacman
 
 - Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform

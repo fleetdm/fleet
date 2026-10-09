@@ -47,7 +47,7 @@ func TestQueries(t *testing.T) {
 		{"HasLabelScopedScheduledQueries", testHasLabelScopedScheduledQueries},
 		{"LabelScopedScheduledQueryScopes", testLabelScopedScheduledQueryScopes},
 		{"QueryLabelsAtomic", testQueryLabelsAtomic},
-		{"DiscardResultsInBatches", testQueriesDiscardResultsInBatches},
+		{"ClearResultsThenCleanup", testQueriesClearResultsThenCleanup},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2006,7 +2006,7 @@ func testQueryLabelsAtomic(t *testing.T, ds *Datastore) {
 	require.Empty(t, queries)
 }
 
-func testQueriesDiscardResultsInBatches(t *testing.T, ds *Datastore) {
+func testQueriesClearResultsThenCleanup(t *testing.T, ds *Datastore) {
 	orig := deleteQueryResultsBatchSize
 	deleteQueryResultsBatchSize = 2
 	t.Cleanup(func() { deleteQueryResultsBatchSize = orig })
@@ -2018,27 +2018,49 @@ func testQueriesDiscardResultsInBatches(t *testing.T, ds *Datastore) {
 		hosts = append(hosts, test.NewHost(t, ds, fmt.Sprintf("host%d", i), "", fmt.Sprintf("key%d", i), fmt.Sprintf("uuid%d", i), time.Now()))
 	}
 	const rowsPerHost = 3
+	writeResults := func(q *fleet.Query, h *fleet.Host) {
+		// More rows per host than the batch size, so cleanup pages end mid-host.
+		rows := make([]*fleet.ScheduledQueryResultRow, 0, rowsPerHost)
+		for range rowsPerHost {
+			rows = append(rows, &fleet.ScheduledQueryResultRow{
+				QueryID: q.ID, HostID: h.ID, LastFetched: time.Now(), Data: new(json.RawMessage(`{"v": "1"}`)),
+			})
+		}
+		_, err := ds.OverwriteQueryResultRows(ctx, rows, fleet.DefaultMaxQueryReportRows, 0)
+		require.NoError(t, err)
+	}
 	newQueryWithResults := func(name string) *fleet.Query {
 		q := test.NewQuery(t, ds, nil, name, "SELECT 1", user.ID, true)
 		for _, h := range hosts {
-			// More rows per host than the batch size, so pages end mid-host.
-			rows := make([]*fleet.ScheduledQueryResultRow, 0, rowsPerHost)
-			for range rowsPerHost {
-				rows = append(rows, &fleet.ScheduledQueryResultRow{
-					QueryID: q.ID, HostID: h.ID, LastFetched: time.Now(), Data: new(json.RawMessage(`{"v": "1"}`)),
-				})
-			}
-			_, err := ds.OverwriteQueryResultRows(ctx, rows, fleet.DefaultMaxQueryReportRows, 0)
-			require.NoError(t, err)
+			writeResults(q, h)
 		}
 		return q
 	}
-	requireResults := func(q *fleet.Query, want int) {
+	requireStored := func(q *fleet.Query, want int) {
 		t.Helper()
 		var got int
 		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &got, `SELECT COUNT(*) FROM query_results WHERE query_id = ?`, q.ID))
 		require.Equal(t, want, got)
 	}
+	requireVisible := func(q *fleet.Query, want int) {
+		t.Helper()
+		_, total, _, err := ds.QueryResultRows(ctx, q.ID, fleet.TeamFilter{User: user}, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Equal(t, want, total)
+		counts, err := ds.ResultCountsForQueries(ctx, []uint{q.ID})
+		require.NoError(t, err)
+		require.Equal(t, want, counts[q.ID])
+		hostRows, err := ds.QueryResultRowsForHost(ctx, q.ID, hosts[0].ID)
+		require.NoError(t, err)
+		require.Len(t, hostRows, min(want, rowsPerHost))
+		hostCount, err := ds.ResultCountForQueryAndHost(ctx, q.ID, hosts[0].ID)
+		require.NoError(t, err)
+		require.Equal(t, min(want, rowsPerHost), hostCount)
+		byQuery, err := ds.QueryResultRowsForHostByQuery(ctx, hosts[0].ID, []uint{q.ID})
+		require.NoError(t, err)
+		require.Len(t, byQuery[q.ID], min(want, rowsPerHost))
+	}
+	const allRows = 5 * rowsPerHost
 
 	applied := newQueryWithResults("applied")
 	appliedKept := newQueryWithResults("applied kept")
@@ -2050,21 +2072,43 @@ func testQueriesDiscardResultsInBatches(t *testing.T, ds *Datastore) {
 
 	applied.Query = "SELECT 2"
 	require.NoError(t, ds.ApplyQueries(ctx, user.ID, []*fleet.Query{applied, appliedKept}, map[uint]struct{}{applied.ID: {}}))
-	requireResults(applied, 0)
-	requireResults(appliedKept, len(hosts)*rowsPerHost)
-
 	saved.Query = "SELECT 2"
 	require.NoError(t, ds.SaveQuery(ctx, saved, true, false))
-	requireResults(saved, 0)
-
 	require.NoError(t, ds.DeleteQuery(ctx, nil, deleted.Name))
-	requireResults(deleted, 0)
-
 	n, err := ds.DeleteQueries(ctx, []uint{deletedMany1.ID, deletedMany2.ID})
 	require.NoError(t, err)
 	require.EqualValues(t, 2, n)
-	requireResults(deletedMany1, 0)
-	requireResults(deletedMany2, 0)
 
-	requireResults(untouched, len(hosts)*rowsPerHost)
+	// Cleared results are hidden as soon as the edit is saved, before any row is deleted.
+	for _, q := range []*fleet.Query{applied, saved, deleted, deletedMany1, deletedMany2} {
+		requireStored(q, allRows)
+	}
+	requireVisible(applied, 0)
+	requireVisible(saved, 0)
+	requireVisible(appliedKept, allRows)
+
+	// Results written after the edit come from the new SQL and are kept.
+	writeResults(saved, hosts[0])
+	requireVisible(saved, rowsPerHost)
+
+	require.NoError(t, ds.CleanupStaleQueryResults(ctx))
+	requireStored(applied, 0)
+	requireStored(saved, rowsPerHost)
+	requireVisible(saved, rowsPerHost)
+	for _, q := range []*fleet.Query{deleted, deletedMany1, deletedMany2} {
+		requireStored(q, 0)
+	}
+	requireStored(appliedKept, allRows)
+	requireStored(untouched, allRows)
+
+	var pending int
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &pending, `SELECT COUNT(*) FROM queries WHERE results_cleanup_pending = 1`))
+	require.Zero(t, pending)
+
+	// A later edit moves the cutoff past the rows written after the first one.
+	saved.Query = "SELECT 3"
+	require.NoError(t, ds.SaveQuery(ctx, saved, true, false))
+	requireVisible(saved, 0)
+	require.NoError(t, ds.CleanupStaleQueryResults(ctx))
+	requireStored(saved, 0)
 }

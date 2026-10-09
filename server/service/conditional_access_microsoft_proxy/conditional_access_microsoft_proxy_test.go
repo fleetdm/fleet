@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -61,4 +62,59 @@ func TestProxyStatusErrorCapturesBody(t *testing.T) {
 		require.True(t, ok)
 		require.Len(t, be.Body(), bodyLen)
 	})
+}
+
+func TestProxyQueryParametersAreEncoded(t *testing.T) {
+	const (
+		tenantID  = "tenant&fleetServerSecret=smuggled+x"
+		secret    = "secret=a&b"
+		messageID = "msg&entraTenantId=other"
+	)
+
+	var gotQuery url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.Query()
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	p, err := New(srv.URL, func() (string, error) { return "https://fleet.example.com", nil })
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name     string
+		call     func() error
+		expected url.Values
+	}{
+		{
+			name: "get",
+			call: func() error {
+				_, err := p.Get(t.Context(), tenantID, secret)
+				return err
+			},
+			expected: url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}},
+		},
+		{
+			name: "delete",
+			call: func() error {
+				_, err := p.Delete(t.Context(), tenantID, secret)
+				return err
+			},
+			expected: url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}},
+		},
+		{
+			name: "get message status",
+			call: func() error {
+				_, err := p.GetMessageStatus(t.Context(), tenantID, secret, messageID)
+				return err
+			},
+			expected: url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}, "messageId": {messageID}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gotQuery = nil
+			require.NoError(t, tc.call())
+			require.Equal(t, tc.expected, gotQuery)
+		})
+	}
 }

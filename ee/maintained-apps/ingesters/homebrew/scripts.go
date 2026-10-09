@@ -38,8 +38,10 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 		switch {
 		case len(artifact.App) > 0:
 			sb.Write("# copy to the applications folder")
-			// Quit the app before installing if it's running, and track state for relaunch
-			sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
+			// Quit the app before installing if it's running, and track state for relaunch.
+			// Stop if it won't quit: fleetd deletes $TMPDIR after the install, which
+			// would take the moved-aside bundle the app is still running from.
+			sb.Writef("quit_and_track_application '%s' || exit 1", app.UniqueIdentifier)
 			for _, appItem := range artifact.App {
 				// Only process string values (skip objects with target, those are handled by custom scripts)
 				if appItem.String == "" {
@@ -68,7 +70,7 @@ fi`, appPath)
 		case len(artifact.Pkg) > 0:
 			sb.Write("# install pkg files")
 			// Quit the app before installing if it's running, and track state for relaunch
-			sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
+			sb.Writef("quit_and_track_application '%s' || exit 1", app.UniqueIdentifier)
 			switch len(artifact.Pkg) {
 			case 1:
 				if err := sb.InstallPkg(artifact.Pkg[0].String); err != nil {
@@ -398,6 +400,14 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 
 	process(u.Quit, func(appName string) {
 		sb.AddFunction("quit_application", quitApplicationFunc)
+		// osascript can't resolve a wildcard application id, so the pattern is
+		// expanded against the running applications first. As in Homebrew, only
+		// '*' is a wildcard.
+		if strings.Contains(appName, "*") {
+			sb.AddFunction("quit_matching_applications", quitMatchingApplicationsFunc)
+			sb.Writef("quit_matching_applications %s", shellSingleQuote(appName))
+			return
+		}
 		sb.Writef("quit_application %s", shellSingleQuote(appName))
 		if appName == "com.docker.docker" {
 			sb.Writef("quit_application 'com.electron.dockerdesktop'")
@@ -739,8 +749,79 @@ const quitApplicationFunc = `quit_application() {
 }
 `
 
+// quitMatchingApplicationsFunc quits every running application whose bundle ID
+// matches a '*' wildcard, using quitApplicationFunc for each match. It's a port
+// of the homebrew implementation: anchored and case-insensitive.
+// https://github.com/Homebrew/brew/blob/cc9ff034b1d98cdd4061f68cf715bb967c483a8f/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L371
+const quitMatchingApplicationsFunc = `quit_matching_applications() {
+  local pattern="$1"
+
+  local console_user
+  console_user=$(stat -f "%Su" /dev/console)
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
+    echo "Not logged into a non-root GUI; skipping quitting applications matching '$pattern'."
+    return
+  fi
+
+  # List the bundle IDs of the running applications from inside the console
+  # user's GUI session, the same way relaunch_application opens apps.
+  local list_script='ObjC.import("AppKit")
+var apps = $.NSWorkspace.sharedWorkspace.runningApplications
+var ids = []
+for (var i = 0; i < apps.count; i++) {
+  var id = apps.objectAtIndex(i).bundleIdentifier
+  if (!id.isNil()) { ids.push(ObjC.unwrap(id)) }
+}
+ids.join("\n")'
+  local running_ids
+  local list_status
+  if [[ $EUID -eq 0 ]]; then
+    local console_uid
+    console_uid=$(id -u "$console_user")
+    running_ids=$(/bin/launchctl asuser "$console_uid" sudo -u "$console_user" osascript -l JavaScript -e "$list_script" 2>/dev/null)
+    list_status=$?
+  else
+    running_ids=$(osascript -l JavaScript -e "$list_script" 2>/dev/null)
+    list_status=$?
+  fi
+  if [[ $list_status -ne 0 ]]; then
+    echo "Failed to list running applications; skipping quitting applications matching '$pattern'."
+    return
+  fi
+
+  local regex
+  regex=$(printf '%s' "$pattern" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')
+  regex="^${regex}$"
+
+  # Running apps report their own bundle IDs, and quit_application puts the ID
+  # inside an AppleScript string, so only bundle ID characters are allowed.
+  local valid_id='^[A-Za-z0-9._-]+$'
+  local matches=()
+  local id
+  local restore_nocasematch
+  restore_nocasematch=$(shopt -p nocasematch)
+  shopt -s nocasematch
+  while IFS= read -r id; do
+    [[ "$id" =~ $valid_id && "$id" =~ $regex ]] && matches+=("$id")
+  done < <(printf '%s\n' "$running_ids" | sort -u)
+  $restore_nocasematch
+
+  if [[ ${#matches[@]} -eq 0 ]]; then
+    echo "No running application matches '$pattern'."
+    return
+  fi
+
+  for id in "${matches[@]}"; do
+    quit_application "$id"
+  done
+}
+`
+
 // quitAndTrackApplicationFunc quits a running application and tracks whether it was running
 // so it can be relaunched after installation. Sets APP_WAS_RUNNING_<bundle_id> environment variable.
+// Returns 1 if the application is still running after the timeout. The quit is
+// confirmed with 'is running' because a macOS app's command line is its
+// executable path, so 'pgrep -f <bundle_id>' never matches.
 const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
@@ -769,21 +850,21 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 `

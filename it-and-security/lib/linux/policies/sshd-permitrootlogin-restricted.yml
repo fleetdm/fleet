@@ -2,7 +2,7 @@
   query: |-
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM augeas
-      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%')
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%%')
         AND label = 'PermitRootLogin'
         AND value IN ('yes', 'true', '1')
     );
