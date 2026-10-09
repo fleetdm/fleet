@@ -10,6 +10,8 @@ How it works:
 
 > **Note:** Built-in support for Google is [coming soon](https://github.com/fleetdm/fleet/issues/54888). Until then, the best practice is to run the sync script on a schedule.
 
+> **Known limitation:** Google doesn't record serial numbers for iPhones and iPads, so the script matches Fleet hosts to Google devices by the end user's email and device type. If an end user has more than one iPhone (or iPad) signed in to the same Google account, such as a company-owned iPhone and a personal iPhone, the script can't tell which one Fleet manages. It doesn't mark either as managed, so Google blocks sign-in on both, including the company-owned one. Devices the script can't match are printed for review.
+
 ## Prerequisites
 
 - Google Workspace Enterprise Standard, Enterprise Plus, or Enterprise for Education, or Cloud Identity Premium
@@ -58,7 +60,9 @@ GitHub can start scheduled runs late, or skip them, when it's busy. Check the wo
 
 To check a sync, head to **Devices > Mobile & endpoints > Devices** in the Google Admin console, select the device, and select **Third-party services**. A device that's managed by Fleet shows **fleet (custom)**, **Managed**, its Fleet host ID, and its serial number under **Asset tags**.
 
-> **Note:** Google doesn't record serial numbers for iPhones and iPads, so the script matches devices to Fleet hosts by the end user's IdP email and device type (iPhone or iPad). If an end user has more than one iPhone (or iPad) in Google or Fleet, the script can't tell them apart. It doesn't mark them as managed, and prints them for review.
+> **Note:** The script matches devices to Fleet hosts by the end user's IdP email and device type (iPhone or iPad). If an end user has more than one iPhone (or iPad) in Google or Fleet, the script doesn't mark any of them as managed, and prints them for review. See the known limitation at the top of this guide.
+
+<!-- TODO(guide owner): Say what an admin can do about devices the sync prints for review. The script and guide don't cover it yet, except deleting an old iPhone after an upgrade (see Troubleshooting). -->
 
 By default, the script skips personally owned (BYOD) hosts, with the MDM status **On (personal)**, and only uses IdP emails. To change this, edit `ENROLLMENT_STATUSES` and `EMAIL_SOURCES` at the top of the script.
 
