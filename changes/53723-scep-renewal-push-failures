@@ -1,0 +1,1 @@
+- Fixed Apple MDM identity certificate renewals getting stuck when push notifications fail for some or all hosts.

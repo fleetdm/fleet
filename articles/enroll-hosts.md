@@ -199,11 +199,44 @@ Deleting a host doesn't unenroll it, so most hosts come back:
 
 > Google doesn't document when Android hosts send status reports. In testing, deleted Android hosts came back anywhere from less than an hour to several hours later, always within 24 hours.
 
+If [one-time enroll secrets](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) are enabled, deleting a macOS host that has MDM turned on also deletes its one-time enroll secret, so the host can't re-enroll on its own:
+
+- AB hosts show up as **Pending**. To re-enroll, wipe the host or run `sudo profiles renew -type enrollment`.
+- Other Macs don't show up. To re-enroll, reinstall fleetd.
+
 Deleting a host also cancels its upcoming activities and clears its MDM command history, so Fleet can't report whether an in-progress command, like a wipe, finished. If Fleet can't reach AB, the delete fails.
+
+## One-time enroll secrets
+
+> Applies only to Fleet Premium
+
+When the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration is enabled, Fleet delivers a one-time, device-scoped enroll secret to each Apple host enrolled in Fleet MDM instead of a global or fleet-level enroll secret. The secret is embedded in the "Fleetd configuration" profile and is bound to the host's hardware UUID and serial number, so it can't be used to enroll any other device. Orbit and osquery can each use it once.
+
+This applies to all Apple hosts with MDM turned on: hosts that automatically enroll via Apple Business (AB) and hosts that enroll with a manual enrollment profile.
+
+Fleet also denies enrollment attempts that use a global or fleet-level enroll secret for a host that is enrolled in Fleet MDM or assigned to Fleet in AB. Denied attempts are recorded as `host_enrollment_rejected` activities.
+
+### Best practice: monitor devices
+
+Because each secret is single-use, a host whose secret was spent can't re-enroll until it gets a new one. To monitor devices:
+
+1. Watch for `host_enrollment_rejected` activities. Fleet records at most one per host and reason per 12 hours.
+
+2. To issue a new secret, resend the "Fleetd configuration" profile from the host's **Controls** tab, then restart fleetd. Only admins can resend this profile. End users can't resend it from the **My device** page when this setting is enabled.
 
 ## Debugging
 
 If you're running into issues when enrolling hosts, the best practice is to look for errors in the fleetd logs. See our [troubleshooting guide](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) for more info.
+
+### One-time enroll secrets
+
+If a host fails to enroll or re-enroll, check its activities for `host_enrollment_rejected`:
+
+- `one_time_secret_spent`: the secret was already used. Resend the "Fleetd configuration" profile from the host's **Controls** tab to issue a new one, then restart fleetd.
+- `one_time_secret_identifier_mismatch`: the secret was presented by different hardware than it was issued for.
+- `shared_secret_for_mdm_managed_host`: a global or fleet-level enroll secret was used for a host enrolled in Fleet MDM or assigned to Fleet in AB.
+
+For a DEP host with a spent secret, wipe the host and re-run the DEP install.
 
 
 ## Advanced

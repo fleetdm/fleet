@@ -109,7 +109,7 @@ type GetUserSettingsFunc func(ctx context.Context, id uint) (settings *fleet.Use
 
 type InitiateSSOFunc func(ctx context.Context, redirectURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
-type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOriginalURL string, hostUUID string, deviceInfo *fleet.MDMAppleMachineInfo) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 type InitSSOCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error)
 
@@ -627,7 +627,7 @@ type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*f
 
 type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
-type AuthenticateMDMAppleDEPEnrollmentFunc func(ctx context.Context, enrollmentToken string, machineInfo *fleet.MDMAppleMachineInfo) error
+type AuthenticateMDMAppleDEPEnrollmentFunc func(ctx context.Context, enrollmentToken string, machineInfo *fleet.MDMAppleMachineInfo) (idpAccountUUID string, err error)
 
 type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *fleet.MDMAppleMachineInfo) (profile []byte, err error)
 
@@ -727,6 +727,8 @@ type GetDefaultMDMAppleSetupAssistantProfileFunc func(ctx context.Context) (prof
 
 type DeleteMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) error
 
+type RotateMDMAppleAutomaticEnrollmentTokenFunc func(ctx context.Context, gracePeriodHours *int) (previousTokenExpiresAt *time.Time, err error)
+
 type HasCustomSetupAssistantConfigurationWebURLFunc func(ctx context.Context, teamID *uint) (bool, error)
 
 type UpdateMDMAppleSetupFunc func(ctx context.Context, payload fleet.MDMAppleSetupPayload) error
@@ -761,7 +763,7 @@ type GetAuthorizedSoapFaultFunc func(ctx context.Context, eType string, origMsg 
 
 type SignMDMMicrosoftClientCSRFunc func(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error)
 
-type GetMDMWindowsManagementResponseFunc func(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.SyncML, error)
+type GetMDMWindowsManagementResponseFunc func(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.SyncML, error)
 
 type GetMDMWindowsTOSContentFunc func(ctx context.Context, redirectUri string, reqID string) (string, error)
 
@@ -2103,6 +2105,9 @@ type Service struct {
 	DeleteMDMAppleSetupAssistantFunc        DeleteMDMAppleSetupAssistantFunc
 	DeleteMDMAppleSetupAssistantFuncInvoked bool
 
+	RotateMDMAppleAutomaticEnrollmentTokenFunc        RotateMDMAppleAutomaticEnrollmentTokenFunc
+	RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked bool
+
 	HasCustomSetupAssistantConfigurationWebURLFunc        HasCustomSetupAssistantConfigurationWebURLFunc
 	HasCustomSetupAssistantConfigurationWebURLFuncInvoked bool
 
@@ -2888,11 +2893,11 @@ func (s *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessionI
 	return s.InitiateSSOFunc(ctx, redirectURL)
 }
 
-func (s *Service) InitiateMDMSSO(ctx context.Context, initiator string, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (s *Service) InitiateMDMSSO(ctx context.Context, initiator string, customOriginalURL string, hostUUID string, deviceInfo *fleet.MDMAppleMachineInfo) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	s.mu.Lock()
 	s.InitiateMDMSSOFuncInvoked = true
 	s.mu.Unlock()
-	return s.InitiateMDMSSOFunc(ctx, initiator, customOriginalURL, hostUUID)
+	return s.InitiateMDMSSOFunc(ctx, initiator, customOriginalURL, hostUUID, deviceInfo)
 }
 
 func (s *Service) InitSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error) {
@@ -4701,7 +4706,7 @@ func (s *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) 
 	return s.GetMDMAppleProfilesSummaryFunc(ctx, teamID)
 }
 
-func (s *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *fleet.MDMAppleMachineInfo) error {
+func (s *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *fleet.MDMAppleMachineInfo) (idpAccountUUID string, err error) {
 	s.mu.Lock()
 	s.AuthenticateMDMAppleDEPEnrollmentFuncInvoked = true
 	s.mu.Unlock()
@@ -5051,6 +5056,13 @@ func (s *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint
 	return s.DeleteMDMAppleSetupAssistantFunc(ctx, teamID)
 }
 
+func (s *Service) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, gracePeriodHours *int) (previousTokenExpiresAt *time.Time, err error) {
+	s.mu.Lock()
+	s.RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.RotateMDMAppleAutomaticEnrollmentTokenFunc(ctx, gracePeriodHours)
+}
+
 func (s *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Context, teamID *uint) (bool, error) {
 	s.mu.Lock()
 	s.HasCustomSetupAssistantConfigurationWebURLFuncInvoked = true
@@ -5170,11 +5182,11 @@ func (s *Service) SignMDMMicrosoftClientCSR(ctx context.Context, subject string,
 	return s.SignMDMMicrosoftClientCSRFunc(ctx, subject, csr)
 }
 
-func (s *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.SyncML, error) {
+func (s *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.SyncML, error) {
 	s.mu.Lock()
 	s.GetMDMWindowsManagementResponseFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMWindowsManagementResponseFunc(ctx, reqSyncML, reqCerts)
+	return s.GetMDMWindowsManagementResponseFunc(ctx, reqSyncML)
 }
 
 func (s *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {

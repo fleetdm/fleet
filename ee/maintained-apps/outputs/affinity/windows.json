@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.3.0.4850",
+      "version": "3.3.1.4940",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Affinity' AND publisher = 'Canva';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Affinity' AND publisher = 'Canva' AND version_compare(version, '3.3.0.4850') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Affinity' AND publisher = 'Canva' AND version_compare(version, '3.3.1.4940') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'affinity.exe');"
       },
-      "installer_url": "https://affinity-update.serif.com/windows/3/studio/retail/Affinity-Affinity-Store-x64-4850-9f63fda98da280bf6a30400121fed8d194ee9edd.msix",
+      "installer_url": "https://affinity-update.serif.com/windows/3/studio/retail/Affinity-Affinity-Store-x64-4940-ce057d0adfd09febd5029b87f93128d8f0b3b603.msix",
       "install_script_ref": "9e9c1496",
       "uninstall_script_ref": "bde90d3c",
-      "sha256": "b393269789e3005fa79e93639cb2cee835bea55248fbdbb59346bea08dde4049",
+      "sha256": "c598f40af2ec06a1ad7f4280fae1d68a5f2c16d10c7c649e48059370a158f98d",
       "default_categories": [
         "Productivity"
       ]

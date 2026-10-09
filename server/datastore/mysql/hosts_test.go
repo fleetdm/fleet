@@ -935,6 +935,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
+	enableMacOSDiskEncryptionForTest(t, ds, &team2.ID) // its hosts have a delivered FileVault profile
 
 	var hosts []*fleet.Host
 	for i := 0; i < 20; i++ {
@@ -7375,6 +7376,31 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 	assertContains(globalQueryStats, query1.Name)
 	assertContains(globalQueryStats, query2.Name)
 	assertContains(globalQueryStats, query4.Name) // no interval, but has a query result
+
+	query7 := &fleet.Query{
+		Name:        "Team Query No Interval",
+		Query:       "select * from time",
+		Platform:    "darwin",
+		Saved:       true,
+		TeamID:      &team.ID,
+		Interval:    0,
+		Logging:     fleet.LoggingSnapshot,
+		DiscardData: false,
+	}
+	_, err = ds.NewQuery(context.Background(), query7)
+	require.NoError(t, err)
+	res, err = ds.OverwriteQueryResultRows(context.Background(), []*fleet.ScheduledQueryResultRow{
+		{QueryID: query7.ID, HostID: host.ID, Data: new(json.RawMessage(`{"foo": "bar"}`))},
+	}, fleet.DefaultMaxQueryReportRows, 0)
+	require.NoError(t, err)
+	require.Equal(t, 1, res.RowsAdded)
+
+	hostResult, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	teamQueryStats = hostResult.PackStats[1].QueryStats
+	require.Len(t, teamQueryStats, 2)
+	assertContains(teamQueryStats, query6.Name)
+	assertContains(teamQueryStats, query7.Name) // no interval, but has a query result
 }
 
 func testHostsAllPackStats(t *testing.T, ds *Datastore) {
@@ -13952,6 +13978,7 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 		q, err := ds.NewQuery(ctx, &fleet.Query{
 			Name:    name,
 			Query:   "SELECT 1:",
+			Saved:   true,
 			TeamID:  teamID,
 			Logging: fleet.LoggingSnapshot,
 		})

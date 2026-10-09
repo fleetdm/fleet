@@ -1632,6 +1632,52 @@ describe("Activity Feed", () => {
       ).toBeInTheDocument();
     });
 
+    describe("end_user_authentication_required", () => {
+      const reason = "end_user_authentication_required";
+
+      it("names the host by display name", () => {
+        renderRejected({
+          reason,
+          host_display_name: "Anna's MacBook Pro",
+          host_serial: "C02ABC",
+        });
+        expect(screen.getByText("Fleet")).toBeInTheDocument();
+        expect(
+          screen.getByText(
+            /rejected an automatic enrollment for.*because IdP authentication is required\./i
+          )
+        ).toBeInTheDocument();
+        expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+        expect(screen.queryByText("C02ABC")).not.toBeInTheDocument();
+      });
+
+      it("falls back to the serial number when there is no display name", () => {
+        renderRejected({ reason, host_serial: "C02ABC" });
+        expect(screen.getByText("C02ABC")).toBeInTheDocument();
+        expect(
+          screen.getByText(
+            /rejected an automatic enrollment for a host with serial number.*because IdP authentication is required\./i
+          )
+        ).toBeInTheDocument();
+      });
+
+      it("falls back to 'a host' when there is no display name or serial", () => {
+        renderRejected({ reason });
+        expect(
+          screen.getByText(
+            /rejected an automatic enrollment for a host because IdP authentication is required\./i
+          )
+        ).toBeInTheDocument();
+      });
+
+      it("has no learn more link in the global feed", () => {
+        renderRejected({ reason, host_display_name: "X" });
+        expect(
+          screen.queryByRole("link", { name: /learn more/i })
+        ).not.toBeInTheDocument();
+      });
+    });
+
     it("offers details and passes the reason and time to the handler", async () => {
       const onDetailsClick = jest.fn();
       renderRejected(
@@ -3287,6 +3333,21 @@ describe("Activity Feed", () => {
         exact: false,
       })
     ).toBeInTheDocument();
+  });
+
+  it("renders an 'unbound_host_from_idp_account' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UnboundHostFromIdpAccount,
+      fleet_initiated: true,
+      details: { host_uuid: "host-uuid-1", idp_email: "anna@example.com" },
+    });
+    const { container } = render(
+      <GlobalActivityItem activity={activity} isPremiumTier />
+    );
+
+    expect(container).toHaveTextContent(
+      "Fleet unlinked host-uuid-1 from the identity provider account anna@example.com."
+    );
   });
 
   describe.each([

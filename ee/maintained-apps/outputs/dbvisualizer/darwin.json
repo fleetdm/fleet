@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.2.3",
+      "version": "26.2.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.dbvis.DbVisualizer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dbvis.DbVisualizer' AND version_compare(bundle_short_version, '26.2.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dbvis.DbVisualizer' AND version_compare(bundle_short_version, '26.2.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.dbvis.DbVisualizer' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.dbvis.com/product_download/dbvis-26.2.3/media/dbvis_macos-aarch64_26_2_3.dmg",
+      "installer_url": "https://www.dbvis.com/product_download/dbvis-26.2.4/media/dbvis_macos-aarch64_26_2_4.dmg",
       "install_script_ref": "924c989c",
       "uninstall_script_ref": "94c7fe4b",
-      "sha256": "be71a96a3d490067c2ace768be6a870bb0d7c45cb53033b110d6e6ba5cd744f7",
+      "sha256": "6c149b03987b2aaf7b21a882feb3cc1f07ecc52f18767cfb5fbf3f0baee9c529",
       "default_categories": [
         "Developer tools"
       ]
