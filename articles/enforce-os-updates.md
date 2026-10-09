@@ -166,7 +166,7 @@ Support depends on how the Android host is managed:
 
 ## Linux
 
-Linux doesn't have a Fleet-managed OS update setting or an MDM protocol. Instead, use a [policy](https://fleetdm.com/docs/configuration/yaml-files#policies) to find hosts that are out of date and a [script](https://fleetdm.com/guides/scripts) to update them. Fleet runs the script automatically on every host that fails the policy.
+Linux doesn't have a Fleet-managed OS update setting or an MDM protocol. Instead, use a [policy](https://fleetdm.com/docs/configuration/yaml-files#policies) to find hosts that are out of date and a [script](https://fleetdm.com/guides/scripts) to update them. Fleet can run the script automatically on hosts that fail the policy.
 
 ### Prerequisites
 
@@ -175,29 +175,35 @@ Linux doesn't have a Fleet-managed OS update setting or an MDM protocol. Instead
 
 ### Step 1: Add the policy
 
-Add the [Operating system up to date (Linux)](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/policies/latest-linux.yml) policy. It compares each host's OS version to the latest release of its distribution, which is pinned in the policy's query.
+Add the [Operating system up to date (Linux)](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/policies/latest-linux.yml) policy. It passes when a host is on the latest release of a supported series for its distribution:
 
-The policy supports:
+| Distribution | Passes on | Automatically resolve with script |
+| --- | --- | --- |
+| Ubuntu | Latest point release of 24.04 LTS or 26.04 LTS | Yes |
+| Debian | Latest point release of 13 | Yes |
+| Fedora | Latest release | Only within a release. It can't upgrade Fedora 43 to 44. |
+| Red Hat Enterprise Linux, Rocky Linux, and AlmaLinux | Latest minor release of 9 or 10 | Yes |
+| NixOS | Latest stable release | No |
+| openSUSE Leap | Latest release (16 or later) | No |
+| AMD Ryzen AI Developer Platform | Latest platform update | Yes |
 
-- Ubuntu
-- Debian
-- Fedora
-- Red Hat Enterprise Linux, Rocky Linux, and AlmaLinux
-- NixOS
-- openSUSE Leap
-- AMD Ryzen AI Developer Platform
+The policy only has rules for the series in the table, so hosts on any other series, such as Ubuntu 22.04, Debian 12, or RHEL 8, fail it. To cover another series, add a rule for it to the policy's query. Rolling-release distributions (Arch and openSUSE Tumbleweed) and distributions without a rule always pass.
 
-Rolling-release distributions (Arch and openSUSE Tumbleweed) and distributions without a rule always pass.
-
-> **Note:** The latest versions are written into the policy's query. Update them whenever a distribution ships a new release.
+> **Note:** The policy's query contains the latest versions. Update them whenever a distribution ships a new release.
 
 ### Step 2: Add the script
 
-Add the [update-linux-os.sh](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/update-linux-os.sh) script. It installs all pending package updates (`apt-get upgrade` on Debian-based hosts and `dnf upgrade` on Fedora and Red Hat-based hosts), and never removes packages or upgrades to a new release (for example, Ubuntu 24.04 to 26.04, or Fedora 43 to 44).
+Add the [update-linux-os.sh](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/update-linux-os.sh) script. It installs all pending package updates (`apt-get upgrade` on Debian-based hosts and `dnf upgrade` on Fedora and Red Hat-based hosts). On these distributions, the point release is a package, so hosts pass the policy once the script finishes.
+
+The script never reboots the host, removes packages, or upgrades to a new release (for example, Ubuntu 24.04 to 26.04, or Fedora 43 to 44).
+
+The script can't update NixOS or openSUSE Leap hosts (see the table in Step 1). It exits with an error, so these hosts keep failing the policy until an admin updates them manually, as described in the policy's resolution.
+
+> **Note:** The script updates any Debian-based or Red Hat-based host, but the policy only checks the distributions in Step 1. Hosts on other distributions, like Linux Mint or CentOS Stream, always pass the policy, so the script never runs on them.
 
 ### Step 3: Run the script when the policy fails
 
-Add these keys to the policy from Step 1. `run_script` runs the script when the policy fails, and turning on `continuous_automations_enabled` makes Fleet retry when an update is deferred:
+Add these keys to the policy from Step 1. `run_script` runs the script when the policy fails. `continuous_automations_enabled` makes Fleet run it again if an update is deferred:
 
 ```yaml
 policies:
@@ -209,8 +215,9 @@ policies:
     continuous_automations_enabled: true
 ```
 
-See the [GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#policies) for all policy options.
+> **Note:** The script can only fix hosts on a release the policy covers. It can't fix hosts that fail the policy for another reason, like Ubuntu 22.04, Fedora 43, NixOS, or openSUSE Leap. With `continuous_automations_enabled`, Fleet runs the script every time one of these hosts fails the policy, and the policy never passes. To avoid this, use `labels_exclude_any` to leave those hosts out of the policy, or remove `continuous_automations_enabled`. See [policy automations](https://fleetdm.com/guides/automations) for how retries work.
 
+See the [GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#policies) for all policy options.
 
 ## Apple (macOS, iOS, and iPadOS) end user experience
 
