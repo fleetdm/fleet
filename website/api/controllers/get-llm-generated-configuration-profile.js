@@ -55,38 +55,33 @@ module.exports = {
     let configurationProfilePrompt = generatorConfiguration.userPrompt;
 
 
-    // Start generating a configuration profile with haiku immediately, this result is only used if the triage prompt's result indicates that this profile will use
-    let draftProfilePromise = (async ()=>{
-      // console.time('haiku prompt')
-      let draftPromise = await sails.helpers.ai.prompt.with({
+    // Start generating the profile right away.  Sonnet 5.5 at low effort is the only configuration that
+    // met the 95%-per-type and 10 s gates in the profile generator test suite (Haiku 5.5 was both less
+    // accurate and slower, so there is no longer a speculative draft).  The preview call below only feeds
+    // the settings preview the UI shows while this runs, so the two calls are in flight together.
+    let generationPromise = (async ()=>{
+      return await sails.helpers.ai.prompt.with({
         systemPrompt: systemPrompt,
         prompt: configurationProfilePrompt,
-        baseModel: 'claude-haiku-5-5',
+        baseModel: 'claude-sonnet-5-5',
         expectJson: true,
+        effort: 'low',
       })
       .tolerate((err)=>{
-        sails.log.warn(`When trying to generate a draft configuration profile with the smaller model, an error occurred. Falling back to the larger model. Full error: ${require('util').inspect(err, {depth: 2})}`);
+        sails.log.warn(`When trying to generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
         return undefined;
       });
-      // console.timeEnd('haiku prompt')
-      // console.log('haikuResult', draftPromise);
-      return draftPromise;
     })();
 
-    // Build a prompt that will be used to determine whether or not we need to use sonnet for this user's instreuctions.
-    let triageSystemPrompt = `Return ONLY a raw JSON object.  Do not include \`\`\`json, \`\`\`, or any markdown formatting.  Do not include any explanation or text before or after the JSON.  Your entire response must be valid JSON.
+    // Build a prompt that names the settings the profile will probably enforce, so the admin has something to read while it is generated.
+    let previewSystemPrompt = `Return ONLY a raw JSON object.  Do not include \`\`\`json, \`\`\`, or any markdown formatting.  Do not include any explanation or text before or after the JSON.  Your entire response must be valid JSON.
 
-An IT admin has asked for a ${promptConfig.description}, and another model is already writing it.  You do not write the profile.  You answer one question about the request, quickly, plus name the settings the profile is likely to enforce so the admin has something to read while it is generated.
-
-The question: does satisfying this request require a setting that is not ${promptConfig.firstPartySettingDescription}?
-
-Answer true when a setting the request needs is defined by an application vendor -- Chrome, Firefox, Zoom, Slack, Microsoft Office -- and documented in that application's own preference manifest rather than in the platform vendor's published reference.  Answer false when every setting the request needs is ${promptConfig.firstPartySettingDescription}.  When you cannot tell which of the two a setting is, answer true: a wrong "false" writes the profile from a reference that does not describe the setting.
+An IT admin has asked for a ${promptConfig.description}, and another model is already writing it.  You do not write the profile.  You name, quickly, the settings the profile is likely to enforce, so the admin has something to read while it is generated.
 
 "anticipatedSettings" is a preview, replaced by the real settings the moment the profile arrives.  A best guess is useful there and a long list is not, so name the settings this request asks for and nothing else, and return an empty array when you cannot name them.
 
 Respond in JSON with this data shape:
 {
-  "requiresAThirdPartyApplicationReference": true,
   // A short user-facing description of what the profile will do.
   "anticipatedDescription": "TODO",
   // The anticipated name of the configuration profile.
@@ -102,9 +97,8 @@ Respond in JSON with this data shape:
   ]
 }
 `;
-    // console.time('triage prompt');
-    let triageResult = await sails.helpers.ai.prompt.with({
-      systemPrompt: triageSystemPrompt,
+    let previewResult = await sails.helpers.ai.prompt.with({
+      systemPrompt: previewSystemPrompt,
       prompt: `Here are the instructions from an IT admin:
     \`\`\`
     ${naturalLanguageInstructions}
@@ -113,61 +107,20 @@ Respond in JSON with this data shape:
       expectJson: true,
     })
     .tolerate((err)=>{
-      sails.log.warn(`When trying to triage a user's configuration profile instructions, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      sails.log.warn(`When trying to generate the settings preview for a user's configuration profile instructions, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
       return undefined;
     });
-    // console.timeEnd('triage prompt');
     // Send the anticipatedSettings, anticipatedName, and anticipatedDescription to the socket with a 'settingsPreview' event.
-    let anticipatedSettings = _.filter(triageResult ? triageResult.anticipatedSettings || [] : [], (setting)=>{
+    let anticipatedSettings = _.filter(previewResult ? previewResult.anticipatedSettings || [] : [], (setting)=>{
       return _.isObject(setting) && setting.name;
     });
-    let anticipatedName = triageResult ? triageResult.anticipatedName : '';
-    let anticipatedDescription = triageResult ? triageResult.anticipatedDescription : '';
+    let anticipatedName = previewResult ? previewResult.anticipatedName : '';
+    let anticipatedDescription = previewResult ? previewResult.anticipatedDescription : '';
     if(this.req.isSocket && anticipatedSettings.length > 0) {
       sails.sockets.broadcast(roomId, 'settingsPreview', {settings: anticipatedSettings, description: anticipatedDescription, name: anticipatedName});
     }
-    // console.log(`requiresAThirdPartyApplicationReference ${triageResult ? triageResult.requiresAThirdPartyApplicationReference : '(triage failed)'}`);
 
-
-    let needsAReferenceTheSmallerModelIsLikelyToRecallWrong = !triageResult || !!triageResult.requiresAThirdPartyApplicationReference;
-    let configurationProfileGenerationResult;
-    // If the triage result indicates that this configuraiton profile does not require third party settings, wait for the configuration profile generated by haiku.
-    if(!needsAReferenceTheSmallerModelIsLikelyToRecallWrong) {
-      // console.log('Awaiting the speculative haiku draft');
-      // console.time('waiting on haiku draft profile')
-      configurationProfileGenerationResult = await draftProfilePromise;
-      // console.timeEnd('waiting on haiku draft profile')
-      // sails.log(configurationProfileGenerationResult);
-    }
-
-    // If the haiku draft failed, or the triage result said that this profile will use third-party settings,
-    if(!configurationProfileGenerationResult ||
-        configurationProfileGenerationResult.couldNotGenerateProfile ||
-        !configurationProfileGenerationResult.configurationProfile ||
-        !configurationProfileGenerationResult.profileFilename ||
-        !configurationProfileGenerationResult.settingsEnforced) {
-      // console.log('Sending instructions to sonnet.');
-      // console.time('sonnet prompt');
-      configurationProfileGenerationResult = await sails.helpers.ai.prompt.with({
-        systemPrompt: systemPrompt,
-        prompt: configurationProfilePrompt,
-        baseModel: 'claude-sonnet-5-5',
-        expectJson: true,
-        // At the default (high) effort, 11% of test-suite generations overran the 10 s latency budget.
-        // Low is the recommended starting point for content generation; re-measure with EFFORT=low.
-        effort: 'low',
-      })
-      .intercept((err)=>{
-        sails.log.warn(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
-        if(this.req.isSocket){
-          // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
-          sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
-          sails.sockets.leave(this.req, roomId);
-        }
-        return 'couldNotGenerateProfile';
-      });
-      // console.timeEnd('sonnet prompt');
-    }
+    let configurationProfileGenerationResult = await generationPromise;
 
     // Check the result from sonnet, and return an error if it failed.
     if(!configurationProfileGenerationResult ||

@@ -16,7 +16,7 @@ Examples:
   sails run test-llm-generated-configuration-profile
   sails run test-llm-generated-configuration-profile --profileType=mobileconfig --verbose
   sails run test-llm-generated-configuration-profile --profileType=csp --baseModel=claude-haiku-5-5
-  sails run test-llm-generated-configuration-profile --profileType=csp --baseModel=claude-sonnet-5-5 --effort=low
+  sails run test-llm-generated-configuration-profile --profileType=csp --effort=medium
   sails run test-llm-generated-configuration-profile --profileType=ddm --baseModel=claude-haiku-5-5 --validateWithContour
   sails run test-llm-generated-configuration-profile --profileType=ddm --naturalLanguageInstructions="Defer minor updates by 30 days" --parallelTests=5
   sails run test-llm-generated-configuration-profile --caseId=ddm-defer-minor-updates --parallelTests=5
@@ -38,13 +38,14 @@ Examples:
 
     baseModel: {
       type: 'string',
-      defaultsTo: 'claude-haiku-5-5',
-      description: 'The model to generate with.'
+      defaultsTo: 'claude-sonnet-5-5',
+      description: 'The model to generate with.  Defaults to the model the action generates with.'
     },
 
     effort: {
       type: 'string',
-      description: 'Optional effort level passed through to the prompt helper (e.g. "low"), to measure a model at the effort the action uses rather than at its default.'
+      defaultsTo: 'low',
+      description: 'The effort level passed through to the prompt helper.  Defaults to the effort the action generates with.'
     },
 
     verbose: {

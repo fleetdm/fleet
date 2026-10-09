@@ -419,9 +419,6 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
 
       'csp': {
         description: 'CSP XML profile that enforces OS settings on Windows devices',
-        // How the triage prompt describes a setting the references below actually cover.  Kept
-        // next to those references so the two cannot drift apart.
-        firstPartySettingDescription: 'a node in a Microsoft-published CSP',
         references: [
           'Windows CSP nodes, formats, and allowed values: https://learn.microsoft.com/en-us/windows/client-management/mdm/',
         ],
@@ -456,7 +453,6 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
 
       'mobileconfig': {
         description: 'XML .mobileconfig profile that enforces OS settings on macOS/iOS/ipadOS devices',
-        firstPartySettingDescription: 'a key in an Apple-published payload',
         providedSchema: appleSchema,
         providedSchemaDescription: appleSchemaDescription,
         references: [
@@ -498,7 +494,6 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
 
       'ddm': {
         description: 'Apple DDM declaration in JSON format that enforces OS settings on macOS devices',
-        firstPartySettingDescription: 'a key in an Apple-published declaration type',
         providedSchema: appleSchema,
         providedSchemaDescription: `Provided context: every declaration Apple publishes, and every key each one accepts, taken from Apple's
 own declaration definitions.  Format is a declaration type followed by its keys, where \`*\` marks a required key,
@@ -1026,7 +1021,7 @@ ${uuidsToUse}${hexEncodingsToUse}
     ${naturalLanguageInstructions}
     \`\`\``;
 
-    // promptConfig comes back because the action's triage call needs description and firstPartySettingDescription; suppliedPayloadUuids so a caller can check what the model was given.
+    // promptConfig comes back because the action's settings-preview call needs description; suppliedPayloadUuids so a caller can check what the model was given.
     // windowsCspAreasProvided so a caller can tell a profile that was written from the wrong areas from one
     // written from the right areas badly -- the two look identical in the generated profile, and the first
     // is a lookup problem while the second is a prompt problem.
