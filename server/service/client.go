@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/markdown"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -4337,18 +4336,9 @@ func checkWindowsEULAFile(path string) error {
 	return nil
 }
 
-// The app config cache lasts about a second, so this waits up to 2.5 seconds.
-// Variables so tests can shorten the wait.
-var (
-	windowsMDMSettleInterval = 500 * time.Millisecond
-	windowsMDMSettleAttempts = 6
-)
-
-func isWindowsMDMNotConfiguredErr(err error) bool {
-	var scErr *StatusCodeErr
-	return errors.As(err, &scErr) && scErr.Code == http.StatusBadRequest &&
-		strings.Contains(scErr.Body, fleet.WindowsMDMNotConfiguredMessage)
-}
+// windowsMDMSettle waits out the app config cache, which lasts a second on each
+// server. A variable so tests don't wait.
+var windowsMDMSettle = func() { time.Sleep(time.Second) }
 
 // doGitOpsWindowsEULA runs after ApplyGroup rather than beside the macOS EULA:
 // the same file can turn Windows MDM on, and the Windows EULA endpoints are
@@ -4386,35 +4376,18 @@ func (c *Client) doGitOpsWindowsEULA(
 		return nil
 	}
 
-	apply := func() error {
-		if path == "" {
-			if err := c.DeleteWindowsEULAIfNeeded(dryRun); err != nil {
-				return fmt.Errorf("error deleting Windows EULA: %w", err)
-			}
-		} else if err := c.UploadWindowsEULAIfNeeded(resolveApplyRelativePath(baseDir, path), dryRun); err != nil {
-			return fmt.Errorf("error uploading Windows EULA: %w", err)
+	if !windowsMDMOnNow {
+		// This run turned Windows MDM on, and a server can still have its app
+		// config cached from before and refuse the request. The profiles batch
+		// asks for a fresh read instead (no_cache); the EULA endpoints can't.
+		windowsMDMSettle()
+	}
+	if path == "" {
+		if err := c.DeleteWindowsEULAIfNeeded(dryRun); err != nil {
+			return fmt.Errorf("error deleting Windows EULA: %w", err)
 		}
-		return nil
-	}
-	var err error
-	if windowsMDMOnNow {
-		err = apply()
-	} else {
-		// This run turned Windows MDM on, and a server instance can still have
-		// its app config cached from before and refuse the request for a moment.
-		err = retry.Do(apply,
-			retry.WithInterval(windowsMDMSettleInterval),
-			retry.WithMaxAttempts(windowsMDMSettleAttempts),
-			retry.WithErrorFilter(func(err error) retry.ErrorOutcome {
-				if isWindowsMDMNotConfiguredErr(err) {
-					return retry.ErrorOutcomeNormalRetry
-				}
-				return retry.ErrorOutcomeDoNotRetry
-			}),
-		)
-	}
-	if err != nil {
-		return err
+	} else if err := c.UploadWindowsEULAIfNeeded(resolveApplyRelativePath(baseDir, path), dryRun); err != nil {
+		return fmt.Errorf("error uploading Windows EULA: %w", err)
 	}
 
 	if dryRun {
