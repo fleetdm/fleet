@@ -3193,12 +3193,25 @@ func TestGenerateMDMVPPTokens(t *testing.T) {
 			},
 		},
 		{
-			name: "token assigned to all teams (empty teams slice)",
+			name: "token assigned to all fleets (empty teams slice) is written as All fleets",
 			vppTokens: []*fleet.VPPTokenDB{
 				{
 					ID:       1,
 					Location: "Acme Inc.",
 					Teams:    []fleet.TeamTuple{},
+				},
+			},
+			expected: []fleet.MDMAppleVolumePurchasingProgramInfo{
+				{Location: "Acme Inc.", Teams: []string{fleet.DisplayNameAllTeams}},
+			},
+		},
+		{
+			name: "token assigned to no fleets (nil teams slice) is written with no fleets",
+			vppTokens: []*fleet.VPPTokenDB{
+				{
+					ID:       1,
+					Location: "Acme Inc.",
+					Teams:    nil,
 				},
 			},
 			expected: []fleet.MDMAppleVolumePurchasingProgramInfo{
