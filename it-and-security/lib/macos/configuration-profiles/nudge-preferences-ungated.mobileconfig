@@ -8,11 +8,11 @@
 			<key>PayloadDisplayName</key>
 			<string>Nudge Preferences</string>
 			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.nudge-preferences.settings</string>
+			<string>com.fleetdm.nudge-preferences-ungated.settings</string>
 			<key>PayloadType</key>
 			<string>com.github.macadmins.Nudge</string>
 			<key>PayloadUUID</key>
-			<string>F5035C68-7254-4A90-913D-928B07892FBE</string>
+			<string>761E7575-93A8-40D0-B770-47C4968AF150</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 			<key>optionalFeatures</key>
@@ -171,9 +171,9 @@ If you have any questions or need any assistance, please reach out via #help-it 
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>Nudge preferences</string>
+	<string>Nudge preferences (ungated)</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.profile.nudge-preferences</string>
+	<string>com.fleetdm.profile.nudge-preferences-ungated</string>
 	<key>PayloadOrganization</key>
 	<string>Fleet</string>
 	<key>PayloadScope</key>
@@ -181,7 +181,7 @@ If you have any questions or need any assistance, please reach out via #help-it 
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>A65C8756-AFF6-4843-B2F4-906283933600</string>
+	<string>C9C8ABD1-988F-459A-9F86-D8F746256723</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
