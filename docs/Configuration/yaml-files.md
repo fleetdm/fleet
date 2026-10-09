@@ -1240,10 +1240,10 @@ org_settings:
         url: https://one.digicert.com
         api_token: $DIGICERT_API_TOKEN
         profile_id: 926dbcdd-41c4-4fe5-96c3-b6a7f0da81d8
-        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+        certificate_common_name: $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART@example.com
         certificate_user_principal_names:
-          - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-        certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+          - $FLEET_VAR_HOST_END_USER_IDP_USERNAME
+        certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL
     ndes_scep_proxy:
       url: https://example.com/certsrv/mscep/mscep.dll
       admin_url: https://example.com/certsrv/mscep_admin/
@@ -1282,9 +1282,11 @@ org_settings:
 - `url` is the URL to DigiCert One instance (default: `https://one.digicert.com`).
 - `api_token` is the token used to authenticate requests to DigiCert.
 - `profile_id` is the ID of certificate profile in DigiCert.
-- `certificate_common_name` is the certificate's CN.
-- `certificate_user_principal_names` is the certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN).
-- `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert.
+- `certificate_common_name` is the certificate's CN. Accepts these Fleet variables: `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_PLATFORM`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, and the legacy `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. Available on Apple hosts only.
+- `certificate_user_principal_names` is the certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). Accepts the same Fleet variables as `certificate_common_name`.
+- `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert. Accepts the same Fleet variables as `certificate_common_name`.
+
+When `certificate_common_name`, `certificate_user_principal_names`, or `certificate_seat_id` is edited, certificates are reissued to every host that has a certificate from this CA, across all fleets. Certificates are also reissued when a host's IdP variable value changes.
 
 Can only be configured for "All fleets" (`org_settings`).
 
