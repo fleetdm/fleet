@@ -161,8 +161,8 @@
          ================================================================== -->
     <Icon Id="AppIcon.ico" SourceFile="..\FleetDesktop\Assets\app.ico" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
-    <Property Id="ARPHELPLINK" Value="https://github.com/allenhouchins/fleet-desktop-win" />
-    <Property Id="ARPURLINFOABOUT" Value="https://github.com/allenhouchins/fleet-desktop-win" />
+    <Property Id="ARPHELPLINK" Value="https://fleetdm.com/guides/fleet-desktop" />
+    <Property Id="ARPURLINFOABOUT" Value="https://fleetdm.com" />
 
     <!-- Minimal Wix UI: license + progress + finish. -->
     <ui:WixUI Id="WixUI_Minimal" />
