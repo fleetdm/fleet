@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/md5" // nolint:gosec // used for declarative management token
 	"crypto/x509"
@@ -2985,7 +2986,131 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 		return "", fleet.NewAuthFailedError("device is not DEP-assigned to Fleet")
 	}
 
+	if idpAccountUUID == "" {
+		if err := svc.checkAutomaticEnrollmentTokenAllowed(ctx, machineInfo, assignments); err != nil {
+			return "", err
+		}
+	}
+
 	return idpAccountUUID, nil
+}
+
+// checkAutomaticEnrollmentTokenAllowed refuses the automatic enrollment token
+// for a device whose host is in a fleet that requires end user authentication,
+// and records a host_enrollment_rejected activity. That fleet's DEP profile
+// never contains the token, so the device got its enrollment configuration
+// before its fleet required end user authentication.
+func (svc *Service) checkAutomaticEnrollmentTokenAllowed(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo, assignments []*fleet.HostDEPAssignment) error {
+	euaTeamIDs, err := svc.ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get fleets that require end user authentication")
+	}
+	if len(euaTeamIDs) == 0 {
+		return nil
+	}
+	// TeamIDsWithSetupExperienceIdPEnabled uses 0 for "No team".
+	requiresEUA := func(teamID *uint) bool {
+		return slices.Contains(euaTeamIDs, ptr.ValOrZero(teamID))
+	}
+
+	platform := platformFromAppleProduct(machineInfo.Product)
+	host, refused, err := svc.depAssignedHostRequiringEUA(ctx, machineInfo, platform, assignments, requiresEUA)
+	if err != nil || !refused {
+		return err
+	}
+
+	var hostID *uint
+	if host != nil {
+		hostID = &host.ID
+		if host.Platform != "" {
+			platform = host.Platform
+		}
+	}
+	svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedEndUserAuthenticationRequired, hostID, enrollmentAttempt{
+		plane:          fleet.EnrollmentPlaneAppleMDM,
+		platform:       platform,
+		hardwareUUID:   machineInfo.UDID,
+		hardwareSerial: machineInfo.Serial,
+	})
+	return fleet.NewAuthFailedError("automatic enrollment token presented for a host in a fleet that requires end user authentication")
+}
+
+// depAssignedHostRequiringEUA reports whether the serial's active DEP
+// assignments require end user authentication, and returns the host that
+// does. Duplicate hosts can leave one serial with assignments in different
+// fleets, so any of them requiring it is enough. The host matching the
+// device's UDID, then the lowest host ID, is the one returned, so the
+// activity's rate limit applies to the same host every time. If none of the
+// assignments resolves to a host, the AB tokens' default fleets for the
+// platform decide, which is where Fleet restores a deleted pending host.
+func (svc *Service) depAssignedHostRequiringEUA(
+	ctx context.Context,
+	machineInfo *fleet.MDMAppleMachineInfo,
+	platform string,
+	assignments []*fleet.HostDEPAssignment,
+	requiresEUA func(teamID *uint) bool,
+) (*fleet.Host, bool, error) {
+	assignments = slices.SortedFunc(slices.Values(assignments), func(a, b *fleet.HostDEPAssignment) int {
+		return cmp.Compare(a.HostID, b.HostID)
+	})
+
+	var anyHost bool
+	var euaHost *fleet.Host
+	for _, a := range assignments {
+		host, err := svc.ds.HostLite(ctx, a.HostID)
+		if fleet.IsNotFound(err) {
+			continue
+		}
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get DEP-assigned host")
+		}
+		anyHost = true
+		if requiresEUA(host.TeamID) && (euaHost == nil || (host.UUID == machineInfo.UDID && euaHost.UUID != machineInfo.UDID)) {
+			euaHost = host
+		}
+	}
+	if anyHost {
+		return euaHost, euaHost != nil, nil
+	}
+
+	var anyToken bool
+	for _, a := range assignments {
+		if a.ABMTokenID == nil {
+			continue
+		}
+		tok, err := svc.ds.GetABMTokenByID(ctx, *a.ABMTokenID)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get AB token of DEP assignment")
+		}
+		anyToken = true
+		if requiresEUA(abmTokenDefaultTeamID(tok, platform)) {
+			return nil, true, nil
+		}
+	}
+	// No AB token to read a default fleet from means "No team".
+	return nil, !anyToken && requiresEUA(nil), nil
+}
+
+func abmTokenDefaultTeamID(tok *fleet.ABMToken, platform string) *uint {
+	switch platform {
+	case "ios":
+		return tok.IOSDefaultTeamID
+	case "ipados":
+		return tok.IPadOSDefaultTeamID
+	default:
+		return tok.MacOSDefaultTeamID
+	}
+}
+
+func platformFromAppleProduct(product string) string {
+	switch {
+	case strings.HasPrefix(product, "iPhone"), strings.HasPrefix(product, "iPod"):
+		return "ios"
+	case strings.HasPrefix(product, "iPad"):
+		return "ipados"
+	default:
+		return "darwin"
+	}
 }
 
 // authenticateMDMAppleDEPEnrollmentToken checks the token is the automatic
