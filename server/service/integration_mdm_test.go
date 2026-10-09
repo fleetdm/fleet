@@ -7571,7 +7571,21 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeBoundHostToIdPAccount{}.ActivityName(),
 		fmt.Sprintf(`{"host_uuid": %q, "idp_email": "sso_user2@example.com", "replaced_idp_email": "sso_user@example.com"}`, mdmDevice.UUID), 0)
 
-	// enrolling with the automatic enrollment token (no account) removes the link
+	// the automatic enrollment token is refused while the host's fleet requires
+	// end user authentication, and the link is kept
+	res = s.DoRawWithHeaders("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, nil,
+		"token", staticProf.Token, "deviceinfo", di)
+	res.Body.Close()
+	linked, err := s.ds.GetMDMIdPAccountByHostUUID(t.Context(), mdmDevice.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, linked)
+	require.Equal(t, "sso_user2@example.com", linked.Email)
+
+	// without end user authentication, enrolling with the automatic enrollment
+	// token (no account) removes the link
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {"macos_setup": {"enable_end_user_authentication": false}}
+	}`), http.StatusOK, &appConfigResponse{})
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
 		basePath: "/api/mdm/apple/enroll",
 		token:    staticProf.Token,
@@ -7582,6 +7596,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	unlinked, err := s.ds.GetMDMIdPAccountByHostUUID(t.Context(), mdmDevice.UUID)
 	require.NoError(t, err)
 	require.Nil(t, unlinked)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {"macos_setup": {"enable_end_user_authentication": true}}
+	}`), http.StatusOK, &appConfigResponse{})
 
 	// changing the server URL also updates the remote DEP profile
 	acResp = appConfigResponse{}

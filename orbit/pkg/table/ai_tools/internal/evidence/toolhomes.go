@@ -2,6 +2,7 @@ package evidence
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
@@ -26,6 +27,17 @@ var knownToolHomes = []struct {
 	{".aider", "aider", []string{"aider"}},
 	{".config/opencode", "opencode", []string{"opencode"}},
 	{".config/hermes", "hermes", []string{"hermes"}},
+}
+
+// toolHomeLabel returns the agent label for a directory named like a known
+// tool home (".claude", or "opencode" for ~/.config/opencode).
+func toolHomeLabel(base string) (string, bool) {
+	for _, k := range knownToolHomes {
+		if path.Base(k.dir) == base {
+			return k.name, true
+		}
+	}
+	return "", false
 }
 
 func scanToolHomes(h homes.Home) []ToolHome {
