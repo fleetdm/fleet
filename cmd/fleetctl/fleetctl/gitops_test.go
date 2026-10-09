@@ -6364,10 +6364,10 @@ func TestGitOpsEULASetting(t *testing.T) {
 				}
 			},
 			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
-				assert.ErrorContains(t, err, "invalid file type")
+				assert.ErrorContains(t, err, "The file must be a PDF (.pdf).")
 			},
 			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
-				assert.ErrorContains(t, err, "invalid file type")
+				assert.ErrorContains(t, err, "The file must be a PDF (.pdf).")
 			},
 		},
 		{
@@ -6381,11 +6381,11 @@ func TestGitOpsEULASetting(t *testing.T) {
 				}
 			},
 			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
-				require.ErrorContains(t, err, "invalid file type")
+				require.ErrorContains(t, err, "The file must be a PDF (.pdf).")
 				assert.False(t, ds.MDMDeleteEULAFuncInvoked)
 			},
 			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
-				require.ErrorContains(t, err, "invalid file type")
+				require.ErrorContains(t, err, "The file must be a PDF (.pdf).")
 				assert.False(t, ds.MDMDeleteEULAFuncInvoked)
 			},
 		},

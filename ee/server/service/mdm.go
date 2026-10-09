@@ -645,7 +645,7 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSee
 	if err := file.CheckPDF(f); err != nil {
 		if errors.Is(err, file.ErrInvalidType) {
 			return &fleet.BadRequestError{
-				Message:     err.Error(),
+				Message:     "The file must be a PDF (.pdf).",
 				InternalErr: err,
 			}
 		}
