@@ -6212,7 +6212,7 @@ org_settings:
 			name: "valid pdf file (no existing EULA uploaded)",
 			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
@@ -6231,7 +6231,7 @@ org_settings:
 			name: "relative path to working dir to pdf file (no existing EULA uploaded)",
 			cfg:  createGlobalGitOpsConfig(`end_user_license_agreement: "./testdata/gitops/tiny_eula.pdf"`),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
@@ -6261,7 +6261,7 @@ org_settings:
 				err = tmpPDF.Close()
 				require.NoError(t, err)
 
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
@@ -6280,7 +6280,7 @@ org_settings:
 			name: "valid new pdf file (different EULA already uploaded)",
 			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{
 						Name:  pdfPath,
 						Token: "test-token",
@@ -6304,7 +6304,7 @@ org_settings:
 			name: "no EULA specified (no existing EULA uploaded)",
 			cfg:  createGlobalGitOpsConfig(""),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
@@ -6325,7 +6325,7 @@ org_settings:
 			name: "deleting existing EULA",
 			cfg:  createGlobalGitOpsConfig(""),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{
 						Name:  pdfPath,
 						Token: "test-token",
@@ -6347,7 +6347,7 @@ org_settings:
 			name: "not a PDF file",
 			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
@@ -6362,7 +6362,7 @@ org_settings:
 			name: "uploading the same EULA again",
 			cfg:  createGlobalGitOpsConfig(""),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
 					hash := sha256.Sum256(pdfContent) // Simulate same EULA
 					return &fleet.MDMEULA{
 						Name:   pdfPath,
@@ -6392,7 +6392,7 @@ org_settings:
 			ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
 				return nil
 			}
-			ds.MDMDeleteEULAFunc = func(ctx context.Context, token string) error {
+			ds.MDMDeleteEULAFunc = func(ctx context.Context, platform, token string) error {
 				return nil
 			}
 

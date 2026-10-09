@@ -1362,13 +1362,13 @@ type CleanupUnusedBootstrapPackagesFunc func(ctx context.Context, pkgStore fleet
 
 type GetHostMDMMacOSSetupFunc func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error)
 
-type MDMGetEULAMetadataFunc func(ctx context.Context) (*fleet.MDMEULA, error)
+type MDMGetEULAMetadataFunc func(ctx context.Context, platform string) (*fleet.MDMEULA, error)
 
-type MDMGetEULABytesFunc func(ctx context.Context, token string) (*fleet.MDMEULA, error)
+type MDMGetEULABytesFunc func(ctx context.Context, platform string, token string) (*fleet.MDMEULA, error)
 
 type MDMInsertEULAFunc func(ctx context.Context, eula *fleet.MDMEULA) error
 
-type MDMDeleteEULAFunc func(ctx context.Context, token string) error
+type MDMDeleteEULAFunc func(ctx context.Context, platform string, token string) error
 
 type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error)
 
@@ -11056,18 +11056,18 @@ func (s *DataStore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fle
 	return s.GetHostMDMMacOSSetupFunc(ctx, hostID)
 }
 
-func (s *DataStore) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+func (s *DataStore) MDMGetEULAMetadata(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
 	s.mu.Lock()
 	s.MDMGetEULAMetadataFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMGetEULAMetadataFunc(ctx)
+	return s.MDMGetEULAMetadataFunc(ctx, platform)
 }
 
-func (s *DataStore) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
+func (s *DataStore) MDMGetEULABytes(ctx context.Context, platform string, token string) (*fleet.MDMEULA, error) {
 	s.mu.Lock()
 	s.MDMGetEULABytesFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMGetEULABytesFunc(ctx, token)
+	return s.MDMGetEULABytesFunc(ctx, platform, token)
 }
 
 func (s *DataStore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) error {
@@ -11077,11 +11077,11 @@ func (s *DataStore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) erro
 	return s.MDMInsertEULAFunc(ctx, eula)
 }
 
-func (s *DataStore) MDMDeleteEULA(ctx context.Context, token string) error {
+func (s *DataStore) MDMDeleteEULA(ctx context.Context, platform string, token string) error {
 	s.mu.Lock()
 	s.MDMDeleteEULAFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMDeleteEULAFunc(ctx, token)
+	return s.MDMDeleteEULAFunc(ctx, platform, token)
 }
 
 func (s *DataStore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {

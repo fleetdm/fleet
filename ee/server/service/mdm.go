@@ -663,10 +663,11 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSee
 	_, _ = hash.Write(bytes)
 
 	eula := &fleet.MDMEULA{
-		Name:   name,
-		Token:  uuid.New().String(),
-		Sha256: hash.Sum(nil),
-		Bytes:  bytes,
+		Name:     name,
+		Token:    uuid.New().String(),
+		Sha256:   hash.Sum(nil),
+		Bytes:    bytes,
+		Platform: fleet.MDMEULAPlatformDarwin,
 	}
 
 	if err := svc.ds.MDMInsertEULA(ctx, eula); err != nil {
@@ -681,7 +682,7 @@ func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.M
 	// request.
 	svc.authz.SkipAuthorization(ctx)
 
-	return svc.ds.MDMGetEULABytes(ctx, token)
+	return svc.ds.MDMGetEULABytes(ctx, fleet.MDMEULAPlatformDarwin, token)
 }
 
 func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
@@ -693,7 +694,7 @@ func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool
 		return nil
 	}
 
-	if err := svc.ds.MDMDeleteEULA(ctx, token); err != nil {
+	if err := svc.ds.MDMDeleteEULA(ctx, fleet.MDMEULAPlatformDarwin, token); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting EULA")
 	}
 
@@ -705,7 +706,7 @@ func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, err
 		return nil, err
 	}
 
-	eula, err := svc.ds.MDMGetEULAMetadata(ctx)
+	eula, err := svc.ds.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatformDarwin)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting EULA metadata")
 	}
@@ -1379,7 +1380,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		}
 	}
 
-	eula, err := svc.ds.MDMGetEULAMetadata(ctx)
+	eula, err := svc.ds.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatformDarwin)
 	if err != nil && !fleet.IsNotFound(err) {
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "getting EULA metadata")
 	}
