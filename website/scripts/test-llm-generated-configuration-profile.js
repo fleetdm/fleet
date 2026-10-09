@@ -16,6 +16,7 @@ Examples:
   sails run test-llm-generated-configuration-profile
   sails run test-llm-generated-configuration-profile --profileType=mobileconfig --verbose
   sails run test-llm-generated-configuration-profile --profileType=csp --baseModel=claude-haiku-4-5
+  sails run test-llm-generated-configuration-profile --profileType=csp --baseModel=claude-sonnet-5-5 --effort=low
   sails run test-llm-generated-configuration-profile --profileType=ddm --baseModel=claude-haiku-4-5 --validateWithContour
   sails run test-llm-generated-configuration-profile --profileType=ddm --naturalLanguageInstructions="Defer minor updates by 30 days" --parallelTests=5
   sails run test-llm-generated-configuration-profile --caseId=ddm-defer-minor-updates --parallelTests=5
@@ -39,6 +40,11 @@ Examples:
       type: 'string',
       defaultsTo: 'claude-haiku-4-5',
       description: 'The model to generate with.'
+    },
+
+    effort: {
+      type: 'string',
+      description: 'Optional effort level passed through to the prompt helper (e.g. "low"), to measure a model at the effort the action uses rather than at its default.'
     },
 
     verbose: {
@@ -90,7 +96,7 @@ csp cases report as not-checked either way.`
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, baseModel, verbose, validateWithContour, parallelTests, caseId, testLighterResponse, lookupAppleSchemaKeys}) {
+  fn: async function ({profileType, naturalLanguageInstructions, baseModel, effort, verbose, validateWithContour, parallelTests, caseId, testLighterResponse, lookupAppleSchemaKeys}) {
 
     let path = require('path');
     let util = require('util');
@@ -189,7 +195,7 @@ csp cases report as not-checked either way.`
       'Inputs:\n' +
       `profileType: ${profileType || '(every type)'}\n` +
       (runAllTestCases ? 'Run all tests: true\n' : caseId ? `caseId: ${caseId}\n` : `naturalLanguageInstructions: ${naturalLanguageInstructions}\n`) +
-      `LLM model used: ${baseModel}\n` +
+      `LLM model used: ${baseModel}${effort ? ` (effort: ${effort})` : ''}\n` +
       (parallelTests > 1 ? `parallelTests: ${parallelTests}\n` : '') +
       `Using smaller response shape: ${testLighterResponse}\n` +
       `Looking up apple payloads for mobileconfig profiles: ${lookupAppleSchemaKeys}\n` +
@@ -228,12 +234,14 @@ csp cases report as not-checked either way.`
             useLighterResponseShape: testLighterResponse,
             useApplePayloadTypeLookup: lookupAppleSchemaKeys,
           });
-          let rawResult = await sails.helpers.ai.prompt.with({
+          let promptOptions = {
             systemPrompt: generatorConfiguration.systemPrompt,
             prompt: generatorConfiguration.userPrompt,
             baseModel,
             expectJson: true,
-          });
+          };
+          if(effort) { promptOptions.effort = effort; }
+          let rawResult = await sails.helpers.ai.prompt.with(promptOptions);
           // The same step the action runs, so a case is checked against the profile an admin would download.
           if(testCase.profileType === 'csp' && rawResult.configurationProfile) {
             let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: rawResult.configurationProfile });

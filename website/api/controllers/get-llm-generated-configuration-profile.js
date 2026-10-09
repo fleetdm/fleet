@@ -153,6 +153,9 @@ Respond in JSON with this data shape:
         prompt: configurationProfilePrompt,
         baseModel: 'claude-sonnet-5-5',
         expectJson: true,
+        // At the default (high) effort, 11% of test-suite generations overran the 10 s latency budget.
+        // Low is the recommended starting point for content generation; re-measure with EFFORT=low.
+        effort: 'low',
       })
       .intercept((err)=>{
         sails.log.warn(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
