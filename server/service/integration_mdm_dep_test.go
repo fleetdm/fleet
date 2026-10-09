@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -3717,6 +3718,201 @@ func (s *integrationMDMTestSuite) TestGetDefaultDEPProfile() {
 			require.NoError(t, s.ds.DeleteTeam(context.Background(), defaultDEPTeam.ID))
 		})
 	})
+}
+
+func (s *integrationMDMTestSuite) TestRotateAutomaticEnrollmentToken() {
+	t := s.T()
+	ctx := t.Context()
+	s.enableABM(t.Name())
+	s.setSkipWorkerJobs(t)
+	// machine info blobs in this test are signed with a throwaway cert, not an
+	// Apple device identity
+	apple_mdm.SetMachineInfoVerificationForTest(t, false)
+	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+
+	var definedProfileURLs []string
+	var mu sync.Mutex
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/profile":
+			var prof godep.Profile
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&prof))
+			mu.Lock()
+			definedProfileURLs = append(definedProfileURLs, prof.URL)
+			mu.Unlock()
+			assert.NoError(t, json.NewEncoder(w).Encode(godep.ProfileResponse{ProfileUUID: uuid.NewString()}))
+		case "/profile/devices":
+			var req profileAssignmentReq
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			resp := godep.ProfileResponse{ProfileUUID: req.ProfileUUID, Devices: map[string]string{}}
+			for _, d := range req.Devices {
+				resp.Devices[d] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(resp))
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	const rotatePath = "/api/latest/fleet/enrollment_profiles/automatic/rotate_token"
+	rotate := func(body string, wantStatus int) rotateMDMAppleAutomaticEnrollmentTokenResponse {
+		t.Helper()
+		res := s.DoRaw("POST", rotatePath, []byte(body), wantStatus)
+		defer res.Body.Close()
+		raw, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		var resp rotateMDMAppleAutomaticEnrollmentTokenResponse
+		if wantStatus == http.StatusOK {
+			require.NoError(t, json.Unmarshal(raw, &resp))
+			require.Contains(t, string(raw), `"previous_token_expires_at"`)
+			var row struct {
+				Token         string  `db:"token"`
+				PreviousToken *string `db:"previous_token"`
+			}
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &row, `SELECT token, previous_token FROM mdm_apple_enrollment_profiles WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+			})
+			require.NotContains(t, string(raw), row.Token)
+			if row.PreviousToken != nil {
+				require.NotContains(t, string(raw), *row.PreviousToken)
+			}
+		}
+		return resp
+	}
+
+	// no automatic enrollment profile yet
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM mdm_apple_enrollment_profiles WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		return err
+	})
+	rotate(`{}`, http.StatusNotFound)
+	require.NoError(t, depSvc.RunAssigner(ctx))
+
+	// grace period out of range
+	rotate(`{"grace_period_hours": 721}`, http.StatusUnprocessableEntity)
+	rotate(`{"grace_period_hours": -1}`, http.StatusUnprocessableEntity)
+
+	// only global admins can rotate
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	newUser := func(globalRole string, teamRole string) fleet.User {
+		u := fleet.User{
+			Name:  t.Name() + globalRole + teamRole,
+			Email: fmt.Sprintf("rotate-%s%s-%s@example.com", globalRole, teamRole, uuid.NewString()[:8]),
+		}
+		if globalRole != "" {
+			u.GlobalRole = new(globalRole)
+		} else {
+			u.Teams = []fleet.UserTeam{{Team: *team, Role: teamRole}}
+		}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(ctx, &u)
+		require.NoError(t, err)
+		return u
+	}
+	var forbidden []fleet.User
+	for _, role := range []string{fleet.RoleMaintainer, fleet.RoleObserver, fleet.RoleObserverPlus, fleet.RoleTechnician, fleet.RoleGitOps} {
+		forbidden = append(forbidden, newUser(role, ""))
+	}
+	for _, role := range []string{fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserver} {
+		forbidden = append(forbidden, newUser("", role))
+	}
+	for _, u := range forbidden {
+		t.Run("forbidden for "+u.Name, func(t *testing.T) {
+			s.setTokenForTest(t, u.Email, test.GoodPassword)
+			rotate(`{}`, http.StatusForbidden)
+		})
+	}
+
+	// an ABM-assigned device downloads its profile with the tokens
+	abmTok, err := s.ds.GetABMTokenByOrgName(ctx, t.Name())
+	require.NoError(t, err)
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "rotate-dep-host",
+		HardwareSerial: mdmtest.RandSerialNumber(),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host}, abmTok.ID, nil))
+	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{Serial: host.HardwareSerial, UDID: host.UUID})
+	require.NoError(t, err)
+	requireEnrolls := func(token string, ok bool) {
+		t.Helper()
+		if ok {
+			s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{token: token, diParam: di})
+			return
+		}
+		s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, "token", token, "deviceinfo", di)
+	}
+	updateAllProfilesJobs := func() int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM jobs WHERE name = 'macos_setup_assistant' AND state = 'queued' AND args->>'$.task' = 'update_all_profiles'`)
+		})
+		return n
+	}
+
+	currentToken := func() string {
+		var token string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &token, `SELECT token FROM mdm_apple_enrollment_profiles WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		})
+		return token
+	}
+
+	token0 := currentToken()
+	requireEnrolls(token0, true)
+	jobsBefore := updateAllProfilesJobs()
+
+	// default grace period
+	resp := rotate(`{}`, http.StatusOK)
+	require.NotNil(t, resp.PreviousTokenExpiresAt)
+	require.WithinDuration(t, time.Now().Add(24*time.Hour), *resp.PreviousTokenExpiresAt, time.Minute)
+	require.Equal(t, jobsBefore+1, updateAllProfilesJobs())
+	token1 := currentToken()
+	require.NotEqual(t, token0, token1)
+	requireEnrolls(token1, true)
+	requireEnrolls(token0, true)
+
+	// the previous token stops working once its grace period ends
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_enrollment_profiles SET previous_token_expires_at = NOW(6) - INTERVAL 1 SECOND WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		return err
+	})
+	requireEnrolls(token0, false)
+	requireEnrolls(token1, true)
+
+	// rotating twice during a grace period keeps only the latest previous token
+	resp = rotate(`{"grace_period_hours": 1}`, http.StatusOK)
+	require.WithinDuration(t, time.Now().Add(time.Hour), *resp.PreviousTokenExpiresAt, time.Minute)
+	token2 := currentToken()
+	rotate(`{"grace_period_hours": 720}`, http.StatusOK)
+	token3 := currentToken()
+	requireEnrolls(token3, true)
+	requireEnrolls(token2, true)
+	requireEnrolls(token1, false)
+
+	// no grace period revokes the previous token immediately
+	resp = rotate(`{"grace_period_hours": 0}`, http.StatusOK)
+	require.Nil(t, resp.PreviousTokenExpiresAt)
+	token4 := currentToken()
+	requireEnrolls(token4, true)
+	requireEnrolls(token3, false)
+
+	// the queued job re-defines the profiles with the new token
+	mu.Lock()
+	definedProfileURLs = nil
+	mu.Unlock()
+	s.runWorkerUntilDone()
+	mu.Lock()
+	defer mu.Unlock()
+	require.NotEmpty(t, definedProfileURLs)
+	for _, u := range definedProfileURLs {
+		require.Contains(t, u, "token="+token4)
+	}
 }
 
 // TestDEPSyncCursorPersistedAfterSuccessfulSync verifies the end-to-end happy
