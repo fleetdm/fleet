@@ -2877,6 +2877,41 @@ func BuildAppleMDMCertificateBindingExtension(extension AppleMDMCertificateBindi
 	}, nil
 }
 
+// ParseAppleMDMCertificateBindingExtension returns the certificate's binding extension, or nil if it has none. It
+// errors on a malformed or duplicated extension, or an unsupported version.
+func ParseAppleMDMCertificateBindingExtension(cert *x509.Certificate) (*AppleMDMCertificateBindingExtension, error) {
+	var found *pkix.Extension
+	for i := range cert.Extensions {
+		if !cert.Extensions[i].Id.Equal(AppleMDMCertificateBindingExtensionOID) {
+			continue
+		}
+		if found != nil {
+			return nil, errors.New("duplicate certificate binding extension")
+		}
+		found = &cert.Extensions[i]
+	}
+	if found == nil {
+		return nil, nil
+	}
+
+	var raw string
+	rest, err := asn1.UnmarshalWithParams(found.Value, &raw, "utf8")
+	if err != nil {
+		return nil, fmt.Errorf("decoding certificate binding extension: %w", err)
+	}
+	if len(rest) > 0 {
+		return nil, errors.New("trailing data after certificate binding extension")
+	}
+	var binding AppleMDMCertificateBindingExtension
+	if err := json.Unmarshal([]byte(raw), &binding); err != nil {
+		return nil, fmt.Errorf("unmarshaling certificate binding extension: %w", err)
+	}
+	if binding.Version != 1 {
+		return nil, fmt.Errorf("unsupported certificate binding version %d", binding.Version)
+	}
+	return &binding, nil
+}
+
 func AppleMDMSCEPCertificateSubject(newEnrollment bool) pkix.Name {
 	subject := pkix.Name{
 		Organization: []string{"Fleet"},
