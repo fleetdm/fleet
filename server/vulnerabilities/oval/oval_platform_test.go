@@ -58,6 +58,11 @@ func TestOvalPlatform(t *testing.T) {
 			{"zorin", "Zorin OS 17.0.0", "ubuntu_2204"},
 			{"zorin", "Zorin OS 18.1", "ubuntu_2404"},
 			{"zorin", "Zorin OS 99.0.0", "zorin_99"},
+			{"parrot", "Parrot OS 4.11", "debian_10"},
+			{"parrot", "Parrot OS 5.3", "debian_11"},
+			{"parrot", "Parrot OS 6.0", "debian_12"},
+			{"parrot", "Parrot OS 6.4.2", "debian_12"},
+			{"parrot", "Parrot OS 99.0", "parrot_99"},
 		}
 
 		for _, c := range cases {
