@@ -1657,6 +1657,7 @@ SELECT
   si.title_id,
   si.storage_id,
   si.fleet_maintained_app_id,
+  COALESCE(fma.slug, '') AS fleet_maintained_app_slug,
   si.package_ids,
   si.upgrade_code,
   si.filename,
@@ -1680,6 +1681,7 @@ SELECT
 FROM
   software_installers si
   JOIN software_titles st ON st.id = si.title_id
+  LEFT OUTER JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
   LEFT OUTER JOIN script_contents inst ON inst.id = si.install_script_content_id
   LEFT OUTER JOIN script_contents pinst ON pinst.id = si.post_install_script_content_id
   LEFT OUTER JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
