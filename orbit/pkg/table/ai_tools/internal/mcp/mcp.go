@@ -5,6 +5,7 @@
 package mcp
 
 import (
+	"cmp"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -46,13 +47,14 @@ type Server struct {
 }
 
 // ScanConfigs returns every MCP server declared in any client config under the
-// given home directory.
-func ScanConfigs(h homes.Home) []Server {
+// given home directory. dirs is the home's fsutil.WalkHome result, probed for
+// project-scoped configs.
+func ScanConfigs(h homes.Home, dirs []fsutil.WalkedDir) []Server {
 	r := paths.For(h.Dir)
 	var out []Server
 
 	files := userConfigFiles(r)
-	files = append(files, projectConfigFiles(h.Dir)...)
+	files = append(files, projectConfigFiles(dirs)...)
 	for _, cf := range files {
 		for _, s := range parseFile(cf) {
 			s.UID, s.Username = h.UID, h.Username
@@ -185,38 +187,43 @@ func vscodeUserDirs(r paths.Roots) []string {
 	return dirs
 }
 
-// projectConfigFiles does a bounded walk of common dev-project roots looking for
+// projectConfigs are the repo-scoped MCP configs probed in each walked
+// directory.
+var projectConfigs = []struct{ client, rel, key string }{
+	{"claude-code", ".mcp.json", "mcpServers"},
+	{"cursor", filepath.Join(".cursor", "mcp.json"), "mcpServers"},
+	{"vscode", filepath.Join(".vscode", "mcp.json"), "servers"},
+	{"roo", filepath.Join(".roo", "mcp.json"), "mcpServers"},
+}
+
+// WalkProbes are the paths ScanConfigs checks in each walked directory, for
+// fsutil.WalkHome.
+func WalkProbes() []string {
+	out := make([]string, 0, len(projectConfigs))
+	for _, c := range projectConfigs {
+		out = append(out, c.rel)
+	}
+	return out
+}
+
+// projectConfigFiles probes the walked home and project directories for
 // repo-scoped MCP configs (.mcp.json, .cursor/mcp.json, .vscode/mcp.json,
 // .roo/mcp.json). We cannot scan the whole disk, so coverage is best-effort.
-func projectConfigFiles(home string) []cfgFile {
-	roots := []string{
-		home,
-		filepath.Join(home, "Documents"),
-		filepath.Join(home, "Projects"),
-		filepath.Join(home, "projects"),
-		filepath.Join(home, "src"),
-		filepath.Join(home, "code"),
-		filepath.Join(home, "git"),
-		filepath.Join(home, "dev"),
-		filepath.Join(home, "workspace"),
-		filepath.Join(home, "repos"),
-	}
+func projectConfigFiles(dirs []fsutil.WalkedDir) []cfgFile {
 	seen := map[string]struct{}{}
 	var out []cfgFile
-	addIf := func(client, path, key, format string) {
-		if _, ok := seen[path]; ok || !fsutil.Exists(path) {
+	addIf := func(client string, d fsutil.WalkedDir, rel, key, format string) {
+		path := filepath.Join(d.Path, rel)
+		if _, ok := seen[path]; ok || !d.Exists(rel) {
 			return
 		}
 		seen[path] = struct{}{}
 		out = append(out, cfgFile{client: client, path: path, key: key, format: format, scope: "project"})
 	}
-	for _, root := range roots {
-		fsutil.WalkBounded(root, 3, func(dir string) {
-			addIf("claude-code", filepath.Join(dir, ".mcp.json"), "mcpServers", "json")
-			addIf("cursor", filepath.Join(dir, ".cursor", "mcp.json"), "mcpServers", "json")
-			addIf("vscode", filepath.Join(dir, ".vscode", "mcp.json"), "servers", "json")
-			addIf("roo", filepath.Join(dir, ".roo", "mcp.json"), "mcpServers", "json")
-		})
+	for _, d := range dirs {
+		for _, c := range projectConfigs {
+			addIf(c.client, d, c.rel, c.key, "json")
+		}
 	}
 	return out
 }
@@ -280,7 +287,7 @@ func (j jsonServer) commandAndArgs() (string, []string) {
 			Args    []string `json:"args"`
 		}
 		if err := json.Unmarshal(j.Command, &obj); err == nil {
-			cmd := firstNonEmpty(obj.Path, obj.Command)
+			cmd := cmp.Or(obj.Path, obj.Command)
 			if len(obj.Args) > 0 {
 				args = obj.Args
 			}
@@ -352,7 +359,7 @@ func mapToServers(m map[string]jsonServer) []Server {
 
 func toServer(name string, j jsonServer) Server {
 	cmd, args := j.commandAndArgs()
-	url := firstNonEmpty(j.URL, j.ServerURL)
+	url := cmp.Or(j.URL, j.ServerURL)
 	s := Server{ServerName: name, Enabled: -1, Source: "config"}
 
 	switch {
@@ -381,7 +388,7 @@ func toServer(name string, j jsonServer) Server {
 }
 
 func normalizeTransport(t, tr string) string {
-	switch strings.ToLower(firstNonEmpty(t, tr)) {
+	switch strings.ToLower(cmp.Or(t, tr)) {
 	case "sse":
 		return "sse"
 	case "streamable-http", "streamablehttp", "streamable_http", "http-stream":
@@ -393,7 +400,7 @@ func normalizeTransport(t, tr string) string {
 	case "":
 		return "http"
 	default:
-		return strings.ToLower(firstNonEmpty(t, tr))
+		return strings.ToLower(cmp.Or(t, tr))
 	}
 }
 
@@ -438,7 +445,7 @@ func scanContinueDir(h homes.Home) []Server {
 		if err := yaml.Unmarshal(b, &rs); err != nil {
 			continue
 		}
-		srv := rs.toServer(firstNonEmpty(rs.Name, strings.TrimSuffix(name, filepath.Ext(name))))
+		srv := rs.toServer(cmp.Or(rs.Name, strings.TrimSuffix(name, filepath.Ext(name))))
 		srv.UID, srv.Username = h.UID, h.Username
 		srv.Client, srv.Scope, srv.ConfigPath = "continue", "user", p
 		out = append(out, srv)
@@ -461,7 +468,7 @@ type yamlServer struct {
 }
 
 func (rs yamlServer) toServer(name string) Server {
-	url := firstNonEmpty(rs.URL, rs.ServerURL)
+	url := cmp.Or(rs.URL, rs.ServerURL)
 	s := Server{ServerName: name, Enabled: -1, Source: "config"}
 	switch {
 	case rs.Command != "":
@@ -511,7 +518,7 @@ func yamlNodeToServers(n yaml.Node) []Server {
 			name := n.Content[i].Value
 			var rs yamlServer
 			_ = n.Content[i+1].Decode(&rs)
-			out = append(out, rs.toServer(firstNonEmpty(rs.Name, name)))
+			out = append(out, rs.toServer(cmp.Or(rs.Name, name)))
 		}
 	case yaml.SequenceNode:
 		for _, item := range n.Content {
@@ -663,15 +670,6 @@ func envKeyNames(env map[string]string) string {
 		return ""
 	}
 	return string(b)
-}
-
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 func boolToInt(b bool) int {
