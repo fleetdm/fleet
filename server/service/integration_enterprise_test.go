@@ -38033,11 +38033,14 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerFMAManifestFe
 
 	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		file, err := os.Open(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
-		require.NoError(t, err)
+		if !assert.NoError(t, err) {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		defer file.Close()
 		w.Header().Set("Content-Type", "application/application/x-newton-compatible-pkg")
 		_, err = io.Copy(w, file)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}))
 	t.Cleanup(installerServer.Close)
 
@@ -38059,7 +38062,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerFMAManifestFe
 				DefaultCategories: []string{"Productivity"},
 			}},
 		}
-		require.NoError(t, json.NewEncoder(w).Encode(manifest))
+		assert.NoError(t, json.NewEncoder(w).Encode(manifest))
 	}))
 	t.Cleanup(manifestServer.Close)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
