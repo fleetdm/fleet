@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
+In Fleet, you can enforce OS updates on your macOS, Windows, iOS, iPadOS, Android, and Linux hosts remotely using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
 
 For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://sofa.macadmins.io/). The update will only be enforced if you use a version in that list.
 
