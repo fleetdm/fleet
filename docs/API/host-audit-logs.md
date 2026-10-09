@@ -29,15 +29,15 @@ Each activity below includes its fields and an example payload.
 
 ### reset_policy
 
-Generated when a user resets policy results, either for a single host or for every host the policy applies to.
+Generated when a user resets a policy's results for a single host. Resets for every host a policy applies to aren't linked to specific hosts, so this webhook doesn't send them.
 
 This activity contains the following fields:
 - "policy_id": ID of the policy.
 - "policy_name": Name of the policy.
-- "fleet_id": ID of the fleet the policy belongs to. Omitted for global policies.
-- "fleet_name": Name of the fleet the policy belongs to. Omitted for global policies.
-- "host_id": ID of the host. Only present when the reset was scoped to a single host.
-- "host_display_name": Display name of the host. Only present when the reset was scoped to a single host.
+- "fleet_id": ID of the fleet the policy belongs to. `-1` for global policies and `0` for Unassigned.
+- "fleet_name": Name of the fleet the policy belongs to. Omitted for global policies and Unassigned.
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
 
 #### Example
 
@@ -57,13 +57,13 @@ This activity contains the following fields:
 Generated when Fleet refuses an orbit or osquery enrollment because of the one-time enroll secret rules. Recorded by Fleet, rate-limited per host and reason.
 
 This activity contains the following fields:
-- "host_id": ID of the host. `null` when the host isn't known.
+- "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "host_serial": Serial number of the host.
 - "host_uuid": UUID of the host.
 - "platform": Platform of the host.
 - "enrollment_plane": Component that attempted to enroll: "orbit" or "osquery".
-- "reason": Why the enrollment was rejected: "one_time_secret_spent", "one_time_secret_identifier_mismatch", or "shared_secret_for_mdm_managed_host".
+- "reason": Why the enrollment was rejected: "one_time_secret_spent", "one_time_secret_identifier_mismatch", "shared_secret_for_mdm_managed_host", or "host_identity_cert_required" (the host has an identity certificate and the enrollment wasn't signed with it).
 
 #### Example
 
@@ -84,10 +84,10 @@ This activity contains the following fields:
 Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
-- "host_id": ID of the host. Omitted only on activities recorded before this field was added.
-- "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
+- "host_id": ID of the host. Omitted from activities generated before Fleet added this field.
+- "host_serial": Serial number of the host. For Apple BYOD (account-driven user) enrollments, which have no serial number, this is the enrollment ID instead. `null` if the serial number is unknown.
 - "host_display_name": Display name of the host.
-- "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
+- "installed_from_dep": Whether the host was enrolled automatically. `true` for Apple hosts enrolled via DEP, and for Windows hosts enrolled through Microsoft Entra ID during the out-of-box experience (OOBE), such as Windows Autopilot.
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
 - "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.
 - "platform": The enrolled host's platform
@@ -111,7 +111,7 @@ This activity contains the following fields:
 Generated when a host is unenrolled from Fleet's MDM.
 
 This activity contains the following fields:
-- "host_id": ID of the host. `0` when the host record was already deleted at unenroll time.
+- "host_id": ID of the host.
 - "host_serial": Serial number of the host.
 - "enrollment_id": Unique identifier for personal (BYOD) hosts.
 - "host_display_name": Display name of the host.
@@ -289,7 +289,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "host_uuid": UUID of the host.
-- "command_uuid": UUID of the MDM command used to install the app.
+- "command_uuid": UUID of the MDM command that was run.
 - "request_type": the type of custom MDM command.
 - "platform": the platform of the host ("darwin", "windows", or "android").
 
