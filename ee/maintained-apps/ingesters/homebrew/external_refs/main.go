@@ -51,6 +51,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"harmony-sase/darwin":           {HarmonySASEVersionShortener},
 	"visual-studio-code/darwin":     {VSCodeUniversalInstaller},
 	"shottr/darwin":                 {ShottrVersionTransformer},
+	"outset/darwin":                 {OutsetVersionShortener},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

@@ -467,6 +467,21 @@ When resetting a device that was previously enrolled in Fleet via Autopilot, fol
 If the device skips Autopilot on the first boot, restart it and try again. 
 The Autopilot service may need a few minutes to sync after the device record cleanup.
 
+## Troubleshooting
+
+### PIN setup fails with error 0x801C0026
+
+During Windows setup with a Microsoft Entra ID account (automatic enrollment or Autopilot), the **Set up a PIN** step fails with "Something went wrong" and error code `0x801C0026`. Selecting **Try again** succeeds. This mostly happens on virtual machines (VMs) that are restored from a snapshot or created from a cloned image before each run.
+
+`0x801C0026` means Microsoft Entra ID rejected the new Windows Hello key because a key with the same identifier is already registered for the user. When the end user sets a PIN, Windows creates a key pair in the device's TPM and registers the public key with Entra ID. If the VM's virtual TPM state is restored along with the snapshot or image, the TPM starts from the same state each time, so the first key it creates can match a key it registered in an earlier run. On retry, the TPM creates a different key and registration succeeds. Physical devices aren't affected, because their TPM state is never rolled back.
+
+Fleet isn't involved in this step. The PIN prompt appears after enrollment completes, the key is registered directly with Entra ID, and Fleet doesn't send Windows Hello for Business settings.
+
+To work around it:
+
+- Select **Try again**, or select **Skip for now** and set the PIN later in **Settings > Accounts > Sign-in options**.
+- Reset the VM's virtual TPM when you restore the VM. For example, in QEMU or UTM, recreate the software TPM state instead of keeping it in the snapshot.
+
 ## Turn off Windows MDM
 
 1. Turn off MDM for each host by running [this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/uninstall-fleetd-windows.ps1) from Fleet on all your Windows hosts. Note that this script will also remove fleetd from the hosts.

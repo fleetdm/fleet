@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.9.9",
+      "version": "1.9.10",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.devon-technologies.sphereexpress';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.devon-technologies.sphereexpress' AND version_compare(bundle_short_version, '1.9.9') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.devon-technologies.sphereexpress' AND version_compare(bundle_short_version, '1.9.10') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.devon-technologies.sphereexpress' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.devontechnologies.com/download/devonsphere/1.9.9/DEVONsphere_Express.app.zip",
+      "installer_url": "https://download.devontechnologies.com/download/devonsphere/1.9.10/DEVONsphere_Express.app.zip",
       "install_script_ref": "3b55545a",
       "uninstall_script_ref": "10809f7a",
-      "sha256": "2c09a34fa71398e6f248bc0c6bd34a8278d5d19a4ba8e0f4a9b3864070d962e9",
+      "sha256": "9e3da18965f7543d5c07a29a54666725d2a7cda82591ada68eee9221816a53cf",
       "default_categories": [
         "Productivity"
       ]

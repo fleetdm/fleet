@@ -1388,6 +1388,19 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		}
 	}
 
+	for _, c := range []struct {
+		key   string
+		value any
+	}{
+		{"enable_disk_encryption", result.Controls.EnableDiskEncryption},
+		{"enable_recovery_lock_password", result.Controls.EnableRecoveryLockPassword},
+		{"windows_require_bitlocker_pin", result.Controls.RequireBitLockerPIN},
+	} {
+		if _, ok := c.value.(bool); c.value != nil && !ok {
+			multiError = multierror.Append(multiError, fmt.Errorf("'controls.%s' must be a boolean in %s", c.key, controlsFilePath))
+		}
+	}
+
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
 		macOSSettings, err := reparseSettings[fleet.MacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "macos_settings")
@@ -1988,6 +2001,11 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 
 		// Validate mutually exclusive field combinations per label membership type
 		if err := fleet.ValidateLabelMembershipFields(l); err != nil {
+			for _, inv := range err.Invalid() {
+				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
+			}
+		}
+		if err := fleet.ValidateLabelFieldLengths(l.Name, l.Description); err != nil {
 			for _, inv := range err.Invalid() {
 				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
 			}

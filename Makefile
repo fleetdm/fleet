@@ -898,6 +898,68 @@ endif
 		echo "Extracted osqueryd to $(out-path)/osqueryd"
 	rm -rf $(TMP_DIR)
 
+# Download the osqueryd.exe Windows executable from a pull request in
+# osquery/osquery and extract it into out-path. It is extracted from the
+# unsigned release package data artifact. Supported on macOS and Linux
+# (requires unzip).
+#
+# Usage:
+# make osqueryd-windows pr=8844 out-path=.
+# make osqueryd-windows-arm64 pr=8844 out-path=.
+osqueryd-windows: ARTIFACT_NAME := windows64_unsigned_release_package_data
+osqueryd-windows-arm64: ARTIFACT_NAME := windowsarm64_unsigned_release_package_data
+osqueryd-windows osqueryd-windows-arm64:
+ifndef pr
+	@echo "Error: pr argument is required (e.g. make $@ pr=8844 out-path=.)"
+	@exit 1
+endif
+ifndef out-path
+	@echo "Error: out-path argument is required (e.g. make $@ pr=8844 out-path=.)"
+	@exit 1
+endif
+	$(eval TMP_DIR := $(shell mktemp -d))
+	@echo "Fetching $(ARTIFACT_NAME) artifact from osquery/osquery PR $(pr)..."
+	@PR_SHA=$$(gh pr view -R osquery/osquery $(pr) --json headRefOid -q .headRefOid) && \
+		echo "PR head SHA: $$PR_SHA" && \
+		RUN_IDS=$$(gh api "repos/osquery/osquery/actions/runs?head_sha=$$PR_SHA" \
+			-q '[.workflow_runs[] | .id] | .[]') && \
+		if [ -z "$$RUN_IDS" ]; then \
+			echo "Error: no workflow runs found for PR $(pr)"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		DOWNLOADED=false && \
+		for run_id in $$RUN_IDS; do \
+			if gh run download -R osquery/osquery $$run_id -n $(ARTIFACT_NAME) -D $(TMP_DIR)/artifact 2>/dev/null; then \
+				DOWNLOADED=true; \
+				echo "Downloaded artifact from run $$run_id"; \
+				break; \
+			fi; \
+		done && \
+		if [ "$$DOWNLOADED" != "true" ]; then \
+			echo "Error: $(ARTIFACT_NAME) artifact not found in any workflow run for PR $(pr)"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi
+	@ZIP_FILE=$$(find $(TMP_DIR)/artifact -name '*.zip' | head -1) && \
+		if [ -z "$$ZIP_FILE" ]; then \
+			echo "Error: no .zip found inside downloaded artifact"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		mkdir -p $(TMP_DIR)/extracted && \
+		unzip -q "$$ZIP_FILE" -d $(TMP_DIR)/extracted || { rm -rf $(TMP_DIR); exit 1; }
+	@OSQUERYD="$(TMP_DIR)/extracted/package_data/Program Files/osquery/osqueryd/osqueryd.exe" && \
+		if [ ! -f "$$OSQUERYD" ]; then \
+			echo "Error: package_data/Program Files/osquery/osqueryd/osqueryd.exe not found in extracted artifact. Contents:"; \
+			find $(TMP_DIR)/extracted -type f; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		cp "$$OSQUERYD" "$(out-path)/osqueryd.exe" && \
+		echo "Extracted osqueryd.exe to $(out-path)/osqueryd.exe"
+	rm -rf $(TMP_DIR)
+
 # Generate nudge.app.tar.gz bundle from nudge repo.
 #
 # Usage:

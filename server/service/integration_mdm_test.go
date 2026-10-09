@@ -7571,7 +7571,21 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeBoundHostToIdPAccount{}.ActivityName(),
 		fmt.Sprintf(`{"host_uuid": %q, "idp_email": "sso_user2@example.com", "replaced_idp_email": "sso_user@example.com"}`, mdmDevice.UUID), 0)
 
-	// enrolling with the automatic enrollment token (no account) removes the link
+	// the automatic enrollment token is refused while the host's fleet requires
+	// end user authentication, and the link is kept
+	res = s.DoRawWithHeaders("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, nil,
+		"token", staticProf.Token, "deviceinfo", di)
+	res.Body.Close()
+	linked, err := s.ds.GetMDMIdPAccountByHostUUID(t.Context(), mdmDevice.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, linked)
+	require.Equal(t, "sso_user2@example.com", linked.Email)
+
+	// without end user authentication, enrolling with the automatic enrollment
+	// token (no account) removes the link
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {"macos_setup": {"enable_end_user_authentication": false}}
+	}`), http.StatusOK, &appConfigResponse{})
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
 		basePath: "/api/mdm/apple/enroll",
 		token:    staticProf.Token,
@@ -7582,6 +7596,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	unlinked, err := s.ds.GetMDMIdPAccountByHostUUID(t.Context(), mdmDevice.UUID)
 	require.NoError(t, err)
 	require.Nil(t, unlinked)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {"macos_setup": {"enable_end_user_authentication": true}}
+	}`), http.StatusOK, &appConfigResponse{})
 
 	// changing the server URL also updates the remote DEP profile
 	acResp = appConfigResponse{}
@@ -20361,7 +20378,7 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 }
 
 // TestAndroidLockWipeClearPasscode exercises the three commands end-to-end against the real Fleet HTTP handler stack with a
-// mocked AMAPI client: lock (BYO + COBO), wipe (COBO only, BYO rejected), clear-passcode (both), and the Pub/Sub COMMAND ack that
+// mocked AMAPI client: lock (BYO + COBO), wipe (both), clear-passcode (both), and the Pub/Sub COMMAND ack that
 // transitions a pending row to acknowledged. Each assertion checks that (1) the mock IssueCommand was called with the right
 // type/duration, (2) the mdm_android_commands row is persisted with the right status, and where applicable (3) host_mdm_actions
 // is updated so the API surfaces PendingAction=lock/wipe.
@@ -20553,18 +20570,67 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		assertHostMDMStatus(t, coboHostID, "", "unlocked")
 	})
 
-	t.Run("Wipe BYO is rejected", func(t *testing.T) {
-		issueCallsMu.Lock()
-		beforeCount := len(issueCalls)
-		issueCallsMu.Unlock()
+	t.Run("Wipe BYO issues WIPE and unenrolls via Pub/Sub ack", func(t *testing.T) {
+		var wipeResp fleet.WipeHostResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", byoHostID), nil, http.StatusOK, &wipeResp)
+		// The wipe response reports the pending wipe even though GET host suppresses it for BYO below.
+		require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
 
-		res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", byoHostID), nil, http.StatusBadRequest)
-		body := extractServerErrorText(res.Body)
-		require.Contains(t, body, "Wipe is not supported for personally-owned Android hosts")
+		cmd, _, opName := lastIssue()
+		require.Equal(t, string(android.MDMAndroidCommandTypeWipe), cmd.Type)
+		require.Equal(t, longCommandDuration, cmd.Duration)
+		require.NotNil(t, cmd.WipeParams, "AMAPI requires a non-nil WipeParams even when empty")
 
-		issueCallsMu.Lock()
-		require.Len(t, issueCalls, beforeCount, "no AMAPI call expected for rejected BYO wipe")
-		issueCallsMu.Unlock()
+		row, err := s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandStatusPending), row.Status)
+		require.Equal(t, string(android.MDMAndroidCommandTypeWipe), row.CommandType)
+		s.lastHostActivityMatches(byoHostID, fleet.ActivityTypeWipedHost{}.ActivityName(), "", 0)
+
+		// BYO wipe_ref is suppressed on the host page, the same as BYO Unenroll which also runs a WIPE.
+		assertHostMDMStatus(t, byoHostID, "", "unlocked")
+
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
+
+		row, err = s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), row.Status)
+
+		byoHostMDM, err := s.ds.GetHostMDM(ctx, byoHostID)
+		require.NoError(t, err)
+		require.False(t, byoHostMDM.Enrolled, "BYO Wipe ack must flip host_mdm.enrolled to false")
+		s.lastHostActivityMatches(byoHostID, fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), "", 0)
+
+		// Only the work profile was removed, so the ack clears wipe_ref and the host is not shown as wiped.
+		assertHostMDMStatus(t, byoHostID, "", "unlocked")
+	})
+
+	t.Run("Custom WIPE command on BYO unenrolls via Pub/Sub ack", func(t *testing.T) {
+		customByoHostID := createAndroidHostForTest(t, s.ds, nil, false)
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", customByoHostID), nil, http.StatusOK, &hostResp)
+
+		var runResp runMDMCommandResponse
+		s.DoJSON("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+			Command:   base64.StdEncoding.EncodeToString([]byte(`{"wipeParams":{}}`)),
+			HostUUIDs: []string{hostResp.Host.UUID},
+		}, http.StatusOK, &runResp)
+		require.Equal(t, string(android.MDMAndroidCommandTypeWipe), runResp.RequestType)
+
+		cmd, _, opName := lastIssue()
+		require.NotNil(t, cmd.WipeParams)
+
+		row, err := s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandTypeWipe), row.CommandType)
+
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
+
+		customByoHostMDM, err := s.ds.GetHostMDM(ctx, customByoHostID)
+		require.NoError(t, err)
+		require.False(t, customByoHostMDM.Enrolled, "BYO custom WIPE ack must flip host_mdm.enrolled to false")
+		s.lastHostActivityMatches(customByoHostID, fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), "", 0)
+		assertHostMDMStatus(t, customByoHostID, "", "unlocked")
 	})
 
 	t.Run("Wipe COBO uses WIPE with empty WipeParams and long duration", func(t *testing.T) {
