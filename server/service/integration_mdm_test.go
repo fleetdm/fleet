@@ -7573,8 +7573,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	// the automatic enrollment token is refused while the host's fleet requires
 	// end user authentication, and the link is kept
-	s.DoRawWithHeaders("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, nil,
+	res = s.DoRawWithHeaders("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, nil,
 		"token", staticProf.Token, "deviceinfo", di)
+	res.Body.Close()
 	linked, err := s.ds.GetMDMIdPAccountByHostUUID(t.Context(), mdmDevice.UUID)
 	require.NoError(t, err)
 	require.NotNil(t, linked)
