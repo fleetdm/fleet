@@ -44,12 +44,14 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 
 When **Require IdP authentication** is turned on for a fleet, Fleet only accepts automatic enrollments (ADE) where the end user signs in with your IdP. Fleet rejects enrollments that present the fleet's static enrollment token instead.
 
+The static enrollment token is the token in the automatic enrollment (ADE) profile URL that Fleet uses for fleets without Require IdP authentication. When IdP authentication is required, the end user instead gets a one-time enrollment URL after signing in with your IdP. Hosts that are already enrolled aren't affected.
+
 This can happen when:
 
 - A device was assigned to a different fleet in Apple Business (AB), downloaded that fleet's static enrollment URL, and was then transferred to a fleet with **Require IdP authentication** turned on.
 - **Require IdP authentication** was turned on after the device already downloaded the static enrollment URL.
 
-When Fleet rejects an enrollment, the activity feed shows "Fleet rejected an automatic enrollment for {host} because IdP authentication is required." On the host's **Activity** card, select **Show details** to see the rejection reason (`end_user_authentication_required`) and the host's identifiers. Repeated rejections within 12 hours don't create additional activity.
+When Fleet rejects an enrollment, the activity feed shows "Fleet rejected an automatic enrollment for {host} because IdP authentication is required." On the host's **Activity** card, select **Show details** to see an explanation of the rejection. Repeated rejections within 12 hours don't create additional activity.
 
 ### Reactivate the device
 
