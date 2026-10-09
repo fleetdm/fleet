@@ -189,6 +189,8 @@ type clientOpts struct {
 	noFollow    bool
 	cookieJar   http.CookieJar
 	maxRespSize int64
+
+	responseHeaderTimeout time.Duration
 }
 
 // ClientOpt is the type for the client-specific options.
@@ -206,6 +208,14 @@ func WithTimeout(t time.Duration) ClientOpt {
 func WithNoTimeout() ClientOpt {
 	return func(o *clientOpts) {
 		o.timeout = 0
+	}
+}
+
+// WithResponseHeaderTimeout bounds how long the client waits for response
+// headers after sending the request. Without it, the client waits indefinitely.
+func WithResponseHeaderTimeout(t time.Duration) ClientOpt {
+	return func(o *clientOpts) {
+		o.responseHeaderTimeout = t
 	}
 }
 
@@ -275,6 +285,9 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	} else {
 		baseTransport = defaultBaseTransport()
 	}
+	if tr, ok := baseTransport.(*http.Transport); ok {
+		tr.ResponseHeaderTimeout = co.responseHeaderTimeout
+	}
 	if co.maxRespSize > 0 {
 		baseTransport = newSizeLimitTransport(baseTransport, co.maxRespSize)
 	}
@@ -324,8 +337,6 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	})
-	// Timeout on response headers missing after fully sending the request if 45 seconds pass.
-	tr.ResponseHeaderTimeout = 45 * time.Second
 	return tr
 }
 

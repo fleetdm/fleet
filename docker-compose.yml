@@ -2,10 +2,10 @@
 services:
   # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like (note MariaDB is not
   # officially supported).
-  # To run in macOS M1, set FLEET_MYSQL_PLATFORM=linux/arm64/v8
+  # MySQL runs on the host's native architecture; set FLEET_MYSQL_PLATFORM (e.g. linux/amd64) to override.
   mysql:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
-    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    platform: ${FLEET_MYSQL_PLATFORM:-}
     volumes:
       - mysql-persistent-volume:/tmp
     command: [
@@ -32,7 +32,7 @@ services:
 
   mysql_test:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
-    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    platform: ${FLEET_MYSQL_PLATFORM:-}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
     command: [
         "mysqld",
@@ -60,7 +60,7 @@ services:
 
   mysql_replica_test:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
-    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    platform: ${FLEET_MYSQL_PLATFORM:-}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
     command: [
         "mysqld",

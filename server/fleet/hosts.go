@@ -909,9 +909,18 @@ type HostDeviceNameEnforcement struct {
 	// until the template is resolved and the command is enqueued.
 	ExpectedDeviceName *string   `db:"expected_device_name"`
 	Detail             string    `db:"detail"`
+	Retries            uint      `db:"retries"`
 	CreatedAt          time.Time `db:"created_at"`
 	UpdatedAt          time.Time `db:"updated_at"`
 }
+
+type DeviceNameRetryOutcome int
+
+const (
+	DeviceNameNotRetried DeviceNameRetryOutcome = iota
+	DeviceNameRetried
+	DeviceNameRetriesExhausted
+)
 
 // HostDeviceNamePending carries the host details the cron needs to resolve the
 // host-name template and enqueue a Settings/DeviceName command for a host whose
@@ -924,7 +933,11 @@ type HostDeviceNamePending struct {
 	// ComputerName is the host's current name in Fleet; the cron uses it to skip
 	// sending a command when the device already matches the resolved name.
 	ComputerName string `db:"computer_name"`
-	TeamID       *uint  `db:"team_id"`
+	// NameReportedSinceEnrollment is false when the host hasn't reported since its
+	// latest MDM enrollment, e.g. a wiped device re-enrolling into an existing host
+	// record, whose ComputerName is then stale and can't be trusted to skip the command.
+	NameReportedSinceEnrollment bool  `db:"name_reported_since_enrollment"`
+	TeamID                      *uint `db:"team_id"`
 }
 
 type DiskEncryptionStatus string
@@ -1089,6 +1102,11 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 		switch fvprof.OperationType {
 		case MDMOperationTypeInstall:
 			switch {
+			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified) && cfg.MacOSFileVaultOff():
+				// The profile cron hasn't queued the removal yet (e.g. right after a
+				// transfer, which already deleted the key), so nothing is left to verify.
+				settings.DiskEncryption = DiskEncryptionRemovingEnforcement.addrOf()
+
 			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified):
 				verification := d.keyVerification()
 				// logging out lets the deferred FileVault enablement run; rotating
@@ -1172,6 +1190,16 @@ func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMDelive
 	default:
 		return currStatus
 	}
+}
+
+// ProfileOperationFromDiskEncryptionState reports a FileVault profile still
+// recorded as installed but awaiting removal as a removal, so its row reads
+// "Removing enforcement" rather than "Enforcing".
+func (d *MDMHostData) ProfileOperationFromDiskEncryptionState(currOp MDMOperationType) MDMOperationType {
+	if d.MacOSSettings != nil && d.MacOSSettings.DiskEncryption != nil && *d.MacOSSettings.DiskEncryption == DiskEncryptionRemovingEnforcement {
+		return MDMOperationTypeRemove
+	}
+	return currOp
 }
 
 // Only exposed for Datastore tests, to be able to assert the rawDecryptable
@@ -1829,17 +1857,10 @@ func (h *HostMDM) EnrollmentStatus() string {
 }
 
 // ValidateAndroidWipeRequest performs the Android-specific Wipe validations shared by the Fleet Free and Premium WipeHost
-// implementations. Wipe is COBO-only for Android; BYO unenroll already runs an AMAPI WIPE under the hood (see
-// UnenrollAndroidHost) and surfaces as the mdm_unenrolled activity, so routing BYO hosts through the Wipe flow would be redundant
-// and misleading. Validation failures return a typed BadRequestError or InvalidArgumentError; a failure reading the app config
-// returns the underlying datastore error. Callers wrap the result with ctxerr.
+// implementations and the custom command path. Wipe is allowed on both company-owned and personally-owned hosts; on a
+// personally-owned host AMAPI only removes the work profile. Validation failures return a typed InvalidArgumentError; a
+// failure reading the app config returns the underlying datastore error. Callers wrap the result with ctxerr.
 func ValidateAndroidWipeRequest(ctx context.Context, ds Datastore, host *Host) error {
-	if host.MDM.EnrollmentStatus != nil && IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) {
-		return &BadRequestError{
-			Message: "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.",
-		}
-	}
-
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err

@@ -50,6 +50,7 @@ type cronSchedulesDeps struct {
 	softwareInstallStore   fleet.SoftwareInstallerStore
 	bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
+	stagedUploadStore      fleet.StagedUploadStore
 	androidSvc             android.Service
 	activitySvc            activity_api.Service
 	notificationsSvc       notifications_api.Service
@@ -143,7 +144,7 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 
 	deps.register("failed to register cleanups_then_aggregations schedule", func() (fleet.CronSchedule, error) {
 		return newCleanupsAndAggregationSchedule(
-			ctx, deps.instanceID, deps.ds, deps.carveStore, deps.svc, deps.logger, deps.enrollHostLimiter, deps.cleanupStateStore, deps.config, deps.commander, deps.softwareInstallStore, deps.bootstrapPackageStore, deps.softwareTitleIconStore, deps.androidSvc, deps.activitySvc, deps.notificationsSvc, deps.acmeSvc, deps.chartSvc,
+			ctx, deps.instanceID, deps.ds, deps.carveStore, deps.svc, deps.logger, deps.enrollHostLimiter, deps.cleanupStateStore, deps.config, deps.commander, deps.softwareInstallStore, deps.bootstrapPackageStore, deps.softwareTitleIconStore, deps.stagedUploadStore, deps.androidSvc, deps.activitySvc, deps.notificationsSvc, deps.acmeSvc, deps.chartSvc,
 		)
 	})
 

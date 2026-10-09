@@ -13,6 +13,8 @@ import Modal from "components/Modal";
 import {
   ANY_SEVERITY_VALUE,
   ISeverityFilterValue,
+  parseSeverityScore,
+  severityForRange,
   SeverityValue,
 } from "components/SeverityFilter";
 import TabNav from "components/TabNav";
@@ -51,6 +53,9 @@ export const PLATFORM_OPTIONS = [
   { label: "iPadOS", value: "ipados" },
   { label: "Android", value: "android" },
 ];
+
+const deriveSeverity = (minScore: string, maxScore: string): SeverityValue =>
+  severityForRange(parseSeverityScore(minScore), parseSeverityScore(maxScore));
 
 type HostFilterMode = "none" | "include" | "exclude";
 
@@ -303,7 +308,7 @@ const ChartFilterModal = ({
     knownExploit,
     epssMin,
     epssMax,
-    severity: severityFilter.severity,
+    severity: deriveSeverity(severityFilter.minScore, severityFilter.maxScore),
     cvssMin: severityFilter.minScore,
     cvssMax: severityFilter.maxScore,
     excludeCVEs,

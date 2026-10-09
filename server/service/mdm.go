@@ -672,18 +672,17 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 
 	host := hosts[0]
 
-	// Wipe is COBO-only on Android, so a custom wipe must clear the same validation as the
-	// dedicated wipe endpoint. AMAPI derives the type from wipeParams when type is omitted, so
-	// any payload carrying wipeParams is a wipe regardless of what its type field says - don't
-	// let a caller-supplied type decide whether the check runs.
+	// A custom wipe must clear the same validation as the dedicated wipe endpoint. AMAPI
+	// derives the type from wipeParams when type is omitted, so any payload carrying
+	// wipeParams is a wipe regardless of what its type field says - don't let a
+	// caller-supplied type decide whether the check runs.
 	if cmdType == string(android.MDMAndroidCommandTypeWipe) || cmdPayload.WipeParams != nil {
-		// read from the primary: a replica lagging behind a recent enrollment would report
-		// the wrong ownership and let the wipe through
+		// hosts came from ListHostsLiteByUUIDs, which selects no MDM columns, so load the full
+		// host from the primary for any host-based rule the shared validator applies. Reusing
+		// the validator rather than re-deriving the rules here is what keeps this refusal
+		// identical to the dedicated endpoint's; the extra queries are noise next to the
+		// AMAPI round trip.
 		ctx = ctxdb.RequirePrimary(ctx, true)
-		// hosts came from ListHostsLiteByUUIDs, which selects no MDM columns, so the
-		// enrollment status has to come from a separate load. Reusing the shared validator
-		// rather than re-deriving the rule here is what keeps this refusal identical to the
-		// dedicated endpoint's; the extra queries are noise next to the AMAPI round trip.
 		hostWithMDM, err := svc.ds.Host(ctx, host.ID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host")
@@ -1769,6 +1768,8 @@ type newMDMConfigProfileRequest struct {
 	// file (PayloadDisplayName or file name).
 	Name        string
 	Description string
+	SelfService bool
+	Hidden      bool
 }
 
 // decodeProfileNameField reads the optional multipart "name" field. A field
@@ -1795,6 +1796,63 @@ func decodeProfileDescriptionField(form *multipart.Form) *string {
 	}
 	desc := strings.TrimSpace(vals[0])
 	return &desc
+}
+
+// decodeProfileBoolField reads an optional multipart bool field; nil means absent.
+func decodeProfileBoolField(form *multipart.Form, field string) (*bool, error) {
+	vals, ok := form.Value[field]
+	if !ok || len(vals) == 0 || vals[0] == "" {
+		return nil, nil
+	}
+	v, err := strconv.ParseBool(vals[0])
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode %s bool in multipart form: %s", field, err.Error())}
+	}
+	return &v, nil
+}
+
+func decodeProfileDeployFields(form *multipart.Form) (selfService, hidden *bool, err error) {
+	if selfService, err = decodeProfileBoolField(form, "self_service"); err != nil {
+		return nil, nil, err
+	}
+	if hidden, err = decodeProfileBoolField(form, "hidden"); err != nil {
+		return nil, nil, err
+	}
+	return selfService, hidden, nil
+}
+
+// validateProfileDeployFlags enforces the self-service / hidden rules shared by
+// create, update, and batch. isAppleConfigProfile is true only for .mobileconfig.
+func validateProfileDeployFlags(ctx context.Context, selfService, hidden bool, isAppleConfigProfile bool, errPrefix string) error {
+	if !selfService && !hidden {
+		return nil
+	}
+	if !license.IsPremium(ctx) {
+		return fleet.NewInvalidArgumentError("self_service", ErrMissingLicense.Error())
+	}
+	if selfService && !isAppleConfigProfile {
+		return fleet.NewInvalidArgumentError("self_service", errPrefix+SelfServiceUnsupportedProfileErrorMsg)
+	}
+	if selfService && hidden {
+		return fleet.NewInvalidArgumentError("hidden", errPrefix+"hidden requires self_service to be false.")
+	}
+	return nil
+}
+
+// resolveProfileDeployFlags applies the requested flags over the stored ones,
+// validating the result only when a flag was provided so edits that don't touch
+// them keep working (e.g. after a license downgrade).
+func resolveProfileDeployFlags(ctx context.Context, curSelfService, curHidden bool, selfService, hidden *bool, isAppleConfigProfile bool, errPrefix string) (bool, bool, error) {
+	if selfService == nil && hidden == nil {
+		return curSelfService, curHidden, nil
+	}
+	if selfService != nil {
+		curSelfService = *selfService
+	}
+	if hidden != nil {
+		curHidden = *hidden
+	}
+	return curSelfService, curHidden, validateProfileDeployFlags(ctx, curSelfService, curHidden, isAppleConfigProfile, errPrefix)
 }
 
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -1848,6 +1906,11 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	if desc := decodeProfileDescriptionField(r.MultipartForm); desc != nil {
 		decoded.Description = *desc
 	}
+	selfService, hidden, err := decodeProfileDeployFields(r.MultipartForm)
+	if err != nil {
+		return nil, err
+	}
+	decoded.SelfService, decoded.Hidden = ptr.ValOrZero(selfService), ptr.ValOrZero(hidden)
 
 	// add labels
 	var existsInclAll, existsInclAny, existsDepr bool
@@ -1964,7 +2027,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	if isMobileConfig || isAppleDeclarationJSON {
 		// Then it's an Apple configuration file
 		if isJSON {
-			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode, req.LabelsExcludeAny, activation, req.Description)
+			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode, req.LabelsExcludeAny, activation, req.Description, req.SelfService, req.Hidden)
 			if err != nil {
 				errStr := err.Error()
 				if strings.Contains(errStr, "MDMAppleDeclaration.Name") && strings.Contains(errStr, "already exists") {
@@ -1983,7 +2046,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 		// req.Name rather than profileName: an absent name means
 		// PayloadDisplayName for a mobileconfig, not the file name.
-		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, labels, labelsMode, req.LabelsExcludeAny, req.Name, req.Description)
+		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, labels, labelsMode, req.LabelsExcludeAny, req.Name, req.Description, req.SelfService, req.Hidden)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1993,7 +2056,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if isAndroidJSON {
-		cp, err := svc.NewMDMAndroidConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode, req.LabelsExcludeAny, req.Description)
+		cp, err := svc.NewMDMAndroidConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode, req.LabelsExcludeAny, req.Description, req.SelfService, req.Hidden)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -2003,7 +2066,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if isWindows := strings.EqualFold(fileExt, ".xml"); isWindows {
-		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode, req.LabelsExcludeAny, req.Description)
+		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode, req.LabelsExcludeAny, req.Description, req.SelfService, req.Hidden)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -2032,6 +2095,9 @@ type updateMDMConfigProfileRequest struct {
 	// Description is nil when not provided, which keeps the stored one; an
 	// empty string clears it.
 	Description *string
+	// nil keeps the stored value.
+	SelfService *bool
+	Hidden      *bool
 }
 
 func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
@@ -2094,6 +2160,9 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 		return nil, err
 	}
 	decoded.Description = decodeProfileDescriptionField(r.MultipartForm)
+	if decoded.SelfService, decoded.Hidden, err = decodeProfileDeployFields(r.MultipartForm); err != nil {
+		return nil, err
+	}
 
 	// add labels
 	var existsInclAll, existsInclAny bool
@@ -2171,7 +2240,7 @@ func updateMDMConfigProfileEndpoint(ctx context.Context, request any, svc fleet.
 
 	// The uploaded file's name is deliberately not used: a replacement file
 	// keeps the stored name unless the request names the profile explicitly.
-	if err := svc.UpdateMDMConfigProfile(ctx, req.ProfileUUID, req.Name, data, labels, labelsMode, req.LabelsExcludeAny, activation, req.Description); err != nil {
+	if err := svc.UpdateMDMConfigProfile(ctx, req.ProfileUUID, req.Name, data, labels, labelsMode, req.LabelsExcludeAny, activation, req.Description, req.SelfService, req.Hidden); err != nil {
 		return &updateMDMConfigProfileResponse{Err: err}, nil
 	}
 
@@ -2198,6 +2267,13 @@ func (svc *Service) NewMDMActivationUnsupportedProfile(ctx context.Context, team
 	// svc.authz is only available on the concrete Service struct, not on the
 	// Service interface so it cannot be done in the endpoint itself.
 	return fleet.NewInvalidArgumentError("activation", ActivationUnsupportedProfileErrorMsg)
+}
+
+func (svc *Service) NewMDMSelfServiceUnsupportedProfile(ctx context.Context, teamID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	return fleet.NewInvalidArgumentError("self_service", "Couldn't add. "+SelfServiceUnsupportedProfileErrorMsg)
 }
 
 func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error {
@@ -2259,7 +2335,7 @@ func (svc *Service) checkLabelsOnlyProfileUpdate(ctx context.Context, labelsIncl
 // UpdateMDMConfigProfile edits a profile of any type. An empty profileName
 // keeps the stored name and a nil description keeps the stored description, so
 // a request that only touches labels or contents never renames the profile.
-func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string) error {
+func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string, selfService, hidden *bool) error {
 	// The edit path resolves the profile type here rather than in the endpoint.
 	// Keyed on activationSet, not on the content: clearing an activation is just
 	// as meaningless on a profile that can't have one.
@@ -2275,13 +2351,13 @@ func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID stri
 
 	switch {
 	case isAppleProfileUUID(profileUUID):
-		return svc.updateMDMAppleConfigProfile(ctx, profileUUID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, description)
+		return svc.updateMDMAppleConfigProfile(ctx, profileUUID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, description, selfService, hidden)
 	case isWindowsProfileUUID(profileUUID):
-		return svc.updateMDMWindowsConfigProfile(ctx, profileUUID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, description)
+		return svc.updateMDMWindowsConfigProfile(ctx, profileUUID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, description, selfService, hidden)
 	case isAndroidProfileUUID(profileUUID):
-		return svc.updateMDMAndroidConfigProfile(ctx, profileUUID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, description)
+		return svc.updateMDMAndroidConfigProfile(ctx, profileUUID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, description, selfService, hidden)
 	case isAppleDeclarationUUID(profileUUID):
-		return svc.updateMDMAppleDeclaration(ctx, profileUUID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, activation, description)
+		return svc.updateMDMAppleDeclaration(ctx, profileUUID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, activation, description, selfService, hidden)
 	default:
 		if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 			return ctxerr.Wrap(ctx, err)
@@ -2290,7 +2366,7 @@ func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID stri
 	}
 }
 
-func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, description string) (*fleet.MDMAndroidConfigProfile, error) {
+func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, description string, selfService, hidden bool) (*fleet.MDMAndroidConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -2298,11 +2374,15 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	if err := fleet.ValidateMDMProfileDescription(description); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+	if err := validateProfileDeployFlags(ctx, selfService, hidden, false, "Couldn't add. "); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
 	cp, teamName, err := svc.parseAndValidateAndroidConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 	if err != nil {
 		return nil, err
 	}
 	cp.Description = description
+	cp.Hidden = hidden
 
 	foundVars := variables.Find(string(data))
 	varNames := make([]fleet.FleetVarName, 0, len(foundVars))
@@ -2422,7 +2502,7 @@ func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, te
 // profile's checksum is a MySQL generated column, so the cron reconciler
 // would pick up the edit on its own -- it just applies the change
 // immediately (matching create).
-func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, description *string) error {
+func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, description *string, selfService, hidden *bool) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -2467,6 +2547,10 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 		}
 		newDescription = *description
 	}
+	_, newHidden, err := resolveProfileDeployFlags(ctx, false, existing.Hidden, selfService, hidden, false, "Couldn't edit. ")
+	if err != nil {
+		return err
+	}
 
 	var cp *fleet.MDMAndroidConfigProfile
 	var varNames []fleet.FleetVarName
@@ -2506,6 +2590,7 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 	}
 	cp.ProfileUUID = profileUUID
 	cp.Description = newDescription
+	cp.Hidden = newHidden
 
 	if _, err := svc.ds.UpdateMDMAndroidConfigProfile(ctx, *cp, varNames); err != nil {
 		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
@@ -2642,6 +2727,8 @@ func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface
 			LabelsIncludeAll: p.LabelsIncludeAll,
 			LabelsIncludeAny: p.LabelsIncludeAny,
 			LabelsExcludeAny: p.LabelsExcludeAny,
+			SelfService:      p.SelfService,
+			Hidden:           p.Hidden,
 		}
 	}
 	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, profiles, req.DryRun, false, nil, false); err != nil {
@@ -2802,6 +2889,16 @@ func (svc *Service) BatchSetMDMProfiles(
 		labels = append(labels, profiles[i].LabelsIncludeAll...)
 		labels = append(labels, profiles[i].LabelsIncludeAny...)
 		labels = append(labels, profiles[i].LabelsExcludeAny...)
+
+		if err := validateProfileDeployFlags(ctx, profiles[i].SelfService, profiles[i].Hidden, isMobileconfigContents(profiles[i].Contents), "Couldn't edit configuration_profiles. "); err != nil {
+			if iaErr, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok {
+				invalid := iaErr.Invalid()
+				if len(invalid) > 0 {
+					return fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profiles[i].Name), invalid[0]["reason"])
+				}
+			}
+			return ctxerr.Wrap(ctx, err, "validating profile deploy flags")
+		}
 	}
 
 	if len(labels) > 0 && (lic == nil || !lic.IsPremium()) {
@@ -3252,6 +3349,7 @@ func getAppleProfiles(
 
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
 			mdmDecl.Description = prof.Description
+			mdmDecl.Hidden = prof.Hidden
 			mdmDecl.SecretsUpdatedAt = prof.SecretsUpdatedAt
 			// PayloadScope is a Fleet extension (not part of Apple's DDM schema). The
 			// parsed value drives the scope column; the key stays in the stored JSON
@@ -3318,6 +3416,7 @@ func getAppleProfiles(
 				"invalid mobileconfig profile")
 		}
 		mdmProf.Description = prof.Description
+		mdmProf.SelfService, mdmProf.Hidden = prof.SelfService, prof.Hidden
 		mdmProf.SecretsUpdatedAt = prof.SecretsUpdatedAt
 
 		for _, labelName := range prof.LabelsIncludeAll {
@@ -3427,6 +3526,7 @@ func getWindowsProfiles(
 			Name:        profile.Name,
 			Description: profile.Description,
 			SyncML:      profile.Contents,
+			Hidden:      profile.Hidden,
 		}
 		for _, labelName := range profile.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
@@ -3502,6 +3602,7 @@ func getAndroidProfiles(ctx context.Context,
 			Name:        profile.Name,
 			Description: profile.Description,
 			RawJSON:     profile.Contents,
+			Hidden:      profile.Hidden,
 		}
 		for _, labelName := range profile.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {

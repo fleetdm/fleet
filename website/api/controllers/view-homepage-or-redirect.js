@@ -74,8 +74,26 @@ module.exports = {
     }//ﬁ
 
 
+    // Show a Europe-specific announcement banner to visitors in Europe, based on Cloudflare's cf-ipcountry header.
+    // Note: Because the response differs by country, tell shared caches not to reuse it across visitors.
+    const EUROPEAN_COUNTRY_CODES = [
+      // EU member states
+      'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
+      // EEA (non-EU), UK, and Switzerland
+      'IS', 'LI', 'NO', 'GB', 'CH'
+    ];
+    let visitorCountryCode = (this.req.get('cf-ipcountry') || '').toUpperCase();
+    let showEuropeBanner = EUROPEAN_COUNTRY_CODES.includes(visitorCountryCode);
+    this.res.set('Vary', 'cf-ipcountry');
+    this.res.set('Cache-Control', 'private, no-cache');
+    // Allow testing locally with ?simulateCountry=DE (non-production only).
+    if (sails.config.environment !== 'production' && this.req.param('simulateCountry')) {
+      showEuropeBanner = EUROPEAN_COUNTRY_CODES.includes(String(this.req.param('simulateCountry')).toUpperCase());
+    }
+
     return {
-      testimonialsForScrollableTweets
+      testimonialsForScrollableTweets,
+      showEuropeBanner,
     };
 
   }

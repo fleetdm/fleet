@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -497,7 +498,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 			SUM(stats.user_time) AS user_time,
 			SUM(stats.wall_time) AS wall_time
 		FROM scheduled_query_stats stats WHERE stats.host_id = ? GROUP BY stats.scheduled_query_id) as sqs ON (q.id = sqs.scheduled_query_id)
-		LEFT JOIN query_results qr ON (q.id = qr.query_id AND qr.host_id = ?)
+		LEFT JOIN query_results qr ON (q.id = qr.query_id AND qr.host_id = ? AND qr.id >= q.results_valid_from_id)
 	`
 
 	filter1 := `
@@ -509,11 +510,16 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		GROUP BY q.id
 	`
 
+	// Results only exist for saved global/host-team queries (see QueriesPerHost); without saying so,
+	// MySQL probes query_results for every row in queries, which also includes live queries.
 	filter2 := `
-		WHERE EXISTS (
+		WHERE q.saved = 1
+			AND (q.team_id IS NULL OR q.team_id = ?)
+			AND EXISTS (
 				SELECT 1 FROM query_results
 				WHERE query_results.query_id = q.id
 				AND query_results.host_id = ?
+				AND query_results.id >= q.results_valid_from_id
 			)
 		GROUP BY q.id
 	`
@@ -535,6 +541,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		common_mysql.DefaultNonZeroTime,
 		hid,
 		hid,
+		teamID_,
 		hid,
 	}
 
@@ -717,11 +724,13 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 
 	// load host uuid and platform for the MDM tables that rely on this to be cleared.
 	type hostInfo struct {
-		UUID     string `db:"uuid"`
-		Platform string `db:"platform"`
+		UUID          string  `db:"uuid"`
+		Platform      string  `db:"platform"`
+		TeamID        *uint   `db:"team_id"`
+		OsqueryHostID *string `db:"osquery_host_id"`
 	}
 	var hostInfos []hostInfo
-	stmt, args, err := sqlx.In(`SELECT uuid, platform FROM hosts WHERE id IN (?)`, hostIDs)
+	stmt, args, err := sqlx.In(`SELECT uuid, platform, team_id, osquery_host_id FROM hosts WHERE id IN (?) ORDER BY id`, hostIDs)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "building select statement for host uuids")
 	}
@@ -822,20 +831,32 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 	// updated_at starts the stale-enrollment retention window at deletion;
 	// otherwise an idle enrollment would be reaped within the hour. Empty
 	// UUIDs are skipped so never-linked enrollments keep their own clock.
-	linkedUUIDs := make([]string, 0, len(hostUUIDs))
-	for _, u := range hostUUIDs {
-		if u != "" {
-			linkedUUIDs = append(linkedUUIDs, u)
+	// The fleet the device comes back to is the Windows host's.
+	var (
+		touchOnly    []string
+		windowsHosts []windowsEnrollmentFleetHost
+	)
+	for _, info := range hostInfos {
+		if info.UUID == "" {
+			continue
 		}
+		if info.Platform != "windows" {
+			touchOnly = append(touchOnly, info.UUID)
+			continue
+		}
+		windowsHosts = append(windowsHosts, windowsEnrollmentFleetHost{UUID: info.UUID, TeamID: info.TeamID, OsqueryHostID: info.OsqueryHostID})
 	}
-	if len(linkedUUIDs) > 0 {
-		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP WHERE host_uuid IN (?)`, linkedUUIDs)
+	if len(touchOnly) > 0 {
+		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP WHERE host_uuid IN (?)`, touchOnly)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building touch statement for windows mdm enrollments")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrapf(ctx, err, "touching windows mdm enrollments for host uuids %v", linkedUUIDs)
+			return ctxerr.Wrapf(ctx, err, "touching windows mdm enrollments for host uuids %v", touchOnly)
 		}
+	}
+	if err := recordDeletedWindowsHostFleetsDB(ctx, tx, windowsHosts); err != nil {
+		return err
 	}
 
 	// perform the soft-deletion of host-referencing tables
@@ -1871,7 +1892,7 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		whereStatus += ` AND h.team_id IS NULL`
 	}
 
-	whereStatus += fmt.Sprintf(` AND %s = ?`, sqlCaseMDMAppleStatus(diskEncryptionConfig.MacOSEnforceOnly()))
+	whereStatus += fmt.Sprintf(` AND %s = ?`, sqlCaseMDMAppleStatus(diskEncryptionConfig))
 
 	return sql + whereStatus, append(params, opt.MacOSSettingsFilter), nil
 }
@@ -1881,22 +1902,21 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 		return sql, params
 	}
 
-	enforceOnly := diskEncryptionConfig.MacOSEnforceOnly()
 	var subquery string
 	var subqueryParams []interface{}
 	switch opt.MacOSSettingsDiskEncryptionFilter {
 	case fleet.DiskEncryptionVerified:
-		subquery, subqueryParams = subqueryFileVaultVerified(enforceOnly)
+		subquery, subqueryParams = subqueryFileVaultVerified(diskEncryptionConfig)
 	case fleet.DiskEncryptionVerifying:
-		subquery, subqueryParams = subqueryFileVaultVerifying(enforceOnly)
+		subquery, subqueryParams = subqueryFileVaultVerifying(diskEncryptionConfig)
 	case fleet.DiskEncryptionActionRequired:
-		subquery, subqueryParams = subqueryFileVaultActionRequired(enforceOnly)
+		subquery, subqueryParams = subqueryFileVaultActionRequired(diskEncryptionConfig)
 	case fleet.DiskEncryptionEnforcing:
 		subquery, subqueryParams = subqueryFileVaultEnforcing()
 	case fleet.DiskEncryptionFailed:
 		subquery, subqueryParams = subqueryFileVaultFailed()
 	case fleet.DiskEncryptionRemovingEnforcement:
-		subquery, subqueryParams = subqueryFileVaultRemovingEnforcement()
+		subquery, subqueryParams = subqueryFileVaultRemovingEnforcement(diskEncryptionConfig)
 	}
 
 	whereStatus := fmt.Sprintf(` AND EXISTS (%s) AND ne.id IS NOT NULL AND hmdm.enrolled = 1`, subquery)
@@ -1950,7 +1970,7 @@ AND (
 )`
 
 	// construct the WHERE for macOS
-	whereMacOS = fmt.Sprintf(`(%s) = ?`, sqlCaseMDMAppleStatus(diskEncryptionConfig.MacOSEnforceOnly()))
+	whereMacOS = fmt.Sprintf(`(%s) = ?`, sqlCaseMDMAppleStatus(diskEncryptionConfig))
 	paramsMacOS := []any{opt.OSSettingsFilter}
 
 	// construct the WHERE for linux
@@ -2059,7 +2079,6 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 		OR ((h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%') AND %s) -- linux
 	)`
 
-	enforceOnly := diskEncryptionConfig.MacOSEnforceOnly()
 	var subqueryMacOS string
 	var subqueryParams []interface{}
 	whereWindows := "FALSE"
@@ -2071,19 +2090,19 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 		if diskEncryptionConfig.WindowsEnabled {
 			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired)
 		}
-		subqueryMacOS, subqueryParams = subqueryFileVaultVerified(enforceOnly)
+		subqueryMacOS, subqueryParams = subqueryFileVaultVerified(diskEncryptionConfig)
 
 	case fleet.DiskEncryptionVerifying:
 		if diskEncryptionConfig.WindowsEnabled {
 			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired)
 		}
-		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying(enforceOnly)
+		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying(diskEncryptionConfig)
 
 	case fleet.DiskEncryptionActionRequired:
 		if diskEncryptionConfig.WindowsEnabled {
 			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired)
 		}
-		subqueryMacOS, subqueryParams = subqueryFileVaultActionRequired(enforceOnly)
+		subqueryMacOS, subqueryParams = subqueryFileVaultActionRequired(diskEncryptionConfig)
 
 	case fleet.DiskEncryptionEnforcing:
 		if diskEncryptionConfig.WindowsEnabled {
@@ -2099,7 +2118,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 
 	case fleet.DiskEncryptionRemovingEnforcement:
 		// Windows hosts cannot be removing enforcement status in the current implementation.
-		subqueryMacOS, subqueryParams = subqueryFileVaultRemovingEnforcement()
+		subqueryMacOS, subqueryParams = subqueryFileVaultRemovingEnforcement(diskEncryptionConfig)
 	}
 
 	if subqueryMacOS != "" {
@@ -2265,6 +2284,48 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 	return count, nil
 }
 
+type windowsEnrollmentFleetHost struct {
+	UUID          string  `db:"uuid"`
+	TeamID        *uint   `db:"team_id"`
+	OsqueryHostID *string `db:"osquery_host_id"`
+}
+
+// recordDeletedWindowsHostFleetsDB saves on each deleted Windows host's enrollment the fleet its device comes back to. hosts must be
+// in id order: when several share a UUID, the host is chosen as windowsEnrollmentBoundHostsDB binds secrets, the osquery_host_id
+// match, else the lowest id.
+func recordDeletedWindowsHostFleetsDB(ctx context.Context, tx sqlx.ExtContext, hosts []windowsEnrollmentFleetHost) error {
+	owners := make(map[string]windowsEnrollmentFleetHost, len(hosts))
+	for _, h := range hosts {
+		key := strings.ToLower(h.UUID)
+		_, seen := owners[key]
+		if !seen || (h.OsqueryHostID != nil && strings.EqualFold(*h.OsqueryHostID, h.UUID)) {
+			owners[key] = h
+		}
+	}
+	// One statement per fleet rather than per host. Fleet IDs start at 1, so 0 stands for no fleet. It is stored as 0, not NULL,
+	// because NULL means no fleet was recorded and sends the host to the default fleet.
+	uuidsByTeam := make(map[uint][]string)
+	for _, owner := range owners {
+		teamID := ptr.ValOrZero(owner.TeamID)
+		uuidsByTeam[teamID] = append(uuidsByTeam[teamID], owner.UUID)
+	}
+	for _, teamID := range slices.Sorted(maps.Keys(uuidsByTeam)) {
+		for uuids := range slices.Chunk(uuidsByTeam[teamID], 5000) {
+			stmt, args, err := sqlx.In(`
+				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ?, fleetd_present_at = NULL
+				WHERE host_uuid IN (?)`,
+				teamID, uuids)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build record of deleted windows hosts' fleets")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "record deleted windows hosts' fleets on their enrollments")
+			}
+		}
+	}
+	return nil
+}
+
 func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
 	var ids []uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -2300,6 +2361,16 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		)
 		if _, err := tx.ExecContext(ctx, touchEnrollments, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "touch windows mdm enrollments of incoming hosts")
+		}
+		var windowsHosts []windowsEnrollmentFleetHost
+		if err := sqlx.SelectContext(ctx, tx, &windowsHosts, fmt.Sprintf(`
+			SELECT uuid, team_id, osquery_host_id FROM hosts
+			WHERE platform = 'windows' AND uuid <> '' AND id IN (SELECT id FROM (%s) incoming)
+			ORDER BY id`, selectIDs), now); err != nil {
+			return ctxerr.Wrap(ctx, err, "load incoming windows hosts")
+		}
+		if err := recordDeletedWindowsHostFleetsDB(ctx, tx, windowsHosts); err != nil {
+			return err
 		}
 
 		cleanupHosts := `
@@ -2442,6 +2513,8 @@ type enrolledHostInfo struct {
 	NodeKeySet bool
 	// Platform is the OS of the host.
 	Platform string
+	// PendingAutopilot indicates the host is a pending Windows Autopilot host that no orbit has enrolled into yet.
+	PendingAutopilot bool
 }
 
 // Attempts to find the matching host ID by osqueryID, host UUID or serial
@@ -2551,6 +2624,8 @@ func matchHostDuringEnrollment(
 		LastEnrolledAt: rows[0].LastEnrolledAt,
 		NodeKeySet:     rows[0].NodeKeySet,
 		Platform:       rows[0].Platform,
+		// Priority 2 on a Windows row is the Autopilot serial match.
+		PendingAutopilot: rows[0].Priority == 2 && rows[0].Platform == "windows" && !rows[0].NodeKeySet,
 	}, nil
 }
 
@@ -2611,6 +2686,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				return ctxerr.New(ctx, "orbit host identity cert host id does not match enrolled host id. "+
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", hostInfo.OsqueryIdentifier))
 			}
+			if err := checkEnrollmentHoldsHostIdentityCert(ctx, tx, enrolledHostInfo.ID, enrollConfig.IdentityCert); err != nil {
+				return err
+			}
 
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {
 				if err := rejectSharedSecretForMDMManagedAppleHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
@@ -2624,6 +2702,14 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			}
 
 			refetchRequested := fleet.PlatformSupportsOsquery(enrolledHostInfo.Platform)
+
+			// A Windows one-time secret carries a fleet only when it brings back a deleted host. A pending Autopilot host it claims
+			// was re-created in the default fleet, so it moves to the secret's.
+			if enrollConfig.OneTimeEnrollSecretID != nil && teamID != nil && enrolledHostInfo.PendingAutopilot {
+				if _, err := tx.ExecContext(ctx, `UPDATE hosts SET team_id = ? WHERE id = ?`, teamID, enrolledHostInfo.ID); err != nil {
+					return ctxerr.Wrap(ctx, err, "orbit enroll error moving pending autopilot host to the secret's fleet")
+				}
+			}
 
 			sqlUpdate := `
       UPDATE
@@ -2908,6 +2994,9 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				*enrollConfig.IdentityCert.HostID != hostID {
 				return ctxerr.New(ctx, "host identity cert host id does not match enrolled host id. "+
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", osqueryHostID))
+			}
+			if err := checkEnrollmentHoldsHostIdentityCert(ctx, tx, hostID, enrollConfig.IdentityCert); err != nil {
+				return err
 			}
 
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {

@@ -34,6 +34,7 @@ type MDMAndroidConfigProfile struct {
 	Description      string                      `db:"description" json:"description"`
 	RawJSON          []byte                      `db:"raw_json" json:"-"`
 	AutoIncrement    int64                       `db:"auto_increment" json:"auto_increment"`
+	Hidden           bool                        `db:"hidden" json:"hidden"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`

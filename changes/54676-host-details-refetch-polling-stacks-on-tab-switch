@@ -1,0 +1,1 @@
+- Fixed host details and the Welcome to Fleet card scheduling an extra polling loop on every tab switch during a refetch.

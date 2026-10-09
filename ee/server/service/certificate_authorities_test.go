@@ -867,7 +867,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createCustomSCEPRequest)
-		require.ErrorContains(t, err, "Invalid SCEP URL. Please correct and try again.")
+		require.ErrorContains(t, err, "Fleet couldn't find the CA at the specified URL. Please correct and try again.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -907,7 +907,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createNDESSCEPRequest)
-		require.ErrorContains(t, err, "Invalid SCEP URL.")
+		require.ErrorContains(t, err, "Fleet couldn't find the CA at the specified URL.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -1125,7 +1125,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
-		require.ErrorContains(t, err, "Invalid SCEP URL. Please correct and try again.")
+		require.ErrorContains(t, err, "Fleet couldn't find the CA at the specified URL. Please correct and try again.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -1699,7 +1699,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
-			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again.")
+			require.EqualError(t, err, "Couldn't edit certificate authority. Fleet couldn't find the CA at the specified URL. Please correct and try again.")
 		})
 	})
 
@@ -1749,7 +1749,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
-			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again.")
+			require.EqualError(t, err, "Couldn't edit certificate authority. Fleet couldn't find the CA at the specified URL. Please correct and try again.")
 		})
 
 		t.Run("Missing password", func(t *testing.T) {
