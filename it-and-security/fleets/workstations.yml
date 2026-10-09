@@ -108,7 +108,8 @@ controls:
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
       - path: ../lib/macos/declaration-profiles/Software Update settings.json
-      # Nudge: edit both nudge-preferences*.mobileconfig files together, commit, then re-pin the SHA in Nudge settings.json's ProfileURL.
+      # --- Nudge configuration ---
+      # Edit both nudge-preferences*.mobileconfig files together, commit, then re-pin the SHA in Nudge settings.json's ProfileURL.
       - path: ../lib/macos/configuration-profiles/nudge-background-task.mobileconfig
       - path: ../lib/macos/declaration-profiles/Nudge settings.json
         activation: ../lib/macos/declaration-profiles/Nudge activation.json
