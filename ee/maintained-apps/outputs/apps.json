@@ -114,13 +114,6 @@
       "description": "Ableton Live Suite is a sound and music editor."
     },
     {
-      "name": "Abstract",
-      "slug": "abstract/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.elasticprojects.abstract-desktop",
-      "description": "Abstract is a collaborative design tool with support for Sketch files."
-    },
-    {
       "name": "Acorn",
       "slug": "acorn/darwin",
       "platform": "darwin",
@@ -852,7 +845,7 @@
       "name": "Avast Secure Browser",
       "slug": "avast-secure-browser/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.avast.AvastSecureBrowser",
+      "unique_identifier": "com.avast.browser",
       "description": "Avast Secure Browser is a web browser focusing on privacy."
     },
     {
@@ -4237,13 +4230,6 @@
       "description": "Hubstaff is a work time tracker."
     },
     {
-      "name": "Huly",
-      "slug": "huly/darwin",
-      "platform": "darwin",
-      "unique_identifier": "hc.hcengineering.Huly",
-      "description": "Huly is an All-in-One Project Management Platform."
-    },
-    {
       "name": "HWMonitor",
       "slug": "hwmonitor/windows",
       "platform": "windows",
@@ -4804,6 +4790,13 @@
       "description": "KeyStore Explorer is a GUI replacement for the Java command-line utilities keytool and jarsigner."
     },
     {
+      "name": "KiCad",
+      "slug": "kicad/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.kicad.kicad",
+      "description": "KiCad is an electronics design automation suite for schematic capture and PCB layout."
+    },
+    {
       "name": "Kiro CLI",
       "slug": "kiro-cli/darwin",
       "platform": "darwin",
@@ -5026,13 +5019,6 @@
       "platform": "darwin",
       "unique_identifier": "at.obdev.LittleSnitch",
       "description": "Little Snitch is a network monitor and application firewall that provides real-time visibility and control over network connections for macOS."
-    },
-    {
-      "name": "lo-rain",
-      "slug": "lo-rain/darwin",
-      "platform": "darwin",
-      "unique_identifier": "lo.cafe.lo-rain",
-      "description": "lo-rain is an app that makes it rain no matter where you are, even over your apps."
     },
     {
       "name": "Local",
@@ -6092,13 +6078,6 @@
       "description": "NoSQL Workbench is a client-side GUI application for modern database development and operations."
     },
     {
-      "name": "NotchNook",
-      "slug": "notchnook/darwin",
-      "platform": "darwin",
-      "unique_identifier": "lo.cafe.NotchNook",
-      "description": "NotchNook is a handy utility to manage and customize the notch area."
-    },
-    {
       "name": "Notepad++",
       "slug": "notepad++/windows",
       "platform": "windows",
@@ -6531,6 +6510,13 @@
       "platform": "darwin",
       "unique_identifier": "com.kagi.kagimacOS",
       "description": "Orion is a WebKit-based web browser."
+    },
+    {
+      "name": "Outset",
+      "slug": "outset/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.macadmins.Outset",
+      "description": "Outset is a tool that processes packages and scripts during boot, login, or on demand."
     },
     {
       "name": "P4V",
@@ -9562,6 +9548,13 @@
       "platform": "darwin",
       "unique_identifier": "ui.wifiman-desktop",
       "description": "WiFiman Desktop is a network monitoring and troubleshooting tool."
+    },
+    {
+      "name": "Willow Voice",
+      "slug": "willow-voice/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.seewillow.WillowMac",
+      "description": "Willow Voice is an AI-powered voice dictation and writing assistant."
     },
     {
       "name": "WinDirStat",

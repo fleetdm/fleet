@@ -87,7 +87,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -156,6 +156,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "r-app", UniqueIdentifier: "org.R-project.R", InstallerFormat: "pkg", Name: "R for macOS", Slug: "r/darwin"}},
 		{"", inputApp{Token: "qgis", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS", Slug: "qgis/darwin"}},
 		{"", inputApp{Token: "qgis@ltr", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS LTR", Slug: "qgis@ltr/darwin"}},
+		{"", inputApp{Token: "kicad", UniqueIdentifier: "org.kicad.kicad", InstallerFormat: "dmg", Name: "KiCad", Slug: "kicad/darwin"}},
 		{"", inputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
 		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
 		{"", inputApp{Token: "open-query", UniqueIdentifier: "com.example.app", InstallerFormat: "pkg", Name: "Example App"}},
@@ -296,6 +297,12 @@ func TestIngestValidations(t *testing.T) {
 			case "qgis@ltr":
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.qgis.qgis3' AND a.path = '/Applications/QGIS-LTR.app' AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			case "kicad":
+				// KiCad's editors also run as standalone apps nested in KiCad.app, so they count as open too.
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%.app/Contents/MacOS/%')) WHERE a.bundle_identifier = 'org.kicad.kicad' AND a.bundle_executable != '');",
 					out.Queries.Open,
 				)
 			default:

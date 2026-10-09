@@ -54,6 +54,10 @@ func TestMDMApple(t *testing.T) {
 		{"ConsumeADUEEnrollmentChallenge", testConsumeADUEEnrollmentChallenge},
 		{"CleanupExpiredADUEEnrollmentChallenges", testCleanupExpiredADUEEnrollmentChallenges},
 		{"MDMAppleDEPEnrollmentChallenges", testMDMAppleDEPEnrollmentChallenges},
+		{"RotateMDMAppleAutomaticEnrollmentToken", testRotateMDMAppleAutomaticEnrollmentToken},
+		{"ConsumeAppleSCEPChallenge", testConsumeAppleSCEPChallenge},
+		{"SetAppleSCEPChallengeIssuedCert", testSetAppleSCEPChallengeIssuedCert},
+		{"CleanupAppleSCEPChallenges", testCleanupAppleSCEPChallenges},
 		{"GetABMOrganizationNamesAssociatedByDefaultTeams", testGetABMOrganizationNamesAssociatedByDefaultTeams},
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
 		{"GetHostMDMAppleProfilesOrphanedRows", testGetHostMDMAppleProfilesOrphanedRows},
@@ -14396,4 +14400,252 @@ func testMDMAppleDEPEnrollmentChallenges(t *testing.T, ds *Datastore) {
 		_, err = ds.GetMDMAppleDEPEnrollmentChallenge(ctx, challenge)
 		require.True(t, fleet.IsNotFound(err))
 	})
+}
+
+func testRotateMDMAppleAutomaticEnrollmentToken(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	const jobName = "test_profile_update"
+	newJob := func() *fleet.Job {
+		args := json.RawMessage(`{"task":"update_all_profiles"}`)
+		return &fleet.Job{Name: jobName, Args: &args, State: fleet.JobStateQueued}
+	}
+	queuedJobs := func() int {
+		t.Helper()
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM jobs WHERE name = ?`, jobName)
+		})
+		return n
+	}
+
+	// a failed rotation queues no job
+	_, err := ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", time.Hour, newJob())
+	require.True(t, fleet.IsNotFound(err), err)
+	require.Zero(t, queuedJobs())
+
+	_, err = ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Token: "token-0",
+		Type:  fleet.MDMAppleEnrollmentTypeAutomatic,
+	})
+	require.NoError(t, err)
+	manual, err := ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Token: "manual-token",
+		Type:  fleet.MDMAppleEnrollmentTypeManual,
+	})
+	require.NoError(t, err)
+
+	requireTokenValid := func(token string, valid bool) {
+		t.Helper()
+		prof, err := ds.GetMDMAppleEnrollmentProfileByToken(ctx, token)
+		if !valid {
+			require.True(t, fleet.IsNotFound(err), "token %s: %v", token, err)
+			return
+		}
+		require.NoError(t, err, "token %s", token)
+		require.Equal(t, fleet.MDMAppleEnrollmentTypeAutomatic, prof.Type)
+	}
+	previousToken := func() (*string, *time.Time) {
+		var row struct {
+			PreviousToken          *string    `db:"previous_token"`
+			PreviousTokenExpiresAt *time.Time `db:"previous_token_expires_at"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `SELECT previous_token, previous_token_expires_at FROM mdm_apple_enrollment_profiles WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		})
+		return row.PreviousToken, row.PreviousTokenExpiresAt
+	}
+
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "", time.Hour, newJob())
+	require.Error(t, err)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", -time.Hour, newJob())
+	require.Error(t, err)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", time.Hour, nil)
+	require.Error(t, err)
+	require.Zero(t, queuedJobs())
+	requireTokenValid("token-0", true)
+
+	// rotate with a grace period
+	expiresAt, err := ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", 24*time.Hour, newJob())
+	require.NoError(t, err)
+	require.Equal(t, 1, queuedJobs())
+	require.NotNil(t, expiresAt)
+	require.WithinDuration(t, time.Now().Add(24*time.Hour), *expiresAt, time.Minute)
+	prev, prevExpiresAt := previousToken()
+	require.NotNil(t, prev)
+	require.NotNil(t, prevExpiresAt)
+	require.Equal(t, "token-0", *prev)
+	require.Equal(t, *expiresAt, *prevExpiresAt)
+	requireTokenValid("token-1", true)
+	requireTokenValid("token-0", true)
+	// binary collation still applies to the previous token
+	requireTokenValid("TOKEN-0", false)
+
+	// the manual profile's token is untouched
+	gotManual, err := ds.GetMDMAppleEnrollmentProfileByToken(ctx, "manual-token")
+	require.NoError(t, err)
+	require.Equal(t, manual.Type, gotManual.Type)
+
+	// the previous token stops working once it expires
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_enrollment_profiles SET previous_token_expires_at = NOW(6) - INTERVAL 1 SECOND WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		return err
+	})
+	requireTokenValid("token-0", false)
+	requireTokenValid("token-1", true)
+
+	// rotating again during a grace period replaces the previous token
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-2", 24*time.Hour, newJob())
+	require.NoError(t, err)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-3", 24*time.Hour, newJob())
+	require.NoError(t, err)
+	requireTokenValid("token-3", true)
+	requireTokenValid("token-2", true)
+	requireTokenValid("token-1", false)
+
+	// no grace period revokes the previous token immediately
+	expiresAt, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-4", 0, newJob())
+	require.NoError(t, err)
+	require.Nil(t, expiresAt)
+	prev, prevExpiresAt = previousToken()
+	require.Nil(t, prev)
+	require.Nil(t, prevExpiresAt)
+	requireTokenValid("token-4", true)
+	requireTokenValid("token-3", false)
+
+	// re-creating the automatic profile leaves the previous token alone
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-5", time.Hour, newJob())
+	require.NoError(t, err)
+	_, err = ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Token: "token-6",
+		Type:  fleet.MDMAppleEnrollmentTypeAutomatic,
+	})
+	require.NoError(t, err)
+	prev, _ = previousToken()
+	require.NotNil(t, prev)
+	require.Equal(t, "token-4", *prev)
+	requireTokenValid("token-6", true)
+	requireTokenValid("token-4", true)
+}
+
+// insertAppleSCEPChallenge inserts a row whose expires_at and consumed_at are offsets from the DB's NOW(6),
+// so tests don't depend on the client and server clocks agreeing. A nil consumedOffset leaves the row unconsumed.
+func insertAppleSCEPChallenge(t *testing.T, ds *Datastore, challenge string, purpose fleet.AppleMDMCertPurpose, expiresOffset time.Duration, consumedOffset *time.Duration) {
+	t.Helper()
+	var consumed any
+	if consumedOffset != nil {
+		consumed = int64(*consumedOffset / time.Second)
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `INSERT INTO mdm_apple_scep_challenges
+			(challenge, purpose, host_uuid, hardware_serial, idp_account_uuid, expires_at, consumed_at)
+			VALUES (?, ?, ?, ?, ?, NOW(6) + INTERVAL ? SECOND, IF(? IS NULL, NULL, NOW(6) + INTERVAL ? SECOND))`,
+			challenge, purpose, "uuid-"+challenge, "serial-"+challenge, "idp-"+challenge,
+			int64(expiresOffset/time.Second), consumed, consumed)
+		return err
+	})
+}
+
+func testConsumeAppleSCEPChallenge(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	_, err := ds.ConsumeAppleSCEPChallenge(ctx, "")
+	require.Error(t, err)
+
+	_, err = ds.ConsumeAppleSCEPChallenge(ctx, "does-not-exist")
+	require.True(t, fleet.IsNotFound(err), err)
+
+	insertAppleSCEPChallenge(t, ds, "valid", fleet.AppleMDMCertPurposeADE, time.Hour, nil)
+	info, err := ds.ConsumeAppleSCEPChallenge(ctx, "valid")
+	require.NoError(t, err)
+	require.Equal(t, &fleet.AppleSCEPChallengeInfo{
+		Purpose:        fleet.AppleMDMCertPurposeADE,
+		UUID:           new("uuid-valid"),
+		Serial:         new("serial-valid"),
+		IDPAccountUUID: new("idp-valid"),
+	}, info)
+
+	// single use
+	_, err = ds.ConsumeAppleSCEPChallenge(ctx, "valid")
+	require.True(t, fleet.IsNotFound(err), err)
+
+	insertAppleSCEPChallenge(t, ds, "expired", fleet.AppleMDMCertPurposeADE, -time.Second, nil)
+	_, err = ds.ConsumeAppleSCEPChallenge(ctx, "expired")
+	require.True(t, fleet.IsNotFound(err), err)
+	var consumedAt *time.Time
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &consumedAt, `SELECT consumed_at FROM mdm_apple_scep_challenges WHERE challenge = 'expired'`)
+	})
+	require.Nil(t, consumedAt)
+
+	// concurrent consumers of the same challenge: exactly one wins
+	insertAppleSCEPChallenge(t, ds, "race", fleet.AppleMDMCertPurposeSCEPRenewal, time.Hour, nil)
+	const workers = 10
+	var wins, losses atomic.Int32
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Go(func() {
+			_, err := ds.ConsumeAppleSCEPChallenge(ctx, "race")
+			switch {
+			case err == nil:
+				wins.Add(1)
+			case fleet.IsNotFound(err):
+				losses.Add(1)
+			default:
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+	wg.Wait()
+	require.EqualValues(t, 1, wins.Load())
+	require.EqualValues(t, workers-1, losses.Load())
+}
+
+func testSetAppleSCEPChallengeIssuedCert(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	getSerial := func(challenge string) *int64 {
+		var serial *int64
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &serial, `SELECT issued_cert_serial FROM mdm_apple_scep_challenges WHERE challenge = ?`, challenge)
+		})
+		return serial
+	}
+
+	insertAppleSCEPChallenge(t, ds, "unconsumed", fleet.AppleMDMCertPurposeADE, time.Hour, nil)
+	require.NoError(t, ds.SetAppleSCEPChallengeIssuedCert(ctx, "unconsumed", 41))
+	require.Nil(t, getSerial("unconsumed"))
+
+	insertAppleSCEPChallenge(t, ds, "consumed", fleet.AppleMDMCertPurposeADE, time.Hour, nil)
+	_, err := ds.ConsumeAppleSCEPChallenge(ctx, "consumed")
+	require.NoError(t, err)
+	require.NoError(t, ds.SetAppleSCEPChallengeIssuedCert(ctx, "consumed", 42))
+	require.Equal(t, new(int64(42)), getSerial("consumed"))
+
+	// first serial sticks
+	require.NoError(t, ds.SetAppleSCEPChallengeIssuedCert(ctx, "consumed", 43))
+	require.Equal(t, new(int64(42)), getSerial("consumed"))
+}
+
+func testCleanupAppleSCEPChallenges(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	day := 24 * time.Hour
+	ago := func(d time.Duration) *time.Duration { d = -d; return &d }
+
+	insertAppleSCEPChallenge(t, ds, "consumed-8d", fleet.AppleMDMCertPurposeADE, -7*day, ago(8*day))
+	insertAppleSCEPChallenge(t, ds, "consumed-6d", fleet.AppleMDMCertPurposeADE, -5*day, ago(6*day))
+	// consumed recently: age is measured from consumption, not expiry
+	insertAppleSCEPChallenge(t, ds, "consumed-1d-expired-8d", fleet.AppleMDMCertPurposeADE, -8*day, ago(day))
+	insertAppleSCEPChallenge(t, ds, "unconsumed-expired-8d", fleet.AppleMDMCertPurposeADE, -8*day, nil)
+	insertAppleSCEPChallenge(t, ds, "unconsumed-expired-6d", fleet.AppleMDMCertPurposeADE, -6*day, nil)
+	insertAppleSCEPChallenge(t, ds, "unconsumed-active", fleet.AppleMDMCertPurposeADE, time.Hour, nil)
+
+	require.NoError(t, ds.CleanupAppleSCEPChallenges(ctx))
+
+	var remaining []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &remaining, `SELECT challenge FROM mdm_apple_scep_challenges WHERE challenge IN (?, ?, ?, ?, ?, ?)`,
+			"consumed-8d", "consumed-6d", "consumed-1d-expired-8d", "unconsumed-expired-8d", "unconsumed-expired-6d", "unconsumed-active")
+	})
+	require.ElementsMatch(t, []string{"consumed-6d", "consumed-1d-expired-8d", "unconsumed-expired-6d", "unconsumed-active"}, remaining)
 }

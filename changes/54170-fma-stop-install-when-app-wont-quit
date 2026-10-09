@@ -1,0 +1,1 @@
+- Fixed macOS Fleet-maintained app installs replacing an app that wouldn't quit (for example, when the end user canceled a prompt to save changes). The install now fails and leaves the running app in place, instead of deleting the running copy's files and reporting the update as installed.

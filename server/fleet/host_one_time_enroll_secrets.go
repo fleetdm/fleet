@@ -13,12 +13,14 @@ import (
 // stretch osquery's retry backoff to about 10 minutes.
 const HostOneTimeEnrollSecretSecondPlaneWindow = 60 * time.Minute
 
-// EnrollmentPlane identifies which fleetd component is enrolling.
+// EnrollmentPlane identifies what is enrolling: a fleetd component, or an
+// Apple device during automatic enrollment (ADE).
 type EnrollmentPlane string
 
 const (
-	EnrollmentPlaneOrbit   EnrollmentPlane = "orbit"
-	EnrollmentPlaneOsquery EnrollmentPlane = "osquery"
+	EnrollmentPlaneOrbit    EnrollmentPlane = "orbit"
+	EnrollmentPlaneOsquery  EnrollmentPlane = "osquery"
+	EnrollmentPlaneAppleMDM EnrollmentPlane = "apple_mdm"
 )
 
 // HostOneTimeEnrollSecret is a per-device, single-use enroll secret minted when an MDM-enrolled host is handed the credential it
@@ -105,11 +107,19 @@ const (
 	// Fleet MDM or assigned to Fleet in Apple Business, or a Windows host that is
 	// enrolled in Fleet MDM.
 	EnrollmentRejectedSharedSecretForMDMManagedHost = "shared_secret_for_mdm_managed_host"
+	// EnrollmentRejectedHostIdentityCertRequired: an enrollment matched a host
+	// that holds a host identity certificate, but was not signed with it.
+	EnrollmentRejectedHostIdentityCertRequired = "host_identity_cert_required"
+	// EnrollmentRejectedEndUserAuthenticationRequired: the automatic enrollment
+	// token was presented for an Apple host in a fleet that requires end user
+	// authentication. The device got its enrollment configuration before its
+	// fleet required it, and must be reactivated.
+	EnrollmentRejectedEndUserAuthenticationRequired = "end_user_authentication_required"
 )
 
 // EnrollmentRejectedError is returned by the datastore enroll methods when an
-// enrollment is refused by the one-time enroll secret rules. HostID is the host
-// the attempt targeted, when known.
+// enrollment is refused by the enroll secret or host identity certificate
+// rules. HostID is the host the attempt targeted, when known.
 type EnrollmentRejectedError struct {
 	Reason string
 	HostID *uint

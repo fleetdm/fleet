@@ -1992,6 +1992,11 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
 			}
 		}
+		if err := fleet.ValidateLabelFieldLengths(l.Name, l.Description); err != nil {
+			for _, inv := range err.Invalid() {
+				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
+			}
+		}
 
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {

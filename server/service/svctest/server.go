@@ -173,7 +173,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			rootCAPool.AddCert(opts[0].ACMECertCA)
 			acmeOpts = append(acmeOpts, acme_bootstrap.WithTestAppleRootCAs(rootCAPool))
 		}
-		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365), depot.WithAllowRenewalDays(14))}
+		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365))}
 		acmeSvc, acmeRoutes := acme_bootstrap.New(opts[0].DBConns, redisPool, acmeacl.NewFleetDatastoreAdapter(ds, acmeSigner), logger, acmeOpts...)
 		svc.SetACMEService(acmeSvc)
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, acmeRoutes(log.Logged))
