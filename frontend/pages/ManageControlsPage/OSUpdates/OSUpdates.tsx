@@ -2,8 +2,6 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import Button from "components/buttons/Button";
-import EmptyState from "components/EmptyState";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
@@ -38,10 +36,11 @@ const getDefaultSelectedPlatform = (
   // This is usually when the users first comes to this page.
   if (appConfig === null) return "darwin";
 
-  // if the mac mdm is enable and configured we check the app config to see if
-  // the mdm for mac is enabled. If it is, it does not matter if windows is
-  // enabled and configured and we will always return "mac".
-  return appConfig.mdm.enabled_and_configured ? "darwin" : "windows"; // TODO(android): adjust this when android is supported
+  // Default to the first tab (macOS) unless only Windows MDM is turned on.
+  return !appConfig.mdm.enabled_and_configured &&
+    appConfig.mdm.windows_enabled_and_configured
+    ? "windows"
+    : "darwin";
 };
 
 interface IOSUpdates {
@@ -98,7 +97,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
     );
   }
 
-  if (isLoadingConfig || isLoadingTeam || isFetchingTeamConfig) {
+  if (!config || isLoadingConfig || isLoadingTeam || isFetchingTeamConfig) {
     return <Spinner />;
   }
 
@@ -115,26 +114,6 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
   }
 
   // FIXME: Handle error states for app config and team config (need specifications for this).
-  // mdm is not enabled for mac or windows.
-  // TODO: Consistency with PageDescription component and empty state messaging for when mdm is not enabled.
-  if (
-    !config?.mdm.enabled_and_configured &&
-    !config?.mdm.windows_enabled_and_configured
-  ) {
-    return (
-      <div className={baseClass}>
-        <EmptyState
-          header="Additional configuration required"
-          info="Apple or Windows MDM must be turned on to change settings on your hosts."
-          primaryButton={
-            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
-              Go to MDM settings
-            </Button>
-          }
-        />
-      </div>
-    );
-  }
 
   // If the user has not selected a platform yet, we default to the platform that
   // is enabled and configured.
