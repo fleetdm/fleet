@@ -197,12 +197,13 @@ Add the [update-linux-os.sh](https://github.com/fleetdm/fleet/blob/main/docs/sol
 
 ### Step 3: Run the script when the policy fails
 
-In your GitOps YAML, add the script to the policy with `run_script` and turn on `continuous_automations_enabled` so Fleet retries when an update is deferred:
+Add these keys to the policy from Step 1. `run_script` runs the script when the policy fails, and turning on `continuous_automations_enabled` makes Fleet retry when an update is deferred:
 
 ```yaml
 policies:
   - name: Operating system up to date (Linux)
     platform: linux
+    # query, description, and resolution from Step 1
     run_script:
       path: ../scripts/update-linux-os.sh
     continuous_automations_enabled: true
