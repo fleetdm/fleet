@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Postinstall script to load Nudge LaunchAgent
-# This script runs as root, so it loads the LaunchAgent into the logged-in user's GUI domain
+# This script runs as root
 
 PLIST_PATH="/Library/LaunchAgents/com.github.macadmins.Nudge.plist"
 LABEL="com.github.macadmins.Nudge"
