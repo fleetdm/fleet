@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -556,6 +557,99 @@ func TestModifyTeamCaseOnlyRenameAndConflict(t *testing.T) {
 		require.Contains(t, err.Error(), `"def"`)
 		require.Contains(t, err.Error(), "must differ by more than letter case")
 	})
+}
+
+func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
+	stored := func() fleet.TeamWebhookSettings {
+		return fleet.TeamWebhookSettings{
+			HostStatusWebhook: &fleet.HostStatusWebhookSettings{
+				Enable: true, DestinationURL: "https://example.com/status", HostPercentage: 10, DaysCount: 2,
+			},
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable: true, DestinationURL: "https://example.com/policies", PolicyIDs: []uint{1, 2}, HostBatchSize: 5,
+			},
+			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+				Enable: true, DestinationURL: "https://example.com/activities",
+			},
+		}
+	}
+
+	ds := new(mock.Store)
+	var saved fleet.TeamWebhookSettings
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: "team", Config: fleet.TeamConfig{WebhookSettings: stored()}}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		saved = team.Config.WebhookSettings
+		return team, nil
+	}
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return &fleet.TeamConfig{WebhookSettings: stored()}, nil
+	}
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		saved = config.WebhookSettings
+		return nil
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{Service: &svcmock.Service{}, ds: ds, authz: authorizer}
+	ctx := test.UserContext(t.Context(), &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	// Bodies match what the UI sends: each page only sends the webhook it manages.
+	cases := []struct {
+		name string
+		body string
+		want func(w *fleet.TeamWebhookSettings)
+	}{
+		{
+			name: "host status only (fleet settings page)",
+			body: `{"webhook_settings": {"host_status_webhook": {"enable_host_status_webhook": false, "destination_url": "https://example.com/status2", "host_percentage": 20, "days_count": 3}}}`,
+			want: func(w *fleet.TeamWebhookSettings) {
+				w.HostStatusWebhook = &fleet.HostStatusWebhookSettings{DestinationURL: "https://example.com/status2", HostPercentage: 20, DaysCount: 3}
+			},
+		},
+		{
+			name: "failing policies only (policies automations)",
+			body: `{"webhook_settings": {"failing_policies_webhook": {"enable_failing_policies_webhook": true, "destination_url": "https://example.com/policies2", "policy_ids": [3], "host_batch_size": 0}}}`,
+			want: func(w *fleet.TeamWebhookSettings) {
+				w.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "https://example.com/policies2", PolicyIDs: []uint{3}}
+			},
+		},
+		{
+			name: "host activities only (hosts page automations)",
+			body: `{"webhook_settings": {"host_activities_webhook": {"enable_host_activities_webhook": false, "destination_url": ""}}}`,
+			want: func(w *fleet.TeamWebhookSettings) {
+				w.HostActivitiesWebhook = &fleet.HostActivitiesWebhookSettings{}
+			},
+		},
+		{
+			name: "explicitly disabling failing policies",
+			body: `{"webhook_settings": {"failing_policies_webhook": {"enable_failing_policies_webhook": false}}}`,
+			want: func(w *fleet.TeamWebhookSettings) {
+				w.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{}
+			},
+		},
+	}
+	for _, teamID := range []uint{5, 0} {
+		for _, c := range cases {
+			t.Run(fmt.Sprintf("team %d: %s", teamID, c.name), func(t *testing.T) {
+				var payload fleet.TeamPayload
+				require.NoError(t, json.Unmarshal([]byte(c.body), &payload))
+				saved = fleet.TeamWebhookSettings{}
+
+				_, err := svc.ModifyTeam(ctx, teamID, payload)
+				require.NoError(t, err)
+
+				want := stored()
+				c.want(&want)
+				require.Equal(t, want, saved)
+			})
+		}
+	}
 }
 
 // TestApplyTeamSpecsCollationEqualConflict covers the three GitOps scenarios
