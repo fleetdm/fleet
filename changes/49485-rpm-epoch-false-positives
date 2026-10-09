@@ -1,0 +1,1 @@
+- Fixed false positive vulnerabilities on RHEL-based hosts for patched RPM packages that have an epoch (e.g. `mod_ssl`, `tomcat`), which were always reported as older than Red Hat's fixed version.
