@@ -46,6 +46,16 @@
     width: 100%;
   }
 
+  // Wraps the inline store SVG so border-radius clips it. .software-icon's
+  // border-radius lands on the <svg> element, but <svg>'s default overflow
+  // is visible, so paths inside paint past the rounded box.
+  &__app-versions-header-icon {
+    border-radius: 4px;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+  }
+
   // When the header sits above the accordion list, flatten the list's top
   // corners so the two visually fuse as one bordered container.
   &__app-versions-header + .library-item-accordion-list {
@@ -63,6 +73,7 @@
   }
 
   &__app-versions-header-name {
+    font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
   }

@@ -33,16 +33,8 @@ const MatchedIcon = ({ icon, size, className }: IMatchedIconProps) => {
   }
 
   const Icon = typeof icon === "string" ? Package : icon;
-  // Wrap inline SVGs in a div so .software-icon__{size}'s border-radius clips
-  // the icon's content. Without the wrapper, border-radius lands on the <svg>
-  // element but <svg>'s default overflow is visible, so paths drawn inside
-  // never get rounded — they'd rely on the SVG author having baked a matching
-  // rounded corner into the artwork. (The <img> path already clips via the
-  // img element's own border-radius.)
   return (
-    <div className={className}>
-      <Icon width={px} height={px} viewBox="0 0 32 32" />
-    </div>
+    <Icon width={px} height={px} viewBox="0 0 32 32" className={className} />
   );
 };
 

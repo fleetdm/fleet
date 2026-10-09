@@ -3,11 +3,6 @@
 
 .software-icon {
   flex-shrink: 0;
-  // Clip whichever element MatchedIcon / SoftwareIcon wraps (inline SVG via a
-  // div, or an uploaded <img>) to the size class's border-radius. Without this
-  // the <svg> would ignore border-radius for its painted paths (default
-  // overflow: visible).
-  overflow: hidden;
 
   &__xsmall {
     width: 20px;

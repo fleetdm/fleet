@@ -468,7 +468,9 @@ const SoftwareTitleDetailsPage = ({
         : AppleAppStore;
       return (
         <div className={`${baseClass}__app-versions-header`}>
-          <StoreIcon width={24} height={24} />
+          <div className={`${baseClass}__app-versions-header-icon`}>
+            <StoreIcon width={24} height={24} />
+          </div>
           <div className={`${baseClass}__app-versions-header-text`}>
             <span className={`${baseClass}__app-versions-header-name`}>
               {appStore.name}
