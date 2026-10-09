@@ -73,6 +73,10 @@ func (l *lister) rows(ctx context.Context) ([]map[string]string, error) {
 	// callers share one in-flight scan. It runs on its own deadline so a canceled query
 	// doesn't abort the scan for the others waiting on it.
 	ch := l.group.DoChan("scan", func() (any, error) {
+		// A caller that missed the cache can reach here after another scan already finished.
+		if rows, ok := l.fresh(); ok {
+			return rows, nil
+		}
 		scanCtx, cancel := context.WithTimeout(context.Background(), scanTimeout)
 		defer cancel()
 		out, err := l.run(scanCtx)
@@ -182,9 +186,13 @@ func parseFields(line string) map[string]string {
 }
 
 // parseSizeKiB keeps the numeric KiB value softwareupdate reports (e.g. "249465KiB").
+// Some entries, notably macOS updates, use a bare "K" suffix for the same unit.
 // Anything else is left empty rather than guessing at units.
 func parseSizeKiB(v string) string {
 	n, ok := strings.CutSuffix(v, "KiB")
+	if !ok {
+		n, ok = strings.CutSuffix(v, "K")
+	}
 	if !ok {
 		return ""
 	}

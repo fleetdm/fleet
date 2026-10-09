@@ -96,28 +96,54 @@ func TestParseSizeKiB(t *testing.T) {
 	for in, want := range map[string]string{
 		"249465KiB": "249465",
 		"0KiB":      "0",
+		"2177983K":  "2177983",
 		"249465":    "",
 		"12MB":      "",
+		"12KB":      "",
 		"abcKiB":    "",
+		"abcK":      "",
 		"-5KiB":     "",
+		"-5K":       "",
+		"K":         "",
 		"":          "",
 	} {
 		require.Equal(t, want, parseSizeKiB(in), "input %q", in)
 	}
 }
 
+func TestParseListMixedSizeUnits(t *testing.T) {
+	// Real output can mix units in one listing: macOS updates have been reported in K
+	// while other items use KiB.
+	out := "Software Update Tool\n" +
+		"\n" +
+		"Finding available software\n" +
+		"Software Update found the following new or updated software:\n" +
+		"* Label: Command Line Tools for Xcode-14.2\n" +
+		"\tTitle: Command Line Tools for Xcode, Version: 14.2, Size: 687573KiB, Recommended: YES,\n" +
+		"* Label: macOS Monterey 12.6.3-21G419\n" +
+		"\tTitle: macOS Monterey 12.6.3, Version: 12.6.3, Size: 2177983K, Recommended: YES, Action: restart,\n"
+
+	require.Equal(t, []map[string]string{
+		row("1", "Command Line Tools for Xcode-14.2", "Command Line Tools for Xcode", "14.2", "687573", "1", ""),
+		row("1", "macOS Monterey 12.6.3-21G419", "macOS Monterey 12.6.3", "12.6.3", "2177983", "1", "restart"),
+	}, parseList(out))
+}
+
 type fakeRunner struct {
 	calls   atomic.Int32
 	out     string
 	err     error
-	started chan struct{} // closed once the run has begun, when non-nil
+	started chan struct{} // closed once the first run has begun, when non-nil
 	release chan struct{} // run blocks until closed, when non-nil
+
+	startOnce sync.Once
 }
 
 func (f *fakeRunner) run(ctx context.Context) (string, error) {
 	f.calls.Add(1)
 	if f.started != nil {
-		close(f.started)
+		// An unexpected second run must fail the calls assertion, not panic the binary.
+		f.startOnce.Do(func() { close(f.started) })
 	}
 	if f.release != nil {
 		select {
@@ -133,12 +159,12 @@ func TestRowsScanErrorIsReturned(t *testing.T) {
 	scanErr := errors.New("The Internet connection appears to be offline")
 	l := newLister((&fakeRunner{err: scanErr}).run)
 
-	rows, err := l.rows(context.Background())
+	rows, err := l.rows(t.Context())
 	require.ErrorIs(t, err, scanErr)
 	require.Nil(t, rows)
 
 	// A failed scan is never cached: the next query tries again.
-	_, err = l.rows(context.Background())
+	_, err = l.rows(t.Context())
 	require.ErrorIs(t, err, scanErr)
 }
 
@@ -148,23 +174,23 @@ func TestRowsCachesSuccessfulScan(t *testing.T) {
 	now := time.Now()
 	l.now = func() time.Time { return now }
 
-	first, err := l.rows(context.Background())
+	first, err := l.rows(t.Context())
 	require.NoError(t, err)
 	require.Len(t, first, 4)
 
-	second, err := l.rows(context.Background())
+	second, err := l.rows(t.Context())
 	require.NoError(t, err)
 	require.Equal(t, first, second)
 	require.EqualValues(t, 1, f.calls.Load(), "second query within the TTL must be served from cache")
 
 	// Callers get their own copy so mutating a result can't poison the cache.
 	second[0]["label"] = "mutated"
-	third, err := l.rows(context.Background())
+	third, err := l.rows(t.Context())
 	require.NoError(t, err)
 	require.Equal(t, first, third)
 
 	now = now.Add(cacheTTL + time.Second)
-	_, err = l.rows(context.Background())
+	_, err = l.rows(t.Context())
 	require.NoError(t, err)
 	require.EqualValues(t, 2, f.calls.Load(), "query after the TTL must rescan")
 }
@@ -183,13 +209,13 @@ func TestRowsConcurrentQueriesShareOneScan(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := range callers {
 		wg.Go(func() {
-			results[i], errs[i] = l.rows(context.Background())
+			results[i], errs[i] = l.rows(t.Context())
 		})
 	}
 
 	<-f.started
-	// Give the remaining callers a moment to queue up behind the in-flight scan.
-	require.Eventually(t, func() bool { return int(f.calls.Load()) == 1 }, time.Second, 10*time.Millisecond)
+	// Best effort: lets the other callers join the in-flight scan. Late callers are
+	// served from the cache instead, so the assertions below hold either way.
 	time.Sleep(50 * time.Millisecond)
 	close(f.release)
 	wg.Wait()
@@ -209,7 +235,7 @@ func TestRowsCanceledCallerDoesNotAbortScan(t *testing.T) {
 	}
 	l := newLister(f.run)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	errCh := make(chan error, 1)
 	go func() {
 		_, err := l.rows(ctx)
@@ -227,7 +253,7 @@ func TestRowsCanceledCallerDoesNotAbortScan(t *testing.T) {
 		return ok
 	}, time.Second, 10*time.Millisecond)
 
-	rows, err := l.rows(context.Background())
+	rows, err := l.rows(t.Context())
 	require.NoError(t, err)
 	require.Equal(t, []map[string]string{row("0", "", "", "", "", "", "")}, rows)
 	require.EqualValues(t, 1, f.calls.Load())
@@ -239,7 +265,7 @@ func TestGenerateLive(t *testing.T) {
 	if os.Getenv("SOFTWARE_UPDATE_LIVE_TEST") == "" {
 		t.Skip("set SOFTWARE_UPDATE_LIVE_TEST=1 to run the live softwareupdate scan")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), scanTimeout)
+	ctx, cancel := context.WithTimeout(t.Context(), scanTimeout)
 	defer cancel()
 
 	rows, err := Generate(ctx, table.QueryContext{})
