@@ -105,6 +105,21 @@ jobs:
           NEW_GO_VERSION: ${{ steps.check.outputs.new_version }}
         run: make update-go version="$NEW_GO_VERSION"
 
+      # A Go patch release can break golangci-lint (e.g. Go 1.27.2 bumped the
+      # export data version), and golangci-lint.yml doesn't run on go.mod-only PRs.
+      - name: Install lint dependencies
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          # The following packages are needed to build Fleet Desktop on Ubuntu.
+          sudo apt update -y && sudo apt install -y gcc libgtk-3-dev libayatana-appindicator3-dev
+
+      - name: Run go lint
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          # Keep in sync with the golangci-lint version in golangci-lint.yml.
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@114493f9b3e7257d29e4130f2b4a4aadefbb6845 # v2.14.0
+          SKIP_INCREMENTAL=1 make lint-go
+
       - name: PR changes
         if: steps.check.outputs.update_needed == 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
