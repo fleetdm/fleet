@@ -1458,6 +1458,7 @@ module.exports.routes = {
   'GET /learn-more-about/patching-end-user-experience': '/guides/patching-end-user-experience',
   'GET /learn-more-about/default-ab-token': '/guides/apple-mdm-setup#restrict-apple-account-sign-in-managed-apple-accounts',
   'GET /learn-more-about/deleting-a-host': '/guides/enroll-hosts#delete-a-host',
+  'GET /learn-more-about/enrollment-troubleshooting': '/guides/enroll-hosts#debugging',
   'GET /learn-more-about/nixos-package-management': 'https://nixos.org/manual/nixos/stable/#sec-package-management',
 
   // Sitemap

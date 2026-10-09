@@ -183,11 +183,11 @@ In the Google Admin console:
 
 > Applies only to Fleet Premium
 
-When the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration is enabled, Fleet delivers a one-time, device-scoped enroll secret to each Apple host enrolled in Fleet MDM instead of a global or fleet-level enroll secret. The secret is embedded in the "Fleetd configuration" profile and is bound to the host's hardware UUID and serial number, so it can't be used to enroll any other device. Orbit and osquery can each use it once.
+When the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration is enabled, Fleet delivers a one-time, device-scoped enroll secret to each Apple host that has MDM turned on instead of a global or fleet-level enroll secret. The secret is embedded in the "Fleetd configuration" profile and is bound to the host's hardware UUID and serial number, so it can't be used to enroll any other device. Orbit and osquery can each use it once.
 
 This applies to all Apple hosts with MDM turned on: hosts that automatically enroll via Apple Business (AB) and hosts that enroll with a manual enrollment profile.
 
-Fleet also denies enrollment attempts that use a global or fleet-level enroll secret for a host that is enrolled in Fleet MDM or assigned to Fleet in AB. Denied attempts are recorded as `host_enrollment_rejected` activities.
+Fleet also denies enrollment attempts that use a global or fleet-level enroll secret for a host that has MDM turned on or is assigned to Fleet in AB. Denied attempts are recorded as `host_enrollment_rejected` activities.
 
 ### Best practice: monitor devices
 
@@ -226,7 +226,7 @@ If a host fails to enroll or re-enroll, check its activities for `host_enrollmen
 
 - `one_time_secret_spent`: the secret was already used. Resend the "Fleetd configuration" profile from the host's **Controls** tab to issue a new one, then restart fleetd.
 - `one_time_secret_identifier_mismatch`: the secret was presented by different hardware than it was issued for.
-- `shared_secret_for_mdm_managed_host`: a global or fleet-level enroll secret was used for a host enrolled in Fleet MDM or assigned to Fleet in AB.
+- `shared_secret_for_mdm_managed_host`: a global or fleet-level enroll secret was used for a host that has MDM turned on or is assigned to Fleet in AB.
 
 For a DEP host with a spent secret, wipe the host and re-run the DEP install.
 
