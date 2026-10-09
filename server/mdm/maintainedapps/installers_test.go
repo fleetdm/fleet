@@ -51,12 +51,14 @@ func TestInstallerFilenameExtraction(t *testing.T) {
 }
 
 func TestDownloadInstallerUserAgent(t *testing.T) {
-	// Mimics both CDN rules: Cloudflare-fronted hosts that reject Go's default
-	// User-Agent, and Akamai hosts that reject any User-Agent lacking a known
-	// HTTP library token.
+	// Mimics all three host rules: Cloudflare-fronted hosts that reject Go's
+	// default User-Agent, Akamai hosts that reject any User-Agent lacking a
+	// known HTTP library token, and shared hosts that reject any User-Agent
+	// containing "Go-http-client/1.1" (case-insensitive).
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ua := r.UserAgent()
-		if strings.HasPrefix(ua, "Go-http-client") || !strings.Contains(ua, "Go-http-client/") {
+		if strings.HasPrefix(ua, "Go-http-client") || !strings.Contains(ua, "Go-http-client") ||
+			strings.Contains(strings.ToLower(ua), "go-http-client/1.1") {
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
@@ -67,5 +69,5 @@ func TestDownloadInstallerUserAgent(t *testing.T) {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(time.Second))
 	_, _, err := DownloadInstaller(context.Background(), srv.URL+"/installer.pkg", client)
 	require.NoError(t, err)
-	require.Equal(t, "fleet/"+version.Version().Version+" Go-http-client/1.1", installerUserAgent())
+	require.Equal(t, "fleet/"+version.Version().Version+" Go-http-client", installerUserAgent())
 }

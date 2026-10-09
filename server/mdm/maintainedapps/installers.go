@@ -33,10 +33,12 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 	if err != nil {
 		return nil, "", ctxerr.Wrapf(ctx, err, "creating request for URL %s", installerURL)
 	}
-	// Vendor CDNs disagree on which clients to allow: some Cloudflare-fronted
-	// hosts 403 a User-Agent that starts with "Go-http-client", while Akamai
+	// Vendor hosts disagree on which clients to allow: some Cloudflare-fronted
+	// hosts 403 a User-Agent that starts with "Go-http-client", Akamai
 	// (downloads.tableau.com) 403s any User-Agent without a known HTTP library
-	// token. Leading with fleet/<version> and keeping the Go token satisfies both.
+	// token, and some shared hosts (mediaatelier.com on cyon.ch) 403 any
+	// User-Agent containing "Go-http-client/1.1". Leading with fleet/<version>
+	// and keeping an unversioned Go token satisfies all three.
 	req.Header.Set("User-Agent", installerUserAgent())
 
 	resp, err := client.Do(req)
@@ -69,7 +71,7 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 }
 
 func installerUserAgent() string {
-	return "fleet/" + version.Version().Version + " Go-http-client/1.1"
+	return "fleet/" + version.Version().Version + " Go-http-client"
 }
 
 func FilenameFromResponse(resp *http.Response) string {
