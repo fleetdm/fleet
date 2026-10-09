@@ -1,6 +1,6 @@
 ## Overview
 
-Fleet is an open-source, multi-platform device management solution supporting macOS, Windows, Linux, iOS, iPadOS, ChromeOS, and Android. Fleet provides zero-touch deployment through Apple Business or Apple School Manager and Declarative Device Management (DDM), with native GitOps workflows for version-controlled configuration management. Fleet’s [osquery](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems) foundation delivers near real-time device reporting across all platforms. Organizations can self-host or be hosted in Fleet’s managed-cloud environment with [MDM migration](https://fleetdm.com/guides/mdm-migration) support for transitions from your management service.
+Fleet is an open-source, multi-platform device management solution supporting macOS, Windows, Linux, iOS, iPadOS, ChromeOS, and Android. Fleet provides zero-touch deployment for Apple devices through Apple Business or Apple School Manager, for Windows through Windows Autopilot, and for company-owned Android devices through Android zero-touch enrollment. Fleet supports Declarative Device Management (DDM) and native GitOps workflows for version-controlled configuration management. Fleet’s [osquery](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems) foundation delivers near real-time device reporting across all platforms. Organizations can self-host or be hosted in Fleet’s managed-cloud environment with [MDM migration](https://fleetdm.com/guides/mdm-migration) support for transitions from your management service.
 
 Jamf Pro is an Apple-focused Mobile Device Management (MDM) solution supporting macOS, iOS, iPadOS, tvOS, visionOS, and watchOS devices, and it also supports Android. Jamf Pro provides zero-touch deployment through Apple Business and Apple School Manager. Jamf Pro offers cloud-hosted deployment only, with on-premises support deprecated. Jamf Pro does not [support Windows](https://fleetdm.com/announcements/fleet-introduces-windows-mdm) or Linux devices natively, so organizations with mixed environments need additional management solutions.
 
@@ -13,6 +13,7 @@ NinjaOne is a cloud-native IT management solution combining remote monitoring an
 | Architecture | API-first design, unified REST API | GUI with multiple APIs | Cloud-native RMM/MDM with API |
 | Source code | Open-source, open-core | Proprietary | Proprietary |
 | Platform support | macOS, Windows, Linux, iOS, iPadOS, ChromeOS, Android | macOS, iOS, iPadOS, tvOS, visionOS, watchOS, Android | Windows, macOS, Linux, iOS, iPadOS, Android |
+| Zero-touch enrollment | Apple (Apple Business), Windows (Autopilot), Android (zero-touch) | Apple (Apple Business) | Apple (Apple Business), Windows (Autopilot), Android (zero-touch) |
 | GitOps support | Native GitOps workflows | Requires third-party tools (Terraform provider) | OpenAPI spec |
 | Declarative Device Management (DDM) | Supported | Supported | Supported |
 | Self-hosting | Full self-hosting support | Cloud-only (on-premises deprecated) | Cloud-only |
@@ -31,9 +32,9 @@ NinjaOne is a cloud-native IT management solution combining remote monitoring an
 
 Fleet, Jamf Pro, and NinjaOne support zero-touch enrollment for Apple devices through Apple Business.
 
-Fleet supports Windows enrollment via Windows Autopilot, and Windows Autopilot requires Microsoft Entra ID. Jamf Pro’s zero-touch enrollment capabilities focus on Apple platforms it supports (macOS, iOS/iPadOS, tvOS, visionOS, and watchOS).
+Fleet supports Windows enrollment via Windows Autopilot, which requires Microsoft Entra ID, and can assign Autopilot hosts to a fleet before they enroll. Fleet also supports [Android zero-touch enrollment](https://fleetdm.com/guides/android-zero-touch-enrollment), so company-owned Android devices enroll in Fleet the first time they're turned on. Jamf Pro’s zero-touch enrollment capabilities focus on Apple platforms it supports (macOS, iOS/iPadOS, tvOS, visionOS, and watchOS).
 
-NinjaOne supports zero-touch enrollment for Android devices through Android Zero-Touch Enrollment, and Windows Autopilot requires Microsoft Entra ID.
+NinjaOne also supports Android zero-touch enrollment and Windows Autopilot.
 
 ### Scoping
 
@@ -43,7 +44,7 @@ Fleet uses Fleets and Labels (dynamic groupings based on device queries, server-
 
 ### Configuration
 
-Fleet supports custom MDM and DDM configuration profiles for Apple devices and device profiles for WIndows and Android / Chrome OS. Fleet's osquery integration enables SQL-based queries for device configuration verification.
+Fleet supports custom MDM and DDM configuration profiles for Apple devices and configuration profiles for Windows and Android. Fleet's osquery integration enables SQL-based queries for device configuration verification.
 
 Jamf Pro limits DDM configurations to blueprints which are only available in their cloud offering. NinjaOne deploys configuration changes through its agent and relies primarily on console-based management, with no documented GitOps or configuration-as-code support.
 
@@ -51,7 +52,7 @@ Jamf Pro limits DDM configurations to blueprints which are only available in the
 
 Software deployment and patching work differently across these three solutions. 
 
-Fleet combines software deployment with built-in vulnerability detection, identifying CVEs across all platforms and enabling policy-based automatic remediation when vulnerable software is detected. Fleet enables App Store app installations and offers the Fleet-maintained app catalog for easy deployment.
+Fleet combines software deployment with built-in vulnerability detection, identifying CVEs across all platforms and enabling policy-based automatic remediation when vulnerable software is detected. Fleet installs App Store apps and offers a [catalog](https://fleetdm.com/software-catalog) of over 1,250 Fleet-maintained apps. Fleet keeps these apps up to date automatically, and IT admins can pin an app to a specific version or roll back if a new release causes problems.
 
 Jamf Pro handles Apps and Books deployment for Apple devices through Apple Business integration. Jamf Pro includes App Installers for easy deployment.
 
@@ -61,7 +62,7 @@ All three solutions support custom software packages and scripting for automatio
 
 ### Security and compliance
 
-Fleet provides near real-time device reporting with SQL-based reports, enabling rapid incident response. Fleet includes built-in vulnerability detection, file integrity monitoring, file carving for investigations, and policy scoring for compliance measurement in the core product.
+Fleet provides near real-time device reporting with SQL-based reports, enabling rapid incident response. Fleet includes built-in vulnerability detection, file integrity monitoring, file carving for investigations, and policy scoring for compliance measurement in the core product. Fleet can also create a managed local admin account on macOS and Windows hosts, with a unique, escrowed password per host that IT admins can rotate.
 
 Jamf Pro requires Jamf Protect, a separate purchase, for equivalent security capabilities. NinjaOne relies on third-party antivirus integrations (Webroot, Malwarebytes, Bitdefender) for device protection.
 
@@ -71,7 +72,7 @@ For Apple devices, Fleet and Jamf Pro both support FileVault management and Gate
 
 How you integrate device management with your existing tools depends heavily on API depth. Fleet's API-first architecture means every function available in the UI is also accessible programmatically, so you can automate device enrollment, trigger reports from CI/CD pipelines, or sync compliance data with your ticketing system.
 
-Each solution supports SIEM integration for streaming device telemetry to security operations solutions, letting you correlate device state with other security data during investigations.
+Each solution supports SIEM integration for streaming device telemetry to security operations solutions, letting you correlate device state with other security data during investigations. Fleet can also send host activities to webhooks and stream logs to destinations like Splunk.
 
 ### Pricing and licensing
 
