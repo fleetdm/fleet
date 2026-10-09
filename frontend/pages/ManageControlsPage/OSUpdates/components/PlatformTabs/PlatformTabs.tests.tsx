@@ -31,8 +31,9 @@ const defaultProps = {
 
 describe("PlatformTabs", () => {
   // Only the Apple forms offer a target to choose; Windows is always deadline
-  // driven, and Android and Linux only show an empty state. The tabs decide which form each
-  // platform gets, so the dropdown must not leak into the other two.
+  // driven, and Android and Linux only show an empty state. The tabs decide
+  // which form each platform gets, so the dropdown must not leak into the
+  // other platforms.
   it("renders the target dropdown on the macOS tab", () => {
     render(<PlatformTabs {...defaultProps} selectedPlatform="darwin" />);
 
