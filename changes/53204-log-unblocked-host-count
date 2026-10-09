@@ -1,0 +1,1 @@
+- Fleet now logs how many hosts the upcoming-activities maintenance cron unblocked whenever a run unblocks at least one, along with the run's cap and whether it was reached, so a deployment with more hosts still blocked than one run can clear is no longer indistinguishable in the logs from one with none.
