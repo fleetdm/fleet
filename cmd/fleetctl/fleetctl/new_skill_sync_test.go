@@ -42,7 +42,7 @@ func skillFiles(t *testing.T, root string) map[string][]byte {
 		if err != nil {
 			return err
 		}
-		content, err := os.ReadFile(path)
+		content, err := os.ReadFile(path) //nolint:gosec // G122/G304: reading fixed files under the source tree in a test
 		if err != nil {
 			return err
 		}

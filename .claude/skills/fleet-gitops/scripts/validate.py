@@ -152,8 +152,8 @@ class Ctx:
                 for f in Path(self.ddf_dir).rglob("*.xml"):
                     try:
                         chunks.append(f.read_text(errors="replace"))
-                    except OSError:
-                        pass
+                    except OSError as e:
+                        self.warn(f, f"couldn't read DDF file, skipping it: {e}")
             self._ddf_text = "\n".join(chunks)
         return self._ddf_text
 
@@ -166,14 +166,14 @@ def load_reference(ctx, cache_name, local_candidates, url):
             if p.is_file():
                 try:
                     return json.loads(p.read_text())
-                except (OSError, ValueError):
-                    pass
+                except (OSError, ValueError) as e:
+                    ctx.info("", f"couldn't use {p} ({e}); trying the cache or a download instead")
     cache = CACHE_DIR / cache_name
     if cache.is_file() and time.time() - cache.stat().st_mtime < CACHE_MAX_AGE:
         try:
             return json.loads(cache.read_text())
-        except ValueError:
-            pass
+        except ValueError as e:
+            ctx.info("", f"ignoring unreadable cache file {cache} ({e}); downloading a fresh copy")
     if ctx.offline:
         return None
     try:
@@ -188,8 +188,8 @@ def load_reference(ctx, cache_name, local_candidates, url):
         if cache.is_file():
             try:
                 return json.loads(cache.read_text())
-            except ValueError:
-                pass
+            except ValueError as e2:
+                ctx.info("", f"stale cache file {cache} is unreadable too ({e2})")
         return None
 
 
@@ -200,7 +200,7 @@ def detect_yaml_backend():
         import yaml  # noqa: F401
         return "pyyaml"
     except ImportError:
-        pass
+        pass  # PyYAML is optional; Ruby's YAML (bundled with macOS) is the fallback below
     try:
         subprocess.run(["ruby", "-ryaml", "-e", "1"], check=True, capture_output=True, timeout=20)
         return "ruby"
