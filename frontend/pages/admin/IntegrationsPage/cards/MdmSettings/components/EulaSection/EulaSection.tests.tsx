@@ -49,6 +49,33 @@ const GITOPS_CONFIG: Partial<IConfig> = {
   },
 };
 
+const PLATFORM_CASES = [
+  {
+    platform: "darwin",
+    tab: "macOS",
+    metadata: macOSMetadata,
+    file: new File(["%PDF-1.7"], "eula.pdf", { type: "application/pdf" }),
+    deleteMessage:
+      "End users won’t be required to agree to this EULA on macOS hosts that automatically enroll.",
+    upload: mdmAPI.uploadEULA,
+    remove: mdmAPI.deleteEULA,
+    otherUpload: mdmAPI.uploadWindowsEULA,
+    otherRemove: mdmAPI.deleteWindowsEULA,
+  },
+  {
+    platform: "windows",
+    tab: "Windows",
+    metadata: windowsMetadata,
+    file: new File(["# Terms"], "terms.md", { type: "text/markdown" }),
+    deleteMessage:
+      "End users won’t be required to agree to these terms on Windows hosts that enroll through Microsoft Entra. Fleet’s default terms will be shown instead.",
+    upload: mdmAPI.uploadWindowsEULA,
+    remove: mdmAPI.deleteWindowsEULA,
+    otherUpload: mdmAPI.uploadEULA,
+    otherRemove: mdmAPI.deleteEULA,
+  },
+] as const;
+
 const getFileInput = () =>
   document.querySelector('input[type="file"]') as HTMLInputElement;
 
@@ -150,56 +177,51 @@ describe("EulaSection", () => {
     expect(screen.queryByText("Example Windows EULA")).not.toBeInTheDocument();
   });
 
-  it("deletes the Windows agreement through the Windows endpoint and refetches", async () => {
-    const onChange = jest.fn();
-    const { user } = renderSection({
-      windows: {
-        isAvailable: true,
-        metadata: windowsMetadata,
-        onChange,
-      },
-    });
+  it.each(PLATFORM_CASES)(
+    "uploads a $tab agreement through its endpoint and refetches",
+    async ({ platform, tab, file, upload, otherUpload }) => {
+      const onChange = jest.fn();
+      const { user } = renderSection({
+        [platform]: { isAvailable: true, onChange },
+      });
 
-    await user.click(screen.getByRole("tab", { name: "Windows" }));
-    await user.click(screen.getByRole("button", { name: "Delete EULA" }));
-    expect(
-      screen.getByText("Fleet’s default terms will be shown instead.", {
-        exact: false,
-      })
-    ).toBeInTheDocument();
+      await user.click(screen.getByRole("tab", { name: tab }));
+      await user.upload(getFileInput(), file);
 
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+      await waitFor(() => {
+        expect(onChange).toHaveBeenCalledTimes(1);
+      });
+      expect(jest.mocked(upload)).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(upload)).toHaveBeenCalledWith(file);
+      expect(jest.mocked(otherUpload)).not.toHaveBeenCalled();
+      expect(jest.mocked(notify.success)).toHaveBeenCalledWith(
+        "Successfully uploaded."
+      );
+    }
+  );
 
-    await waitFor(() => {
-      expect(jest.mocked(mdmAPI.deleteWindowsEULA)).toHaveBeenCalledTimes(1);
-    });
-    expect(jest.mocked(mdmAPI.deleteWindowsEULA)).toHaveBeenCalledWith(
-      "win-token"
-    );
-    expect(jest.mocked(mdmAPI.deleteEULA)).not.toHaveBeenCalled();
-    expect(onChange).toHaveBeenCalledTimes(1);
-  });
+  it.each(PLATFORM_CASES)(
+    "deletes the $tab agreement through its endpoint and refetches",
+    async ({ platform, tab, metadata, deleteMessage, remove, otherRemove }) => {
+      const onChange = jest.fn();
+      const { user } = renderSection({
+        [platform]: { isAvailable: true, metadata, onChange },
+      });
 
-  it("deletes the macOS EULA through the macOS endpoint", async () => {
-    const onChange = jest.fn();
-    const { user } = renderSection({
-      darwin: {
-        isAvailable: true,
-        metadata: macOSMetadata,
-        onChange,
-      },
-    });
+      await user.click(screen.getByRole("tab", { name: tab }));
+      await user.click(screen.getByRole("button", { name: "Delete EULA" }));
+      expect(screen.getByText(deleteMessage)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Delete EULA" }));
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+      await user.click(screen.getByRole("button", { name: "Delete" }));
 
-    await waitFor(() => {
-      expect(jest.mocked(mdmAPI.deleteEULA)).toHaveBeenCalledTimes(1);
-    });
-    expect(jest.mocked(mdmAPI.deleteEULA)).toHaveBeenCalledWith("mac-token");
-    expect(jest.mocked(mdmAPI.deleteWindowsEULA)).not.toHaveBeenCalled();
-    expect(onChange).toHaveBeenCalledTimes(1);
-  });
+      await waitFor(() => {
+        expect(jest.mocked(remove)).toHaveBeenCalledTimes(1);
+      });
+      expect(jest.mocked(remove)).toHaveBeenCalledWith(metadata.token);
+      expect(jest.mocked(otherRemove)).not.toHaveBeenCalled();
+      expect(onChange).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it("deletes once when Delete is pressed again while deleting", async () => {
     jest
@@ -221,25 +243,6 @@ describe("EulaSection", () => {
     expect(jest.mocked(mdmAPI.deleteWindowsEULA)).toHaveBeenCalledTimes(1);
   });
 
-  it("uploads a macOS EULA through the macOS endpoint and refetches", async () => {
-    const onChange = jest.fn();
-    const { user } = renderSection({
-      darwin: { isAvailable: true, onChange },
-    });
-    const file = new File(["%PDF-1.7"], "eula.pdf", {
-      type: "application/pdf",
-    });
-
-    await user.upload(getFileInput(), file);
-
-    await waitFor(() => {
-      expect(onChange).toHaveBeenCalledTimes(1);
-    });
-    expect(jest.mocked(mdmAPI.uploadEULA)).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(mdmAPI.uploadEULA)).toHaveBeenCalledWith(file);
-    expect(jest.mocked(mdmAPI.uploadWindowsEULA)).not.toHaveBeenCalled();
-  });
-
   it("previews the macOS EULA in a new tab", async () => {
     const open = jest.spyOn(window, "open").mockReturnValue(null);
     const { user } = renderSection({
@@ -258,27 +261,6 @@ describe("EulaSection", () => {
       "_blank"
     );
     open.mockRestore();
-  });
-
-  it("uploads a Windows agreement through the Windows endpoint and refetches", async () => {
-    const onChange = jest.fn();
-    const { user } = renderSection({
-      windows: { isAvailable: true, onChange },
-    });
-    const file = new File(["# Terms"], "terms.md", { type: "text/markdown" });
-
-    await user.click(screen.getByRole("tab", { name: "Windows" }));
-    await user.upload(getFileInput(), file);
-
-    await waitFor(() => {
-      expect(onChange).toHaveBeenCalledTimes(1);
-    });
-    expect(jest.mocked(mdmAPI.uploadWindowsEULA)).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(mdmAPI.uploadWindowsEULA)).toHaveBeenCalledWith(file);
-    expect(jest.mocked(mdmAPI.uploadEULA)).not.toHaveBeenCalled();
-    expect(jest.mocked(notify.success)).toHaveBeenCalledWith(
-      "Successfully uploaded."
-    );
   });
 
   it("ignores another file while an upload is in flight", async () => {
@@ -350,6 +332,7 @@ describe("EulaSection", () => {
 
   it("shows the server's reason when a Windows upload is rejected", async () => {
     jest.mocked(mdmAPI.uploadWindowsEULA).mockRejectedValueOnce({
+      status: 400,
       data: {
         message: "Bad request",
         errors: [

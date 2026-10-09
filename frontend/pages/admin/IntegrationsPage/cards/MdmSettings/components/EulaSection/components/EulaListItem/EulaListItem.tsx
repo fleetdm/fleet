@@ -3,6 +3,7 @@ import React from "react";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Graphic from "components/Graphic";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IEulaMetadataResponse } from "services/entities/mdm";
 import { timeAgo } from "utilities/date_format";
@@ -61,9 +62,10 @@ const EulaListItem = ({
       <div className={`${baseClass}__value-group ${baseClass}__list-item-data`}>
         <Graphic name={config.graphicName} />
         <div className={`${baseClass}__list-item-info`}>
-          <span className={`${baseClass}__list-item-name`}>
-            {eulaData.name}
-          </span>
+          <TooltipTruncatedText
+            className={`${baseClass}__list-item-name`}
+            value={eulaData.name}
+          />
           <span className={`${baseClass}__list-item-uploaded`}>
             {`Uploaded ${timeAgo(new Date(eulaData.created_at), {
               addSuffix: true,

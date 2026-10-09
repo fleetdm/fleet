@@ -1,6 +1,4 @@
-import { AxiosResponse } from "axios";
-
-import { IApiError } from "interfaces/errors";
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { Platform } from "interfaces/platform";
 import mdmAPI from "services/entities/mdm";
 
@@ -64,41 +62,15 @@ export const EULA_PLATFORM_CONFIG: Record<EulaPlatform, IEulaPlatformConfig> = {
 
 const DEFAULT_ERROR_MESSAGE = "Couldn’t upload EULA. Please try again.";
 
-// Server reasons that are already written for end users and are shown as is.
-const PASSTHROUGH_REASONS = [
-  "The file is empty.",
-  "The file must be UTF-8 text.",
-  "The file contains HTML. Convert it to markdown and upload again.",
-  "The file has no text to show.",
-  "The file must be 512 KB or smaller.",
-  "The file has a line longer than 8 KB. Split long paragraphs into shorter lines and upload again.",
-  "The file has more than 10,000 lines.",
-  "The file has too much formatting in one paragraph or list. Add blank lines between paragraphs and upload again.",
-  "The file nests lists or quotes too deeply.",
-  "The file's tables have more than 10,000 cells in total.",
-  "The file is too large to show. Make it shorter and upload again.",
-  "The file couldn't be read as markdown.",
-  "The file name must be 255 characters or fewer.",
-];
-
 export const hasExpectedExtension = (
   platform: EulaPlatform,
   fileName: string
 ) => fileName.toLowerCase().endsWith(EULA_PLATFORM_CONFIG[platform].extension);
 
-export const getErrorMessage = (
-  platform: EulaPlatform,
-  err: AxiosResponse<IApiError>
-) => {
-  const reason = err.data?.errors?.[0]?.reason ?? "";
-
-  if (
-    reason.includes("invalid file type") ||
-    reason.includes("must be a markdown")
-  ) {
-    return EULA_PLATFORM_CONFIG[platform].wrongTypeMessage;
-  }
-  if (PASSTHROUGH_REASONS.some((r) => reason.includes(r))) {
+// The server writes its 4xx reasons for admins, so they're shown as is.
+export const getErrorMessage = (err: unknown) => {
+  const reason = getErrorReason(err);
+  if (reason && hasStatusKey(err) && err.status >= 400 && err.status < 500) {
     return `Couldn’t upload EULA. ${reason}`;
   }
   return DEFAULT_ERROR_MESSAGE;

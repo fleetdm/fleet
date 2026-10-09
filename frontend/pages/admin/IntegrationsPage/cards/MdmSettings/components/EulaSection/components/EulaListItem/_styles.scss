@@ -1,7 +1,16 @@
 .eula-list-item {
   @include list-item;
+  gap: $pad-medium;
+
+  // Flex items won't shrink below their content by default, so without these a
+  // long name pushes the actions out instead of being truncated.
+  &__list-item-data,
+  &__list-item-info {
+    min-width: 0;
+  }
 
   &__list-item-actions {
+    flex-shrink: 0;
     gap: $pad-small;
   }
 }

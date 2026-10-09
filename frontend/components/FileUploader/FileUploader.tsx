@@ -60,7 +60,7 @@ interface IFileUploaderProps {
   additionalInfo?: string;
   /** Controls the loading spinner on the upload button */
   isLoading?: boolean;
-  /** Disables the upload button */
+  /** Disables the upload button, the file picker and drops */
   disabled?: boolean;
   /** A comma separated string of one or more file types accepted to upload.
    * This is the same as the html accept attribute.
@@ -338,6 +338,7 @@ export const FileUploader = ({
               type="file"
               onChange={onFileSelect}
               className="file-input-visually-hidden"
+              disabled={disabled}
             />
           )}
         </div>

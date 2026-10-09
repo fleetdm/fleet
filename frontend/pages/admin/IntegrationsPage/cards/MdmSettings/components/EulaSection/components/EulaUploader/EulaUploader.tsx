@@ -1,10 +1,8 @@
-import { AxiosResponse } from "axios";
 import React, { useState } from "react";
 
 import FileUploader from "components/FileUploader/FileUploader";
 import { notify } from "components/ToastNotification";
 import useGitOpsMode from "hooks/useGitOpsMode";
-import { IApiError } from "interfaces/errors";
 
 import {
   EULA_PLATFORM_CONFIG,
@@ -26,11 +24,6 @@ const EulaUploader = ({ platform, onUpload }: IEulaUploaderProps) => {
   const config = EULA_PLATFORM_CONFIG[platform];
 
   const onUploadFile = async (files: FileList | null) => {
-    // The uploader only blocks drops while loading, so a second pick would
-    // start a second upload.
-    if (showLoading) {
-      return;
-    }
     setShowLoading(true);
 
     if (gitOpsModeEnabled || !files || files.length === 0) {
@@ -57,8 +50,7 @@ const EulaUploader = ({ platform, onUpload }: IEulaUploaderProps) => {
       notify.success("Successfully uploaded.");
       onUpload();
     } catch (e) {
-      const error = e as AxiosResponse<IApiError>;
-      notify.error(getErrorMessage(platform, error), { response: e });
+      notify.error(getErrorMessage(e), { response: e });
     } finally {
       setShowLoading(false);
     }
