@@ -559,8 +559,7 @@ type Datastore interface {
 	SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error)
 
 	// CleanupSoftDeletedHostCertificates hard-deletes host_certificates rows soft-deleted before olderThan, along with their
-	// host_certificate_sources rows. Soft-deleted certs are never revived or read, so this is purely space and scan reclamation.
-	// Returns the count deleted.
+	// host_certificate_sources rows. Returns the count deleted.
 	CleanupSoftDeletedHostCertificates(ctx context.Context, olderThan time.Time) (int64, error)
 
 	// ProfileHasACMEPayloadForCommand returns the host/profile gating data

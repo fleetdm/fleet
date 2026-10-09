@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,7 +48,6 @@ func TestHostCertificates(t *testing.T) {
 		{"Truncate long certificate fields", testTruncateLongCertificateFields},
 		{"Count matches main query", testListHostCertificatesCountMatches},
 		{"Sweep mdm certs for unenrolled hosts", testSoftDeleteMDMHostCertificatesForUnenrolledHosts},
-		{"Cleanup soft-deleted certs", testCleanupSoftDeletedHostCertificates},
 		{"Windows proxied SCEP profile verification", testWindowsSCEPProfileVerification},
 	}
 	for _, c := range cases {
@@ -1656,178 +1656,61 @@ func testUpdateHostCertificatesPreciseSourceWrites(t *testing.T, ds *Datastore) 
 	require.Equal(t, "bob", after[1].Username, "alice's source row should be replaced by bob's")
 }
 
-func testCleanupSoftDeletedHostCertificates(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	now := time.Now().UTC()
-	cutoff := now.Add(-30 * 24 * time.Hour)
-	expired := now.Add(-60 * 24 * time.Hour)
-	recent := now.Add(-24 * time.Hour)
-
-	newHost := func(name string) *fleet.Host {
-		h, err := ds.NewHost(ctx, &fleet.Host{
-			DetailUpdatedAt: now,
-			LabelUpdatedAt:  now,
-			PolicyUpdatedAt: now,
-			SeenTime:        now,
-			OsqueryHostID:   new("cleanup-osq-" + name),
-			NodeKey:         new("cleanup-nk-" + name),
-			UUID:            "cleanup-uuid-" + name,
-			Hostname:        "cleanup-" + name,
-			Platform:        "darwin",
-		})
-		require.NoError(t, err)
-		return h
-	}
-	ingest := func(host *fleet.Host, origin fleet.HostCertificateOrigin, commonNames ...string) {
-		var certs []*fleet.HostCertificateRecord
-		for _, cn := range commonNames {
-			certs = append(certs, mkTestCertRecord(t, host.ID, cn, fleet.SystemHostCertificate, ""))
-		}
-		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, origin, nil))
-	}
-	setDeletedAt := func(host *fleet.Host, deletedAt time.Time, commonNames ...string) {
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			stmt, args, err := sqlx.In(`UPDATE host_certificates SET deleted_at = ? WHERE host_id = ? AND common_name IN (?)`,
-				deletedAt, host.ID, commonNames)
-			if err != nil {
-				return err
-			}
-			_, err = q.ExecContext(ctx, stmt, args...)
-			return err
-		})
-	}
-	commonNamesForHost := func(host *fleet.Host) []string {
-		var names []string
-		require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &names,
-			`SELECT common_name FROM host_certificates WHERE host_id = ? ORDER BY common_name`, host.ID))
-		return names
-	}
-	sourceCountForHost := func(host *fleet.Host) int {
-		var count int
-		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count, `
-			SELECT COUNT(*) FROM host_certificate_sources hcs
-			JOIN host_certificates hc ON hc.id = hcs.host_certificate_id
-			WHERE hc.host_id = ?`, host.ID))
-		return count
-	}
-	orphanedSourceCount := func() int {
-		var count int
-		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count, `
-			SELECT COUNT(*) FROM host_certificate_sources hcs
-			LEFT JOIN host_certificates hc ON hc.id = hcs.host_certificate_id
-			WHERE hc.id IS NULL`))
-		return count
-	}
-
-	t.Run("deletes only certs soft-deleted before the cutoff", func(t *testing.T) {
-		osqueryHost := newHost("osquery")
-		ingest(osqueryHost, fleet.HostCertificateOriginOsquery, "live", "expired", "recent")
-		setDeletedAt(osqueryHost, expired, "expired")
-		setDeletedAt(osqueryHost, recent, "recent")
-
-		mdmHost := newHost("mdm")
-		ingest(mdmHost, fleet.HostCertificateOriginMDM, "mdm-live", "mdm-expired")
-		setDeletedAt(mdmHost, expired, "mdm-expired")
-
-		require.Equal(t, 3, sourceCountForHost(osqueryHost))
-		require.Equal(t, 2, sourceCountForHost(mdmHost))
-
-		count, err := ds.CleanupSoftDeletedHostCertificates(ctx, cutoff)
-		require.NoError(t, err)
-		require.EqualValues(t, 2, count)
-
-		require.Equal(t, []string{"live", "recent"}, commonNamesForHost(osqueryHost))
-		require.Equal(t, []string{"mdm-live"}, commonNamesForHost(mdmHost))
-		require.Equal(t, 2, sourceCountForHost(osqueryHost))
-		require.Equal(t, 1, sourceCountForHost(mdmHost))
-		require.Zero(t, orphanedSourceCount())
-
-		certs, _, err := ds.ListHostCertificates(ctx, osqueryHost.ID, fleet.ListOptions{})
-		require.NoError(t, err)
-		require.Len(t, certs, 1)
-		require.Equal(t, "live", certs[0].CommonName)
-
-		count, err = ds.CleanupSoftDeletedHostCertificates(ctx, cutoff)
-		require.NoError(t, err)
-		require.Zero(t, count)
-	})
-
-	t.Run("resumes on the next run after hitting the batch cap", func(t *testing.T) {
-		host := newHost("batched")
-		ingest(host, fleet.HostCertificateOriginOsquery, "batched-a", "batched-b", "batched-c", "batched-live")
-		setDeletedAt(host, expired, "batched-a", "batched-b", "batched-c")
-
-		const batchSize, maxBatches = 2, 1
-		for _, wantDeleted := range []int64{2, 1, 0} {
-			count, err := cleanupSoftDeletedHostCertsDB(ctx, ds, cutoff, batchSize, maxBatches)
-			require.NoError(t, err)
-			require.Equal(t, wantDeleted, count)
-		}
-		require.Equal(t, []string{"batched-live"}, commonNamesForHost(host))
-		require.Equal(t, 1, sourceCountForHost(host))
-		require.Zero(t, orphanedSourceCount())
-	})
-}
-
-func TestCleanupHostCertsReplicaLag(t *testing.T) {
+// Uses a replica, as the cleanup selects there: lag must neither hide rows forever nor make the loop re-select deleted ones.
+func TestCleanupDeletedHostCerts(t *testing.T) {
 	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
 	ds := CreateMySQLDSWithOptions(t, opts)
 	ctx := t.Context()
 	now := time.Now().UTC()
 	cutoff := now.Add(-30 * 24 * time.Hour)
 
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: now,
-		LabelUpdatedAt:  now,
-		PolicyUpdatedAt: now,
-		SeenTime:        now,
-		OsqueryHostID:   new("replica-lag-osq"),
-		NodeKey:         new("replica-lag-nk"),
-		UUID:            "replica-lag-uuid",
-		Hostname:        "replica-lag",
-		Platform:        "darwin",
-	})
-	require.NoError(t, err)
-	var certs []*fleet.HostCertificateRecord
-	for _, cn := range []string{"first", "second", "third", "live"} {
-		certs = append(certs, mkTestCertRecord(t, host.ID, cn, fleet.SystemHostCertificate, ""))
+	host := test.NewHost(t, ds, "cleanup", "", "cleanup-key", "cleanup-uuid", now)
+	ingest := func(origin fleet.HostCertificateOrigin, commonNames ...string) {
+		var certs []*fleet.HostCertificateRecord
+		for _, cn := range commonNames {
+			certs = append(certs, mkTestCertRecord(t, host.ID, cn, fleet.SystemHostCertificate, ""))
+		}
+		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, origin, nil))
 	}
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, nil))
-	// Distinct deleted_at values pin the cursor order to first, second, third.
-	for i, cn := range []string{"first", "second", "third"} {
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE host_certificates SET deleted_at = ? WHERE host_id = ? AND common_name = ?`,
-				now.Add(-60*24*time.Hour).Add(time.Duration(i)*time.Second), host.ID, cn)
-			return err
-		})
-	}
-	primaryCommonNames := func() []string {
-		var names []string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &names, `SELECT common_name FROM host_certificates WHERE host_id = ? ORDER BY common_name`, host.ID)
-		})
-		return names
-	}
-
-	// Soft-deletes the replica hasn't seen yet wait for a later run.
-	count, err := cleanupSoftDeletedHostCertsDB(ctx, ds, cutoff, 2, 2)
-	require.NoError(t, err)
-	require.Zero(t, count)
-	require.Equal(t, []string{"first", "live", "second", "third"}, primaryCommonNames())
-
-	opts.RunReplication()
-
-	// A previous run's deletes that haven't replicated yet: the replica still returns these rows.
+	ingest(fleet.HostCertificateOriginOsquery, "expired-a", "expired-b", "expired-c", "recent", "live")
+	ingest(fleet.HostCertificateOriginMDM, "expired-mdm")
+	// No datastore method soft-deletes with a past timestamp.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `DELETE FROM host_certificates WHERE host_id = ? AND common_name IN ('first', 'second')`, host.ID)
+		_, err := q.ExecContext(ctx, `UPDATE host_certificates SET deleted_at = IF(common_name = 'recent', ?, ?) WHERE common_name <> 'live'`,
+			now.Add(-24*time.Hour), now.Add(-60*24*time.Hour))
 		return err
 	})
+	// ListHostCertificates hides soft-deleted rows, so read the primary directly.
+	requirePrimaryState := func(wantCommonNames []string, wantSources int) {
+		var names []string
+		var sources int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.SelectContext(ctx, q, &names, `SELECT common_name FROM host_certificates ORDER BY common_name`); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &sources, `SELECT COUNT(*) FROM host_certificate_sources`)
+		})
+		require.Equal(t, wantCommonNames, names)
+		require.Equal(t, wantSources, sources)
+	}
+	cleanup := func(batchSize, maxBatches int, wantDeleted int64) {
+		deleted, err := cleanupSoftDeletedHostCertsDB(ctx, ds, cutoff, batchSize, maxBatches)
+		require.NoError(t, err)
+		require.Equal(t, wantDeleted, deleted)
+	}
 
-	// The cursor moves past the stale first batch instead of re-selecting it, so the second batch reaches the remaining row.
-	count, err = cleanupSoftDeletedHostCertsDB(ctx, ds, cutoff, 2, 2)
-	require.NoError(t, err)
-	require.EqualValues(t, 1, count)
-	require.Equal(t, []string{"live"}, primaryCommonNames())
+	// Not replicated yet, so nothing is visible to delete.
+	cleanup(2, 2, 0)
+	opts.RunReplication()
+
+	// The batch cap stops the run after two of the three expired osquery certs.
+	cleanup(2, 1, 2)
+	requirePrimaryState([]string{"expired-c", "expired-mdm", "live", "recent"}, 4)
+
+	// The replica still returns the two deleted certs. The cursor moves past them instead of re-selecting them until the cap, so the
+	// run reaches the third osquery cert and the mdm cert. Source rows go with their certs via the cascade.
+	cleanup(2, 10, 2)
+	requirePrimaryState([]string{"live", "recent"}, 2)
 }
 
 // mkTestCertRecord builds a HostCertificateRecord for hostID with a random serial, valid from an hour ago to 24 hours
