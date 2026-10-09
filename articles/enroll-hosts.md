@@ -195,7 +195,7 @@ Because each secret is single-use, a host whose secret was spent can't re-enroll
 
 1. Watch for `host_enrollment_rejected` activities. Fleet records at most one per host and reason per 12 hours.
 
-2. To issue a new secret, resend the "Fleetd configuration" profile from the host's **Controls** tab, then restart fleetd. Only IT admins can resend this profile. End users see an error when they try to resend it from the **My device** page so that they can't take a new secret and enroll a different host.
+2. To issue a new secret, resend the "Fleetd configuration" profile from the host's **Controls** tab, then restart fleetd. Only IT admins can resend this profile. End users see an error when they try to resend it from the **My device** page. This way, only IT admins can issue a new secret, so a secret can't be used to enroll a different host.
 
 ## Delete a host
 
