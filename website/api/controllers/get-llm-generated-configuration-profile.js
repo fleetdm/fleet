@@ -14,6 +14,7 @@ module.exports = {
         'mobileconfig',
         'csp',
         'ddm',
+        'android',
       ],
       required: true
     },
