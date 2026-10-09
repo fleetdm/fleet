@@ -1,6 +1,10 @@
 <div id="homepage" v-cloak>
   <div purpose="announcement-banner">
+    <% if (showEuropeBanner) { %>
+    <animated-arrow-button arrow-color="white" text-color="white" href="/europe">Keep your device data in Europe</animated-arrow-button>
+    <% } else { %>
     <animated-arrow-button arrow-color="white" text-color="white" href="/announcements/fleet-virtual-summit-2026">Join the Fleet Virtual Summit on November 10</animated-arrow-button>
+    <% } %>
   </div>
   <%/* Hero container */%>
   <div purpose="hero-container">

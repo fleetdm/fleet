@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "12.8.12",
+      "version": "12.9.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery' AND version_compare(bundle_short_version, '12.8.12') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery' AND version_compare(bundle_short_version, '12.9.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.company.Syncovery' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.syncovery.com/release/SyncoveryMac12.8.12-Apple.dmg",
+      "installer_url": "https://www.syncovery.com/release/SyncoveryMac12.9.1-Apple.dmg",
       "install_script_ref": "2ad0e63a",
       "uninstall_script_ref": "04c1cc55",
-      "sha256": "bba774c0bbab81712b1dc928b57fe5a4155cf30824a9b127fcb12d626662f0d6",
+      "sha256": "27bfa43fb6416eada0fa2a65275c6a387c6bf63055730a5fe24e1695376533ba",
       "default_categories": [
         "Productivity"
       ]

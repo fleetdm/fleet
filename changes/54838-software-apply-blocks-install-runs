@@ -1,1 +1,0 @@
-- Re-applying software with `fleetctl gitops` or the batch software API no longer blocks or deadlocks with queued software installs in other fleets.

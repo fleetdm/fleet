@@ -1246,6 +1246,12 @@ type Service interface {
 	GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error)
 	// Delete the MDM Apple Setup Assistant for the provided team or no team.
 	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
+	// RotateMDMAppleAutomaticEnrollmentToken replaces the automatic enrollment token and
+	// re-registers every fleet's automatic enrollment profile with Apple. The previous token keeps
+	// working for gracePeriodHours (DefaultAutomaticEnrollmentTokenGracePeriodHours if nil), or
+	// stops working immediately if it's 0. It returns when the previous token stops working, or
+	// nil if it already has.
+	RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, gracePeriodHours *int) (previousTokenExpiresAt *time.Time, err error)
 
 	// HasCustomSetupAssistantConfigurationWebURL checks if the team/global
 	// config has a custom setup assistant defined, and if the JSON content
