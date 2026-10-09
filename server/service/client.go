@@ -4336,6 +4336,10 @@ func checkWindowsEULAFile(path string) error {
 	return nil
 }
 
+// windowsMDMSettle waits out the app config cache, which lasts a second on each
+// server. A variable so tests don't wait.
+var windowsMDMSettle = func() { time.Sleep(time.Second) }
+
 // doGitOpsWindowsEULA runs after ApplyGroup rather than beside the macOS EULA:
 // the same file can turn Windows MDM on, and the Windows EULA endpoints are
 // gated on it, so applying first would be refused on the run that enables it.
@@ -4372,6 +4376,12 @@ func (c *Client) doGitOpsWindowsEULA(
 		return nil
 	}
 
+	if !windowsMDMOnNow {
+		// This run turned Windows MDM on, and a server can still have its app
+		// config cached from before and refuse the request. The profiles batch
+		// asks for a fresh read instead (no_cache); the EULA endpoints can't.
+		windowsMDMSettle()
+	}
 	if path == "" {
 		if err := c.DeleteWindowsEULAIfNeeded(dryRun); err != nil {
 			return fmt.Errorf("error deleting Windows EULA: %w", err)

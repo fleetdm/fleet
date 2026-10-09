@@ -5555,9 +5555,15 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	// previously rendered page
 	var replaceResp deleteMDMWindowsEULAResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/windows_eula/%s", winToken), nil, http.StatusOK, &replaceResp)
-	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: []byte("# Revised terms\n"), Name: mdName}, http.StatusOK, "")
+	// It has an HTML table with merged cells, as pandoc writes it from a Word document.
+	revised := "# Revised terms\n\n<table style=\"width:84%;\">\n<tr><th colspan=\"2\">Coverage</th></tr>\n" +
+		"<tr><td>Laptop</td><td><u>Yes</u></td></tr>\n</table>\n"
+	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: []byte(revised), Name: mdName}, http.StatusOK, "")
 	page = tosPage()
 	require.Contains(t, page, "<h1>Revised terms</h1>")
+	require.Contains(t, page, `<th colspan="2">Coverage</th>`)
+	require.Contains(t, page, "<td><u>Yes</u></td>")
+	require.NotContains(t, page, "width:84%")
 	require.NotContains(t, page, "Acme terms")
 	metadataResp = getMDMWindowsEULAMetadataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/windows_eula/metadata", nil, http.StatusOK, &metadataResp)

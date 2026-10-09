@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -21,13 +22,16 @@ import (
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
+	xhtml "golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // RenderTerms converts markdown to sanitized HTML for a terms page shown in an
 // OS-controlled web view during enrollment. That view is a captive page with
 // no address bar or back button, so links are flattened to their text and
 // images to their alt text: anything the user could navigate to or any
-// resource fetched from a third party would strand the enrollment.
+// resource fetched from a third party would strand the enrollment. Raw HTML is
+// limited to what rawHTMLTransformer keeps.
 //
 // It returns an empty string when the result has no visible text, so callers
 // fall back to their default page rather than show an empty one.
@@ -98,8 +102,8 @@ var (
 		"has too much formatting in one paragraph or list",
 		"The file has too much formatting in one paragraph or list. Add blank lines between paragraphs and upload again.",
 	}
-	// ErrNestedTooDeep means lists or quotes are nested beyond any real use.
-	ErrNestedTooDeep = &TermsError{"nests lists or quotes too deeply", "The file nests lists or quotes too deeply."}
+	// ErrNestedTooDeep means lists, quotes or HTML are nested beyond any real use.
+	ErrNestedTooDeep = &TermsError{"nests lists, quotes or HTML too deeply", "The file nests lists, quotes or HTML too deeply."}
 	// ErrTableTooLarge means the tables have more cells than a page can show.
 	ErrTableTooLarge = &TermsError{
 		fmt.Sprintf("has tables with more than %s cells in total", thousands(maxTableCells)),
@@ -110,11 +114,18 @@ var (
 		fmt.Sprintf("renders to more than %d MB", maxRenderedSize>>20),
 		"The file is too large to show. Make it shorter and upload again.",
 	}
-	// ErrContainsHTML means the document has HTML blocks with text in them.
-	// Those blocks are dropped from the rendered page, text included.
+	// ErrContainsHTML means the document has HTML blocks with text in them that
+	// aren't tables or text styles in the shape rewriteHTMLBlock accepts. Those
+	// blocks are dropped from the rendered page, text included.
 	ErrContainsHTML = &TermsError{
-		"contains HTML, which isn't shown; convert it to markdown",
-		"The file contains HTML. Convert it to markdown and upload again.",
+		"contains HTML other than tables and text styles, which isn't shown; convert it to markdown",
+		"The file contains HTML other than tables and text styles. Convert it to markdown and upload again.",
+	}
+	// ErrTextAfterHTML means text follows HTML without a blank line between
+	// them, which makes it part of the HTML block, so its markdown isn't read.
+	ErrTextAfterHTML = &TermsError{
+		"has text right after HTML, which isn't read as markdown; add a blank line after the HTML",
+		"The file has text right after HTML. Add a blank line after the HTML and upload again.",
 	}
 	// ErrNoVisibleText means the rendered page would have nothing to read.
 	ErrNoVisibleText = &TermsError{"has no text to show", "The file has no text to show."}
@@ -143,18 +154,19 @@ func ValidateTerms(src []byte) error {
 		return err
 	}
 
-	// Inline tags are dropped but keep their text; a block of HTML is dropped
-	// whole. Comments and blocks without text lose nothing, so they are fine.
-	var htmlWithText bool
+	// Inline tags that aren't kept are dropped but keep their text; an HTML
+	// block that isn't kept is dropped whole. Comments and blocks without text
+	// lose nothing, so they are fine.
+	var htmlErr error
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if b, ok := n.(*ast.HTMLBlock); entering && ok && hasVisibleText(htmlBlockSource(b, src)) {
-			htmlWithText = true
+		if err, ok := n.AttributeString(rejectedHTMLAttr); entering && ok {
+			htmlErr = err.(error)
 			return ast.WalkStop, nil
 		}
 		return ast.WalkContinue, nil
 	})
-	if htmlWithText {
-		return ErrContainsHTML
+	if htmlErr != nil {
+		return htmlErr
 	}
 
 	rendered, err := renderDoc(md, src, doc)
@@ -358,6 +370,10 @@ func newTermsMarkdown() goldmark.Markdown {
 		goldmark.WithExtensions(budgetedTables{}, extension.Strikethrough, extension.TaskList),
 		goldmark.WithParserOptions(parser.WithASTTransformers(
 			util.Prioritized(flattenTransformer{}, 100),
+			util.Prioritized(rawHTMLTransformer{}, 90),
+		)),
+		goldmark.WithRendererOptions(renderer.WithNodeRenderers(
+			util.Prioritized(rawHTMLRenderer{}, 500),
 		)),
 	)
 }
@@ -395,11 +411,35 @@ func renderDoc(md goldmark.Markdown, src []byte, doc ast.Node) (rendered string,
 		return "", fmt.Errorf("render markdown: %w", err)
 	}
 
-	rendered = termsPolicy.Sanitize(buf.String())
+	rendered, err = balance(termsPolicy.Sanitize(buf.String()))
+	if err != nil {
+		return "", fmt.Errorf("render markdown: %w", err)
+	}
+	// Escaping can make the page larger than what goldmark wrote.
+	if len(rendered) > maxRenderedSize {
+		return "", ErrRenderedTooLarge
+	}
 	if !hasVisibleText(rendered) {
 		return "", nil
 	}
 	return rendered, nil
+}
+
+// balance closes anything left open, so the document can't take in the page
+// around it, such as the button that accepts the terms. Raw HTML is rebuilt
+// well formed, so this is defense in depth.
+func balance(s string) (string, error) {
+	nodes, err := xhtml.ParseFragment(strings.NewReader(s), &xhtml.Node{Type: xhtml.ElementNode, Data: "div", DataAtom: atom.Div})
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	for _, n := range nodes {
+		if err := xhtml.Render(&b, n); err != nil {
+			return "", err
+		}
+	}
+	return b.String(), nil
 }
 
 type cappedBuffer struct {
@@ -441,7 +481,7 @@ func htmlBlockSource(b *ast.HTMLBlock, src []byte) string {
 // flattenTransformer replaces links and images with their inline content, so
 // the rendered page has no navigation and no remote fetches. It also keeps an
 // inline <br>, the only way to break a line inside a table cell, as a line
-// break; other inline HTML is dropped by the renderer.
+// break; rawHTMLTransformer decides what other inline HTML is kept.
 type flattenTransformer struct{}
 
 var inlineBreak = regexp.MustCompile(`(?i)^<br\s*/?>$`)
@@ -491,19 +531,20 @@ func (flattenTransformer) Transform(doc *ast.Document, reader text.Reader, _ par
 	}
 }
 
-// termsPolicy is the structural subset of HTML the terms page needs. goldmark
-// already drops raw HTML from the source; this is defense in depth, and it is
-// also what strips anything a future goldmark extension might add.
+// termsPolicy is the structural subset of HTML the terms page needs. Raw HTML
+// is already rebuilt from allowed tags; this is defense in depth, and it is also
+// what strips anything a future goldmark extension might add.
 var termsPolicy = func() *bluemonday.Policy {
 	p := bluemonday.NewPolicy()
 	p.AllowElements(
 		"p", "br", "hr",
 		"h1", "h2", "h3", "h4", "h5", "h6",
 		"ul", "ol", "li",
-		"strong", "em", "b", "i", "del", "s", "code", "pre", "blockquote",
-		"table", "thead", "tbody", "tr", "th", "td",
+		"strong", "em", "b", "i", "u", "del", "s", "sub", "sup", "code", "pre", "blockquote",
+		"table", "caption", "thead", "tbody", "tfoot", "tr", "th", "td",
 	)
 	p.AllowAttrs("align").Matching(regexp.MustCompile(`^(left|center|right)$`)).OnElements("th", "td")
+	p.AllowAttrs("colspan", "rowspan").Matching(spanValue).OnElements("th", "td")
 	p.AllowAttrs("start").Matching(bluemonday.Integer).OnElements("ol")
 	p.AllowAttrs("class").Matching(regexp.MustCompile(`^language-[a-zA-Z0-9_+-]+$`)).OnElements("code")
 	// GFM task list checkboxes.
@@ -511,3 +552,247 @@ var termsPolicy = func() *bluemonday.Policy {
 	p.AllowAttrs("checked", "disabled").OnElements("input")
 	return p
 }()
+
+// Raw HTML is kept only in the shapes word processors export, through pandoc's
+// GitHub flavor, for what markdown can't express: tables with merged cells, and
+// underline, subscript and superscript. It is rebuilt from its tags rather than
+// passed on, so nothing the browser's parser would repair, such as an unclosed
+// element or text loose in a table, reaches the page: repairs can reorder text,
+// hide it, or multiply the page's size.
+
+// phrasingTags are the inline tags raw HTML can use.
+var phrasingTags = map[string]struct{}{
+	"b": {}, "i": {}, "u": {}, "s": {}, "em": {}, "strong": {}, "del": {}, "code": {}, "sub": {}, "sup": {},
+}
+
+const (
+	maxHTMLNesting   = 32
+	maxInlineNesting = 16
+)
+
+// allowedChild is the HTML content model, narrowed to what the terms page
+// shows. a and span are dropped keeping their text and img becomes its alt
+// text, as markdown links and images do; colgroup and col only carry widths,
+// which aren't kept, so they're dropped too.
+func allowedChild(parent, child string) bool {
+	_, phrasing := phrasingTags[child]
+	phrasing = phrasing || child == "br" || child == "a" || child == "span" || child == "img"
+	switch parent {
+	case "table":
+		return child == "caption" || child == "colgroup" || child == "thead" || child == "tbody" || child == "tfoot" || child == "tr"
+	case "colgroup":
+		return child == "col"
+	case "thead", "tbody", "tfoot":
+		return child == "tr"
+	case "tr":
+		return child == "th" || child == "td"
+	case "ul", "ol":
+		return child == "li"
+	case "":
+		return phrasing || child == "table"
+	case "li", "th", "td":
+		return phrasing || child == "p" || child == "ul" || child == "ol" || child == "table"
+	default: // p, caption and phrasing elements
+		return phrasing
+	}
+}
+
+var (
+	spanValue = regexp.MustCompile(`^([1-9][0-9]?|100)$`)
+	textAlign = regexp.MustCompile(`(?i)(?:^|;)\s*text-align\s*:\s*(left|center|right)\s*(?:;|$)`)
+)
+
+// rewriteHTMLBlock rebuilds an HTML block from its tokens, or reports why it
+// can't be shown. Every element must be allowed where it is and closed in
+// order; only th and td keep attributes. cells is what its tables cost against
+// the same budget as markdown tables: each cell the grid area it covers, and
+// each row or other part of a table one.
+func rewriteHTMLBlock(block string) (out string, cells int, err error) {
+	var b strings.Builder
+	open := make([]string, 0, maxHTMLNesting)
+	z := xhtml.NewTokenizer(strings.NewReader(block))
+	for {
+		tt := z.Next()
+		parent := ""
+		if len(open) > 0 {
+			parent = open[len(open)-1]
+		}
+		switch tt {
+		case xhtml.ErrorToken:
+			// Raw bytes left over are a tag cut off by the end of the block.
+			if !errors.Is(z.Err(), io.EOF) || len(z.Raw()) > 0 || len(open) > 0 {
+				return "", cells, ErrContainsHTML
+			}
+			return b.String(), cells, nil
+		case xhtml.TextToken:
+			text := strings.ReplaceAll(string(z.Text()), "\x00", "\ufffd")
+			if strings.TrimSpace(text) != "" {
+				switch {
+				case parent == "":
+					// Every block opens with a tag, so this is a line after it.
+					return "", cells, ErrTextAfterHTML
+				case !allowedChild(parent, "b"):
+					// Text goes where text-level tags do; loose in a table, the browser moves it.
+					return "", cells, ErrContainsHTML
+				}
+			}
+			b.WriteString(xhtml.EscapeString(text))
+		case xhtml.StartTagToken, xhtml.SelfClosingTagToken:
+			name, hasAttr := z.TagName()
+			tag := string(name)
+			void := tag == "br" || tag == "col" || tag == "img"
+			if !allowedChild(parent, tag) || (tt == xhtml.SelfClosingTagToken && !void) {
+				return "", cells, ErrContainsHTML
+			}
+			attrs := map[string]string{}
+			for hasAttr {
+				var key, val []byte
+				key, val, hasAttr = z.TagAttr()
+				attrs[string(key)] = string(val)
+			}
+			switch tag {
+			case "a", "span", "colgroup", "col":
+			case "img":
+				b.WriteString(xhtml.EscapeString(attrs["alt"]))
+			case "th", "td":
+				colspan, rowspan := 1, 1
+				b.WriteString("<" + tag)
+				align := attrs["align"]
+				// pandoc writes a column's alignment as a style.
+				if m := textAlign.FindStringSubmatch(attrs["style"]); m != nil {
+					align = strings.ToLower(m[1])
+				}
+				if align == "left" || align == "center" || align == "right" {
+					b.WriteString(` align="` + align + `"`)
+				}
+				if v := attrs["colspan"]; spanValue.MatchString(v) {
+					colspan, _ = strconv.Atoi(v)
+					b.WriteString(` colspan="` + v + `"`)
+				}
+				if v := attrs["rowspan"]; spanValue.MatchString(v) {
+					rowspan, _ = strconv.Atoi(v)
+					b.WriteString(` rowspan="` + v + `"`)
+				}
+				b.WriteString(">")
+				cells += colspan * rowspan
+			case "table", "caption", "thead", "tbody", "tfoot", "tr":
+				b.WriteString("<" + tag + ">")
+				cells++
+			default:
+				b.WriteString("<" + tag + ">")
+			}
+			if !void {
+				if len(open) == maxHTMLNesting {
+					return "", cells, ErrNestedTooDeep
+				}
+				open = append(open, tag)
+			}
+		case xhtml.EndTagToken:
+			name, _ := z.TagName()
+			tag := string(name)
+			if parent != tag {
+				return "", cells, ErrContainsHTML
+			}
+			open = open[:len(open)-1]
+			if tag != "a" && tag != "span" && tag != "colgroup" {
+				b.WriteString("</" + tag + ">")
+			}
+		default: // comments, CDATA, processing instructions, doctypes
+			return "", cells, ErrContainsHTML
+		}
+	}
+}
+
+// inlineTag matches an inline open or closing tag and its name.
+var inlineTag = regexp.MustCompile(`^<(/?)([A-Za-z][A-Za-z0-9]*)[\s/>]`)
+
+// pairInlineTags keeps raw inline tags that open and close among one parent's
+// children, rebuilt without attributes. Pairs can't straddle markdown's own
+// elements, and an unclosed tag can't style the rest of the page; the others
+// are dropped, keeping the text between them.
+func pairInlineTags(parent ast.Node, source []byte) {
+	type openTag struct {
+		node *ast.RawHTML
+		name string
+	}
+	open := make([]openTag, 0, maxInlineNesting)
+	for c := parent.FirstChild(); c != nil; c = c.NextSibling() {
+		raw, ok := c.(*ast.RawHTML)
+		if !ok {
+			continue
+		}
+		m := inlineTag.FindSubmatch(raw.Segments.Value(source))
+		if m == nil {
+			continue
+		}
+		name := strings.ToLower(string(m[2]))
+		if _, ok := phrasingTags[name]; !ok {
+			continue
+		}
+		if len(m[1]) == 0 {
+			if len(open) < maxInlineNesting {
+				open = append(open, openTag{raw, name})
+			}
+			continue
+		}
+		if n := len(open); n > 0 && open[n-1].name == name {
+			open[n-1].node.SetAttributeString(keptHTMLAttr, "<"+name+">")
+			raw.SetAttributeString(keptHTMLAttr, "</"+name+">")
+			open = open[:n-1]
+		}
+	}
+}
+
+const (
+	// keptHTMLAttr holds the HTML a raw HTML node renders as.
+	keptHTMLAttr = "fleet-kept-html"
+	// rejectedHTMLAttr holds why an HTML block with text can't be shown.
+	rejectedHTMLAttr = "fleet-rejected-html"
+)
+
+// rawHTMLTransformer decides, while parsing, what raw HTML is kept, and charges
+// HTML table cells to the tables' cell budget.
+type rawHTMLTransformer struct{}
+
+func (rawHTMLTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
+	source := reader.Source()
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		b, ok := n.(*ast.HTMLBlock)
+		if !ok {
+			pairInlineTags(n, source)
+			return ast.WalkContinue, nil
+		}
+		block := htmlBlockSource(b, source)
+		out, cells, err := rewriteHTMLBlock(block)
+		used, _ := pc.Get(tableCellsKey).(int)
+		pc.Set(tableCellsKey, used+cells)
+		switch {
+		case err == nil:
+			b.SetAttributeString(keptHTMLAttr, out)
+		case hasVisibleText(block):
+			b.SetAttributeString(rejectedHTMLAttr, err)
+		}
+		return ast.WalkSkipChildren, nil
+	})
+}
+
+// rawHTMLRenderer writes the HTML rawHTMLTransformer kept, and nothing for the
+// rest, where goldmark would drop all raw HTML.
+type rawHTMLRenderer struct{}
+
+func (rawHTMLRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+	reg.Register(ast.KindHTMLBlock, renderKeptHTML)
+	reg.Register(ast.KindRawHTML, renderKeptHTML)
+}
+
+func renderKeptHTML(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		if kept, ok := node.AttributeString(keptHTMLAttr); ok {
+			_, _ = w.WriteString(kept.(string))
+		}
+	}
+	return ast.WalkSkipChildren, nil
+}
