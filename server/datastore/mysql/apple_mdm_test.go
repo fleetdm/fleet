@@ -14067,6 +14067,28 @@ func testMDMAppleResetEnrollmentScimLink(t *testing.T, ds *Datastore) {
 		require.True(t, fleet.IsNotFound(err), "no IdP account and no manual mapping: link must not survive")
 	})
 
+	t.Run("manual IdP mapping over an ADE account survives SCEP renewal only", func(t *testing.T) {
+		for _, scepRenewal := range []bool{true, false} {
+			host := newDarwinHost(t, fmt.Sprintf("uuid-ade-override-%v", scepRenewal))
+			associateIdPAccount(t, host, fmt.Sprintf("staging-%v@example.com", scepRenewal))
+			realUser := fmt.Sprintf("real-%v@example.com", scepRenewal)
+			require.NoError(t, ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, realUser))
+
+			require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, scepRenewal))
+
+			var emails []fleet.HostDeviceMapping
+			require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &emails,
+				`SELECT email, source FROM host_emails WHERE host_id = ?`, host.ID))
+			require.Len(t, emails, 1)
+			if scepRenewal {
+				require.Equal(t, fleet.HostDeviceMapping{Email: realUser, Source: fleet.DeviceMappingIDP}, emails[0])
+			} else {
+				// a real re-enrollment re-authenticates, so the IdP account replaces the manual mapping
+				require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, emails[0].Source)
+			}
+		}
+	})
+
 	t.Run("ADE re-enrollment by a different user re-points the link", func(t *testing.T) {
 		host := newDarwinHost(t, "uuid-ade-handoff")
 		firstUserID := newScimUser(t, "first@example.com")

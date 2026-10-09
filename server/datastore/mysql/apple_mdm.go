@@ -4988,6 +4988,16 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
+		// ! Heavily consider putting methods above this check, so they always run on MDM renewals and not only fresh/re-enrollments
+		// ! It's a place easy for bugs to occur due to resets etc.
+		if scepRenewalInProgress {
+			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
+			// much more difficult to reason about the state of the host. We should try instead
+			// to centralize the flow control in the lifecycle methods.
+			ds.logger.InfoContext(ctx, "host lifecycle action received for a SCEP renewal in process, skipping additional reset actions", "host_uuid", hostUUID)
+			return nil
+		}
+
 		// Reconcile host_emails and host_scim_users sourced from mdm_idp_accounts.
 		//
 		// Note that we aren't deleting the mdm_idp_accounts themselves, just prior associations
@@ -4999,8 +5009,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
 			}
 			// An IdP username set by an admin is kept by the reconcile above, so keep the
-			// SCIM link derived from it too: there is no IdP account to rebuild it from and
-			// this check-in may be a SCEP renewal rather than a real re-enrollment.
+			// SCIM link derived from it too: there is no IdP account to rebuild it from.
 			// Without either, drop the link so a host re-enrolled without SSO doesn't keep
 			// showing its previous user.
 			keepManualLink := false
@@ -5019,18 +5028,6 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 					return ctxerr.Wrap(ctx, err, "re-associating host with scim user from mdm idp account")
 				}
 			}
-		}
-
-		// TODO: Add test coverage for scepRenewalInProgress branching logic.
-		// FIXME: When revisiting scep renewal paths, think about no clear indicator for new enrollment vs only SCEP renewal coming from Authenticate
-		// which is why we call this method, with a distinct false value in TokenUpdate, as that is only where we have a clear indicator
-		// on if it is an old device that was expected to renew but was wiped.
-		if scepRenewalInProgress {
-			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
-			// much more difficult to reason about the state of the host. We should try instead
-			// to centralize the flow control in the lifecycle methods.
-			ds.logger.InfoContext(ctx, "host lifecycle action received for a SCEP renewal in process, skipping additional reset actions", "host_uuid", hostUUID)
-			return nil
 		}
 
 		// Deleting profiles from this table will cause all profiles to
