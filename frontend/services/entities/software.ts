@@ -55,6 +55,8 @@ export interface ISoftwareApiParams {
   source?: string;
   /** Comma-separated extension_for values, each narrowing its own source. */
   extension_for?: string;
+  /** Premium only: limits results to software Fleet marked as an AI tool. */
+  aiTool?: boolean;
   availableForInstall?: boolean;
   packagesOnly?: boolean;
   selfService?: boolean;

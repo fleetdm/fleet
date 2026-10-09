@@ -5,7 +5,12 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { formatSoftwareType, IHostSoftware } from "interfaces/software";
+import {
+  formatSoftwareType,
+  IHostSoftware,
+  NO_VULNERABILITIES_TOOLTIP_BY_SOURCE,
+} from "interfaces/software";
+import EmptyCellWithTooltip from "pages/SoftwarePage/components/tables/EmptyCellWithTooltip";
 import { VersionsColumnCell } from "pages/SoftwarePage/components/tables/VersionCell";
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
@@ -83,6 +88,11 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       accessor: (originalRow) => originalRow.installed_versions,
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        const noVulnerabilitiesTip =
+          NO_VULNERABILITIES_TOOLTIP_BY_SOURCE[cellProps.row.original.source];
+        if (noVulnerabilitiesTip) {
+          return <EmptyCellWithTooltip tipContent={noVulnerabilitiesTip} />;
+        }
         const vulnerabilities = getVulnerabilities(cellProps.cell.value ?? []);
         return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;
       },

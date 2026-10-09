@@ -7,6 +7,7 @@ import AutomationsButton from "components/buttons/AutomationsButton";
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import TeamsHeader from "components/TeamsHeader";
@@ -17,7 +18,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig } from "interfaces/config";
 import { IJiraIntegration, IZendeskIntegration } from "interfaces/integration";
 import { SelectedPlatform } from "interfaces/platform";
-import { SOFTWARE_TYPES } from "interfaces/software";
+import { getSoftwareTypes } from "interfaces/software";
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import PATHS from "router/paths";
@@ -35,6 +36,7 @@ import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 import {
   buildSoftwareFiltersQueryParams,
   getSoftwareFiltersFromQueryParams,
+  removePremiumOnlyFilters,
   ISoftwareFilters,
 } from "./SoftwareInventory/SoftwareInventoryTable/helpers";
 
@@ -202,7 +204,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // Library uses a self-service toggle (boolean), not the old dropdown filter
   const selfServiceOnly = queryParams?.self_service === "true";
 
-  const softwareFilters = getSoftwareFiltersFromQueryParams(queryParams);
+  const parsedSoftwareFilters = getSoftwareFiltersFromQueryParams(queryParams);
+  const softwareFilters = isPremiumTier
+    ? parsedSoftwareFilters
+    : removePremiumOnlyFilters(parsedSoftwareFilters);
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -509,24 +514,30 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           </Tabs>
         </TabNav>
         <div key={location?.pathname} className="tab-nav-routed-content">
-          {React.cloneElement(children, {
-            router,
-            isSoftwareEnabled: Boolean(
-              softwareConfig?.features?.enable_software_inventory
-            ),
-            perPage: DEFAULT_PAGE_SIZE,
-            orderDirection: sortDirection,
-            orderKey: sortHeader,
-            currentPage: page,
-            teamId: teamIdForApi,
-            // TODO: move down into the Software Titles component
-            platform,
-            query,
-            showExploitedVulnerabilitiesOnly,
-            selfServiceOnly,
-            filters: softwareFilters,
-            onAddFiltersClick: toggleSoftwareFiltersModal,
-          })}
+          {/* Until the tier is known, softwareFilters can't tell a Premium-only
+          filter in the URL from one to drop on Free. */}
+          {isPremiumTier === undefined ? (
+            <Spinner />
+          ) : (
+            React.cloneElement(children, {
+              router,
+              isSoftwareEnabled: Boolean(
+                softwareConfig?.features?.enable_software_inventory
+              ),
+              perPage: DEFAULT_PAGE_SIZE,
+              orderDirection: sortDirection,
+              orderKey: sortHeader,
+              currentPage: page,
+              teamId: teamIdForApi,
+              // TODO: move down into the Software Titles component
+              platform,
+              query,
+              showExploitedVulnerabilitiesOnly,
+              selfServiceOnly,
+              filters: softwareFilters,
+              onAddFiltersClick: toggleSoftwareFiltersModal,
+            })
+          )}
         </div>
       </div>
     );
@@ -582,7 +593,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             onSubmit={onApplyFilters}
             filters={softwareFilters}
             isPremiumTier={isPremiumTier || false}
-            availableTypes={SOFTWARE_TYPES}
+            availableTypes={getSoftwareTypes({ premium: isPremiumTier })}
+            showAiToolFilter
           />
         )}
       </>
