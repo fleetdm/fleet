@@ -627,6 +627,11 @@ func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
 			},
 		},
 		{
+			name: "empty webhook settings change nothing",
+			body: `{"webhook_settings": {}}`,
+			want: func(w *fleet.TeamWebhookSettings) {},
+		},
+		{
 			name: "explicitly disabling failing policies",
 			body: `{"webhook_settings": {"failing_policies_webhook": {"enable_failing_policies_webhook": false}}}`,
 			want: func(w *fleet.TeamWebhookSettings) {
