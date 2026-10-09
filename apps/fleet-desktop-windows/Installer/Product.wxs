@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <!--
+    Fleet Desktop installer. Mirrors the macOS .pkg:
+
+      * Refuses to install if Fleet's orbit agent isn't present
+        (we look for C:\Program Files\Orbit\bin\orbit\orbit.exe — installed
+        by fleetd's own MSI, so its presence is our equivalent of the
+        macOS MDM check).
+      * Installs FleetDesktop.exe (self-contained single-file) to
+        %ProgramFiles%\Fleet Desktop\.
+      * Registers the fleet:// URL scheme machine-wide.
+      * Drops a Start Menu shortcut.
+      * Gracefully closes the running app before upgrading.
+      * Performs a clean MajorUpgrade.
+  -->
+  <Package Name="Fleet Desktop"
+           Manufacturer="Fleet Device Management"
+           Version="$(var.ProductVersion)"
+           UpgradeCode="3D9F1A6B-8A11-4E2D-9C84-1B3FE6B0E2A0"
+           Scope="perMachine"
+           InstallerVersion="500">
+
+    <SummaryInformation Description="Fleet Desktop $(var.ProductVersion)" />
+
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <MajorUpgrade
+        AllowDowngrades="no"
+        AllowSameVersionUpgrades="yes"
+        DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+
+    <!-- ===================================================================
+         Orbit-presence check.
+         Looks for C:\Program Files\Orbit\bin\orbit\orbit.exe — the binary
+         installed by Fleet's own fleetd MSI. ORBITEXEFILE is set to the
+         resolved path if found; the launch condition fails if it's empty.
+         (Note: fleet_url.txt is macOS-only, written from an Apple config
+         profile — it never exists on Windows, so we can't key off that.)
+         ================================================================== -->
+    <Property Id="ORBITEXEFILE">
+      <DirectorySearch Id="ProgramFilesDir"
+                       Path="[ProgramFiles64Folder]"
+                       Depth="0">
+        <DirectorySearch Id="OrbitDir" Path="Orbit" Depth="0">
+          <DirectorySearch Id="OrbitBinDir" Path="bin" Depth="0">
+            <DirectorySearch Id="OrbitBinOrbitDir" Path="orbit" Depth="0">
+              <FileSearch Id="OrbitExeFile" Name="orbit.exe" />
+            </DirectorySearch>
+          </DirectorySearch>
+        </DirectorySearch>
+      </DirectorySearch>
+    </Property>
+
+    <Launch
+        Condition="ORBITEXEFILE OR Installed"
+        Message="Fleet Desktop requires Fleet's orbit agent (fleetd) to be installed and enrolled on this machine. Please install fleetd via your MDM (Intune, etc.) before installing Fleet Desktop." />
+
+    <Launch
+        Condition="Installed OR VersionNT64"
+        Message="Fleet Desktop requires 64-bit Windows." />
+
+    <!-- ===================================================================
+         Gracefully close the running app before upgrading.
+         RestartManager will be invoked because we tag the EXE component
+         with the right metadata; explicit CloseApplication is a belt-and-
+         suspenders fallback.
+         ================================================================== -->
+    <util:CloseApplication Id="CloseFleetDesktop"
+                           Target="FleetDesktop.exe"
+                           CloseMessage="yes"
+                           RebootPrompt="no"
+                           PromptToContinue="no"
+                           EndSessionMessage="yes"
+                           TerminateProcess="10" />
+
+    <!-- ===================================================================
+         Directory layout.
+         ================================================================== -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Fleet Desktop" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppShortcutFolder" Name="Fleet" />
+    </StandardDirectory>
+
+    <!-- ===================================================================
+         Components.
+         ================================================================== -->
+    <Component Id="FleetDesktopExe"
+               Directory="INSTALLFOLDER"
+               Guid="A7E3C0B4-2F66-4B98-8C9B-0A6BB1D2C100"
+               Bitness="always64">
+      <File Id="FleetDesktopExeFile"
+            Source="$(var.PublishDir)FleetDesktop.exe"
+            KeyPath="yes" />
+    </Component>
+
+    <Component Id="UrlSchemeRegistration"
+               Directory="INSTALLFOLDER"
+               Guid="C0F9B3E4-5D71-4E12-9A8D-1B22EE3B5F77"
+               Bitness="always64">
+      <RegistryKey Root="HKLM" Key="Software\Classes\fleet">
+        <RegistryValue Type="string" Value="URL:fleet Protocol" />
+        <RegistryValue Name="URL Protocol" Type="string" Value="" />
+      </RegistryKey>
+      <RegistryKey Root="HKLM" Key="Software\Classes\fleet\DefaultIcon">
+        <RegistryValue Type="string" Value="[INSTALLFOLDER]FleetDesktop.exe,0" />
+      </RegistryKey>
+      <RegistryKey Root="HKLM" Key="Software\Classes\fleet\shell\open\command">
+        <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]FleetDesktop.exe&quot; &quot;%1&quot;" />
+      </RegistryKey>
+      <RegistryValue Root="HKLM"
+                     Key="Software\FleetDM\FleetDesktop"
+                     Name="InstallDir"
+                     Type="string"
+                     Value="[INSTALLFOLDER]"
+                     KeyPath="yes" />
+    </Component>
+
+    <!-- Per-user data (Start Menu folder + shortcut) with a per-user (HKCU) keypath.
+         The Target uses a literal [INSTALLFOLDER] path rather than [#FileId] to avoid
+         creating an ICE69 cross-component reference to FleetDesktopExe. -->
+    <Component Id="StartMenuShortcut"
+               Directory="AppShortcutFolder"
+               Guid="6B4D2A8E-91F2-4C0E-9C7A-93F8C4E1B201">
+      <Shortcut Id="StartMenuShortcutEntry"
+                Name="Fleet Desktop"
+                Target="[INSTALLFOLDER]FleetDesktop.exe"
+                WorkingDirectory="INSTALLFOLDER"
+                Description="Open the Fleet self-service portal"
+                Advertise="no" />
+      <RemoveFolder Id="RemoveAppShortcutFolder" Directory="AppShortcutFolder" On="uninstall" />
+      <RegistryValue Root="HKCU"
+                     Key="Software\FleetDM\FleetDesktop"
+                     Name="StartMenuShortcut"
+                     Type="integer"
+                     Value="1"
+                     KeyPath="yes" />
+    </Component>
+
+    <!-- ===================================================================
+         Feature.
+         ================================================================== -->
+    <Feature Id="MainFeature"
+             Title="Fleet Desktop"
+             Level="1"
+             AllowAbsent="no"
+             ConfigurableDirectory="INSTALLFOLDER">
+      <ComponentRef Id="FleetDesktopExe" />
+      <ComponentRef Id="UrlSchemeRegistration" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+    <!-- ===================================================================
+         Icon used in Add/Remove Programs.
+         ================================================================== -->
+    <Icon Id="AppIcon.ico" SourceFile="..\FleetDesktop\Assets\app.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/allenhouchins/fleet-desktop-win" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/allenhouchins/fleet-desktop-win" />
+
+    <!-- Minimal Wix UI: license + progress + finish. -->
+    <ui:WixUI Id="WixUI_Minimal" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+
+  </Package>
+</Wix>

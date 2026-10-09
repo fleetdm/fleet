@@ -1,0 +1,29 @@
+<Project Sdk="WixToolset.Sdk/4.0.5">
+
+  <PropertyGroup>
+    <OutputName>fleet_desktop-v$(Version)</OutputName>
+    <OutputType>Package</OutputType>
+    <Platforms>x64</Platforms>
+    <Platform>x64</Platform>
+    <SuppressIces>ICE61</SuppressIces>
+
+    <!--
+      PublishDir is set by the build script and points at FleetDesktop's
+      self-contained, single-file publish output:
+          ..\FleetDesktop\bin\Release\net8.0-windows\win-x64\publish\
+      The .wxs file picks it up via $(var.PublishDir).
+    -->
+    <PublishDir Condition="'$(PublishDir)' == ''">..\FleetDesktop\bin\$(Configuration)\net8.0-windows\win-x64\publish\</PublishDir>
+
+    <!-- Version is plumbed in by CI from FleetDesktop.csproj. -->
+    <Version Condition="'$(Version)' == ''">1.0.0</Version>
+
+    <DefineConstants>$(DefineConstants);PublishDir=$(PublishDir);ProductVersion=$(Version)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Util.wixext" Version="4.0.5" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.5" />
+  </ItemGroup>
+
+</Project>
