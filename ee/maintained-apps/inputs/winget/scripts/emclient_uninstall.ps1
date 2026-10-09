@@ -9,6 +9,22 @@ $timeoutSeconds = 300
 # 3010 = reboot required, 1641 = reboot initiated
 $successCodes = @(0, 3010, 1641)
 
+# Windows finishes removing the package for signed-out users at their next sign-in,
+# so only a provisioned package or a signed-in user's copy counts as left behind.
+function Test-PackageRemains {
+  if (@(Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $packageName }).Count -gt 0) {
+    return $true
+  }
+  foreach ($package in @(Get-AppxPackage -AllUsers -Name $packageName)) {
+    foreach ($user in @($package.PackageUserInformation)) {
+      if (Test-Path "Registry::HKEY_USERS\$($user.UserSecurityId.Sid)") {
+        return $true
+      }
+    }
+  }
+  return $false
+}
+
 Get-Process -Name 'MailClient' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
 try {
@@ -28,14 +44,29 @@ try {
     }
   }
 
+  # The removal cmdlets can report errors for removals that succeed, so check what's
+  # left afterwards instead.
   Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $packageName } | ForEach-Object {
     Write-Host "Removing provisioned package $($_.PackageName)"
-    Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -AllUsers -ErrorAction Stop | Out-Null
+    try {
+      Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -AllUsers -ErrorAction Stop | Out-Null
+    } catch {
+      Write-Host "Remove-AppxProvisionedPackage reported: $($_.Exception.Message)"
+    }
   }
 
   Get-AppxPackage -AllUsers -Name $packageName | ForEach-Object {
     Write-Host "Removing package $($_.PackageFullName)"
-    Remove-AppxPackage -Package $_.PackageFullName -AllUsers -ErrorAction Stop
+    try {
+      Remove-AppxPackage -Package $_.PackageFullName -AllUsers -ErrorAction Stop
+    } catch {
+      Write-Host "Remove-AppxPackage reported: $($_.Exception.Message)"
+    }
+  }
+
+  if (Test-PackageRemains) {
+    Write-Host "eM Client is still installed after removal."
+    Exit 1603
   }
 } catch {
   Write-Host "Error: $_"

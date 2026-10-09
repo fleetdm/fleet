@@ -9,6 +9,8 @@ $appInstallerUrl = 'https://licensing.emclient.com/api/update/emclient.appinstal
 $packageName = 'eMClient.20054CA46072C'
 $taskName = 'fleet-install-emclient'
 $taskRunning = 267009  # SCHED_S_TASK_RUNNING
+# Fleet stops install scripts after an hour.
+$deadline = (Get-Date).AddMinutes(50)
 # 3010 = reboot required, 1641 = reboot initiated
 $successCodes = @(0, 3010, 1641)
 $workDir = Join-Path $env:TEMP "fleet-emclient-$([guid]::NewGuid())"
@@ -33,6 +35,9 @@ function New-SystemInstallTransform($msiPath, $transformPath) {
 }
 
 function Install-ForUser($userAccount) {
+    if ((Get-Date) -gt $deadline) {
+        Throw "Ran out of time to install eM Client for $userAccount."
+    }
     Write-Host "Installing eM Client for $userAccount."
     $action = New-ScheduledTaskAction -Execute $launcherPath -Argument "--install-msix `"$appInstallerUrl`""
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 20)
@@ -40,27 +45,34 @@ function Install-ForUser($userAccount) {
     $task = New-ScheduledTask -Action $action -Settings $settings -Principal $principal
     Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
 
-    $startDate = Get-Date
+    $taskDeadline = (Get-Date).AddMinutes(20)
+    if ($taskDeadline -gt $deadline) { $taskDeadline = $deadline }
+    $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName).LastRunTime
     Start-ScheduledTask -TaskName $taskName
     # Wait for a result rather than for the "Running" state, which a fast task can
-    # enter and leave between polls.
+    # enter and leave between polls. A task that's still queued hasn't updated
+    # LastRunTime yet.
     Start-Sleep -Seconds 2
     while ($true) {
         $info = Get-ScheduledTaskInfo -TaskName $taskName
         $state = (Get-ScheduledTask -TaskName $taskName).State
-        if ($state -ne 'Running' -and $info.LastTaskResult -ne $taskRunning) {
+        if ($info.LastRunTime -ne $lastRun -and $state -ne 'Running' -and $info.LastTaskResult -ne $taskRunning) {
             break
         }
-        if ((New-TimeSpan -Start $startDate).TotalMinutes -gt 20) {
+        if ((Get-Date) -gt $taskDeadline) {
+            Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
             Throw "Timed out installing eM Client for $userAccount."
         }
         Start-Sleep -Seconds 5
     }
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
 
+    if ($info.LastTaskResult -ne 0) {
+        Throw "eM Client didn't install for $userAccount (exit code $($info.LastTaskResult))."
+    }
     $package = Get-AppxPackage -User $userAccount -Name $packageName -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $package) {
-        Throw "eM Client didn't install for $userAccount (exit code $($info.LastTaskResult))."
+        Throw "eM Client didn't install for $userAccount."
     }
     Write-Host "Installed eM Client $($package.Version) for $userAccount."
 }
@@ -92,7 +104,12 @@ try {
             Where-Object { $_.PSChildName -like "${packageName}_*" } |
             Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
         foreach ($userAccount in $users) {
-            Install-ForUser $userAccount
+            try {
+                Install-ForUser $userAccount
+            } catch {
+                Write-Host "Error: $_"
+                $exitCode = 1
+            }
         }
     }
 } catch {
@@ -100,6 +117,7 @@ try {
     $exitCode = 1
 } finally {
     if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+        Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
         Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     }
     Remove-Item -LiteralPath $workDir -Recurse -Force -ErrorAction SilentlyContinue
