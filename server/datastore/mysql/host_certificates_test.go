@@ -156,9 +156,10 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	ackVerified := func(t *testing.T, h *fleet.Host, cmdUUID string) {
 		t.Helper()
 		verified := fleet.MDMDeliveryVerified
-		require.NoError(t, updateMDMWindowsHostProfileStatusFromResponseDB(ctx, ds.writer(ctx),
+		_, err := updateMDMWindowsHostProfileStatusFromResponseDB(ctx, ds.writer(ctx),
 			[]*fleet.MDMWindowsProfilePayload{{HostUUID: h.UUID, CommandUUID: cmdUUID, Status: &verified}},
-			fleet.WindowsUserContextPresent, true))
+			fleet.WindowsUserContextPresent, true)
+		require.NoError(t, err)
 	}
 
 	// insertConfigProfile creates the team config profile row whose SyncML scope (./Device vs ./User) the backstop

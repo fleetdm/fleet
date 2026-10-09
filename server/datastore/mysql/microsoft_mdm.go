@@ -1484,6 +1484,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 			args                     []any
 			sb                       strings.Builder
 			potentialProfilePayloads []*fleet.MDMWindowsProfilePayload
+			scepStatusProbes         []fleet.MDMWindowsCommand
 
 			wipeCmdUUID   string
 			wipeCmdStatus string
@@ -1537,7 +1538,8 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 			}
 
 			rawResult := []byte{}
-			if result, ok := enrichedSyncML.CmdRefUUIDToResults[cmd.CommandUUID]; ok && result.Data != nil {
+			// A Get answer carries its values in Items rather than a top-level Data element.
+			if result, ok := enrichedSyncML.CmdRefUUIDToResults[cmd.CommandUUID]; ok && (result.Data != nil || len(result.Items) > 0) {
 				var err error
 				rawResult, err = xml.Marshal(result)
 				if err != nil {
@@ -1552,12 +1554,62 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 				wipeCmdUUID = cmd.CommandUUID
 				wipeCmdStatus = statusCode
 			}
+
+			if fleet.IsWindowsSCEPStatusProbeCmdUUID(cmd.CommandUUID) {
+				scepStatusProbes = append(scepStatusProbes, cmd)
+			}
 		}
 
-		if err := updateMDMWindowsHostProfileStatusFromResponseDB(ctx, tx, potentialProfilePayloads,
+		scepVerifying, err := updateMDMWindowsHostProfileStatusFromResponseDB(ctx, tx, potentialProfilePayloads,
 			microsoft_mdm.WindowsUserContextStateFromDevice(enrolledDevice),
-			enrolledDevice != nil && microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID)); err != nil {
+			enrolledDevice != nil && microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID))
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "updating host profile status")
+		}
+
+		// A proxied SCEP install the host just ACKed waits in "verifying" until the device reports the certificate, so ask
+		// it. The SCEP CSP enrolls after it ACKs, so the service holds the probe back for fleet.WindowsSCEPStatusProbeDelay.
+		if len(scepVerifying) > 0 {
+			installRawCmds := make(map[string][]byte, len(matchingCmds))
+			for _, cmd := range matchingCmds {
+				installRawCmds[cmd.CommandUUID] = cmd.RawCommand
+			}
+			for _, install := range scepVerifying {
+				probe := windowsSCEPStatusProbeCommand(install.CommandUUID, install.ProfileUUID,
+					isUserScopedWindowsSCEPInstall(installRawCmds[install.CommandUUID]), 1)
+				if err := ds.enqueueWindowsSCEPStatusProbeDB(ctx, tx, enrolledDevice.ID, probe); err != nil {
+					return err
+				}
+			}
+		}
+
+		var scepProbeChangedProfile bool
+		for _, probe := range scepStatusProbes {
+			installCmdUUID, _, ok := parseWindowsSCEPStatusProbeCmdUUID(probe.CommandUUID)
+			if !ok {
+				continue
+			}
+			var results *fleet.SyncMLCmd
+			if r, ok := enrichedSyncML.CmdRefUUIDToResults[probe.CommandUUID]; ok {
+				results = &r
+			}
+			changed, waiting, err := applyWindowsSCEPStatusProbeResultDB(ctx, tx, enrolledDevice.HostUUID, installCmdUUID, results)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "applying windows scep status probe result")
+			}
+			scepProbeChangedProfile = scepProbeChangedProfile || changed
+			if waiting {
+				if next := nextWindowsSCEPStatusProbeCommand(probe); next != nil {
+					if err := ds.enqueueWindowsSCEPStatusProbeDB(ctx, tx, enrolledDevice.ID, next); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		if scepProbeChangedProfile {
+			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{enrolledDevice.HostUUID}, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after scep status probe")
+			}
 		}
 
 		// store the command results. updated_at is set explicitly because an
@@ -1666,7 +1718,8 @@ func renewalIDManagedCertProfileUUIDsDB(ctx context.Context, tx sqlx.ExtContext,
 
 // updateMDMWindowsHostProfileStatusFromResponseDB takes a slice of potential
 // profile payloads and updates the corresponding `status` and `detail` columns
-// in `host_mdm_windows_profiles`
+// in `host_mdm_windows_profiles`. It returns the proxied SCEP installs it moved to
+// "verifying", which wait for a certificate status probe.
 // TODO(roberto): much of this logic should be living in the service layer,
 // would be nice to get the time to properly plan and implement.
 func updateMDMWindowsHostProfileStatusFromResponseDB(
@@ -1677,9 +1730,9 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	// userBoundEnrollment selects the hold detail wording: user-bound (Entra) enrollments wait for their enrolled user,
 	// device-bound ones for any user.
 	userBoundEnrollment bool,
-) error {
+) ([]windowsSCEPVerifyingInstall, error) {
 	if len(payloads) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// this statement will act as a batch-update, no new host profiles
@@ -1712,7 +1765,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	hostUUID := payloads[0].HostUUID
 	for _, payload := range payloads {
 		if payload.HostUUID != hostUUID {
-			return errors.New("all payloads must be for the same host uuid")
+			return nil, errors.New("all payloads must be for the same host uuid")
 		}
 		commandUUIDs = append(commandUUIDs, payload.CommandUUID)
 		uuidsToPayloads[payload.CommandUUID] = payload
@@ -1721,11 +1774,11 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	// find the matching entries for the given host_uuid, command_uuid combinations.
 	stmt, args, err := sqlx.In(getMatchingHostProfilesStmt, hostUUID, commandUUIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building sqlx.In query")
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In query")
 	}
 	var matchingHostProfiles []fleet.MDMWindowsProfilePayload
 	if err := sqlx.SelectContext(ctx, tx, &matchingHostProfiles, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "running query to get matching profiles")
+		return nil, ctxerr.Wrap(ctx, err, "running query to get matching profiles")
 	}
 
 	// Proxied SCEP profiles must not report "verified" off the device's SyncML ACK alone: a 2xx ACK only means the
@@ -1743,9 +1796,10 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 			verifiedInstallProfileUUIDs = append(verifiedInstallProfileUUIDs, hp.ProfileUUID)
 		}
 	}
+	var scepVerifying []windowsSCEPVerifyingInstall
 	scepProxyProfileUUIDs, err := renewalIDManagedCertProfileUUIDsDB(ctx, tx, hostUUID, verifiedInstallProfileUUIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "checking for proxied SCEP managed certificate profiles")
+		return nil, ctxerr.Wrap(ctx, err, "checking for proxied SCEP managed certificate profiles")
 	}
 
 	// Partition matching entries into upsert and delete buckets.
@@ -1761,6 +1815,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 			if _, ok := scepProxyProfileUUIDs[hp.ProfileUUID]; ok {
 				verifying := fleet.MDMDeliveryVerifying
 				payload.Status = &verifying
+				scepVerifying = append(scepVerifying, windowsSCEPVerifyingInstall{ProfileUUID: hp.ProfileUUID, CommandUUID: hp.CommandUUID})
 			}
 		}
 		// The device rejected a user-channel write while it has no MDM user context yet. That is not a failure of the profile, it is
@@ -1812,7 +1867,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	if len(values) > 0 {
 		stmt = fmt.Sprintf(updateHostProfilesStmt, values)
 		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating host profiles")
+			return nil, ctxerr.Wrap(ctx, err, "updating host profiles")
 		}
 	}
 
@@ -1823,33 +1878,66 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 			WHERE host_uuid = ? AND command_uuid IN (?)`,
 			hostUUID, deleteCommandUUIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building IN for remove cleanup")
+			return nil, ctxerr.Wrap(ctx, err, "building IN for remove cleanup")
 		}
 		if _, err = tx.ExecContext(ctx, deleteStmt, deleteArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "cleaning up completed remove profiles")
+			return nil, ctxerr.Wrap(ctx, err, "cleaning up completed remove profiles")
 		}
 	}
 
 	// Only the terminal remove cleanup above deletes profile rows; when it did not run, no rollup row
 	// can have been orphaned and the orphan-delete is safely skipped (the common case for check-ins).
 	if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, len(deleteCommandUUIDs) == 0); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup from response")
+		return nil, ctxerr.Wrap(ctx, err, "updating windows profiles status rollup from response")
 	}
 
-	return nil
+	return scepVerifying, nil
 }
 
 // SetMDMWindowsHostProfileFailedOrRetry records a failure Fleet observed itself rather than one the host reported, which
 // today means only an error Fleet's SCEP proxy saw from the upstream CA. While the profile has retries left it is put
 // back in the pending state so the profile manager redelivers it on its next tick.
 func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (bool, error) {
+	var retried bool
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		changed, r, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, "", detail)
+		if err != nil {
+			return err
+		}
+		retried = r
+		if !changed {
+			return nil
+		}
+		// This path only updates a profile row, so no rollup row can be orphaned.
+		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after profile failure")
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return retried, nil
+}
+
+// failOrRetryWindowsHostProfileDB puts a failed install back in the pending state while it has retries left and marks
+// it failed otherwise. When verifyingCmdUUID is set, the row is only touched while it is still "verifying" for that
+// install command, so a failure reported about an earlier delivery can't charge a newer one. The caller refreshes the
+// rollup when changed is true.
+func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID, verifyingCmdUUID, detail string,
+) (changed bool, retried bool, err error) {
 	// Only touch an existing install row (a removed profile is not resurrected). Never overwrite a row that already
 	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it).
-	const loadStmt = `
+	loadStmt := `
 		SELECT status, retries
 		FROM host_mdm_windows_profiles
-		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?
-		FOR UPDATE`
+		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
+	loadArgs := []any{hostUUID, profileUUID, fleet.MDMOperationTypeInstall}
+	if verifyingCmdUUID != "" {
+		loadStmt += ` AND command_uuid = ? AND status = ?`
+		loadArgs = append(loadArgs, verifyingCmdUUID, fleet.MDMDeliveryVerifying)
+	}
+	loadStmt += ` FOR UPDATE`
 
 	const retryStmt = `
 		UPDATE host_mdm_windows_profiles
@@ -1861,51 +1949,37 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 		SET status = ?, detail = ?
 		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
 
-	var retried bool
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		retried = false
-
-		var row struct {
-			Status  *fleet.MDMDeliveryStatus `db:"status"`
-			Retries uint                     `db:"retries"`
-		}
-		switch err := sqlx.GetContext(ctx, tx, &row, loadStmt, hostUUID, profileUUID, fleet.MDMOperationTypeInstall); {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil
-		case err != nil:
-			return ctxerr.Wrap(ctx, err, "loading windows host profile to record failure")
-		}
-
-		switch {
-		case row.Status == nil:
-			// A delivery is already queued for this profile, so nothing to record.
-			return nil
-		case *row.Status == fleet.MDMDeliveryVerified:
-			return nil
-		case row.Retries < mdm.MaxWindowsProfileRetries:
-			if _, err := tx.ExecContext(ctx, retryStmt, hostUUID, profileUUID, fleet.MDMOperationTypeInstall); err != nil {
-				return ctxerr.Wrap(ctx, err, "retrying windows host profile after failure")
-			}
-			retried = true
-		default:
-			if _, err := tx.ExecContext(
-				ctx, failStmt,
-				fleet.MDMDeliveryFailed, truncateMDMWindowsProfileDetail(detail), hostUUID, profileUUID, fleet.MDMOperationTypeInstall,
-			); err != nil {
-				return ctxerr.Wrap(ctx, err, "set windows host profile failed")
-			}
-		}
-
-		// This path only updates a profile row, so no rollup row can be orphaned.
-		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after profile failure")
-		}
-		return nil
-	})
-	if err != nil {
-		return false, err
+	var row struct {
+		Status  *fleet.MDMDeliveryStatus `db:"status"`
+		Retries uint                     `db:"retries"`
 	}
-	return retried, nil
+	switch err := sqlx.GetContext(ctx, tx, &row, loadStmt, loadArgs...); {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, false, nil
+	case err != nil:
+		return false, false, ctxerr.Wrap(ctx, err, "loading windows host profile to record failure")
+	}
+
+	switch {
+	case row.Status == nil:
+		// A delivery is already queued for this profile, so nothing to record.
+		return false, false, nil
+	case *row.Status == fleet.MDMDeliveryVerified:
+		return false, false, nil
+	case row.Retries < mdm.MaxWindowsProfileRetries:
+		if _, err := tx.ExecContext(ctx, retryStmt, hostUUID, profileUUID, fleet.MDMOperationTypeInstall); err != nil {
+			return false, false, ctxerr.Wrap(ctx, err, "retrying windows host profile after failure")
+		}
+		return true, true, nil
+	default:
+		if _, err := tx.ExecContext(
+			ctx, failStmt,
+			fleet.MDMDeliveryFailed, truncateMDMWindowsProfileDetail(detail), hostUUID, profileUUID, fleet.MDMOperationTypeInstall,
+		); err != nil {
+			return false, false, ctxerr.Wrap(ctx, err, "set windows host profile failed")
+		}
+		return true, false, nil
+	}
 }
 
 // ResendWindowsHostCertificateProfile queues a Windows certificate profile for redelivery after Fleet turned a SCEP

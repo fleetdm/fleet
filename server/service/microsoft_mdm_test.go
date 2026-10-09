@@ -4051,3 +4051,64 @@ func TestGetPendingMDMCmdsSkipsCommandThatFailsExpansion(t *testing.T) {
 	require.Len(t, cmds, 1)
 	require.Equal(t, "good", cmds[0].CmdID.Value)
 }
+
+func TestGetPendingMDMCmdsHoldsBackRecentSCEPStatusProbes(t *testing.T) {
+	probe := func(age time.Duration) *fleet.MDMWindowsCommand {
+		cmdUUID := fleet.WindowsSCEPStatusProbeCmdUUIDPrefix + "install-1"
+		return &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID,
+			TargetLocURI: "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/w1/Status",
+			RawCommand: []byte(`<Get><CmdID>` + cmdUUID + `</CmdID><Item><Target>` +
+				`<LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/w1/Status</LocURI></Target></Item></Get>`),
+			CreatedAt: time.Now().Add(-age),
+		}
+	}
+	other := &fleet.MDMWindowsCommand{
+		CommandUUID: "other",
+		RawCommand:  []byte(`<Replace><CmdID>other</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Replace>`),
+		CreatedAt:   time.Now(),
+	}
+	probeCmdID := fleet.WindowsSCEPStatusProbeCmdUUIDPrefix + "install-1"
+
+	cases := []struct {
+		name       string
+		pending    []*fleet.MDMWindowsCommand
+		wantCmdIDs []string
+	}{
+		{
+			name:       "probe queued long enough",
+			pending:    []*fleet.MDMWindowsCommand{probe(fleet.WindowsSCEPStatusProbeDelay + time.Second), other},
+			wantCmdIDs: []string{probeCmdID, "other"},
+		},
+		{
+			name:       "probe just queued",
+			pending:    []*fleet.MDMWindowsCommand{probe(0), other},
+			wantCmdIDs: []string{"other"},
+		},
+		{
+			name:       "only a just-queued probe pending",
+			pending:    []*fleet.MDMWindowsCommand{probe(0)},
+			wantCmdIDs: []string{},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+				return c.pending, nil
+			}
+			ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
+			svc, _ := newTestService(t, ds, nil, nil)
+
+			cmds, onlyPollCmdsPending, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
+			require.NoError(t, err)
+			gotCmdIDs := make([]string, 0, len(cmds))
+			for _, cmd := range cmds {
+				gotCmdIDs = append(gotCmdIDs, cmd.CmdID.Value)
+			}
+			require.Equal(t, c.wantCmdIDs, gotCmdIDs)
+			// A held-back probe is still pending, so the session must not clear has_pending_commands.
+			require.False(t, onlyPollCmdsPending)
+		})
+	}
+}
