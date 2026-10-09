@@ -14,8 +14,17 @@ fi
 /usr/sbin/chown root:wheel "$PLIST_PATH"
 /bin/chmod 644 "$PLIST_PATH"
 
-if /bin/launchctl list | /usr/bin/grep -q "$LABEL"; then
-    /bin/launchctl unload "$PLIST_PATH" 2>/dev/null
-fi
+# Post-install scripts run as root, so load the LaunchAgent into the logged-in user's GUI session.
+# If no one is logged in, launchd loads it at the next login.
+CONSOLE_USER=$(/usr/bin/stat -f '%Su' /dev/console)
+case "$CONSOLE_USER" in
+    ""|root|loginwindow|_mbsetupuser)
+        echo "No user logged in. The LaunchAgent will load at the next login."
+        exit 0
+        ;;
+esac
 
-/bin/launchctl load "$PLIST_PATH" || exit 1
+USER_UID=$(/usr/bin/id -u "$CONSOLE_USER") || exit 1
+
+/bin/launchctl bootout "gui/$USER_UID/$LABEL" 2>/dev/null
+/bin/launchctl bootstrap "gui/$USER_UID" "$PLIST_PATH" || exit 1

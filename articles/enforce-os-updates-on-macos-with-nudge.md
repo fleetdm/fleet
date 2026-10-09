@@ -42,7 +42,7 @@ software:
 
 The LaunchAgent opens Nudge on a schedule, so end users see the reminder even if they never open Nudge themselves.
 
-1. Download the [post-install script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/nudge-postinstall.sh) (`nudge-postinstall.sh`). It loads the LaunchAgent right after install, without waiting for the next login.
+1. Download the [post-install script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/nudge-postinstall.sh) (`nudge-postinstall.sh`). It loads the LaunchAgent for the logged-in user right after install, without waiting for the next login. If no one is logged in, the LaunchAgent loads at the next login.
 
 2. Go to **Software > Add software > Custom package** and upload the Nudge LaunchAgent package.
 3. Under **Advanced options**, paste the script into **Post-install script**.
