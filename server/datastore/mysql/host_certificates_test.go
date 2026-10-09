@@ -1674,10 +1674,13 @@ func TestCleanupDeletedHostCerts(t *testing.T) {
 	}
 	ingest(fleet.HostCertificateOriginOsquery, "expired-a", "expired-b", "expired-c", "recent", "live")
 	ingest(fleet.HostCertificateOriginMDM, "expired-mdm")
-	// No datastore method soft-deletes with a past timestamp.
+	// No datastore method soft-deletes with a past timestamp. Distinct timestamps fix the cursor order to a, b, c, since
+	// UpdateHostCertificates inserts in map iteration order, so the id order is random.
+	expired := now.Add(-60 * 24 * time.Hour)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE host_certificates SET deleted_at = IF(common_name = 'recent', ?, ?) WHERE common_name <> 'live'`,
-			now.Add(-24*time.Hour), now.Add(-60*24*time.Hour))
+		_, err := q.ExecContext(ctx, `UPDATE host_certificates SET deleted_at = CASE common_name
+			WHEN 'recent' THEN ? WHEN 'expired-b' THEN ? WHEN 'expired-c' THEN ? ELSE ? END WHERE common_name <> 'live'`,
+			now.Add(-24*time.Hour), expired.Add(time.Second), expired.Add(2*time.Second), expired)
 		return err
 	})
 	// ListHostCertificates hides soft-deleted rows, so read the primary directly.
@@ -1703,13 +1706,13 @@ func TestCleanupDeletedHostCerts(t *testing.T) {
 	cleanup(2, 2, 0)
 	opts.RunReplication()
 
-	// The batch cap stops the run after two of the three expired osquery certs.
-	cleanup(2, 1, 2)
-	requirePrimaryState([]string{"expired-c", "expired-mdm", "live", "recent"}, 4)
+	// The batch cap stops the osquery pass after two of its three expired certs, and the mdm pass still runs on its own budget.
+	cleanup(2, 1, 3)
+	requirePrimaryState([]string{"expired-c", "live", "recent"}, 3)
 
-	// The replica still returns the two deleted certs. The cursor moves past them instead of re-selecting them until the cap, so the
-	// run reaches the third osquery cert and the mdm cert. Source rows go with their certs via the cascade.
-	cleanup(2, 10, 2)
+	// The replica still returns the three deleted certs. The cursor moves past them instead of re-selecting them until the cap, so the
+	// run reaches the third osquery cert. Source rows go with their certs via the cascade.
+	cleanup(2, 10, 1)
 	requirePrimaryState([]string{"live", "recent"}, 2)
 }
 

@@ -985,7 +985,7 @@ func (ds *Datastore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context
 func (ds *Datastore) CleanupSoftDeletedHostCertificates(ctx context.Context, olderThan time.Time) (int64, error) {
 	const (
 		batchSize  = 500
-		maxBatches = 200 // 100k certificates per tick
+		maxBatches = 200 // 100k certificates per origin per tick
 	)
 	return cleanupSoftDeletedHostCertsDB(ctx, ds, olderThan, batchSize, maxBatches)
 }
@@ -993,7 +993,7 @@ func (ds *Datastore) CleanupSoftDeletedHostCertificates(ctx context.Context, old
 // cleanupSoftDeletedHostCertsDB selects ids on the replica, then deletes them by primary key. Each origin is walked with a
 // (deleted_at, id) cursor in idx_host_certs_origin_deleted order, so every batch reads only its own index entries and a lagging
 // replica that still returns already-deleted rows can't make the loop select them again. The DELETE re-checks deleted_at, so stale
-// replica data can't remove a live cert.
+// replica data can't remove a live cert. maxBatches applies per origin, so a large backlog in one can't hold back the other.
 func cleanupSoftDeletedHostCertsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
 	const (
 		firstSelectStmt = `
@@ -1015,14 +1015,13 @@ LIMIT ?`
 	}
 
 	var totalDeleted int64
-	batches := 0
 	for _, origin := range []fleet.HostCertificateOrigin{fleet.HostCertificateOriginOsquery, fleet.HostCertificateOriginMDM} {
 		var cursor *softDeletedCert
-		for {
+		for batches := 0; ; batches++ {
 			if batches == maxBatches {
 				ds.logger.WarnContext(ctx, "cleanup soft-deleted host certificates hit its batch cap, any remaining rows are cleaned on the next run",
-					"deleted", totalDeleted, "max_batches", maxBatches)
-				return totalDeleted, nil
+					"origin", origin, "deleted", totalDeleted, "max_batches", maxBatches)
+				break
 			}
 			var certs []softDeletedCert
 			var err error
@@ -1038,7 +1037,6 @@ LIMIT ?`
 			if len(certs) == 0 {
 				break
 			}
-			batches++
 			cursor = &certs[len(certs)-1]
 
 			ids := make([]uint, 0, len(certs))

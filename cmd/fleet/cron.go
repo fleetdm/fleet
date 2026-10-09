@@ -1658,7 +1658,6 @@ func newCleanupsAndAggregationSchedule(
 			}
 			return nil
 		}),
-		// After the unenrolled sweep above, so the certs it soft-deletes start aging in the same tick.
 		schedule.WithJob("cleanup_host_certificates", func(ctx context.Context) error {
 			return cleanupHostCertificatesCronJob(ctx, ds, logger, config.Server.DeletedHostCertificatesRetention)
 		}),
