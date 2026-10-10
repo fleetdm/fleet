@@ -39,6 +39,20 @@
       }
     }
   
+    &__target {
+      display: flex;
+      flex-direction: column;
+      gap: $pad-small;
+    }
+
+    &__target-labels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $pad-small;
+      margin-top: $pad-medium;
+      margin-bottom: $pad-medium;
+    }
+
     &__auto-update-schedule-form {
       .date-time-inputs {
         display: flex;
