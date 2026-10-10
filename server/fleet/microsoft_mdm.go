@@ -1160,6 +1160,19 @@ func IsFleetInternalCmdID(cmdID string) bool {
 	return strings.HasPrefix(cmdID, FleetInternalCmdIDPrefix)
 }
 
+// WindowsSCEPStatusProbeCmdUUIDPrefix marks the queued <Get> commands that read a proxied SCEP profile's
+// ClientCertificateInstall status after the host ACKs the install.
+const WindowsSCEPStatusProbeCmdUUIDPrefix = "scep-status-"
+
+// WindowsSCEPStatusProbeDelay is how long a SCEP status probe stays queued before it is sent, which gives the device's
+// SCEP enrollment time to finish and spaces consecutive probes.
+const WindowsSCEPStatusProbeDelay = 30 * time.Second
+
+// IsWindowsSCEPStatusProbeCmdUUID reports whether a Windows MDM command is a SCEP status probe.
+func IsWindowsSCEPStatusProbeCmdUUID(cmdUUID string) bool {
+	return strings.HasPrefix(cmdUUID, WindowsSCEPStatusProbeCmdUUIDPrefix)
+}
+
 // ProtoCmdOperation is the abstraction to represent a SyncML Protocol Command
 type ProtoCmdOperation struct {
 	Verb string    `db:"verb"`
