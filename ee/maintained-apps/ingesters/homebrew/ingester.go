@@ -164,6 +164,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier,
 		)
 	}
+	if input.Token == "chatgpt" {
+		// The patch policy generated below inherits this match.
+		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE %s;", chatGPTBundleMatch(""))
+	}
 	out.Slug = input.Slug
 	out.DefaultCategories = input.DefaultCategories
 
@@ -369,9 +373,26 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%%.app/Contents/MacOS/%%')) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
 			out.UniqueIdentifier,
 		)
+	case "chatgpt":
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (%s) AND a.bundle_executable != '');",
+			chatGPTBundleMatch("a."),
+		)
 	}
 
 	return out, nil
+}
+
+// chatGPTBundleMatch matches the ChatGPT app under both of its bundle identifiers.
+// OpenAI rebuilt ChatGPT on the Codex app, so current builds report com.openai.codex
+// while hosts that haven't updated still report com.openai.chat. The discontinued
+// Codex.app also reports com.openai.codex, so that identifier only counts when the
+// bundle is named ChatGPT. Callers must parenthesize it before adding conditions.
+func chatGPTBundleMatch(alias string) string {
+	return fmt.Sprintf(
+		"%[1]sbundle_identifier = 'com.openai.chat' OR (%[1]sbundle_identifier = 'com.openai.codex' AND %[1]sbundle_name = 'ChatGPT')",
+		alias,
+	)
 }
 
 var firefoxBetaVersionPattern = regexp.MustCompile(`^(\d+(?:\.\d+)*)b\d+$`)
