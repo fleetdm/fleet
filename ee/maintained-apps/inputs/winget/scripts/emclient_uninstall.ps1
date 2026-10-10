@@ -11,11 +11,12 @@ $successCodes = @(0, 3010, 1641)
 
 # Windows finishes removing the package for signed-out users at their next sign-in,
 # so only a provisioned package or a signed-in user's copy counts as left behind.
+# The queries stop on errors so a failed query isn't read as nothing left.
 function Test-PackageRemains {
-  if (@(Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $packageName }).Count -gt 0) {
+  if (@(Get-AppxProvisionedPackage -Online -ErrorAction Stop | Where-Object { $_.DisplayName -eq $packageName }).Count -gt 0) {
     return $true
   }
-  foreach ($package in @(Get-AppxPackage -AllUsers -Name $packageName)) {
+  foreach ($package in @(Get-AppxPackage -AllUsers -Name $packageName -ErrorAction Stop)) {
     foreach ($user in @($package.PackageUserInformation)) {
       if (Test-Path "Registry::HKEY_USERS\$($user.UserSecurityId.Sid)") {
         return $true
@@ -46,7 +47,7 @@ try {
 
   # The removal cmdlets can report errors for removals that succeed, so check what's
   # left afterwards instead.
-  Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $packageName } | ForEach-Object {
+  Get-AppxProvisionedPackage -Online -ErrorAction Stop | Where-Object { $_.DisplayName -eq $packageName } | ForEach-Object {
     Write-Host "Removing provisioned package $($_.PackageName)"
     try {
       Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -AllUsers -ErrorAction Stop | Out-Null
@@ -55,7 +56,7 @@ try {
     }
   }
 
-  Get-AppxPackage -AllUsers -Name $packageName | ForEach-Object {
+  Get-AppxPackage -AllUsers -Name $packageName -ErrorAction Stop | ForEach-Object {
     Write-Host "Removing package $($_.PackageFullName)"
     try {
       Remove-AppxPackage -Package $_.PackageFullName -AllUsers -ErrorAction Stop
