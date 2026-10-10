@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
@@ -416,6 +418,357 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 	require.ErrorContains(t, err, "requested app not available on vpp account: "+adamID)
 	require.Equal(t, 1, strings.Count(err.Error(), adamID),
 		"missing-asset error must dedup by AdamID, got: %s", err.Error())
+}
+
+// A dry run must report an app that is missing from the VPP location the
+// same way a real apply does. Before this test the dry run returned early,
+// so an unlicensed or mistyped Adam ID passed `fleetctl gitops --dry-run`
+// and only failed during the real apply.
+func TestBatchAssociateVPPAppsDryRunReportsMissingAssets(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"assets":[{"adamId":"497799835"}]}`))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
+		return &fleet.VPPTokenDB{
+			ID:          1,
+			OrgName:     "us-org",
+			Token:       "us-secret",
+			RenewDate:   time.Now().Add(24 * time.Hour),
+			CountryCode: "us",
+		}, nil
+	}
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, _ uint, _ []string) (map[string]uint, error) {
+		return nil, nil
+	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, _ []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
+
+	svc := newTestService(t, ds)
+
+	ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	payload := func(adamID string) []fleet.VPPBatchPayload {
+		return []fleet.VPPBatchPayload{{
+			AppStoreID:       adamID,
+			Platform:         fleet.IOSPlatform,
+			LabelsExcludeAny: []string{},
+			LabelsIncludeAny: []string{},
+			LabelsIncludeAll: []string{},
+			Categories:       []string{},
+		}}
+	}
+
+	// Licensed app: the dry run still succeeds without writing anything.
+	_, _, err := svc.BatchAssociateVPPApps(ctx, "", payload("497799835"), true)
+	require.NoError(t, err)
+	require.False(t, ds.BatchInsertVPPAppsFuncInvoked)
+	require.False(t, ds.SetTeamVPPAppsFuncInvoked)
+
+	// Unlicensed app: the dry run fails with the same error as the real apply.
+	const missing = "1107542306"
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "", payload(missing), true)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "requested app not available on vpp account: "+missing)
+	require.False(t, ds.BatchInsertVPPAppsFuncInvoked)
+	require.False(t, ds.SetTeamVPPAppsFuncInvoked)
+}
+
+// A dry run for a team that does not exist yet used to return before any
+// check. It must still refuse an Apple app that no VPP token can supply, since
+// a new team's first real apply is where such an app otherwise fails, part-way
+// through fleetctl's VPP re-apply.
+func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"assets":[{"adamId":"497799835"}]}`))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, common_mysql.NotFound("Team")
+	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, _ []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{
+			ID:          1,
+			OrgName:     "us-org",
+			Token:       "us-secret",
+			RenewDate:   time.Now().Add(24 * time.Hour),
+			CountryCode: "us",
+		}}, nil
+	}
+
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	payload := func(adamID string, platform fleet.InstallableDevicePlatform) []fleet.VPPBatchPayload {
+		return []fleet.VPPBatchPayload{{
+			AppStoreID:       adamID,
+			Platform:         platform,
+			LabelsExcludeAny: []string{},
+			LabelsIncludeAny: []string{},
+			LabelsIncludeAll: []string{},
+			Categories:       []string{},
+		}}
+	}
+
+	// Licensed on a token: the dry run passes and nothing is written.
+	_, _, err := svc.BatchAssociateVPPApps(ctx, "New team", payload("497799835", fleet.IOSPlatform), true)
+	require.NoError(t, err)
+
+	// Licensed nowhere: the same error a real apply returns.
+	const missing = "1107542306"
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload(missing, fleet.IPadOSPlatform), true)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "requested app not available on vpp account: "+missing)
+
+	// Play Store apps are not VPP assets and are not checked here.
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload("com.example.android", fleet.AndroidPlatform), true)
+	require.NoError(t, err)
+
+	require.False(t, ds.BatchInsertVPPAppsFuncInvoked)
+	require.False(t, ds.SetTeamVPPAppsFuncInvoked)
+
+	// A real apply for a missing team is unchanged: still a not-found error.
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload(missing, fleet.IPadOSPlatform), false)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+}
+
+// A dry run for a team that does not exist yet reads every unexpired token. A
+// token Apple rejects must not fail the dry run while another token answers,
+// since the team may never be assigned to it. Only when no token answers does
+// the dry run fail, and when every token is expired it fails without calling Apple.
+func TestBatchAssociateVPPAppsDryRunNewTeamToleratesUnreadableToken(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	var calls atomic.Int32
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusOK)
+		if r.Header.Get("Authorization") == "Bearer good" {
+			_, _ = w.Write([]byte(`{"assets":[{"adamId":"497799835"}]}`))
+			return
+		}
+		// Apple answers a revoked token with 200 and an error body.
+		_, _ = w.Write([]byte(`{"errorNumber":9622,"errorMessage":"Invalid authentication token"}`))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	token := func(secret string, renew time.Time) *fleet.VPPTokenDB {
+		return &fleet.VPPTokenDB{OrgName: secret + "-org", Token: secret, RenewDate: renew, CountryCode: "us"}
+	}
+	valid := time.Now().Add(24 * time.Hour)
+	expired := time.Now().Add(-24 * time.Hour)
+
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, common_mysql.NotFound("Team")
+	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, _ []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
+	var tokens []*fleet.VPPTokenDB
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return tokens, nil
+	}
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	payload := []fleet.VPPBatchPayload{{AppStoreID: "497799835", Platform: fleet.IOSPlatform}}
+
+	// One revoked token and one that holds the app: the dry run passes.
+	tokens = []*fleet.VPPTokenDB{token("bad", valid), token("good", valid)}
+	_, _, err := svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, calls.Load())
+
+	// Only revoked tokens: the dry run fails with the fetch error.
+	tokens = []*fleet.VPPTokenDB{token("bad", valid), token("worse", valid)}
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
+	require.ErrorContains(t, err, "unable to retrieve assets")
+	require.ErrorContains(t, err, "Invalid authentication token")
+
+	// Only expired tokens: the dry run fails before calling Apple.
+	calls.Store(0)
+	tokens = []*fleet.VPPTokenDB{token("good", expired)}
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
+	require.ErrorContains(t, err, "VPP token expired")
+	require.Zero(t, calls.Load())
+
+	// An expired token next to a valid one is ignored.
+	tokens = []*fleet.VPPTokenDB{token("bad", expired), token("good", valid)}
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, calls.Load())
+
+	require.False(t, ds.BatchInsertVPPAppsFuncInvoked)
+	require.False(t, ds.SetTeamVPPAppsFuncInvoked)
+}
+
+// A dry run for a team that does not exist yet must reject the same payloads
+// the existing-team path rejects, instead of skipping them because no VPP
+// lookup applies. Each case fails before any token is read.
+func TestBatchAssociateVPPAppsDryRunNewTeamValidatesPayloads(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, common_mysql.NotFound("Team")
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return nil, nil
+	}
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	ios := func(adamID, versionName string) fleet.VPPBatchPayload {
+		return fleet.VPPBatchPayload{AppStoreID: adamID, Platform: fleet.IOSPlatform, VersionName: versionName}
+	}
+	tests := []struct {
+		name string
+		// duplicates is what the collation lookup reports, indexes into the
+		// expanded version list.
+		duplicates []fleet.DuplicateStringGroup
+		payloads   []fleet.VPPBatchPayload
+		wantErr    string
+	}{
+		{
+			name:     "unsupported platform",
+			payloads: []fleet.VPPBatchPayload{{AppStoreID: "not-an-adam-id", Platform: fleet.InstallableDevicePlatform("windows")}},
+			wantErr:  "platform must be one of",
+		},
+		{
+			name:     "fleet agent on android",
+			payloads: []fleet.VPPBatchPayload{{AppStoreID: fleetAgentPackagePrefix + ".foo", Platform: fleet.AndroidPlatform}},
+			wantErr:  "The Fleet agent cannot be added manually",
+		},
+		{
+			name:     "empty category",
+			payloads: []fleet.VPPBatchPayload{{AppStoreID: "497799835", Platform: fleet.IOSPlatform, Categories: []string{" "}}},
+			wantErr:  "name is required",
+		},
+		{
+			name:     "version name too long",
+			payloads: []fleet.VPPBatchPayload{ios("497799835", strings.Repeat("v", fleet.MaxAppStoreAppVersionNameLength+1))},
+			wantErr:  "The version name can't be longer than",
+		},
+		{
+			name:     "entry with and without versions",
+			payloads: []fleet.VPPBatchPayload{ios("497799835", ""), ios("497799835", "Stable")},
+			wantErr:  "The app has an entry without versions and an entry with versions",
+		},
+		{
+			name: "auto-update window without times",
+			payloads: []fleet.VPPBatchPayload{{
+				AppStoreID: "497799835", Platform: fleet.IOSPlatform, AutoUpdateEnabled: new(true),
+			}},
+			wantErr: "Start and end time must both be set",
+		},
+		{
+			// No platform expands to macOS, iOS, and iPadOS, so the iOS window check applies.
+			name: "auto-update window on an app with no platform",
+			payloads: []fleet.VPPBatchPayload{{
+				AppStoreID: "497799835", AutoUpdateStartTime: new("09:00"), AutoUpdateEndTime: new("09:30"),
+			}},
+			wantErr: "The update window must be at least one hour long",
+		},
+		{
+			name:       "version names equal under collation",
+			duplicates: []fleet.DuplicateStringGroup{{Indices: []int{0, 1}}},
+			payloads:   []fleet.VPPBatchPayload{ios("497799835", "Stable"), ios("497799835", "stable")},
+			wantErr:    "More than one version is named",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds.ListVPPTokensFuncInvoked = false
+			ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, _ []string) ([]fleet.DuplicateStringGroup, error) {
+				return tt.duplicates, nil
+			}
+			_, _, err := svc.BatchAssociateVPPApps(ctx, "New team", tt.payloads, true)
+			require.ErrorContains(t, err, tt.wantErr)
+			require.False(t, ds.ListVPPTokensFuncInvoked)
+		})
+	}
+}
+
+// A dry run for a team that does not exist yet reads the assets of every VPP
+// token, so it must require global software write access first. Anyone who can
+// read teams could otherwise probe which App Store IDs the org has licensed.
+func TestBatchAssociateVPPAppsDryRunNewTeamRequiresWriteAccess(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, common_mysql.NotFound("Team")
+	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, _ []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return nil, nil
+	}
+	svc := newTestService(t, ds)
+
+	payloads := []fleet.VPPBatchPayload{{
+		AppStoreID:       "497799835",
+		Platform:         fleet.IOSPlatform,
+		LabelsExcludeAny: []string{},
+		LabelsIncludeAny: []string{},
+		LabelsIncludeAll: []string{},
+		Categories:       []string{},
+	}}
+
+	team1 := func(role string) *fleet.User {
+		return &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: role}}}
+	}
+	tests := []struct {
+		name      string
+		user      *fleet.User
+		forbidden bool
+	}{
+		{"global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false},
+		{"global maintainer", &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}, false},
+		{"global gitops", &fleet.User{GlobalRole: new(fleet.RoleGitOps)}, false},
+		{"global technician", &fleet.User{GlobalRole: new(fleet.RoleTechnician)}, true},
+		{"global observer", &fleet.User{GlobalRole: new(fleet.RoleObserver)}, true},
+		{"team admin", team1(fleet.RoleAdmin), true},
+		{"team gitops", team1(fleet.RoleGitOps), true},
+		{"team observer", team1(fleet.RoleObserver), true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds.ListVPPTokensFuncInvoked = false
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: tt.user})
+			_, _, err := svc.BatchAssociateVPPApps(ctx, "New team", payloads, true)
+			if tt.forbidden {
+				var forbidden *authz.Forbidden
+				require.ErrorAs(t, err, &forbidden)
+				require.False(t, ds.ListVPPTokensFuncInvoked, "VPP tokens must not be read before authorization")
+				return
+			}
+			require.NoError(t, err)
+			require.True(t, ds.ListVPPTokensFuncInvoked)
+		})
+	}
 }
 
 // TestGetVPPTokensScoping verifies that GetVPPTokens returns every token to
