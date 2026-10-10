@@ -502,6 +502,9 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return nil, common_mysql.NotFound("Team")
 	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, _ []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{{
 			ID:          1,
@@ -564,31 +567,71 @@ func TestBatchAssociateVPPAppsDryRunNewTeamValidatesPayloads(t *testing.T) {
 	svc := newTestService(t, ds)
 	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
+	ios := func(adamID, versionName string) fleet.VPPBatchPayload {
+		return fleet.VPPBatchPayload{AppStoreID: adamID, Platform: fleet.IOSPlatform, VersionName: versionName}
+	}
 	tests := []struct {
-		name    string
-		payload fleet.VPPBatchPayload
-		wantErr string
+		name string
+		// duplicates is what the collation lookup reports, indexes into the
+		// expanded version list.
+		duplicates []fleet.DuplicateStringGroup
+		payloads   []fleet.VPPBatchPayload
+		wantErr    string
 	}{
 		{
-			"unsupported platform",
-			fleet.VPPBatchPayload{AppStoreID: "not-an-adam-id", Platform: fleet.InstallableDevicePlatform("windows")},
-			"platform must be one of",
+			name:     "unsupported platform",
+			payloads: []fleet.VPPBatchPayload{{AppStoreID: "not-an-adam-id", Platform: fleet.InstallableDevicePlatform("windows")}},
+			wantErr:  "platform must be one of",
 		},
 		{
-			"fleet agent on android",
-			fleet.VPPBatchPayload{AppStoreID: fleetAgentPackagePrefix + ".foo", Platform: fleet.AndroidPlatform},
-			"The Fleet agent cannot be added manually",
+			name:     "fleet agent on android",
+			payloads: []fleet.VPPBatchPayload{{AppStoreID: fleetAgentPackagePrefix + ".foo", Platform: fleet.AndroidPlatform}},
+			wantErr:  "The Fleet agent cannot be added manually",
 		},
 		{
-			"empty category",
-			fleet.VPPBatchPayload{AppStoreID: "497799835", Platform: fleet.IOSPlatform, Categories: []string{" "}},
-			"name is required",
+			name:     "empty category",
+			payloads: []fleet.VPPBatchPayload{{AppStoreID: "497799835", Platform: fleet.IOSPlatform, Categories: []string{" "}}},
+			wantErr:  "name is required",
+		},
+		{
+			name:     "version name too long",
+			payloads: []fleet.VPPBatchPayload{ios("497799835", strings.Repeat("v", fleet.MaxAppStoreAppVersionNameLength+1))},
+			wantErr:  "The version name can't be longer than",
+		},
+		{
+			name:     "entry with and without versions",
+			payloads: []fleet.VPPBatchPayload{ios("497799835", ""), ios("497799835", "Stable")},
+			wantErr:  "The app has an entry without versions and an entry with versions",
+		},
+		{
+			name: "auto-update window without times",
+			payloads: []fleet.VPPBatchPayload{{
+				AppStoreID: "497799835", Platform: fleet.IOSPlatform, AutoUpdateEnabled: new(true),
+			}},
+			wantErr: "Start and end time must both be set",
+		},
+		{
+			// No platform expands to macOS, iOS, and iPadOS, so the iOS window check applies.
+			name: "auto-update window on an app with no platform",
+			payloads: []fleet.VPPBatchPayload{{
+				AppStoreID: "497799835", AutoUpdateStartTime: new("09:00"), AutoUpdateEndTime: new("09:30"),
+			}},
+			wantErr: "The update window must be at least one hour long",
+		},
+		{
+			name:       "version names equal under collation",
+			duplicates: []fleet.DuplicateStringGroup{{Indices: []int{0, 1}}},
+			payloads:   []fleet.VPPBatchPayload{ios("497799835", "Stable"), ios("497799835", "stable")},
+			wantErr:    "More than one version is named",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ds.ListVPPTokensFuncInvoked = false
-			_, _, err := svc.BatchAssociateVPPApps(ctx, "New team", []fleet.VPPBatchPayload{tt.payload}, true)
+			ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, _ []string) ([]fleet.DuplicateStringGroup, error) {
+				return tt.duplicates, nil
+			}
+			_, _, err := svc.BatchAssociateVPPApps(ctx, "New team", tt.payloads, true)
 			require.ErrorContains(t, err, tt.wantErr)
 			require.False(t, ds.ListVPPTokensFuncInvoked)
 		})
@@ -603,6 +646,9 @@ func TestBatchAssociateVPPAppsDryRunNewTeamRequiresWriteAccess(t *testing.T) {
 	ds := new(mock.Store)
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return nil, common_mysql.NotFound("Team")
+	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, _ []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
 	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return nil, nil

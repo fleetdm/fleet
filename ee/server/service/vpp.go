@@ -193,15 +193,111 @@ func (svc *Service) getVPPTokenInfo(ctx context.Context, teamID *uint) (vppToken
 
 var isAdamID = regexp.MustCompile(`^[0-9]+$`)
 
-// validateVPPBatchPayloadPlatform holds the payload checks that need no team
-// context, so the dry run for a not-yet-created team can apply them too.
+// The payload checks below need no team context, so BatchAssociateVPPApps and
+// the dry run for a not-yet-created team share them. A check that needs the
+// team (its config, labels, categories, or token) stays in BatchAssociateVPPApps.
+
+// validateVPPBatchPayloadVersions rejects version names that are too long or
+// too many per app, and an app listed both with and without versions, since the
+// entry without versions would add a Default version next to the named ones.
+func validateVPPBatchPayloadVersions(payloads []fleet.VPPBatchPayload) error {
+	// An entry without versions sends one version with no name.
+	versionNamesByApp := make(map[fleet.VPPAppID][]string)
+	appsWithUnnamedVersion := make(map[fleet.VPPAppID]struct{})
+	for _, payload := range payloads {
+		appID := fleet.VPPAppID{AdamID: payload.AppStoreID, Platform: payload.Platform}
+		versionName := strings.TrimSpace(payload.VersionName)
+		if versionName == "" {
+			appsWithUnnamedVersion[appID] = struct{}{}
+			continue
+		}
+
+		if utf8.RuneCountInString(versionName) > fleet.MaxAppStoreAppVersionNameLength {
+			return fleet.NewInvalidArgumentError("app_store_apps.name",
+				fmt.Sprintf("Couldn't edit app store app (%s). The version name can't be longer than %d characters.", payload.AppStoreID, fleet.MaxAppStoreAppVersionNameLength))
+		}
+
+		versionNamesByApp[appID] = append(versionNamesByApp[appID], versionName)
+		if len(versionNamesByApp[appID]) > fleet.MaxAppStoreAppVersions {
+			return fleet.NewInvalidArgumentError("app_store_apps.versions",
+				fmt.Sprintf("Couldn't edit app store app (%s). An app can have at most %d versions per fleet.", payload.AppStoreID, fleet.MaxAppStoreAppVersions))
+		}
+	}
+
+	for appID := range appsWithUnnamedVersion {
+		if len(versionNamesByApp[appID]) > 0 {
+			return fleet.NewInvalidArgumentError("app_store_apps.versions",
+				fmt.Sprintf("Couldn't edit app store app (%s). The app has an entry without versions and an entry with versions. Use one entry with versions.", appID.AdamID))
+		}
+	}
+	return nil
+}
+
+// vppBatchPayloadPlatforms returns the platforms a payload expands to in
+// BatchAssociateVPPApps: an Apple app with no platform is added to every Apple
+// platform, anything else with no platform defaults to macOS.
+func vppBatchPayloadPlatforms(payload fleet.VPPBatchPayload) []fleet.InstallableDevicePlatform {
+	switch {
+	case payload.Platform != "":
+		return []fleet.InstallableDevicePlatform{payload.Platform}
+	case isAdamID.MatchString(payload.AppStoreID):
+		return []fleet.InstallableDevicePlatform{fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform}
+	default:
+		return []fleet.InstallableDevicePlatform{fleet.MacOSPlatform}
+	}
+}
+
+// validateVPPAutoUpdateWindow checks the iOS and iPadOS update window. A nil
+// enabled flag means disabled, and a disabled window with no times is valid.
+func validateVPPAutoUpdateWindow(enabled *bool, start, end *string) error {
+	if enabled == nil {
+		enabled = new(false)
+	}
+	if !*enabled && start == nil && end == nil {
+		return nil
+	}
+	schedule := fleet.SoftwareAutoUpdateSchedule{
+		AutoUpdateEnabled:   enabled,
+		AutoUpdateStartTime: start,
+		AutoUpdateEndTime:   end,
+	}
+	return schedule.WindowIsValid()
+}
+
+// validateVPPVersionNamesUnderCollation compares the version names in MySQL,
+// whose collation also ignores accents, and fails on two equal names for one app.
+func (svc *Service) validateVPPVersionNamesUnderCollation(ctx context.Context, versions []fleet.VPPAppTeam) error {
+	versionNames := make([]string, 0, len(versions))
+	for _, version := range versions {
+		versionNames = append(versionNames, cmp.Or(version.VersionName, fleet.DefaultAppStoreAppVersionName))
+	}
+
+	equalNameGroups, err := svc.ds.GetDuplicateStringGroupsUnderCollation(ctx, versionNames)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "comparing app store app version names")
+	}
+
+	for _, group := range equalNameGroups {
+		appsInGroup := make(map[fleet.VPPAppID]struct{}, len(group.Indices))
+		for _, nameIndex := range group.Indices {
+			if _, ok := appsInGroup[versions[nameIndex].VPPAppID]; ok {
+				return fleet.NewInvalidArgumentError("app_store_apps.name",
+					fmt.Sprintf("Couldn't edit app store app (%s). More than one version is named %q.", versions[nameIndex].AdamID, versionNames[nameIndex]))
+			}
+			appsInGroup[versions[nameIndex].VPPAppID] = struct{}{}
+		}
+	}
+	return nil
+}
+
+// validateVPPBatchPayloadPlatform rejects a platform that cannot carry App
+// Store apps and the Fleet agent package, which Fleet manages itself.
 func validateVPPBatchPayloadPlatform(platform fleet.InstallableDevicePlatform, appStoreID string) error {
 	if !platform.SupportsAppStoreApps() {
 		return fleet.NewInvalidArgumentError("app_store_apps.platform",
 			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
 	}
 
-	// Block Fleet Agent apps from being added via GitOps
 	if platform == fleet.AndroidPlatform && strings.HasPrefix(appStoreID, fleetAgentPackagePrefix) {
 		return fleet.NewInvalidArgumentError("app_store_id", "The Fleet agent cannot be added manually. "+
 			"It is automatically managed by Fleet when Android MDM is enabled.")
@@ -209,36 +305,51 @@ func validateVPPBatchPayloadPlatform(platform fleet.InstallableDevicePlatform, a
 	return nil
 }
 
-// dryRunValidateVPPAssetsForNewTeam is the dry-run stand-in for the payload and
-// asset checks in BatchAssociateVPPApps when the target team does not exist
-// yet. The team's own token cannot be resolved before the team is created, so
-// every Apple App Store app in payloads is checked against the assets of every
-// unexpired VPP token. An app missing from all of them is reported with the
-// same error a real apply returns, so `fleetctl gitops --dry-run` catches a
-// wrong or unlicensed app_store_id before anything is changed. Play Store
-// entries are not VPP assets and are only validated, not looked up.
+// dryRunValidateVPPAssetsForNewTeam is the dry-run stand-in for
+// BatchAssociateVPPApps when the target team does not exist yet. It runs every
+// payload check that needs no team, then checks each Apple app against the
+// assets of every unexpired VPP token, since the team's own token cannot be
+// known before the team is created. An app missing from all of them is reported
+// with the same error a real apply returns. Play Store entries are not VPP
+// assets and are only validated, not looked up.
 func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, payloads []fleet.VPPBatchPayload) error {
+	if err := validateVPPBatchPayloadVersions(payloads); err != nil {
+		return err
+	}
+
 	var wanted []string
+	var versions []fleet.VPPAppTeam
 	seen := map[string]struct{}{}
 	for _, payload := range payloads {
 		if err := trimAndValidateCategories(ctx, payload.Categories); err != nil {
 			return ctxerr.Wrap(ctx, err, "validating app store app categories")
 		}
-		platform := payload.Platform
-		if platform == "" {
-			platform = fleet.MacOSPlatform
+		for _, platform := range vppBatchPayloadPlatforms(payload) {
+			if err := validateVPPBatchPayloadPlatform(platform, payload.AppStoreID); err != nil {
+				return err
+			}
+			if platform == fleet.IOSPlatform || platform == fleet.IPadOSPlatform {
+				if err := validateVPPAutoUpdateWindow(payload.AutoUpdateEnabled, payload.AutoUpdateStartTime, payload.AutoUpdateEndTime); err != nil {
+					return ctxerr.Wrap(ctx, err, "invalid auto-update window for vpp app")
+				}
+			}
+			versions = append(versions, fleet.VPPAppTeam{
+				VPPAppID:    fleet.VPPAppID{AdamID: payload.AppStoreID, Platform: platform},
+				VersionName: payload.VersionName,
+			})
+			if platform == fleet.AndroidPlatform {
+				continue
+			}
+			if _, dup := seen[payload.AppStoreID]; !dup {
+				seen[payload.AppStoreID] = struct{}{}
+				wanted = append(wanted, payload.AppStoreID)
+			}
 		}
-		if err := validateVPPBatchPayloadPlatform(platform, payload.AppStoreID); err != nil {
+	}
+	if len(versions) > 0 {
+		if err := svc.validateVPPVersionNamesUnderCollation(ctx, versions); err != nil {
 			return err
 		}
-		if platform == fleet.AndroidPlatform {
-			continue
-		}
-		if _, dup := seen[payload.AppStoreID]; dup {
-			continue
-		}
-		seen[payload.AppStoreID] = struct{}{}
-		wanted = append(wanted, payload.AppStoreID)
 	}
 	if len(wanted) == 0 {
 		return nil
@@ -330,35 +441,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	// https://github.com/fleetdm/fleet/issues/19447#issuecomment-2256598681
 	// The code is already here to support individual platforms, so we can easily enable it later.
 
-	// Validate the version names of each app, an entry without versions sends one version with no name
-	versionNamesByApp := make(map[fleet.VPPAppID][]string)
-	appsWithUnnamedVersion := make(map[fleet.VPPAppID]struct{})
-	for _, payload := range payloads {
-		appID := fleet.VPPAppID{AdamID: payload.AppStoreID, Platform: payload.Platform}
-		versionName := strings.TrimSpace(payload.VersionName)
-		if versionName == "" {
-			appsWithUnnamedVersion[appID] = struct{}{}
-			continue
-		}
-
-		if utf8.RuneCountInString(versionName) > fleet.MaxAppStoreAppVersionNameLength {
-			return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.name",
-				fmt.Sprintf("Couldn't edit app store app (%s). The version name can't be longer than %d characters.", payload.AppStoreID, fleet.MaxAppStoreAppVersionNameLength))
-		}
-
-		versionNamesByApp[appID] = append(versionNamesByApp[appID], versionName)
-		if len(versionNamesByApp[appID]) > fleet.MaxAppStoreAppVersions {
-			return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.versions",
-				fmt.Sprintf("Couldn't edit app store app (%s). An app can have at most %d versions per fleet.", payload.AppStoreID, fleet.MaxAppStoreAppVersions))
-		}
-	}
-
-	// Reject an app that has an entry without versions and an entry with versions, the entry without versions would add a Default version next to the named versions
-	for appID := range appsWithUnnamedVersion {
-		if len(versionNamesByApp[appID]) > 0 {
-			return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.versions",
-				fmt.Sprintf("Couldn't edit app store app (%s). The app has an entry without versions and an entry with versions. Use one entry with versions.", appID.AdamID))
-		}
+	if err := validateVPPBatchPayloadVersions(payloads); err != nil {
+		return nil, nil, err
 	}
 
 	var categoryNames []string
@@ -511,16 +595,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				if appStoreApp.AutoUpdateEnabled == nil {
 					appStoreApp.AutoUpdateEnabled = new(false)
 				}
-				if *appStoreApp.AutoUpdateEnabled || appStoreApp.AutoUpdateStartTime != nil || appStoreApp.AutoUpdateEndTime != nil {
-					schedule := fleet.SoftwareAutoUpdateSchedule{
-						AutoUpdateEnabled:   appStoreApp.AutoUpdateEnabled,
-						AutoUpdateStartTime: appStoreApp.AutoUpdateStartTime,
-						AutoUpdateEndTime:   appStoreApp.AutoUpdateEndTime,
-					}
-					err = schedule.WindowIsValid()
-					if err != nil {
-						return nil, nil, ctxerr.Wrap(ctx, err, "invalid auto-update window for vpp app")
-					}
+				if err := validateVPPAutoUpdateWindow(appStoreApp.AutoUpdateEnabled, appStoreApp.AutoUpdateStartTime, appStoreApp.AutoUpdateEndTime); err != nil {
+					return nil, nil, ctxerr.Wrap(ctx, err, "invalid auto-update window for vpp app")
 				}
 			} else {
 				// Clear auto-update settings on other platforms, only iOS and iPadOS support them
@@ -564,29 +640,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 		}
 
-		// Compare the version names in the batch in MySQL, its collation also ignores accents, and fail on two equal names for one app
-		incomingVersions := slices.Concat(incomingAppleApps, incomingAndroidApps)
-		versionNames := make([]string, 0, len(incomingVersions))
-		for _, incomingVersion := range incomingVersions {
-			versionNames = append(versionNames, cmp.Or(incomingVersion.VersionName, fleet.DefaultAppStoreAppVersionName))
-		}
-
-		var equalNameGroups []fleet.DuplicateStringGroup
-		equalNameGroups, err = svc.ds.GetDuplicateStringGroupsUnderCollation(ctx, versionNames)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "comparing app store app version names")
-		}
-
-		// If there are any duplicates, return detailed error message.
-		for _, group := range equalNameGroups {
-			appsInGroup := make(map[fleet.VPPAppID]struct{}, len(group.Indices))
-			for _, nameIndex := range group.Indices {
-				if _, ok := appsInGroup[incomingVersions[nameIndex].VPPAppID]; ok {
-					return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.name",
-						fmt.Sprintf("Couldn't edit app store app (%s). More than one version is named %q.", incomingVersions[nameIndex].AdamID, versionNames[nameIndex]))
-				}
-				appsInGroup[incomingVersions[nameIndex].VPPAppID] = struct{}{}
-			}
+		if err := svc.validateVPPVersionNamesUnderCollation(ctx, slices.Concat(incomingAppleApps, incomingAndroidApps)); err != nil {
+			return nil, nil, err
 		}
 
 		if len(incomingAppleApps) > 0 {
