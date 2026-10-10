@@ -526,7 +526,7 @@ eventsource@^3.0.2:
   dependencies:
     eventsource-parser "^3.0.1"
 
-express-rate-limit@^8.2.1:
+express-rate-limit@8.7.1, express-rate-limit@^8.2.1:
   version "8.7.1"
   resolved "https://registry.yarnpkg.com/express-rate-limit/-/express-rate-limit-8.7.1.tgz#cb007e811c3173a1dfa79cdb6aacb943f56e62bc"
   integrity sha512-2FXbqkygil3mZiXzEtM0IjE/UBmBNot0J1GEVrJT4JbrvwOSoEtqtO+wHbiMQELWe1eNvHoYRg2dkjOid+6JkA==

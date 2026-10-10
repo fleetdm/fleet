@@ -1,4 +1,5 @@
 const express = require("express");
+const { rateLimit } = require("express-rate-limit");
 const { ActivityHandler, CloudAdapter } = require("@microsoft/agents-hosting");
 const config = require("./config");
 const GitHubClient = require("./github-client");
@@ -88,6 +89,19 @@ const bot = new ActivityHandler();
 registerHandlers(bot, adapter, config, github, claude);
 
 const server = express();
+// The app runs behind the host's proxy; trust only the hop nearest the app so a
+// client-supplied X-Forwarded-For can't choose its own rate-limit key.
+server.set("trust proxy", 1);
+
+// Throttles callers that fail authentication. Authenticated deliveries (2xx) are
+// not counted, so bursts of GitHub check_run events never hit the limit.
+const authFailureLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  skipSuccessfulRequests: true,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+});
 
 server.get("/healthz", (_req, res) => {
   res.json({ ok: true });
@@ -98,6 +112,7 @@ server.get("/healthz", (_req, res) => {
 // the default 100 KB body limit is too small.
 server.post(
   "/api/messages",
+  authFailureLimiter,
   (req, res, next) => adapter.authorizeRequest(req, res, next),
   express.json({ limit: "1mb" }),
   (req, res) => adapter.process(req, res, (context) => bot.run(context))
@@ -105,7 +120,7 @@ server.post(
 
 // The webhook handler reads the raw request stream itself (the HMAC signature
 // covers the exact bytes), so no body parser is mounted on this route.
-server.post("/github/webhook", createWebhookHandler(config, github, claude));
+server.post("/github/webhook", authFailureLimiter, createWebhookHandler(config, github, claude));
 
 (async () => {
   // Connect to the Fleet MCP server before starting
