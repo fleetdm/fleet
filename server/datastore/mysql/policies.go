@@ -3477,6 +3477,136 @@ func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID u
 	return &policy, nil
 }
 
+// patchPolicySourceStmt pairs each patch policy with the installer its query is
+// generated from: the title's first-added active Fleet-maintained app installer,
+// the one getPatchPolicyInstaller picks.
+const patchPolicySourceStmt = `
+SELECT
+	p.id AS policy_id,
+	p.query AS policy_query,
+	si.platform,
+	si.version,
+	si.patch_query,
+	COALESCE(st.name, '') AS software_title,
+	COALESCE(st.bundle_identifier, '') AS bundle_identifier
+FROM
+	policies p
+	JOIN software_installers si ON si.id = (
+		SELECT MIN(si2.id) FROM software_installers si2
+		WHERE si2.global_or_team_id = p.team_id AND si2.title_id = p.patch_software_title_id AND si2.is_active = 1
+	) AND si.fleet_maintained_app_id IS NOT NULL
+	JOIN software_titles st ON st.id = si.title_id
+WHERE
+	p.type = ?`
+
+type patchPolicySource struct {
+	PolicyID         uint   `db:"policy_id"`
+	PolicyQuery      string `db:"policy_query"`
+	Platform         string `db:"platform"`
+	Version          string `db:"version"`
+	PatchQuery       string `db:"patch_query"`
+	SoftwareTitle    string `db:"software_title"`
+	BundleIdentifier string `db:"bundle_identifier"`
+}
+
+// generateQuery passes only the fields GenerateFromInstaller reads. If it starts
+// reading another one, add it here, or every sync rewrites the policy and clears
+// its results.
+func (s patchPolicySource) generateQuery() (string, error) {
+	generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, &fleet.SoftwareInstaller{
+		Platform:         s.Platform,
+		Version:          s.Version,
+		PatchQuery:       s.PatchQuery,
+		SoftwareTitle:    s.SoftwareTitle,
+		BundleIdentifier: s.BundleIdentifier,
+	})
+	if err != nil {
+		return "", err
+	}
+	return generated.Query, nil
+}
+
+func (ds *Datastore) SyncPatchPolicyQueries(ctx context.Context) error {
+	var sources []patchPolicySource
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &sources, patchPolicySourceStmt, fleet.PolicyTypePatch); err != nil {
+		return ctxerr.Wrap(ctx, err, "listing patch policies with their installers")
+	}
+
+	// The read above may be stale; syncPatchPolicyQuery checks again under a lock.
+	var errs []error
+	for _, src := range sources {
+		if ctx.Err() != nil {
+			errs = append(errs, ctxerr.Wrap(ctx, ctx.Err(), "syncing patch policy queries"))
+			break
+		}
+		query, err := src.generateQuery()
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "generating patch policy %d query", src.PolicyID))
+			continue
+		}
+		if query == src.PolicyQuery {
+			continue
+		}
+		if err := ds.syncPatchPolicyQuery(ctx, src.PolicyID); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// syncPatchPolicyQuery regenerates a patch policy's query from its title's active
+// installer. A changed query clears the policy's results, as editing a policy's
+// query does; an unchanged one keeps them.
+func (ds *Datastore) syncPatchPolicyQuery(ctx context.Context, policyID uint) error {
+	var (
+		changed bool
+		src     patchPolicySource
+		query   string
+	)
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		changed = false
+
+		err := sqlx.GetContext(ctx, tx, &src, patchPolicySourceStmt+` AND p.id = ? FOR UPDATE OF p`, fleet.PolicyTypePatch, policyID)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "getting patch policy with its installer")
+		}
+
+		query, err = src.generateQuery()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generating patch policy query")
+		}
+		// Compared here, not in SQL: the column's case-insensitive collation would
+		// call a case-only fix unchanged.
+		if query == src.PolicyQuery {
+			return nil
+		}
+
+		if _, err := tx.ExecContext(ctx, `UPDATE policies SET query = ? WHERE id = ?`, query, policyID); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating patch policy query")
+		}
+		if err := resetPolicyAutomationAttempts(ctx, tx, policyID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset patch policy automation attempts")
+		}
+		changed = true
+		return markPolicyNeedsFullMembershipCleanup(ctx, tx, policyID)
+	}); err != nil {
+		return ctxerr.Wrapf(ctx, err, "syncing patch policy %d query", policyID)
+	}
+	if !changed {
+		return nil
+	}
+
+	ds.logger.InfoContext(ctx, "regenerated patch policy query, clearing its results",
+		"policy_id", policyID, "software_title", src.SoftwareTitle, "old_query", src.PolicyQuery, "new_query", query)
+	if err := ds.cleanupPolicyAfterCommit(ctx, policyID, "", true, true); err != nil {
+		return ctxerr.Wrapf(ctx, err, "clearing patch policy %d results", policyID)
+	}
+	return nil
+}
+
 // policiesSoftwareAutomationClause is the predicate behind the automation_type=software
 // filter, shared so the usage statistic can't drift from it. Requires the policies table
 // to be aliased as `p`.

@@ -29749,6 +29749,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.Equal(t, patchedInstall, gotInstall, "the edited script is still left alone")
 	require.Equal(t, warp.installScript, gotUninstall, "the unedited script follows the manifest")
 	require.Equal(t, warp.patchQuery, activePatchQuery(), "the patch query follows the manifest too")
+	require.Equal(t, warp.patchQuery, patchPolicyQuery(), "so does the patch policy, without a version flip")
 
 	// The queued install would otherwise have run a script it was never queued against.
 	var canceled bool
@@ -29770,6 +29771,15 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 			WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`, host.ID)
 	})
 	require.False(t, canceled)
+
+	// A patch policy left behind its installer, the way a refresh that didn't reach
+	// the policy leaves it, is caught up on the next run.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE policies SET query = ? WHERE id = ?`, warpQueryV1, patchPolicy.Policy.ID)
+		return err
+	})
+	runCron()
+	require.Equal(t, warp.patchQuery, patchPolicyQuery())
 }
 
 func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
