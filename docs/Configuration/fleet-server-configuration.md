@@ -801,18 +801,40 @@ Setting to true will disable the origin check.
     websockets_allow_unsafe_origin: true
   ```
 
-### server_allow_private_network_integrations
+### server_private_network_allow_list
 
-Allows Fleet's HTTP client to make outbound requests to RFC 1918 and other private network addresses. Enable this if  Fleet needs to reach an integration over HTTP. (Examples include SSO/IdP, EJBCA, Jira, or SCEP server, or an `HTTP_PROXY`/`HTTPS_PROXY` hosted on a private network.)
+Comma-separated list of destinations that bypass Fleet's outbound SSRF blocking. Use this when Fleet needs to reach an integration on a private or otherwise blocked network (e.g. an on-prem SSO/IdP, EJBCA, Jira, SCEP server, HTTP proxy).
 
-This does not affect the always-blocked loopback (`127.0.0.0/8`) and cloud metadata (`169.254.0.0/16`) ranges.
+Each entry is one of:
 
-- Default value: `false`
-- Environment variable: `FLEET_SERVER_ALLOW_PRIVATE_NETWORK_INTEGRATIONS`
-- Config file format:
+- **IP address**: `192.168.1.1`, `::1`, `[::1]`
+- **IP address with port**: `192.168.1.1:8080`, `[::1]:443`
+- **CIDR network**: `10.0.0.0/8`, `fc00::/7`
+- **DNS name**: `jira.corp.example.com`
+- **DNS name with port**: `jira.corp.example.com:8080`
+- **Wildcard DNS pattern**: `*.corp.example.com`
+- **Wildcard DNS pattern with port**: `*.corp.example.com:443`
+
+Entries without a port match any port. Whitespace around entries is trimmed. DNS matching is case-insensitive. Wildcards match any subdomain depth (e.g. `*.example.com` matches `a.b.example.com`).
+
+A DNS name entry allows the destination regardless of what IP it resolves to. An IP or CIDR entry allows that address even if it falls in the always-blocked ranges (loopback, cloud IMDS). To allow only a specific port on a destination, include the port in the entry.
+
+**If using an HTTP proxy:** The allow-list must include the IP or hostname of the proxy server, not the final destination.
+
+- Default value: `""` (empty, no exceptions)
+- Environment variable: `FLEET_SERVER_PRIVATE_NETWORK_ALLOW_LIST`
+- Config file format (comma-separated string):
 ```yaml
 server:
-  allow_private_network_integrations: true
+  private_network_allow_list: "10.0.0.0/8, jira.corp.example.com:8080, *.internal.example.com"
+```
+- Config file format (YAML list):
+```yaml
+server:
+  private_network_allow_list:
+    - 10.0.0.0/8
+    - jira.corp.example.com:8080
+    - "*.internal.example.com"
 ```
 
 ### server_allow_request_certificate_any_idp
