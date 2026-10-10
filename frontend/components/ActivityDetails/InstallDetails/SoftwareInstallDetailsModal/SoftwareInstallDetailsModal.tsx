@@ -500,10 +500,10 @@ export const SoftwareInstallDetailsModal = ({
           return deviceAuthToken ? (
             <DeviceUserError />
           ) : (
-            <>
+            <div className={`${baseClass}__premium-feature-message`}>
               <p>Couldn&apos;t get install details.</p>
-              <PremiumFeatureMessage />
-            </>
+              <PremiumFeatureMessage variant="compact" />
+            </div>
           );
         }
       }

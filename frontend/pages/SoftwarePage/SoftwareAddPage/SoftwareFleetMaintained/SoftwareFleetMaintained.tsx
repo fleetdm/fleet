@@ -104,9 +104,7 @@ const SoftwareFleetMaintained = ({
   );
 
   if (!isPremiumTier) {
-    return (
-      <PremiumFeatureMessage className={`${baseClass}__premium-message`} />
-    );
+    return <PremiumFeatureMessage />;
   }
 
   if (isLoading) {

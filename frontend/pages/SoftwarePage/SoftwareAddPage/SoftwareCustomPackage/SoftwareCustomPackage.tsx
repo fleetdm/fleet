@@ -204,9 +204,7 @@ const SoftwareCustomPackage = ({
   };
 
   if (!isPremiumTier) {
-    return (
-      <PremiumFeatureMessage className={`${baseClass}__premium-message`} />
-    );
+    return <PremiumFeatureMessage />;
   }
 
   return <div className={baseClass}>{renderContent()}</div>;

@@ -19,9 +19,7 @@ describe("IdentityProviders", () => {
       <IdentityProviders appConfig={createMockConfig()} isPremiumTier={false} />
     );
 
-    expect(
-      screen.getByText("This feature is included in Fleet Premium.")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Included in Fleet Premium")).toBeInTheDocument();
     // The section title stays above the premium message (matching other sections).
     expect(screen.getByText("Identity provider (IdP)")).toBeInTheDocument();
     // The Google Workspace section does not render when not premium.
