@@ -349,9 +349,9 @@ module.exports = {
               .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s+/g, '-')).join('/')
             );
 
-            // Only build markdown pages from the Get started, Configuration, Deploy, and REST API subfolders.
+            // Only build markdown pages from the Get started, Configuration, Deploy, and API subfolders.
             let subfolderName = pageRelSourcePath.split('/')[0];
-            if(sectionRepoPath === 'docs/' && !['Get started', 'Deploy', 'REST API', 'Configuration'].includes(subfolderName)){
+            if(sectionRepoPath === 'docs/' && !['Get started', 'Deploy', 'API', 'Configuration'].includes(subfolderName)){
               continue;
             }
             // Skip pages in folders starting with an underscore character.

@@ -130,7 +130,7 @@ const HostActivityAutomationsModal = ({
           for{" "}
           {
             <CustomLink
-              url="https://fleetdm.com/learn-more-about/audit-logs"
+              url="https://fleetdm.com/learn-more-about/host-audit-logs"
               text="audit logs"
               newTab
             />
