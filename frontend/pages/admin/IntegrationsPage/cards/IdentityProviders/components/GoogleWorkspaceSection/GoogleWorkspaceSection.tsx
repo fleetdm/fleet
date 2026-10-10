@@ -7,6 +7,7 @@ import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PageDescription from "components/PageDescription";
 import { notify } from "components/ToastNotification";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import SettingsSection from "pages/admin/components/SettingsSection";
@@ -64,6 +65,7 @@ const GoogleWorkspaceSection = ({
   appConfig,
 }: IGoogleWorkspaceSectionProps): JSX.Element => {
   const queryClient = useQueryClient();
+  const updateAppConfig = useUpdateAppConfig();
 
   const [formData, setFormData] = useState<IGoogleWorkspaceFormData>({
     domain: "",
@@ -165,14 +167,14 @@ const GoogleWorkspaceSection = ({
         googleWorkspace = [entry];
       }
 
-      await configAPI.update({
+      const updatedConfig = await configAPI.update({
         integrations: { google_workspace: googleWorkspace },
       });
+      updateAppConfig(updatedConfig);
+      await queryClient.invalidateQueries(["scim_details"]);
       notify.success(
         "Successfully saved Google Workspace integration settings."
       );
-      await queryClient.invalidateQueries(["config"]);
-      await queryClient.invalidateQueries(["scim_details"]);
     } catch (e) {
       notify.error("Could not save Google Workspace integration settings.", {
         response: e,

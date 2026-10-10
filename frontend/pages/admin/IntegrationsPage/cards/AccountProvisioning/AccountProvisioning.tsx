@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useQueryClient } from "react-query";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -11,6 +10,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import useGitOpsMode from "hooks/useGitOpsMode";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { getErrorReason } from "interfaces/errors";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import { IAppConfigFormProps } from "pages/admin/OrgSettingsPage/cards/constants";
@@ -86,7 +86,7 @@ const getServerFieldErrors = (err: unknown): IFormErrors => {
 
 const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
   const { gitOpsModeEnabled } = useGitOpsMode();
-  const queryClient = useQueryClient();
+  const updateAppConfig = useUpdateAppConfig();
   const [isUpdating, setIsUpdating] = useState(false);
   const [serverFormErrors, setServerFormErrors] = useState<IFormErrors>({});
 
@@ -148,7 +148,7 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
 
     setIsUpdating(true);
     try {
-      await configAPI.update({
+      const updatedConfig = await configAPI.update({
         mdm: {
           apple_account_provisioning: {
             oauth_idp_token_url: data.tokenUrl,
@@ -159,7 +159,7 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
           },
         },
       });
-      await queryClient.invalidateQueries(["config"]);
+      updateAppConfig(updatedConfig);
       notify.success("Successfully updated settings.");
     } catch (err) {
       setServerFormErrors(getServerFieldErrors(err));

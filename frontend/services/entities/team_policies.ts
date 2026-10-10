@@ -119,8 +119,10 @@ export default {
       notify_before_patching,
     });
   },
-  // TODO - response type Promise<IPolicy>
-  update: (id: number, data: IPolicyFormData) => {
+  update: (
+    id: number,
+    data: IPolicyFormData
+  ): Promise<ILoadTeamPolicyResponse> => {
     const {
       name,
       description,

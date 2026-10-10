@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useRef, useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import Button from "components/buttons/Button";
@@ -80,6 +80,15 @@ const ConfigurationProfiles = ({
 
   const selectedProfile = useRef<IMdmProfile | null>(null);
   const selectedStatusHostCount = useRef<number | null>(null);
+  const queryClient = useQueryClient();
+  const profilesQueryKey = [
+    {
+      scope: "profiles",
+      team_id: currentTeamId,
+      page: currentPage,
+      per_page: PROFILES_PER_PAGE,
+    },
+  ];
 
   const {
     data: profilesData,
@@ -87,14 +96,7 @@ const ConfigurationProfiles = ({
     isError: isErrorProfiles,
     refetch: refetchProfiles,
   } = useQuery<IMdmProfilesResponse, unknown>(
-    [
-      {
-        scope: "profiles",
-        team_id: currentTeamId,
-        page: currentPage,
-        per_page: PROFILES_PER_PAGE,
-      },
-    ],
+    profilesQueryKey,
     () =>
       mdmAPI.getProfiles({
         fleet_id: currentTeamId,
@@ -131,7 +133,17 @@ const ConfigurationProfiles = ({
     setIsDeleting(true);
     try {
       await mdmAPI.deleteProfile(profileId);
-      refetchProfiles();
+      const cached = queryClient.getQueryData<IMdmProfilesResponse>(
+        profilesQueryKey
+      );
+      if (cached) {
+        queryClient.setQueryData<IMdmProfilesResponse>(profilesQueryKey, {
+          ...cached,
+          profiles: (cached.profiles ?? []).filter(
+            (p) => p.profile_uuid !== profileId
+          ),
+        });
+      }
       onMutation();
       notify.success("Successfully deleted.");
     } catch (e) {

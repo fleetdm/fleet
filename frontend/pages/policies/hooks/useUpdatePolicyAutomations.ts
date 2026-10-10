@@ -1,7 +1,6 @@
-import { useContext } from "react";
 import { useMutation, useQueryClient } from "react-query";
 
-import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
@@ -52,7 +51,7 @@ const useUpdatePolicyAutomations = ({
   onError,
 }: IUseUpdatePolicyAutomationsArgs) => {
   const queryClient = useQueryClient();
-  const { setConfig } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   if (!isGlobalPolicy && teamIdForApi === undefined) {
     throw new Error("Missing fleet id for team-scoped policy automations.");
@@ -79,8 +78,7 @@ const useUpdatePolicyAutomations = ({
 
     if (isGlobalPolicy) {
       const updatedConfig = await configAPI.update(payload);
-      queryClient.setQueryData(["config"], updatedConfig);
-      setConfig(updatedConfig);
+      updateAppConfig(updatedConfig);
     } else {
       const updatedTeam = await teamsAPI.update(payload, teamIdForApi);
       queryClient.setQueryData(["teams", teamIdForApi], updatedTeam);

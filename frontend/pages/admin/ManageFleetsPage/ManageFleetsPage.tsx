@@ -6,7 +6,7 @@ import React, {
   useMemo,
 } from "react";
 import { useErrorHandler } from "react-error-boundary";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
@@ -22,6 +22,7 @@ import { AppContext } from "context/app";
 import { IApiError } from "interfaces/errors";
 import { ITeam as IFleet } from "interfaces/team";
 import teamsAPI, {
+  ILoadTeamResponse,
   ILoadTeamsResponse,
   ITeamFormData as IFleetFormData,
 } from "services/entities/teams";
@@ -94,6 +95,7 @@ const ManageFleetsPage = ({
     [key: string]: string;
   }>({});
   const handlePageError = useErrorHandler();
+  const queryClient = useQueryClient();
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
@@ -108,7 +110,6 @@ const ManageFleetsPage = ({
     data: fleets,
     isFetching: isFetchingFleets,
     error: loadingFleetsError,
-    refetch: refetchFleets,
   } = useQuery<ILoadTeamsResponse, Error, IFleet[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
@@ -154,12 +155,24 @@ const ManageFleetsPage = ({
       setIsUpdatingFleets(true);
       teamsAPI
         .create(formData)
-        .then(() => {
-          notify.success(`Successfully created ${formData.name}.`);
+        .then((response: ILoadTeamResponse) => {
+          // Splice the created fleet into the cached list so we don't
+          // trigger a re-read that could return stale data under replica lag.
+          const cached = queryClient.getQueryData<ILoadTeamsResponse>([
+            "teams",
+          ]);
+          if (cached) {
+            queryClient.setQueryData<ILoadTeamsResponse>(["teams"], {
+              ...cached,
+              teams: [response.team, ...cached.teams],
+            });
+          }
           setBackendValidators({});
           toggleCreateFleetModal();
+          // Team memberships on /me may shift when the current user's roles
+          // change as a side effect of a create.
           refetchMe();
-          refetchFleets();
+          notify.success(`Successfully created ${formData.name}.`);
         })
         .catch((createError: { data: IApiError }) => {
           const rawReason = createError.data.errors[0].reason;
@@ -190,7 +203,7 @@ const ManageFleetsPage = ({
           setIsUpdatingFleets(false);
         });
     },
-    [toggleCreateFleetModal, refetchMe, refetchFleets]
+    [toggleCreateFleetModal, refetchMe, queryClient]
   );
 
   const onDeleteSubmit = useCallback(() => {
@@ -199,10 +212,21 @@ const ManageFleetsPage = ({
       teamsAPI
         .destroy(fleetEditing.id)
         .then(() => {
-          notify.success(`Successfully deleted ${fleetEditing.name}.`);
+          // Drop the deleted fleet from the cached list so we don't
+          // trigger a re-read that could return stale data under replica lag.
+          const cached = queryClient.getQueryData<ILoadTeamsResponse>([
+            "teams",
+          ]);
+          if (cached) {
+            queryClient.setQueryData<ILoadTeamsResponse>(["teams"], {
+              ...cached,
+              teams: cached.teams.filter((t) => t.id !== fleetEditing.id),
+            });
+          }
           if (currentTeam?.id === fleetEditing.id) {
             setCurrentTeam(undefined);
           }
+          notify.success(`Successfully deleted ${fleetEditing.name}.`);
         })
         .catch(() => {
           notify.error(
@@ -211,8 +235,8 @@ const ManageFleetsPage = ({
         })
         .finally(() => {
           setIsUpdatingFleets(false);
+          // Team memberships on /me may shift as a side effect.
           refetchMe();
-          refetchFleets();
           toggleDeleteFleetModal();
         });
     }
@@ -220,7 +244,7 @@ const ManageFleetsPage = ({
     currentTeam,
     fleetEditing,
     refetchMe,
-    refetchFleets,
+    queryClient,
     setCurrentTeam,
     toggleDeleteFleetModal,
   ]);
@@ -233,13 +257,25 @@ const ManageFleetsPage = ({
         setIsUpdatingFleets(true);
         teamsAPI
           .update(formData, fleetEditing.id)
-          .then(() => {
+          .then((response: ILoadTeamResponse) => {
+            // Splice the renamed fleet into the cached list so we don't
+            // trigger a re-read that could return stale data under replica lag.
+            const cached = queryClient.getQueryData<ILoadTeamsResponse>([
+              "teams",
+            ]);
+            if (cached) {
+              queryClient.setQueryData<ILoadTeamsResponse>(["teams"], {
+                ...cached,
+                teams: cached.teams.map((t) =>
+                  t.id === fleetEditing.id ? response.team : t
+                ),
+              });
+            }
+            setBackendValidators({});
+            toggleRenameFleetModal();
             notify.success(
               `Successfully updated fleet name to ${formData.name}.`
             );
-            setBackendValidators({});
-            toggleRenameFleetModal();
-            refetchFleets();
           })
           .catch((updateError: { data: IApiError }) => {
             console.error(updateError);
@@ -277,7 +313,7 @@ const ManageFleetsPage = ({
           });
       }
     },
-    [fleetEditing, toggleRenameFleetModal, refetchFleets]
+    [fleetEditing, toggleRenameFleetModal, queryClient]
   );
 
   const onActionSelection = useCallback(
