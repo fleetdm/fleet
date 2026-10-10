@@ -3492,6 +3492,78 @@ func TestPubSubCommand(t *testing.T) {
 		require.Contains(t, err.Error(), "simulated transient DB connection drop", "wrapped error must preserve the original cause")
 	})
 
+	t.Run("WIPE+ack transient host lookup failure bubbles error so Pub/Sub retries", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-wipe-lookup-transient",
+			HostUUID:      "host-uuid-wipe-lookup-transient",
+			OperationName: "enterprises/E/devices/D/operations/wipe-lookup-transient",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			t.Fatalf("the command must stay pending when the host lookup fails transiently")
+			return nil
+		}
+		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return nil, errors.New("simulated transient DB connection drop")
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+		err := svc.ProcessPubSubPush(t.Context(), validToken, msg)
+		require.Error(t, err, "transient lookup failure must bubble so Pub/Sub retries")
+		require.Contains(t, err.Error(), "simulated transient DB connection drop")
+		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+	})
+
+	for _, tc := range []struct {
+		name         string
+		status       android.MDMAndroidCommandStatus
+		expectUpdate bool
+	}{
+		{name: "pending", status: android.MDMAndroidCommandStatusPending, expectUpdate: true},
+		{name: "already-terminal redelivery", status: android.MDMAndroidCommandStatusAcknowledged, expectUpdate: false},
+	} {
+		t.Run("WIPE+ack for a host deleted from Fleet is acked: "+tc.name, func(t *testing.T) {
+			// The command row outlives the host (no FK), so the unenroll finds no host. That must not strand
+			// the row as pending or make Pub/Sub redeliver forever.
+			svc, mockDS := newSvc(t)
+
+			stored := &android.MDMAndroidCommand{
+				CommandUUID:   "cmd-uuid-wipe-host-gone",
+				HostUUID:      "host-uuid-wipe-host-gone",
+				OperationName: "enterprises/E/devices/D/operations/wipe-host-gone",
+				CommandType:   string(android.MDMAndroidCommandTypeWipe),
+				Status:        string(tc.status),
+			}
+			mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+				return stored, nil
+			}
+			var gotStatus string
+			mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+				gotStatus = status
+				return nil
+			}
+			mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+				return nil, common_mysql.NotFound("Android device").WithName(hostUUID)
+			}
+
+			msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+			require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+
+			require.True(t, mockDS.AndroidHostLiteByHostUUIDFuncInvoked)
+			require.False(t, mockDS.SetAndroidHostUnenrolledFuncInvoked)
+			require.Equal(t, tc.expectUpdate, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+			if tc.expectUpdate {
+				require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), gotStatus)
+			}
+		})
+	}
+
 	t.Run("unknown operation, host deleted from Fleet -> ack", func(t *testing.T) {
 		// COBO unenroll / manual cleanup: the host is gone from Fleet, the command row is gone from mdm_android_commands, but Pub/Sub is
 		// still trying to deliver the original notification. A false from AndroidDeviceExistsByDeviceID confirms the orphan; ack.
