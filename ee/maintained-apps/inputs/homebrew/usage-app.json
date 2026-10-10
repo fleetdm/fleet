@@ -6,5 +6,6 @@
   "slug": "usage-app/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

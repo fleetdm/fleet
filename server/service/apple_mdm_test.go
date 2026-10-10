@@ -4700,8 +4700,8 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, _ string, _ string, _ fleet.SetupExperienceStatusResultStatus) (bool, error) {
 			return false, nil
 		}
-		ds.IsAutoUpdateVPPInstallFunc = func(_ context.Context, _ string) (bool, error) {
-			return false, nil
+		ds.GetVPPInstallAutomationReasonsFunc = func(_ context.Context, _ string) (bool, bool, error) {
+			return false, false, nil
 		}
 		var activityCmdResult *mdm.CommandResults
 		ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, c *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
@@ -4775,7 +4775,7 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 // TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure covers the
 // iPad terminal-failure emission path in the InstallApplication handler.
 // Before #45011, this branch called GetPastActivityDataForVPPAppInstall and
-// emitted the activity without ever consulting IsAutoUpdateVPPInstall, so a
+// emitted the activity without ever consulting GetVPPInstallAutomationReasons, so a
 // scheduled auto-update that terminally failed was attributed to actor_full_name
 // instead of Fleet. The InstalledApplicationList success handler already did
 // the right thing; this test locks in parity for the failure path.
@@ -4812,9 +4812,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testin
 	ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, _ string, _ string, _ fleet.SetupExperienceStatusResultStatus) (bool, error) {
 		return false, nil
 	}
-	ds.IsAutoUpdateVPPInstallFunc = func(_ context.Context, cmd string) (bool, error) {
+	ds.GetVPPInstallAutomationReasonsFunc = func(_ context.Context, cmd string) (bool, bool, error) {
 		require.Equal(t, commandUUID, cmd)
-		return true, nil
+		return true, false, nil
 	}
 	ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, _ *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 		return nil, &fleet.ActivityInstalledAppStoreApp{HostID: 1, Status: string(fleet.SoftwareInstallFailed)}, nil
@@ -4833,7 +4833,7 @@ func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testin
 	)
 	require.NoError(t, err)
 
-	require.True(t, ds.IsAutoUpdateVPPInstallFuncInvoked)
+	require.True(t, ds.GetVPPInstallAutomationReasonsFuncInvoked)
 	require.True(t, ds.GetPastActivityDataForVPPAppInstallFuncInvoked)
 	require.NotNil(t, emitted)
 	require.True(t, emitted.FromAutoUpdate, "auto-update terminal failures must carry FromAutoUpdate so the activity is attributed to Fleet")
@@ -11725,7 +11725,8 @@ func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
 			optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter,
 		) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 			return []fleet.SoftwareAutoUpdateSchedule{{
-				TitleID: titleID,
+				TitleID:      titleID,
+				VPPAppTeamID: 1,
 				SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
 					AutoUpdateStartTime: new("00:00"),
 					AutoUpdateEndTime:   new("23:59"),
@@ -11750,14 +11751,14 @@ func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
 		ds.MapAdamIDsQueuedInstallsFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
 			return map[string]struct{}{}, nil
 		}
-		ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
+		ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
 			return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{
 				AppTeamID: 1,
 				VPPAppID:  fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform},
 			}}, nil
 		}
-		ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
-			return true, nil
+		ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+			return map[uint]*fleet.HostAppStoreAppVersion{titleID: {VPPAppTeamID: 1, AdamID: adamID, TitleID: titleID, InScope: true}}, nil
 		}
 
 		return svc, ds, installer

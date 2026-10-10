@@ -1,6 +1,7 @@
 import React from "react";
 
 import ActivityItem from "components/ActivityItem";
+import { isMobilePlatform } from "interfaces/platform";
 import {
   getInstallUninstallStatusPredicate,
   getInstallUninstallStatusPredicatePassive,
@@ -11,6 +12,16 @@ import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 
 const baseClass = "installed-software-activity-item";
+
+// Mirror of GlobalActivityItem's makeVersionSuffix so the host activity feed
+// reads the same "<App> (Version name)" copy as the dashboard. macOS activities
+// carry version_name ("Default version") too; scope the suffix to mobile so
+// macOS copy stays unchanged.
+const makeVersionSuffix = (
+  platform: string | undefined,
+  versionName: string | undefined
+): string =>
+  versionName && isMobilePlatform(platform || "") ? ` (${versionName})` : "";
 
 const InstalledSoftwareActivityItem = ({
   tab,
@@ -29,11 +40,14 @@ const InstalledSoftwareActivityItem = ({
     source,
     from_setup_experience,
     from_auto_update,
+    host_platform: hostPlatform,
+    version_name: versionName,
   } = details;
   const title = getDisplayedSoftwareName(software_title, software_display_name);
   const status =
     details.status === "failed" ? "failed_uninstall" : details.status;
   const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
+  const versionSuffix = makeVersionSuffix(hostPlatform, versionName);
 
   if (details.skipped_install) {
     return (
@@ -46,8 +60,8 @@ const InstalledSoftwareActivityItem = ({
         onCancel={onCancel}
         isSoloActivity={isSoloActivity}
       >
-        <b>Fleet</b> skipped install of <b>{title}</b> on{" "}
-        <b>{details.host_display_name || "this host"}</b>.
+        <b>Fleet</b> skipped install of <b>{title}</b>
+        {versionSuffix} on <b>{details.host_display_name || "this host"}</b>.
       </ActivityItem>
     );
   }
@@ -71,7 +85,8 @@ const InstalledSoftwareActivityItem = ({
         onCancel={onCancel}
         isSoloActivity={isSoloActivity}
       >
-        <b>{title}</b> {passivePrefix} on this host
+        <b>{title}</b>
+        {versionSuffix} {passivePrefix} on this host
         {from_setup_experience ? " during setup experience" : ""} (self
         service).
       </ActivityItem>
@@ -105,7 +120,8 @@ const InstalledSoftwareActivityItem = ({
       onCancel={onCancel}
       isSoloActivity={isSoloActivity}
     >
-      <b>{actor}</b> {installedSoftwarePrefix} <b>{title}</b> on this host
+      <b>{actor}</b> {installedSoftwarePrefix} <b>{title}</b>
+      {versionSuffix} on this host
       {from_setup_experience ? " during setup experience" : ""}.
     </ActivityItem>
   );

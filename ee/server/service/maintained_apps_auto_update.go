@@ -186,6 +186,7 @@ func downloadNewVersionIfEligible(
 	}
 
 	versionAlreadyCached := false
+	storageID := app.SHA256
 
 	// For a concrete manifest version the eligibility gates can run up front. For a
 	// "latest" manifest the real version isn't known until the installer is
@@ -203,15 +204,25 @@ func downloadNewVersionIfEligible(
 		}
 		// A version only counts as cached while its bytes still match the manifest, matching
 		// the GitOps path: a rebuilt package (same version, new hash) is downloaded and
-		// replaces them. A manifest without a hash can't be compared, so it downloads again.
+		// replaces them. A manifest without a hash can't be compared, so its cached version
+		// counts while the bytes are still in the store.
 		if versionExists && cachedHash == app.SHA256 {
 			versionAlreadyCached = true
+		} else if versionExists && app.SHA256 == noCheckHash && cachedHash != "" {
+			exists, err := store.Exists(ctx, cachedHash)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "checking installer store")
+			}
+			if exists {
+				// app is shared across teams, so the cached digest can't go on app.SHA256.
+				versionAlreadyCached = true
+				storageID = cachedHash
+			}
 		}
 	}
 
 	// Byte dedup: when the expected hash is known and already in the store (another
 	// team cached the same version), skip the HTTP download and reuse the bytes.
-	storageID := app.SHA256
 	needBytes := true
 	if versionAlreadyCached {
 		needBytes = false

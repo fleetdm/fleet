@@ -123,6 +123,7 @@ func TestPolicies(t *testing.T) {
 		{"StalePolicyIDsForHost", testStalePolicyIDsForHost},
 		{"GetPoliciesForConditionalAccessSQLInjection", testGetPoliciesForConditionalAccess},
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
+		{"UpdateHostPolicyCountsDoesNotWaitOnMembershipLocks", testUpdateHostPolicyCountsDoesNotWaitOnMembershipLocks},
 		{"RecordPolicyQueryExecutionsStalePolicyIDs", testRecordPolicyQueryExecutionsStalePolicyIDs},
 		{"ResetPolicy", testResetPolicy},
 		{"ResetPolicyForHost", testResetPolicyForHost},
@@ -5049,7 +5050,7 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	team1App, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.appy",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_app", Platform: fleet.MacOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 	team1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, team1App.TitleID)
 	require.NoError(t, err)
@@ -5077,7 +5078,7 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	noTeamApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.appy",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_app", Platform: fleet.MacOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	noTeamMeta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, ptr.Uint(0), noTeamApp.TitleID)
 	require.NoError(t, err)
@@ -5096,7 +5097,7 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	team1App2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp2", Platform: fleet.MacOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 	team1Meta2, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, team1App2.TitleID)
 	require.NoError(t, err)
@@ -5165,7 +5166,7 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	team1App3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp3", Platform: fleet.MacOSPlatform}, AddAutoInstallPolicy: true},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	automaticPolicies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{team1App3.TitleID}, team1.ID)
@@ -6238,17 +6239,17 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
-	}, &team2.ID)
+	}, &team2.ID, nil)
 	require.NoError(t, err)
 	va1NoTeam, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	// Installers cannot be assigned to global policies.
@@ -6546,7 +6547,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	va4Team2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp4", BundleIdentifier: "com.app.vpp4",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_4", Platform: fleet.MacOSPlatform}},
-	}, &team2.ID)
+	}, &team2.ID, nil)
 	require.NoError(t, err)
 
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -6680,7 +6681,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	va4Team1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp4", BundleIdentifier: "com.app.vpp4",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_4", Platform: fleet.MacOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// Now change the installer, should clear results.
@@ -7342,7 +7343,7 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	team1App, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.appy",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_app", Platform: fleet.MacOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 	team1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, team1App.TitleID)
 	require.NoError(t, err)
@@ -9970,7 +9971,7 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	teamApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.appy",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_app", Platform: fleet.MacOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	teamAppMeta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, teamApp.TitleID)
 	require.NoError(t, err)
@@ -10996,4 +10997,34 @@ func testPoliciesHidden(t *testing.T, ds *Datastore) {
 	got, err = ds.Policy(ctx, gp.ID)
 	require.NoError(t, err)
 	require.False(t, got.Hidden)
+}
+
+func testUpdateHostPolicyCountsDoesNotWaitOnMembershipLocks(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	pol := newTestPolicy(t, ds, user, "counted policy", "", nil)
+	hosts := newPolicyTestHosts(t, ds, 2, "counts-lock")
+	_, err := ds.RecordPolicyQueryExecutions(ctx, hosts[0], map[uint]*bool{pol.ID: new(true)}, time.Now(), false, nil)
+	require.NoError(t, err)
+	_, err = ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
+	require.NoError(t, err)
+
+	// Stands in for an in-flight policy result write holding a row lock.
+	writerTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	// defer, not t.Cleanup: the subtest's table truncation would otherwise wait on this lock.
+	defer writerTx.Rollback() //nolint:errcheck // test cleanup
+	_, err = writerTx.ExecContext(ctx,
+		`UPDATE policy_membership SET passes = 0 WHERE policy_id = ? AND host_id = ?`, pol.ID, hosts[0].ID)
+	require.NoError(t, err)
+
+	cronCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	require.NoError(t, ds.UpdateHostPolicyCounts(cronCtx))
+	require.NoError(t, writerTx.Rollback())
+
+	got, err := ds.Policy(ctx, pol.ID)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), got.PassingHostCount)
+	assert.Equal(t, uint(1), got.FailingHostCount)
 }

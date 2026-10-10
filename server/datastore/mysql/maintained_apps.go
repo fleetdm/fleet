@@ -386,7 +386,6 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 			{"host software installs", `UPDATE host_software_installs SET software_title_id = ? WHERE software_title_id IN (?)`},
 			{"upcoming install activities", `UPDATE software_install_upcoming_activities SET software_title_id = ? WHERE software_title_id IN (?)`},
 			{"patch policies", `UPDATE IGNORE policies SET patch_software_title_id = ? WHERE patch_software_title_id IN (?)`},
-			{"update schedules", `UPDATE IGNORE software_update_schedules SET title_id = ? WHERE title_id IN (?)`},
 			{"display names", `UPDATE IGNORE software_title_display_names SET software_title_id = ? WHERE software_title_id IN (?)`},
 			{"icons", `UPDATE IGNORE software_title_icons SET software_title_id = ? WHERE software_title_id IN (?)`},
 			{"team pins", `UPDATE IGNORE software_title_team_pins SET title_id = ? WHERE title_id IN (?)`},

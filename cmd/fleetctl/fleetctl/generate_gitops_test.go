@@ -401,6 +401,14 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					FleetMaintainedAppID: new(uint(4)),
 				},
 			},
+			{
+				ID:   12,
+				Name: "My Multi-Version App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID: "4444333322",
+					Platform:   string(fleet.IOSPlatform),
+				},
+			},
 		}, nil
 	case "available_for_install=1&fleet_id=0&order_key=name":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -728,6 +736,47 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				AutoUpdateStartTime: ptr.String("01:00"),
 				AutoUpdateEndTime:   ptr.String("03:00"),
 			},
+		}, nil
+	case 12:
+		if *teamID != 1 {
+			return nil, errors.New("team ID mismatch")
+		}
+		productionConfig, err := json.Marshal(`<dict><key>env</key><string>production</string></dict>`)
+		if err != nil {
+			return nil, err
+		}
+		testConfig, err := json.Marshal(`<dict><key>env</key><string>test</string></dict>`)
+		if err != nil {
+			return nil, err
+		}
+		production := &fleet.VPPAppStoreApp{
+			AdamID:              "4444333322",
+			Platform:            fleet.IOSPlatform,
+			VPPAppsTeamsID:      30,
+			VersionName:         "Production",
+			SelfService:         true,
+			Categories:          []string{"Productivity"},
+			LabelsExcludeAny:    []fleet.SoftwareScopeLabel{{LabelName: "Label C"}},
+			Configuration:       productionConfig,
+			AutoUpdateEnabled:   new(true),
+			AutoUpdateStartTime: new("01:00"),
+			AutoUpdateEndTime:   new("03:00"),
+		}
+		test := &fleet.VPPAppStoreApp{
+			AdamID:           "4444333322",
+			Platform:         fleet.IOSPlatform,
+			VPPAppsTeamsID:   31,
+			VersionName:      "Test",
+			LabelsIncludeAny: []fleet.SoftwareScopeLabel{{LabelName: "Label C"}},
+			Configuration:    testConfig,
+		}
+		return &fleet.SoftwareTitle{
+			ID:                  12,
+			AppStoreApp:         production,
+			AppStoreApps:        []fleet.AppStoreAppVersion{production.AppStoreAppVersion(), test.AppStoreAppVersion()},
+			AutoUpdateEnabled:   new(true),
+			AutoUpdateStartTime: new("01:00"),
+			AutoUpdateEndTime:   new("03:00"),
 		}, nil
 	case 8:
 		return &fleet.SoftwareTitle{
@@ -2167,6 +2216,19 @@ func TestGenerateSoftware(t *testing.T) {
 	} else {
 		t.Fatalf("Expected iOS configuration file not found")
 	}
+
+	// Each version of the multi-version app writes its own configuration file.
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-multi-version-app-ios-production-config.xml"]; ok {
+		require.Equal(t, []byte(`<dict><key>env</key><string>production</string></dict>`), fileContents)
+	} else {
+		t.Fatalf("Expected Production version configuration file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-multi-version-app-ios-test-config.xml"]; ok {
+		require.Equal(t, []byte(`<dict><key>env</key><string>test</string></dict>`), fileContents)
+	} else {
+		t.Fatalf("Expected Test version configuration file not found")
+	}
 }
 
 // TestGenerateSoftwareScriptPackages tests that script packages (.sh and .ps1)
@@ -3193,12 +3255,25 @@ func TestGenerateMDMVPPTokens(t *testing.T) {
 			},
 		},
 		{
-			name: "token assigned to all teams (empty teams slice)",
+			name: "token assigned to all fleets (empty teams slice) is written as All fleets",
 			vppTokens: []*fleet.VPPTokenDB{
 				{
 					ID:       1,
 					Location: "Acme Inc.",
 					Teams:    []fleet.TeamTuple{},
+				},
+			},
+			expected: []fleet.MDMAppleVolumePurchasingProgramInfo{
+				{Location: "Acme Inc.", Teams: []string{fleet.DisplayNameAllTeams}},
+			},
+		},
+		{
+			name: "token assigned to no fleets (nil teams slice) is written with no fleets",
+			vppTokens: []*fleet.VPPTokenDB{
+				{
+					ID:       1,
+					Location: "Acme Inc.",
+					Teams:    nil,
 				},
 			},
 			expected: []fleet.MDMAppleVolumePurchasingProgramInfo{

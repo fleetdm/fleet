@@ -133,7 +133,7 @@ func (s *reenrollTestSuite) TestClearsStateOnReenrollment() {
 	vppApp, err := s.DS.Datastore.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.app.vpp1", Platform: fleet.AndroidPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	installCmdUUID := uuid.NewString()
 	require.NoError(t, s.DS.Datastore.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
