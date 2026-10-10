@@ -1,0 +1,15 @@
+{
+  "name": "QGIS LTR",
+  "slug": "qgis@ltr/windows",
+  "package_identifier": "OSGeo.QGIS_LTR",
+  "unique_identifier": "QGIS LTR",
+  "fuzzy_match_name": true,
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%';",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "ignore_upgrade_code": true,
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/qgis-ltr_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/qgis-ltr_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

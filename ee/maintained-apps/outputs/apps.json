@@ -7184,6 +7184,34 @@
       "description": "QEMU is an open-source machine emulator and virtualizer."
     },
     {
+      "name": "QGIS",
+      "slug": "qgis/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.qgis.qgis3",
+      "description": "QGIS is a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
+    },
+    {
+      "name": "QGIS",
+      "slug": "qgis/windows",
+      "platform": "windows",
+      "unique_identifier": "QGIS",
+      "description": "QGIS is a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
+    },
+    {
+      "name": "QGIS LTR",
+      "slug": "qgis@ltr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.qgis.qgis3",
+      "description": "QGIS LTR is the long-term release of QGIS, a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
+    },
+    {
+      "name": "QGIS LTR",
+      "slug": "qgis@ltr/windows",
+      "platform": "windows",
+      "unique_identifier": "QGIS LTR",
+      "description": "QGIS LTR is the long-term release of QGIS, a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
+    },
+    {
       "name": "QLab",
       "slug": "qlab/darwin",
       "platform": "darwin",

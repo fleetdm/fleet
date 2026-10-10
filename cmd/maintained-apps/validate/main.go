@@ -149,6 +149,7 @@ func run(cfg *Config) error {
 		ac.Name = app.Name
 		ac.Slug = app.Slug
 		ac.UniqueIdentifier = app.UniqueIdentifier
+		ac.ExistsQuery = maintainedApp.AutomaticInstallQuery
 		// default version to maintained app version
 		ac.Version = maintainedApp.Version
 		ac.InstallScript = maintainedApp.InstallScript
@@ -240,7 +241,7 @@ func run(cfg *Config) error {
 			warnApp()
 		}
 
-		existance, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
+		existance, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath, ac.ExistsQuery)
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists: %v", err))
 			appWithError = append(appWithError, ac.Name)
@@ -492,4 +493,16 @@ func validateSqlInput(input string) error {
 	}
 
 	return nil
+}
+
+var programsExistsQueryRegex = regexp.MustCompile(`(?is)^\s*SELECT\s+1\s+FROM\s+programs\s+WHERE\s+(.+?);?\s*$`)
+
+// programsExistsWhereClause returns the WHERE clause of an exists query shaped
+// "SELECT 1 FROM programs WHERE ...", or "" for any other shape.
+func programsExistsWhereClause(existsQuery string) string {
+	m := programsExistsQueryRegex.FindStringSubmatch(existsQuery)
+	if m == nil {
+		return ""
+	}
+	return m[1]
 }
