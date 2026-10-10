@@ -1,0 +1,1 @@
+- Fixed Fleet treating Arch Linux, Arch Linux ARM, Manjaro, Manjaro ARM, CachyOS, and Omarchy hosts as eligible for disk encryption key escrow in the host API and escrow endpoint while the disk encryption summary, host filters, and UI did not. Escrow eligibility is now defined once (Ubuntu, Kubuntu, Zorin OS, and Fedora) and shared by all of them.

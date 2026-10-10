@@ -3763,7 +3763,7 @@ var luksVerifyQuery = DetailQuery{
 		discoveryTable("cryptsetup_luks_salt"),
 	),
 	QueryFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
-		if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" || !host.IsLUKSSupported() {
+		if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" || !fleet.IsLinux(host.Platform) {
 			return "", false
 		}
 
@@ -3830,7 +3830,7 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 		ds fleet.Datastore,
 		rows []map[string]string,
 	) error {
-		if len(rows) == 0 || host == nil || !host.IsLUKSSupported() {
+		if len(rows) == 0 || host == nil || !fleet.IsLinux(host.Platform) {
 			return nil
 		}
 

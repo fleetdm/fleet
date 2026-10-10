@@ -4904,6 +4904,14 @@ func TestHostEncryptionKey(t *testing.T) {
 		key, err = svc.HostEncryptionKey(ctx, 1, false)
 		require.NoError(t, err)
 		require.Equal(t, passphrase, key.DecryptedValue)
+
+		// a Linux host that is no longer eligible for new escrows keeps its stored key readable
+		host.Platform = "arch"
+		svc, ctx = newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+		key, err = svc.HostEncryptionKey(ctx, 1, false)
+		require.NoError(t, err)
+		require.Equal(t, passphrase, key.DecryptedValue)
 	})
 
 	t.Run("decryption failure returns user message error", func(t *testing.T) {
