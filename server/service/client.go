@@ -1019,31 +1019,35 @@ func (c *Client) ApplyGroup(
 					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", app.AppStoreID, app.Icon.Path, err)
 				}
 
-				appConfig, err := getAppStoreAppConfig(app.Platform, app.Configuration.Path)
-				if err != nil {
-					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", app.AppStoreID, app.Configuration.Path, err)
-				}
+				for _, version := range app.ListVersions() {
+					var appConfig json.RawMessage
+					appConfig, err = getAppStoreAppConfig(app.Platform, version.Configuration.Path)
+					if err != nil {
+						return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", app.AppStoreID, version.Configuration.Path, err)
+					}
 
-				payload := fleet.VPPBatchPayload{
-					AppStoreID:          app.AppStoreID,
-					SelfService:         app.SelfService,
-					InstallDuringSetup:  installDuringSetup,
-					LabelsExcludeAny:    app.LabelsExcludeAny,
-					LabelsIncludeAny:    app.LabelsIncludeAny,
-					LabelsIncludeAll:    app.LabelsIncludeAll,
-					Categories:          app.Categories,
-					DisplayName:         app.DisplayName,
-					IconPath:            app.Icon.Path,
-					IconHash:            iconHash,
-					Platform:            fleet.InstallableDevicePlatform(app.Platform),
-					AutoUpdateEnabled:   app.AutoUpdateEnabled,
-					AutoUpdateStartTime: app.AutoUpdateStartTime,
-					AutoUpdateEndTime:   app.AutoUpdateEndTime,
+					payload := fleet.VPPBatchPayload{
+						AppStoreID:          app.AppStoreID,
+						VersionName:         version.Name,
+						SelfService:         version.SelfService,
+						InstallDuringSetup:  installDuringSetup,
+						LabelsExcludeAny:    version.LabelsExcludeAny,
+						LabelsIncludeAny:    version.LabelsIncludeAny,
+						LabelsIncludeAll:    version.LabelsIncludeAll,
+						Categories:          version.Categories,
+						DisplayName:         app.DisplayName,
+						IconPath:            app.Icon.Path,
+						IconHash:            iconHash,
+						Platform:            fleet.InstallableDevicePlatform(app.Platform),
+						AutoUpdateEnabled:   version.AutoUpdateEnabled,
+						AutoUpdateStartTime: version.AutoUpdateStartTime,
+						AutoUpdateEndTime:   version.AutoUpdateEndTime,
+					}
+					if appConfig != nil {
+						payload.Configuration = appConfig
+					}
+					appPayloads = append(appPayloads, payload)
 				}
-				if appConfig != nil {
-					payload.Configuration = appConfig
-				}
-				appPayloads = append(appPayloads, payload)
 
 				// can be referenced by setup_experience.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
@@ -2888,24 +2892,31 @@ func (c *Client) DoGitOps(
 			return nil, errors.New("controls.windows_settings.require_bitlocker_pin and controls.windows_require_bitlocker_pin cannot both be set")
 		}
 
-		enableRecoveryLockPassword := false
+		enableDiskEncryption, ok := incoming.Controls.EnableDiskEncryption.(bool)
+		if incoming.Controls.EnableDiskEncryption != nil && !ok {
+			return nil, errors.New("controls.enable_disk_encryption must be a boolean")
+		}
+		enableRecoveryLockPassword, ok := incoming.Controls.EnableRecoveryLockPassword.(bool)
+		if incoming.Controls.EnableRecoveryLockPassword != nil && !ok {
+			return nil, errors.New("controls.enable_recovery_lock_password must be a boolean")
+		}
 		requireBitLockerPIN := windowsSettings.RequireBitLockerPIN.Value
-		if incoming.Controls.EnableDiskEncryption != nil {
-			mdmAppConfig["enable_disk_encryption"] = incoming.Controls.EnableDiskEncryption.(bool)
-		}
-		if incoming.Controls.EnableRecoveryLockPassword != nil {
-			enableRecoveryLockPassword = incoming.Controls.EnableRecoveryLockPassword.(bool)
-		}
 		if incoming.Controls.RequireBitLockerPIN != nil {
-			requireBitLockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
+			requireBitLockerPIN, ok = incoming.Controls.RequireBitLockerPIN.(bool)
+			if !ok {
+				return nil, errors.New("controls.windows_require_bitlocker_pin must be a boolean")
+			}
 			mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
+		}
+		if incoming.Controls.EnableDiskEncryption != nil {
+			mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
 		}
 
 		// BitLocker PIN needs Windows encryption on; deprecated flat toggle is the fallback when the per-platform key is unset.
 		if requireBitLockerPIN {
 			windowsDiskEncryption := windowsSettings.EnableDiskEncryption.Value
 			if !windowsSettings.EnableDiskEncryption.Set && incoming.Controls.EnableDiskEncryption != nil {
-				windowsDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
+				windowsDiskEncryption = enableDiskEncryption
 			}
 			if !windowsDiskEncryption {
 				return nil, errors.New("controls.windows_settings.enable_disk_encryption must be true if controls.windows_settings.require_bitlocker_pin is true")
@@ -3252,28 +3263,32 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", appStoreApp.AppStoreID, appStoreApp.Icon.Path, err)
 			}
 
-			appConfig, err := getAppStoreAppConfig(appStoreApp.Platform, appStoreApp.Configuration.Path)
-			if err != nil {
-				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", appStoreApp.AppStoreID, appStoreApp.Configuration.Path, err)
-			}
+			for _, version := range appStoreApp.ListVersions() {
+				var appConfig json.RawMessage
+				appConfig, err = getAppStoreAppConfig(appStoreApp.Platform, version.Configuration.Path)
+				if err != nil {
+					return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", appStoreApp.AppStoreID, version.Configuration.Path, err)
+				}
 
-			payload := fleet.VPPBatchPayload{
-				AppStoreID:          appStoreApp.AppStoreID,
-				SelfService:         appStoreApp.SelfService,
-				InstallDuringSetup:  &installDuringSetup,
-				DisplayName:         appStoreApp.DisplayName,
-				IconPath:            appStoreApp.Icon.Path,
-				IconHash:            iconHash,
-				Platform:            fleet.InstallableDevicePlatform(appStoreApp.Platform),
-				AutoUpdateEnabled:   appStoreApp.AutoUpdateEnabled,
-				AutoUpdateStartTime: appStoreApp.AutoUpdateStartTime,
-				AutoUpdateEndTime:   appStoreApp.AutoUpdateEndTime,
-				Categories:          appStoreApp.Categories,
+				payload := fleet.VPPBatchPayload{
+					AppStoreID:          appStoreApp.AppStoreID,
+					VersionName:         version.Name,
+					SelfService:         version.SelfService,
+					InstallDuringSetup:  &installDuringSetup,
+					DisplayName:         appStoreApp.DisplayName,
+					IconPath:            appStoreApp.Icon.Path,
+					IconHash:            iconHash,
+					Platform:            fleet.InstallableDevicePlatform(appStoreApp.Platform),
+					AutoUpdateEnabled:   version.AutoUpdateEnabled,
+					AutoUpdateStartTime: version.AutoUpdateStartTime,
+					AutoUpdateEndTime:   version.AutoUpdateEndTime,
+					Categories:          version.Categories,
+				}
+				if appConfig != nil {
+					payload.Configuration = appConfig
+				}
+				appsPayload = append(appsPayload, payload)
 			}
-			if appConfig != nil {
-				payload.Configuration = appConfig
-			}
-			appsPayload = append(appsPayload, payload)
 		}
 	}
 

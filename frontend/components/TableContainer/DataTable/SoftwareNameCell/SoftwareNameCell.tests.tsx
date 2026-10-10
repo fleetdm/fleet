@@ -351,4 +351,86 @@ describe("SoftwareNameCell icon rendering", () => {
     expect(screen.queryByTestId("refresh-icon")).toBeNull();
     expect(screen.queryByTestId("automatic-self-service-icon")).toBeNull();
   });
+
+  describe("configuration icon with version-name tooltip", () => {
+    it("renders the settings icon when deliveredVersionName is set", () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <SoftwareNameCell
+          {...defaultProps}
+          hasInstaller
+          isIosOrIpadosApp
+          isAppStoreApp
+          deliveredVersionName="Production"
+        />
+      );
+      expect(screen.getByTestId("settings-icon")).toBeInTheDocument();
+    });
+
+    it("shows the version name in the tooltip on hover", async () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <SoftwareNameCell
+          {...defaultProps}
+          hasInstaller
+          isIosOrIpadosApp
+          isAppStoreApp
+          deliveredVersionName="Production"
+        />
+      );
+      await userEvent.hover(screen.getByTestId("settings-icon"));
+      expect(await screen.findByText("Production")).toBeInTheDocument();
+    });
+
+    it("omits the icon when deliveredVersionName is unset", () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <SoftwareNameCell
+          {...defaultProps}
+          hasInstaller
+          isIosOrIpadosApp
+          isAppStoreApp
+        />
+      );
+      expect(screen.queryByTestId("settings-icon")).toBeNull();
+    });
+
+    it("renders alongside the install icon without replacing it", () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <SoftwareNameCell
+          {...defaultProps}
+          hasInstaller
+          isSelfService
+          isIosOrIpadosApp
+          isAppStoreApp
+          deliveredVersionName="Beta"
+        />
+      );
+      expect(screen.getByTestId("user-icon")).toBeInTheDocument();
+      expect(screen.getByTestId("settings-icon")).toBeInTheDocument();
+    });
+
+    // Keyboard + screen-reader users can't trigger a mouse-hover tooltip, so
+    // the version name is exposed via role=img + aria-label on the badge
+    // wrapper. The parent LinkCell anchor is focusable; focusing it surfaces
+    // the aria-label through the accessible name computation.
+    it("exposes the version name as accessible text (no mouse needed)", () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <SoftwareNameCell
+          {...defaultProps}
+          hasInstaller
+          isIosOrIpadosApp
+          isAppStoreApp
+          deliveredVersionName="Production"
+        />
+      );
+      expect(
+        screen.getByRole("img", {
+          name: /Managed configuration delivered: Production/i,
+        })
+      ).toBeInTheDocument();
+    });
+  });
 });

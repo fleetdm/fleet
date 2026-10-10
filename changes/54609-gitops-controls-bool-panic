@@ -1,0 +1,1 @@
+- Fixed a `fleetctl gitops` crash when `controls.enable_disk_encryption`, `controls.enable_recovery_lock_password`, or `controls.windows_require_bitlocker_pin` is set to a non-boolean value; it now returns a validation error.

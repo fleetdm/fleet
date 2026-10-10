@@ -127,7 +127,9 @@ const SoftwareFiltersModal = ({
     }
     // A 0-10 range clears the severity filter rather than submitting bounds
     // that narrow nothing — severityFilters comes back empty for it.
-    const { min, max } = severityFilters(formData);
+    const { min, max } = vulnSoftwareFilterEnabled
+      ? severityFilters(formData)
+      : {};
 
     onSubmit({
       vulnerable: vulnSoftwareFilterEnabled,

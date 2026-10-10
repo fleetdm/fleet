@@ -436,6 +436,22 @@ func TestCleanupHostScriptResultsCronJob(t *testing.T) {
 	})
 }
 
+func TestCleanupHostCertificatesCronJob(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	ds := new(mock.Store)
+	var cutoff time.Time
+	ds.CleanupSoftDeletedHostCertificatesFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
+		cutoff = olderThan
+		return 0, nil
+	}
+
+	require.NoError(t, cleanupHostCertificatesCronJob(t.Context(), ds, logger, 0))
+	require.False(t, ds.CleanupSoftDeletedHostCertificatesFuncInvoked, "zero retention disables the cleanup")
+
+	require.NoError(t, cleanupHostCertificatesCronJob(t.Context(), ds, logger, 30*24*time.Hour))
+	require.WithinDuration(t, time.Now().Add(-30*24*time.Hour), cutoff, time.Minute)
+}
+
 func TestCleanupExpiredHostsCronJob(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 

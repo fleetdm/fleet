@@ -767,6 +767,7 @@ import OptimusPlayer from "./png/OptimusPlayer.png";
 import OrbStack from "./png/OrbStack.png";
 import OrigamiStudio from "./png/OrigamiStudio.png";
 import Orion from "./png/Orion.png";
+import Outset from "./png/Outset.png";
 import P4V from "./png/P4V.png";
 import Pacifist from "./png/Pacifist.png";
 import PaintDotNet from "./png/PaintDotNet.png";
@@ -1059,7 +1060,6 @@ import UltimakerCura from "./png/UltimakerCura.png";
 import Unclutter from "./png/Unclutter.png";
 import Unicodechecker from "./png/Unicodechecker.png";
 import UnityHub from "./png/UnityHub.png";
-import Updf from "./png/Updf.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
 import Utm from "./png/Utm.png";
@@ -1951,6 +1951,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   orbstack: OrbStack,
   "origami studio": OrigamiStudio,
   orion: Orion,
+  outset: Outset,
   p4v: P4V,
   pacifist: Pacifist,
   package: Package,
@@ -2252,7 +2253,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   unclutter: Unclutter,
   unicodechecker: Unicodechecker,
   "unity hub": UnityHub,
-  updf: Updf,
   upscayl: Upscayl,
   usage: UsageApp,
   utm: Utm,

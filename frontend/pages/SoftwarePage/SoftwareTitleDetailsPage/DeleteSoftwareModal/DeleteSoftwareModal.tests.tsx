@@ -83,4 +83,26 @@ describe("DeleteSoftwareModal", () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  describe("multi-version title (App Store app)", () => {
+    it("renders the 'Delete version' title when a versionId is passed", () => {
+      renderModal({ versionId: 7 });
+      expect(screen.getByText("Delete version")).toBeInTheDocument();
+      expect(screen.queryByText("Delete software")).not.toBeInTheDocument();
+    });
+
+    it("suppresses the custom-metadata warning on a non-last version delete", () => {
+      renderModal({ versionId: 7, isLastVersion: false });
+      expect(
+        screen.queryByText("Custom icon and display name will be deleted.")
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows the custom-metadata warning when deleting the last remaining version", () => {
+      renderModal({ versionId: 7, isLastVersion: true });
+      expect(
+        screen.getByText("Custom icon and display name will be deleted.")
+      ).toBeVisible();
+    });
+  });
 });
