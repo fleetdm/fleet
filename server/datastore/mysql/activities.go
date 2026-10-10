@@ -1186,7 +1186,8 @@ func (ds *Datastore) reapStuckActivatedMDMInstallsForHost(ctx context.Context, h
 	SELECT
 		ua.execution_id,
 		ua.activity_type,
-		COALESCE(JSON_EXTRACT(ua.payload, '$.from_auto_update') = 1, 0) AS from_auto_update
+		COALESCE(JSON_EXTRACT(ua.payload, '$.from_auto_update') = 1, 0) AS from_auto_update,
+		COALESCE(JSON_EXTRACT(ua.payload, '$.from_configuration_resend') = 1, 0) AS from_configuration_resend
 	FROM
 		upcoming_activities ua
 	WHERE
@@ -1194,9 +1195,10 @@ func (ds *Datastore) reapStuckActivatedMDMInstallsForHost(ctx context.Context, h
 	ORDER BY ua.id`
 
 	type reapableInstall struct {
-		ExecutionID    string `db:"execution_id"`
-		ActivityType   string `db:"activity_type"`
-		FromAutoUpdate bool   `db:"from_auto_update"`
+		ExecutionID             string `db:"execution_id"`
+		ActivityType            string `db:"activity_type"`
+		FromAutoUpdate          bool   `db:"from_auto_update"`
+		FromConfigurationResend bool   `db:"from_configuration_resend"`
 	}
 
 	var reaped []fleet.ReapedMDMInstall
@@ -1269,6 +1271,7 @@ WHERE command_uuid = ?
 					return ctxerr.Wrap(ctx, err, "get past activity data for reaped app store app install")
 				}
 				act.FromAutoUpdate = inst.FromAutoUpdate
+				act.FromConfigurationResend = inst.FromConfigurationResend
 				entry.User, entry.AppStoreActivity = user, act
 			case softwareTypeInHouseApp:
 				user, act, err := ds.getPastActivityDataForInHouseAppInstallDB(ctx, tx, cmdResults)
@@ -1726,7 +1729,7 @@ func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx s
 INSERT INTO
 	host_vpp_software_installs
 (host_id, adam_id, platform, command_uuid,
-	user_id, associated_event_id, self_service, policy_id)
+	user_id, associated_event_id, self_service, policy_id, vpp_app_team_id)
 SELECT
 	ua.host_id,
 	vaua.adam_id,
@@ -1735,7 +1738,8 @@ SELECT
 	ua.user_id,
 	ua.payload->>'$.associated_event_id',
 	COALESCE(ua.payload->'$.self_service', 0),
-	vaua.policy_id
+	vaua.policy_id,
+	vaua.vpp_app_team_id
 FROM
 	upcoming_activities ua
 	INNER JOIN vpp_app_upcoming_activities vaua

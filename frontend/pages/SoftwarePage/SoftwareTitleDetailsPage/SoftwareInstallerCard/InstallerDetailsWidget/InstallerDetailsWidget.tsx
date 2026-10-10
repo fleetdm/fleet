@@ -80,6 +80,15 @@ interface IInstallerDetailsWidgetProps {
    * etc.). Used when the widget is embedded somewhere that already conveys the type
    * (e.g. LibraryItemAccordion, where the icon + container do the same work). */
   hideInstallerType?: boolean;
+  /** Override the auto-picked icon. Used for App Store app version rows
+   * where the row represents a configuration (not an app), so the icon
+   * reads as a configuration profile instead of the store badge. */
+  graphicOverride?: import("components/graphics").GraphicNames;
+  /** Suppress the version-chip tooltip (e.g. "Updated every hour." for App
+   * Store, Play Store link for Android). Used on App Store app version rows
+   * where the parent screen already surfaces that tooltip in the app
+   * metadata header above the list. */
+  hideVersion?: boolean;
   /** Suppress every hover tooltip the widget would normally render (title
    * truncation, FMA "change in Actions > Edit" hint, App Store "Updated every
    * hour", Android Play Store link, "Fleet couldn't read the version", and the
@@ -104,10 +113,13 @@ const InstallerDetailsWidget = ({
   customDetails,
   hideInstallerType = false,
   disableTooltips = false,
+  graphicOverride,
+  hideVersion = false,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
   const renderIcon = () => {
+    if (graphicOverride) return <Graphic name={graphicOverride} />;
     if (installerType === "app-store") {
       if (androidPlayStoreId) {
         return <SoftwareIcon name="androidPlayStore" size="medium" />;
@@ -129,8 +141,16 @@ const InstallerDetailsWidget = ({
     // separator is added by the caller so that callers who suppress the
     // preceding type label don't get a stray middot.
     const renderVersionChip = (): React.ReactNode => {
-      // Hide version info from script package and Android Play Store web apps
-      if (isScriptPackage || isAndroidWebApp(androidPlayStoreId)) {
+      // Hide version info entirely — script packages, Android Play Store web
+      // apps, and callers that explicitly suppress it (e.g. App Store app
+      // version rows, which show the version in the title header above).
+      // Returning null here also drops the leading " • " separator in the
+      // joined `parts` array below.
+      if (
+        hideVersion ||
+        isScriptPackage ||
+        isAndroidWebApp(androidPlayStoreId)
+      ) {
         return null;
       }
 

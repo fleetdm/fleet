@@ -388,6 +388,9 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, _ uint, _ []string) (map[string]uint, error) {
 		return nil, nil
 	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
 
 	svc := newTestService(t, ds)
 

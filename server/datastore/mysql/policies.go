@@ -1882,7 +1882,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				SELECT NULL si_id, vat.id vat_id FROM vpp_apps_teams vat
 				JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 				WHERE global_or_team_id = ? AND title_id = ?
-				ORDER BY si_id IS NULL, si_id ASC
+				ORDER BY si_id IS NULL, si_id ASC, vat_id ASC
 				LIMIT 1`,
 			teamNameToID[spec.Team], spec.SoftwareTitleID, teamNameToID[spec.Team], spec.SoftwareTitleID)
 		if err != nil {

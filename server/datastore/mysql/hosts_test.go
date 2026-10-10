@@ -133,6 +133,7 @@ func TestHosts(t *testing.T) {
 		{"LoadHostByNodeKeyLoadsDisk", testLoadHostByNodeKeyLoadsDisk},
 		{"LoadHostByNodeKeyUsesStmt", testLoadHostByNodeKeyUsesStmt},
 		{"HostsListBySoftware", testHostsListBySoftware},
+		{"HostsListByInstallerAndVPPVersion", testHostsListByInstallerAndVPPVersion},
 		{"HostsListBySoftwareChangedAt", testHostsListBySoftwareChangedAt},
 		{"HostsListByOperatingSystemID", testHostsListByOperatingSystemID},
 		{"HostsListByOSNameAndVersion", testHostsListByOSNameAndVersion},
@@ -5082,6 +5083,219 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	// unknown software_title_id
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareTitleIDFilter: ptr.Uint(fooTitleID + 100)}, 0)
 	require.Len(t, hosts, 0)
+}
+
+func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	mkHost := func(i int) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(fmt.Sprintf("ivv-%d", i)),
+			NodeKey:         new(fmt.Sprintf("ivv-key-%d", i)),
+			UUID:            fmt.Sprintf("ivv-uuid-%d", i),
+			Hostname:        fmt.Sprintf("ivv-host-%d.local", i),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		return h
+	}
+	host1, host2, host3 := mkHost(1), mkHost(2), mkHost(3)
+
+	// Multi-package title with 2 installers.
+	var titleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO software_titles (name, source, extension_for) VALUES (?, 'apps', '')`, "ivv-title")
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+		titleID = uint(id) //nolint:gosec // bounded by test fixture
+		return nil
+	})
+
+	// Shared script_contents row for the installer FK columns.
+	var scriptID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(MD5('ivv')), 'echo')`)
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+		scriptID = uint(id) //nolint:gosec // bounded by test fixture
+		return nil
+	})
+
+	mkInstaller := func(storageID string) uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			// is_active=1 so installerAvailableForInstallForTeamAndTitleID
+			// resolves the title to this installer when status composition kicks in.
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO software_installers
+					(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query, is_active)
+				VALUES (?, ?, '1.0', 'darwin', ?, ?, ?, '', '', 1)`,
+				titleID, storageID+".pkg", storageID, scriptID, scriptID)
+			if err != nil {
+				return err
+			}
+			lid, _ := res.LastInsertId()
+			id = uint(lid) //nolint:gosec // bounded by test fixture
+			return nil
+		})
+		return id
+	}
+	installer1 := mkInstaller("ivv-storage-1")
+	installer2 := mkInstaller("ivv-storage-2")
+
+	linkInstall := func(hostID, installerID uint) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_software_installs
+					(execution_id, host_id, software_installer_id, installer_filename, version, attempt_number)
+				VALUES (?, ?, ?, 'x.pkg', '1.0', 1)`,
+				uuid.NewString(), hostID, installerID)
+			return err
+		})
+	}
+	linkInstall(host1.ID, installer1)
+	linkInstall(host2.ID, installer2)
+
+	hostIDs := func(hs []*fleet.Host) []uint {
+		ids := make([]uint, 0, len(hs))
+		for _, h := range hs {
+			ids = append(ids, h.ID)
+		}
+		return ids
+	}
+
+	// Installer filter narrows to the one host that received installer1.
+	// Tested without a title filter at the datastore layer — transport
+	// enforces the title_id requirement; datastore just applies the EXISTS
+	// clause on host_software_installs.
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		SoftwareInstallerIDFilter: &installer1,
+	}, 1)
+	require.Equal(t, host1.ID, hosts[0].ID)
+	require.NotContains(t, hostIDs(hosts), host3.ID)
+
+	// Switching to installer2 picks up the other host.
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		SoftwareInstallerIDFilter: &installer2,
+	}, 1)
+	require.Equal(t, host2.ID, hosts[0].ID)
+	require.NotContains(t, hostIDs(hosts), host3.ID)
+
+	// Unknown installer id returns 0.
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		SoftwareInstallerIDFilter: new(installer2 + 100),
+	}, 0)
+
+	// Status composition: regression guard for the per-installer ranking fix
+	// in softwareInstallerJoin. host4 FAILED on installer1 (older) and later
+	// INSTALLED installer2. Pre-fix, software_installer_id=installer1 +
+	// software_status=installed matched host4 (the title's latest row was
+	// installer2 installed, and the EXISTS layered on any installer1 history
+	// of any status). Post-fix, the join ranks per-installer, so host4's
+	// latest installer1 row ranks failed_install and the filter excludes it.
+	host4 := mkHost(4)
+	writeInstall := func(hostID, installerID uint, exitCode int, createdAt string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_software_installs
+					(execution_id, host_id, software_title_id, software_installer_id, installer_filename, version, attempt_number, install_script_exit_code, created_at)
+				VALUES (?, ?, ?, ?, 'x.pkg', '1.0', 1, ?, ?)`,
+				uuid.NewString(), hostID, titleID, installerID, exitCode, createdAt)
+			return err
+		})
+	}
+	writeInstall(host4.ID, installer1, 1, "2024-01-01 00:00:00.000000")
+	writeInstall(host4.ID, installer2, 0, "2024-02-01 00:00:00.000000")
+	installed := fleet.SoftwareInstalled
+
+	// installer1 + status=installed: host4's latest installer1 row failed, so
+	// the per-installer ranking excludes it.
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		SoftwareTitleIDFilter:     &titleID,
+		SoftwareInstallerIDFilter: &installer1,
+		SoftwareStatusFilter:      &installed,
+	}, 0)
+
+	// installer2 + status=installed: host4's latest installer2 row succeeded.
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		SoftwareTitleIDFilter:     &titleID,
+		SoftwareInstallerIDFilter: &installer2,
+		SoftwareStatusFilter:      &installed,
+	}, 1)
+	require.Equal(t, host4.ID, hosts[0].ID)
+
+	// Multi-version App Store app title: one vpp_apps row, two vpp_apps_teams
+	// (versions), one host install per version.
+	var vppTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO software_titles (name, source, extension_for) VALUES (?, 'apps', '')`, "ivv-vpp-title")
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+		vppTitleID = uint(id) //nolint:gosec // bounded by test fixture
+		_, err = q.ExecContext(ctx,
+			`INSERT INTO vpp_apps (adam_id, title_id, platform, name, latest_version)
+			VALUES ('ivv-adam', ?, 'darwin', 'ivv-vpp-title', '1.0')`, vppTitleID)
+		return err
+	})
+
+	mkVersion := func(name string) uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name)
+				VALUES ('ivv-adam', 'darwin', 0, ?)`, name)
+			if err != nil {
+				return err
+			}
+			lid, _ := res.LastInsertId()
+			id = uint(lid) //nolint:gosec // bounded by test fixture
+			return nil
+		})
+		return id
+	}
+	version1 := mkVersion("Production")
+	version2 := mkVersion("Beta")
+
+	linkVPPInstall := func(hostID, versionID uint) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_vpp_software_installs
+					(host_id, adam_id, platform, command_uuid, vpp_app_team_id)
+				VALUES (?, 'ivv-adam', 'darwin', ?, ?)`,
+				hostID, uuid.NewString(), versionID)
+			return err
+		})
+	}
+	linkVPPInstall(host1.ID, version1)
+	linkVPPInstall(host2.ID, version2)
+
+	// Version filter narrows to the one host that received version1.
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		AppStoreAppVersionIDFilter: &version1,
+	}, 1)
+	require.Equal(t, host1.ID, hosts[0].ID)
+	require.NotContains(t, hostIDs(hosts), host3.ID)
+
+	// And version2 picks up the other host.
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		AppStoreAppVersionIDFilter: &version2,
+	}, 1)
+	require.Equal(t, host2.ID, hosts[0].ID)
+	require.NotContains(t, hostIDs(hosts), host3.ID)
 }
 
 func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
@@ -10595,7 +10809,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "com.app.deletehosts",
 		LatestVersion:    "1.0.0",
 	}
-	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &team.ID)
+	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &team.ID, nil)
 	require.NoError(t, err)
 
 	cmdUUID := uuid.NewString()

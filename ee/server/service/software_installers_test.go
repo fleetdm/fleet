@@ -553,8 +553,8 @@ func TestInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 		return nil, nil
 	}
-	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
-		return nil, &notFoundError{}
+	ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{}, nil
 	}
 
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -642,7 +642,9 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		}, nil
 	}
 	payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin")}
-	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	err = svc.maintainedAppFromSlug(context.Background(), &payload, nil)
+	require.NoError(t, err)
+	err = svc.softwareInstallerPayloadFromMaintainedApp(context.Background(), &payload, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, payload.URL)
 	assert.Equal(t, onePasswordSHA, payload.SHA256)
@@ -660,7 +662,9 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		}, nil
 	}
 	payload = fleet.SoftwareInstallerPayload{Slug: ptr.String("google-chrome/darwin")}
-	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	err = svc.maintainedAppFromSlug(context.Background(), &payload, nil)
+	require.NoError(t, err)
+	err = svc.softwareInstallerPayloadFromMaintainedApp(context.Background(), &payload, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, payload.URL)
 	assert.Empty(t, payload.SHA256)
@@ -669,9 +673,10 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	assert.True(t, payload.FleetMaintained)
 
 	payload = fleet.SoftwareInstallerPayload{URL: "https://fleetdm.com"}
-	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	err = svc.maintainedAppFromSlug(context.Background(), &payload, nil)
 	require.NoError(t, err)
 	assert.Nil(t, payload.Slug)
+	assert.Nil(t, payload.MaintainedApp)
 	assert.Equal(t, "https://fleetdm.com", payload.URL)
 	assert.Empty(t, payload.SHA256)
 	assert.Empty(t, payload.InstallScript)
@@ -729,11 +734,13 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	for _, vt := range versionPinValidationTests {
 		t.Run(vt.name, func(t *testing.T) {
 			payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin"), RollbackVersion: vt.version}
-			err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+			err = svc.maintainedAppFromSlug(context.Background(), &payload, nil)
 			if vt.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, vt.wantErr)
 			} else {
+				require.NoError(t, err)
+				err = svc.softwareInstallerPayloadFromMaintainedApp(context.Background(), &payload, nil)
 				require.NoError(t, err)
 				// RollbackVersion must be left as the user typed it, including a caret, so the pin expression
 				// survives downstream and is persisted to software_title_team_pins.
@@ -2522,8 +2529,8 @@ func TestSelfServiceInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testi
 	ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) ([]*fleet.SoftwareInstaller, error) {
 		return nil, nil
 	}
-	ds.GetVPPAppByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.VPPApp, error) {
-		return nil, &notFoundError{}
+	ds.ListHostAppStoreAppVersionsFunc = func(_ context.Context, _ *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{}, nil
 	}
 	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.SoftwareInstaller, error) {
 		return nil, &notFoundError{}
@@ -2859,6 +2866,9 @@ func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
 			}
 			return []*fleet.HostSoftwareWithInstaller{{ID: 10}, {ID: 11}}, nil, nil
 		}
+		ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+			return map[uint]*fleet.HostAppStoreAppVersion{}, nil
+		}
 		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 			if fail.installTitle != nil {
 				return nil, fail.installTitle
@@ -2918,6 +2928,9 @@ func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
 		ds.GetSoftwareTitlesForInstallAllFunc = func(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
 			seenMatch = matchQuery
 			return nil, nil, nil
+		}
+		ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+			return map[uint]*fleet.HostAppStoreAppVersion{}, nil
 		}
 		svc, _ := newTestServiceWithMock(t, ds)
 		require.NoError(t, svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil, "zoom"))
@@ -3050,8 +3063,6 @@ func TestBatchSetSoftwareInstallersSkipsURLValidationForScriptPackages(t *testin
 }
 
 func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
-	t.Parallel()
-
 	const (
 		teamID         = uint(1)
 		cachedHash     = "1111111111111111111111111111111111111111111111111111111111111111"
@@ -3127,14 +3138,33 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
-
 			var downloads atomic.Int32
 			installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				downloads.Add(1)
 				_, _ = w.Write([]byte(installerBytes))
 			}))
 			t.Cleanup(installerSrv.Close)
+
+			manifestSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				manifest := ma.FMAManifestFile{
+					Versions: []*ma.FMAManifestApp{{
+						Version:            "1.0",
+						Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+						InstallerURL:       installerSrv.URL + "/zoom.pkg",
+						SHA256:             c.manifestHash,
+						InstallScriptRef:   "installscript",
+						UninstallScriptRef: "uninstallscript",
+					}},
+					Refs: map[string]string{
+						"installscript":   "echo install",
+						"uninstallscript": "echo uninstall",
+					},
+				}
+				_ = json.NewEncoder(w).Encode(manifest)
+			}))
+			t.Cleanup(manifestSrv.Close)
+			dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestSrv.URL, t)
+			dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestSrv.URL, t)
 
 			ds := new(mock.Store)
 			ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
@@ -3174,21 +3204,13 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 
 			payload := &fleet.SoftwareInstallerPayload{
 				Slug: new("zoom/darwin"),
-				URL:  installerSrv.URL + "/zoom.pkg",
 				MaintainedApp: &fleet.MaintainedApp{
 					ID:               7,
 					Name:             "Zoom",
+					Slug:             "zoom/darwin",
 					Platform:         "darwin",
 					UniqueIdentifier: "us.zoom.xos",
-					Version:          "1.0",
-					InstallerURL:     installerSrv.URL + "/zoom.pkg",
-					SHA256:           c.manifestHash,
-					InstallScript:    "echo install",
-					UninstallScript:  "echo uninstall",
 				},
-			}
-			if c.manifestHash != noCheckHash {
-				payload.SHA256 = c.manifestHash
 			}
 
 			svc.softwareBatchUpload("req-uuid", new(teamID), 1, []*fleet.SoftwareInstallerPayload{payload}, false)

@@ -1,0 +1,221 @@
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "react-query";
+
+import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import { ILabelSummary } from "interfaces/label";
+import { IAppStoreAppVersion } from "interfaces/software";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
+import {
+  buildLabelsForPayload,
+  routeVersionNameError,
+} from "pages/SoftwarePage/helpers";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import softwareAPI from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+
+import VersionFormFields, {
+  getEmptyConfigScaffold,
+  IVersionFormData,
+  validateVersionForm,
+  versionToFormData,
+} from "../VersionFormFields";
+
+const baseClass = "edit-version-modal";
+
+interface IEditVersionModalProps {
+  softwareId: number;
+  teamId: number;
+  version: IAppStoreAppVersion;
+  /** Resolved title display name — `version.name` is the admin's version
+   * label (e.g. "Production"), not the app name, so we can't fall back to
+   * it for app-identity copy like the Auto updates help text. */
+  titleDisplayName: string;
+  /** Other version names on this title, used for client-side uniqueness
+   * validation. Excludes the version being edited. */
+  siblingVersionNames: string[];
+  onExit: () => void;
+  onSuccess: () => void;
+}
+
+const EditVersionModal = ({
+  softwareId,
+  teamId,
+  version,
+  titleDisplayName,
+  siblingVersionNames,
+  onExit,
+  onSuccess,
+}: IEditVersionModalProps) => {
+  const queryClient = useQueryClient();
+
+  // Submitting an unmodified scaffold is treated as "no configuration".
+  const emptyScaffold = getEmptyConfigScaffold(version.platform);
+
+  const siblingNamesSet = new Set(
+    siblingVersionNames.map((n) => n.toLowerCase())
+  );
+
+  const [serverErrors, setServerErrors] = useState<IFormErrors | null>(null);
+  const [
+    showPreviewEndUserExperience,
+    setShowPreviewEndUserExperience,
+  ] = useState(false);
+
+  const validate = (data: IVersionFormData): IFormErrors =>
+    validateVersionForm(
+      data,
+      (trimmed) => !siblingNamesSet.has(trimmed.toLowerCase()),
+      version.platform
+    );
+
+  const initialFormData = (() => {
+    const base = versionToFormData(version);
+    // Pre-fill the editor with the scaffold when the stored config is empty.
+    if (!base.configuration) base.configuration = emptyScaffold;
+    return base;
+  })();
+
+  const {
+    formData,
+    setField,
+    commitFields,
+    getError,
+    clearFieldError,
+    validateField,
+    handleSubmit,
+    isSubmitting,
+  } = useFormValidation<IVersionFormData>({
+    initialFormData,
+    validate,
+    serverErrors,
+  });
+
+  const { data: labels } = useQuery<ILabelSummary[], Error>(
+    ["custom_labels", teamId],
+    () => labelsAPI.summary(teamId).then((res) => getCustomLabels(res.labels)),
+    { ...DEFAULT_USE_QUERY_OPTIONS }
+  );
+
+  const onValidSubmit = async (data: IVersionFormData) => {
+    // Empty editor or unmodified scaffold clears the config (null for
+    // iOS/iPadOS, {} for Android). Typing {} into the Android editor is a
+    // deliberate clear, same effect as the scaffold.
+    let configurationPayload: string | Record<string, unknown> | null;
+    if (!data.configuration || data.configuration === emptyScaffold) {
+      configurationPayload = version.platform === "android" ? {} : null;
+    } else {
+      configurationPayload =
+        version.platform === "android"
+          ? (JSON.parse(data.configuration) as Record<string, unknown>)
+          : data.configuration;
+    }
+
+    try {
+      await softwareAPI.editAppStoreAppVersion(softwareId, teamId, version.id, {
+        name: data.name,
+        self_service: data.selfService,
+        categories: data.categories,
+        configuration: configurationPayload,
+        ...buildLabelsForPayload(data, "clear"),
+        auto_update_enabled: data.autoUpdateEnabled,
+        auto_update_window_start:
+          data.autoUpdateEnabled && data.autoUpdateWindowStart
+            ? data.autoUpdateWindowStart
+            : undefined,
+        auto_update_window_end:
+          data.autoUpdateEnabled && data.autoUpdateWindowEnd
+            ? data.autoUpdateWindowEnd
+            : undefined,
+      });
+
+      notify.success(
+        <>
+          Successfully updated <strong>{data.name}</strong>.
+        </>
+      );
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
+      onSuccess();
+    } catch (e) {
+      routeVersionNameError(
+        e,
+        setServerErrors,
+        "Couldn't update. Please try again."
+      );
+    }
+  };
+
+  return (
+    <>
+      <Modal
+        className={baseClass}
+        title="Edit version"
+        onExit={onExit}
+        width="large"
+      >
+        <form
+          className={`${baseClass}__form`}
+          onSubmit={handleSubmit(onValidSubmit)}
+        >
+          <VersionFormFields
+            formData={formData}
+            setField={setField}
+            commitFields={commitFields}
+            getError={getError}
+            clearFieldError={clearFieldError}
+            validateField={validateField}
+            platform={version.platform}
+            appDisplayName={titleDisplayName}
+            labels={labels ?? []}
+            teamId={teamId}
+            onClickPreviewEndUserExperience={() =>
+              setShowPreviewEndUserExperience(true)
+            }
+          />
+
+          <div className="modal-cta-wrap">
+            <GitOpsModeTooltipWrapper
+              position="top"
+              tipOffset={8}
+              entityType="software"
+              renderChildren={(gitOpsDisabled) => (
+                <Button
+                  type="submit"
+                  isLoading={isSubmitting}
+                  disabled={isSubmitting || !!gitOpsDisabled}
+                >
+                  Save
+                </Button>
+              )}
+            />
+            <Button
+              onClick={onExit}
+              variant="secondary"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </Modal>
+      {showPreviewEndUserExperience && (
+        <CategoriesEndUserExperienceModal
+          onCancel={() => setShowPreviewEndUserExperience(false)}
+          teamId={teamId}
+          // Button that opens this is iOS/iPadOS-only (gated in VersionFormFields).
+          isIosOrIpadosApp
+        />
+      )}
+    </>
+  );
+};
+
+export default EditVersionModal;

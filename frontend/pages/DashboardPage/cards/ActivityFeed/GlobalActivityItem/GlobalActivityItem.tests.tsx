@@ -2382,6 +2382,125 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/failed to install/)).toBeInTheDocument();
   });
 
+  // BE sends version_name on macOS activities too ("Default version"), but
+  // #53641 keeps macOS UI unchanged. The suffix should only render for mobile
+  // host_platforms.
+  it("appends the version name on an iOS install_app_store_app activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        host_display_name: "iPhone",
+        host_platform: "ios",
+        version_name: "Production",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/\(Production\)/)).toBeInTheDocument();
+  });
+
+  it("omits the version name on a macOS install_app_store_app activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        host_display_name: "MacBook",
+        host_platform: "darwin",
+        version_name: "Default version",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.queryByText(/\(Default version\)/)).toBeNull();
+  });
+
+  // The self-service and skipped-install branches of installedSoftware both
+  // weave in versionSuffix. Pin both so a future refactor can't drop the suffix
+  // on either path silently.
+  it("appends the version name on a self-service iOS install_app_store_app activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        host_display_name: "iPhone",
+        host_platform: "ios",
+        version_name: "Production",
+        self_service: true,
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/\(Production\)/)).toBeInTheDocument();
+  });
+
+  it("appends the version name on a skipped-install iOS install_app_store_app activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        host_display_name: "iPhone",
+        host_platform: "ios",
+        version_name: "Production",
+        skipped_install: true,
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/\(Production\)/)).toBeInTheDocument();
+  });
+
+  // Parallel suffix logic for add / edit / delete routes through the same
+  // helper; one iOS positive + one macOS negative per activity type covers it.
+  it.each([
+    [ActivityType.AddedAppStoreApp, /added/i],
+    [ActivityType.EditedAppStoreApp, /edited/i],
+    [ActivityType.DeletedAppStoreApp, /deleted/i],
+  ])(
+    "appends the version name on an iOS %s activity",
+    (activityType, verbRe) => {
+      const activity = createMockActivity({
+        type: activityType,
+        actor_full_name: "Test Admin",
+        details: {
+          software_title: "Zoom Workplace",
+          platform: "ios",
+          version_name: "Production",
+        },
+      });
+
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+      expect(screen.getByText(verbRe)).toBeInTheDocument();
+      expect(screen.getByText(/\(Production\)/)).toBeInTheDocument();
+    }
+  );
+
+  it.each([
+    ActivityType.AddedAppStoreApp,
+    ActivityType.EditedAppStoreApp,
+    ActivityType.DeletedAppStoreApp,
+  ])("omits the version name on a macOS %s activity", (activityType) => {
+    const activity = createMockActivity({
+      type: activityType,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        platform: "darwin",
+        version_name: "Default version",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.queryByText(/\(Default version\)/)).toBeNull();
+  });
+
   it("shows software_display_name over software_title for installed_software", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,

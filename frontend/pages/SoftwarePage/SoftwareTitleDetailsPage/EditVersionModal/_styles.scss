@@ -1,0 +1,5 @@
+.edit-version-modal {
+  &__form {
+    @include vertical-modal-layout;
+  }
+}

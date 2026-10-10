@@ -114,7 +114,7 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		}
 		// No managed app configuration → the pre-flight substitution check is a
 		// no-op and this test exercises the license-assignment routing only.
-		ds.GetVPPAppConfigurationFunc = func(_ context.Context, _ fleet.InstallableDevicePlatform, _ string, _ uint) ([]byte, error) {
+		ds.GetVPPAppConfigurationFunc = func(_ context.Context, _ uint) ([]byte, error) {
 			return nil, &notFoundError{}
 		}
 		return ds
