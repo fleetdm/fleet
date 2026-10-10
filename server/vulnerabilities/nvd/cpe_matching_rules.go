@@ -219,6 +219,18 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW != "windows"
 			},
 		},
+		// CVE-2026-26227 and CVE-2026-26228 affect only VLC for Android (Remote Access Server,
+		// fixed in 3.7.0). NVD deferred them, and the VulnCheck CPE data uses target_sw=*,
+		// so desktop VLC below 3.7.0 (the desktop line is 3.0.x) matches as a false positive.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2026-26227": {},
+				"CVE-2026-26228": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW != "android"
+			},
+		},
 		// These vulnerabilities in the MongoDB client incorrectly match
 		// the VS Code extension.
 		CPEMatchingRule{
