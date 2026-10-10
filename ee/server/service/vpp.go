@@ -277,6 +277,11 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			// unlicensed app_store_id fails the dry run instead of the first real
 			// apply of the new team.
 			if dryRun && fleet.IsNotFound(err) {
+				// The team-scoped write check below needs a team ID, so require
+				// global VPP app write access before reading any VPP assets.
+				if err := svc.authz.Authorize(ctx, &fleet.VPPApp{}, fleet.ActionWrite); err != nil {
+					return nil, nil, ctxerr.Wrap(ctx, err, "validating authorization")
+				}
 				return nil, nil, svc.dryRunValidateVPPAssetsForNewTeam(ctx, payloads)
 			}
 			return nil, nil, err

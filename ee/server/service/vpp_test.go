@@ -546,6 +546,64 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 	require.True(t, fleet.IsNotFound(err))
 }
 
+// A dry run for a team that does not exist yet reads the assets of every VPP
+// token, so it must require global software write access first. Anyone who can
+// read teams could otherwise probe which App Store IDs the org has licensed.
+func TestBatchAssociateVPPAppsDryRunNewTeamRequiresWriteAccess(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, common_mysql.NotFound("Team")
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return nil, nil
+	}
+	svc := newTestService(t, ds)
+
+	payloads := []fleet.VPPBatchPayload{{
+		AppStoreID:       "497799835",
+		Platform:         fleet.IOSPlatform,
+		LabelsExcludeAny: []string{},
+		LabelsIncludeAny: []string{},
+		LabelsIncludeAll: []string{},
+		Categories:       []string{},
+	}}
+
+	team1 := func(role string) *fleet.User {
+		return &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: role}}}
+	}
+	tests := []struct {
+		name      string
+		user      *fleet.User
+		forbidden bool
+	}{
+		{"global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false},
+		{"global maintainer", &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}, false},
+		{"global gitops", &fleet.User{GlobalRole: new(fleet.RoleGitOps)}, false},
+		{"global technician", &fleet.User{GlobalRole: new(fleet.RoleTechnician)}, true},
+		{"global observer", &fleet.User{GlobalRole: new(fleet.RoleObserver)}, true},
+		{"team admin", team1(fleet.RoleAdmin), true},
+		{"team gitops", team1(fleet.RoleGitOps), true},
+		{"team observer", team1(fleet.RoleObserver), true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds.ListVPPTokensFuncInvoked = false
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: tt.user})
+			_, _, err := svc.BatchAssociateVPPApps(ctx, "New team", payloads, true)
+			if tt.forbidden {
+				var forbidden *authz.Forbidden
+				require.ErrorAs(t, err, &forbidden)
+				require.False(t, ds.ListVPPTokensFuncInvoked, "VPP tokens must not be read before authorization")
+				return
+			}
+			require.NoError(t, err)
+			require.True(t, ds.ListVPPTokensFuncInvoked)
+		})
+	}
+}
+
 // TestGetVPPTokensScoping verifies that GetVPPTokens returns every token to
 // global readers but scopes the list to a team-scoped user's readable teams
 // (plus "All teams" tokens), without leaking tokens from teams the user can't
