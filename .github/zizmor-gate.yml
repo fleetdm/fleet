@@ -21,7 +21,7 @@ rules:
       - goreleaser-fleet.yaml
   # The template-injection rule stays ENABLED so new workflows are checked, and we waive only the
   # workflows that carry the existing backlog (listed below). We audited every current finding by
-  # trigger and source: none are reachable by untrusted input. There are no pull_request_target /
+  # trigger and source: none are reachable by untrusted input. None of them are pull_request_target /
   # workflow_run / issue_comment workflows; the one issues-triggered workflow
   # (auto-tag-unreleased-bugs.yml) reads the issue body via actions/github-script's context object,
   # never interpolated into a shell. The remaining findings draw only from maintainer-/runner-

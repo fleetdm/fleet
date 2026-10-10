@@ -12,7 +12,8 @@ on:
   # and a pull_request run executes PR-controlled code that could exfiltrate
   # them (log masking doesn't stop e.g. curl to an attacker's server). The
   # PR's config is checked out separately below and treated as data only.
-  pull_request_target:
+  # dangerous-triggers: forks are skipped and PR files are dry-run input only, never executed.
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
     branches:
       - main
     paths:
