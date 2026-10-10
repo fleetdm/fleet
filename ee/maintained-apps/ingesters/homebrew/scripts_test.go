@@ -837,3 +837,16 @@ func TestQuitAndRelaunchDeriveVarNameIdentically(t *testing.T) {
 	require.NotContains(t, quitAndTrackApplicationFunc, `tr '.-' '__'`)
 	require.NotContains(t, relaunchApplicationFunc, `tr '.-' '__'`)
 }
+
+// Custom install scripts carry their own copy of these functions.
+func TestCustomInstallScriptsDoNotUseOldVarNameDerivation(t *testing.T) {
+	scripts, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, scripts)
+
+	for _, path := range scripts {
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		require.NotContains(t, string(b), `tr '.-' '__'`, "%s derives APP_WAS_RUNNING_ the old way", filepath.Base(path))
+	}
+}
