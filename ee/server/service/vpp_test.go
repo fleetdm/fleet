@@ -546,6 +546,52 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 	require.True(t, fleet.IsNotFound(err))
 }
 
+// A dry run for a team that does not exist yet must reject the same payloads
+// the existing-team path rejects, instead of skipping them because no VPP
+// lookup applies. Each case fails before any token is read.
+func TestBatchAssociateVPPAppsDryRunNewTeamValidatesPayloads(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, common_mysql.NotFound("Team")
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return nil, nil
+	}
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	tests := []struct {
+		name    string
+		payload fleet.VPPBatchPayload
+		wantErr string
+	}{
+		{
+			"unsupported platform",
+			fleet.VPPBatchPayload{AppStoreID: "not-an-adam-id", Platform: fleet.InstallableDevicePlatform("windows")},
+			"platform must be one of",
+		},
+		{
+			"fleet agent on android",
+			fleet.VPPBatchPayload{AppStoreID: fleetAgentPackagePrefix + ".foo", Platform: fleet.AndroidPlatform},
+			"The Fleet agent cannot be added manually",
+		},
+		{
+			"empty category",
+			fleet.VPPBatchPayload{AppStoreID: "497799835", Platform: fleet.IOSPlatform, Categories: []string{" "}},
+			"name is required",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds.ListVPPTokensFuncInvoked = false
+			_, _, err := svc.BatchAssociateVPPApps(ctx, "New team", []fleet.VPPBatchPayload{tt.payload}, true)
+			require.ErrorContains(t, err, tt.wantErr)
+			require.False(t, ds.ListVPPTokensFuncInvoked)
+		})
+	}
+}
+
 // A dry run for a team that does not exist yet reads the assets of every VPP
 // token, so it must require global software write access first. Anyone who can
 // read teams could otherwise probe which App Store IDs the org has licensed.

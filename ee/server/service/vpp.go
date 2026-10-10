@@ -193,19 +193,45 @@ func (svc *Service) getVPPTokenInfo(ctx context.Context, teamID *uint) (vppToken
 
 var isAdamID = regexp.MustCompile(`^[0-9]+$`)
 
-// dryRunValidateVPPAssetsForNewTeam is the dry-run stand-in for the asset check
-// in BatchAssociateVPPApps when the target team does not exist yet. The team's
-// own token cannot be resolved before the team is created, so every Apple App
-// Store app in payloads is checked against the assets of every unexpired VPP
-// token. An app missing from all of them is reported with the same error a
-// real apply returns, so `fleetctl gitops --dry-run` catches a wrong or
-// unlicensed app_store_id before anything is changed. Play Store entries are
-// not VPP assets and are ignored.
+// validateVPPBatchPayloadPlatform holds the payload checks that need no team
+// context, so the dry run for a not-yet-created team can apply them too.
+func validateVPPBatchPayloadPlatform(platform fleet.InstallableDevicePlatform, appStoreID string) error {
+	if !platform.SupportsAppStoreApps() {
+		return fleet.NewInvalidArgumentError("app_store_apps.platform",
+			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
+	}
+
+	// Block Fleet Agent apps from being added via GitOps
+	if platform == fleet.AndroidPlatform && strings.HasPrefix(appStoreID, fleetAgentPackagePrefix) {
+		return fleet.NewInvalidArgumentError("app_store_id", "The Fleet agent cannot be added manually. "+
+			"It is automatically managed by Fleet when Android MDM is enabled.")
+	}
+	return nil
+}
+
+// dryRunValidateVPPAssetsForNewTeam is the dry-run stand-in for the payload and
+// asset checks in BatchAssociateVPPApps when the target team does not exist
+// yet. The team's own token cannot be resolved before the team is created, so
+// every Apple App Store app in payloads is checked against the assets of every
+// unexpired VPP token. An app missing from all of them is reported with the
+// same error a real apply returns, so `fleetctl gitops --dry-run` catches a
+// wrong or unlicensed app_store_id before anything is changed. Play Store
+// entries are not VPP assets and are only validated, not looked up.
 func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, payloads []fleet.VPPBatchPayload) error {
 	var wanted []string
 	seen := map[string]struct{}{}
 	for _, payload := range payloads {
-		if payload.Platform == fleet.AndroidPlatform || !isAdamID.MatchString(payload.AppStoreID) {
+		if err := trimAndValidateCategories(ctx, payload.Categories); err != nil {
+			return ctxerr.Wrap(ctx, err, "validating app store app categories")
+		}
+		platform := payload.Platform
+		if platform == "" {
+			platform = fleet.MacOSPlatform
+		}
+		if err := validateVPPBatchPayloadPlatform(platform, payload.AppStoreID); err != nil {
+			return err
+		}
+		if platform == fleet.AndroidPlatform {
 			continue
 		}
 		if _, dup := seen[payload.AppStoreID]; dup {
@@ -433,15 +459,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			if payload.Platform == "" {
 				payload.Platform = fleet.MacOSPlatform
 			}
-			if !payload.Platform.SupportsAppStoreApps() {
-				return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.platform",
-					fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
-			}
-
-			// Block Fleet Agent apps from being added via GitOps
-			if payload.Platform == fleet.AndroidPlatform && strings.HasPrefix(payload.AppStoreID, fleetAgentPackagePrefix) {
-				return nil, nil, fleet.NewInvalidArgumentError("app_store_id", "The Fleet agent cannot be added manually. "+
-					"It is automatically managed by Fleet when Android MDM is enabled.")
+			if err := validateVPPBatchPayloadPlatform(payload.Platform, payload.AppStoreID); err != nil {
+				return nil, nil, err
 			}
 
 			if payload.Platform == fleet.MacOSPlatform && ptr.ValOrZero(payload.InstallDuringSetup) && manualAgentInstall {
